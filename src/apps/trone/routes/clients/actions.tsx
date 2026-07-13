@@ -6,7 +6,7 @@ import { useClients, clientsStore } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { type Service } from '../../../../shared/catalog';
 import {
-  invoicesStore, useCashboxes, invoiceTotal,
+  invoicesStore, useCashboxes, invoiceTotal, PAYMENT_METHODS,
   type Invoice, type InvoiceLine, type PaymentMethod,
 } from '../../../../shared/finance';
 import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
@@ -47,7 +47,7 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
 
 /* ---------- Encaisser un RDV — Tableau de bord / Calendrier / Carnet ---------- */
 
-const PAY_METHODS: PaymentMethod[] = ['MTN MoMo', 'Moov', 'Espèces', 'Carte', 'Lien WhatsApp'];
+const PAY_METHODS: PaymentMethod[] = PAYMENT_METHODS;
 
 export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
   const { branch, currency } = useBranch();

@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, PAYMENT_METHODS, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -37,7 +37,7 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
 }
 
 const DISC_OPTIONS = [0, 5, 10, 15, 20, 25, 30];
-const PAYMENTS: PaymentMethod[] = ['MTN MoMo', 'Moov', 'Espèces', 'Carte', 'Lien WhatsApp'];
+const PAYMENTS: PaymentMethod[] = PAYMENT_METHODS;
 const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
 
 const todayIso = () => {

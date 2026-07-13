@@ -9,6 +9,24 @@ const COPPER = '#B97A4A';
 const INK = '#14141B';
 const SOFT = '#6b6b73';
 
+/** Charge le sceau MND (cuivre) en data-URL pour l'insérer dans le PDF. */
+async function loadSeal(): Promise<string | null> {
+  try {
+    const url = import.meta.env.BASE_URL.replace(/\/$/, '') + '/assets/monograms/mono-copper.png';
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(typeof r.result === 'string' ? r.result : null);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export type PdfLine = { label: string; qty: number; unit: string; total: string };
 
 export type InvoicePdfData = {
@@ -39,16 +57,21 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   const M = 18;
   let y = 22;
 
-  // — Entête —
+  // — Entête (sceau MND + nom de la Maison) —
+  const seal = await loadSeal();
+  if (seal) {
+    try { doc.addImage(seal, 'PNG', M, 14, 13, 13); } catch { /* image indisponible */ }
+  }
+  const nameX = seal ? M + 16 : M;
   doc.setFont('times', 'normal');
   doc.setTextColor(INDIGO);
   doc.setFontSize(22);
-  doc.text(d.houseName, M, y);
+  doc.text(d.houseName, nameX, y);
   if (d.houseSub) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(SOFT);
-    doc.text(d.houseSub, M, y + 5);
+    doc.text(d.houseSub, nameX, y + 5);
   }
   // Titre document (droite)
   doc.setFont('times', 'normal');
@@ -172,7 +195,20 @@ export async function summaryPdf(o: {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const M = 18;
-  let y = 24;
+  let y = 20;
+
+  // Sceau MND centré + signature de la Maison
+  const seal = await loadSeal();
+  if (seal) {
+    const s = 20;
+    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s); } catch { /* image indisponible */ }
+    y += s + 3;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(13);
+    doc.setTextColor(COPPER);
+    doc.text('MND', W / 2, y, { align: 'center' });
+    y += 8;
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);

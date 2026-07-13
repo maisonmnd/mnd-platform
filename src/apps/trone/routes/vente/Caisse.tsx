@@ -18,10 +18,15 @@ import './vente.css';
 type CartLine = { qty: number; disc: number };
 
 const PAY_METHODS: { k: PaymentMethod; n: string; sub: string }[] = [
-  { k: 'MTN MoMo', n: 'MTN MoMo', sub: 'Mobile Money · 506846' },
-  { k: 'Moov', n: 'Moov Money', sub: 'Mobile Money · 401122' },
+  { k: 'MTN MoMo', n: 'MTN MoMo', sub: 'Mobile Money' },
+  { k: 'Moov', n: 'Moov Money', sub: 'Mobile Money' },
+  { k: 'Celtis', n: 'Celtis', sub: 'Mobile Money' },
+  { k: 'Wave', n: 'Wave', sub: 'Mobile Money' },
   { k: 'Espèces', n: 'Espèces', sub: 'Caisse' },
   { k: 'Carte', n: 'Carte', sub: 'TPE bancaire' },
+  { k: 'Virement bancaire', n: 'Virement', sub: 'Banque' },
+  { k: 'PayPal', n: 'PayPal', sub: 'Diaspora' },
+  { k: 'Chèque', n: 'Chèque', sub: 'Bancaire' },
   { k: 'Lien WhatsApp', n: 'Lien WhatsApp', sub: 'Paiement à distance' },
 ];
 

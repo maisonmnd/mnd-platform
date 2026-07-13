@@ -2,7 +2,14 @@ import { createStore, useStore } from './store';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
-export type PaymentMethod = 'MTN MoMo' | 'Moov' | 'Espèces' | 'Carte' | 'Lien WhatsApp';
+export type PaymentMethod =
+  | 'MTN MoMo' | 'Moov' | 'Celtis' | 'Wave'
+  | 'Espèces' | 'Carte' | 'Virement bancaire' | 'PayPal' | 'Chèque' | 'Lien WhatsApp';
+
+/** Liste ordonnée des moyens de paiement — source partagée (POS, RDV, factures). */
+export const PAYMENT_METHODS: PaymentMethod[] = [
+  'MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp',
+];
 
 export type InvoiceLine = {
   id: string;
