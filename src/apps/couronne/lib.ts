@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createStore, useStore } from '../../shared/store';
+import { useStore } from '../../shared/store';
+import { useAuth } from '../../shared/auth';
 import {
   useCategories,
   useServices,
@@ -15,34 +16,54 @@ import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin } from '../../shared/settings';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 
-/* Ma Couronne — bibliothèque locale : session, visibilité, dates, créneaux, offres. */
+/* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
 
-/* ---------- Session (persistée : les rechargements restent connectés) ---------- */
+/* ---------- Cliente authentifiée — un compte = un dossier client ---------- */
 
-export type Session = { phone: string; clientId: string; loggedAt: string };
-export const sessionStore = createStore<Session | null>('mnd_couronne_session', null);
+/** Identifiant du client courant : l'utilisateur authentifié (Supabase),
+    sinon un identifiant local stable pour le mode développement sans backend. */
+export function useClientId(): string {
+  const { session } = useAuth();
+  return session?.user?.id ?? 'c-local';
+}
 
-export const CLIENT_ID = 'c-couronne';
-
-/* Maison neuve : la cliente de l'app naît à sa première visite — créée dans le
-   CRM partagé pour que réservations et ponts vers le Trône restent cohérents.
-   (En production réelle, ce profil viendra de l'authentification OTP.) */
-const todaySince = new Date().toISOString().slice(0, 10);
-if (!clientsStore.get().some((c) => c.id === CLIENT_ID)) {
+/** Crée le dossier de la cliente dans le CRM partagé s'il n'existe pas encore
+    (idempotent). Le nom initial dérive de l'e-mail ; il reste éditable au Profil,
+    de sorte que réservations et devis restent liés au bon compte, visibles au Trône. */
+export function ensureClient(clientId: string, email?: string | null): void {
+  if (clientsStore.get().some((c) => c.id === clientId)) return;
   const branchId = branchesStore.get()[0]?.id ?? 'maison';
-  clientsStore.set((prev) => [
-    ...prev,
-    {
-      id: CLIENT_ID, branchId, name: 'Cliente Ma Couronne', phone: '', city: '',
-      persona: 'p-initie', since: todaySince, segments: ['Nouvelle'],
-      priceCoef: 1, loyaltyPoints: 0,
-    },
-  ]);
+  const local = (email ?? '').split('@')[0];
+  const name = local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Ma Couronne';
+  const since = new Date().toISOString().slice(0, 10);
+  clientsStore.set((prev) =>
+    prev.some((c) => c.id === clientId)
+      ? prev
+      : [
+          ...prev,
+          {
+            id: clientId, branchId, name, phone: '', city: '',
+            persona: '', since, segments: ['Nouvelle'],
+            priceCoef: 1, loyaltyPoints: 0,
+          },
+        ]
+  );
+}
+
+/** Garantit l'existence du dossier client dès qu'une session est ouverte. */
+export function useEnsureClient(): string {
+  const { session } = useAuth();
+  const clientId = session?.user?.id ?? 'c-local';
+  useEffect(() => {
+    ensureClient(clientId, session?.user?.email);
+  }, [clientId, session?.user?.email]);
+  return clientId;
 }
 
 export function useClient(): Client | undefined {
   const [clients] = useClients();
-  return clients.find((c) => c.id === CLIENT_ID);
+  const clientId = useClientId();
+  return clients.find((c) => c.id === clientId);
 }
 
 export function firstName(name: string | undefined): string {

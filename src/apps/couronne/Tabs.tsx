@@ -2,13 +2,13 @@ import { asset } from '../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
+import { signOut } from '../../shared/auth';
 import { useAppointments, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { clientsStore } from '../../shared/clients';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice } from '../../shared/finance';
 import { useTiers } from '../../shared/offers';
 import {
-  CLIENT_ID,
   GOLD_AT,
   TIER_GOLD,
   TIER_SILVER,
@@ -16,9 +16,9 @@ import {
   daysSince,
   firstName,
   productMeta,
-  sessionStore,
   todayIso,
   useClient,
+  useClientId,
   useLiveOffers,
   useOfferCountdown,
   useVisibleCatalog,
@@ -35,13 +35,14 @@ type OpenBooking = (prefill?: BookingPrefill) => void;
 /** Tous les rendez-vous de la cliente, du plus ancien au plus récent. */
 function useClientAppointments(): Appointment[] {
   const [appts] = useAppointments();
+  const clientId = useClientId();
   return useMemo(
     () =>
       appts
-        .filter((a) => a.clientId === CLIENT_ID)
+        .filter((a) => a.clientId === clientId)
         .slice()
         .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)),
-    [appts]
+    [appts, clientId]
   );
 }
 
@@ -49,6 +50,7 @@ function useClientAppointments(): Appointment[] {
 function useUpcomingAppointments(): Appointment[] {
   const { branch } = useBranch();
   const [appts] = useAppointments();
+  const clientId = useClientId();
   return useMemo(() => {
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -56,13 +58,13 @@ function useUpcomingAppointments(): Appointment[] {
     return appts
       .filter(
         (a) =>
-          a.clientId === CLIENT_ID &&
+          a.clientId === clientId &&
           a.branchId === branch.id &&
           (a.status === 'confirmé' || a.status === 'en attente') &&
           (a.date > today || (a.date === today && a.time >= nowTime))
       )
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-  }, [appts, branch.id]);
+  }, [appts, branch.id, clientId]);
 }
 
 function useNextAppointment(): Appointment | undefined {
@@ -74,13 +76,14 @@ function useNextAppointment(): Appointment | undefined {
 /** Devis adressés à la cliente : envoyés (à accepter) et acceptés (informatifs). */
 function useClientDevis(): Invoice[] {
   const [invoices] = useInvoices();
+  const clientId = useClientId();
   return useMemo(
     () =>
       invoices
-        .filter((i) => i.clientId === CLIENT_ID && i.kind === 'devis' && (i.status === 'envoyée' || i.status === 'acceptée'))
+        .filter((i) => i.clientId === clientId && i.kind === 'devis' && (i.status === 'envoyée' || i.status === 'acceptée'))
         .slice()
         .sort((a, b) => b.date.localeCompare(a.date)),
-    [invoices]
+    [invoices, clientId]
   );
 }
 
@@ -357,14 +360,14 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
   const { products } = useVisibleCatalog();
 
   return (
-    <div className="mc-pagepad mc-pagepad--top mc-fade">
+    <div className="mc-pagepad mc-pagepad--top mc-fade mc-page--wide">
       <div className="mc-micro-eyebrow">La Gamme · Care & Store</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 4px' }}>Votre rituel.</h1>
       <p className="mc-lead" style={{ margin: '0 0 18px' }}>
         Formules naturelles — moringa, karité, niaouli. Sans silicone ni paraben.
       </p>
 
-      <div className="mc-stack" style={{ gap: 12 }}>
+      <div className="mc-stack mc-productgrid" style={{ gap: 12 }}>
         {products.map((p) => {
           const meta = productMeta(p.id);
           return (
@@ -442,7 +445,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
       {/* paliers de reconnaissance — définis au Trône */}
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>
-      <div className="mc-stack" style={{ gap: 10 }}>
+      <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
         {ladder.map((t) => {
           const svc = services.find((s) => s.id === t.serviceId);
           const on = points >= t.pts;
@@ -472,6 +475,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
 export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
+  const clientId = useClientId();
   const { branch } = useBranch();
 
   const [name, setName] = useState(client?.name ?? '');
@@ -485,13 +489,13 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       return;
     }
     clientsStore.set((prev) =>
-      prev.map((c) => (c.id === CLIENT_ID ? { ...c, name: n, phone: phone.trim(), city: city.trim() } : c))
+      prev.map((c) => (c.id === clientId ? { ...c, name: n, phone: phone.trim(), city: city.trim() } : c))
     );
     toast('Profil enregistré — la maison vous connaît.');
   };
 
   const setMaster = (m: string) => {
-    clientsStore.set((prev) => prev.map((c) => (c.id === CLIENT_ID ? { ...c, preferredMaster: m || undefined } : c)));
+    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, preferredMaster: m || undefined } : c)));
     toast(m ? `${m} vous accueillera en priorité.` : 'La maison choisira votre maître.');
   };
 
@@ -558,7 +562,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       </div>
       <div className="mc-emptyline" style={{ paddingTop: 6 }}>Renseignés par la maison, lors de vos rituels.</div>
 
-      <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => sessionStore.set(null)}>
+      <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => void signOut()}>
         Se déconnecter
       </button>
       <div style={{ height: 12 }} />

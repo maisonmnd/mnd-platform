@@ -21,11 +21,11 @@
   --text-label:   12px; /* eyebrow / label, CAPS */
   --text-micro:   11px;
 
-  /* ---- Graisses ---- */
-  --weight-light:    300;
-  --weight-regular:  400;
-  --weight-medium:   500;
-  --weight-semibold: 600;
+  /* ---- Graisses ---- (rehaussées d'un cran pour la lisibilité) ---- */
+  --weight-light:    400;
+  --weight-regular:  500;
+  --weight-medium:   600;
+  --weight-semibold: 700;
 
   /* ---- Interlignage ---- */
   --lh-display: 0.92; /* @kind other */

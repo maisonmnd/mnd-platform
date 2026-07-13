@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
 import { createStore, uid, useStore } from '../../../../shared/store';
+import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas } from '../../../../shared/clients';
@@ -79,9 +80,11 @@ const FORMS_SEED: ConsultForm[] = [
   ] },
 ];
 
-/* Stores locaux (persistés) propres au module Consultations. */
+/* Stores du module Consultations — synchronisés Supabase (formulaires + archives). */
 const consultFormsStore = createStore<ConsultForm[]>('mnd_consult_forms', FORMS_SEED);
 const dossierArchiveStore = createStore<string[]>('mnd_consult_dossier_arch', []);
+bindCollection(consultFormsStore, 'consult_forms');
+bindDocument(dossierArchiveStore, 'mnd_consult_dossier_arch');
 
 type Tab = 'dossiers' | 'formulaires' | 'enligne';
 const TABS: { k: Tab; label: string }[] = [

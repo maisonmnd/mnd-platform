@@ -26,8 +26,17 @@ const SITES = [
     base: '/trone/',
     apps: 'trone,consultation,certificat',
     rename: { 'trone.html': 'index.html' },
+    // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail).
+    env: { VITE_REQUIRE_AUTH: 'true' },
   },
-  { name: 'couronne', base: '/couronne/', apps: 'couronne', rename: { 'couronne.html': 'index.html' } },
+  {
+    name: 'couronne',
+    base: '/couronne/',
+    apps: 'couronne',
+    rename: { 'couronne.html': 'index.html' },
+    // Connexion cliente obligatoire (OTP e-mail).
+    env: { VITE_REQUIRE_AUTH: 'true' },
+  },
   { name: 'lokaa', base: '/lokaa/', apps: 'lokaa', rename: { 'lokaa.html': 'index.html' } },
   {
     name: 'mnd-platform',

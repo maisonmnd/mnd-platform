@@ -1,11 +1,13 @@
-import { useState, type ReactNode, type FormEvent } from 'react';
+import { useState, useEffect, type ReactNode, type FormEvent } from 'react';
 import { Seal, Button, Field, Input } from '../../../ds/components';
-import { useAuth, requireAuth, signInEmail, signUpEmail } from '../../../shared/auth';
+import { useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff } from '../../../shared/auth';
 import './auth.css';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
    (`requireAuth` faux), l'application s'affiche comme aujourd'hui.
-   Sinon : session présente → l'ERP ; sinon → l'écran de connexion. */
+   Sinon : session + compte rattaché au personnel → l'ERP ; sinon connexion ou
+   écran « en attente d'autorisation » (un compte créé sans rattachement au
+   personnel ne peut pas entrer — le premier compte devient souverain). */
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
@@ -13,6 +15,44 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (!requireAuth) return <>{children}</>;
   if (loading) return <AuthSplash>La Maison s'éveille…</AuthSplash>;
   if (!session) return <Login />;
+  return <StaffGate>{children}</StaffGate>;
+}
+
+/* Vérifie que l'utilisateur connecté est bien rattaché au personnel. */
+function StaffGate({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const [state, setState] = useState<'loading' | 'ok' | 'denied'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    setState('loading');
+    void loadStaff().then((s) => {
+      if (alive) setState(s ? 'ok' : 'denied');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session?.user?.id]);
+
+  if (state === 'loading') return <AuthSplash>Vérification de vos accès…</AuthSplash>;
+  if (state === 'denied') {
+    return (
+      <div className="tra-shell">
+        <div className="tra-card">
+          <Seal color="or" size={40} />
+          <div className="mnd-eyebrow" style={{ marginTop: 8 }}>Accès en attente</div>
+          <h1 className="mnd-serif tra-title">Compte non rattaché.</h1>
+          <p className="tra-lede mnd-muted">
+            Votre compte existe, mais il n'est pas encore rattaché au personnel de la Maison.
+            Un souverain doit vous autoriser depuis Le Trône.
+          </p>
+          <Button variant="ghost" onClick={() => void signOut()} className="tra-submit">
+            Se déconnecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 }
 

@@ -1,14 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
-import { useStore } from '../../shared/store';
-import { sessionStore, type BookingPrefill } from './lib';
+import { asset } from '../../shared/asset';
+import { useAuth, requireAuth, signOut } from '../../shared/auth';
+import { useEnsureClient, type BookingPrefill } from './lib';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
 import { HomeTab, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications } from './Tabs';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
-   Une vraie app : plein écran sur mobile (100dvh, safe-areas),
-   colonne centrée (~480 px) sur fond obsidienne/indigo sur desktop. */
+   Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
+   sur bureau, navigation verticale à gauche et contenu centré large. */
 
 type TabId = 'accueil' | 'suivi' | 'gamme' | 'cercle' | 'profil';
 
@@ -21,6 +22,9 @@ const TABS: { id: TabId; label: string; glyph: string }[] = [
 ];
 
 function Shell() {
+  /* Le dossier de la cliente est garanti dès l'entrée dans l'app. */
+  useEnsureClient();
+
   const [tab, setTab] = useState<TabId>('accueil');
   const [booking, setBooking] = useState<{ prefill?: BookingPrefill } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -58,6 +62,7 @@ function Shell() {
       </div>
 
       <nav className="mc-tabbar">
+        <img className="mc-nav__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -69,6 +74,7 @@ function Shell() {
             <span className="mc-tab__label">{t.label}</span>
           </button>
         ))}
+        <button className="mc-nav__signout" onClick={() => void signOut()}>Se déconnecter</button>
       </nav>
 
       {booking && (
@@ -87,11 +93,26 @@ function Shell() {
 }
 
 export default function App() {
-  const [session] = useStore(sessionStore);
+  const { session, loading } = useAuth();
+
+  /* Splash bref pendant la restauration de session. */
+  if (loading) {
+    return (
+      <div className="mc-app mc-app--auth">
+        <div className="mc-viewport">
+          <div className="mc-splash"><img src={asset('/assets/monograms/mono-copper.png')} alt="" /></div>
+        </div>
+      </div>
+    );
+  }
+
+  /* Verrou : quand l'auth est imposée et qu'aucune session n'existe → connexion.
+     Sans backend (dev local), l'app s'ouvre directement. */
+  const authed = !requireAuth || !!session;
 
   return (
-    <div className="mc-app">
-      <div className="mc-viewport">{session ? <Shell /> : <Onboarding />}</div>
+    <div className={`mc-app mc-app--${authed ? 'shell' : 'auth'}`}>
+      <div className="mc-viewport">{authed ? <Shell /> : <Onboarding />}</div>
     </div>
   );
 }

@@ -448,3 +448,23 @@ export const THEME_DEFAULT: ThemeConfig = {
 
 export const themeStore = createStore<ThemeConfig>('mnd_theme', THEME_DEFAULT);
 export const useTheme = () => useStore(themeStore);
+
+/* ---------- Synchronisation Supabase — tous les magasins de ce module ----------
+   Rien de local : équipe, marketing, abonnements, académie, paramètres maison,
+   thème et accès du personnel remontent en base (collections + documents). */
+import { bindCollection, bindDocument } from '../../../../shared/sync';
+bindCollection(staffStore, 'team');
+bindCollection(campaignsStore, 'campaigns');
+bindCollection(plansStore, 'plans');
+bindCollection(subscribersStore, 'subscribers');
+bindCollection(formationsStore, 'formations');
+bindCollection(apprenantsStore, 'apprenants');
+bindCollection(certifsStore, 'certifications');
+bindDocument(automationsActiveStore, 'mnd_automations_active');
+bindDocument(autoConfigStore, 'mnd_auto_config');
+bindDocument(recoStateStore, 'mnd_reco_state');
+bindDocument(salonHoursStore, 'mnd_salon_hours');
+bindDocument(staffAccessStore, 'mnd_staff_access');
+bindDocument(accessCodesStore, 'mnd_access_codes');
+bindDocument(houseSettingsStore, 'mnd_house_settings');
+bindDocument(themeStore, 'mnd_theme');

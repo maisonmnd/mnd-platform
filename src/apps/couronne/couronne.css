@@ -40,21 +40,17 @@
   overflow: hidden;
 }
 
-/* Desktop VRAI (souris + survol) : colonne centrée (~480 px) sur voile
-   obsidienne, filets discrets, ombre douce. La double condition hover + pointer
-   fin garantit qu'AUCUN écran tactile (pointeur grossier) — même s'il annonce
-   une largeur CSS ≥ 700 px — ne reçoit ce cadrage : le téléphone reste toujours
-   plein écran, bord à bord. La barre d'onglets et les écrans superposés restent
-   alignés à la colonne (positionnés dans .mc-viewport). */
-@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+/* Écrans intermédiaires (tablette large à souris, 700–899 px) : colonne centrée
+   confortable — évite l'étirement avant la vraie mise en page bureau. La double
+   condition hover + pointer fin garantit qu'AUCUN écran tactile (pointeur
+   grossier) ne reçoit ce cadrage : le téléphone reste toujours plein écran. */
+@media (min-width: 700px) and (max-width: 899.98px) and (hover: hover) and (pointer: fine) {
   .mc-app {
     background: var(--color-obsidian);
-    background-image:
-      radial-gradient(circle at 50% -12%, rgba(46, 51, 120, 0.55), transparent 62%),
-      linear-gradient(180deg, rgba(30, 33, 80, 0.22), transparent 45%);
+    background-image: radial-gradient(circle at 50% -12%, rgba(46, 51, 120, 0.55), transparent 62%);
   }
   .mc-viewport {
-    max-width: 480px;
+    max-width: 560px;
     border-left: 1px solid rgba(246, 241, 231, 0.09);
     border-right: 1px solid rgba(246, 241, 231, 0.09);
     box-shadow: 0 0 110px -36px rgba(0, 0, 0, 0.85);
@@ -63,6 +59,14 @@
 
 /* Les médias ne débordent jamais du viewport. */
 .mc-app img { max-width: 100%; }
+
+/* Splash bref (restauration de session). */
+.mc-splash { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--paper); }
+.mc-splash img { width: 46px; height: auto; opacity: 0.9; animation: mc-fade 0.6s var(--ease-soft); }
+
+/* Éléments de navigation réservés au bureau — masqués sur mobile. */
+.mc-nav__seal,
+.mc-nav__signout { display: none; }
 
 /* Focus clavier — anneau cuivre discret, accessibilité sans gêner le tactile. */
 .mc-app button:focus-visible,
@@ -85,10 +89,10 @@
 /* État vierge élégant — réutilisé quand une liste n'a pas encore de données. */
 .mc-emptyzone { text-align: center; padding: 44px 24px 32px; animation: mc-fade 0.3s var(--ease-soft); }
 .mc-emptyzone__glyph { font-family: var(--font-serif); font-size: 42px; color: var(--color-argile); line-height: 1; }
-.mc-emptyzone__t { font-family: var(--font-serif); font-weight: 300; font-size: 23px; color: var(--color-indigo); margin-top: 14px; }
+.mc-emptyzone__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--color-indigo); margin-top: 14px; }
 .mc-emptyzone__s {
   font-size: 12.5px;
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1.55;
   color: var(--ink-soft);
   margin: 8px auto 0;
@@ -131,20 +135,20 @@
 }
 .mc-serif-title {
   font-family: var(--font-serif);
-  font-weight: 300;
+  font-weight: 400;
   font-size: clamp(27px, 8vw, 32px);
   color: var(--color-indigo);
   margin: 6px 0 0;
 }
 .mc-lead {
-  font-weight: 300;
+  font-weight: 400;
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--ink-soft);
   margin: 10px 0 0;
 }
 .mc-hairline { height: 1px; background: var(--hairline); margin: 13px 0; border: none; }
-.mc-emptyline { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); padding: 8px 2px; }
+.mc-emptyline { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); padding: 8px 2px; }
 .mc-footnote { text-align: center; margin-top: 10px; font-size: 11px; color: var(--ink-soft); }
 .mc-form-err { margin-top: 14px; font-size: 12px; color: var(--mc-error); }
 
@@ -270,7 +274,7 @@
 .mc-onb__hero-text { position: absolute; left: 28px; right: 28px; bottom: 26px; }
 .mc-onb__title {
   font-family: var(--font-serif);
-  font-weight: 300;
+  font-weight: 400;
   font-size: clamp(32px, 10.5vw, 44px);
   line-height: 0.96;
   color: var(--color-ivoire);
@@ -278,7 +282,7 @@
 }
 .mc-onb__body { flex: 1; padding: 24px 28px calc(30px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
 .mc-onb__copy {
-  font-weight: 300;
+  font-weight: 400;
   font-size: 14.5px;
   line-height: 1.62;
   color: var(--ink-soft);
@@ -332,7 +336,28 @@
   color: var(--color-indigo);
   letter-spacing: 0.02em;
 }
-.mc-phoneline input::placeholder { font-family: var(--font-sans); font-weight: 300; font-size: 14px; color: var(--ink-soft); }
+.mc-phoneline input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 14px; color: var(--ink-soft); }
+
+/* Ligne e-mail (connexion) — même filet sobre que le téléphone. */
+.mc-emailline {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-indigo);
+  padding: 9px 2px;
+  margin-top: 8px;
+}
+.mc-emailline input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--color-indigo);
+  letter-spacing: 0.01em;
+}
+.mc-emailline input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 14px; color: var(--ink-soft); }
 
 .mc-channels { margin-top: 22px; display: flex; gap: 10px; }
 .mc-channel {
@@ -400,7 +425,7 @@
 .mc-homehero__text { position: absolute; left: 22px; right: 22px; bottom: 20px; }
 .mc-homehero__greet {
   font-family: var(--font-serif);
-  font-weight: 300;
+  font-weight: 400;
   font-size: clamp(30px, 9.5vw, 40px);
   line-height: 1;
   color: var(--color-ivoire);
@@ -450,7 +475,7 @@
   padding: 14px 16px;
   background: var(--color-sable);
   border-radius: 4px;
-  font-weight: 300;
+  font-weight: 400;
   font-size: 13px;
   line-height: 1.55;
   color: var(--ink);
@@ -572,7 +597,7 @@
   white-space: nowrap;
 }
 .mc-nextrdv__service { font-family: var(--font-serif); font-size: 25px; color: var(--color-ivoire); margin-top: 8px; line-height: 1.1; }
-.mc-nextrdv__when { font-size: 13px; font-weight: 300; color: var(--indigo-100); margin-top: 2px; }
+.mc-nextrdv__when { font-size: 13px; font-weight: 400; color: var(--indigo-100); margin-top: 2px; }
 .mc-nextrdv__seal {
   display: inline-block;
   margin-top: 10px;
@@ -596,7 +621,7 @@
 }
 .mc-recocard__body { flex: 1; min-width: 0; }
 .mc-recocard__name { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
-.mc-recocard__line { font-size: 11.5px; font-weight: 300; color: var(--ink-soft); }
+.mc-recocard__line { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-arrowbtn { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--color-indigo); padding: 4px; }
 
 .mc-productvisual {
@@ -660,7 +685,7 @@
 .mc-tl__line { width: 1px; flex: 1; min-height: 26px; background: var(--hairline); }
 .mc-tl__body { padding-bottom: 20px; }
 .mc-tl__t { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); margin-top: 2px; }
-.mc-tl__s { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+.mc-tl__s { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 
 /* histoire vierge — l'invitation au premier rituel */
 .mc-tlempty {
@@ -671,10 +696,10 @@
   text-align: center;
   margin-bottom: 16px;
 }
-.mc-tlempty__t { font-family: var(--font-serif); font-weight: 300; font-size: 23px; color: var(--color-indigo); }
+.mc-tlempty__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--color-indigo); }
 .mc-tlempty__s {
   font-size: 12.5px;
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1.55;
   color: var(--ink-soft);
   margin: 6px auto 18px;
@@ -696,7 +721,7 @@
 }
 .mc-productcard__body { flex: 1; min-width: 0; }
 .mc-productcard__name { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
-.mc-productcard__line { font-size: 11.5px; font-weight: 300; color: var(--ink-soft); }
+.mc-productcard__line { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-productcard__scarce { font-size: 10px; letter-spacing: 0.08em; color: var(--accent-strong); margin-top: 4px; }
 .mc-productcard__side { text-align: right; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .mc-productcard__price { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
@@ -739,7 +764,7 @@
 .mc-pointscard__row { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 14px; }
 .mc-pointscard__big { font-family: var(--font-serif); font-size: clamp(38px, 13vw, 50px); color: var(--color-ivoire); line-height: 1; }
 .mc-pointscard__unit { font-size: 12px; color: var(--indigo-100); }
-.mc-pointscard__hint { font-size: 11px; font-weight: 300; color: var(--indigo-100); margin-top: 8px; }
+.mc-pointscard__hint { font-size: 11px; font-weight: 400; color: var(--indigo-100); margin-top: 8px; }
 
 .mc-smallcta {
   margin-top: 16px;
@@ -772,7 +797,7 @@
 .mc-rewardrow__glyph { font-family: var(--font-serif); font-size: 24px; color: var(--accent); flex: 0 0 auto; width: 30px; text-align: center; }
 .mc-rewardrow__body { flex: 1; min-width: 0; }
 .mc-rewardrow__t { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
-.mc-rewardrow__s { font-size: 11.5px; font-weight: 300; color: var(--ink-soft); }
+.mc-rewardrow__s { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-rewardrow__st { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
 .mc-rewardrow__st.is-on { color: var(--mc-success); }
 
@@ -799,7 +824,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-serif);
-  font-weight: 300;
+  font-weight: 400;
   font-size: 26px;
   flex: 0 0 auto;
 }
@@ -837,7 +862,7 @@
   transition: border-color 0.2s var(--ease-soft);
 }
 .mc-profield input:focus { border-bottom-color: var(--accent); }
-.mc-profield input::placeholder { font-family: var(--font-sans); font-weight: 300; font-size: 13px; color: var(--ink-soft); }
+.mc-profield input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 13px; color: var(--ink-soft); }
 
 .mc-profselect {
   width: 100%;
@@ -918,7 +943,7 @@
 .mc-flowhead--split { display: flex; justify-content: space-between; align-items: flex-end; }
 .mc-flowhead__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .mc-flowhead__titles { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; }
-.mc-flowhead__h1 { font-family: var(--font-serif); font-weight: 300; font-size: 27px; color: var(--color-indigo); margin: 4px 0 0; }
+.mc-flowhead__h1 { font-family: var(--font-serif); font-weight: 400; font-size: 27px; color: var(--color-indigo); margin: 4px 0 0; }
 .mc-flowhead__count { font-size: 11px; color: var(--ink-soft); flex: 0 0 auto; }
 
 .mc-progress { height: 3px; background: var(--hairline); border-radius: 3px; margin-top: 14px; overflow: hidden; }
@@ -943,7 +968,7 @@
 }
 .mc-rowcard:hover { border-color: var(--color-indigo); }
 .mc-rowcard__fon { font-size: 13px; letter-spacing: 0.08em; color: var(--color-indigo); font-weight: var(--weight-medium); }
-.mc-rowcard__sub { font-size: 12px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+.mc-rowcard__sub { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 .mc-rowcard__arrow { font-size: 14px; color: var(--accent); }
 
 /* -------- étape 2 · palier -------- */
@@ -963,7 +988,7 @@
 .mc-paliercard.is-off { opacity: 0.45; cursor: not-allowed; }
 .mc-paliercard__filet { position: absolute; top: 0; left: 0; bottom: 0; width: 2px; background: var(--accent); }
 .mc-paliercard__name { font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo); }
-.mc-paliercard__sub { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); margin-top: 3px; }
+.mc-paliercard__sub { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 
 /* -------- étape 3 · prestation -------- */
 .mc-svccard {
@@ -980,7 +1005,7 @@
 .mc-svccard__top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .mc-svccard__name { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
 .mc-svccard__price { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); flex: 0 0 auto; }
-.mc-svccard__meta { font-size: 12px; font-weight: 300; color: var(--ink-soft); margin-top: 3px; }
+.mc-svccard__meta { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 .mc-svccard .mc-pillseal { margin-top: 8px; }
 
 /* -------- étape 4 · créneau -------- */
@@ -1045,7 +1070,7 @@
   border-radius: 50%;
   background: var(--mc-success);
 }
-.mc-callegend { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; font-weight: 300; color: var(--ink-soft); }
+.mc-callegend { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; font-weight: 400; color: var(--ink-soft); }
 .mc-callegend > span { width: 5px; height: 5px; border-radius: 50%; background: var(--mc-success); flex: 0 0 auto; }
 
 .mc-slotcard {
@@ -1063,7 +1088,7 @@
 }
 .mc-slotcard:hover { border-color: var(--color-indigo); }
 .mc-slotcard__time { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
-.mc-slotcard__who { font-size: 11.5px; font-weight: 300; color: var(--ink-soft); }
+.mc-slotcard__who { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-slotcard__free { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mc-success); }
 
 /* -------- étape 5 · récapitulatif -------- */
@@ -1095,7 +1120,7 @@
 .mc-temps { display: flex; gap: 14px; align-items: flex-start; padding-bottom: 14px; }
 .mc-temps__no { font-family: var(--font-serif); font-size: 22px; color: var(--accent); flex: 0 0 auto; width: 26px; }
 .mc-temps__n { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
-.mc-temps__g { font-size: 12px; font-weight: 300; color: var(--ink-soft); }
+.mc-temps__g { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
 
 /* -------- étape 6 · acompte -------- */
 .mc-depositcard { background: var(--color-indigo); border-radius: 4px; padding: 20px; text-align: center; }
@@ -1146,7 +1171,7 @@
   text-align: center;
 }
 .mc-paysheet__amount { font-family: var(--font-serif); font-size: clamp(32px, 10vw, 40px); color: var(--color-indigo); margin-top: 10px; line-height: 1; }
-.mc-paysheet__hint { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; }
+.mc-paysheet__hint { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; }
 .mc-paysheet__pulse { display: flex; gap: 7px; justify-content: center; margin-top: 18px; }
 .mc-paysheet__pulse span {
   width: 7px;
@@ -1172,9 +1197,9 @@
   margin: 0 auto 20px;
 }
 .mc-confirm__seal img { width: 34px; height: auto; }
-.mc-confirm h2 { font-family: var(--font-serif); font-weight: 300; font-size: 30px; color: var(--color-indigo); margin: 0; }
+.mc-confirm h2 { font-family: var(--font-serif); font-weight: 400; font-size: 30px; color: var(--color-indigo); margin: 0; }
 .mc-confirm p {
-  font-weight: 300;
+  font-weight: 400;
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--ink-soft);
@@ -1217,7 +1242,7 @@
   margin-bottom: 12px;
 }
 .mc-cmgroup__fon { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
-.mc-cmgroup__sub { font-size: 10.5px; font-weight: 300; color: var(--ink-soft); }
+.mc-cmgroup__sub { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); }
 
 .mc-cmitem {
   background: var(--surface-card);
@@ -1232,7 +1257,7 @@
 .mc-cmitem.is-on { background: var(--color-sable); border-color: var(--copper-300); }
 .mc-cmitem__body { flex: 1; min-width: 0; }
 .mc-cmitem__name { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); line-height: 1.15; }
-.mc-cmitem__meta { font-size: 10.5px; font-weight: 300; color: var(--ink-soft); margin-top: 3px; }
+.mc-cmitem__meta { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 .mc-cmitem__qty { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
 .mc-cmitem__count { min-width: 14px; text-align: center; font-family: var(--font-serif); font-size: 18px; color: var(--ink-soft); }
 .mc-cmitem__count.is-on { color: var(--accent-strong); }
@@ -1266,7 +1291,7 @@
 .mc-cmfooter__row--deal { color: var(--accent-strong); margin-bottom: 7px; }
 .mc-cmfooter__total { display: flex; justify-content: space-between; align-items: baseline; }
 .mc-cmfooter__total > span { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-soft); }
-.mc-cmfooter__total strong { font-family: var(--font-serif); font-weight: 300; font-size: 25px; color: var(--color-indigo); }
+.mc-cmfooter__total strong { font-family: var(--font-serif); font-weight: 400; font-size: 25px; color: var(--color-indigo); }
 .mc-cmfooter__total em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-soft); }
 .mc-cmfooter__hint {
   display: flex;
@@ -1296,3 +1321,147 @@
 .mc-notif__time { font-size: 11px; color: var(--ink-soft); }
 .mc-notif__msg { font-size: 13.5px; color: var(--ink); margin-top: 4px; line-height: 1.45; }
 .mc-notif__total { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); margin-top: 6px; }
+
+/* ============================================================
+   BUREAU (≥ 900 px, souris + survol) — vraie app web.
+   Navigation verticale à gauche, contenu centré large, superpositions
+   présentées en panneaux centrés. Le tactile (pointeur grossier) conserve
+   toujours le plein écran, bord à bord — jamais ce cadrage bureau.
+   ============================================================ */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .mc-app {
+    background: var(--color-obsidian);
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(46, 51, 120, 0.5), transparent 60%),
+      linear-gradient(180deg, rgba(30, 33, 80, 0.18), transparent 40%);
+    align-items: center;
+    padding: clamp(0px, 3vh, 34px) 24px;
+  }
+
+  .mc-viewport { height: min(920px, calc(100dvh - 68px)); }
+
+  /* --- Connexion / onboarding : carte centrée, généreuse (jamais un sliver) --- */
+  .mc-app--auth .mc-viewport {
+    max-width: 560px;
+    height: min(880px, calc(100dvh - 68px));
+    border-radius: 5px;
+    border: 1px solid rgba(246, 241, 231, 0.10);
+    box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.8);
+  }
+
+  /* --- Coquille de l'app : navigation gauche + contenu --- */
+  .mc-app--shell .mc-viewport {
+    flex-direction: row;
+    width: 100%;
+    max-width: 1280px;
+    border-radius: 5px;
+    border: 1px solid rgba(246, 241, 231, 0.10);
+    box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.8);
+  }
+
+  /* La barre d'onglets devient une navigation verticale (sceau + onglets + sortie). */
+  .mc-app--shell .mc-tabbar {
+    order: -1;
+    flex: 0 0 244px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    background: var(--color-sable);
+    border-top: none;
+    border-right: 1px solid var(--hairline);
+    padding: 30px 16px calc(24px + env(safe-area-inset-bottom));
+    backdrop-filter: none;
+  }
+  .mc-app--shell .mc-nav__seal { display: block; width: 40px; height: auto; margin: 0 12px 26px; }
+  .mc-app--shell .mc-tab {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 14px 16px;
+    border-radius: 3px;
+    transition: background 0.2s var(--ease-soft);
+  }
+  .mc-app--shell .mc-tab:hover { background: var(--hover-veil); }
+  .mc-app--shell .mc-tab__glyph { font-size: 18px; }
+  .mc-app--shell .mc-tab__label { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .mc-app--shell .mc-tab.is-on { background: var(--color-ivoire); }
+  .mc-app--shell .mc-tab.is-on .mc-tab__label { color: var(--color-indigo); }
+  .mc-app--shell .mc-nav__signout {
+    display: block;
+    margin-top: auto;
+    background: none;
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 13px 16px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    transition: background 0.2s var(--ease-soft), color 0.2s var(--ease-soft);
+  }
+  .mc-app--shell .mc-nav__signout:hover { background: var(--hover-veil); color: var(--color-indigo); }
+
+  /* Contenu : colonne centrée confortable qui remplit l'espace. */
+  .mc-appbody { padding: 0 0 40px; }
+  .mc-appbody > * { width: 100%; max-width: 760px; margin: 0 auto; }
+  .mc-appbody > .mc-page--wide { max-width: 1040px; }
+
+  /* Plus d'air : rythme et respiration agrandis sur les pages internes. */
+  .mc-pagepad { padding: 32px 40px 0; }
+  .mc-pagepad--top { padding: 40px 40px 32px; }
+
+  /* Hero d'accueil plus ample. */
+  .mc-homehero { height: clamp(300px, 30vh, 380px); }
+
+  /* Offres : rangée fluide au lieu du carrousel. */
+  .mc-offersrail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .mc-offersrail .mc-offer { flex: initial; }
+
+  /* Gamme : produits en grille 2–3 colonnes. */
+  .mc-productgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  .mc-productgrid .mc-emptyzone { grid-column: 1 / -1; }
+
+  /* Cercle : récompenses en deux colonnes. */
+  .mc-rewardgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .mc-rewardgrid .mc-emptyline { grid-column: 1 / -1; }
+
+  /* Les grands boutons pleine largeur ne s'étirent pas démesurément. */
+  .mc-appbody .mc-cta { max-width: 460px; margin-left: auto; margin-right: auto; }
+
+  /* Superpositions : panneaux centrés modaux (fond assombri via box-shadow). */
+  .mc-app--shell .mc-overlayscreen {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(680px, calc(100% - 96px));
+    max-height: calc(100% - 72px);
+    border-radius: 5px;
+    overflow: hidden;
+    animation: mc-fade 0.24s var(--ease-soft);
+    box-shadow: 0 0 0 100vmax rgba(20, 20, 27, 0.55), 0 40px 100px -40px rgba(0, 0, 0, 0.7);
+  }
+  .mc-app--shell .mc-flowhead { padding: 30px 32px 16px; }
+  .mc-app--shell .mc-flowbody { padding: 22px 32px 26px; }
+
+  /* Toast aligné à la zone de contenu, au-delà de la navigation. */
+  .mc-app--shell .mc-toast { left: calc(244px + 40px); right: 40px; bottom: 34px; }
+}

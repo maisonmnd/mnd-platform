@@ -77,7 +77,25 @@ async function ensureFounder(name: string): Promise<void> {
   if (error) console.warn('[auth] provision_first_staff:', error.message);
 }
 
-// ---------- Actions cliente (OTP téléphone) — prêtes pour Ma Couronne ----------
+// ---------- Actions cliente (OTP e-mail, sans mot de passe) — Ma Couronne ----------
+/** Envoie un code à 6 chiffres par e-mail (crée le compte si besoin). */
+export async function startEmailOtp(email: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: { shouldCreateUser: true },
+  });
+  if (error) throw error;
+}
+
+/** Vérifie le code reçu par e-mail et ouvre la session. */
+export async function verifyEmailOtp(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'email' });
+  if (error) throw error;
+}
+
+// ---------- Actions cliente (OTP téléphone) — prêtes si un fournisseur SMS est configuré ----------
 export async function startPhoneOtp(phone: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');
   const { error } = await supabase.auth.signInWithOtp({ phone });

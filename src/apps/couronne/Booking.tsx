@@ -6,7 +6,6 @@ import { appointmentsStore, useAppointments, type Appointment } from '../../shar
 import { uid } from '../../shared/store';
 import type { Service } from '../../shared/catalog';
 import {
-  CLIENT_ID,
   DOW_LETTERS,
   MONTHS,
   PALIERS,
@@ -17,6 +16,7 @@ import {
   isoOf,
   pad2,
   todayIso,
+  useClientId,
   useVisibleCatalog,
   type BookingPrefill,
 } from './lib';
@@ -51,6 +51,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const { branch, currency } = useBranch();
   const { cats, services } = useVisibleCatalog();
   const [appts] = useAppointments();
+  const clientId = useClientId();
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
@@ -125,7 +126,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       const appt: Appointment = {
         id: uid(),
         branchId: branch.id,
-        clientId: CLIENT_ID,
+        clientId,
         serviceIds: [service.id],
         date: selIso,
         time,

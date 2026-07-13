@@ -1,11 +1,10 @@
 import { asset } from '../../shared/asset';
 import { useEffect, useRef, useState } from 'react';
-import { useBranch } from '../../shared/branches';
-import { clientsStore } from '../../shared/clients';
-import { CLIENT_ID, sessionStore, useClient } from './lib';
+import { startEmailOtp, verifyEmailOtp } from '../../shared/auth';
 
-/* Onboarding — slides photographiques, connexion par téléphone + OTP WhatsApp.
-   Sans mot de passe : la maison vous reconnaît. */
+/* Onboarding — slides photographiques puis connexion par e-mail + code à 6 chiffres.
+   Sans mot de passe : la maison vous reconnaît. La session s'ouvre côté Supabase
+   (verifyEmailOtp) ; le verrou d'App bascule alors automatiquement sur l'app. */
 
 const SLIDES = [
   {
@@ -31,17 +30,16 @@ const SLIDES = [
   },
 ];
 
-export default function Onboarding() {
-  const { branch } = useBranch();
-  const client = useClient();
-  const dial = branch.dial || '+229';
+const errMessage = (e: unknown, fallback: string): string =>
+  e instanceof Error && e.message ? e.message : fallback;
 
-  const [stage, setStage] = useState<'welcome' | 'phone' | 'otp'>('welcome');
+export default function Onboarding() {
+  const [stage, setStage] = useState<'welcome' | 'email' | 'otp'>('welcome');
   const [slide, setSlide] = useState(0);
-  /* Aucun numéro de démonstration — le profil réel, s'il existe, pré-remplit. */
-  const defaultPhone = (client?.phone ?? '').replace(/^\+\d+\s*/, '');
-  const [phone, setPhone] = useState(defaultPhone);
-  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   /* Les slides défilent doucement tant que l'on reste sur l'accueil. */
@@ -51,7 +49,7 @@ export default function Onboarding() {
     return () => window.clearInterval(t);
   }, [stage]);
 
-  /* ---- OTP ---- */
+  /* ---- Code à 6 chiffres ---- */
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const boxRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resendIn, setResendIn] = useState(45);
@@ -62,33 +60,51 @@ export default function Onboarding() {
   }, [stage, resendIn]);
 
   const digits = otp.join('');
-  const phoneDigits = phone.replace(/\D/g, '');
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
 
-  const toOtp = () => {
-    if (phoneDigits.length < 8) {
-      setErr('Saisissez un numéro valide — 8 chiffres au moins.');
+  const sendCode = async () => {
+    if (!emailOk) {
+      setErr('Saisissez une adresse e-mail valide.');
       return;
     }
     setErr(null);
-    setOtp(['', '', '', '', '', '']);
-    setResendIn(45);
-    setStage('otp');
+    setSending(true);
+    try {
+      await startEmailOtp(email.trim());
+      setOtp(['', '', '', '', '', '']);
+      setResendIn(45);
+      setStage('otp');
+    } catch (e) {
+      setErr(errMessage(e, 'Envoi impossible — réessayez dans un instant.'));
+    } finally {
+      setSending(false);
+    }
   };
 
-  const enterApp = () => {
-    if (digits.length < 4) {
-      setErr('Saisissez le code reçu — 4 à 6 chiffres.');
+  const resend = async () => {
+    setErr(null);
+    try {
+      await startEmailOtp(email.trim());
+      setResendIn(45);
+    } catch (e) {
+      setErr(errMessage(e, 'Renvoi impossible — réessayez.'));
+    }
+  };
+
+  const enterApp = async () => {
+    if (digits.length < 6) {
+      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
       return;
     }
     setErr(null);
-    const fullPhone = `${dial} ${phone.trim()}`;
-    /* Le numéro vérifié devient celui du profil — le CRM partagé reste la vérité. */
-    clientsStore.set((prev) => prev.map((c) => (c.id === CLIENT_ID ? { ...c, phone: fullPhone } : c)));
-    sessionStore.set({
-      phone: fullPhone,
-      clientId: CLIENT_ID,
-      loggedAt: new Date().toISOString(),
-    });
+    setVerifying(true);
+    try {
+      await verifyEmailOtp(email.trim(), digits);
+      /* Succès : onAuthStateChange ouvre la session, le verrou d'App montre l'app. */
+    } catch (e) {
+      setErr(errMessage(e, 'Code invalide ou expiré — vérifiez et réessayez.'));
+      setVerifying(false);
+    }
   };
 
   const onOtpChange = (i: number, v: string) => {
@@ -113,7 +129,7 @@ export default function Onboarding() {
         <div className="mc-onb__hero" key={slide}>
           <img src={s.photo} alt="" style={{ objectPosition: s.pos }} />
           <div className="mc-onb__veil" />
-          <img className="mc-onb__seal" src={asset("/assets/monograms/mono-copper.png")} alt="" />
+          <img className="mc-onb__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
           <div className="mc-onb__hero-text">
             <div className="mc-micro-eyebrow">{s.eyebrow}</div>
             <div className="mc-onb__title">{s.title}</div>
@@ -131,49 +147,35 @@ export default function Onboarding() {
               />
             ))}
           </div>
-          <button className="mc-cta mc-cta--copper" onClick={() => setStage('phone')}>Commencer</button>
-          <button className="mc-cta mc-cta--outline" onClick={() => setStage('phone')}>J’ai déjà un compte</button>
+          <button className="mc-cta mc-cta--copper" onClick={() => setStage('email')}>Commencer</button>
+          <button className="mc-cta mc-cta--outline" onClick={() => setStage('email')}>J’ai déjà un compte</button>
         </div>
       </div>
     );
   }
 
-  /* ================= PHONE ================= */
-  if (stage === 'phone') {
+  /* ================= E-MAIL ================= */
+  if (stage === 'email') {
     return (
       <div className="mc-onb-form mc-fade">
         <button className="mc-linkback" onClick={() => setStage('welcome')}>← Retour</button>
-        <img className="mc-onb-form__seal" src={asset("/assets/monograms/mono-indigo.png")} alt="" />
+        <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
         <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
-        <h1 className="mc-serif-title">Votre téléphone.</h1>
-        <p className="mc-lead">Un code de vérification vous sera transmis. Sans mot de passe — la maison vous reconnaît.</p>
+        <h1 className="mc-serif-title">Votre e-mail.</h1>
+        <p className="mc-lead">Un code de vérification vous sera transmis par e-mail. Sans mot de passe — la maison vous reconnaît.</p>
 
-        <label className="mc-field-label" htmlFor="mc-phone">Numéro WhatsApp</label>
-        <div className="mc-phoneline">
-          <span className="mc-phoneline__dial">{dial}</span>
+        <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
+        <div className="mc-emailline">
           <input
-            id="mc-phone"
-            value={phone}
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="Votre numéro"
-            onChange={(e) => { setPhone(e.target.value); setErr(null); }}
+            id="mc-email"
+            type="email"
+            value={email}
+            inputMode="email"
+            autoComplete="email"
+            placeholder="vous@exemple.com"
+            onChange={(e) => { setEmail(e.target.value); setErr(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void sendCode(); }}
           />
-        </div>
-
-        <div className="mc-channels">
-          <button
-            className={`mc-channel ${channel === 'whatsapp' ? 'is-on' : ''}`}
-            onClick={() => setChannel('whatsapp')}
-          >
-            Par WhatsApp
-          </button>
-          <button
-            className={`mc-channel ${channel === 'sms' ? 'is-on' : ''}`}
-            onClick={() => setChannel('sms')}
-          >
-            Par SMS
-          </button>
         </div>
 
         {err && <div className="mc-form-err">{err}</div>}
@@ -183,21 +185,21 @@ export default function Onboarding() {
           <span className="mc-langrow__on">FR</span>
           <span className="mc-langrow__off">EN</span>
         </div>
-        <button className="mc-cta mc-cta--indigo" onClick={toOtp}>Recevoir mon code</button>
+        <button className="mc-cta mc-cta--indigo" disabled={sending} onClick={() => void sendCode()}>
+          {sending ? 'Envoi…' : 'Recevoir mon code'}
+        </button>
       </div>
     );
   }
 
-  /* ================= OTP ================= */
+  /* ================= CODE ================= */
   return (
     <div className="mc-onb-form mc-fade">
-      <button className="mc-linkback" onClick={() => setStage('phone')}>← Retour</button>
-      <img className="mc-onb-form__seal" src={asset("/assets/monograms/mono-indigo.png")} alt="" />
+      <button className="mc-linkback" onClick={() => setStage('email')}>← Retour</button>
+      <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
       <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Vérification</div>
       <h1 className="mc-serif-title">Votre code.</h1>
-      <p className="mc-lead">
-        Transmis {channel === 'whatsapp' ? 'sur WhatsApp' : 'par SMS'} au {dial} {phone.trim()}.
-      </p>
+      <p className="mc-lead">Transmis par e-mail à {email.trim()}.</p>
 
       <div className="mc-otp">
         {otp.map((v, i) => (
@@ -221,12 +223,17 @@ export default function Onboarding() {
         {resendIn > 0 ? (
           <>Renvoyer le code dans <span>0:{resendIn < 10 ? `0${resendIn}` : resendIn}</span></>
         ) : (
-          <button className="mc-resend__btn" onClick={() => setResendIn(45)}>Renvoyer le code</button>
+          <button className="mc-resend__btn" onClick={() => void resend()}>Renvoyer le code</button>
         )}
       </div>
 
-      <button className="mc-cta mc-cta--copper" style={{ marginTop: 'auto' }} onClick={enterApp}>
-        Entrer dans Ma Couronne
+      <button
+        className="mc-cta mc-cta--copper"
+        style={{ marginTop: 'auto' }}
+        disabled={verifying}
+        onClick={() => void enterApp()}
+      >
+        {verifying ? 'Vérification…' : 'Entrer dans Ma Couronne'}
       </button>
     </div>
   );
