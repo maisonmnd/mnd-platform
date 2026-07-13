@@ -872,3 +872,14 @@
   line-height: 1.5;
   white-space: pre-wrap;
 }
+
+/* En-tête repliable des consultations (fiche cliente) */
+.trc-consult-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; background: none; border: none; cursor: pointer; padding: 4px 0;
+}
+.trc-consult-toggle__chev {
+  font-family: var(--font-sans); font-size: 10px; font-weight: var(--weight-medium);
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--copper-700);
+}
+.trc-consult-toggle:hover .trc-consult-toggle__chev { color: var(--color-copper); }

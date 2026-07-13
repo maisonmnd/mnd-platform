@@ -281,6 +281,7 @@ function Customer360({
 
   /* Note de la maison — texte libre éditable, consultations préservées à part. */
   const parsedNotes = splitNotes(client.notes);
+  const [consultOpen, setConsultOpen] = useState(false);
   const [noteText, setNoteText] = useState(parsedNotes.free);
   const noteDirty = noteText.trim() !== parsedNotes.free;
   const saveNote = () => {
@@ -469,11 +470,19 @@ function Customer360({
           </div>
         </div>
 
-        {/* Consultations — chaque bloc rendu en carte distincte */}
+        {/* Consultations — repliable pour alléger la fiche */}
         {parsedNotes.blocks.length > 0 && (
           <div>
-            <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
-            <ConsultCards blocks={parsedNotes.blocks} />
+            <button
+              type="button"
+              className="trc-consult-toggle"
+              onClick={() => setConsultOpen((v) => !v)}
+              aria-expanded={consultOpen}
+            >
+              <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
+              <span className="trc-consult-toggle__chev">{consultOpen ? 'Masquer ▲' : 'Afficher ▼'}</span>
+            </button>
+            {consultOpen && <ConsultCards blocks={parsedNotes.blocks} />}
           </div>
         )}
 

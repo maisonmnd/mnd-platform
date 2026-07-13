@@ -5,6 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useServices, type Service } from '../../../../shared/catalog';
+import { onlineDepositRate } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import './clients.css';
 
@@ -178,6 +179,9 @@ export function RdvModal({
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
   const totalXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  /* Acompte piloté par Paramètres (source unique, partagée avec Ma Couronne). */
+  const depositRate = onlineDepositRate();
+  const depositPct = Math.round(depositRate * 100);
 
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const overlap = useMemo(() => {
@@ -221,6 +225,7 @@ export function RdvModal({
         status: chosenStatus,
         source: 'trone',
         note: note.trim() || undefined,
+        depositXof: Math.round(totalXof * depositRate),
       };
       appointmentsStore.set((prev) => [...prev, created]);
     }
@@ -347,8 +352,8 @@ export function RdvModal({
             <span className="trc-total__num">{fmtMoney(totalXof, currency)}</span>
           </div>
           <div className="trc-total__row">
-            <span>Acompte Mobile Money · 30 %</span>
-            <span className="trc-total__num">{fmtMoney(Math.round(totalXof * 0.3), currency)}</span>
+            <span>Acompte Mobile Money · {depositPct} %</span>
+            <span className="trc-total__num">{fmtMoney(Math.round(totalXof * depositRate), currency)}</span>
           </div>
         </div>
 
