@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../shared/store';
+import { clientSessionsStore } from '../../shared/activity';
 import { useAuth } from '../../shared/auth';
 import {
   useCategories,
@@ -68,6 +69,102 @@ export function useClient(): Client | undefined {
 
 export function firstName(name: string | undefined): string {
   return (name ?? 'Bienvenue').split(' ')[0];
+}
+
+/* ---------- Suivi de présence — temps passé sur Ma Couronne ---------- */
+
+/** Enregistre UNE session par chargement dans `clientSessionsStore`, que le Trône
+    lit pour monitorer la présence et le temps passé. À appeler une seule fois dans
+    la coquille de l'app, uniquement quand il y a une vraie cliente (authentifiée ou
+    cliente locale). Battement toutes les ~20 s + sur visibilité/focus : met à jour
+    `lastSeenAt` et cumule `durationSec` seulement pendant que l'onglet est visible.
+    Sans backend (mode local), la session reste locale — inoffensif. */
+export function useActivityTracker(screen?: string): void {
+  const clientId = useClientId();
+  const client = useClient();
+  const { branch } = useBranch();
+
+  /* Valeurs mutables lues par les battements sans réarmer l'intervalle. */
+  const metaRef = useRef({ clientName: client?.name, branchId: branch.id, screen });
+  metaRef.current = { clientName: client?.name, branchId: branch.id, screen };
+
+  const sessionIdRef = useRef<string | null>(null);
+  /* Dernier repère de mesure du temps visible. */
+  const lastTickRef = useRef(Date.now());
+
+  /* Une seule ligne de session par chargement, réamorcée si la cliente change. */
+  useEffect(() => {
+    const now = Date.now();
+    const id = `sess-${clientId}-${now}`;
+    sessionIdRef.current = id;
+    lastTickRef.current = now;
+    const iso = new Date(now).toISOString();
+    const { clientName, branchId, screen: scr } = metaRef.current;
+    clientSessionsStore.set((prev) =>
+      prev.some((s) => s.id === id)
+        ? prev
+        : [
+            ...prev,
+            { id, clientId, clientName, branchId, startedAt: iso, lastSeenAt: iso, durationSec: 0, screen: scr },
+          ]
+    );
+  }, [clientId]);
+
+  /* Battements + écoute visibilité/focus. */
+  useEffect(() => {
+    /* Cumule le temps visible écoulé depuis le dernier repère. */
+    const accumulate = () => {
+      const id = sessionIdRef.current;
+      if (!id) return;
+      const now = Date.now();
+      const elapsed = Math.max(0, Math.round((now - lastTickRef.current) / 1000));
+      lastTickRef.current = now;
+      const iso = new Date(now).toISOString();
+      const { clientName, branchId, screen: scr } = metaRef.current;
+      clientSessionsStore.set((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, lastSeenAt: iso, durationSec: s.durationSec + elapsed, clientName, branchId, screen: scr }
+            : s
+        )
+      );
+    };
+
+    /* Reprise : réinitialise le repère sans compter la période cachée. */
+    const touch = () => {
+      const id = sessionIdRef.current;
+      if (!id) return;
+      const now = Date.now();
+      lastTickRef.current = now;
+      const iso = new Date(now).toISOString();
+      const { clientName, branchId, screen: scr } = metaRef.current;
+      clientSessionsStore.set((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, lastSeenAt: iso, clientName, branchId, screen: scr } : s))
+      );
+    };
+
+    const heartbeat = window.setInterval(() => {
+      if (!document.hidden) accumulate();
+    }, 20000);
+
+    const onVisibility = () => {
+      if (document.hidden) accumulate(); // fige la portion visible qui vient de s'achever
+      else touch(); // reprise : ne compte pas le temps caché
+    };
+    const onFocus = () => {
+      if (!document.hidden) accumulate();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+      if (!document.hidden) accumulate(); // fige le temps visible restant
+    };
+  }, [clientId]);
 }
 
 /* ---------- Visibilité — catalogue × configuration Vitrine du Trône ---------- */

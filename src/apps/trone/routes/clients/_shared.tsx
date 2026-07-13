@@ -61,6 +61,14 @@ export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
 export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
 
+/** Total après remise du RDV. */
+export const apptNetXof = (a: Appointment, byId: Map<string, Service>) =>
+  Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100));
+
+/** Reste à encaisser : net − acompte − déjà encaissé (jamais négatif). */
+export const apptDueXof = (a: Appointment, byId: Map<string, Service>) =>
+  Math.max(0, apptNetXof(a, byId) - (a.depositXof ?? 0) - (a.paidXof ?? 0));
+
 export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).map((s) => s.name).join(' + ') || '—';
 

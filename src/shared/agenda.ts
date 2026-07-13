@@ -13,6 +13,7 @@ export type Appointment = {
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
   depositXof?: number; // acompte Mobile Money (Ma Couronne)
+  paidXof?: number; // total encaissé au salon (hors acompte) — suit les paiements partiels
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];

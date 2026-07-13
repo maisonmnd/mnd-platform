@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
-import { useEnsureClient, type BookingPrefill } from './lib';
+import { useEnsureClient, useActivityTracker, type BookingPrefill } from './lib';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
@@ -26,6 +26,10 @@ function Shell() {
   useEnsureClient();
 
   const [tab, setTab] = useState<TabId>('accueil');
+
+  /* Suivi de présence : une session par visite, temps cumulé écrit pour le Trône. */
+  useActivityTracker(tab);
+
   const [booking, setBooking] = useState<{ prefill?: BookingPrefill } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);

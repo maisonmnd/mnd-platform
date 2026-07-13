@@ -34,7 +34,7 @@ type BranchForm = {
   currency: string;
   logo: SealColor;
   pictogram: string;
-  masters: number;
+  masters: string[];
   seats: number;
   status: Branch['status'];
   curTouched: boolean;
@@ -42,15 +42,8 @@ type BranchForm = {
 
 const emptyForm = (): BranchForm => ({
   name: '', address: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
-  logo: 'copper', pictogram: '◈', masters: 3, seats: 4, status: 'paused', curTouched: false,
+  logo: 'copper', pictogram: '◈', masters: [], seats: 4, status: 'paused', curTouched: false,
 });
-
-/** Ajuste la liste des maîtres à la taille voulue en préservant les noms existants. */
-function reconcileMasters(existing: string[], count: number): string[] {
-  const out = existing.slice(0, count);
-  for (let i = out.length; i < count; i++) out.push(`Maître ${i + 1}`);
-  return out;
-}
 
 export default function Branches() {
   const { branch, branches, setBranch } = useBranch();
@@ -60,6 +53,7 @@ export default function Branches() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<BranchForm>(emptyForm);
+  const [newMaster, setNewMaster] = useState('');
 
   /* Recette réelle du jour, par branche : rituels honorés + factures payées d'aujourd'hui. */
   const today = todayISO();
@@ -95,33 +89,55 @@ export default function Branches() {
     });
   };
 
-  const openNew = () => { setEditId(null); setForm(emptyForm()); setOpen(true); };
+  const openNew = () => { setEditId(null); setForm(emptyForm()); setNewMaster(''); setOpen(true); };
   const openEdit = (b: Branch) => {
     setEditId(b.id);
+    setNewMaster('');
     setForm({
       name: b.name, address: b.address, country: b.country, dial: b.dial,
       phone: b.phone ?? `${b.dial} `, currency: b.currency, logo: asSeal(b.logo),
-      pictogram: b.pictogram ?? '◈', masters: b.masters.length || 1, seats: b.seats,
+      pictogram: b.pictogram ?? '◈', masters: [...b.masters], seats: b.seats,
       status: b.status, curTouched: true,
     });
     setOpen(true);
   };
 
+  /* Édition fine des maîtres : renommer en place, retirer, ajouter (rogné + dédupliqué). */
+  const renameMaster = (idx: number, value: string) =>
+    setForm((f) => ({ ...f, masters: f.masters.map((m, i) => (i === idx ? value : m)) }));
+  const removeMaster = (idx: number) =>
+    setForm((f) => ({ ...f, masters: f.masters.filter((_, i) => i !== idx) }));
+  const addMaster = () => {
+    const name = newMaster.trim();
+    if (!name) return;
+    setForm((f) => {
+      if (f.masters.some((m) => m.trim().toLowerCase() === name.toLowerCase())) return f;
+      return { ...f, masters: [...f.masters, name] };
+    });
+    setNewMaster('');
+  };
+
   const save = () => {
     if (!form.name.trim() || !form.address.trim()) return;
     const city = form.name.split('·')[0].trim() || form.address.split(',')[0].trim() || form.name.trim();
+    /* Liste finale des maîtres : rognée, sans vides, dédupliquée (insensible à la casse). */
+    const cleanMasters = form.masters.reduce<string[]>((acc, raw) => {
+      const name = raw.trim();
+      if (name && !acc.some((m) => m.toLowerCase() === name.toLowerCase())) acc.push(name);
+      return acc;
+    }, []);
     if (editId) {
       branchesStore.set((prev) => prev.map((b) => (b.id === editId ? {
         ...b, name: form.name.trim(), city, address: form.address.trim(), country: form.country,
         dial: form.dial, phone: form.phone.trim(), currency: form.currency, logo: form.logo,
-        pictogram: form.pictogram, seats: form.seats, masters: reconcileMasters(b.masters, form.masters),
+        pictogram: form.pictogram, seats: form.seats, masters: cleanMasters,
         status: form.status,
       } : b)));
     } else {
       const nb: Branch = {
         id: `br-${uid()}`, name: form.name.trim(), city, country: form.country, dial: form.dial,
         phone: form.phone.trim(), currency: form.currency, address: form.address.trim(),
-        seats: form.seats, masters: reconcileMasters([], form.masters), status: form.status,
+        seats: form.seats, masters: cleanMasters, status: form.status,
         logo: form.logo, pictogram: form.pictogram,
       };
       branchesStore.set((prev) => [...prev, nb]);
@@ -258,22 +274,50 @@ export default function Branches() {
               </Select>
             </Field>
 
-            <div className="tr-grid tr-grid--2">
-              <Field label="Maîtres au fauteuil">
-                <div className="sys-stepper">
-                  <button className="sys-stepper__btn" type="button" onClick={() => patch({ masters: Math.max(1, form.masters - 1) })}>−</button>
-                  <span className="sys-stepper__val">{form.masters}</span>
-                  <button className="sys-stepper__btn" type="button" onClick={() => patch({ masters: form.masters + 1 })}>+</button>
+            <Field label={`Maîtres au fauteuil${form.masters.length ? ` · ${form.masters.length}` : ''}`}>
+              <div className="sys-masters">
+                {form.masters.length === 0 && (
+                  <p className="sys-masters__empty">Aucun maître pour l’instant — ajoutez les noms ci-dessous.</p>
+                )}
+                {form.masters.map((m, i) => (
+                  <div className="sys-master" key={i}>
+                    <Input
+                      value={m}
+                      onChange={(e) => renameMaster(i, e.target.value)}
+                      placeholder={`Maître ${i + 1}`}
+                      aria-label={`Nom du maître ${i + 1}`}
+                    />
+                    <button
+                      className="sys-master__rm"
+                      type="button"
+                      title="Retirer ce maître"
+                      aria-label={`Retirer ${m || `maître ${i + 1}`}`}
+                      onClick={() => removeMaster(i)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <div className="sys-master sys-master--add">
+                  <Input
+                    value={newMaster}
+                    onChange={(e) => setNewMaster(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addMaster(); } }}
+                    placeholder="Nom du maître"
+                    aria-label="Nom du nouveau maître"
+                  />
+                  <Button variant="ghost" type="button" onClick={addMaster} disabled={!newMaster.trim()}>+ Ajouter un maître</Button>
                 </div>
-              </Field>
-              <Field label="Fauteuils">
-                <div className="sys-stepper">
-                  <button className="sys-stepper__btn" type="button" onClick={() => patch({ seats: Math.max(1, form.seats - 1) })}>−</button>
-                  <span className="sys-stepper__val">{form.seats}</span>
-                  <button className="sys-stepper__btn" type="button" onClick={() => patch({ seats: form.seats + 1 })}>+</button>
-                </div>
-              </Field>
-            </div>
+              </div>
+            </Field>
+
+            <Field label="Fauteuils">
+              <div className="sys-stepper">
+                <button className="sys-stepper__btn" type="button" onClick={() => patch({ seats: Math.max(1, form.seats - 1) })}>−</button>
+                <span className="sys-stepper__val">{form.seats}</span>
+                <button className="sys-stepper__btn" type="button" onClick={() => patch({ seats: form.seats + 1 })}>+</button>
+              </div>
+            </Field>
 
             <Field label="Logo de la branche">
               <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Field, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore } from '../../../../shared/clients';
@@ -12,7 +12,7 @@ import {
 import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import {
-  apptLabel, apptServices, apptTotalXof, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptDueXof, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -37,7 +37,7 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
 
 /** Passe un RDV à « honoré » et attribue les points Cercle une seule fois. */
 export function honorAppointment(appt: Appointment, byId: Map<string, Service>): number {
-  const total = apptTotalXof(appt, byId);
+  const total = apptNetXof(appt, byId);
   const awarded = appt.pointsAwarded ? 0 : awardLoyalty(appt.clientId, total, `Rituel honoré · ${frShort(appt.date)}`);
   appointmentsStore.set((prev) =>
     prev.map((a) => (a.id === appt.id ? { ...a, status: 'honoré', pointsAwarded: true } : a)),
@@ -57,18 +57,27 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const branchBoxes = cashboxes.filter((c) => c.branchId === branch.id);
 
   const services = apptServices(appt, byId);
-  const total = apptTotalXof(appt, byId);
+  const net = apptNetXof(appt, byId);
   const deposit = appt.depositXof ?? 0;
-  const due = Math.max(0, total - deposit);
+  const alreadyPaid = appt.paidXof ?? 0;
+  const due = apptDueXof(appt, byId);
 
   const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
   const [cashbox, setCashbox] = useState(branchBoxes[0]?.name ?? '');
+  const [amountStr, setAmountStr] = useState(String(due));
+  const amount = Math.max(0, Math.min(due, Math.round(Number(amountStr) || 0)));
+  const remainingAfter = Math.max(0, due - amount);
+  const fullyPaid = remainingAfter === 0;
   const client = clients.find((c) => c.id === appt.clientId);
 
   const confirm = () => {
-    const lines: InvoiceLine[] = services.map((s) => ({
-      id: `il-${uid()}`, label: s.name, qty: 1, unitXof: s.priceXof, discountPct: 0,
-    }));
+    if (amount <= 0) return;
+    /* Une ligne unique proportionnelle au montant encaissé (paiement partiel possible). */
+    const lines: InvoiceLine[] = [{
+      id: `il-${uid()}`,
+      label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
+      qty: 1, unitXof: amount, discountPct: 0,
+    }];
     const inv: Invoice = {
       id: `inv-${uid()}`,
       branchId: branch.id,
@@ -85,17 +94,23 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       time: new Date().toTimeString().slice(0, 5),
       clientName: client?.name,
       master: appt.master,
+      note: fullyPaid ? undefined : `Paiement partiel — reste ${fmtMoney(remainingAfter, currency)}`,
     };
     invoicesStore.set((prev) => [inv, ...prev]);
-    const awarded = honorAppointment(appt, byId);
-    appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, invoiceId: inv.id } : a)));
-    onClose();
-    if (awarded > 0) {
-      window.setTimeout(
-        () => window.alert(`Rituel honoré · facture ${fmtMoney(invoiceTotal(inv), currency)} · ${awarded} points Cercle pour ${client?.name ?? 'la cliente'}.`),
-        30,
-      );
+
+    let awarded = 0;
+    if (fullyPaid) {
+      awarded = honorAppointment(appt, byId); // marque honoré + points Cercle
+      appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount } : a)));
+    } else {
+      appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount } : a)));
     }
+    onClose();
+    window.setTimeout(() => window.alert(
+      fullyPaid
+        ? `Réglé en totalité · ${fmtMoney(amount, currency)}${awarded > 0 ? ` · ${awarded} points Cercle pour ${client?.name ?? 'la cliente'}` : ''}.`
+        : `Paiement partiel enregistré · ${fmtMoney(amount, currency)} · reste ${fmtMoney(remainingAfter, currency)}.`,
+    ), 30);
   };
 
   return (
@@ -105,17 +120,28 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           {client?.name ?? 'Cliente'} · {apptLabel(appt, byId)}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="mnd-muted">Total</span>
-          <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(total, currency)}</span>
+          <span className="mnd-muted">Total{appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}</span>
+          <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
         </div>
         {deposit > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="mnd-muted">Acompte déjà réglé</span><span>−{fmtMoney(deposit, currency)}</span>
+            <span className="mnd-muted">Acompte réglé</span><span>−{fmtMoney(deposit, currency)}</span>
+          </div>
+        )}
+        {alreadyPaid > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid, currency)}</span>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18 }}>
           <span>Reste à encaisser</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
+        <Field label="Montant encaissé maintenant">
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Input type="number" min={0} max={due} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right' }} />
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setAmountStr(String(due))}>Tout</button>
+          </div>
+        </Field>
         <Field label="Moyen de paiement">
           <Select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod)}>
             {PAY_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -128,8 +154,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             </Select>
           </Field>
         )}
-        <Button variant="copper" onClick={confirm} style={{ marginTop: 4 }}>
-          Encaisser {fmtMoney(due, currency)} &amp; honorer
+        <Button variant="copper" onClick={confirm} disabled={amount <= 0} style={{ marginTop: 4 }}>
+          {fullyPaid ? `Encaisser ${fmtMoney(amount, currency)} & honorer` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
         </Button>
       </div>
     </Modal>

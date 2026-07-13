@@ -4,6 +4,7 @@ import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useCategories, useServices, useProducts } from '../../../../shared/catalog';
+import { useFormations } from '../equipe/data';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
 import { useInvoices, useCashboxes, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
@@ -40,6 +41,7 @@ export default function Caisse() {
   const [categories] = useCategories();
   const [services] = useServices();
   const [products] = useProducts();
+  const [formations] = useFormations();
   const [clients] = useClients();
   const [invoices, setInvoices] = useInvoices();
   const [cashboxes] = useCashboxes();
@@ -76,7 +78,7 @@ export default function Caisse() {
   /* — l'offre, groupée par catégorie ™ — */
   const groups = useMemo(() => {
     const cats = [...categories].sort((a, b) => a.order - b.order);
-    type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' };
+    type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation' };
     const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({
         key: cat.id,
@@ -89,11 +91,15 @@ export default function Caisse() {
       .filter((g) => g.items.length > 0);
     const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const }));
     if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', items: prods });
+    const forms = formations
+      .filter((f) => !f.archived && f.priceXof > 0)
+      .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const }));
+    if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
     return gs;
-  }, [categories, services, products]);
+  }, [categories, services, products, formations]);
 
   const flat = useMemo(() => {
-    const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' }> = {};
+    const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation' }> = {};
     groups.forEach((g) => g.items.forEach((it) => { map[it.key] = it; }));
     return map;
   }, [groups]);
@@ -293,7 +299,7 @@ export default function Caisse() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--ink)' }}>{l.n}</div>
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
-                        {fmtMoney(l.priceXof, currency)} · {l.kind === 'product' ? 'produit' : 'service'}
+                        {fmtMoney(l.priceXof, currency)} · {l.kind === 'product' ? 'produit' : l.kind === 'formation' ? 'formation' : 'service'}
                       </div>
                     </div>
                     <span className="trv-qty">

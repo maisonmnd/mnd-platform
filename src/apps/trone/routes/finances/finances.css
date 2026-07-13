@@ -374,3 +374,44 @@
 /* Interrupteur de l'intelligence */
 .trf-switch { cursor: pointer; width: 58px; height: 30px; border-radius: var(--radius-pill); border: none; position: relative; flex: none; }
 .trf-switch > span { position: absolute; top: 3px; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--color-ivoire); transition: left var(--dur-fast, .2s) var(--ease-soft, ease); }
+
+/* ---------- Détail revenus & dépenses (Synthèse & résultat) ---------- */
+.trf-detail__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.trf-detail__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+@media (max-width: 720px) { .trf-detail__grid { grid-template-columns: 1fr; gap: 8px; } }
+.trf-detail__sub {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+/* Ligne de synthèse — mode de paiement / caisse */
+.trf-tally { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--hairline); }
+.trf-tally:first-of-type { border-top: none; }
+.trf-tally__k { font-family: var(--font-sans); font-size: 13px; color: var(--ink); display: flex; flex-direction: column; gap: 2px; }
+.trf-tally__n { font-size: 10.5px; color: var(--ink-soft); letter-spacing: 0.02em; }
+.trf-tally__v { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); white-space: nowrap; }
+
+/* Groupe de dépenses par catégorie */
+.trf-catgroup { margin-top: 18px; }
+.trf-catgroup:first-child { margin-top: 0; }
+.trf-catgroup__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--color-copper);
+}
+.trf-catgroup__name {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: var(--weight-medium);
+  color: var(--color-indigo);
+}
+.trf-catgroup__sum { font-family: var(--font-serif); font-size: 17px; color: var(--color-copper); white-space: nowrap; }

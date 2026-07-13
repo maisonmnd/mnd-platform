@@ -182,3 +182,13 @@
 .sys-preview__rule { width: 40px; height: 2px; margin: 12px auto; }
 .sys-preview__verbe { font-family: var(--font-serif); font-style: italic; font-size: 14px; line-height: 1.5; color: rgba(246, 241, 231, 0.82); }
 .sys-preview__body { background: var(--paper); padding: 20px; }
+
+/* ---------- Maîtres au fauteuil · liste éditable ---------- */
+.sys-masters { display: flex; flex-direction: column; gap: 8px; }
+.sys-masters__empty { margin: 0 0 2px; font-family: var(--font-sans); font-size: 11px; font-style: italic; color: var(--ink-soft); }
+.sys-master { display: flex; align-items: center; gap: 8px; }
+.sys-master .mnd-input { flex: 1; min-width: 0; }
+.sys-master__rm { flex: none; width: 32px; height: 32px; border: 1px solid var(--hairline); border-radius: var(--radius-sm); background: var(--surface-card); color: var(--ink-soft); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+.sys-master__rm:hover { color: var(--color-copper); border-color: var(--color-copper); background: var(--copper-50); }
+.sys-master--add { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.sys-master--add .mnd-btn { flex: none; white-space: nowrap; }

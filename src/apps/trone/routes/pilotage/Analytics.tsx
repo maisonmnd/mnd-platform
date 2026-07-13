@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoneyCompact } from '../../../../shared/currency';
+import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
-import { apptTotalXof, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
+import { useClientSessions, isOnline, type ClientSession } from '../../../../shared/activity';
+import { apptTotalXof, apptNetXof, apptDueXof, apptLabel, frShort, StatusPill, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 
 /* Analytics — lecture de tendance. Maison neuve : tout est dérivé des magasins
@@ -20,6 +21,28 @@ type Period = 'm30' | 'trim' | 'annee';
 
 const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
 
+/** Durée cumulée en clair : « 42 s », « 12 min », « 1 h 05 ». */
+function fmtDuration(sec: number): string {
+  if (sec < 60) return `${Math.max(0, Math.round(sec))} s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, '0')}`;
+}
+
+/** Écart relatif fin depuis une dernière activité : « à l'instant », « il y a 4 min », « il y a 2 h », « il y a 3 j ». */
+function relSeen(iso: string): string {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 45) return 'à l’instant';
+  const min = Math.round(s / 60);
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const d = Math.round(h / 24);
+  return `il y a ${d} j`;
+}
+
 export default function Analytics() {
   const { branch, branches, currency } = useBranch();
   const [appointments] = useAppointments();
@@ -27,7 +50,10 @@ export default function Analytics() {
   const [clients] = useClients();
   const [categories] = useCategories();
   const [queue] = useStore(consultationsQueueStore);
+  const [sessions] = useClientSessions();
   const byId = useServicesById();
+
+  const clientNameById = useMemo(() => new Map(clients.map((c) => [c.id, c.name])), [clients]);
 
   const [period, setPeriod] = useState<Period>('trim');
   const [scope, setScope] = useState<string>(branch.id); // id de branche ou 'toutes'
@@ -190,6 +216,45 @@ export default function Analytics() {
   }, [scopedAppts, scopedPaidInvoices, byId]);
   const yearTotal = monthly.reduce((s, m) => s + m.total, 0);
   const chartMax = Math.max(...monthly.map((m) => m.total), 1);
+
+  /* — Activité des clientes · Ma Couronne : présence & temps sur la plateforme —
+     Sessions regroupées par cliente, filtrées au périmètre (branchId de la session). */
+  const activity = useMemo(() => {
+    const scoped = sessions.filter((s: ClientSession) => (scope === 'toutes' ? true : s.branchId ? s.branchId === scope : true));
+    const byClient = new Map<string, ClientSession[]>();
+    scoped.forEach((s) => {
+      const arr = byClient.get(s.clientId) ?? [];
+      arr.push(s);
+      byClient.set(s.clientId, arr);
+    });
+    const rows = Array.from(byClient.entries()).map(([clientId, list]) => {
+      const last = list.reduce((a, b) => (b.lastSeenAt > a.lastSeenAt ? b : a));
+      return {
+        clientId,
+        name: list.find((s) => s.clientName)?.clientName ?? clientNameById.get(clientId) ?? 'Cliente',
+        online: list.some((s) => isOnline(s)),
+        lastSeenAt: last.lastSeenAt,
+        screen: last.screen,
+        totalSec: list.reduce((sum, s) => sum + s.durationSec, 0),
+        count: list.length,
+      };
+    });
+    rows.sort((a, b) => Number(b.online) - Number(a.online) || (b.lastSeenAt > a.lastSeenAt ? 1 : b.lastSeenAt < a.lastSeenAt ? -1 : 0));
+    const onlineNow = rows.filter((r) => r.online).length;
+    const avgSec = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.totalSec, 0) / rows.length) : 0;
+    return { rows, onlineNow, avgSec };
+  }, [sessions, scope, clientNameById]);
+
+  /* — Rendez-vous impayés : solde restant dû (net − acompte − encaissé), hors annulés —
+     Triés du plus en retard (date la plus ancienne) au plus lourd (reste dû). */
+  const unpaid = useMemo(() => {
+    const rows = scopedAppts
+      .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
+      .map((a) => ({ a, net: apptNetXof(a, byId), due: apptDueXof(a, byId) }));
+    rows.sort((x, y) => (x.a.date < y.a.date ? -1 : x.a.date > y.a.date ? 1 : y.due - x.due));
+    const totalDue = rows.reduce((s, r) => s + r.due, 0);
+    return { rows, totalDue };
+  }, [scopedAppts, byId]);
 
   const scopeChips = [
     { id: 'toutes', label: 'Toutes les branches' },
@@ -372,6 +437,80 @@ export default function Analytics() {
               : 'Le Cercle s’exprimera dès les premières introductions — l’intelligence a besoin de vécu.'}
           </div>
         </div>
+      </div>
+
+      {/* Activité des clientes · Ma Couronne — présence temps réel & temps sur la plateforme */}
+      <div className="trp-panel" style={{ marginTop: 18 }}>
+        <div className="trp-mon__head">
+          <div className="trp-panel__title" style={{ marginBottom: 0 }}>Activité des clientes · Ma Couronne</div>
+          {activity.rows.length > 0 && (
+            <div className="trp-mon__headline">
+              <span className="trp-dot is-on" style={{ marginRight: 6 }} />
+              {activity.onlineNow > 0
+                ? `${activity.onlineNow} en ligne maintenant`
+                : 'aucune en ligne'}
+              <span className="trp-mon__sep">·</span>
+              temps moyen {fmtDuration(activity.avgSec)}
+            </div>
+          )}
+        </div>
+        {activity.rows.length === 0 ? (
+          <div className="trp-empty">Aucune visite cliente pour l’instant.</div>
+        ) : (
+          <div className="trp-act">
+            {activity.rows.map((r) => (
+              <div className="trp-act__row" key={r.clientId}>
+                <span className={`trp-dot ${r.online ? 'is-on' : ''}`} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="trp-act__name">{r.name}</div>
+                  <div className="trp-act__meta">
+                    {r.online ? 'En ligne' : relSeen(r.lastSeenAt)}
+                    <span className="trp-mon__sep">·</span>
+                    {r.screen ?? 'écran inconnu'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flex: 'none' }}>
+                  <div className="trp-act__time">{fmtDuration(r.totalSec)}</div>
+                  <div className="trp-act__meta">{r.count} session{r.count > 1 ? 's' : ''}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Rendez-vous impayés — solde restant dû sur le carnet du périmètre */}
+      <div className="trp-panel" style={{ marginTop: 18 }}>
+        <div className="trp-mon__head">
+          <div className="trp-panel__title" style={{ marginBottom: 0 }}>Rendez-vous impayés</div>
+          {unpaid.rows.length > 0 && (
+            <div className="trp-mon__headline">
+              {unpaid.rows.length} RDV impayé{unpaid.rows.length > 1 ? 's' : ''}
+              <span className="trp-mon__sep">·</span>
+              <span style={{ color: 'var(--color-copper)', fontFamily: 'var(--font-serif)', fontSize: 15 }}>
+                {fmtMoney(unpaid.totalDue, currency)} dus
+              </span>
+            </div>
+          )}
+        </div>
+        {unpaid.rows.length === 0 ? (
+          <div className="trp-empty">Tout est réglé — rien en attente.</div>
+        ) : (
+          <div className="trp-pay">
+            {unpaid.rows.map(({ a, net, due }) => (
+              <div className="trp-pay__row" key={a.id}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="trp-act__name">{clientNameById.get(a.clientId) ?? 'Cliente'}</div>
+                  <div className="trp-act__meta">{apptLabel(a, byId)}</div>
+                </div>
+                <div className="trp-pay__date">{frShort(a.date)}</div>
+                <div className="trp-pay__total">{fmtMoney(net, currency)}</div>
+                <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
+                <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
