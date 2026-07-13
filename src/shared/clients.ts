@@ -25,10 +25,18 @@ export type Client = {
   preferredMaster?: string;
 };
 
-/** Styles de couronne proposés dans le CRM et affichés dans Ma Couronne. */
-export const CROWN_STYLES = [
-  'Microlocks', 'Sisterlocks', 'Locks fines', 'Locks moyennes', 'Locks larges', 'Traditionnelles',
+/** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
+export const CROWN_STYLES_DEFAULT = [
+  'Microlocks', 'Sisterlocks', 'Locks fines', 'Locks moyennes', 'Locks larges',
+  'Traditionnelles', 'Freeform', 'Faux locks', 'Locks bouclées', 'Interlocks',
 ];
+
+/** Liste gérable des styles de couronne (Paramètres / CRM), synchronisée Supabase. */
+export const crownStylesStore = createStore<string[]>('mnd_crown_styles', CROWN_STYLES_DEFAULT);
+export const useCrownStyles = () => useStore(crownStylesStore);
+
+/** Alias rétro-compatible (liste par défaut). Préférer `useCrownStyles()`. */
+export const CROWN_STYLES = CROWN_STYLES_DEFAULT;
 
 export type Persona = {
   id: string;
@@ -49,6 +57,7 @@ export const personasStore = createStore<Persona[]>('mnd_personas', PERSONAS_SEE
 export const useClients = () => useStore(clientsStore);
 export const usePersonas = () => useStore(personasStore);
 
-import { bindCollection } from './sync';
+import { bindCollection, bindDocument } from './sync';
 bindCollection(clientsStore, 'clients');
 bindCollection(personasStore, 'personas');
+bindDocument(crownStylesStore, 'mnd_crown_styles');

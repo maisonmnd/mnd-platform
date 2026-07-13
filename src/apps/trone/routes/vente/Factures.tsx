@@ -6,12 +6,14 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
-import { useInvoices, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
-   remises par ligne et globale, conversion devis → facture, impression. */
+   remises par ligne et globale, conversion devis → facture, impression.
+   Édition complète : chaque document se rouvre dans l’éditeur (création & modification
+   partagent le même formulaire) ; l’enregistrement met à jour le document existant. */
 
 type ThemeKey = Invoice['theme'];
 
@@ -34,6 +36,7 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
 
 const DISC_OPTIONS = [0, 5, 10, 15, 20, 25, 30];
 const PAYMENTS: PaymentMethod[] = ['MTN MoMo', 'Moov', 'Espèces', 'Carte', 'Lien WhatsApp'];
+const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
 
 const todayIso = () => {
   const d = new Date();
@@ -45,6 +48,8 @@ const fmtDateFr = (iso: string) => {
   const s = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   return s.replace(/^1 /, '1ᵉʳ ');
 };
+
+type EditState = { mode: 'new' | 'edit'; draft: Invoice };
 
 export default function Factures() {
   const { branch, currency } = useBranch();
@@ -58,6 +63,7 @@ export default function Factures() {
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
+  const [editing, setEditing] = useState<EditState | null>(null);
 
   const branchDocs = useMemo(
     () => invoices.filter((i) => i.branchId === branch.id).sort((a, b) => b.date.localeCompare(a.date)),
@@ -67,12 +73,19 @@ export default function Factures() {
     .filter((d) => kindTab === 'all' || d.kind === kindTab)
     .filter((d) => statusFilter === 'tous' || d.status === statusFilter);
 
-  const doc = branchDocs.find((d) => d.id === selectedId) ?? filtered[0] ?? branchDocs[0] ?? null;
+  const selected = branchDocs.find((d) => d.id === selectedId) ?? filtered[0] ?? branchDocs[0] ?? null;
 
-  const patchDoc = (patch: Partial<Invoice>) => {
-    if (!doc) return;
-    setInvoices((prev) => prev.map((i) => (i.id === doc.id ? { ...i, ...patch } : i)));
+  /* Document affiché dans l’aperçu vivant : le brouillon en cours d’édition, sinon la sélection. */
+  const active = editing ? editing.draft : selected;
+
+  /* Écrit le document sélectionné (déjà enregistré) dans le magasin. */
+  const patchSelected = (patch: Partial<Invoice>) => {
+    if (!selected) return;
+    setInvoices((prev) => prev.map((i) => (i.id === selected.id ? { ...i, ...patch } : i)));
   };
+  /* Écrit le brouillon local en cours d’édition (rien n’est enregistré avant « Enregistrer »). */
+  const patchDraft = (patch: Partial<Invoice>) =>
+    setEditing((e) => (e ? { ...e, draft: { ...e.draft, ...patch } } : e));
 
   const clientOf = (d: Invoice) => clients.find((c) => c.id === d.clientId);
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
@@ -89,59 +102,90 @@ export default function Factures() {
     return kind === 'devis' ? `MND-D-${year}-${String(max + 1).padStart(4, '0')}` : `MND-${year}-${String(max + 1).padStart(4, '0')}`;
   };
 
-  const createDoc = (kind: Invoice['kind']) => {
-    const inv: Invoice = {
-      id: uid(),
-      branchId: branch.id,
-      kind,
-      number: nextNumber(kind),
-      clientId: branchClients[0]?.id ?? '',
-      date: todayIso(),
-      lines: [],
-      globalDiscountPct: 0,
-      theme: 'Aube',
-      status: 'brouillon',
-      master: branch.masters[0],
-    };
-    setInvoices((prev) => [inv, ...prev]);
-    setSelectedId(inv.id);
+  const blankDraft = (kind: Invoice['kind']): Invoice => ({
+    id: uid(),
+    branchId: branch.id,
+    kind,
+    number: nextNumber(kind),
+    clientId: branchClients[0]?.id ?? '',
+    date: todayIso(),
+    lines: [],
+    globalDiscountPct: 0,
+    theme: 'Aube',
+    status: 'brouillon',
+    master: branch.masters[0],
+  });
+
+  /* Ouvre l’éditeur — mode création (document neuf, non enregistré). */
+  const openNew = (kind: Invoice['kind']) => {
+    setEditing({ mode: 'new', draft: blankDraft(kind) });
     setKindTab('all');
     setStatusFilter('tous');
   };
+  /* Ouvre le MÊME éditeur pré-rempli avec un document existant — mode modification. */
+  const openEdit = (d: Invoice) => {
+    setSelectedId(d.id);
+    setEditing({ mode: 'edit', draft: { ...d, lines: d.lines.map((l) => ({ ...l })) } });
+  };
+  const cancelEdit = () => setEditing(null);
+
+  /* Enregistre : ajoute (création) ou remplace par id (modification). */
+  const saveDraft = () => {
+    if (!editing) return;
+    const d = editing.draft;
+    if (editing.mode === 'new') setInvoices((prev) => [d, ...prev]);
+    else setInvoices((prev) => prev.map((i) => (i.id === d.id ? d : i)));
+    setSelectedId(d.id);
+    setEditing(null);
+  };
+
+  const deleteDoc = (id: string, label: string) => {
+    if (!window.confirm(`Supprimer définitivement ${label} ? Cette action est irréversible.`)) return;
+    setInvoices((prev) => prev.filter((i) => i.id !== id));
+    if (editing?.draft.id === id) setEditing(null);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  /* ----- Lignes (agissent sur le brouillon en cours d’édition) ----- */
+  const patchLines = (fn: (lines: InvoiceLine[]) => InvoiceLine[]) =>
+    setEditing((e) => (e ? { ...e, draft: { ...e.draft, lines: fn(e.draft.lines) } } : e));
 
   const addServiceLine = (svcId: string) => {
     const svc = services.find((s) => s.id === svcId);
-    if (!svc || !doc) return;
-    patchDoc({ lines: [...doc.lines, { id: uid(), label: svc.name, qty: 1, unitXof: svc.priceXof, discountPct: 0 }] });
+    if (!svc) return;
+    patchLines((ls) => [...ls, { id: uid(), label: svc.name, qty: 1, unitXof: svc.priceXof, discountPct: 0 }]);
   };
   const addFreeLine = () => {
     const amt = parseInt(freeAmount.replace(/[^0-9]/g, ''), 10) || 0;
-    if (!doc || !freeLabel.trim() || amt <= 0) return;
-    patchDoc({ lines: [...doc.lines, { id: uid(), label: freeLabel.trim(), qty: 1, unitXof: amt, discountPct: 0 }] });
+    if (!freeLabel.trim() || amt <= 0) return;
+    patchLines((ls) => [...ls, { id: uid(), label: freeLabel.trim(), qty: 1, unitXof: amt, discountPct: 0 }]);
     setFreeLabel('');
     setFreeAmount('');
   };
+  const setLine = (id: string, patch: Partial<InvoiceLine>) =>
+    patchLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const removeLine = (id: string) => patchLines((ls) => ls.filter((l) => l.id !== id));
 
-  const totals = doc
+  const totals = active
     ? (() => {
-        const gross = doc.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
-        const afterLines = doc.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
+        const gross = active.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
+        const afterLines = active.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
         const lineDisc = gross - afterLines;
-        const globalDisc = afterLines * (doc.globalDiscountPct / 100);
-        return { gross, lineDisc, globalDisc, net: invoiceTotal(doc) };
+        const globalDisc = afterLines * (active.globalDiscountPct / 100);
+        return { gross, lineDisc, globalDisc, net: invoiceTotal(active) };
       })()
     : null;
 
-  const theme = doc ? THEMES[doc.theme] : THEMES.Aube;
-  const defaultNote = doc
-    ? `${prenomOf(doc)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille. — ${doc.master ?? branch.masters[0] ?? 'la Maison'}`
+  const theme = active ? THEMES[active.theme] : THEMES.Aube;
+  const defaultNote = active
+    ? `${prenomOf(active)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille. — ${active.master ?? branch.masters[0] ?? 'la Maison'}`
     : '';
 
   const qrCells = useMemo(() => {
-    if (!doc) return [];
-    const seed = (doc.number + doc.theme).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    if (!active) return [];
+    const seed = (active.number + active.theme).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     return Array.from({ length: 25 }, (_, i) => ((seed * (i + 7)) % 5) > 1);
-  }, [doc]);
+  }, [active]);
 
   const printDoc = () => {
     document.body.classList.add('trv-print-doc');
@@ -150,14 +194,14 @@ export default function Factures() {
   };
 
   const sendWhatsApp = () => {
-    if (!doc) return;
-    const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
+    if (!selected) return;
+    const phone = clientOf(selected)?.phone.replace(/\D/g, '') ?? '';
     const msg =
-      `Maison MND · ${doc.kind === 'devis' ? 'Devis' : 'Facture'} ${doc.number}\n` +
-      `Pour ${prenomOf(doc)} — total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
-      `${(doc.note?.trim() || defaultNote)}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
+      `Maison MND · ${selected.kind === 'devis' ? 'Devis' : 'Facture'} ${selected.number}\n` +
+      `Pour ${prenomOf(selected)} — total ${fmtMoney(invoiceTotal(selected), currency)}.\n` +
+      `${(selected.note?.trim() || defaultNote)}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-    if (doc.status === 'brouillon') patchDoc({ status: 'envoyée' });
+    if (selected.status === 'brouillon') patchSelected({ status: 'envoyée' });
   };
 
   const statusClass = (s: Invoice['status']) =>
@@ -169,6 +213,8 @@ export default function Factures() {
     devis: branchDocs.filter((d) => d.kind === 'devis').length,
   };
 
+  const draft = editing?.draft ?? null;
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -176,14 +222,14 @@ export default function Factures() {
         title="Factures & devis."
         actions={
           <>
-            <Button variant="ghost" onClick={() => createDoc('devis')}>+ Devis</Button>
-            <Button onClick={() => createDoc('facture')}>+ Nouvelle facture</Button>
+            <Button variant="ghost" onClick={() => openNew('devis')}>+ Devis</Button>
+            <Button onClick={() => openNew('facture')}>+ Nouvelle facture</Button>
           </>
         }
       />
 
       <div className="trv-fac-grid">
-        {/* ===== Colonne gauche — documents & âme ===== */}
+        {/* ===== Colonne gauche — documents & éditeur ===== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <div className="trv-sec-label">Les documents</div>
@@ -204,18 +250,26 @@ export default function Factures() {
               </Select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 320, overflowY: 'auto' }}>
-              {filtered.map((d) => (
-                <button key={d.id} className={`trv-doc-item ${doc?.id === d.id ? 'is-active' : ''}`} onClick={() => setSelectedId(d.id)}>
-                  <span style={{ minWidth: 0 }}>
-                    <span className="cl">{clientNameOf(d)}</span>
-                    <span className="no">{d.kind === 'devis' ? 'Devis' : 'Facture'} · {d.number}</span>
-                  </span>
-                  <span style={{ textAlign: 'right', flex: 'none' }}>
-                    <span className="amt">{fmtMoney(invoiceTotal(d), currency)}</span>
-                    <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
-                  </span>
-                </button>
-              ))}
+              {filtered.map((d) => {
+                const isActive = (editing?.draft.id ?? selected?.id) === d.id;
+                return (
+                  <div key={d.id} className={`trv-doc-item ${isActive ? 'is-active' : ''}`} style={{ cursor: 'pointer' }} onClick={() => { setSelectedId(d.id); if (editing) setEditing(null); }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span className="cl">{clientNameOf(d)}</span>
+                      <span className="no">{d.kind === 'devis' ? 'Devis' : 'Facture'} · {d.number}</span>
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                      <span style={{ textAlign: 'right' }}>
+                        <span className="amt">{fmtMoney(invoiceTotal(d), currency)}</span>
+                        <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
+                      </span>
+                      <button className="trv-minibtn" title="Modifier ce document" onClick={(e) => { e.stopPropagation(); openEdit(d); }}>
+                        Modifier
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
               {filtered.length === 0 && (
                 <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)', padding: '8px 0' }}>
                   Aucun document pour ce filtre.
@@ -224,60 +278,92 @@ export default function Factures() {
             </div>
           </div>
 
-          {doc && (
+          {/* ===== Éditeur (création & modification — même formulaire) ===== */}
+          {draft ? (
             <>
-              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                <div>
+                  <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 2 }}>
+                    {editing?.mode === 'new' ? 'Nouveau document' : 'Modifier le document'}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                    {draft.kind === 'devis' ? 'Devis' : 'Facture'} · {draft.number}
+                  </div>
+                </div>
+                <span className={`trv-status ${statusClass(draft.status)}`}>{draft.status}</span>
+              </div>
+
+              <div>
                 <div className="trv-sec-label">Tête couronnée & maître</div>
                 <div className="tr-grid tr-grid--2" style={{ gap: 8 }}>
-                  <Select value={doc.clientId} onChange={(e) => patchDoc({ clientId: e.target.value })} style={{ fontSize: 12 }}>
+                  <Select value={draft.clientId} onChange={(e) => patchDraft({ clientId: e.target.value })} style={{ fontSize: 12 }}>
                     <option value="">Walk-in</option>
                     {branchClients.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </Select>
-                  <Select value={doc.master ?? ''} onChange={(e) => patchDoc({ master: e.target.value })} style={{ fontSize: 12 }}>
-                    {[...new Set([doc.master ?? '', ...branch.masters])].filter(Boolean).map((m) => (
+                  <Select value={draft.master ?? ''} onChange={(e) => patchDraft({ master: e.target.value })} style={{ fontSize: 12 }}>
+                    {[...new Set([draft.master ?? '', ...branch.masters])].filter(Boolean).map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </Select>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
+              <div>
                 <div className="trv-sec-label">Prestations & remises</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {doc.lines.map((l) => (
+                  {draft.lines.map((l) => (
                     <div key={l.id} style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', background: 'var(--surface-card)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>
-                          {l.qty > 1 ? `${l.label} ×${l.qty}` : l.label}
-                        </span>
+                        <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>{l.label}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)' }}>{fmtMoney(l.qty * l.unitXof, currency)}</span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)' }}>{fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency)}</span>
                           <button
                             className="trv-sq trv-sq--ghost"
                             style={{ width: 20, height: 20, color: 'var(--ink-soft)' }}
                             title="Retirer la ligne"
-                            onClick={() => patchDoc({ lines: doc.lines.filter((x) => x.id !== l.id) })}
+                            onClick={() => removeLine(l.id)}
                           >
                             ✕
                           </button>
                         </span>
                       </div>
-                      <select
-                        className="mnd-select"
-                        style={{ marginTop: 7, padding: '5px 8px', fontSize: 10.5, color: 'var(--copper-700)' }}
-                        value={l.discountPct}
-                        onChange={(e) =>
-                          patchDoc({ lines: doc.lines.map((x) => (x.id === l.id ? { ...x, discountPct: +e.target.value } : x)) })
-                        }
-                      >
-                        {DISC_OPTIONS.map((v) => (
-                          <option key={v} value={v}>{v === 0 ? 'Aucune remise' : `Remise −${v}%`}</option>
-                        ))}
-                      </select>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        <span className="trv-stepper">
+                          <button className="trv-sq" title="Moins" onClick={() => setLine(l.id, { qty: Math.max(1, l.qty - 1) })}>−</button>
+                          <span className="val">{l.qty}</span>
+                          <button className="trv-sq" title="Plus" onClick={() => setLine(l.id, { qty: l.qty + 1 })}>+</button>
+                        </span>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <input
+                            className="mnd-input"
+                            style={{ width: 92, padding: '5px 8px', fontSize: 11.5 }}
+                            inputMode="numeric"
+                            title="Prix unitaire"
+                            value={l.unitXof}
+                            onChange={(e) => setLine(l.id, { unitXof: parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0 })}
+                          />
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--ink-soft)' }}>F/u</span>
+                        </label>
+                        <select
+                          className="mnd-select"
+                          style={{ padding: '5px 8px', fontSize: 10.5, color: 'var(--copper-700)' }}
+                          value={l.discountPct}
+                          onChange={(e) => setLine(l.id, { discountPct: +e.target.value })}
+                        >
+                          {DISC_OPTIONS.map((v) => (
+                            <option key={v} value={v}>{v === 0 ? 'Aucune remise' : `Remise −${v}%`}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   ))}
+                  {draft.lines.length === 0 && (
+                    <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-soft)', padding: '4px 0' }}>
+                      Aucune prestation — ajoutez-en une ci-dessous.
+                    </div>
+                  )}
                 </div>
                 <select
                   className="mnd-select"
@@ -300,8 +386,8 @@ export default function Factures() {
                   <select
                     className="mnd-select"
                     style={{ padding: '6px 10px', fontSize: 11.5, color: 'var(--copper-700)' }}
-                    value={doc.globalDiscountPct}
-                    onChange={(e) => patchDoc({ globalDiscountPct: +e.target.value })}
+                    value={draft.globalDiscountPct}
+                    onChange={(e) => patchDraft({ globalDiscountPct: +e.target.value })}
                   >
                     {DISC_OPTIONS.map((v) => (
                       <option key={v} value={v}>{v === 0 ? 'Aucune' : `−${v}%`}</option>
@@ -315,9 +401,9 @@ export default function Factures() {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginBottom: 7 }}>Le motif & le vers</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
                   {(Object.keys(THEMES) as ThemeKey[]).map((k) => (
-                    <button key={k} title={THEMES[k].amb} className={`trv-theme-btn ${doc.theme === k ? 'is-active' : ''}`} onClick={() => patchDoc({ theme: k })}>
+                    <button key={k} title={THEMES[k].amb} className={`trv-theme-btn ${draft.theme === k ? 'is-active' : ''}`} onClick={() => patchDraft({ theme: k })}>
                       <span style={{ height: 34, display: 'flex', alignItems: 'center' }}>
-                        <Motif theme={k} size={24} color={doc.theme === k ? '#9E6238' : '#B97A4A'} />
+                        <Motif theme={k} size={24} color={draft.theme === k ? '#9E6238' : '#B97A4A'} />
                       </span>
                       <span className="l">{k}</span>
                     </button>
@@ -328,55 +414,108 @@ export default function Factures() {
                   className="mnd-textarea"
                   style={{ width: '100%', minHeight: 74, fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.5 }}
                   placeholder={defaultNote}
-                  value={doc.note ?? ''}
-                  onChange={(e) => patchDoc({ note: e.target.value })}
+                  value={draft.note ?? ''}
+                  onChange={(e) => patchDraft({ note: e.target.value })}
                 />
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginTop: 6 }}>
                   Ambiance · <span style={{ color: 'var(--copper-700)' }}>{theme.amb}</span>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button className="trv-wa-btn" onClick={sendWhatsApp}>Adresser par WhatsApp</button>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Button style={{ flex: 1 }} size="sm" onClick={printDoc}>Imprimer</Button>
-                  <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={printDoc}>PDF</Button>
-                </div>
-                {doc.kind === 'devis' ? (
-                  <Button
-                    variant="copper"
-                    size="sm"
-                    onClick={() => patchDoc({ kind: 'facture', number: nextNumber('facture'), status: 'envoyée' })}
-                  >
-                    Convertir en facture
-                  </Button>
-                ) : doc.status !== 'payée' ? (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Select value={payChoice} onChange={(e) => setPayChoice(e.target.value as PaymentMethod)} style={{ flex: 1, fontSize: 12 }}>
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
+                <div className="trv-sec-label">Statut & règlement</div>
+                <div className="tr-grid tr-grid--2" style={{ gap: 8 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Statut</span>
+                    <Select value={draft.status} onChange={(e) => patchDraft({ status: e.target.value as Invoice['status'] })} style={{ fontSize: 12 }}>
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Moyen de paiement</span>
+                    <Select value={draft.payment ?? ''} onChange={(e) => patchDraft({ payment: (e.target.value || undefined) as PaymentMethod | undefined })} style={{ fontSize: 12 }}>
+                      <option value="">—</option>
                       {PAYMENTS.map((p) => (
                         <option key={p} value={p}>{p}</option>
                       ))}
                     </Select>
-                    <Button variant="copper" size="sm" onClick={() => patchDoc({ status: 'payée', payment: payChoice })}>
-                      Marquer payée
-                    </Button>
-                  </div>
-                ) : (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--trv-success)', textAlign: 'center' }}>
-                    Payée · {doc.payment}
-                  </div>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button variant="copper" style={{ flex: 1 }} onClick={saveDraft}>
+                    {editing?.mode === 'new' ? 'Créer le document' : 'Enregistrer les modifications'}
+                  </Button>
+                  <Button variant="ghost" onClick={cancelEdit}>Annuler</Button>
+                </div>
+                {editing?.mode === 'edit' && (
+                  <button
+                    className="trv-linkbtn trv-linkbtn--muted"
+                    style={{ alignSelf: 'flex-start', color: 'var(--trv-error)' }}
+                    onClick={() => deleteDoc(draft.id, `${draft.kind === 'devis' ? 'ce devis' : 'cette facture'} ${draft.number}`)}
+                  >
+                    Supprimer ce document
+                  </button>
                 )}
               </div>
             </>
-          )}
+          ) : selected ? (
+            /* ===== Actions du document sélectionné (hors édition) ===== */
+            <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="copper" style={{ flex: 1 }} size="sm" onClick={() => openEdit(selected)}>Modifier</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  style={{ color: 'var(--trv-error)' }}
+                  onClick={() => deleteDoc(selected.id, `${selected.kind === 'devis' ? 'ce devis' : 'cette facture'} ${selected.number}`)}
+                >
+                  Supprimer
+                </Button>
+              </div>
+              <button className="trv-wa-btn" onClick={sendWhatsApp}>Adresser par WhatsApp</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button style={{ flex: 1 }} size="sm" onClick={printDoc}>Imprimer</Button>
+                <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={printDoc}>PDF</Button>
+              </div>
+              {selected.kind === 'devis' ? (
+                <Button
+                  variant="copper"
+                  size="sm"
+                  onClick={() => patchSelected({ kind: 'facture', number: nextNumber('facture'), status: 'envoyée' })}
+                >
+                  Convertir en facture
+                </Button>
+              ) : selected.status !== 'payée' ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Select value={payChoice} onChange={(e) => setPayChoice(e.target.value as PaymentMethod)} style={{ flex: 1, fontSize: 12 }}>
+                    {PAYMENTS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </Select>
+                  <Button variant="copper" size="sm" onClick={() => patchSelected({ status: 'payée', payment: payChoice })}>
+                    Marquer payée
+                  </Button>
+                </div>
+              ) : (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--trv-success)', textAlign: 'center' }}>
+                  Payée · {selected.payment}
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         {/* ===== Le document vivant ===== */}
-        {doc && totals && (
+        {active && totals && (
           <div className="trv-doc-stage">
             <div className="trv-doc">
               <div className="trv-doc__motif" aria-hidden="true">
-                <Motif theme={doc.theme} size={60} color="#B97A4A" />
+                <Motif theme={active.theme} size={60} color="#B97A4A" />
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -389,19 +528,19 @@ export default function Factures() {
               <div className="trv-doc__filet" />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div className="trv-doc__kind">{doc.kind === 'devis' ? 'Devis' : 'Facture'} · {doc.number}</div>
-                <span className={`trv-status ${statusClass(doc.status)}`}>{doc.status}</span>
+                <div className="trv-doc__kind">{active.kind === 'devis' ? 'Devis' : 'Facture'} · {active.number}</div>
+                <span className={`trv-status ${statusClass(active.status)}`}>{active.status}</span>
               </div>
 
-              <div className="trv-doc__pour">Pour {prenomOf(doc)},</div>
+              <div className="trv-doc__pour">Pour {prenomOf(active)},</div>
               <div className="trv-doc__verse">{theme.verse}</div>
               <div className="trv-doc__sep">· — ✦ — ·</div>
 
               <div className="trv-doc__passage">
-                Votre passage · {fmtDateFr(doc.date)}{doc.master ? ` · avec ${doc.master}` : ''}
+                Votre passage · {fmtDateFr(active.date)}{active.master ? ` · avec ${active.master}` : ''}
               </div>
               <div style={{ marginTop: 12 }}>
-                {doc.lines.map((l) => {
+                {active.lines.map((l) => {
                   const net = l.qty * l.unitXof * (1 - l.discountPct / 100);
                   return (
                     <div key={l.id} className="trv-doc__item">
@@ -418,7 +557,7 @@ export default function Factures() {
                     </div>
                   );
                 })}
-                {doc.lines.length === 0 && (
+                {active.lines.length === 0 && (
                   <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)', padding: '12px 0' }}>
                     Le document attend sa première prestation.
                   </div>
@@ -432,7 +571,7 @@ export default function Factures() {
                     <div className="trv-doc__totline disc"><span>Remises par prestation</span><span>− {fmtMoney(Math.round(totals.lineDisc), currency)}</span></div>
                   )}
                   {totals.globalDisc > 0 && (
-                    <div className="trv-doc__totline disc"><span>Remise globale · −{doc.globalDiscountPct}%</span><span>− {fmtMoney(Math.round(totals.globalDisc), currency)}</span></div>
+                    <div className="trv-doc__totline disc"><span>Remise globale · −{active.globalDiscountPct}%</span><span>− {fmtMoney(Math.round(totals.globalDisc), currency)}</span></div>
                   )}
                 </>
               )}
@@ -444,7 +583,7 @@ export default function Factures() {
 
               <div className="trv-doc__note">
                 <span className="q">“</span>
-                <div className="txt">{doc.note?.trim() || defaultNote}</div>
+                <div className="txt">{active.note?.trim() || defaultNote}</div>
               </div>
 
               <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -1008,6 +1008,51 @@
 .mc-svccard__meta { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 .mc-svccard .mc-pillseal { margin-top: 8px; }
 
+/* Sélection multiple : la carte devient une bascule (case cochée cuivre). */
+.mc-svccard { width: 100%; }
+.mc-svccard.is-on { border-color: var(--color-copper); background: var(--color-sable); }
+.mc-svccard__box {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-card);
+  transition: var(--transition-base);
+}
+.mc-svccard.is-on .mc-svccard__box { border-color: var(--color-copper); background: var(--color-copper); }
+.mc-svccard.is-on .mc-svccard__box::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--color-ivoire);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Barre de synthèse — total vivant + « Continuer », responsive (revient à la ligne). */
+.mc-multibar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--color-sable);
+  border: 1px solid var(--copper-300);
+  border-radius: 4px;
+}
+.mc-multibar__info { flex: 1 1 160px; min-width: 0; }
+.mc-multibar__count { display: block; font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); line-height: 1.1; }
+.mc-multibar__meta { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
+.mc-multibar__cta { width: auto; flex: 0 1 auto; min-width: 150px; padding: 14px 22px; }
+.mc-multibar__cta:disabled { opacity: 0.4; cursor: default; }
+
 /* -------- étape 4 · créneau -------- */
 .mc-prefillnote {
   margin-bottom: 14px;
@@ -1097,6 +1142,19 @@
 .mc-recapcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
 .mc-recapcard__price { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); flex: 0 0 auto; }
 .mc-recapcard__meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+
+/* Lignes par prestation (récapitulatif multi-services). */
+.mc-recapcard__svcline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+}
+.mc-recapcard__svcline + .mc-recapcard__svcline { border-top: 1px solid var(--hairline); }
+.mc-recapcard__svcname { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.15; }
+.mc-recapcard__svcsub { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
+.mc-recapcard__svcprice { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); flex: 0 0 auto; }
 .mc-recapcard__deal { font-size: 11.5px; color: var(--accent-strong); margin-top: 6px; }
 .mc-recapcard__deal s { color: var(--ink-soft); margin-left: 6px; }
 .mc-recapcard__line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink); }

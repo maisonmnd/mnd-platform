@@ -629,3 +629,68 @@
   font-size: 18px;
   color: var(--ink-soft);
 }
+
+/* ---------- Ajout inline d'un style de couronne ---------- */
+.trc-crown-add {
+  flex: none;
+  width: 40px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--copper-600);
+  border: 1px dashed var(--copper-500);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 1;
+  transition: var(--transition-base);
+}
+.trc-crown-add:hover { background: var(--copper-50); border-style: solid; }
+
+/* ---------- Zone de retrait (fiche 360) ---------- */
+.trc-danger {
+  border-top: 1px solid var(--hairline);
+  padding-top: 16px;
+}
+.trc-danger__btn {
+  cursor: pointer;
+  width: 100%;
+  background: transparent;
+  color: var(--copper-700);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  transition: var(--transition-base);
+}
+.trc-danger__btn:hover { background: var(--copper-50); border-color: var(--copper-600); }
+.trc-danger__note { font-size: 10.5px; color: var(--ink-soft); margin: 9px 0 0; line-height: 1.5; }
+
+/* ---------- Déplacement direct (glisser-déposer calendrier) ---------- */
+.trc-cal__appt--drag { cursor: grab; }
+.trc-cal__appt--drag:active { cursor: grabbing; }
+.trc-week__chip--drag { cursor: grab; }
+.trc-week__chip--drag:active { cursor: grabbing; }
+.trc-cal__appt.is-dragging,
+.trc-week__chip.is-dragging {
+  opacity: 0.45;
+  box-shadow: var(--shadow-lg);
+}
+.trc-cal__col.is-drop { background-color: var(--copper-50); }
+.trc-week__day.is-drop { background-color: var(--copper-50); }
+.trc-cal__toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: calc(var(--z-modal, 90) + 5);
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border-radius: var(--radius-sm);
+  border-left: var(--filet-copper);
+  padding: 11px 18px;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-lg);
+  animation: mnd-rise var(--dur-base) var(--ease-soft);
+}

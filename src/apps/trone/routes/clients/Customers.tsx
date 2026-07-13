@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { CROWN_STYLES, clientsStore, usePersonas, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, useCrownStyles, usePersonas, type Client } from '../../../../shared/clients';
 import { uid } from '../../../../shared/store';
 import {
   Avatar, Drawer, RdvModal, StatusPill, addDaysISO, apptLabel, apptTotalXof, frLong, frShort, frDay,
@@ -27,6 +27,39 @@ const crownAge = (iso: string): string => {
   const y = `${years} an${years > 1 ? 's' : ''}`;
   return months > 0 ? `${y} ${months} mois` : y;
 };
+
+/** Champ « Style de couronne » — liste éditable (crownStylesStore) + ajout inline. */
+function CrownStyleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [styles] = useCrownStyles();
+  const addStyle = () => {
+    const name = window.prompt('Nom du nouveau style de couronne :')?.trim();
+    if (!name) return;
+    crownStylesStore.set((prev) =>
+      prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name],
+    );
+    onChange(name);
+  };
+  return (
+    <div className="mnd-field">
+      <span className="mnd-field__label">Style de couronne</span>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
+          <option value="">—</option>
+          {styles.map((s) => <option key={s} value={s}>{s}</option>)}
+        </Select>
+        <button
+          type="button"
+          className="trc-crown-add"
+          onClick={addStyle}
+          aria-label="Ajouter un style"
+          title="Ajouter un style de couronne"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Customers() {
   const clients = useBranchClients();
@@ -176,6 +209,21 @@ function Customer360({
     setPickPersona(false);
   };
 
+  /* Retrait doux — la cliente disparaît des listes sans quitter la Maison. */
+  const archiveClient = () => {
+    if (!window.confirm(`Archiver ${client.name} ? Elle sortira des listes sans être supprimée.`)) return;
+    patch({ archived: true });
+    onClose();
+  };
+
+  /* Suppression définitive — les rendez-vous restent au carnet. */
+  const deleteClient = () => {
+    const warn = appts.length > 0 ? ' Ses rendez-vous resteront au carnet.' : '';
+    if (!window.confirm(`Supprimer définitivement ${client.name} ?${warn} Cette action est irréversible.`)) return;
+    clientsStore.set((prev) => prev.filter((c) => c.id !== client.id));
+    onClose();
+  };
+
   return (
     <Drawer onClose={onClose}>
       <div className="trc-drawer__cover">
@@ -221,12 +269,10 @@ function Customer360({
               {client.preferredMaster ? ` · fidèle à ${client.preferredMaster}` : ''}
             </div>
             <div className="trc-crown__grid">
-              <Field label="Style de couronne">
-                <Select value={client.crownStyle ?? ''} onChange={(e) => patch({ crownStyle: e.target.value || undefined })}>
-                  <option value="">—</option>
-                  {CROWN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </Select>
-              </Field>
+              <CrownStyleField
+                value={client.crownStyle ?? ''}
+                onChange={(v) => patch({ crownStyle: v || undefined })}
+              />
               <Field label="Nombre de locks">
                 <Input
                   type="number"
@@ -311,6 +357,22 @@ function Customer360({
             <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink)' }}>{client.notes}</div>
           </div>
         )}
+
+        {/* Retrait de la Maison — archive (doux) ou suppression définitive */}
+        <div className="trc-danger">
+          <span className="trc-microlabel">Retirer de la Maison</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Button variant="ghost" size="sm" onClick={archiveClient}>
+              Archiver la cliente
+            </Button>
+            <button type="button" className="trc-danger__btn" onClick={deleteClient}>
+              Supprimer la cliente
+            </button>
+          </div>
+          <p className="trc-danger__note">
+            L’archivage la retire des listes sans l’effacer. La suppression est définitive.
+          </p>
+        </div>
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
@@ -403,12 +465,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
         <div>
           <span className="trc-microlabel">La couronne · partagé avec Ma Couronne</span>
           <div className="tr-grid tr-grid--2">
-            <Field label="Style de couronne">
-              <Select value={crownStyle} onChange={(e) => setCrownStyle(e.target.value)}>
-                <option value="">—</option>
-                {CROWN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </Select>
-            </Field>
+            <CrownStyleField value={crownStyle} onChange={setCrownStyle} />
             <Field label="Nombre de locks">
               <Input type="number" min={0} value={lockCount} onChange={(e) => setLockCount(e.target.value)} placeholder="—" />
             </Field>

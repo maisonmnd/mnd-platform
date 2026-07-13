@@ -2,6 +2,7 @@ import { asset } from '../../shared/asset';
 import { useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
+import { onlineDepositRate } from '../../shared/settings';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { uid } from '../../shared/store';
 import type { Service } from '../../shared/catalog';
@@ -13,7 +14,6 @@ import {
   dayLabelIso,
   fmtDuration,
   freeSlots,
-  isoOf,
   pad2,
   todayIso,
   useClientId,
@@ -22,13 +22,14 @@ import {
 } from './lib';
 
 /* RÉSERVER EN 7 TEMPS
-   objectif → palier → prestation → créneau → récapitulatif → acompte 30 % → confirmé */
+   objectif → palier → prestations → créneau → récapitulatif → acompte → confirmé
+   L'acompte suit le taux de la Maison (Paramètres du Trône), non figé. */
 
-const TITLES = ['Votre objectif.', 'Le palier.', 'La prestation.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
+const TITLES = ['Votre objectif.', 'Le palier.', 'Les prestations.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
 const EYEBROWS = [
   'Réserver · 1 décision',
   'Réserver · palier d’expérience',
-  'Réserver · prestation',
+  'Réserver · prestations',
   'Réserver · disponibilité',
   'Réserver · les quatre temps',
   'Réserver · Mobile Money',
@@ -58,7 +59,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [step, setStep] = useState(prefService ? 3 : 0);
   const [catId, setCatId] = useState<string | null>(prefService?.categoryId ?? null);
   const [palier, setPalier] = useState<Service['palier'] | null>(prefService?.palier ?? null);
-  const [service, setService] = useState<Service | null>(prefService);
+  /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
+  const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
   const [monthIdx, setMonthIdx] = useState(0);
   const [selIso, setSelIso] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
@@ -69,16 +71,35 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const discountPct = prefill?.discountPct ?? 0;
   const offerLabel = prefill?.offerLabel;
 
-  /* Prix effectif (offre appliquée) + acompte 30 %. */
-  const price = service ? Math.round(service.priceXof * (1 - discountPct / 100)) : 0;
-  const deposit = Math.round(price * 0.3);
+  /* ---- Prestations retenues (dans l'ordre du catalogue) et agrégats ---- */
+  const selected = useMemo(
+    () => services.filter((s) => selectedIds.includes(s.id)),
+    [services, selectedIds]
+  );
+  const totalDuration = selected.reduce((n, s) => n + s.durationMin, 0);
+  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + s.priceXof, 0);
+  const anyHidden = selected.some((s) => s.hidePrice);
+  const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
+  /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
+  const master = selected[0]?.master ?? '';
+  const masterVaries = selected.length > 1 && !selected.every((s) => s.master === master);
+  const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;
+
+  /* Prix effectif (offre appliquée sur le total) + acompte au taux de la Maison. */
+  const depositRate = onlineDepositRate();
+  const depositPct = Math.round(depositRate * 100);
+  const price = Math.round(knownTotal * (1 - discountPct / 100));
+  const deposit = Math.round(price * depositRate);
 
   /* Catégories réservables : au moins une prestation visible. */
   const bookableCats = cats.filter((c) => services.some((s) => s.categoryId === c.id));
   const catServices = services.filter((s) => s.categoryId === catId);
   const stepServices = catServices.filter((s) => s.palier === palier);
 
-  /* ---- Calendrier : mois courant + mois suivant, disponibilité calculée par maître ---- */
+  const toggleService = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  /* ---- Calendrier : mois courant + suivant, disponibilité sur la durée TOTALE ---- */
   const months = useMemo(() => {
     const now = new Date();
     return [0, 1].map((k) => {
@@ -89,7 +110,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   const month = months[monthIdx];
   const calCells = useMemo(() => {
-    if (!service) return [];
+    if (!selected.length) return [];
     const first = new Date(month.y, month.m, 1);
     const daysIn = new Date(month.y, month.m + 1, 0).getDate();
     const today = todayIso();
@@ -98,14 +119,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
       const past = iso < today;
-      const free = !past && freeSlots(iso, service.master, service.durationMin, appts, services, branch.id).length > 0;
+      const free = !past && freeSlots(iso, master, totalDuration, appts, services, branch.id).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
-  }, [month, service, appts, services, branch.id]);
+  }, [month, selected.length, master, totalDuration, appts, services, branch.id]);
 
-  const dayTimes = selIso && service
-    ? freeSlots(selIso, service.master, service.durationMin, appts, services, branch.id)
+  const dayTimes = selIso && selected.length
+    ? freeSlots(selIso, master, totalDuration, appts, services, branch.id)
     : [];
 
   /* ---- Navigation ---- */
@@ -119,22 +140,25 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* ---- Paiement simulé + écriture dans l'agenda partagé ---- */
   const settle = () => {
     if (!pay) { toast('Choisissez votre moyen de paiement.'); return; }
-    if (!service || !selIso || !time) return;
+    if (!selected.length || !selIso || !time) return;
     setPaying(true);
     window.clearTimeout(payTimer.current);
     payTimer.current = window.setTimeout(() => {
+      const notes: string[] = [];
+      if (offerLabel) notes.push(`Offre instantanée · ${offerLabel}`);
+      if (masterVaries) notes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
       const appt: Appointment = {
         id: uid(),
         branchId: branch.id,
         clientId,
-        serviceIds: [service.id],
+        serviceIds: [...selectedIds],
         date: selIso,
         time,
-        master: service.master,
+        master,
         status: 'en attente',
         depositXof: deposit,
         source: 'couronne',
-        note: offerLabel ? `Offre instantanée · ${offerLabel}` : undefined,
+        note: notes.length ? notes.join(' · ') : undefined,
       };
       appointmentsStore.set((prev) => [...prev, appt]);
       setPaying(false);
@@ -144,6 +168,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   const priceLabel = (s: Service, pct = 0) =>
     s.hidePrice ? 'Prix en salon' : fmtMoney(Math.round(s.priceXof * (1 - pct / 100)), currency);
+
+  /* Total lisible : « Prix en salon » si tout est masqué, sinon montant (+ salon si mixte). */
+  const totalLabel = allHidden ? 'Prix en salon' : fmtMoney(price, currency);
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';
 
@@ -177,7 +204,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <button
                   key={c.id}
                   className="mc-rowcard"
-                  onClick={() => { setCatId(c.id); setPalier(null); setService(null); setStep(1); }}
+                  onClick={() => { setCatId(c.id); setPalier(null); setSelectedIds([]); setStep(1); }}
                 >
                   <div>
                     <div className="mc-rowcard__fon">{c.fon}</div>
@@ -211,7 +238,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   key={p.key}
                   className={`mc-paliercard ${n === 0 ? 'is-off' : ''}`}
                   disabled={n === 0}
-                  onClick={() => { setPalier(p.key); setService(null); setStep(2); }}
+                  onClick={() => { setPalier(p.key); setSelectedIds([]); setStep(2); }}
                 >
                   <span className="mc-paliercard__filet" />
                   <div className="mc-paliercard__name">{p.key}</div>
@@ -224,36 +251,64 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           </div>
         )}
 
-        {/* -------- 3 · prestation -------- */}
+        {/* -------- 3 · prestations (sélection multiple) -------- */}
         {step === 2 && (
-          <div className="mc-stack mc-fade">
-            {stepServices.map((s) => (
-              <button
-                key={s.id}
-                className="mc-svccard"
-                onClick={() => { setService(s); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
-              >
-                <div className="mc-svccard__top">
-                  <div className="mc-svccard__name">{s.name}</div>
-                  <div className="mc-svccard__price">{priceLabel(s)}</div>
+          <div className="mc-fade">
+            <div className="mc-stack">
+              {stepServices.map((s) => {
+                const on = selectedIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    className={`mc-svccard ${on ? 'is-on' : ''}`}
+                    aria-pressed={on}
+                    onClick={() => toggleService(s.id)}
+                  >
+                    <div className="mc-svccard__top">
+                      <div className="mc-svccard__name">{s.name}</div>
+                      <span className="mc-svccard__box" aria-hidden />
+                    </div>
+                    <div className="mc-svccard__meta">
+                      {priceLabel(s)} · {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · avec {s.master}
+                    </div>
+                    {s.description && <div className="mc-svccard__meta">{s.description}</div>}
+                    {s.sessions > 1 && <span className="mc-pillseal">Série liée · J1 → J{s.sessions}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {stepServices.length > 0 && (
+              <div className="mc-multibar">
+                <div className="mc-multibar__info">
+                  <span className="mc-multibar__count">
+                    {selectedIds.length} sélectionnée{selectedIds.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="mc-multibar__meta">
+                    {selectedIds.length
+                      ? `${totalLabel} · ${fmtDuration(totalDuration)}`
+                      : 'Choisissez une ou plusieurs prestations.'}
+                  </span>
                 </div>
-                <div className="mc-svccard__meta">
-                  {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · avec {s.master}
-                </div>
-                {s.description && <div className="mc-svccard__meta">{s.description}</div>}
-                {s.sessions > 1 && <span className="mc-pillseal">Série liée · J1 → J{s.sessions}</span>}
-              </button>
-            ))}
+                <button
+                  className="mc-cta mc-cta--indigo mc-multibar__cta"
+                  disabled={selectedIds.length === 0}
+                  onClick={() => { setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
+                >
+                  Continuer
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* -------- 4 · créneau -------- */}
-        {step === 3 && service && (
+        {step === 3 && selected.length > 0 && (
           <div className="mc-fade">
             {(discountPct > 0 || prefService) && (
               <div className="mc-prefillnote">
-                {service.name}
-                {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ' · avec ' + service.master}
+                {summaryLabel}
+                {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ` · avec ${master}`}
               </div>
             )}
             <div className="mc-calnav">
@@ -283,7 +338,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 )
               )}
             </div>
-            <div className="mc-callegend"><span />Jours avec créneaux libres · maître {service.master}</div>
+            <div className="mc-callegend">
+              <span />Jours avec créneaux libres · {fmtDuration(totalDuration)} · maître {master}{masterVaries ? ' +' : ''}
+            </div>
 
             {selIso && (
               <div className="mc-fade" style={{ marginTop: 20 }}>
@@ -293,7 +350,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     <button key={t} className="mc-slotcard" onClick={() => { setTime(t); setStep(4); }}>
                       <div>
                         <div className="mc-slotcard__time">{t}</div>
-                        <div className="mc-slotcard__who">avec {service.master}</div>
+                        <div className="mc-slotcard__who">avec {master}{masterVaries ? ' +' : ''} · {fmtDuration(totalDuration)}</div>
                       </div>
                       <span className="mc-slotcard__free">Libre</span>
                     </button>
@@ -306,18 +363,33 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 5 · récapitulatif -------- */}
-        {step === 4 && service && selIso && time && (
+        {step === 4 && selected.length > 0 && selIso && time && (
           <div className="mc-fade">
             <div className="mc-recapcard">
-              <div className="mc-recapcard__row">
-                <div className="mc-recapcard__name">{service.name}</div>
-                <div className="mc-recapcard__price">{priceLabel(service, discountPct)}</div>
-              </div>
-              <div className="mc-recapcard__meta">{palier ?? service.palier} · {fmtDuration(service.durationMin)} · avec {service.master}</div>
-              {discountPct > 0 && !service.hidePrice && (
-                <div className="mc-recapcard__deal">
-                  {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(service.priceXof, currency)}</s>
+              {selected.map((s) => (
+                <div key={s.id} className="mc-recapcard__svcline">
+                  <div>
+                    <div className="mc-recapcard__svcname">{s.name}</div>
+                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)} · avec {s.master}</div>
+                  </div>
+                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct)}</div>
                 </div>
+              ))}
+              {discountPct > 0 && knownTotal > 0 && (
+                <div className="mc-recapcard__deal">
+                  {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(knownTotal, currency)}</s>
+                </div>
+              )}
+              <div className="mc-hairline" />
+              <div className="mc-recapcard__total">
+                <span>Total{anyHidden && !allHidden ? ' connu' : ''}</span>
+                <span>{totalLabel}</span>
+              </div>
+              <div className="mc-recapcard__meta">
+                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}
+              </div>
+              {anyHidden && !allHidden && (
+                <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
               )}
               <div className="mc-hairline" />
               <div className="mc-recapcard__line"><span>Créneau</span><span>{dayLabelIso(selIso)} · {time}</span></div>
@@ -341,14 +413,18 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           </div>
         )}
 
-        {/* -------- 6 · acompte 30 % -------- */}
-        {step === 5 && service && (
+        {/* -------- 6 · acompte (taux de la Maison) -------- */}
+        {step === 5 && selected.length > 0 && (
           <div className="mc-fade">
             <div className="mc-depositcard">
               <div className="mc-depositcard__label">Acompte à régler</div>
-              <div className="mc-depositcard__amount">{fmtMoney(deposit, currency)}</div>
+              <div className="mc-depositcard__amount">{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</div>
               <div className="mc-depositcard__sub">
-                {service.hidePrice ? '30 % de la prestation · solde au salon' : `30 % de ${fmtMoney(price, currency)} · solde au salon`}
+                {allHidden
+                  ? `Acompte de ${depositPct} % réglé au salon`
+                  : anyHidden
+                    ? `${depositPct} % de ${fmtMoney(price, currency)} · reste au salon`
+                    : `${depositPct} % de ${fmtMoney(price, currency)} · solde au salon`}
               </div>
             </div>
             <div className="mc-sectionlabel">Mobile Money</div>
@@ -365,7 +441,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               ))}
             </div>
             <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={settle} disabled={paying}>
-              Régler {fmtMoney(deposit, currency)}
+              {allHidden ? 'Confirmer la réservation' : `Régler ${fmtMoney(deposit, currency)}`}
             </button>
             <div className="mc-footnote">Reçu envoyé sur WhatsApp.</div>
 
@@ -373,7 +449,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-paysheet mc-fade">
                 <div className="mc-paysheet__card mc-rise">
                   <div className="mc-micro-eyebrow">{payMethodName} · paiement sécurisé</div>
-                  <div className="mc-paysheet__amount">{fmtMoney(deposit, currency)}</div>
+                  <div className="mc-paysheet__amount">{allHidden ? 'Confirmation' : fmtMoney(deposit, currency)}</div>
                   <div className="mc-paysheet__hint">Confirmez sur votre téléphone — une demande vient de vous être envoyée.</div>
                   <div className="mc-paysheet__pulse"><span /><span /><span /></div>
                 </div>
@@ -383,16 +459,16 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 7 · confirmé -------- */}
-        {step === 6 && service && selIso && time && (
+        {step === 6 && selected.length > 0 && selIso && time && (
           <div className="mc-confirm mc-rise">
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <h2>Votre rituel est scellé.</h2>
             <p>Confirmation envoyée sur WhatsApp. Un rappel vous parviendra la veille — la maison vous attend.</p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-              <div className="mc-recapcard__name">{service.name}</div>
-              <div className="mc-recapcard__meta">{dayLabelIso(selIso)} · {time} · avec {service.master}</div>
+              <div className="mc-recapcard__name">{summaryLabel}</div>
+              <div className="mc-recapcard__meta">{dayLabelIso(selIso)} · {time} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}</div>
               <div className="mc-hairline" />
-              <div className="mc-recapcard__line"><span>Acompte réglé</span><span>{fmtMoney(deposit, currency)}</span></div>
+              <div className="mc-recapcard__line"><span>{allHidden ? 'Acompte' : 'Acompte réglé'}</span><span>{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</span></div>
               <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={() => { toast('Ajouté à votre calendrier.'); }}>

@@ -5,6 +5,7 @@ import { Toggle } from '../equipe/ui';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
+import { useCrownStyles } from '../../../../shared/clients';
 import './systeme.css';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
@@ -21,7 +22,6 @@ const IDENTITY: FieldRow[] = [
 
 const RITUEL_FIELDS: FieldRow[] = [
   { l: 'Durée standard d’un rituel', v: '2 h 30' },
-  { l: 'Acompte retenu', v: '30 %' },
   { l: 'Fenêtre d’annulation', v: '48 h avant' },
 ];
 const RITUEL_TOGGLES: ToggleRow[] = [
@@ -80,13 +80,56 @@ function FieldRowView({ l, v }: FieldRow) {
 export default function Parametres() {
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
+  const [crownStyles, setCrownStyles] = useCrownStyles();
   const [saved, setSaved] = useState(false);
   const [sentRole, setSentRole] = useState<string | null>(null);
+  const [newStyle, setNewStyle] = useState('');
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editVal, setEditVal] = useState('');
 
   const curName = currencyByCode(currency)?.name ?? currency;
 
   const toggle = (k: string) =>
     setSettings((s) => ({ ...s, toggles: { ...s.toggles, [k]: !s.toggles[k] } }));
+
+  /** Acompte exigé en ligne (%) — borné 0–100, entier ; lu par Ma Couronne. */
+  const setDepositPct = (raw: string) => {
+    const n = Math.max(0, Math.min(100, Math.round(Number(raw) || 0)));
+    setSettings((s) => ({ ...s, onlineDepositPct: n }));
+  };
+
+  /* ----- Styles de couronne — liste éditable (trim + dédoublonnage) ----- */
+  const normalizeStyles = (list: string[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const s of list) {
+      const t = s.trim();
+      if (!t) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
+    return out;
+  };
+  const addStyle = () => {
+    const t = newStyle.trim();
+    if (!t) return;
+    setCrownStyles((prev) => normalizeStyles([...prev, t]));
+    setNewStyle('');
+  };
+  const startRename = (idx: number, current: string) => { setEditIdx(idx); setEditVal(current); };
+  const commitRename = (idx: number) => {
+    const t = editVal.trim();
+    if (t) setCrownStyles((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
+    setEditIdx(null);
+    setEditVal('');
+  };
+  const removeStyle = (idx: number, name: string) => {
+    if (!window.confirm(`Retirer le style « ${name} » ? Il ne sera plus proposé au CRM ni à Ma Couronne.`)) return;
+    setCrownStyles((prev) => prev.filter((_, i) => i !== idx));
+    if (editIdx === idx) setEditIdx(null);
+  };
 
   const setHour = (key: string, field: keyof DayHours, val: string | boolean) =>
     setSettings((s) => ({
@@ -143,6 +186,26 @@ export default function Parametres() {
           <div className="sys-section__title">Le rituel par défaut</div>
           <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous.</div>
           {RITUEL_FIELDS.map((r) => <FieldRowView key={r.l} {...r} />)}
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Acompte exigé en ligne (%)</div>
+              <div className="sys-row__sub">Ce que la cliente règle à la réservation sur Ma Couronne.</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                className="sys-select"
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={settings.onlineDepositPct}
+                onChange={(e) => setDepositPct(e.target.value)}
+                style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                aria-label="Acompte exigé en ligne en pourcentage"
+              />
+              <span className="sys-row__value">%</span>
+            </div>
+          </div>
           <ToggleRows rows={RITUEL_TOGGLES} />
         </Card>
 
@@ -192,6 +255,68 @@ export default function Parametres() {
             )}
           </div>
         ))}
+      </Card>
+
+      {/* ---------- Catalogue · styles de couronne ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Catalogue · styles de couronne</div>
+            <div className="sys-section__cap">
+              La liste des styles proposée partout — fiches CRM et Ma Couronne. Ajoutez, renommez, retirez ;
+              les changements se propagent aussitôt.
+            </div>
+          </div>
+          <span className="sys-badge-count">{crownStyles.length} style{crownStyles.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {crownStyles.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row">
+              {editIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={editVal}
+                    autoFocus
+                    onChange={(e) => setEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(i); if (e.key === 'Escape') setEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le style"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => startRename(i, s)}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeStyle(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {crownStyles.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun style pour l’instant — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newStyle}
+            onChange={(e) => setNewStyle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addStyle(); }}
+            placeholder="Nouveau style — ex. Microlocks"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
+        </div>
       </Card>
 
       {/* ---------- Accès ERP · rôles & codes ---------- */}
