@@ -8,6 +8,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
 import { useInvoices, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
+import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 
@@ -65,6 +66,7 @@ export default function Factures() {
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
   const [editing, setEditing] = useState<EditState | null>(null);
+  const [waHint, setWaHint] = useState<string | null>(null);
 
   const branchDocs = useMemo(
     () => invoices.filter((i) => i.branchId === branch.id).sort((a, b) => b.date.localeCompare(a.date)),
@@ -91,6 +93,54 @@ export default function Factures() {
   const clientOf = (d: Invoice) => clients.find((c) => c.id === d.clientId);
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
   const prenomOf = (d: Invoice) => clientNameOf(d).split(' ')[0];
+
+  /* Nom pour le PDF — la cliente au CRM, sinon un nom libre, sinon « Cliente de passage ». */
+  const clientNameForPdf = (d: Invoice) => {
+    const c = clientOf(d);
+    if (c) return c.name;
+    const n = d.clientName?.trim();
+    return n && n.toLowerCase() !== 'walk-in' ? n : 'Cliente de passage';
+  };
+
+  /* Le mot du Maître par défaut, pour un document donné. */
+  const defaultNoteFor = (d: Invoice) =>
+    `${prenomOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille. — ${d.master ?? branch.masters[0] ?? 'la Maison'}`;
+
+  /* Construit les données du vrai PDF de marque à partir d'un document. */
+  const buildPdfData = (d: Invoice): InvoicePdfData => {
+    const gross = d.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
+    const net = invoiceTotal(d);
+    const disc = gross - net;
+    return {
+      kind: d.kind,
+      number: d.number,
+      houseName: branch.name,
+      houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
+      date: fmtDateFr(d.date),
+      clientName: clientNameForPdf(d),
+      clientPhone: clientOf(d)?.phone,
+      master: d.master,
+      lines: d.lines.map((l) => ({
+        label: l.label,
+        qty: l.qty,
+        unit: fmtMoney(l.unitXof, currency),
+        total: fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency),
+      })),
+      subtotal: fmtMoney(Math.round(gross), currency),
+      discount: disc > 0 ? `− ${fmtMoney(Math.round(disc), currency)}` : undefined,
+      total: fmtMoney(net, currency),
+      payment: d.payment,
+      status: d.status,
+      note: d.note?.trim() || defaultNoteFor(d),
+    };
+  };
+
+  /* Génère & télécharge le vrai PDF du document sélectionné. */
+  const downloadPdf = async () => {
+    if (!selected) return;
+    await invoicePdf(buildPdfData(selected));
+    setWaHint('PDF téléchargé.');
+  };
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
@@ -178,9 +228,7 @@ export default function Factures() {
     : null;
 
   const theme = active ? THEMES[active.theme] : THEMES.Aube;
-  const defaultNote = active
-    ? `${prenomOf(active)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille. — ${active.master ?? branch.masters[0] ?? 'la Maison'}`
-    : '';
+  const defaultNote = active ? defaultNoteFor(active) : '';
 
   const qrCells = useMemo(() => {
     if (!active) return [];
@@ -194,15 +242,22 @@ export default function Factures() {
     window.setTimeout(() => document.body.classList.remove('trv-print-doc'), 400);
   };
 
-  const sendWhatsApp = () => {
+  const sendWhatsApp = async () => {
     if (!selected) return;
-    const phone = clientOf(selected)?.phone.replace(/\D/g, '') ?? '';
+    const doc = selected;
+    /* 1) Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai PDF… */
+    await invoicePdf(buildPdfData(doc));
+    /* 2) …puis on ouvre le chat pré-rempli, en signalant la pièce jointe. */
+    const label = doc.kind === 'devis' ? 'Devis' : 'Facture';
+    const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
     const msg =
-      `Maison MND · ${selected.kind === 'devis' ? 'Devis' : 'Facture'} ${selected.number}\n` +
-      `Pour ${prenomOf(selected)} — total ${fmtMoney(invoiceTotal(selected), currency)}.\n` +
-      `${(selected.note?.trim() || defaultNote)}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
+      `Maison MND · ${label} ${doc.number}\n` +
+      `Pour ${prenomOf(doc)} — total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
+      `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
+      `${(doc.note?.trim() || defaultNoteFor(doc))}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-    if (selected.status === 'brouillon') patchSelected({ status: 'envoyée' });
+    setWaHint('PDF téléchargé — joignez-le à votre message.');
+    if (doc.status === 'brouillon') patchSelected({ status: 'envoyée' });
   };
 
   const statusClass = (s: Invoice['status']) =>
@@ -473,11 +528,12 @@ export default function Factures() {
                   Supprimer
                 </Button>
               </div>
-              <button className="trv-wa-btn" onClick={sendWhatsApp}>Adresser par WhatsApp</button>
+              <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button style={{ flex: 1 }} size="sm" onClick={printDoc}>Imprimer</Button>
-                <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={printDoc}>PDF</Button>
+                <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={() => void downloadPdf()}>PDF</Button>
               </div>
+              {waHint && <div className="trv-pdf-hint">{waHint}</div>}
               {selected.kind === 'devis' ? (
                 <Button
                   variant="copper"

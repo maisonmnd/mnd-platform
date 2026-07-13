@@ -7,6 +7,7 @@ import { useCategories, useServices, useProducts } from '../../../../shared/cata
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
 import { useInvoices, useCashboxes, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 
@@ -51,6 +52,7 @@ export default function Caisse() {
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
+  const [waHint, setWaHint] = useState<string | null>(null);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -131,10 +133,11 @@ export default function Caisse() {
     return `MND-${year}-${String(max + 1).padStart(4, '0')}`;
   };
 
-  const checkout = () => {
+  const checkout = async () => {
     if (lines.length === 0) return;
     const client = branchClients.find((c) => c.id === clientId);
     const now = new Date();
+    const grossXof = lines.reduce((s, l) => s + l.priceXof * l.qty, 0);
     const inv: Invoice = {
       id: uid(),
       branchId: branch.id,
@@ -153,12 +156,39 @@ export default function Caisse() {
     };
     setInvoices((prev) => [inv, ...prev]);
     if (pay === 'Lien WhatsApp') {
+      /* Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai
+         reçu PDF, puis on ouvre le chat pré-rempli en signalant la pièce jointe. */
+      const receipt: InvoicePdfData = {
+        kind: 'facture',
+        number: inv.number,
+        houseName: branch.name,
+        houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
+        date: fmtDateFr(inv.date),
+        clientName: client?.name ?? 'Cliente de passage',
+        clientPhone: client?.phone,
+        lines: inv.lines.map((l) => ({
+          label: l.label,
+          qty: l.qty,
+          unit: fmtMoney(l.unitXof, currency),
+          total: fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency),
+        })),
+        subtotal: fmtMoney(Math.round(grossXof), currency),
+        discount: grossXof - netXof > 0 ? `− ${fmtMoney(Math.round(grossXof - netXof), currency)}` : undefined,
+        total: fmtMoney(netXof, currency),
+        payment: inv.payment,
+        status: 'payée',
+      };
+      await invoicePdf(receipt);
       const msg =
         `Maison MND · ${inv.number}\n` +
         `${client ? client.name : 'Chère tête couronnée'}, voici le règlement de votre passage : ${fmtMoney(netXof, currency)}.\n` +
+        `Votre reçu ${inv.number} est en pièce jointe.\n` +
         `Réglez d’un geste — MTN MoMo · Moov Money. La maison veille sur votre couronne.`;
       const phone = client?.phone.replace(/\D/g, '') ?? '';
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+      setWaHint('Reçu PDF téléchargé — joignez-le à votre message WhatsApp.');
+    } else {
+      setWaHint(null);
     }
     setCart({});
     setGlobalDisc(0);
@@ -318,9 +348,10 @@ export default function Caisse() {
                   </button>
                 ))}
               </div>
-              <Button variant="copper" size="lg" style={{ marginTop: 16, width: '100%' }} disabled={lines.length === 0} onClick={checkout}>
+              <Button variant="copper" size="lg" style={{ marginTop: 16, width: '100%' }} disabled={lines.length === 0} onClick={() => void checkout()}>
                 Encaisser {fmtMoney(netXof, currency)}
               </Button>
+              {waHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{waHint}</div>}
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
                 Reçu WhatsApp · réconciliation MoMo automatique.
               </div>

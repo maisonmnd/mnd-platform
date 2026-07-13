@@ -8,6 +8,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
 import { useBranch } from '../../../../shared/branches';
 import { asset } from '../../../../shared/asset';
+import { summaryPdf } from '../../../../shared/pdf';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, apptLabel, apptTotalXof, frDay, frLong, relDays,
   todayISO, useBranchAppointments, useBranchClients, useServicesById,
@@ -255,7 +256,7 @@ function splitNotes(raw: string | undefined): { free: string; consultRaw: string
 }
 
 /** Rendu des consultations en cartes distinctes (en-tête cuivre serif + Q/R). */
-function ConsultCards({ blocks }: { blocks: ConsultBlock[] }) {
+function ConsultCards({ blocks, onSummary }: { blocks: ConsultBlock[]; onSummary?: (b: ConsultBlock) => void }) {
   if (blocks.length === 0) return null;
   return (
     <div className="trc-consults">
@@ -264,6 +265,9 @@ function ConsultCards({ blocks }: { blocks: ConsultBlock[] }) {
           <div className="trc-consult-card__head">
             <span className="trc-consult-card__name">{b.name}</span>
             {b.date && <span className="trc-consult-card__date">{b.date}</span>}
+            {onSummary && (
+              <button className="trc-consult-card__summary" onClick={() => onSummary(b)}>Résumé (PDF)</button>
+            )}
           </div>
           <div className="trc-consult-card__body">
             {b.qa.map((qa, j) => (
@@ -294,9 +298,26 @@ function DossierPanel({
   onRestore: () => void;
   onClose: () => void;
 }) {
-  const { currency } = useBranch();
+  const { currency, branch } = useBranch();
   const [queue] = useStore(consultationsQueueStore);
   const [bookOpen, setBookOpen] = useState(false);
+
+  /* Résumé PDF d'une consultation déjà classée au dossier. */
+  const summarizeBlock = (b: ConsultBlock) => {
+    const safe = client.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'cliente';
+    void summaryPdf({
+      eyebrow: 'Consultation',
+      title: b.name,
+      houseName: branch.name,
+      meta: [client.name, b.date].filter(Boolean),
+      sections: [{ heading: 'Diagnostic / Réponses', rows: b.qa.flatMap((qa) => [
+        { label: qa.q },
+        { label: `   → ${qa.a || '—'}` },
+      ]) }],
+      footer: `${branch.name} · Le cheveu est une couronne. La Maison veille.`,
+      filename: `Consultation-${safe}-${(b.date || todayISO()).replace(/[^\p{L}\p{N}]+/gu, '-')}.pdf`,
+    });
+  };
 
   /* Note de la maison — on n'édite que le texte libre, les consultations sont préservées. */
   const parsedNotes = splitNotes(client.notes);
@@ -426,7 +447,7 @@ function DossierPanel({
         {parsedNotes.blocks.length > 0 && (
           <div>
             <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
-            <ConsultCards blocks={parsedNotes.blocks} />
+            <ConsultCards blocks={parsedNotes.blocks} onSummary={summarizeBlock} />
           </div>
         )}
 
@@ -570,10 +591,14 @@ function FormsSection() {
 /* ---------- Panneau · Remplir un formulaire pour une cliente ---------- */
 function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }) {
   const clients = useBranchClients();
+  const { branch } = useBranch();
   const [clientId, setClientId] = useState('');
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [savedDate, setSavedDate] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [waNote, setWaNote] = useState<string | null>(null);
 
   const client = clients.find((c) => c.id === clientId) ?? null;
   const setAnswer = (i: number, v: string) => setAnswers((prev) => ({ ...prev, [i]: v }));
@@ -590,7 +615,49 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
         return { ...c, notes: merged };
       }),
     );
+    setSavedDate(date);
     setSaved(`Consultation enregistrée au dossier de ${client.name}.`);
+  };
+
+  /* Construit (et télécharge) le résumé PDF prêt à envoyer à la cliente. */
+  const buildPdf = async () => {
+    if (!client) return '';
+    const date = savedDate || todayISO();
+    const rows = form.questions.flatMap((q, i) => [
+      { label: `${i + 1}. ${q.q || 'Question'}` },
+      { label: `   → ${(answers[i] ?? '').trim() || '—'}` },
+    ]);
+    const safe = client.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'cliente';
+    return summaryPdf({
+      eyebrow: 'Consultation',
+      title: form.name,
+      houseName: branch.name,
+      meta: [client.name, frLong(date)],
+      sections: [{ heading: 'Diagnostic / Réponses', rows }],
+      footer: `${branch.name} · Le cheveu est une couronne. La Maison veille.`,
+      filename: `Consultation-${safe}-${date}.pdf`,
+    });
+  };
+
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try { await buildPdf(); } finally { setPdfBusy(false); }
+  };
+
+  const sendWhatsApp = async () => {
+    if (!client) return;
+    setPdfBusy(true);
+    try { await buildPdf(); } finally { setPdfBusy(false); }
+    setWaNote('PDF téléchargé — joignez-le à votre message.');
+    const first = client.name.split(' ')[0];
+    const msg = [
+      `Bonjour ${first},`,
+      `Voici le résumé de votre consultation « ${form.name} » du ${frLong(savedDate || todayISO())}.`,
+      `Résumé en pièce jointe.`,
+      `La Maison MND veille sur votre couronne.`,
+    ].join('\n');
+    const phone = digitsOnly(client.phone);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   };
 
   return (
@@ -605,7 +672,22 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="trc-fill-done">{saved}</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Le récapitulatif a été ajouté à la note de la maison du dossier de {client?.name}.</div>
-          <Button variant="copper" onClick={onClose}>Fermer</Button>
+
+          <div className="trc-summary-send">
+            <span className="trc-microlabel" style={{ margin: 0 }}>Résumé pour la cliente</span>
+            <p className="trc-summary-send__lead">Un résumé soigné, prêt à remettre ou à envoyer à {client?.name.split(' ')[0]}.</p>
+            <div className="trc-summary-send__row">
+              <Button variant="indigo" style={{ flex: 1 }} disabled={pdfBusy} onClick={downloadPdf}>
+                {pdfBusy ? 'Préparation…' : 'Télécharger le résumé (PDF)'}
+              </Button>
+              <Button variant="copper" style={{ flex: 1 }} disabled={pdfBusy} onClick={sendWhatsApp}>
+                Envoyer à la cliente (WhatsApp)
+              </Button>
+            </div>
+            {waNote && <p className="trc-summary-send__note">{waNote}</p>}
+          </div>
+
+          <Button variant="ghost" onClick={onClose}>Fermer</Button>
         </div>
       ) : clients.length === 0 ? (
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>

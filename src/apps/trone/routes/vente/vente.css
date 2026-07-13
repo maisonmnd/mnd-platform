@@ -626,3 +626,16 @@
   border-radius: 3px;
   padding: 1px 7px;
 }
+
+/* Note de confirmation après téléchargement du PDF (flux WhatsApp). */
+.trv-pdf-hint {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--copper-700);
+  background: var(--copper-50, rgba(185, 122, 74, 0.08));
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 7px 10px;
+}

@@ -174,14 +174,24 @@ export function RdvModal({
   const [master, setMaster] = useState(appt?.master ?? initial?.master ?? branch.masters[0] ?? '');
   const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
+  const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
+  /* Prestations sur lesquelles porte l'acompte (défaut : toutes). */
+  const [depositServiceIds, setDepositServiceIds] = useState<string[]>(
+    appt?.depositServiceIds ?? appt?.serviceIds ?? initial?.serviceIds ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
-  const totalXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
-  /* Acompte piloté par Paramètres (source unique, partagée avec Ma Couronne). */
+  const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  const totalXof = Math.round(grossXof * (1 - discountPct / 100));
+  /* Acompte piloté par Paramètres, alloué aux prestations choisies (après remise). */
   const depositRate = onlineDepositRate();
   const depositPct = Math.round(depositRate * 100);
+  const depositBaseGross = chosen.filter((s) => depositServiceIds.includes(s.id)).reduce((s, sv) => s + sv.priceXof, 0);
+  const depositXof = Math.round(depositBaseGross * (1 - discountPct / 100) * depositRate);
+  const toggleDepositService = (id: string) =>
+    setDepositServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const overlap = useMemo(() => {
@@ -209,7 +219,8 @@ export function RdvModal({
       appointmentsStore.set((prev) =>
         prev.map((x) =>
           x.id === appt.id
-            ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined }
+            ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
+                discountPct: discountPct || undefined, depositServiceIds, depositXof }
             : x,
         ),
       );
@@ -225,7 +236,9 @@ export function RdvModal({
         status: chosenStatus,
         source: 'trone',
         note: note.trim() || undefined,
-        depositXof: Math.round(totalXof * depositRate),
+        discountPct: discountPct || undefined,
+        depositServiceIds,
+        depositXof,
       };
       appointmentsStore.set((prev) => [...prev, created]);
     }
@@ -266,7 +279,7 @@ export function RdvModal({
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
                   <span style={{ fontSize: 13 }}>{sv.hidePrice ? 'sur devis' : fmtMoney(sv.priceXof, currency)}</span>
                   <button
-                    onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
+                    onClick={() => { setServiceIds((ids) => ids.filter((id) => id !== sv.id)); setDepositServiceIds((ids) => ids.filter((id) => id !== sv.id)); }}
                     aria-label="Retirer"
                     style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13 }}
                   >
@@ -278,7 +291,10 @@ export function RdvModal({
             <Select
               value=""
               onChange={(e) => {
-                if (e.target.value) setServiceIds((ids) => [...ids, e.target.value]);
+                if (e.target.value) {
+                  setServiceIds((ids) => [...ids, e.target.value]);
+                  setDepositServiceIds((ids) => [...ids, e.target.value]);
+                }
               }}
               style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
             >
@@ -346,14 +362,65 @@ export function RdvModal({
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
         </Field>
 
+        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier). */}
+        <Field label="Remise sur le rituel (%)">
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[0, 5, 10, 15, 20].map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
+                onClick={() => setDiscountPct(p)}
+              >
+                {p === 0 ? 'Aucune' : `−${p}%`}
+              </button>
+            ))}
+            <input
+              className="mnd-input"
+              type="number"
+              min={0}
+              max={100}
+              value={discountPct}
+              onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))))}
+              style={{ width: 68, textAlign: 'right' }}
+              aria-label="Remise personnalisée"
+            />
+          </div>
+        </Field>
+
+        {/* Acompte alloué à des prestations précises. */}
+        {chosen.length > 0 && (
+          <div>
+            <span className="trc-microlabel">Acompte sur ces prestations</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {chosen.map((sv) => (
+                <button
+                  key={sv.id}
+                  type="button"
+                  className={`trc-disc ${depositServiceIds.includes(sv.id) ? 'is-on' : ''}`}
+                  onClick={() => toggleDepositService(sv.id)}
+                >
+                  {sv.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="trc-total">
+          {discountPct > 0 && (
+            <div className="trc-total__row">
+              <span>Sous-total · remise −{discountPct}%</span>
+              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{fmtMoney(grossXof, currency)}</s></span>
+            </div>
+          )}
           <div className="trc-total__row">
             <span>Total prestations</span>
             <span className="trc-total__num">{fmtMoney(totalXof, currency)}</span>
           </div>
           <div className="trc-total__row">
-            <span>Acompte Mobile Money · {depositPct} %</span>
-            <span className="trc-total__num">{fmtMoney(Math.round(totalXof * depositRate), currency)}</span>
+            <span>Acompte Mobile Money · {depositPct} %{depositServiceIds.length < chosen.length ? ' (partiel)' : ''}</span>
+            <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
           </div>
         </div>
 
