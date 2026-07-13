@@ -83,17 +83,8 @@ export const EXPENSES_SEED: Expense[] = [];
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const BUDGETS_SEED: Budget[] = [];
 
-export const CASHBOXES_SEED: Cashbox[] = [
-  { id: 'cx-cot-principale', branchId: 'cotonou-flagship', name: 'Caisse principale', sub: 'Espèces · coffre salon', glyph: '◈', openingXof: 1850000 },
-  { id: 'cx-cot-labo', branchId: 'cotonou-flagship', name: 'Caisse laboratoire', sub: 'Atelier des formules', glyph: '⬡', openingXof: 240000 },
-  { id: 'cx-cot-mtn', branchId: 'cotonou-flagship', name: 'MTN MoMo', sub: 'Marchand · 506846', glyph: '▤', openingXof: 920000 },
-  { id: 'cx-cot-moov', branchId: 'cotonou-flagship', name: 'Moov Money', sub: 'Marchand · 401122', glyph: '▤', openingXof: 410000 },
-  { id: 'cx-cot-uba', branchId: 'cotonou-flagship', name: 'Compte UBA', sub: 'Banque · virements', glyph: '▦', openingXof: 6400000 },
-  { id: 'cx-ab-principale', branchId: 'abidjan', name: 'Caisse principale', sub: 'Espèces · Cocody', glyph: '◈', openingXof: 760000 },
-  { id: 'cx-ab-momo', branchId: 'abidjan', name: 'Mobile Money', sub: 'Marchand · 2211', glyph: '▤', openingXof: 380000 },
-  { id: 'cx-pa-principale', branchId: 'paris', name: 'Caisse principale', sub: 'Espèces · Château d’Eau', glyph: '◈', openingXof: 520000 },
-  { id: 'cx-pa-banque', branchId: 'paris', name: 'Compte BNP', sub: 'Banque · CB & virements', glyph: '▦', openingXof: 2100000 },
-];
+/* Maison neuve — coquille vierge ; tout naît de l’usage. */
+export const CASHBOXES_SEED: Cashbox[] = [];
 
 export const EXPENSE_CATEGORIES_SEED: ExpenseCategory[] = [
   { id: 'ec-local', name: 'Local', subs: ['Loyer', 'Énergie', 'Internet & téléphone', 'Entretien des lieux'] },

@@ -15,18 +15,17 @@
 
 /* ---------- L'app — le vrai viewport ---------- */
 
-/* Fond pleine page (voile obsidienne/indigo) ; sur mobile la colonne
-   occupe tout l'écran et le fond n'apparaît jamais. */
+/* Par défaut (téléphones et toute surface tactile) : plein écran, papier
+   pleine largeur, aucun voile, aucune gouttière. Le fond obsidienne et la
+   colonne centrée sont réservés aux vrais grands écrans à souris (voir plus bas). */
 .mc-app {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--color-obsidian);
-  background-image:
-    radial-gradient(circle at 50% -12%, rgba(46, 51, 120, 0.55), transparent 62%),
-    linear-gradient(180deg, rgba(30, 33, 80, 0.22), transparent 45%);
+  background: var(--paper);
   display: flex;
   justify-content: center;
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* La colonne de l'app : 100 % du viewport, son propre défilement interne. */
@@ -41,16 +40,59 @@
   overflow: hidden;
 }
 
-/* Desktop : colonne centrée (~480 px), filets discrets, ombre douce —
-   la barre d'onglets et les écrans superposés restent alignés à la colonne
-   (ils sont positionnés dans .mc-viewport, pas dans le viewport navigateur). */
-@media (min-width: 640px) {
+/* Desktop VRAI (souris + survol) : colonne centrée (~480 px) sur voile
+   obsidienne, filets discrets, ombre douce. La double condition hover + pointer
+   fin garantit qu'AUCUN écran tactile (pointeur grossier) — même s'il annonce
+   une largeur CSS ≥ 700 px — ne reçoit ce cadrage : le téléphone reste toujours
+   plein écran, bord à bord. La barre d'onglets et les écrans superposés restent
+   alignés à la colonne (positionnés dans .mc-viewport). */
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+  .mc-app {
+    background: var(--color-obsidian);
+    background-image:
+      radial-gradient(circle at 50% -12%, rgba(46, 51, 120, 0.55), transparent 62%),
+      linear-gradient(180deg, rgba(30, 33, 80, 0.22), transparent 45%);
+  }
   .mc-viewport {
     max-width: 480px;
     border-left: 1px solid rgba(246, 241, 231, 0.09);
     border-right: 1px solid rgba(246, 241, 231, 0.09);
     box-shadow: 0 0 110px -36px rgba(0, 0, 0, 0.85);
   }
+}
+
+/* Les médias ne débordent jamais du viewport. */
+.mc-app img { max-width: 100%; }
+
+/* Focus clavier — anneau cuivre discret, accessibilité sans gêner le tactile. */
+.mc-app button:focus-visible,
+.mc-app a:focus-visible,
+.mc-app input:focus-visible,
+.mc-app select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Retour tactile discret sur les cartes cliquables. */
+.mc-rowcard:active,
+.mc-svccard:active,
+.mc-slotcard:active,
+.mc-paycard:active,
+.mc-recocard:active,
+.mc-paliercard:active:not(:disabled),
+.mc-offer:active { background: var(--press-veil); }
+
+/* État vierge élégant — réutilisé quand une liste n'a pas encore de données. */
+.mc-emptyzone { text-align: center; padding: 44px 24px 32px; animation: mc-fade 0.3s var(--ease-soft); }
+.mc-emptyzone__glyph { font-family: var(--font-serif); font-size: 42px; color: var(--color-argile); line-height: 1; }
+.mc-emptyzone__t { font-family: var(--font-serif); font-weight: 300; font-size: 23px; color: var(--color-indigo); margin-top: 14px; }
+.mc-emptyzone__s {
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 8px auto 0;
+  max-width: 264px;
 }
 
 /* ---------- Génériques ---------- */
@@ -67,7 +109,8 @@
 .mc-slide { animation: mc-slide 0.3s var(--ease-soft); }
 
 .mc-pagepad { padding: 18px 22px 0; }
-.mc-pagepad--top { padding: 24px 22px 26px; }
+/* Le haut respecte l'encoche / la barre de statut sur les pages qui commencent au bord. */
+.mc-pagepad--top { padding: calc(24px + env(safe-area-inset-top)) 22px 26px; }
 .mc-stack { display: flex; flex-direction: column; gap: 10px; }
 
 .mc-micro-eyebrow {
@@ -89,7 +132,7 @@
 .mc-serif-title {
   font-family: var(--font-serif);
   font-weight: 300;
-  font-size: 32px;
+  font-size: clamp(27px, 8vw, 32px);
   color: var(--color-indigo);
   margin: 6px 0 0;
 }
@@ -109,6 +152,7 @@
 .mc-cta {
   display: block;
   width: 100%;
+  min-height: 48px;
   border: none;
   border-radius: 2px;
   padding: 17px;
@@ -118,8 +162,9 @@
   letter-spacing: 0.22em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.24s var(--ease-soft), color 0.24s var(--ease-soft);
+  transition: background 0.24s var(--ease-soft), color 0.24s var(--ease-soft), transform 0.12s var(--ease-soft);
 }
+.mc-cta:active:not(:disabled) { transform: translateY(1px); }
 .mc-cta--copper { background: var(--accent); color: var(--color-ivoire); }
 .mc-cta--copper:hover { background: var(--copper-600); }
 .mc-cta--indigo { background: var(--color-indigo); color: var(--color-ivoire); font-size: 12px; letter-spacing: 0.2em; padding: 16px; }
@@ -156,7 +201,19 @@
   padding: 0;
   align-self: flex-start;
 }
-.mc-x { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--ink-soft); padding: 0; }
+.mc-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--ink-soft);
+  padding: 6px;
+  margin: -6px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: color 0.2s var(--ease-soft);
+}
+.mc-x:hover { color: var(--color-indigo); }
 .mc-quietbtn {
   margin-top: 10px;
   width: 100%;
@@ -206,20 +263,20 @@
    ============================================================ */
 
 .mc-onb { display: flex; flex-direction: column; height: 100%; }
-.mc-onb__hero { position: relative; height: 56%; min-height: 300px; overflow: hidden; flex: 0 0 auto; animation: mc-fade 0.5s var(--ease-soft); }
+.mc-onb__hero { position: relative; height: 56%; min-height: clamp(240px, 46vh, 320px); overflow: hidden; flex: 0 0 auto; animation: mc-fade 0.5s var(--ease-soft); }
 .mc-onb__hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mc-onb__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 6%, rgba(20, 20, 27, 0.12) 58%); }
-.mc-onb__seal { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); width: 38px; }
+.mc-onb__seal { position: absolute; top: calc(26px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 38px; }
 .mc-onb__hero-text { position: absolute; left: 28px; right: 28px; bottom: 26px; }
 .mc-onb__title {
   font-family: var(--font-serif);
   font-weight: 300;
-  font-size: 44px;
+  font-size: clamp(32px, 10.5vw, 44px);
   line-height: 0.96;
   color: var(--color-ivoire);
   margin-top: 8px;
 }
-.mc-onb__body { flex: 1; padding: 24px 28px 30px; display: flex; flex-direction: column; }
+.mc-onb__body { flex: 1; padding: 24px 28px calc(30px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
 .mc-onb__copy {
   font-weight: 300;
   font-size: 14.5px;
@@ -300,7 +357,7 @@
 .mc-langrow__off { letter-spacing: 0.1em; color: var(--ink-soft); }
 .mc-onb-form .mc-cta--indigo { margin-top: 16px; }
 
-.mc-otp { display: flex; gap: 9px; margin-top: 30px; }
+.mc-otp { display: flex; gap: clamp(5px, 2vw, 9px); margin-top: 30px; }
 .mc-otp__box {
   flex: 1;
   width: 100%;
@@ -310,7 +367,7 @@
   border-radius: 3px;
   text-align: center;
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: clamp(24px, 7vw, 30px);
   color: var(--color-indigo);
   background: var(--color-ivoire);
   outline: none;
@@ -344,7 +401,7 @@
 .mc-homehero__greet {
   font-family: var(--font-serif);
   font-weight: 300;
-  font-size: 40px;
+  font-size: clamp(30px, 9.5vw, 40px);
   line-height: 1;
   color: var(--color-ivoire);
   margin-top: 6px;
@@ -680,7 +737,7 @@
   color: var(--copper-200);
 }
 .mc-pointscard__row { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 14px; }
-.mc-pointscard__big { font-family: var(--font-serif); font-size: 50px; color: var(--color-ivoire); line-height: 1; }
+.mc-pointscard__big { font-family: var(--font-serif); font-size: clamp(38px, 13vw, 50px); color: var(--color-ivoire); line-height: 1; }
 .mc-pointscard__unit { font-size: 12px; color: var(--indigo-100); }
 .mc-pointscard__hint { font-size: 11px; font-weight: 300; color: var(--indigo-100); margin-top: 8px; }
 
@@ -1049,7 +1106,7 @@
   text-transform: uppercase;
   color: var(--copper-200);
 }
-.mc-depositcard__amount { font-family: var(--font-serif); font-size: 46px; color: var(--color-ivoire); line-height: 1; margin-top: 8px; }
+.mc-depositcard__amount { font-family: var(--font-serif); font-size: clamp(36px, 12vw, 46px); color: var(--color-ivoire); line-height: 1; margin-top: 8px; }
 .mc-depositcard__sub { font-size: 12px; color: var(--indigo-100); margin-top: 6px; }
 
 .mc-paycard {
@@ -1088,7 +1145,7 @@
   padding: 24px 24px calc(34px + env(safe-area-inset-bottom));
   text-align: center;
 }
-.mc-paysheet__amount { font-family: var(--font-serif); font-size: 40px; color: var(--color-indigo); margin-top: 10px; line-height: 1; }
+.mc-paysheet__amount { font-family: var(--font-serif); font-size: clamp(32px, 10vw, 40px); color: var(--color-indigo); margin-top: 10px; line-height: 1; }
 .mc-paysheet__hint { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; }
 .mc-paysheet__pulse { display: flex; gap: 7px; justify-content: center; margin-top: 18px; }
 .mc-paysheet__pulse span {

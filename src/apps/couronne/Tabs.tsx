@@ -227,20 +227,22 @@ export function HomeTab({
           ✦ Composez votre rituel sur-mesure
         </button>
 
-        {/* recommandation du moment */}
-        <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Du Carnet de Suivi</div>
+        {/* recommandation du moment — seulement si la gamme existe */}
         {reco && (
-          <div className="mc-recocard">
-            <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-            <div className="mc-recocard__body">
-              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Du Carnet de Suivi</div>
+            <div className="mc-recocard">
+              <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
+              <div className="mc-recocard__body">
+                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                  {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
+                </div>
+                <div className="mc-recocard__name">{reco.name}</div>
+                <div className="mc-recocard__line">Pour densifier d’ici le resserrage · {fmtMoney(reco.priceXof, currency)}</div>
               </div>
-              <div className="mc-recocard__name">{reco.name}</div>
-              <div className="mc-recocard__line">Pour densifier d’ici le resserrage · {fmtMoney(reco.priceXof, currency)}</div>
+              <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
             </div>
-            <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
-          </div>
+          </>
         )}
         <div style={{ height: 26 }} />
       </div>
@@ -381,7 +383,15 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
             </div>
           );
         })}
-        {products.length === 0 && <div className="mc-emptyline">La gamme se prépare — revenez bientôt.</div>}
+        {products.length === 0 && (
+          <div className="mc-emptyzone">
+            <div className="mc-emptyzone__glyph">⬡</div>
+            <div className="mc-emptyzone__t">La gamme se prépare.</div>
+            <div className="mc-emptyzone__s">
+              Nos formules naturelles seront bientôt disponibles ici. La maison vous les présentera une à une.
+            </div>
+          </div>
+        )}
       </div>
       <div style={{ height: 70 }} />
     </div>

@@ -29,7 +29,7 @@ export const CLIENT_ID = 'c-couronne';
    (En production réelle, ce profil viendra de l'authentification OTP.) */
 const todaySince = new Date().toISOString().slice(0, 10);
 if (!clientsStore.get().some((c) => c.id === CLIENT_ID)) {
-  const branchId = branchesStore.get()[0]?.id ?? 'cotonou-flagship';
+  const branchId = branchesStore.get()[0]?.id ?? 'maison';
   clientsStore.set((prev) => [
     ...prev,
     {

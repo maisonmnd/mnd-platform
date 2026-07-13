@@ -21,43 +21,22 @@ export type Branch = {
   flagship?: boolean;
 };
 
+/* Maison neuve — une seule branche neutre à configurer (Système → Branches).
+   Le socle a besoin d'au moins une branche pour fonctionner ; celle-ci ne porte
+   aucune donnée de démonstration (ni ville, ni maître, ni siège fictif). */
 export const DEFAULT_BRANCHES: Branch[] = [
   {
-    id: 'cotonou-flagship',
-    name: 'Cotonou · Flagship',
-    city: 'Cotonou',
+    id: 'maison',
+    name: 'Ma Maison',
+    city: '',
     country: 'Bénin',
     dial: '+229',
     currency: 'XOF',
-    address: 'Haie Vive, Cotonou',
-    seats: 6,
-    masters: ['Brice', 'Yéman', 'Aïcha', 'Romuald'],
+    address: '',
+    seats: 1,
+    masters: [],
     status: 'active',
     flagship: true,
-  },
-  {
-    id: 'abidjan',
-    name: 'Abidjan · Cocody',
-    city: 'Abidjan',
-    country: "Côte d’Ivoire",
-    dial: '+225',
-    currency: 'XOF',
-    address: 'Riviera Golf, Cocody',
-    seats: 4,
-    masters: ['Mariam', 'Koffi'],
-    status: 'active',
-  },
-  {
-    id: 'paris',
-    name: 'Paris · Château d’Eau',
-    city: 'Paris',
-    country: 'France',
-    dial: '+33',
-    currency: 'EUR',
-    address: '12 rue du Château d’Eau, 75010',
-    seats: 3,
-    masters: ['Awa', 'Sébastien'],
-    status: 'active',
   },
 ];
 

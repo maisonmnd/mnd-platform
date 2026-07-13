@@ -156,6 +156,17 @@ export default function Compose({ onClose, toast }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody" style={{ paddingBottom: 8 }}>
+        {activeGroups.length === 0 && (
+          <div className="mc-emptyzone">
+            <div className="mc-emptyzone__glyph">✦</div>
+            <div className="mc-emptyzone__t">Le sur-mesure se prépare.</div>
+            <div className="mc-emptyzone__s">
+              {mode === 'abonnement'
+                ? 'Les soins d’abonnement seront bientôt disponibles à la composition.'
+                : 'Les prestations composables arrivent — la maison affine sa carte, mèche après mèche.'}
+            </div>
+          </div>
+        )}
         {activeGroups.map((g) => (
           <div key={g.cat.id} className="mc-cmgroup">
             <div className="mc-cmgroup__head">

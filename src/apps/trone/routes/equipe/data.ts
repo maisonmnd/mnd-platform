@@ -169,23 +169,8 @@ export type Plan = {
   popular: boolean;
 };
 
-export const PLANS_SEED: Plan[] = [
-  {
-    id: 'pl-constance', name: 'La Constance', tag: 'L’essentiel', priceXof: 35000, popular: false,
-    line: 'Votre rendez-vous, chaque mois, gardé rien que pour vous.',
-    perks: ['1 resserrage racines / mois', 'Brume hydratante offerte', 'Créneau réservé & rappel doux', 'Sans engagement'],
-  },
-  {
-    id: 'pl-couronne', name: 'La Couronne', tag: 'Le plus choisi', priceXof: 58000, popular: true,
-    line: 'Un rituel complet, un créneau à votre nom, des privilèges qui vous suivent.',
-    perks: ['1 resserrage + 1 soin / mois', 'Créneau fixe réservé à vous', '−15 % sur le Care & Store', 'Priorité au Cercle MND'],
-  },
-  {
-    id: 'pl-souveraine', name: 'La Souveraine', tag: 'L’exception', priceXof: 120000, popular: false,
-    line: 'Votre Maître attitré, votre couronne sans limite, votre place au Couronnement.',
-    perks: ['Entretien illimité', 'Maître attitré · créneau hebdo', 'Rituel maison livré chez vous', 'Accès au Couronnement annuel'],
-  },
-];
+/* Maison neuve — coquille vierge ; tout naît de l’usage. */
+export const PLANS_SEED: Plan[] = [];
 
 export const plansStore = createStore<Plan[]>('mnd_abo_plans', PLANS_SEED);
 export const usePlans = () => useStore(plansStore);
@@ -286,12 +271,8 @@ export type Formation = {
   archived: boolean;
 };
 
-export const FORMATIONS_SEED: Formation[] = [
-  { id: 'fo-fondations', name: 'Fondations du Lock', niveau: 'Niveau I · L’Initiation', sessions: 6, demarrage: 'démarre 8 juil', places: '4 places', priceXof: 250000, dureeSemaines: 6, archived: false },
-  { id: 'fo-resserrage', name: 'Resserrage & Soin', niveau: 'Niveau II · L’Affirmation', sessions: 4, demarrage: 'démarre 22 juil', places: '6 places', priceXof: 180000, dureeSemaines: 4, archived: false },
-  { id: 'fo-nano', name: 'Maîtrise Nano-locks', niveau: 'Niveau III · L’Œuvre', sessions: 8, demarrage: 'démarre 5 août', places: '2 places', priceXof: 420000, dureeSemaines: 8, archived: false },
-  { id: 'fo-certif', name: 'Certification Référentiel MND', niveau: 'Certifiant · Pro', sessions: 10, demarrage: 'sur dossier', places: 'complet', priceXof: 600000, dureeSemaines: 12, archived: false },
-];
+/* Maison neuve — coquille vierge ; tout naît de l’usage. */
+export const FORMATIONS_SEED: Formation[] = [];
 
 export const formationsStore = createStore<Formation[]>('mnd_formations', FORMATIONS_SEED);
 export const useFormations = () => useStore(formationsStore);

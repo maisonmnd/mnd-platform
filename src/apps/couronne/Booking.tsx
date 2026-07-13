@@ -170,21 +170,34 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
         {/* -------- 1 · objectif -------- */}
         {step === 0 && (
-          <div className="mc-stack mc-fade">
-            {bookableCats.map((c) => (
-              <button
-                key={c.id}
-                className="mc-rowcard"
-                onClick={() => { setCatId(c.id); setPalier(null); setService(null); setStep(1); }}
-              >
-                <div>
-                  <div className="mc-rowcard__fon">{c.fon}</div>
-                  <div className="mc-rowcard__sub">{c.label}</div>
-                </div>
-                <span className="mc-rowcard__arrow">→</span>
+          bookableCats.length > 0 ? (
+            <div className="mc-stack mc-fade">
+              {bookableCats.map((c) => (
+                <button
+                  key={c.id}
+                  className="mc-rowcard"
+                  onClick={() => { setCatId(c.id); setPalier(null); setService(null); setStep(1); }}
+                >
+                  <div>
+                    <div className="mc-rowcard__fon">{c.fon}</div>
+                    <div className="mc-rowcard__sub">{c.label}</div>
+                  </div>
+                  <span className="mc-rowcard__arrow">→</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="mc-emptyzone">
+              <div className="mc-emptyzone__glyph">✦</div>
+              <div className="mc-emptyzone__t">L’offre se prépare.</div>
+              <div className="mc-emptyzone__s">
+                La maison compose en ce moment ses rituels. Revenez très bientôt — votre couronne sera reçue comme il se doit.
+              </div>
+              <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={onClose}>
+                Revenir à l’accueil
               </button>
-            ))}
-          </div>
+            </div>
+          )
         )}
 
         {/* -------- 2 · palier -------- */}

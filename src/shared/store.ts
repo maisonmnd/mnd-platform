@@ -12,7 +12,7 @@ const EVT = 'mnd:store';
    démonstration (bump le suffixe pour re-purger tous les navigateurs).
    v3 : après la fuite d'un onglet resté ouvert sur l'ancien déploiement.
    S'exécute avant toute création de magasin. */
-const RESET_FLAG = 'mnd_reset_v3';
+const RESET_FLAG = 'mnd_reset_v4';
 if (!localStorage.getItem(RESET_FLAG)) {
   Object.keys(localStorage)
     .filter((k) => k.startsWith('mnd_'))

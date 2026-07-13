@@ -37,13 +37,8 @@ export type Persona = {
   builtin: boolean;
 };
 
-export const PERSONAS_SEED: Persona[] = [
-  { id: 'p-souveraine-locale', name: 'Souveraine Locale', essence: 'Fidèle du flagship, la maison est son rituel hebdomadaire.', builtin: true },
-  { id: 'p-diaspora', name: 'Diaspora Souveraine', essence: 'Revient au pays, exige le standard international.', builtin: true },
-  { id: 'p-initie', name: 'Initié·e', essence: 'Première couronne — tout est à transmettre.', builtin: true },
-  { id: 'p-maman', name: 'Maman Transmettrice', essence: 'Vient pour elle, revient pour ses enfants.', builtin: true },
-  { id: 'p-souverain', name: 'Le Souverain', essence: 'Homme de tête haute, discret, régulier.', builtin: true },
-];
+/* Maison neuve — coquille vierge ; tout naît de l’usage. */
+export const PERSONAS_SEED: Persona[] = [];
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const CLIENTS_SEED: Client[] = [];

@@ -50,11 +50,8 @@ export type RewardTier = {
   g: string; // chiffre du sceau — Ⅰ · Ⅱ · Ⅲ…
 };
 
-export const TIERS_SEED: RewardTier[] = [
-  { id: 'tier-1', pts: 3000, serviceId: 'sv-resserrage', desc: 'Un entretien racines, sans frais.', g: 'Ⅰ' },
-  { id: 'tier-2', pts: 6000, serviceId: 'sv-rituel-quatre-temps', desc: 'Un soin signature, sans frais.', g: 'Ⅱ' },
-  { id: 'tier-3', pts: 12000, serviceId: 'sv-locks-moyennes', desc: 'La création qu’elle désire, sans frais.', g: 'Ⅲ' },
-];
+/* Maison neuve — coquille vierge ; tout naît de l’usage. */
+export const TIERS_SEED: RewardTier[] = [];
 
 export const tiersStore = createStore<RewardTier[]>('mnd_cercle_tiers', TIERS_SEED);
 export const useTiers = () => useStore(tiersStore);
