@@ -215,6 +215,70 @@ function DossiersSection() {
   );
 }
 
+/* ---------- Note de la maison : texte libre + blocs de consultation ---------- */
+type ConsultQA = { q: string; a: string };
+type ConsultBlock = { name: string; date: string; qa: ConsultQA[] };
+const CONSULT_HEADER = /^── Consultation · (.+) ──$/;
+
+/** Sépare la note en (texte libre) + (blocs consultation) + (texte brut des blocs, pour ré-enregistrer). */
+function splitNotes(raw: string | undefined): { free: string; consultRaw: string; blocks: ConsultBlock[] } {
+  const lines = (raw ?? '').split('\n');
+  let firstIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (CONSULT_HEADER.test(lines[i])) { firstIdx = i; break; }
+  }
+  const free = (firstIdx === -1 ? lines : lines.slice(0, firstIdx)).join('\n').trim();
+  const consultRaw = firstIdx === -1 ? '' : lines.slice(firstIdx).join('\n').trim();
+  const blocks: ConsultBlock[] = [];
+  let cur: { name: string; date: string; qa: ConsultQA[]; a: ConsultQA | null } | null = null;
+  const closeQA = () => { if (cur && cur.a) { cur.qa.push(cur.a); cur.a = null; } };
+  const flush = () => { if (cur) { closeQA(); blocks.push({ name: cur.name, date: cur.date, qa: cur.qa }); cur = null; } };
+  for (const line of consultRaw ? consultRaw.split('\n') : []) {
+    const h = line.match(CONSULT_HEADER);
+    if (h) {
+      flush();
+      const inner = h[1];
+      const idx = inner.lastIndexOf(' · ');
+      cur = { name: idx >= 0 ? inner.slice(0, idx) : inner, date: idx >= 0 ? inner.slice(idx + 3) : '', qa: [], a: null };
+      continue;
+    }
+    if (!cur) continue;
+    const qm = line.match(/^\d+\.\s?(.*)$/);
+    if (qm) { closeQA(); cur.a = { q: qm[1].trim(), a: '' }; continue; }
+    const am = line.match(/^\s*→\s?(.*)$/);
+    if (am && cur.a) { cur.a.a = cur.a.a ? `${cur.a.a}\n${am[1]}` : am[1]; continue; }
+    const t = line.trim();
+    if (t && cur.a) cur.a.a = cur.a.a ? `${cur.a.a}\n${t}` : t;
+  }
+  flush();
+  return { free, consultRaw, blocks };
+}
+
+/** Rendu des consultations en cartes distinctes (en-tête cuivre serif + Q/R). */
+function ConsultCards({ blocks }: { blocks: ConsultBlock[] }) {
+  if (blocks.length === 0) return null;
+  return (
+    <div className="trc-consults">
+      {blocks.map((b, i) => (
+        <div className="trc-consult-card" key={i}>
+          <div className="trc-consult-card__head">
+            <span className="trc-consult-card__name">{b.name}</span>
+            {b.date && <span className="trc-consult-card__date">{b.date}</span>}
+          </div>
+          <div className="trc-consult-card__body">
+            {b.qa.map((qa, j) => (
+              <div className="trc-consult-qa" key={j}>
+                <div className="trc-consult-qa__q">{qa.q}</div>
+                <div className="trc-consult-qa__a">{qa.a || '—'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- Panneau · Dossier client ---------- */
 const digitsOnly = (s: string) => s.replace(/\D/g, '');
 
@@ -233,16 +297,21 @@ function DossierPanel({
   const { currency } = useBranch();
   const [queue] = useStore(consultationsQueueStore);
   const [bookOpen, setBookOpen] = useState(false);
-  const [notes, setNotes] = useState(client.notes ?? '');
+
+  /* Note de la maison — on n'édite que le texte libre, les consultations sont préservées. */
+  const parsedNotes = splitNotes(client.notes);
+  const [notes, setNotes] = useState(parsedNotes.free);
 
   const honored = appts.filter((a) => a.status === 'honoré');
   const spend = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
   const lastVisit = [...honored].sort((a, b) => b.date.localeCompare(a.date))[0];
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date));
 
-  const notesDirty = notes.trim() !== (client.notes ?? '');
-  const saveNotes = () =>
-    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: notes.trim() || undefined } : c)));
+  const notesDirty = notes.trim() !== parsedNotes.free;
+  const saveNotes = () => {
+    const merged = [notes.trim(), parsedNotes.consultRaw].filter(Boolean).join('\n\n');
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: merged || undefined } : c)));
+  };
 
   /* Consultation en ligne rapprochée par nom ou téléphone. */
   const cPhone = digitsOnly(client.phone);
@@ -352,6 +421,14 @@ function DossierPanel({
             </div>
           )}
         </div>
+
+        {/* Consultations — chaque bloc rendu en carte distincte */}
+        {parsedNotes.blocks.length > 0 && (
+          <div>
+            <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
+            <ConsultCards blocks={parsedNotes.blocks} />
+          </div>
+        )}
 
         {/* Notes éditables */}
         <div>

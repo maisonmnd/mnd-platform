@@ -28,6 +28,88 @@ const crownAge = (iso: string): string => {
   return months > 0 ? `${y} ${months} mois` : y;
 };
 
+/** Anniversaire — date longue « 12 mars 1990 ». */
+const frBirthday = (iso: string) =>
+  fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Âge révolu + jours avant le prochain anniversaire (fenêtre discrète des 14 j). */
+function bdayInfo(iso: string): { age: number; daysUntil: number; soon: boolean } {
+  const b = fromISO(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const hadThisYear =
+    today.getMonth() > b.getMonth() || (today.getMonth() === b.getMonth() && today.getDate() >= b.getDate());
+  const age = today.getFullYear() - b.getFullYear() - (hadThisYear ? 0 : 1);
+  const next = new Date(today.getFullYear(), b.getMonth(), b.getDate());
+  if (next.getTime() < today.getTime()) next.setFullYear(today.getFullYear() + 1);
+  const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000);
+  return { age, daysUntil, soon: daysUntil >= 0 && daysUntil <= 14 };
+}
+
+/* ---------- Note de la maison : texte libre + blocs de consultation ---------- */
+type ConsultQA = { q: string; a: string };
+type ConsultBlock = { name: string; date: string; qa: ConsultQA[] };
+const CONSULT_HEADER = /^── Consultation · (.+) ──$/;
+
+/** Sépare la note en (texte libre) + (blocs consultation) + (texte brut des blocs, pour ré-enregistrer). */
+function splitNotes(raw: string | undefined): { free: string; consultRaw: string; blocks: ConsultBlock[] } {
+  const lines = (raw ?? '').split('\n');
+  let firstIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (CONSULT_HEADER.test(lines[i])) { firstIdx = i; break; }
+  }
+  const free = (firstIdx === -1 ? lines : lines.slice(0, firstIdx)).join('\n').trim();
+  const consultRaw = firstIdx === -1 ? '' : lines.slice(firstIdx).join('\n').trim();
+  const blocks: ConsultBlock[] = [];
+  let cur: { name: string; date: string; qa: ConsultQA[]; a: ConsultQA | null } | null = null;
+  const closeQA = () => { if (cur && cur.a) { cur.qa.push(cur.a); cur.a = null; } };
+  const flush = () => { if (cur) { closeQA(); blocks.push({ name: cur.name, date: cur.date, qa: cur.qa }); cur = null; } };
+  for (const line of consultRaw ? consultRaw.split('\n') : []) {
+    const h = line.match(CONSULT_HEADER);
+    if (h) {
+      flush();
+      const inner = h[1];
+      const idx = inner.lastIndexOf(' · ');
+      cur = { name: idx >= 0 ? inner.slice(0, idx) : inner, date: idx >= 0 ? inner.slice(idx + 3) : '', qa: [], a: null };
+      continue;
+    }
+    if (!cur) continue;
+    const qm = line.match(/^\d+\.\s?(.*)$/);
+    if (qm) { closeQA(); cur.a = { q: qm[1].trim(), a: '' }; continue; }
+    const am = line.match(/^\s*→\s?(.*)$/);
+    if (am && cur.a) { cur.a.a = cur.a.a ? `${cur.a.a}\n${am[1]}` : am[1]; continue; }
+    const t = line.trim();
+    if (t && cur.a) cur.a.a = cur.a.a ? `${cur.a.a}\n${t}` : t;
+  }
+  flush();
+  return { free, consultRaw, blocks };
+}
+
+/** Rendu des consultations en cartes distinctes (en-tête cuivre serif + Q/R). */
+function ConsultCards({ blocks }: { blocks: ConsultBlock[] }) {
+  if (blocks.length === 0) return null;
+  return (
+    <div className="trc-consults">
+      {blocks.map((b, i) => (
+        <div className="trc-consult-card" key={i}>
+          <div className="trc-consult-card__head">
+            <span className="trc-consult-card__name">{b.name}</span>
+            {b.date && <span className="trc-consult-card__date">{b.date}</span>}
+          </div>
+          <div className="trc-consult-card__body">
+            {b.qa.map((qa, j) => (
+              <div className="trc-consult-qa" key={j}>
+                <div className="trc-consult-qa__q">{qa.q}</div>
+                <div className="trc-consult-qa__a">{qa.a || '—'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Champ « Style de couronne » — liste éditable (crownStylesStore) + ajout inline. */
 function CrownStyleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [styles] = useCrownStyles();
@@ -197,6 +279,17 @@ function Customer360({
   const patch = (p: Partial<Client>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
 
+  /* Note de la maison — texte libre éditable, consultations préservées à part. */
+  const parsedNotes = splitNotes(client.notes);
+  const [noteText, setNoteText] = useState(parsedNotes.free);
+  const noteDirty = noteText.trim() !== parsedNotes.free;
+  const saveNote = () => {
+    const merged = [noteText.trim(), parsedNotes.consultRaw].filter(Boolean).join('\n\n');
+    patch({ notes: merged || undefined });
+  };
+
+  const bday = client.birthday ? bdayInfo(client.birthday) : null;
+
   const honored = appts.filter((a) => a.status === 'honoré');
   const spend = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
@@ -257,6 +350,30 @@ function Customer360({
           <div className="trc-ministat"><b>{client.loyaltyPoints}</b><span>Points cercle</span></div>
         </div>
 
+        {/* Identité */}
+        <div>
+          <span className="trc-microlabel">Identité</span>
+          <div className="trc-idgrid">
+            <div className="trc-idrow"><span>Téléphone</span><span>{client.phone || '—'}</span></div>
+            <div className="trc-idrow"><span>Ville</span><span>{client.city || '—'}</span></div>
+            <div className="trc-idrow"><span>Cliente depuis</span><span>{client.since ? frLong(client.since) : '—'}</span></div>
+            <div className="trc-idrow"><span>Segment</span><span>{client.segments[0] ?? '—'}</span></div>
+          </div>
+          <div className="trc-bday">
+            <div className="trc-bday__field">
+              <Field label="Anniversaire">
+                <Input type="date" value={client.birthday ?? ''} onChange={(e) => patch({ birthday: e.target.value || undefined })} />
+              </Field>
+            </div>
+            {client.birthday && bday && (
+              <div className="trc-bday__info">
+                <span className="trc-bday__age">{frBirthday(client.birthday)} · {bday.age} ans</span>
+                {bday.soon && <span className="trc-bday-chip">Anniversaire bientôt</span>}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* La couronne — partagé avec Ma Couronne */}
         <div>
           <span className="trc-microlabel">La couronne · statut Ma Couronne</span>
@@ -299,32 +416,33 @@ function Customer360({
           </div>
         </div>
 
-        {/* Persona */}
-        <div>
-          <span className="trc-microlabel">Persona attribué</span>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 13px', background: 'var(--surface-card)' }}>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{personaName}</span>
-            <button style={{ background: 'none', border: '1px solid var(--color-argile)', borderRadius: 2, cursor: 'pointer', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--color-indigo)', padding: '7px 12px' }} onClick={() => setPickPersona((v) => !v)}>
-              Changer ▾
-            </button>
-          </div>
-          {pickPersona && (
-            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {personas.map((p) => (
-                <button key={p.id} className={`trc-chip ${p.id === client.persona ? 'is-active' : ''}`} onClick={() => setPersona(p.id)}>
-                  {p.name}
-                </button>
-              ))}
+        {/* Persona & segments — deux colonnes sur le panneau élargi */}
+        <div className="tr-grid tr-grid--2">
+          <div>
+            <span className="trc-microlabel">Persona attribué</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 13px', background: 'var(--surface-card)' }}>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{personaName}</span>
+              <button style={{ background: 'none', border: '1px solid var(--color-argile)', borderRadius: 2, cursor: 'pointer', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--color-indigo)', padding: '7px 12px' }} onClick={() => setPickPersona((v) => !v)}>
+                Changer ▾
+              </button>
             </div>
-          )}
-        </div>
+            {pickPersona && (
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {personas.map((p) => (
+                  <button key={p.id} className={`trc-chip ${p.id === client.persona ? 'is-active' : ''}`} onClick={() => setPersona(p.id)}>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Segments */}
-        <div>
-          <span className="trc-microlabel">Segments</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {client.segments.length === 0 && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun segment.</span>}
-            {client.segments.map((s) => <span key={s} className="trc-src">{s}</span>)}
+          <div>
+            <span className="trc-microlabel">Segments</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {client.segments.length === 0 && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun segment.</span>}
+              {client.segments.map((s) => <span key={s} className="trc-src">{s}</span>)}
+            </div>
           </div>
         </div>
 
@@ -351,12 +469,28 @@ function Customer360({
           </div>
         </div>
 
-        {client.notes && (
+        {/* Consultations — chaque bloc rendu en carte distincte */}
+        {parsedNotes.blocks.length > 0 && (
           <div>
-            <span className="trc-microlabel">Note de la maison</span>
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink)' }}>{client.notes}</div>
+            <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
+            <ConsultCards blocks={parsedNotes.blocks} />
           </div>
         )}
+
+        {/* Note de la maison — texte libre éditable */}
+        <div>
+          <span className="trc-microlabel">Note de la maison</span>
+          <textarea
+            className="trc-dossier-notes"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Une attention, une préférence, un détail du rituel…"
+            rows={3}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button variant="indigo" size="sm" disabled={!noteDirty} onClick={saveNote}>Enregistrer</Button>
+          </div>
+        </div>
 
         {/* Retrait de la Maison — archive (doux) ou suppression définitive */}
         <div className="trc-danger">
@@ -387,6 +521,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [city, setCity] = useState(branch.city);
   const [persona, setPersona] = useState(personas[0]?.id ?? '');
+  const [birthday, setBirthday] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>([]);
   const [crownStyle, setCrownStyle] = useState('');
@@ -418,6 +553,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       segments,
       priceCoef: 1.0,
       loyaltyPoints: 0,
+      birthday: birthday || undefined,
       diaspora: branch.country !== 'Bénin' && branch.country !== "Côte d’Ivoire",
       crownStyle: crownStyle || undefined,
       lockCount: lockCount === '' ? undefined : Math.max(0, Number(lockCount)),
@@ -456,11 +592,16 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
           </Field>
         </div>
 
-        <Field label="Persona de départ">
-          <Select value={persona} onChange={(e) => setPersona(e.target.value)}>
-            {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Select>
-        </Field>
+        <div className="tr-grid tr-grid--2">
+          <Field label="Persona de départ">
+            <Select value={persona} onChange={(e) => setPersona(e.target.value)}>
+              {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Anniversaire">
+            <Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+          </Field>
+        </div>
 
         <div>
           <span className="trc-microlabel">La couronne · partagé avec Ma Couronne</span>

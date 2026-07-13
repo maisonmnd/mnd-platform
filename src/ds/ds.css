@@ -158,7 +158,9 @@
   position: fixed; inset: 0;
   background: rgba(20, 20, 27, 0.55);
   display: flex; align-items: center; justify-content: center;
-  z-index: var(--z-modal);
+  /* Au-dessus des tiroirs (z-modal + 1) : une modale ouverte depuis un tiroir
+     (ex. « Proposer un RDV » depuis la fiche cliente) doit passer par-dessus. */
+  z-index: calc(var(--z-modal) + 5);
   animation: mnd-fade var(--dur-base) var(--ease-soft);
   padding: var(--space-6);
 }

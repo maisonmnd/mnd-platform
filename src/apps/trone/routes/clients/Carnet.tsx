@@ -89,7 +89,7 @@ export default function Carnet() {
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
           <SourceBadge source={a.source} />
         </span>
-        <span className="trc-sub" style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(apptTotalXof(a, byId), currency)}</span>
+        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{fmtMoney(apptTotalXof(a, byId), currency)}</span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <StatusPill status={a.status} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>

@@ -217,15 +217,16 @@
 /* ---------- Date d'un achat ---------- */
 .trf-datepill {
   flex: none;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: var(--weight-regular);
+  letter-spacing: 0.01em;
   color: var(--color-indigo);
   background: var(--color-sable);
   border-radius: var(--radius-sm);
-  padding: 4px 9px;
+  padding: 5px 12px;
   white-space: nowrap;
-  min-width: 58px;
+  min-width: 74px;
   text-align: center;
 }
 

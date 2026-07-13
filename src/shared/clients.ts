@@ -23,6 +23,7 @@ export type Client = {
   lockCount?: number; // nombre de locks
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
+  birthday?: string; // ISO — anniversaire de la cliente
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
