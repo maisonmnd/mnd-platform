@@ -1,0 +1,237 @@
+/* Le Trône · Pilotage — tableau de bord & analytics. Préfixe trp-. */
+
+/* ---------- KPI majeurs ---------- */
+.trp-kpi {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 22px 22px 18px;
+  overflow: hidden;
+}
+.trp-kpi__bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.trp-kpi__label {
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trp-kpi__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 40px;
+  line-height: var(--lh-tight);
+  color: var(--color-indigo);
+  margin-top: 12px;
+  white-space: nowrap;
+}
+.trp-kpi__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  font-size: var(--text-micro);
+}
+.trp-kpi__trend { color: var(--copper-600); }
+.trp-kpi__trend--down { color: var(--obsidian-400); }
+.trp-kpi__link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  color: var(--color-indigo);
+  padding: 0;
+}
+.trp-kpi__link:hover { color: var(--copper-600); }
+
+/* ---------- Tuiles secondaires ---------- */
+.trp-tile {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 16px 16px 14px;
+}
+.trp-tile__label {
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trp-tile__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--color-indigo);
+  margin-top: 8px;
+}
+.trp-tile__cap { font-size: var(--text-micro); color: var(--ink-soft); margin-top: 8px; }
+.trp-tile__cap--up { color: var(--copper-600); }
+
+/* ---------- Le carnet du jour ---------- */
+.trp-day {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.trp-day__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.trp-day__title {
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+}
+.trp-day__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.trp-day__row:last-child { border-bottom: none; }
+.trp-day__time {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 21px;
+  color: var(--color-indigo);
+  width: 56px;
+  flex: none;
+}
+.trp-day__client { font-size: 13.5px; color: var(--ink); }
+.trp-day__meta { font-size: 11.5px; font-weight: var(--weight-light); color: var(--ink-soft); margin-top: 1px; }
+.trp-day__empty {
+  padding: 32px 20px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* ---------- Carte revenu (indigo profond) ---------- */
+.trp-rev {
+  background: var(--grad-indigo);
+  border-radius: var(--radius-md);
+  padding: 20px 22px 22px;
+  color: var(--color-ivoire);
+  box-shadow: var(--shadow-indigo);
+}
+.trp-rev__eyebrow {
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--copper-200);
+}
+.trp-rev__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 36px;
+  line-height: 1;
+  margin-top: 10px;
+  white-space: nowrap;
+}
+.trp-rev__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline-invert);
+  font-size: var(--text-micro);
+  color: var(--indigo-100);
+}
+.trp-rev__best { font-family: var(--font-serif); font-size: 18px; color: var(--copper-200); }
+
+/* ---------- Analytics ---------- */
+.trp-chip {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-pill);
+  padding: 6px 13px;
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+  transition: var(--transition-base);
+}
+.trp-chip:hover { background: var(--hover-veil); }
+.trp-chip.is-active {
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border-color: var(--color-indigo);
+}
+
+.trp-index {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  overflow: hidden;
+}
+.trp-index__label {
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trp-index__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 34px;
+  line-height: 1;
+  color: var(--color-indigo);
+  margin-top: 10px;
+}
+.trp-index__cap { font-size: var(--text-micro); color: var(--ink-soft); margin-top: 9px; }
+.trp-index__cap--up { color: var(--copper-600); }
+
+.trp-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+}
+.trp-panel__title {
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+  margin-bottom: 14px;
+}
+
+.trp-bar {
+  height: 5px;
+  background: var(--hairline);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.trp-bar > div { height: 100%; transition: width var(--dur-slow) var(--ease-soft); }
+
+.trp-obsidian {
+  background: var(--grad-obsidian);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  color: var(--color-ivoire);
+  position: relative;
+  overflow: hidden;
+}
+
+.trp-funnel__row { display: flex; align-items: center; gap: 14px; padding: 9px 0; }
+.trp-funnel__label { width: 128px; flex: none; font-size: var(--text-micro); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.12em; }
+.trp-funnel__num { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); width: 40px; text-align: right; flex: none; }

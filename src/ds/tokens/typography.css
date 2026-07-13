@@ -1,0 +1,43 @@
+/* MND — Typographie
+   Deux familles, aucune exception.
+   Cormorant Garamond = la voix · Jost = la clarté. */
+
+:root {
+  /* ---- Familles ---- */
+  --font-serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --font-sans:  "Jost", "Noto Sans", system-ui, sans-serif;
+
+  /* ---- Échelle d'affichage (Cormorant, Light 300, line-height serré) ---- */
+  --text-display: clamp(64px, 9vw, 128px); /* Cormorant 300, lh ~0.9 */
+  --text-h1:      clamp(46px, 5.4vw, 74px);
+  --text-h2:      clamp(34px, 3.6vw, 50px);
+  --text-h3:      clamp(26px, 2.4vw, 34px);
+  --text-quote:   clamp(24px, 2.6vw, 38px); /* citations serif italique */
+
+  /* ---- Échelle de texte (Jost, Light 300) ---- */
+  --text-lead:    18px; /* accroche */
+  --text-body:    14px; /* corps courant */
+  --text-small:   13px;
+  --text-label:   12px; /* eyebrow / label, CAPS */
+  --text-micro:   11px;
+
+  /* ---- Graisses ---- */
+  --weight-light:    300;
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+
+  /* ---- Interlignage ---- */
+  --lh-display: 0.92; /* @kind other */
+  --lh-tight:   1.05; /* @kind other */
+  --lh-snug:    1.25; /* @kind other */
+  --lh-body:    1.6; /* @kind other */
+  --lh-loose:   1.8; /* @kind other */
+
+  /* ---- Interlettrage ---- */
+  --tracking-display: -0.01em; /* grands titres serif, léger resserrement */
+  --tracking-normal:   0;
+  --tracking-label:    0.26em; /* eyebrows / labels CAPS */
+  --tracking-kicker:   0.28em;
+  --tracking-mono:     0.34em; /* sigle MND très espacé */
+}

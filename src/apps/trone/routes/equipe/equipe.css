@@ -1,0 +1,330 @@
+/* Équipe & Croissance — styles du module (préfixe tre-). */
+
+/* ---------- Onglets ---------- */
+.tre-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--space-5);
+}
+.tre-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 11px 16px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-soft);
+}
+.tre-tab:hover { color: var(--ink); }
+.tre-tab.is-active { color: var(--color-indigo); border-bottom-color: var(--color-copper); }
+
+/* ---------- Interrupteur ---------- */
+.tre-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.tre-toggle__track {
+  display: block;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--hairline);
+  position: relative;
+  transition: background var(--dur-fast) var(--ease-soft);
+  flex: none;
+}
+.tre-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-ivoire);
+  box-shadow: 0 1px 2px rgba(20, 20, 27, 0.22);
+  transition: left var(--dur-fast) var(--ease-soft);
+}
+.tre-toggle.is-on .tre-toggle__track { background: var(--color-copper); }
+.tre-toggle.is-on .tre-toggle__knob { left: 20px; }
+.tre-toggle__label {
+  font-size: var(--text-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ---------- Barres & jauges ---------- */
+.tre-bar {
+  display: block;
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--hairline);
+  overflow: hidden;
+  min-width: 40px;
+}
+.tre-bar__fill { display: block; height: 100%; transition: width var(--dur-base) var(--ease-soft); }
+
+.tre-gauge { text-align: center; }
+.tre-gauge__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 24px;
+  color: var(--color-indigo);
+  margin-top: -26px;
+  line-height: 1;
+}
+.tre-gauge__label {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 5px;
+}
+
+/* ---------- Bandeau obsidienne ---------- */
+.tre-deep {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--color-obsidian);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  margin-bottom: var(--space-4);
+}
+.tre-deep__eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--copper-300);
+}
+.tre-deep__body {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 21px;
+  line-height: 1.35;
+  color: var(--color-ivoire);
+  margin-top: 5px;
+}
+.tre-deep__body .accent { color: var(--copper-300); }
+.tre-deep__actions { display: flex; gap: 10px; flex: none; }
+
+/* ---------- Pastilles ---------- */
+.tre-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  padding: 4px 11px;
+  border: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.tre-pill--ok { color: #4c6b45; border-color: rgba(110, 124, 92, 0.4); background: rgba(110, 124, 92, 0.1); }
+.tre-pill--warn { color: #8a6d1f; border-color: rgba(201, 162, 39, 0.4); background: rgba(201, 162, 39, 0.1); }
+.tre-pill--error { color: #8f3b30; border-color: rgba(143, 59, 48, 0.35); background: rgba(143, 59, 48, 0.08); }
+.tre-pill--muted { color: var(--ink-soft); }
+.tre-pill--copper { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+
+/* ---------- Tables du module ---------- */
+.tre-table { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
+.tre-table th {
+  text-align: left;
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--color-indigo);
+  color: var(--indigo-100, rgba(246, 241, 231, 0.75));
+  padding: 12px 16px;
+}
+.tre-table td { padding: 13px 16px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.tre-table .num { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 17px; color: var(--color-indigo); }
+.tre-table tbody tr:hover { background: var(--hover-veil); }
+
+/* ---------- Cartes d'offres ---------- */
+.tre-offer { padding: 18px 20px; transition: opacity var(--dur-base) var(--ease-soft); }
+.tre-offer.is-off { opacity: 0.6; }
+.tre-offer__deal {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 20px;
+  color: var(--copper-700);
+  line-height: 1;
+}
+.tre-offer__title {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 21px;
+  color: var(--color-indigo);
+  margin-top: 10px;
+}
+.tre-offer__meta { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 14px; }
+.tre-offer__meta-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tre-offer__meta-value { font-size: 13px; color: var(--color-indigo); margin-top: 3px; }
+
+/* ---------- Chips (jours, audiences, rôles) ---------- */
+.tre-chip {
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  padding: 7px 13px;
+  transition: var(--transition-base);
+}
+.tre-chip:hover { border-color: var(--color-indigo); }
+.tre-chip.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+
+/* ---------- Paliers du Cercle ---------- */
+.tre-tier { text-align: center; padding: 18px; }
+.tre-tier__seal {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--color-ivoire);
+  border: 2px solid var(--copper-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--copper-600);
+}
+.tre-tier__pts {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 19px;
+  color: var(--color-indigo);
+  margin-top: 12px;
+}
+
+/* ---------- Formules d'abonnement ---------- */
+.tre-plan { position: relative; padding: 26px 24px 24px; display: flex; flex-direction: column; }
+.tre-plan--popular { background: var(--color-obsidian); border-color: var(--color-obsidian); color: var(--color-ivoire); }
+.tre-plan__tagpop {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.tre-plan__name { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 28px; color: var(--color-indigo); }
+.tre-plan--popular .tre-plan__name { color: var(--color-ivoire); }
+.tre-plan__line { font-family: var(--font-serif); font-style: italic; font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); margin-top: 8px; min-height: 62px; }
+.tre-plan--popular .tre-plan__line { color: rgba(246, 241, 231, 0.7); }
+.tre-plan__price { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 34px; color: var(--color-indigo); white-space: nowrap; }
+.tre-plan--popular .tre-plan__price { color: var(--copper-300); }
+.tre-plan__perk { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; color: var(--ink); }
+.tre-plan--popular .tre-plan__perk { color: var(--color-ivoire); }
+.tre-plan__perk .mark { color: var(--color-copper); flex: none; }
+.tre-plan--popular .tre-plan__perk .mark { color: var(--copper-300); }
+.tre-plan__divider { height: 1px; background: var(--hairline); margin: 16px 0; }
+.tre-plan--popular .tre-plan__divider { background: rgba(255, 255, 255, 0.12); }
+
+/* ---------- Recommandations ---------- */
+.tre-reco { border-top: 2px solid var(--color-copper); padding: 18px 20px; display: flex; flex-direction: column; }
+.tre-reco__cat { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+.tre-reco__title { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 20px; color: var(--color-indigo); margin-top: 8px; }
+.tre-reco__why { font-size: 12.5px; font-weight: var(--weight-light); line-height: 1.5; color: var(--ink-soft); margin-top: 6px; flex: 1; }
+.tre-reco__impact { font-size: 11.5px; color: var(--copper-700); margin-top: 10px; }
+
+/* ---------- Divers ---------- */
+.tre-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 15px;
+  flex: none;
+}
+.tre-quote {
+  background: var(--color-obsidian);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--color-ivoire);
+  line-height: 1.5;
+}
+.tre-mrr {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 44px;
+  line-height: 1;
+  color: var(--color-indigo);
+}
+.tre-empty {
+  text-align: center;
+  padding: 50px 20px;
+}
+.tre-empty__title { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 22px; color: var(--color-indigo); margin-top: 14px; }
+.tre-empty__sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+.tre-inline-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--color-sable);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.tre-inline-note .mark { color: var(--copper-700); flex: none; }
+.tre-actions-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: var(--space-4); flex-wrap: wrap; }
+.tre-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--color-indigo);
+}
+.tre-link-btn:hover { color: var(--copper-700); }
+.tre-link-btn--danger { color: #8f3b30; }
+
+/* ---------- Libellé de section (Académie · Référentiel) ---------- */
+.tre-sec-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+  font-weight: var(--weight-medium);
+  margin-bottom: 9px;
+}

@@ -1,0 +1,5 @@
+/* MND — Webfonts
+   Cormorant Garamond (la voix · serif) + Jost (la clarté · grotesque).
+   Both are the brand's actual specified families, served from Google Fonts. */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');

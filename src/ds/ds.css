@@ -1,0 +1,212 @@
+/* MND — primitives partagées entre les 5 surfaces sœurs.
+   Chaque surface pose son identité via les variables --surface-* de son thème. */
+
+/* ---------- Boutons ---------- */
+.mnd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 12px 22px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: var(--structure);
+  color: var(--ink-invert);
+  transition: var(--transition-base);
+  position: relative;
+  white-space: nowrap;
+}
+.mnd-btn:hover { box-shadow: var(--shadow-sm); filter: brightness(1.08); }
+.mnd-btn:active { filter: brightness(0.94); }
+.mnd-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+.mnd-btn--copper { background: var(--color-copper); color: var(--color-ivoire); }
+.mnd-btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--hairline);
+}
+.mnd-btn--ghost:hover { background: var(--hover-veil); filter: none; }
+.mnd-btn--ghost-invert { background: transparent; color: var(--ink-invert); border-color: var(--hairline-invert); }
+.mnd-btn--obsidian { background: var(--color-obsidian); color: var(--color-ivoire); }
+.mnd-btn--sm { padding: 7px 14px; font-size: var(--text-micro); letter-spacing: 0.2em; }
+.mnd-btn--lg { padding: 16px 32px; }
+.mnd-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; filter: none; }
+
+/* ---------- Filets ---------- */
+.mnd-filet-copper { border: none; border-top: var(--filet-copper); margin: 0; }
+.mnd-filet-indigo { border: none; border-top: var(--filet-indigo); margin: 0; }
+.mnd-hairline { border: none; border-top: 1px solid var(--hairline); margin: 0; }
+
+/* ---------- Carte ---------- */
+.mnd-card {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.mnd-card--filet { border-top: var(--filet-copper); }
+.mnd-card--filet-indigo { border-top: 2px solid var(--color-indigo); }
+.mnd-card--deep {
+  background: var(--grad-indigo);
+  color: var(--ink-invert);
+  border-color: transparent;
+  box-shadow: var(--shadow-indigo);
+}
+.mnd-card__body { padding: var(--space-5); }
+
+/* ---------- Stat (chiffre Cormorant) ---------- */
+.mnd-stat__label {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.mnd-stat__value {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 40px;
+  line-height: var(--lh-tight);
+  color: var(--ink);
+  margin-top: var(--space-2);
+}
+.mnd-stat__delta { font-size: var(--text-small); margin-top: var(--space-2); color: var(--ink-soft); }
+.mnd-stat__delta--up { color: var(--copper-600); }
+.mnd-stat__delta--down { color: var(--obsidian-400); }
+
+/* ---------- Champs ---------- */
+.mnd-field { display: flex; flex-direction: column; gap: 6px; }
+.mnd-field__label {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.mnd-input, .mnd-select, .mnd-textarea {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  color: var(--ink);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: border-color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
+}
+.mnd-input:focus, .mnd-select:focus, .mnd-textarea:focus {
+  outline: none;
+  border-color: var(--color-copper);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.mnd-textarea { resize: vertical; min-height: 88px; }
+
+/* ---------- Badge / Tag / Sceau ---------- */
+.mnd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  background: transparent;
+}
+.mnd-badge--copper { border-color: var(--copper-300); color: var(--copper-700); background: var(--copper-50); }
+.mnd-badge--indigo { border-color: var(--indigo-200); color: var(--indigo-600); background: var(--indigo-50); }
+.mnd-badge--solid { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.mnd-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-small);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* ---------- Table ---------- */
+.mnd-table { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
+.mnd-table th {
+  text-align: left;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 10px 12px;
+  border-bottom: var(--filet-indigo);
+}
+.mnd-table td { padding: 12px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.mnd-table tbody tr { transition: background var(--dur-fast) var(--ease-soft); }
+.mnd-table tbody tr:hover { background: var(--hover-veil); }
+.mnd-table .num { font-family: var(--font-serif); font-size: 17px; }
+
+/* ---------- Modale ---------- */
+.mnd-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 20, 27, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: var(--z-modal);
+  animation: mnd-fade var(--dur-base) var(--ease-soft);
+  padding: var(--space-6);
+}
+.mnd-modal {
+  background: var(--color-ivoire);
+  border-top: var(--filet-copper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  width: min(640px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  animation: mnd-rise var(--dur-base) var(--ease-soft);
+}
+.mnd-modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+.mnd-modal__title { font-family: var(--font-serif); font-size: var(--text-h3); }
+.mnd-modal__body { padding: var(--space-5); }
+
+/* ---------- Segments / onglets ---------- */
+.mnd-segs { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--radius-sm); overflow: hidden; }
+.mnd-seg {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  transition: var(--transition-base);
+}
+.mnd-seg + .mnd-seg { border-left: 1px solid var(--hairline); }
+.mnd-seg.is-active { background: var(--color-indigo); color: var(--color-ivoire); }
+
+/* ---------- Animations ---------- */
+@keyframes mnd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mnd-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.mnd-rise { animation: mnd-rise var(--dur-slow) var(--ease-soft); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Utilitaires ---------- */
+.mnd-serif { font-family: var(--font-serif); font-weight: var(--weight-light); }
+.mnd-muted { color: var(--ink-soft); }
+.mnd-copper { color: var(--copper-600); }
+.mnd-scroll-x { overflow-x: auto; }

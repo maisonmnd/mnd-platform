@@ -1,0 +1,81 @@
+/* MND — Couleur
+   « Le neutre domine, l'indigo structure, le cuivre ponctue. »
+   Aucune couleur hors de ce système n'est autorisée. */
+
+:root {
+  /* ---- Couleurs de marque ---- */
+  --color-indigo:        #1E2150; /* signature */
+  --color-indigo-deep:   #15173A; /* dégradés profonds */
+  --color-copper:        #B97A4A; /* accent / prestige */
+  --color-obsidian:      #14141B; /* contraste */
+
+  /* ---- Neutres minéraux ---- */
+  --color-ivoire:        #F6F1E7; /* paper par défaut */
+  --color-sable:         #E3DACB;
+  --color-argile:        #CDBBA9;
+
+  /* ---- Indigo Royal — 600 = référence ---- */
+  --indigo-50:  #EDEEF4;
+  --indigo-100: #D3D5E5;
+  --indigo-200: #A7ACC9;
+  --indigo-300: #7B82AD;
+  --indigo-400: #4E5790;
+  --indigo-500: #2C3470;
+  --indigo-600: #1E2150;
+  --indigo-700: #191B43;
+  --indigo-800: #131532;
+  --indigo-900: #0C0D20;
+
+  /* ---- Cuivre Noble — 500 = référence ---- */
+  --copper-50:  #FAF1E9;
+  --copper-100: #F1DDC9;
+  --copper-200: #E4BE9C;
+  --copper-300: #D6A06F;
+  --copper-400: #C98A53;
+  --copper-500: #B97A4A;
+  --copper-600: #9E6238;
+  --copper-700: #7C4C2C;
+  --copper-800: #5A3720;
+  --copper-900: #3A2415;
+
+  /* ---- Noir Obsidienne (rampe de gris) ---- */
+  --obsidian-50:  #EAEAEC;
+  --obsidian-100: #CFCFD3;
+  --obsidian-200: #A0A0A8;
+  --obsidian-300: #70707B;
+  --obsidian-400: #45454F;
+  --obsidian-500: #2A2A32;
+  --obsidian-600: #1E1E25;
+  --obsidian-700: #17171C;
+  --obsidian-800: #111116;
+  --obsidian-900: #0A0A0D;
+
+  /* ---- Alias sémantiques ---- */
+  --paper:             var(--color-ivoire);   /* fond par défaut */
+  --paper-2:           var(--color-sable);    /* fond alternatif */
+  --paper-3:           var(--color-argile);   /* fond chaleureux */
+  --ink:               var(--color-obsidian); /* texte courant */
+  --ink-soft:          var(--obsidian-400);   /* texte secondaire */
+  --ink-invert:        var(--color-ivoire);   /* texte sur fond profond */
+  --ink-invert-soft:   var(--indigo-200);     /* secondaire sur indigo */
+
+  --accent:            var(--color-copper);   /* cuivre : titres, filets, détails */
+  --accent-strong:     var(--copper-600);
+  --structure:         var(--color-indigo);   /* aplats structurants */
+  --structure-deep:    var(--color-indigo-deep);
+
+  --surface-card:      var(--color-ivoire);
+  --surface-deep:      var(--color-indigo);
+  --surface-obsidian:  var(--color-obsidian);
+
+  /* ---- Filets & bordures ---- */
+  --rule-copper:       var(--color-copper);   /* filet cuivre 2px (accent) */
+  --rule-indigo:       var(--color-indigo);   /* filet indigo 1px */
+  --hairline:          rgba(20, 20, 27, 0.14);/* séparateur discret sur clair */
+  --hairline-invert:   rgba(246, 241, 231, 0.20);
+
+  /* ---- États ---- */
+  --hover-veil:        rgba(20, 20, 27, 0.04);
+  --press-veil:        rgba(20, 20, 27, 0.08);
+  --focus-ring:        rgba(185, 122, 74, 0.55); /* cuivre translucide */
+}

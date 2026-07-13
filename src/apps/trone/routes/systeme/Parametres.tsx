@@ -1,0 +1,273 @@
+import { useMemo, useState } from 'react';
+import { PageHead } from '../_ui';
+import { Button, Card, Eyebrow, Input, Textarea } from '../../../../ds/components';
+import { Toggle } from '../equipe/ui';
+import { useBranch } from '../../../../shared/branches';
+import { currencyByCode } from '../../../../shared/geo';
+import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
+import './systeme.css';
+
+/* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
+   rubrique de domaine (codes d'accès envoyables), et les liens d'automatisation. */
+
+type FieldRow = { l: string; v: string };
+type ToggleRow = { k: string; l: string; sub: string };
+
+const IDENTITY: FieldRow[] = [
+  { l: 'Nom de la Maison', v: 'Maison MND' },
+  { l: 'Raison sociale', v: 'MND SARL · RCCM COT-B-2021' },
+  { l: 'Fuseau horaire', v: 'Cotonou · GMT+1' },
+];
+
+const RITUEL_FIELDS: FieldRow[] = [
+  { l: 'Durée standard d’un rituel', v: '2 h 30' },
+  { l: 'Acompte retenu', v: '30 %' },
+  { l: 'Fenêtre d’annulation', v: '48 h avant' },
+];
+const RITUEL_TOGGLES: ToggleRow[] = [
+  { k: 'rappel', l: 'Rappels automatiques', sub: 'SMS + WhatsApp · J-1 et H-2' },
+  { k: 'acompte', l: 'Acompte exigé en ligne', sub: 'bloque le fauteuil à la réservation' },
+];
+const NOTIF_TOGGLES: ToggleRow[] = [
+  { k: 'notifRdv', l: 'Nouveau rendez-vous', sub: 'au Maître concerné' },
+  { k: 'notifStock', l: 'Seuil de réassort atteint', sub: 'à l’Atelier & à l’Accueil' },
+  { k: 'notifPaie', l: 'Clôture de paie', sub: 'à la matriarche' },
+  { k: 'notifCercle', l: 'Nouvelle introduction du Cercle', sub: 'à toute la Maison' },
+];
+const ACCES_TOGGLES: ToggleRow[] = [
+  { k: 'auth', l: 'Double authentification', sub: 'requise pour les Maîtres' },
+  { k: 'sauvegarde', l: 'Sauvegarde quotidienne', sub: 'chiffrée · conservée 90 jours' },
+  { k: 'export', l: 'Export souverain autorisé', sub: 'la Maison peut tout emporter' },
+];
+
+/* ----- Accès ERP · rôles par rubrique de domaine ----- */
+const DOMAINS: { k: string; l: string }[] = [
+  { k: 'pilotage', l: 'Pilotage' },
+  { k: 'clients', l: 'Clients & Agenda' },
+  { k: 'vente', l: 'Vente' },
+  { k: 'finances', l: 'Finances' },
+  { k: 'equipe', l: 'Équipe & Croissance' },
+  { k: 'academie', l: 'Académie' },
+  { k: 'systeme', l: 'Système' },
+];
+type Role = { k: string; label: string; desc: string; perms: string[] };
+const ROLE_DEFS: Role[] = [
+  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total — la Maison entière.', perms: ['pilotage', 'clients', 'vente', 'finances', 'equipe', 'academie', 'systeme'] },
+  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: ['pilotage', 'clients', 'vente', 'finances', 'equipe', 'academie'] },
+  { k: 'maitre', label: 'Maître', desc: 'Son carnet, ses clientes, l’offre.', perms: ['pilotage', 'clients', 'vente', 'academie'] },
+  { k: 'praticien', label: 'Praticien·ne', desc: 'Carnet & agenda, rien de plus.', perms: ['clients'] },
+  { k: 'accueil', label: 'Accueil', desc: 'Réception, caisse, clientes.', perms: ['clients', 'vente'] },
+];
+
+/** Code d'accès stable, dérivé du rôle — même logique que le prototype. */
+function accessCode(seedStr: string): string {
+  const seed = (seedStr + '·mnd').split('').reduce((a, c) => a + c.charCodeAt(0) * 7, 0);
+  const A = 'ACDEFGHJKLMNPQRTUVWXY3479';
+  let n = seed, s = '';
+  for (let i = 0; i < 8; i++) { s += A[n % A.length]; n = Math.floor(n / 3) + (i + 1) * 131; }
+  return 'MND-' + s.slice(0, 4) + '-' + s.slice(4, 8);
+}
+
+function FieldRowView({ l, v }: FieldRow) {
+  return (
+    <div className="sys-row">
+      <div className="sys-row__label">{l}</div>
+      <span className="sys-row__value">{v}</span>
+    </div>
+  );
+}
+
+export default function Parametres() {
+  const { branch, currency } = useBranch();
+  const [settings, setSettings] = useSettings();
+  const [saved, setSaved] = useState(false);
+  const [sentRole, setSentRole] = useState<string | null>(null);
+
+  const curName = currencyByCode(currency)?.name ?? currency;
+
+  const toggle = (k: string) =>
+    setSettings((s) => ({ ...s, toggles: { ...s.toggles, [k]: !s.toggles[k] } }));
+
+  const setHour = (key: string, field: keyof DayHours, val: string | boolean) =>
+    setSettings((s) => ({
+      ...s,
+      hours: s.hours.map((d) => (d.key === key ? { ...d, [field]: val } : d)),
+    }));
+
+  const setAuto = (field: keyof typeof settings.automations, val: string) =>
+    setSettings((s) => ({ ...s, automations: { ...s.automations, [field]: val } }));
+
+  const openDays = useMemo(() => settings.hours.filter((d) => !d.closed).length, [settings.hours]);
+
+  const save = () => { setSaved(true); window.setTimeout(() => setSaved(false), 2400); };
+
+  const ToggleRows = ({ rows }: { rows: ToggleRow[] }) => (
+    <>
+      {rows.map((r) => (
+        <div key={r.k} className="sys-row">
+          <div>
+            <div className="sys-row__label">{r.l}</div>
+            <div className="sys-row__sub">{r.sub}</div>
+          </div>
+          <Toggle on={!!settings.toggles[r.k]} onToggle={() => toggle(r.k)} />
+        </div>
+      ))}
+    </>
+  );
+
+  return (
+    <div className="mnd-rise">
+      <PageHead
+        eyebrow="Système · La Maison"
+        title="Paramètres."
+        sub={`${branch.name} — les règles qui cadrent chaque rendez-vous, et les accès de ceux qui servent.`}
+        actions={<Button variant="copper" onClick={save}>Enregistrer</Button>}
+      />
+
+      {saved && (
+        <div className="tre-inline-note" style={{ marginBottom: 16 }}>
+          <span className="mark">✦</span>
+          <span>Paramètres enregistrés — la Maison retient vos réglages.</span>
+        </div>
+      )}
+
+      <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
+        <Card className="sys-section">
+          <div className="sys-section__title">Identité de la Maison</div>
+          <div className="sys-section__cap">Ce que la Maison montre au monde.</div>
+          {IDENTITY.map((r) => <FieldRowView key={r.l} {...r} />)}
+          <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
+        </Card>
+
+        <Card className="sys-section">
+          <div className="sys-section__title">Le rituel par défaut</div>
+          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous.</div>
+          {RITUEL_FIELDS.map((r) => <FieldRowView key={r.l} {...r} />)}
+          <ToggleRows rows={RITUEL_TOGGLES} />
+        </Card>
+
+        <Card className="sys-section">
+          <div className="sys-section__title">Notifications</div>
+          <div className="sys-section__cap">Qui est prévenu, et quand.</div>
+          <ToggleRows rows={NOTIF_TOGGLES} />
+        </Card>
+
+        <Card className="sys-section">
+          <div className="sys-section__title">Accès & souveraineté</div>
+          <div className="sys-section__cap">La Maison reste maîtresse de ses données.</div>
+          <ToggleRows rows={ACCES_TOGGLES} />
+          <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
+        </Card>
+      </div>
+
+      {/* ---------- Jours & heures d'ouverture ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Jours & heures d’ouverture</div>
+            <div className="sys-section__cap">Le salon n’accepte des rendez-vous que pendant ces plages.</div>
+          </div>
+          <span className="sys-badge-count">{openDays} / 7 jours</span>
+        </div>
+        {settings.hours.map((d) => (
+          <div key={d.key} className="sys-day" style={{ opacity: d.closed ? 0.6 : 1 }}>
+            <div className="sys-day__name">{d.label}</div>
+            <Toggle
+              on={!d.closed}
+              onToggle={() => setHour(d.key, 'closed', !d.closed)}
+              label={d.closed ? 'Fermé' : 'Ouvert'}
+            />
+            {d.closed ? (
+              <div className="sys-day__closed">Fermé ce jour</div>
+            ) : (
+              <div className="sys-day__hours">
+                <select className="sys-select" value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)}>
+                  {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>→</span>
+                <select className="sys-select" value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)}>
+                  {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+
+      {/* ---------- Accès ERP · rôles & codes ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Accès ERP du personnel</div>
+        <div className="sys-section__cap">
+          Chaque rôle ouvre certaines rubriques de domaine. Envoyez à un membre son code d’accès —
+          il rejoint le Trône avec exactement les droits de son rang, rien de plus.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+          {ROLE_DEFS.map((role) => {
+            const code = accessCode(role.k);
+            return (
+              <div key={role.k} style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{role.label}</div>
+                    <div className="sys-row__sub">{role.desc}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="sys-code">{code}</span>
+                    <Button size="sm" variant="ghost" onClick={() => { setSentRole(role.k); window.setTimeout(() => setSentRole((c) => (c === role.k ? null : c)), 2400); }}>
+                      Envoyer le code
+                    </Button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                  {DOMAINS.map((dom) => {
+                    const on = role.perms.includes(dom.k);
+                    return (
+                      <span key={dom.k} className={`tre-chip ${on ? 'is-on' : ''}`} style={{ cursor: 'default', opacity: on ? 1 : 0.55 }}>
+                        {dom.l}
+                      </span>
+                    );
+                  })}
+                </div>
+                {sentRole === role.k && (
+                  <div className="sys-row__sub" style={{ color: 'var(--copper-700)', marginTop: 8 }}>
+                    Code {code} envoyé par WhatsApp au futur {role.label}.
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* ---------- Automatisations · IA ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Automatisations · informations pour l’IA</div>
+        <div className="sys-section__cap" style={{ maxWidth: 640 }}>
+          Renseignez les liens et le texte utilisés par les messages automatiques (rappels, relances,
+          invitations). Le Trône les insère tels quels dans les envois WhatsApp et SMS.
+        </div>
+        <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
+          <label className="mnd-field">
+            <span className="mnd-field__label">Lien de paiement Mobile Money</span>
+            <Input value={settings.automations.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} placeholder="https://pay.moov-africa.bj/…" />
+          </label>
+          <label className="mnd-field">
+            <span className="mnd-field__label">Lien Google Maps (itinéraire)</span>
+            <Input value={settings.automations.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} placeholder="https://maps.google.com/?q=…" />
+          </label>
+          <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
+            <span className="mnd-field__label">Lien Google Avis</span>
+            <Input value={settings.automations.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} placeholder="https://g.page/r/…/review" />
+          </label>
+          <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
+            <span className="mnd-field__label">Itinéraire · texte libre</span>
+            <Textarea rows={2} value={settings.automations.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage." />
+          </label>
+        </div>
+        <div style={{ marginTop: 4 }}>
+          <Eyebrow>Insérés tels quels dans chaque envoi automatique</Eyebrow>
+        </div>
+      </Card>
+    </div>
+  );
+}

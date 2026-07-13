@@ -1,0 +1,271 @@
+/* Le Trône · Finances — Synthèse · Le Juste Prix · Dépenses. Préfixe trf-. */
+
+:root {
+  --trf-success: #6e7c5c;
+  --trf-warning: #a9702b;
+  --trf-error: #8c3b2e;
+}
+
+/* ---------- KPI (barre d'accent haute) ---------- */
+.trf-kpi {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 20px 22px 16px;
+  overflow: hidden;
+}
+.trf-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent, var(--color-indigo)); }
+.trf-kpi .l { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); line-height: 1.5; }
+.trf-kpi .v { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 34px; line-height: 1.05; color: var(--color-indigo); margin-top: 10px; white-space: nowrap; }
+.trf-kpi .c { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); margin-top: 9px; }
+.trf-kpi .c.up { color: var(--copper-600); }
+.trf-kpi .c.good { color: var(--trf-success); }
+
+/* ---------- Panneaux ---------- */
+.trf-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+}
+.trf-panel__title {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+  font-weight: var(--weight-medium);
+  margin-bottom: 14px;
+}
+.trf-panel__title--danger { color: var(--trf-error); }
+
+/* ---------- Barres horizontales ---------- */
+.trf-bar { height: 6px; background: var(--hairline); border-radius: 3px; overflow: hidden; }
+.trf-bar > div { height: 100%; transition: width var(--dur-slow, .5s) var(--ease-soft, ease); }
+.trf-bar--tall { height: 9px; }
+
+.trf-linerow { margin-bottom: 13px; }
+.trf-linerow__top { display: flex; justify-content: space-between; align-items: baseline; }
+.trf-linerow__cat { font-family: var(--font-sans); font-size: 13px; color: var(--ink); }
+.trf-linerow__val { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); }
+
+/* ---------- Bandeau sombre ---------- */
+.trf-obsidian {
+  background: var(--grad-obsidian);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  color: var(--color-ivoire);
+  position: relative;
+  overflow: hidden;
+}
+.trf-obsidian__eyebrow { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper-200); }
+.trf-obsidian__value { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 32px; line-height: 1; color: var(--color-ivoire); margin-top: 4px; }
+
+/* ---------- Onglets soulignés ---------- */
+.trf-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hairline); margin: 16px 0 22px; flex-wrap: wrap; }
+.trf-tab {
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 11px 16px;
+  margin-bottom: -1px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  transition: color var(--dur-fast, .2s) var(--ease-soft, ease);
+}
+.trf-tab.is-active { color: var(--color-indigo); border-bottom-color: var(--color-copper); font-weight: var(--weight-medium); }
+
+/* ---------- Chips (filtres, catégories) ---------- */
+.trf-chip {
+  cursor: pointer;
+  background: var(--surface-card);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  transition: var(--transition-base);
+}
+.trf-chip:hover { background: var(--hover-veil); }
+.trf-chip.is-active { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+
+/* ---------- Caisses ---------- */
+.trf-caisse {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.trf-caisse__glyph {
+  width: 34px; height: 34px; flex: none;
+  border-radius: var(--radius-md);
+  background: var(--color-sable);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--color-indigo);
+}
+.trf-caisse__name { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.1; }
+.trf-caisse__sub { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; }
+.trf-caisse__bal { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 26px; line-height: 1; margin-top: 4px; }
+
+/* ---------- Lignes de dépense ---------- */
+.trf-exprow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 0;
+  border-top: 1px solid var(--hairline);
+}
+.trf-exprow__vendor { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); }
+.trf-exprow__meta { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.trf-exprow__amt { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); flex: none; }
+.trf-exprow.is-stopped .trf-exprow__vendor,
+.trf-exprow.is-stopped .trf-exprow__amt { text-decoration: line-through; color: var(--ink-soft); }
+
+.trf-tagbox {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--copper-200);
+  background: var(--color-obsidian);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+
+/* Carte engagement à arbitrer */
+.trf-engage {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--color-copper);
+  border-radius: var(--radius-md);
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.trf-engage.is-flagged { border-left-color: var(--trf-warning); }
+.trf-engage.is-stopped { border-left-color: var(--trf-error); opacity: 0.72; }
+
+.trf-verdict {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  border: 1px solid var(--hairline);
+  color: var(--ink-soft);
+}
+.trf-verdict--warn { color: var(--trf-warning); border-color: var(--copper-300); background: var(--copper-50); }
+.trf-verdict--stop { color: var(--trf-error); border-color: var(--trf-error); }
+
+/* Petits boutons d'action */
+.trf-act {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--color-indigo);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+  transition: var(--transition-base);
+}
+.trf-act:hover { background: var(--hover-veil); }
+.trf-act--warn { color: var(--trf-warning); border-color: var(--copper-300); }
+.trf-act--stop { background: var(--trf-error); color: var(--color-ivoire); border-color: var(--trf-error); }
+.trf-act--ghost { border-color: var(--hairline); color: var(--ink-soft); }
+
+.trf-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+  padding: 8px 0;
+}
+
+/* ---------- Le Juste Prix ---------- */
+.trf-jp-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+@media (max-width: 1080px) { .trf-jp-grid { grid-template-columns: 1fr; } }
+
+.trf-lever { padding: 13px 0; border-top: 1px solid var(--hairline); }
+.trf-lever__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.trf-lever__name { font-family: var(--font-sans); font-size: 13px; font-weight: var(--weight-medium); color: var(--ink); }
+.trf-lever__reads { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.trf-lever__delta { font-family: var(--font-serif); font-size: 16px; white-space: nowrap; }
+.trf-lever__weight { font-family: var(--font-sans); font-size: 10px; color: var(--ink-soft); }
+.trf-range { width: 100%; accent-color: var(--color-copper); cursor: pointer; margin-top: 9px; }
+.trf-range--indigo { accent-color: var(--color-indigo); }
+
+.trf-guard {
+  flex: 1;
+  background: var(--color-sable);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.trf-guard .l { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.trf-guard .v { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 19px; color: var(--ink); margin-top: 4px; }
+
+.trf-pick {
+  cursor: pointer;
+  flex: 1;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  text-align: left;
+  transition: var(--transition-base);
+}
+.trf-pick:hover { border-color: var(--color-copper); }
+.trf-pick.is-active { background: var(--color-indigo); border-color: var(--color-indigo); }
+.trf-pick.is-active--sable { background: var(--color-sable); border-color: var(--color-copper); }
+.trf-pick__name { font-family: var(--font-serif); font-size: 14px; color: var(--color-indigo); line-height: 1.1; }
+.trf-pick.is-active .trf-pick__name { color: var(--color-ivoire); }
+.trf-pick__sub { font-family: var(--font-sans); font-size: 10px; color: var(--ink-soft); margin-top: 2px; }
+.trf-pick.is-active .trf-pick__sub { color: var(--copper-200); }
+
+.trf-breakrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.trf-breakrow__name { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink); width: 150px; flex: none; }
+.trf-breakrow__track { flex: 1; position: relative; height: 14px; display: flex; align-items: center; }
+.trf-breakrow__zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--hairline); }
+.trf-breakrow__bar { position: absolute; height: 8px; border-radius: 2px; }
+.trf-breakrow__delta { font-family: var(--font-serif); font-size: 14px; width: 68px; text-align: right; flex: none; }
+
+.trf-mirror {
+  background: var(--grad-indigo);
+  border-radius: var(--radius-md);
+  padding: 24px 26px;
+  text-align: center;
+  color: var(--color-ivoire);
+}
+.trf-mirror--off { background: var(--grad-obsidian); }
+.trf-mirror__eyebrow { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper-200); }
+.trf-mirror__line { font-family: var(--font-serif); font-style: italic; font-size: 16px; color: rgba(244, 240, 232, 0.82); margin-top: 14px; line-height: 1.4; }
+.trf-mirror__price { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 46px; color: var(--color-ivoire); margin-top: 8px; line-height: 1; }
+.trf-mirror__foot { font-family: var(--font-sans); font-size: 11px; color: rgba(244, 240, 232, 0.6); margin-top: 12px; }
+
+.trf-hand {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--color-copper);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.trf-hand__row { display: flex; gap: 10px; align-items: flex-start; font-family: var(--font-sans); font-size: 12px; line-height: 1.5; color: var(--ink); padding: 5px 0; }
+.trf-hand__row span.dot { color: var(--color-copper); flex: none; }
+
+/* Interrupteur de l'intelligence */
+.trf-switch { cursor: pointer; width: 58px; height: 30px; border-radius: var(--radius-pill); border: none; position: relative; flex: none; }
+.trf-switch > span { position: absolute; top: 3px; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--color-ivoire); transition: left var(--dur-fast, .2s) var(--ease-soft, ease); }

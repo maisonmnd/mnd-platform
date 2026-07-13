@@ -1,0 +1,38 @@
+/* MND — Élévation, motifs & transitions
+   Luxe discret : ombres profondes et douces, jamais dures.
+   Les motifs ne passent jamais sous le texte courant. */
+
+:root {
+  /* ---- Ombres (teintées indigo/obsidienne, diffuses) ---- */
+  --shadow-xs:  0 1px 2px rgba(20, 20, 27, 0.06);
+  --shadow-sm:  0 2px 8px rgba(20, 20, 27, 0.08);
+  --shadow-md:  0 10px 30px rgba(20, 20, 27, 0.10);
+  --shadow-lg:  0 24px 60px rgba(20, 20, 27, 0.16);
+  --shadow-xl:  0 40px 90px rgba(20, 20, 27, 0.22);
+  /* Sur fond indigo profond, l'ombre se teinte */
+  --shadow-indigo: 0 24px 60px rgba(12, 13, 32, 0.45);
+
+  /* ---- Filets signature ---- */
+  --filet-copper: var(--rule-w-thick) solid var(--color-copper);
+  --filet-indigo: var(--rule-w-thin) solid var(--color-indigo);
+
+  /* ---- Gradients de protection (sur photo, jamais décoratifs) ---- */
+  --veil-bottom: linear-gradient(to top, rgba(20,20,27,0.78) 0%, rgba(20,20,27,0.35) 38%, rgba(20,20,27,0) 72%); /* @kind other */
+  --veil-top:    linear-gradient(to bottom, rgba(20,20,27,0.55) 0%, rgba(20,20,27,0) 60%); /* @kind other */
+  /* Dégradé indigo pour aplats profonds */
+  --grad-indigo: linear-gradient(160deg, var(--color-indigo) 0%, var(--color-indigo-deep) 100%); /* @kind other */
+  --grad-obsidian: linear-gradient(160deg, var(--obsidian-700) 0%, var(--color-obsidian) 100%); /* @kind other */
+
+  /* ---- Motifs allover (PNG non fournis dans ce handoff — remplacer quand disponibles) ---- */
+  --pattern-rosette: none; /* @kind other */
+  --pattern-arcade:  none; /* @kind other */
+  --pattern-tresse:  none; /* @kind other */
+
+  /* ---- Transitions (sobres, sans rebond) ---- */
+  --ease-soft:  cubic-bezier(0.22, 0.61, 0.36, 1); /* @kind other */
+  --ease-inout: cubic-bezier(0.45, 0, 0.2, 1); /* @kind other */
+  --dur-fast:   140ms; /* @kind other */
+  --dur-base:   240ms; /* @kind other */
+  --dur-slow:   420ms; /* @kind other */
+  --transition-base: all var(--dur-base) var(--ease-soft); /* @kind other */
+}

@@ -1,0 +1,69 @@
+/* Portail — l'entrée de la maison. Ivoire, éditorial, cérémonieux. */
+@import '../ds/tokens.css';
+@import '../ds/ds.css';
+
+.po-hero {
+  text-align: center;
+  padding: var(--space-9) var(--space-6) var(--space-7);
+}
+.po-hero h1 {
+  font-size: var(--text-h1);
+  margin-top: var(--space-4);
+}
+.po-hero .signature {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-top: var(--space-3);
+  font-size: 18px;
+}
+
+.po-grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-10);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+@media (max-width: 900px) { .po-grid { grid-template-columns: 1fr; } }
+
+.po-card {
+  display: block;
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-base);
+  position: relative;
+  overflow: hidden;
+  min-height: 190px;
+}
+.po-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.po-card h2 { font-size: var(--text-h3); margin-top: var(--space-3); }
+.po-card p { margin-top: var(--space-2); max-width: 420px; }
+.po-card .who {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: var(--space-4);
+  opacity: 0.75;
+}
+.po-card .seal { position: absolute; right: var(--space-5); top: var(--space-5); opacity: 0.9; }
+
+/* Chaque sœur montre son identité dès le portail */
+.po-card--trone { grid-column: 1 / -1; background: var(--grad-obsidian); color: var(--ink-invert); border-top: 2px solid var(--color-copper); }
+.po-card--trone p, .po-card--couronne p { color: inherit; opacity: 0.8; }
+.po-card--couronne { background: linear-gradient(165deg, var(--color-ivoire), var(--color-sable)); color: var(--ink); border: 1px solid var(--color-argile); border-top: 2px solid var(--color-copper); }
+.po-card--consultation { background: var(--grad-indigo); color: var(--ink-invert); }
+.po-card--consultation p { color: var(--ink-invert-soft); }
+.po-card--lokaa { background: var(--color-ivoire); border: 1px solid var(--hairline); border-left: 4px solid var(--color-indigo); }
+.po-card--certificat { grid-column: 1 / -1; background: var(--paper-2); border: 1px solid var(--color-argile); text-align: center; min-height: 0; }
+
+.po-foot {
+  text-align: center;
+  padding: var(--space-7) var(--space-6) var(--space-9);
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}

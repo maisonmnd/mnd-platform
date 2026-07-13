@@ -1,0 +1,339 @@
+@import '../../ds/tokens.css';
+@import '../../ds/ds.css';
+
+/* ============================================================
+   Certificat — la sœur solennelle. Papier pur, ivoire, gravure.
+   Document A4 paysage prêt à imprimer, sceller, envoyer.
+   ============================================================ */
+
+.ct-page {
+  min-height: 100vh;
+  background: var(--paper-2);
+  padding: 28px 24px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-sans);
+}
+
+.ct-inner {
+  width: 100%;
+  max-width: 1480px;
+}
+
+/* ---------- Toolbar (non imprimable) ---------- */
+.ct-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.ct-toolbar__title {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 27px;
+  color: var(--color-indigo);
+  margin-top: 4px;
+}
+.ct-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ct-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-base);
+}
+.ct-action--wa {
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border: 1px solid var(--color-indigo);
+}
+.ct-action--wa:hover { background: var(--indigo-700); }
+.ct-action--mail {
+  background: transparent;
+  color: var(--color-indigo);
+  border: 1px solid var(--color-indigo);
+}
+.ct-action--mail:hover { background: var(--hover-veil); }
+
+/* ---------- Disposition : panneau + scène ---------- */
+.ct-layout {
+  width: 100%;
+  max-width: 1480px;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .ct-layout { grid-template-columns: 1fr; }
+}
+
+.ct-controls {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-top: var(--filet-copper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 20px;
+}
+.ct-controls__head {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 22px;
+  color: var(--color-indigo);
+  margin-top: 4px;
+}
+.ct-controls__note {
+  border-top: 1px solid var(--hairline);
+  padding-top: 12px;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-light);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.ct-controls__meta {
+  font-size: var(--text-micro);
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.ct-stage { min-width: 0; }
+.ct-scalewrap {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+.ct-hint {
+  margin-top: 14px;
+  font-size: 11.5px;
+  font-weight: var(--weight-light);
+  color: var(--ink-soft);
+}
+
+/* ---------- La feuille — 1120 × 792 px ≈ A4 paysage ---------- */
+.ct-sheet {
+  width: 1120px;
+  height: 792px;
+  flex: 0 0 auto;
+  position: relative;
+  background: var(--color-ivoire);
+  box-shadow: var(--shadow-lg);
+  transform-origin: top center;
+  overflow: hidden;
+}
+
+/* Double filet : cuivre 2 px dehors, indigo 1 px dedans */
+.ct-frame { position: absolute; pointer-events: none; }
+.ct-frame--copper { inset: 22px; border: 2px solid var(--color-copper); }
+.ct-frame--indigo { inset: 30px; border: 1px solid var(--color-indigo); }
+
+.ct-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 440px;
+  height: 440px;
+  transform: translate(-50%, -52%);
+  background-image: url('/assets/monograms/mono-indigo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.ct-body {
+  position: relative;
+  height: 100%;
+  padding: 52px 96px 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.ct-mono { width: 68px; display: block; }
+.ct-sigle {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 25px;
+  letter-spacing: var(--tracking-mono);
+  text-indent: var(--tracking-mono);
+  color: var(--color-indigo);
+  margin-top: 10px;
+}
+.ct-adresse {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-indigo);
+  margin-top: 8px;
+}
+.ct-filet {
+  display: block;
+  width: 44px;
+  height: 2px;
+  background: var(--color-copper);
+  margin-top: 12px;
+}
+.ct-filet--fin {
+  width: 130px;
+  height: 1px;
+  background: var(--copper-300);
+  margin-top: 12px;
+}
+
+.ct-kicker {
+  font-weight: var(--weight-medium);
+  font-size: 11px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  margin-top: 16px;
+}
+.ct-title {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 78px;
+  line-height: 0.95;
+  letter-spacing: var(--tracking-display);
+  color: var(--color-indigo);
+  margin-top: 6px;
+}
+
+.ct-decerne {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 14px;
+}
+.ct-nom {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: var(--weight-light);
+  font-size: 44px;
+  line-height: 1.05;
+  color: var(--obsidian-500);
+  margin-top: 6px;
+}
+
+.ct-texte {
+  font-weight: var(--weight-light);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  max-width: 830px;
+  margin-top: 16px;
+}
+.ct-texte b { font-weight: var(--weight-semibold); }
+
+.ct-meta {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 20px;
+}
+.ct-meta span {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.ct-signatures {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  margin-top: 30px;
+}
+.ct-sign { width: 260px; text-align: center; }
+.ct-sign__nom {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 21px;
+  color: var(--ink);
+}
+.ct-sign__ligne {
+  display: block;
+  height: 1px;
+  background: var(--hairline);
+  margin: 9px 0 7px;
+}
+.ct-sign__role {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.ct-sceau {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  width: 112px;
+  height: 112px;
+}
+.ct-sceau svg { position: absolute; inset: 0; }
+.ct-sceau img {
+  position: absolute;
+  top: 36px;
+  left: 36px;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.ct-devise-culturelle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: var(--weight-light);
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin-top: 18px;
+}
+
+/* ---------- Impression : A4 paysage exact ---------- */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  html, body { background: #fff; }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ct-page { padding: 0; background: none; display: block; min-height: 0; }
+  .ct-toolbar, .ct-controls, .ct-hint { display: none !important; }
+  .ct-layout { display: block; max-width: none; }
+  .ct-scalewrap { height: auto !important; overflow: visible; display: block; }
+  .ct-sheet {
+    transform: none !important;
+    box-shadow: none;
+    margin: 0 auto;
+  }
+}

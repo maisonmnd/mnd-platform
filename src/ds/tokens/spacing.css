@@ -1,0 +1,41 @@
+/* MND — Espace & rythme
+   Grille du monogramme : module carré 8×8. Base d'espacement = 8px. */
+
+:root {
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;   /* unité de grille de base */
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   24px;
+  --space-6:   32px;
+  --space-7:   48px;
+  --space-8:   64px;
+  --space-9:   96px;
+  --space-10:  128px; /* respiration des sections éditoriales */
+
+  /* ---- Rayons (très sobres : la maison ne s'arrondit pas) ---- */
+  --radius-0:    0;
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-pill: 999px; /* sceaux, badges cerclés */
+
+  /* ---- Largeurs de filets ---- */
+  --rule-w-thin:  1px;  /* filet indigo */
+  --rule-w-thick: 2px;  /* filet cuivre, accent */
+
+  /* ---- Conteneurs ---- */
+  --container-narrow: 720px;  /* prose / manifeste */
+  --container-text:   960px;
+  --container-wide:   1200px;
+  --container-max:    1320px;
+
+  /* ---- Zone de protection du logo (X = barre du monogramme) ---- */
+  --logo-clearspace: var(--space-5);
+
+  /* ---- Z-index ---- */
+  --z-base:    1; /* @kind other */
+  --z-sticky:  100; /* @kind other */
+  --z-overlay: 800; /* @kind other */
+  --z-modal:   1000; /* @kind other */
+}

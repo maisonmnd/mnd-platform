@@ -1,0 +1,168 @@
+/* Système — styles du module (préfixe sys-). Mirroir des conventions equipe.css. */
+
+/* ---------- Cartes de section ---------- */
+.sys-section { padding: 22px 24px; }
+.sys-section__title {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 21px;
+  color: var(--color-indigo);
+}
+.sys-section__cap {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 3px 0 6px;
+  line-height: 1.55;
+}
+
+/* ---------- Lignes de réglage ---------- */
+.sys-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 0;
+  border-top: 1px solid var(--hairline);
+}
+.sys-row__label { font-family: var(--font-sans); font-size: 13px; color: var(--ink); }
+.sys-row__sub { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.sys-row__value { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); white-space: nowrap; }
+
+/* ---------- Jours & heures ---------- */
+.sys-day {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--hairline);
+}
+.sys-day__name { flex: 0 0 116px; font-family: var(--font-sans); font-size: 14px; color: var(--ink); }
+.sys-day__closed {
+  flex: 1;
+  text-align: right;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.sys-day__hours { flex: 1; display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.sys-select {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+  background: var(--paper);
+  outline: none;
+  cursor: pointer;
+}
+.sys-badge-count {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  background: var(--copper-50);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Code d'accès ---------- */
+.sys-code {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--color-indigo);
+  background: var(--color-sable);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Branches ---------- */
+.sys-branch {
+  position: relative;
+  text-align: left;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 22px 22px 24px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
+}
+.sys-branch:hover { border-color: var(--copper-300); }
+.sys-branch.is-active { border-color: var(--color-copper); box-shadow: 0 0 0 1px var(--color-copper) inset; }
+.sys-branch__name {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 25px;
+  color: var(--color-indigo);
+  margin: 10px 0 2px;
+  line-height: 1.1;
+}
+.sys-branch__addr { font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); }
+.sys-branch__corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 26px 26px 0;
+  border-color: transparent var(--color-copper) transparent transparent;
+}
+.sys-branch__seal {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* ---------- Résumé territoire ---------- */
+.sys-summary { display: flex; gap: 28px; padding: 16px 0 22px; border-bottom: 1px solid var(--hairline); margin-bottom: 22px; flex-wrap: wrap; }
+.sys-summary__num { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 30px; color: var(--color-indigo); line-height: 1; }
+.sys-summary__label { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+.sys-summary__sep { width: 1px; background: var(--hairline); }
+
+/* ---------- Stepper ---------- */
+.sys-stepper { display: flex; align-items: center; border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: hidden; }
+.sys-stepper__btn {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 10px 0;
+  background: var(--color-sable);
+  border: none;
+  font-size: 17px;
+  color: var(--color-indigo);
+  cursor: pointer;
+}
+.sys-stepper__btn:hover { background: var(--copper-50); }
+.sys-stepper__val { flex: 1; text-align: center; font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+
+/* ---------- Marque · pastilles ---------- */
+.sys-swatch { background: none; border: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 7px; width: 64px; }
+.sys-swatch__dot { width: 46px; height: 46px; border-radius: 50%; outline-offset: 2px; }
+.sys-swatch__name { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.04em; text-align: center; line-height: 1.2; color: var(--ink-soft); }
+.sys-swatch.is-on .sys-swatch__name { color: var(--color-indigo); }
+.sys-swatch__note { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--copper-700); }
+
+.sys-mono { cursor: pointer; width: 78px; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 14px 8px 9px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sys-mono.is-on { border-color: var(--color-copper); box-shadow: 0 0 0 1px var(--color-copper) inset; }
+.sys-mono__name { font-family: var(--font-sans); font-size: 10px; color: var(--ink-soft); }
+
+/* ---------- Aperçu marque ---------- */
+.sys-preview { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--hairline); box-shadow: 0 12px 40px rgba(20, 20, 27, 0.14); }
+.sys-preview__head { background: linear-gradient(160deg, #1e2150, #15173a); padding: 26px 24px 24px; text-align: center; position: relative; }
+.sys-preview__accent-top { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.sys-preview__name { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 24px; letter-spacing: 0.04em; color: var(--color-ivoire); margin-top: 12px; }
+.sys-preview__rule { width: 40px; height: 2px; margin: 12px auto; }
+.sys-preview__verbe { font-family: var(--font-serif); font-style: italic; font-size: 14px; line-height: 1.5; color: rgba(246, 241, 231, 0.82); }
+.sys-preview__body { background: var(--paper); padding: 20px; }

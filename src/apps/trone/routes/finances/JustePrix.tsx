@@ -1,0 +1,299 @@
+import { useMemo, useState } from 'react';
+import { Eyebrow } from '../../../../ds/components';
+import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
+import { useClients, type Client } from '../../../../shared/clients';
+import { useServices, type Service } from '../../../../shared/catalog';
+import './finances.css';
+
+/* Le Juste Prix — tarification souveraine. Sept leviers lisent les signaux d'une
+   couronne ; l'intelligence recommande, l'humain décide. La cliente ne voit qu'un
+   seul nombre — juste. Coefficient calculé, jamais affiché comme un « tarif spécial ».
+   « L'intelligence guide, l'humain décide. » */
+
+type LeverKey = 'palier' | 'densite' | 'regularite' | 'lignee' | 'ltv' | 'deplacement' | 'agenda';
+
+const LEVERS: { k: LeverKey; name: string; reads: string; swing: number }[] = [
+  { k: 'palier', name: 'Palier de fidélité', reads: 'Rang dans le Cercle · ancienneté de la couronne', swing: 0.12 },
+  { k: 'densite', name: 'Densité & prestation', reads: 'Effort réel · temps fauteuil + matière consommée', swing: 0.1 },
+  { k: 'regularite', name: 'Régularité de cadence', reads: 'Rendez-vous tenus · respect du rituel', swing: 0.06 },
+  { k: 'lignee', name: 'Lignée & parrainage', reads: 'Têtes amenées · marraine active', swing: 0.08 },
+  { k: 'ltv', name: 'Valeur à vie', reads: 'Dépense cumulée · potentiel de la couronne', swing: 0.06 },
+  { k: 'deplacement', name: 'Déplacement', reads: 'Distance parcourue pour venir au fauteuil', swing: 0.05 },
+  { k: 'agenda', name: 'Tension d’agenda', reads: 'Demande du créneau · rareté à cet instant', swing: 0.07 },
+];
+
+const DEFAULT_WEIGHTS: Record<LeverKey, number> = {
+  palier: 80, densite: 70, regularite: 60, lignee: 65, ltv: 50, deplacement: 40, agenda: 55,
+};
+
+const INTEL_ACTS = [
+  'Lit sept signaux par couronne, en continu — sans qu’on le lui demande.',
+  'Maintient un plancher et un plafond : aucune cliente ne ressent d’injustice.',
+  'Recommande les poids ; vous gardez la main sur chaque commande.',
+  'Arrondit toujours au palier de 500 F — jamais un prix qui sonne faux.',
+  'N’écrit jamais le calcul là où une cliente pourrait le lire.',
+];
+
+const FLOOR = 0.82;
+const CEIL = 1.26;
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+
+/** Lecture des signaux d'une couronne à partir de ses données réelles — chacun dans [-1, 1]. */
+function signalsFor(c: Client, sv: Service, homeCity: string): Record<LeverKey, number> {
+  const seg = c.segments;
+  const has = (x: string) => seg.includes(x);
+  const palierBySvc = sv.palier === 'Souveraineté' ? 0.8 : sv.palier === 'Élévation' ? 0.3 : -0.4;
+  return {
+    palier: clamp((c.priceCoef - 1) / 0.2, -1, 1),
+    densite: palierBySvc,
+    regularite: clamp((c.loyaltyPoints - 600) / 900, -1, 1),
+    lignee: clamp((c.diaspora ? 0.5 : 0) + (has('Cercle') || has('Famille') ? 0.5 : 0) - (has('Nouvelle') ? 0.7 : 0), -1, 1),
+    ltv: clamp((c.loyaltyPoints - 700) / 800, -1, 1),
+    deplacement: c.city !== homeCity ? (c.diaspora ? 0.9 : 0.5) : -0.2,
+    agenda: (hash(c.id + sv.id) % 100) / 50 - 1,
+  };
+}
+
+export default function JustePrix() {
+  const { branch, currency } = useBranch();
+  const [clients, setClients] = useClients();
+  const [services] = useServices();
+
+  const branchClients = useMemo(() => clients.filter((c) => c.branchId === branch.id && !c.archived), [clients, branch.id]);
+  const svcList = useMemo(() => services.filter((s) => !s.hidePrice).slice(0, 5), [services]);
+
+  const [clientId, setClientId] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const [weights, setWeights] = useState<Record<LeverKey, number>>(DEFAULT_WEIGHTS);
+  const [latitude, setLatitude] = useState(100);
+  const [intel, setIntel] = useState(true);
+
+  const client = branchClients.find((c) => c.id === clientId) ?? branchClients[0];
+  const service = svcList.find((s) => s.id === serviceId) ?? svcList[0];
+
+  const engine = useMemo(() => {
+    if (!client || !service) return null;
+    const lat = latitude / 100;
+    const signals = signalsFor(client, service, branch.city);
+    const contribs = LEVERS.map((lv) => {
+      const frac = (weights[lv.k] / 100) * lv.swing * signals[lv.k] * lat;
+      return { k: lv.k, name: lv.name, reads: lv.reads, frac, deltaF: service.priceXof * frac, weight: weights[lv.k] };
+    });
+    let mult = 1 + contribs.reduce((a, x) => a + x.frac, 0);
+    const clamped = mult < FLOOR || mult > CEIL;
+    mult = clamp(mult, FLOOR, CEIL);
+    const finalP = Math.round((service.priceXof * mult) / 500) * 500;
+    const maxAbs = Math.max(...contribs.map((x) => Math.abs(x.deltaF)), 1);
+    return { contribs, mult, clamped, finalP, maxAbs, floor: Math.round((service.priceXof * FLOOR) / 500) * 500, ceil: Math.round((service.priceXof * CEIL) / 500) * 500 };
+  }, [client, service, weights, latitude, branch.city]);
+
+  const rankOf = (c: Client) => c.segments[0] ?? 'Cliente';
+  const fmtSigned = (v: number) => `${v >= 0 ? '+' : '−'} ${fmtMoney(Math.round(Math.abs(v) / 100) * 100, currency)}`;
+  const deltaCol = (v: number) => (v > 30 ? 'var(--trf-success)' : v < -30 ? 'var(--trf-error)' : 'var(--ink-soft)');
+
+  const applyCoef = () => {
+    if (!client || !engine) return;
+    const coef = Math.round(engine.mult * 100) / 100;
+    setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, priceCoef: coef } : c)));
+  };
+
+  if (!client || !service || !engine) {
+    return (
+      <div className="mnd-rise">
+        <Eyebrow>Tarification souveraine · la main invisible</Eyebrow>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0' }}>Le Juste Prix.</h2>
+        <div className="trf-empty" style={{ marginTop: 18 }}>Aucune couronne rattachée à cette branche — le moteur attend une cliente et une prestation.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mnd-rise">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <Eyebrow>Tarification souveraine · la main invisible</Eyebrow>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Le Juste Prix.</h2>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>L’intelligence</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 18, color: intel ? 'var(--trf-success)' : 'var(--ink-soft)', marginTop: 1 }}>{intel ? 'Active' : 'En veille'}</div>
+          </div>
+          <button className="trf-switch" onClick={() => setIntel((v) => !v)} style={{ background: intel ? 'var(--trf-success)' : 'var(--hairline)' }} aria-label="Basculer l’intelligence">
+            <span style={{ left: intel ? 31 : 3 }} />
+          </button>
+        </div>
+      </div>
+
+      <div className="trf-obsidian" style={{ margin: '18px 0 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24 }}>
+        <div>
+          <div className="trf-obsidian__eyebrow">Vous êtes à la barre</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--color-ivoire)', marginTop: 6, lineHeight: 1.4, maxWidth: 720 }}>
+            Aucune couronne ne se ressemble — aucun prix ne le devrait.{' '}
+            <span style={{ color: 'var(--copper-200)' }}>Vos commandes fixent la règle ; l’intelligence l’applique en silence. La cliente ne voit qu’un seul nombre — juste.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="trf-jp-grid">
+        {/* LES COMMANDES */}
+        <div className="trf-panel" style={{ padding: '22px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div className="trf-panel__title" style={{ marginBottom: 0 }}>Les commandes · vos sept leviers</div>
+            <button
+              onClick={() => { setWeights(DEFAULT_WEIGHTS); setLatitude(100); }}
+              style={{ cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              rétablir la recommandation
+            </button>
+          </div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 8 }}>
+            Chaque levier dit combien un signal de la couronne pèse sur le prix. Tournez-les ; l’intelligence a déjà posé sa recommandation.
+          </div>
+
+          {engine.contribs.map((x) => (
+            <div className="trf-lever" key={x.k}>
+              <div className="trf-lever__head">
+                <div>
+                  <div className="trf-lever__name">{x.name}</div>
+                  <div className="trf-lever__reads">{x.reads}</div>
+                </div>
+                <div style={{ textAlign: 'right', flex: 'none' }}>
+                  <div className="trf-lever__delta" style={{ color: intel ? deltaCol(x.deltaF) : 'var(--ink-soft)' }}>{intel ? fmtSigned(x.deltaF) : '—'}</div>
+                  <div className="trf-lever__weight">poids {x.weight}</div>
+                </div>
+              </div>
+              <input
+                className="trf-range" type="range" min={0} max={100} step={5} value={x.weight}
+                onChange={(e) => setWeights((w) => ({ ...w, [x.k]: +e.target.value }))}
+              />
+            </div>
+          ))}
+
+          <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 6, paddingTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', marginBottom: 6 }}>
+              <span>Latitude · l’amplitude que vous autorisez</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--copper-600)' }}>{latitude} %</span>
+            </div>
+            <input className="trf-range trf-range--indigo" type="range" min={0} max={100} step={5} value={latitude} onChange={(e) => setLatitude(+e.target.value)} />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <div className="trf-guard">
+              <div className="l">Plancher · garde-fou</div>
+              <div className="v">{fmtMoney(engine.floor, currency)}</div>
+            </div>
+            <div className="trf-guard">
+              <div className="l">Plafond · garde-fou</div>
+              <div className="v">{fmtMoney(engine.ceil, currency)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* LA DÉMONSTRATION */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="trf-panel" style={{ padding: '18px 20px' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>La couronne</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {branchClients.map((c) => {
+                const on = c.id === client.id;
+                return (
+                  <button key={c.id} className={`trf-pick ${on ? 'is-active' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setClientId(c.id)}>
+                    <div className="trf-pick__name">{c.name.split(' ')[0]}</div>
+                    <div className="trf-pick__sub">{rankOf(c)}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>La prestation</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {svcList.map((s) => {
+                const on = s.id === service.id;
+                return (
+                  <button key={s.id} className={`trf-pick ${on ? 'is-active--sable' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setServiceId(s.id)}>
+                    <div className="trf-pick__name">{s.name}</div>
+                    <div className="trf-pick__sub">{fmtMoney(s.priceXof, currency)}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* CE QUE VOUS VOYEZ */}
+          <div className="trf-panel" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Ce que vous voyez</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>le moteur, à nu</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 12, marginBottom: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Base</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 20, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{fmtMoney(service.priceXof, currency)}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginLeft: 'auto' }}>{service.name}</span>
+            </div>
+            {intel && engine.contribs.map((x) => {
+              const w = (Math.abs(x.deltaF) / engine.maxAbs) * 48;
+              return (
+                <div className="trf-breakrow" key={x.k}>
+                  <span className="trf-breakrow__name">{x.name}</span>
+                  <div className="trf-breakrow__track">
+                    <span className="trf-breakrow__zero" />
+                    <span className="trf-breakrow__bar" style={{ left: x.deltaF >= 0 ? '50%' : `${50 - w}%`, width: `${Math.max(w, 1)}%`, background: deltaCol(x.deltaF) }} />
+                  </div>
+                  <span className="trf-breakrow__delta" style={{ color: deltaCol(x.deltaF) }}>{fmtSigned(x.deltaF)}</span>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid var(--hairline)', marginTop: 10, paddingTop: 12 }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                  Juste prix calculé · ×{engine.mult.toFixed(2).replace('.', ',')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: engine.clamped && intel ? 'var(--trf-warning)' : 'var(--ink-soft)', marginTop: 3 }}>
+                  {!intel ? 'personnalisation suspendue' : engine.clamped ? 'garde-fou appliqué — borné au plancher/plafond' : 'dans les bornes · ressenti juste'}
+                </div>
+              </div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, lineHeight: 1, color: 'var(--trf-success)' }}>
+                {fmtMoney(intel ? engine.finalP : service.priceXof, currency)}
+              </div>
+            </div>
+            <button className="trf-act" style={{ width: '100%', marginTop: 14, padding: 11 }} onClick={applyCoef} disabled={!intel}>
+              Appliquer ce coefficient à la fiche de {client.name.split(' ')[0]}
+            </button>
+          </div>
+
+          {/* CE QU'ELLE VOIT */}
+          <div className={`trf-mirror ${intel ? '' : 'trf-mirror--off'}`}>
+            <div className="trf-mirror__eyebrow">Ce qu’elle voit · {client.name.split(' ')[0]}</div>
+            {intel ? (
+              <>
+                <div className="trf-mirror__line">{client.name.split(' ')[0]}, voici le tarif de ta prestation —</div>
+                <div className="trf-mirror__price">{fmtMoney(engine.finalP, currency)}</div>
+                <div className="trf-mirror__foot">Pas de calcul. Pas de « tarif spécial ». <span style={{ color: 'var(--copper-200)' }}>Un prix, présenté comme une évidence.</span></div>
+              </>
+            ) : (
+              <>
+                <div className="trf-mirror__price" style={{ marginTop: 14 }}>{fmtMoney(service.priceXof, currency)}</div>
+                <div className="trf-mirror__foot">Intelligence en veille — chaque couronne paie le même prix.</div>
+              </>
+            )}
+          </div>
+
+          {/* LA MAIN INVISIBLE */}
+          <div className="trf-hand">
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--copper-600)', marginBottom: 12 }}>
+              L’intelligence, en arrière-plan
+            </div>
+            {INTEL_ACTS.map((a) => (
+              <div className="trf-hand__row" key={a}>
+                <span className="dot">·</span>
+                <span>{a}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

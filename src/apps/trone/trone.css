@@ -1,0 +1,197 @@
+/* Le Trône — identité : la salle du conseil. Obsidienne & indigo, or en sceau,
+   densité de commandement. La sœur la plus sombre et la plus dense. */
+
+@import '../../ds/tokens.css';
+@import '../../ds/ds.css';
+
+body[data-surface='trone'] {
+  background: var(--color-sable);
+}
+
+.tr-shell {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---------- Sidebar ---------- */
+.tr-side {
+  background: linear-gradient(175deg, var(--obsidian-800) 0%, var(--color-indigo-deep) 130%);
+  color: var(--color-ivoire);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--obsidian-500) transparent;
+}
+.tr-side__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+}
+.tr-side__brand h1 {
+  font-size: 21px;
+  letter-spacing: 0.02em;
+  color: var(--color-ivoire);
+}
+.tr-side__powered {
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--indigo-200);
+  margin-top: 2px;
+}
+.tr-branch {
+  margin: 0 var(--space-4) var(--space-4);
+  border: 1px solid var(--hairline-invert);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition-base);
+}
+.tr-branch:hover { background: rgba(246, 241, 231, 0.06); }
+.tr-branch__label {
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--copper-300);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tr-branch__name {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-ivoire);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tr-branch select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.tr-nav { flex: 1; padding-bottom: var(--space-6); }
+.tr-nav__group {
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--obsidian-200);
+  padding: var(--space-5) var(--space-5) var(--space-2);
+}
+.tr-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px var(--space-5);
+  font-size: 13px;
+  font-weight: var(--weight-regular);
+  color: var(--indigo-100);
+  border-left: 2px solid transparent;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.tr-nav__item svg { width: 15px; height: 15px; opacity: 0.75; flex: none; }
+.tr-nav__item:hover { background: rgba(246, 241, 231, 0.05); }
+.tr-nav__item.active {
+  background: var(--color-indigo);
+  border-left-color: var(--color-copper);
+  color: var(--color-ivoire);
+}
+
+/* ---------- Colonne principale ---------- */
+.tr-main { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+
+.tr-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--color-ivoire);
+  border-bottom: 1px solid var(--hairline);
+  padding: 12px var(--space-6);
+  flex: none;
+}
+.tr-top__trail {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--copper-600);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tr-top__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: var(--text-small);
+  color: var(--ink);
+  background: var(--paper);
+}
+.tr-top__bell {
+  position: relative;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.tr-top__bell-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.tr-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-ivoire);
+  padding: var(--space-6) var(--space-7) var(--space-9);
+}
+.tr-content__inner { max-width: 1180px; margin: 0 auto; }
+
+/* En-tête de page standard */
+.tr-page-head { margin-bottom: var(--space-6); }
+.tr-page-head h2 {
+  font-size: var(--text-h2);
+  margin-top: var(--space-2);
+}
+.tr-page-head .sub { color: var(--ink-soft); margin-top: var(--space-2); max-width: 640px; }
+
+/* Grilles utilitaires */
+.tr-grid { display: grid; gap: var(--space-4); }
+.tr-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tr-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tr-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1100px) {
+  .tr-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tr-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
