@@ -32,7 +32,7 @@
 }
 .ct-toolbar__title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 27px;
   color: var(--color-indigo);
   margin-top: 4px;
@@ -98,7 +98,7 @@
 }
 .ct-controls__head {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 22px;
   color: var(--color-indigo);
   margin-top: 4px;
@@ -176,7 +176,7 @@
 .ct-mono { width: 68px; display: block; }
 .ct-sigle {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 25px;
   letter-spacing: var(--tracking-mono);
   text-indent: var(--tracking-mono);
@@ -214,7 +214,7 @@
 }
 .ct-title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 78px;
   line-height: 0.95;
   letter-spacing: var(--tracking-display);
@@ -274,7 +274,7 @@
 .ct-sign { width: 260px; text-align: center; }
 .ct-sign__nom {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 21px;
   color: var(--ink);
 }

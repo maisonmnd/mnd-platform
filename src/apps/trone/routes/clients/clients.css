@@ -211,7 +211,7 @@
 }
 .trc-next__date {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 22px;
   margin-top: 5px;
 }
@@ -227,7 +227,7 @@
 .trc-ministat b {
   display: block;
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 19px;
   color: var(--color-indigo);
   line-height: 1;
@@ -433,7 +433,7 @@
 }
 .trc-stage__title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 52px;
   line-height: 1.02;
   color: var(--color-ivoire);
@@ -533,7 +533,7 @@
 .trc-persona__stat b {
   display: block;
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 26px;
   color: var(--color-indigo);
   line-height: 1;
@@ -568,7 +568,7 @@
 }
 .trc-crown__style {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 22px;
   color: var(--color-indigo);
   line-height: 1.1;

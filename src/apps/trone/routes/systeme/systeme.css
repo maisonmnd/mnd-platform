@@ -4,7 +4,7 @@
 .sys-section { padding: 22px 24px; }
 .sys-section__title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 21px;
   color: var(--color-indigo);
 }
@@ -99,7 +99,7 @@
 .sys-branch.is-active { border-color: var(--color-copper); box-shadow: 0 0 0 1px var(--color-copper) inset; }
 .sys-branch__name {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 25px;
   color: var(--color-indigo);
   margin: 10px 0 2px;

@@ -78,7 +78,7 @@
 .tre-gauge { text-align: center; }
 .tre-gauge__value {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 24px;
   color: var(--color-indigo);
   margin-top: -26px;
@@ -110,7 +110,7 @@
 }
 .tre-deep__body {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 21px;
   line-height: 1.35;
   color: var(--color-ivoire);
@@ -159,14 +159,14 @@
 .tre-offer.is-off { opacity: 0.6; }
 .tre-offer__deal {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 20px;
   color: var(--copper-700);
   line-height: 1;
 }
 .tre-offer__title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 21px;
   color: var(--color-indigo);
   margin-top: 10px;
@@ -213,7 +213,7 @@
 }
 .tre-tier__pts {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 19px;
   color: var(--color-indigo);
   margin-top: 12px;
@@ -267,7 +267,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 15px;
   flex: none;
 }
@@ -283,7 +283,7 @@
 }
 .tre-mrr {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 44px;
   line-height: 1;
   color: var(--color-indigo);

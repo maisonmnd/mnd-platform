@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -44,7 +44,23 @@ export default function Caisse() {
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
-  const activeCashbox = cashbox || branchCashboxes[0]?.name || 'Caisse principale';
+
+  /* La caisse active reste toujours valide : on sélectionne la première caisse de
+     la branche au montage (et au changement de branche), et on ne réinitialise
+     jamais la sélection après une vente. Vide s'il n'existe aucune caisse. */
+  useEffect(() => {
+    if (branchCashboxes.length === 0) {
+      if (cashbox) setCashbox('');
+    } else if (!branchCashboxes.some((c) => c.name === cashbox)) {
+      setCashbox(branchCashboxes[0].name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branch.id, cashboxes]);
+
+  const activeCashbox = branchCashboxes.some((c) => c.name === cashbox)
+    ? cashbox
+    : branchCashboxes[0]?.name ?? '';
+  const hasCashbox = branchCashboxes.length > 0;
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
@@ -162,16 +178,22 @@ export default function Caisse() {
         actions={
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
             Caisse active
-            <select
-              className="mnd-select"
-              value={activeCashbox}
-              onChange={(e) => setCashbox(e.target.value)}
-              style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
-            >
-              {branchCashboxes.map((c) => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
+            {hasCashbox ? (
+              <select
+                className="mnd-select"
+                value={activeCashbox}
+                onChange={(e) => setCashbox(e.target.value)}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
+              >
+                {branchCashboxes.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>
+                Aucune caisse — créez-en une dans Dépenses
+              </span>
+            )}
           </label>
         }
       />
@@ -186,19 +208,26 @@ export default function Caisse() {
           {/* — l'offre — */}
           <div>
             <div className="trv-sec-label trv-sec-label--copper">Services & produits</div>
-            {groups.map((g) => (
-              <div key={g.key} style={{ marginBottom: 8 }}>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.04em', color: 'var(--ink-soft)', margin: '10px 0 8px' }}>{g.label}</div>
-                <div className="tr-grid tr-grid--2">
-                  {g.items.map((it) => (
-                    <button key={it.key} className="trv-pick" onClick={() => add(it.key)}>
-                      <div className="n">{it.n}</div>
-                      <div className="p">{fmtMoney(it.priceXof, currency)}</div>
-                    </button>
-                  ))}
+            {groups.map((g, gi) => {
+              const [fon, ...rest] = g.label.split(' · ');
+              return (
+                <div key={g.key} className="trv-catgroup" style={gi > 0 ? { borderTop: '1px solid var(--hairline)', marginTop: 18, paddingTop: 16 } : undefined}>
+                  <div className="trv-catgroup__head">
+                    <span className="trv-catgroup__fon">{fon}</span>
+                    {rest.length > 0 && <span className="trv-catgroup__label">{rest.join(' · ')}</span>}
+                    <span className="trv-catgroup__count">{g.items.length}</span>
+                  </div>
+                  <div className="tr-grid tr-grid--2">
+                    {g.items.map((it) => (
+                      <button key={it.key} className="trv-pick" onClick={() => add(it.key)}>
+                        <div className="n">{it.n}</div>
+                        <div className="p">{fmtMoney(it.priceXof, currency)}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* — le ticket — */}

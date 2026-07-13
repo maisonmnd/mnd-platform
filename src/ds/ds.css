@@ -70,7 +70,7 @@
 }
 .mnd-stat__value {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 40px;
   line-height: var(--lh-tight);
   color: var(--ink);

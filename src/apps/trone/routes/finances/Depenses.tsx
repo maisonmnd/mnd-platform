@@ -5,7 +5,7 @@ import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal,
-  type Expense,
+  type Expense, type Cashbox, type ExpenseCategory,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, paceForecast } from './_shared';
 import './finances.css';

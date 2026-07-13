@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
 import { useCrownStyles } from '../../../../shared/clients';
+import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import './systeme.css';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par

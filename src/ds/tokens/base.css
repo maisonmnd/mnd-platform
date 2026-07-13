@@ -13,13 +13,17 @@ body {
   font-size: var(--text-body);
   font-weight: var(--weight-light);
   line-height: var(--lh-body);
-  -webkit-font-smoothing: antialiased;
+  /* Rendu net et « haute définition » : subpixel/DirectWrite plutôt que le lissage
+     gris (plus flou), synthèse de graisse désactivée, hinting préservé. */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 h1, h2, h3, h4 {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   line-height: var(--lh-tight);
   letter-spacing: var(--tracking-display);
   margin: 0;

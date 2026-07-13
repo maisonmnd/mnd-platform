@@ -542,3 +542,35 @@
   font-size: 12.5px;
   color: var(--ink);
 }
+
+/* Groupes de catégories au POS — transition nette entre VÈKPÈ™, SÍNSIN™… */
+.trv-catgroup__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 11px;
+}
+.trv-catgroup__fon {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-medium);
+  font-size: 17px;
+  color: var(--color-copper);
+  letter-spacing: 0.01em;
+}
+.trv-catgroup__label {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+.trv-catgroup__count {
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 1px 7px;
+}

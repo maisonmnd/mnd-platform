@@ -100,7 +100,7 @@
   flex: 0 0 auto;
   border-radius: 3px;
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   color: var(--color-ivoire);
 }
 
@@ -366,7 +366,7 @@
 }
 .lk-plan__price {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 38px;
   line-height: 1;
   color: var(--color-indigo);
@@ -600,7 +600,7 @@
 }
 .lk-onb__mock-kpi strong {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 23px;
   color: var(--color-indigo);
 }
@@ -861,7 +861,7 @@
 }
 .lk-kpi__value {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 36px;
   line-height: 1;
   color: var(--color-indigo);
@@ -899,7 +899,7 @@
 }
 .lk-tile strong {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 28px;
   line-height: 1;
   color: var(--color-indigo);
@@ -993,7 +993,7 @@
 }
 .lk-card__big {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 34px;
   line-height: 1;
   margin-top: 10px;
@@ -1022,7 +1022,7 @@
 .lk-rdv:last-child { border-bottom: none; }
 .lk-rdv__heure {
   font-family: var(--font-serif);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 20px;
   color: var(--color-indigo);
   width: 52px;
