@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
+import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   Avatar, RdvModal, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptTotalXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
+import { honorAppointment } from './actions';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
 const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 190px';
 
 export default function Carnet() {
+  const { currency } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
@@ -85,7 +89,7 @@ export default function Carnet() {
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
           <SourceBadge source={a.source} />
         </span>
-        <span className="trc-sub">{a.master}</span>
+        <span className="trc-sub" style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(apptTotalXof(a, byId), currency)}</span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <StatusPill status={a.status} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
@@ -98,7 +102,7 @@ export default function Carnet() {
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
                 )}
                 {canHonor && (
-                  <button onClick={() => { setStatus(a.id, 'honoré'); setMenuFor(null); }}>Marquer honoré</button>
+                  <button onClick={() => { honorAppointment(a, byId); setMenuFor(null); }}>Marquer honoré</button>
                 )}
                 <button onClick={() => { duplicateLast(a.clientId); setMenuFor(null); }}>
                   ⟳ Dupliquer le dernier RDV {c ? `de ${c.name.split(' ')[0]}` : ''}
@@ -137,7 +141,7 @@ export default function Carnet() {
           <span>Heure</span>
           <span>Cliente</span>
           <span>Services</span>
-          <span>Maître</span>
+          <span>Montant</span>
           <span style={{ textAlign: 'right' }}>Statut</span>
         </div>
 

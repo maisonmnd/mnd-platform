@@ -5,6 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useCategories, useServices, useProducts } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
+import { ClientPicker } from '../clients/_shared';
 import { useInvoices, useCashboxes, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -25,6 +26,12 @@ const PAY_METHODS: { k: PaymentMethod; n: string; sub: string }[] = [
 const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const fmtDateFr = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 export default function Caisse() {
@@ -239,12 +246,9 @@ export default function Caisse() {
             <div style={{ padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottom: '1px solid var(--hairline)' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Cliente</span>
-                <select className="mnd-select" style={{ flex: 1 }} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                  <option value="">Walk-in</option>
-                  {branchClients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div style={{ flex: 1 }}>
+                  <ClientPicker value={clientId} onChange={setClientId} allowWalkIn />
+                </div>
               </div>
 
               {lines.length === 0 && (
@@ -357,7 +361,7 @@ export default function Caisse() {
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, overflow: 'hidden' }}>
             <div className="trv-journal-head">
               <span className="trv-th">N°</span>
-              <span className="trv-th">Heure</span>
+              <span className="trv-th">Date</span>
               <span className="trv-th">Détail</span>
               <span className="trv-th">Paiement</span>
               <span className="trv-th" style={{ textAlign: 'right' }}>Montant</span>
@@ -365,7 +369,10 @@ export default function Caisse() {
             {journal.map((i) => (
               <div key={i.id} className="trv-journal-row">
                 <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>{i.time ?? '—'}</span>
+                <span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(i.date)}</span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{i.time ?? '—'}</span>
+                </span>
                 <div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
                     {i.lines.map((l) => (l.qty > 1 ? `${l.label} ×${l.qty}` : l.label)).join(' · ')}

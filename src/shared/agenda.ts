@@ -12,9 +12,13 @@ export type Appointment = {
   time: string; // HH:mm
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
-  depositXof?: number; // acompte 30 % Mobile Money (Ma Couronne)
+  depositXof?: number; // acompte Mobile Money (Ma Couronne)
   note?: string;
   source?: 'trone' | 'couronne' | 'consultation';
+  /** Points de fidélité déjà attribués à l'honneur du RDV (évite le double comptage). */
+  pointsAwarded?: boolean;
+  /** Numéro de la facture émise à l'encaissement du RDV. */
+  invoiceId?: string;
 };
 
 /** Date ISO à J+offset (calculée au chargement — le carnet suit le présent). */

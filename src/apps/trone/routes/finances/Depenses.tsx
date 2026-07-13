@@ -4,11 +4,15 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
-  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal,
-  type Expense, type Cashbox, type ExpenseCategory,
+  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, paceForecast } from './_shared';
 import './finances.css';
+
+/** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
+const fmtDay = (iso: string): string =>
+  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
 
 /* Dépenses — maîtrise des sorties de caisse. Flux par catégorie, caisses multiples,
    engagements à arbitrer (signaler / suspendre), paiements récurrents, budgets avec
@@ -27,7 +31,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[] };
 type BoxForm = { name: string; sub: string; glyph: string; opening: string };
 
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
@@ -45,7 +49,9 @@ export default function Depenses() {
   const [filterCat, setFilterCat] = useState('all');
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [] });
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
@@ -60,9 +66,9 @@ export default function Depenses() {
   );
   const live = monthExp.filter((e) => !e.stopped);
 
-  const engaged = live.reduce((s, e) => s + e.amountXof, 0);
-  const potential = live.filter((e) => e.flagged).reduce((s, e) => s + e.amountXof, 0);
-  const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + e.amountXof, 0);
+  const engaged = live.reduce((s, e) => s + expenseTotal(e), 0);
+  const potential = live.filter((e) => e.flagged).reduce((s, e) => s + expenseTotal(e), 0);
+  const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + expenseTotal(e), 0);
   const revenue = useMemo(
     () => invoices
       .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && monthKey(i.date) === thisMonth)
@@ -77,7 +83,7 @@ export default function Depenses() {
   const boxBalance = (name: string) => {
     const box = branchBoxes.find((b) => b.name === name);
     const opening = box?.openingXof ?? 0;
-    const out = live.filter((e) => e.cashbox === name).reduce((s, e) => s + e.amountXof, 0);
+    const out = live.filter((e) => e.cashbox === name).reduce((s, e) => s + expenseTotal(e), 0);
     const inn = invoices
       .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === thisMonth)
       .reduce((s, i) => s + invoiceTotal(i), 0);
@@ -90,7 +96,7 @@ export default function Depenses() {
     const map = new Map<string, number>();
     live
       .filter((e) => (filterCaisse === 'all' || e.cashbox === filterCaisse) && (filterCat === 'all' || e.category === filterCat))
-      .forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + e.amountXof));
+      .forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + expenseTotal(e)));
     const rows = Array.from(map.entries()).map(([cat, n]) => ({ cat, n })).sort((a, b) => b.n - a.n);
     const total = rows.reduce((s, r) => s + r.n, 0);
     const max = Math.max(...rows.map((r) => r.n), 1);
@@ -111,7 +117,7 @@ export default function Depenses() {
 
   const openFor = (cashbox?: string) => {
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false, items: [] });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -119,31 +125,45 @@ export default function Depenses() {
     setForm({
       label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
       cashbox: e.cashbox, recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
+      items: e.items ? e.items.map((it) => ({ ...it })) : [],
     });
     setOpen(true);
   };
+
+  // — Lignes d'articles imputés au même achat —
+  const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { id: uid(), label: '', amountXof: 0 }] }));
+  const patchItem = (id: string, fn: (it: ExpenseItem) => ExpenseItem) =>
+    setForm((f) => ({ ...f, items: f.items.map((it) => (it.id === id ? fn(it) : it)) }));
+  const removeItem = (id: string) => setForm((f) => ({ ...f, items: f.items.filter((it) => it.id !== id) }));
+  // Total saisi = somme des lignes si présentes, sinon le montant simple.
+  const cleanItems = form.items.filter((it) => it.label.trim() && it.amountXof > 0);
+  const formTotal = cleanItems.length ? cleanItems.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
+
   const save = () => {
-    const amountXof = parseInt(form.amount || '0', 10);
+    const items = cleanItems;
+    const hasItems = items.length > 0;
+    const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
     if (!form.label.trim() || !amountXof || !form.cashbox) return;
     if (editingId) {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
+        items: hasItems ? items : undefined,
       } : e)));
     } else {
       const e: Expense = {
         id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
-        flagged: form.flagged || undefined,
+        flagged: form.flagged || undefined, items: hasItems ? items : undefined,
       };
       setExpenses((prev) => [e, ...prev]);
     }
     setOpen(false);
   };
   const removeExpense = (e: Expense) => {
-    if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(e.amountXof, currency)}) ? Cette action est définitive.`)) return;
+    if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;
     setExpenses((prev) => prev.filter((x) => x.id !== e.id));
   };
 
@@ -241,7 +261,7 @@ export default function Depenses() {
   };
 
   const branchBudgets = budgets.filter((b) => b.branchId === branch.id);
-  const spentOfCat = (cat: string) => live.filter((e) => e.category === cat).reduce((s, e) => s + e.amountXof, 0);
+  const spentOfCat = (cat: string) => live.filter((e) => e.category === cat).reduce((s, e) => s + expenseTotal(e), 0);
 
   const kpiCard = (l: string, v: string, a: string, col: string, c: string, cCls = '') => (
     <div className="trf-kpi" style={{ '--accent': a } as CSSProperties}>
@@ -409,29 +429,47 @@ export default function Depenses() {
           <div className="trf-panel" style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {monthLabel(thisMonth)}</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>{monthExp.length} · {fmtMoney(monthExp.reduce((s, e) => s + e.amountXof, 0), currency)}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>{monthExp.length} · {fmtMoney(monthExp.reduce((s, e) => s + expenseTotal(e), 0), currency)}</div>
             </div>
             {monthExp.length === 0 && <div className="trf-empty">Aucune dépense saisie ce mois. « Ajouter une dépense » l’enregistre ici et débite la caisse choisie.</div>}
             {monthExp.map((e) => (
-              <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`} key={e.id}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="trf-exprow__vendor">{e.label}</div>
-                  <div className="trf-exprow__meta">{e.category}{e.subcategory ? ` · ${e.subcategory}` : ''}{e.recurring ? ` · ${e.recurring}` : ''}</div>
+              <div key={e.id}>
+                <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`}>
+                  <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="trf-exprow__vendor">{e.label}</div>
+                    <div className="trf-exprow__meta">
+                      {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''}{e.recurring ? ` · ${e.recurring}` : ''}
+                      {e.items && e.items.length ? (
+                        <>{' · '}<button className="trf-itemtoggle" onClick={() => toggleExpand(e.id)}>{e.items.length} articles {expanded.has(e.id) ? '▲' : '▼'}</button></>
+                      ) : null}
+                    </div>
+                  </div>
+                  <span className="trf-tagbox">{e.cashbox}</span>
+                  <span className="trf-exprow__amt">{fmtMoney(expenseTotal(e), currency)}</span>
+                  <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
+                    <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
+                    {!e.stopped ? (
+                      <>
+                        <button className={`trf-act ${e.flagged ? 'trf-act--warn' : 'trf-act--ghost'}`} onClick={() => toggleFlag(e)}>{e.flagged ? 'Signalé' : 'Signaler'}</button>
+                        <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
+                      </>
+                    ) : (
+                      <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
+                    )}
+                    <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
+                  </div>
                 </div>
-                <span className="trf-tagbox">{e.cashbox}</span>
-                <span className="trf-exprow__amt">{fmtMoney(e.amountXof, currency)}</span>
-                <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                  <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
-                  {!e.stopped ? (
-                    <>
-                      <button className={`trf-act ${e.flagged ? 'trf-act--warn' : 'trf-act--ghost'}`} onClick={() => toggleFlag(e)}>{e.flagged ? 'Signalé' : 'Signaler'}</button>
-                      <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
-                    </>
-                  ) : (
-                    <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
-                  )}
-                  <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
-                </div>
+                {e.items && e.items.length && expanded.has(e.id) ? (
+                  <div className="trf-itembreak">
+                    {e.items.map((it) => (
+                      <div className="trf-itembreak__row" key={it.id}>
+                        <span className="trf-itembreak__label">{it.label}</span>
+                        <span className="trf-itembreak__val">{fmtMoney(it.amountXof, currency)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -477,8 +515,9 @@ export default function Depenses() {
                     </div>
                     <div className="trf-exprow__meta">{e.category} · {e.recurring}</div>
                   </div>
+                  <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
                   <span className="trf-tagbox">{e.cashbox}</span>
-                  <span className="trf-exprow__amt" style={{ fontSize: 18 }}>{fmtMoney(e.amountXof, currency)}</span>
+                  <span className="trf-exprow__amt" style={{ fontSize: 18 }}>{fmtMoney(expenseTotal(e), currency)}</span>
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     <button className="trf-act trf-act--ghost" onClick={() => togglePause(e)}>{e.paused ? 'Reprendre' : 'Pause'}</button>
                     <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== e.id))}>Annuler</button>
@@ -500,9 +539,19 @@ export default function Depenses() {
                       {e.stopped ? 'Suspendu' : e.flagged ? 'À revoir' : e.recurring ? 'Engagement' : 'Ponctuel'}
                     </span>
                   </div>
-                  <div className="trf-exprow__meta">{e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
+                  <div className="trf-exprow__meta">{fmtDay(e.date)} · {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
+                  {e.items && e.items.length ? (
+                    <div className="trf-itembreak trf-itembreak--inline">
+                      {e.items.map((it) => (
+                        <div className="trf-itembreak__row" key={it.id}>
+                          <span className="trf-itembreak__label">{it.label}</span>
+                          <span className="trf-itembreak__val">{fmtMoney(it.amountXof, currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', flex: 'none', textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(e.amountXof, currency)}</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', flex: 'none', textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(expenseTotal(e), currency)}</span>
                 <div style={{ flex: 'none', display: 'flex', gap: 7, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
                   {e.stopped ? (
@@ -576,7 +625,7 @@ export default function Depenses() {
               <div className="trf-panel__title">Dépenses par catégorie · {monthLabel(thisMonth)}</div>
               {(() => {
                 const map = new Map<string, number>();
-                live.forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + e.amountXof));
+                live.forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + expenseTotal(e)));
                 const rows = Array.from(map.entries()).map(([cat, n]) => ({ cat, n })).sort((a, b) => b.n - a.n);
                 const max = Math.max(...rows.map((r) => r.n), 1);
                 if (rows.length === 0) return <div className="trf-empty">Rien à analyser ce mois.</div>;
@@ -607,13 +656,48 @@ export default function Depenses() {
             </label>
             <div style={{ display: 'flex', gap: 14 }}>
               <label className="mnd-field" style={{ flex: 1 }}>
-                <span className="mnd-field__label">Montant · {form.amount ? fmtMoney(parseInt(form.amount, 10), currency) : fmtMoney(0, currency)}</span>
-                <input className="mnd-input" inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
+                <span className="mnd-field__label">Montant · {fmtMoney(formTotal, currency)}{cleanItems.length ? ' · somme des articles' : ''}</span>
+                {cleanItems.length ? (
+                  <input className="mnd-input" value={fmtMoney(formTotal, currency)} readOnly disabled style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
+                ) : (
+                  <input className="mnd-input" inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
+                )}
               </label>
               <label className="mnd-field" style={{ flex: 'none', width: 180 }}>
                 <span className="mnd-field__label">Date</span>
                 <input className="mnd-input" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
               </label>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
+                <span className="mnd-field__label">Articles de l’achat {form.items.length ? `· ${cleanItems.length}/${form.items.length}` : '· facultatif'}</span>
+                <button className="trf-act" onClick={addItem}>+ Ligne</button>
+              </div>
+              {form.items.length === 0 && (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                  Ajoute des lignes pour imputer plusieurs articles à ce même achat — le montant devient leur somme. Sinon, laisse le montant simple ci-dessus.
+                </div>
+              )}
+              {form.items.length > 0 && (
+                <div className="trf-items">
+                  {form.items.map((it) => (
+                    <div className="trf-items__row" key={it.id}>
+                      <input
+                        className="mnd-input" value={it.label} placeholder="Article · ex. Beurre de karité"
+                        onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
+                        style={{ flex: 1 }}
+                      />
+                      <input
+                        className="mnd-input" inputMode="numeric" value={it.amountXof ? String(it.amountXof) : ''} placeholder="0"
+                        onChange={(ev) => patchItem(it.id, (x) => ({ ...x, amountXof: parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10) }))}
+                        style={{ flex: 'none', width: 130, fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}
+                      />
+                      <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeItem(it.id)} aria-label="Retirer la ligne">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie</div>

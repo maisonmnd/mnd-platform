@@ -328,3 +328,43 @@
   font-weight: var(--weight-medium);
   margin-bottom: 9px;
 }
+
+/* ---------- Avances sur salaire (paie) ---------- */
+.tre-adv-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tre-adv-total {
+  color: #8f3b30;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tre-adv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tre-adv-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+}
+.tre-adv-amt {
+  color: #8f3b30;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tre-adv-meta {
+  font-size: 10.5px;
+}
+.tre-adv-rm {
+  margin-left: auto;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}

@@ -7,6 +7,7 @@ import {
   RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
+import { PayAppointmentModal } from './actions';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -26,6 +27,7 @@ export default function Calendrier() {
   const [anchor, setAnchor] = useState(today);
   const [modalOpen, setModalOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
   /* — Déplacement direct (glisser-déposer natif) — */
   const [dragId, setDragId] = useState<string | null>(null); // rituel en cours de déplacement
@@ -257,6 +259,16 @@ export default function Calendrier() {
                         {a.time} · {apptLabel(a, byId)}
                       </div>
                       <div className="trc-cal__appt-sub">{clientName(a.clientId)}</div>
+                      {a.status !== 'honoré' && (
+                        <button
+                          className="trc-cal__encaisser"
+                          draggable={false}
+                          onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
+                          title="Encaisser ce rituel"
+                        >
+                          Encaisser
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -313,6 +325,7 @@ export default function Calendrier() {
 
       {modalOpen && <RdvModal onClose={() => setModalOpen(false)} initial={{ date: anchor }} />}
       {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

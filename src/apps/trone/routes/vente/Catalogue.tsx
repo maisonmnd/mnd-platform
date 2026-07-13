@@ -197,12 +197,18 @@ export default function Catalogue() {
       {cats.map((cat, ci) => {
         const list = svcOf(cat.id);
         const prods = prodsOf(cat.id);
+        const count = list.length + prods.length;
         return (
-          <section key={cat.id} style={{ marginBottom: 26, opacity: cat.enabled ? 1 : 0.55 }}>
-            <div className="trv-cat-head">
-              <span className="fon">{cat.fon}</span>
-              <span className="desc">{cat.label}</span>
-              <span style={{ flex: 1 }} />
+          <section key={cat.id} className="trv-catblock" style={{ opacity: cat.enabled ? 1 : 0.6 }}>
+            <div className="trv-catblock__band">
+              <span className="trv-catblock__id">
+                <span className="fon">{cat.fon}</span>
+                <span className="label">{cat.label}</span>
+              </span>
+              <span className="trv-catblock__count">
+                {count} élément{count > 1 ? 's' : ''}
+              </span>
+              <span className="trv-catblock__spacer" />
               <button
                 className="trv-minibtn"
                 style={{ color: cat.enabled ? 'var(--copper-600)' : 'var(--ink-soft)' }}
@@ -211,7 +217,7 @@ export default function Catalogue() {
               >
                 {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
               </button>
-              <span className="tools">
+              <span className="trv-catblock__tools">
                 <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled })}>
                   Modifier
                 </button>
@@ -223,7 +229,9 @@ export default function Catalogue() {
               </span>
             </div>
 
-            <div className="tr-grid tr-grid--2">
+            <div className="trv-catblock__filet" />
+
+            <div className="trv-catblock__body tr-grid tr-grid--2">
               {list.map((svc, si) => (
                 <article key={svc.id} className="trv-svc">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>

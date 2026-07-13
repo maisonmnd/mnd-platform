@@ -58,6 +58,22 @@
   outline: none;
   cursor: pointer;
 }
+/* ---------- Champ texte éditable (identité de la Maison) ---------- */
+.sys-input {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  min-width: 240px;
+  max-width: 300px;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+  background: var(--paper);
+  outline: none;
+  text-align: right;
+}
+.sys-input:focus { border-color: var(--copper-300); }
+
 .sys-badge-count {
   font-family: var(--font-sans);
   font-size: 10px;

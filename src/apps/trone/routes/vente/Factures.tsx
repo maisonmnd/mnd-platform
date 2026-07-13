@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
+import { ClientPicker } from '../clients/_shared';
 import { useInvoices, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -296,12 +297,7 @@ export default function Factures() {
               <div>
                 <div className="trv-sec-label">Tête couronnée & maître</div>
                 <div className="tr-grid tr-grid--2" style={{ gap: 8 }}>
-                  <Select value={draft.clientId} onChange={(e) => patchDraft({ clientId: e.target.value })} style={{ fontSize: 12 }}>
-                    <option value="">Walk-in</option>
-                    {branchClients.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
+                  <ClientPicker value={draft.clientId} onChange={(id) => patchDraft({ clientId: id })} allowWalkIn />
                   <Select value={draft.master ?? ''} onChange={(e) => patchDraft({ master: e.target.value })} style={{ fontSize: 12 }}>
                     {[...new Set([draft.master ?? '', ...branch.masters])].filter(Boolean).map((m) => (
                       <option key={m} value={m}>{m}</option>

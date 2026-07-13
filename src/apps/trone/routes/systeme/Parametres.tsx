@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Input, Textarea } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
 import { useCrownStyles } from '../../../../shared/clients';
+import { createStore, useStore } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import './systeme.css';
 
@@ -15,19 +16,42 @@ import './systeme.css';
 type FieldRow = { l: string; v: string };
 type ToggleRow = { k: string; l: string; sub: string };
 
-const IDENTITY: FieldRow[] = [
-  { l: 'Nom de la Maison', v: 'Maison MND' },
-  { l: 'Raison sociale', v: 'MND SARL · RCCM COT-B-2021' },
-  { l: 'Fuseau horaire', v: 'Cotonou · GMT+1' },
-];
+/* ---------- Identité de la Maison & rituel par défaut — champs éditables ----------
+   Persistés en localStorage (clé `mnd_house_identity`) via le magasin partagé.
+   Ces réglages ne trouvaient pas de foyer dans `settings` (bascules) ni dans
+   `houseSettingsStore` (Record<string, boolean>) : on leur donne un magasin dédié. */
+type HouseIdentity = {
+  nom: string;
+  raison: string;
+  fuseau: string;
+  dureeRituel: string;
+  fenetreAnnulation: string;
+};
 
-const RITUEL_FIELDS: FieldRow[] = [
-  { l: 'Durée standard d’un rituel', v: '2 h 30' },
-  { l: 'Fenêtre d’annulation', v: '48 h avant' },
+const DEFAULT_IDENTITY: HouseIdentity = {
+  nom: 'Maison MND',
+  raison: 'MND SARL · RCCM COT-B-2021',
+  fuseau: 'Cotonou · GMT+1',
+  dureeRituel: '2 h 30',
+  fenetreAnnulation: '48 h avant',
+};
+
+const houseIdentityStore = createStore<HouseIdentity>('mnd_house_identity', DEFAULT_IDENTITY);
+import { bindDocument } from '../../../../shared/sync';
+bindDocument(houseIdentityStore, 'mnd_house_identity'); // synchronisé Supabase (multi-appareils)
+const useHouseIdentity = () => useStore(houseIdentityStore);
+
+const FUSEAU_OPTIONS = [
+  'Cotonou · GMT+1', 'Abidjan · GMT', 'Lomé · GMT', 'Dakar · GMT',
+  'Lagos · GMT+1', 'Douala · GMT+1', 'Paris · GMT+2',
 ];
+const DUREE_OPTIONS = [
+  '45 min', '1 h', '1 h 30', '2 h', '2 h 30', '3 h', '3 h 30', '4 h', '4 h 30', '5 h', '6 h',
+];
+const ANNULATION_OPTIONS = ['24 h avant', '48 h avant', '72 h avant', 'Aucune fenêtre'];
+
 const RITUEL_TOGGLES: ToggleRow[] = [
   { k: 'rappel', l: 'Rappels automatiques', sub: 'SMS + WhatsApp · J-1 et H-2' },
-  { k: 'acompte', l: 'Acompte exigé en ligne', sub: 'bloque le fauteuil à la réservation' },
 ];
 const NOTIF_TOGGLES: ToggleRow[] = [
   { k: 'notifRdv', l: 'Nouveau rendez-vous', sub: 'au Maître concerné' },
@@ -78,9 +102,23 @@ function FieldRowView({ l, v }: FieldRow) {
   );
 }
 
+/** Ligne de réglage éditable — libellé (+ sous-titre) à gauche, contrôle à droite. */
+function EditRow({ l, sub, children }: { l: string; sub?: string; children: ReactNode }) {
+  return (
+    <div className="sys-row">
+      <div>
+        <div className="sys-row__label">{l}</div>
+        {sub && <div className="sys-row__sub">{sub}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function Parametres() {
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
+  const [identity, setIdentity] = useHouseIdentity();
   const [crownStyles, setCrownStyles] = useCrownStyles();
   const [saved, setSaved] = useState(false);
   const [sentRole, setSentRole] = useState<string | null>(null);
@@ -92,6 +130,10 @@ export default function Parametres() {
 
   const toggle = (k: string) =>
     setSettings((s) => ({ ...s, toggles: { ...s.toggles, [k]: !s.toggles[k] } }));
+
+  /** Écrit un champ d'identité / de rituel dans le magasin dédié (persistance immédiate). */
+  const setIdent = (field: keyof HouseIdentity, val: string) =>
+    setIdentity((s) => ({ ...s, [field]: val }));
 
   /** Acompte exigé en ligne (%) — borné 0–100, entier ; lu par Ma Couronne. */
   const setDepositPct = (raw: string) => {
@@ -179,14 +221,58 @@ export default function Parametres() {
         <Card className="sys-section">
           <div className="sys-section__title">Identité de la Maison</div>
           <div className="sys-section__cap">Ce que la Maison montre au monde.</div>
-          {IDENTITY.map((r) => <FieldRowView key={r.l} {...r} />)}
+          <EditRow l="Nom de la Maison">
+            <input
+              className="sys-input"
+              value={identity.nom}
+              onChange={(e) => setIdent('nom', e.target.value)}
+              aria-label="Nom de la Maison"
+            />
+          </EditRow>
+          <EditRow l="Raison sociale">
+            <input
+              className="sys-input"
+              value={identity.raison}
+              onChange={(e) => setIdent('raison', e.target.value)}
+              aria-label="Raison sociale"
+            />
+          </EditRow>
+          <EditRow l="Fuseau horaire">
+            <select
+              className="sys-select"
+              value={identity.fuseau}
+              onChange={(e) => setIdent('fuseau', e.target.value)}
+              aria-label="Fuseau horaire"
+            >
+              {FUSEAU_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </EditRow>
           <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
         </Card>
 
         <Card className="sys-section">
           <div className="sys-section__title">Le rituel par défaut</div>
           <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous.</div>
-          {RITUEL_FIELDS.map((r) => <FieldRowView key={r.l} {...r} />)}
+          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut.">
+            <select
+              className="sys-select"
+              value={identity.dureeRituel}
+              onChange={(e) => setIdent('dureeRituel', e.target.value)}
+              aria-label="Durée standard d’un rituel"
+            >
+              {DUREE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </EditRow>
+          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte est retenu.">
+            <select
+              className="sys-select"
+              value={identity.fenetreAnnulation}
+              onChange={(e) => setIdent('fenetreAnnulation', e.target.value)}
+              aria-label="Fenêtre d’annulation"
+            >
+              {ANNULATION_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </EditRow>
           <div className="sys-row">
             <div>
               <div className="sys-row__label">Acompte exigé en ligne (%)</div>

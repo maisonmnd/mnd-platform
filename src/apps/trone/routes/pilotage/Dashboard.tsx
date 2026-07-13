@@ -11,6 +11,7 @@ import {
   Avatar, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from '../clients/_shared';
+import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import './pilotage.css';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
@@ -32,6 +33,7 @@ export default function Dashboard() {
 
   const [breakOpen, setBreakOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
   const today = todayISO();
   const now = new Date();
@@ -147,8 +149,11 @@ export default function Dashboard() {
   const clientOf = (id: string) => allClients.find((c) => c.id === id);
 
   const advance = (a: Appointment) => {
-    const next: Appointment['status'] = a.status === 'en attente' ? 'confirmé' : 'honoré';
-    appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next } : x)));
+    if (a.status === 'en attente') {
+      appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'confirmé' } : x)));
+    } else {
+      honorAppointment(a, byId);
+    }
   };
 
   /* — revenu 7 jours, barres SVG — */
@@ -232,6 +237,17 @@ export default function Dashboard() {
                 </div>
                 <SourceBadge source={a.source} />
                 <StatusPill status={a.status} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
+                  title="Encaisser ce rituel"
+                  style={{
+                    cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '8px 12px',
+                    fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
+                    background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
+                  }}
+                >
+                  Encaisser
+                </button>
                 {a.status !== 'honoré' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); advance(a); }}
@@ -334,6 +350,9 @@ export default function Dashboard() {
 
       {/* Modification d’un rendez-vous du carnet du jour */}
       {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} />}
+
+      {/* Encaissement d’un rendez-vous du carnet du jour */}
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

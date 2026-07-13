@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Input } from '../../../../ds/components';
+import { Button, Field, Input } from '../../../../ds/components';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
@@ -9,8 +9,8 @@ import { clientsStore, usePersonas, type Client } from '../../../../shared/clien
 import { useBranch } from '../../../../shared/branches';
 import { asset } from '../../../../shared/asset';
 import {
-  Avatar, Drawer, RdvModal, StatusPill, apptLabel, apptTotalXof, frDay, frLong, relDays,
-  useBranchAppointments, useBranchClients, useServicesById,
+  Avatar, ClientPicker, Drawer, RdvModal, StatusPill, apptLabel, apptTotalXof, frDay, frLong, relDays,
+  todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
 
@@ -391,10 +391,12 @@ function DossierPanel({
 function FormsSection() {
   const [forms] = useStore(consultFormsStore);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [fillId, setFillId] = useState<string | null>(null);
 
   const active = forms.filter((f) => !f.archived);
   const archivedCount = forms.filter((f) => f.archived).length;
   const open = forms.find((f) => f.id === openId && !f.archived) ?? null;
+  const filling = forms.find((f) => f.id === fillId && !f.archived) ?? null;
 
   const mutate = (id: string, fn: (f: ConsultForm) => ConsultForm) =>
     consultFormsStore.set((prev) => prev.map((f) => (f.id === id ? fn(f) : f)));
@@ -420,6 +422,8 @@ function FormsSection() {
 
   if (open) {
     return (
+      <>
+      {filling && <FillPanel form={filling} onClose={() => setFillId(null)} />}
       <div className="trc-formcard" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ background: 'var(--color-indigo)', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
@@ -427,7 +431,10 @@ function FormsSection() {
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', marginTop: 5 }}>{open.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--indigo-100)', marginTop: 4 }}>{open.desc}</div>
           </div>
-          <Button variant="ghost-invert" onClick={() => setOpenId(null)}>← Tous les formulaires</Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
+            <Button variant="copper" onClick={() => setFillId(open.id)}>Remplir pour une cliente</Button>
+            <Button variant="ghost-invert" onClick={() => setOpenId(null)}>← Tous les formulaires</Button>
+          </div>
         </div>
         <div style={{ padding: '4px 24px 20px' }}>
           {open.questions.map((q, i) => (
@@ -450,13 +457,15 @@ function FormsSection() {
           <button className="trc-addline" style={{ marginTop: 16 }} onClick={() => addQ(open.id)}>+ Ajouter une question</button>
         </div>
       </div>
+      </>
     );
   }
 
   return (
     <div>
+      {filling && <FillPanel form={filling} onClose={() => setFillId(null)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 16 }}>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Cinq formulaires prêts à l’emploi — ouvrez pour voir et personnaliser les questions.</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Cinq formulaires prêts à l’emploi — ouvrez pour voir et personnaliser les questions, ou remplissez-en un pour une cliente.</div>
         <Button variant="indigo" onClick={addForm}>+ Nouveau formulaire</Button>
       </div>
       <div className="tr-grid tr-grid--2">
@@ -468,7 +477,8 @@ function FormsSection() {
             </div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', marginTop: 8, lineHeight: 1.15 }}>{f.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 6, flex: 1 }}>{f.desc}</div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--hairline)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--hairline)' }}>
+              <Button variant="copper" style={{ flex: '1 1 100%' }} onClick={() => setFillId(f.id)}>Remplir pour une cliente</Button>
               <Button variant="indigo" style={{ flex: 1 }} onClick={() => setOpenId(f.id)}>Ouvrir & personnaliser</Button>
               <button className="trc-iconbtn trc-iconbtn--danger" style={{ width: 'auto', padding: '0 14px', height: 'auto', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase' }} onClick={() => archive(f.id)}>Archiver</button>
             </div>
@@ -477,6 +487,85 @@ function FormsSection() {
       </div>
       {archivedCount > 0 && <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 14 }}>{archivedCount} formulaire(s) archivé(s).</div>}
     </div>
+  );
+}
+
+/* ---------- Panneau · Remplir un formulaire pour une cliente ---------- */
+function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }) {
+  const clients = useBranchClients();
+  const [clientId, setClientId] = useState('');
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const client = clients.find((c) => c.id === clientId) ?? null;
+  const setAnswer = (i: number, v: string) => setAnswers((prev) => ({ ...prev, [i]: v }));
+
+  const save = () => {
+    if (!client) { setError('Choisissez une cliente pour enregistrer la consultation.'); return; }
+    const date = todayISO();
+    const lines = form.questions.map((q, i) => `${i + 1}. ${q.q || '(question)'}\n   → ${(answers[i] ?? '').trim() || '—'}`);
+    const block = [`── Consultation · ${form.name} · ${frLong(date)} ──`, ...lines].join('\n');
+    clientsStore.set((prev) =>
+      prev.map((c) => {
+        if (c.id !== client.id) return c;
+        const merged = [(c.notes ?? '').trim(), block].filter(Boolean).join('\n\n');
+        return { ...c, notes: merged };
+      }),
+    );
+    setSaved(`Consultation enregistrée au dossier de ${client.name}.`);
+  };
+
+  return (
+    <Drawer onClose={onClose}>
+      <div className="trc-drawer__cover">
+        <button className="trc-drawer__close" onClick={onClose} aria-label="Fermer">✕</button>
+        <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>{form.eyebrow} · Remplir pour une cliente</div>
+        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--color-ivoire)', marginTop: 6, lineHeight: 1.1 }}>{form.name}</div>
+      </div>
+
+      {saved ? (
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="trc-fill-done">{saved}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Le récapitulatif a été ajouté à la note de la maison du dossier de {client?.name}.</div>
+          <Button variant="copper" onClick={onClose}>Fermer</Button>
+        </div>
+      ) : clients.length === 0 ? (
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="trc-empty">Aucune cliente sur cette branche — ajoutez d’abord une tête couronnée dans la fiche Clientes pour enregistrer une consultation.</div>
+          <Button variant="ghost" onClick={onClose}>Fermer</Button>
+        </div>
+      ) : (
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Field label="Cliente">
+            <ClientPicker value={clientId} onChange={(id) => { setClientId(id); setError(null); }} placeholder="Rechercher une cliente (nom, téléphone)…" />
+          </Field>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {form.questions.map((q, i) => (
+              <div key={i}>
+                <span className="trc-microlabel" style={{ marginBottom: 4 }}>{i + 1}. {q.q || 'Question'}</span>
+                {q.t && <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginBottom: 6 }}>{q.t}</div>}
+                <textarea
+                  className="trc-dossier-notes trc-fill-answer"
+                  value={answers[i] ?? ''}
+                  onChange={(e) => setAnswer(i, e.target.value)}
+                  placeholder="Réponse de la cliente…"
+                  rows={2}
+                />
+              </div>
+            ))}
+          </div>
+
+          {error && <div style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button variant="copper" style={{ flex: 1 }} onClick={save}>Enregistrer au dossier</Button>
+            <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          </div>
+        </div>
+      )}
+    </Drawer>
   );
 }
 

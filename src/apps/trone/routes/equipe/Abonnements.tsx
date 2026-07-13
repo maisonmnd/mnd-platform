@@ -5,25 +5,27 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { shortDate, usePlans, useSubscribers, type Plan, type Subscriber } from './data';
+import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string };
-type SubForm = { name: string; planId: string; slot: string };
+type SubForm = { clientId: string; planId: string; slot: string };
 
 export default function Abonnements() {
   const { branch, currency } = useBranch();
   const [plans, setPlans] = usePlans();
   const [subs, setSubs] = useSubscribers();
+  const clients = useBranchClients();
   const [tab, setTab] = useState<Tab>('moteur');
   const [cycle, setCycle] = useState<'mensuel' | 'annuel'>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '' });
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ name: '', planId: plans[0]?.id ?? '', slot: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '' });
 
   const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
   const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);
@@ -62,16 +64,17 @@ export default function Abonnements() {
 
   const saveSub = () => {
     const plan = planOf(subForm.planId);
-    if (!subForm.name.trim() || !plan) return;
+    const client = clients.find((c) => c.id === subForm.clientId);
+    if (!client || !plan) return;
     const nm: Subscriber = {
-      id: `ab-${uid()}`, branchId: branch.id, name: subForm.name.trim(), planId: plan.id,
+      id: `ab-${uid()}`, branchId: branch.id, name: client.name, planId: plan.id,
       slot: subForm.slot.trim() || 'Créneau à réserver',
       nextIso: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       since: 'ce mois', status: 'new', mrrXof: plan.priceXof,
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ name: '', planId: plans[0]?.id ?? '', slot: '' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '' });
   };
 
   const statusDot = (s: Subscriber['status']) =>
@@ -264,7 +267,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ name: '', planId: plans[0]?.id ?? '', slot: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           <Card style={{ overflow: 'hidden' }}>
@@ -346,7 +349,7 @@ export default function Abonnements() {
         <Modal title="Nouvel abonné." onClose={() => setSubModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Tête couronnée">
-              <Input value={subForm.name} placeholder="Prénom Nom" onChange={(e) => setSubForm({ ...subForm, name: e.target.value })} />
+              <ClientPicker value={subForm.clientId} onChange={(id) => setSubForm({ ...subForm, clientId: id })} />
             </Field>
             <Field label="Formule">
               <Select value={subForm.planId} onChange={(e) => setSubForm({ ...subForm, planId: e.target.value })}>
@@ -358,7 +361,7 @@ export default function Abonnements() {
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setSubModal(false)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveSub} disabled={!subForm.name.trim()}>Inscrire l’abonné</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveSub} disabled={!subForm.clientId}>Inscrire l’abonné</Button>
             </div>
           </div>
         </Modal>

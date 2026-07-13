@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -238,13 +238,7 @@ export function RdvModal({
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Tête couronnée">
-          <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+          <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente (nom, téléphone)…" />
         </Field>
 
         <div>
@@ -383,5 +377,72 @@ export function RdvModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+/* ---------- Sélecteur de cliente — recherche par nom / téléphone ---------- */
+export function ClientPicker({
+  value,
+  onChange,
+  placeholder = 'Rechercher une cliente…',
+  allowWalkIn = false,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  placeholder?: string;
+  allowWalkIn?: boolean;
+}) {
+  const clients = useBranchClients();
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const selected = clients.find((c) => c.id === value);
+  const digits = (s: string) => s.replace(/\D/g, '');
+  const q = query.trim().toLowerCase();
+  const results = useMemo(() => {
+    if (!q) return clients.slice(0, 8);
+    return clients.filter((c) => c.name.toLowerCase().includes(q) || digits(c.phone).includes(digits(q))).slice(0, 8);
+  }, [clients, q]);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  const display = open ? query : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Cliente de passage' : '');
+
+  return (
+    <div className="trc-clientpick" ref={wrapRef}>
+      <input
+        className="mnd-input"
+        value={display}
+        placeholder={placeholder}
+        onFocus={() => { setOpen(true); setQuery(''); }}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+      />
+      {open && (
+        <div className="trc-clientpick__menu" role="listbox">
+          {allowWalkIn && (
+            <button type="button" className="trc-clientpick__opt" onClick={() => { onChange('walkin'); setOpen(false); }}>
+              <span className="trc-clientpick__n">Cliente de passage</span>
+              <span className="trc-clientpick__m">walk-in</span>
+            </button>
+          )}
+          {results.map((c) => (
+            <button key={c.id} type="button" className="trc-clientpick__opt" onClick={() => { onChange(c.id); setOpen(false); }}>
+              <span className="trc-clientpick__n">{c.name}</span>
+              <span className="trc-clientpick__m">{c.phone || c.city}</span>
+            </button>
+          ))}
+          {results.length === 0 && (
+            <div className="trc-clientpick__empty">Aucune cliente — {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

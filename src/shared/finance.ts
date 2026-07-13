@@ -36,6 +36,9 @@ export type Invoice = {
   master?: string;
 };
 
+/** Ligne d'une dépense — plusieurs articles peuvent être imputés à un même achat. */
+export type ExpenseItem = { id: string; label: string; amountXof: number };
+
 export type Expense = {
   id: string;
   branchId: string;
@@ -50,7 +53,13 @@ export type Expense = {
   stopped?: boolean;
   /** Récurrence suspendue (pause) sans être annulée. */
   paused?: boolean;
+  /** Articles imputés au même achat ; `amountXof` = somme des lignes. */
+  items?: ExpenseItem[];
 };
+
+/** Total d'une dépense — somme des lignes si présentes, sinon le montant simple. */
+export const expenseTotal = (e: Expense): number =>
+  e.items && e.items.length ? e.items.reduce((s, it) => s + it.amountXof, 0) : e.amountXof;
 
 export type Budget = { id: string; branchId: string; category: string; monthlyXof: number };
 

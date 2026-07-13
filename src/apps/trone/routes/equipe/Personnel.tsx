@@ -4,14 +4,22 @@ import { Badge, Button, Card, Field, Input, Modal, Select } from '../../../../ds
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
-  anciennete, ancienneteYears, monthLabel, netAVerser, useStaff,
+  anciennete, ancienneteYears, monthLabel, netAVerser, shortDate, useStaff,
   type StaffMember, type StaffRisk,
 } from './data';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
-import { uid } from '../../../../shared/store';
+import { createStore, uid, useStore } from '../../../../shared/store';
+import { bindDocument } from '../../../../shared/sync';
 import './equipe.css';
 
 type Tab = 'equipe' | 'paie' | 'retention';
+
+/* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
+   (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
+type Advance = { id: string; amountXof: number; date: string; note: string };
+const advancesStore = createStore<Record<string, Advance[]>>('mnd_salary_advances', {});
+bindDocument(advancesStore, 'mnd_salary_advances');
+const useAdvances = () => useStore(advancesStore);
 
 const ROLES = ['Maître fondateur', 'Maître', 'Maîtresse', 'Praticienne', 'Praticien', 'Accueil', 'Gérant·e'];
 
@@ -35,13 +43,36 @@ const emptyForm = (branchId: string): StaffForm => ({
 export default function Personnel() {
   const { branch, branches, currency } = useBranch();
   const [staff, setStaff] = useStaff();
+  const [advances, setAdvances] = useAdvances();
   const [tab, setTab] = useState<Tab>('equipe');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<StaffForm>(() => emptyForm(branch.id));
   const [paieLancee, setPaieLancee] = useState(false);
+  const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
+  const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
+
+  const advancesFor = (id: string) => advances[id] ?? [];
+  const totalAdvances = (id: string) => advancesFor(id).reduce((a, x) => a + x.amountXof, 0);
+  const netApresAvances = (m: StaffMember) => netAVerser(m) - totalAdvances(m.id);
+
+  const openAvance = (m: StaffMember) => {
+    setAvanceFor(m);
+    setAvanceForm({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  };
+  const saveAvance = () => {
+    if (!avanceFor) return;
+    const amountXof = Math.max(0, parseInt(avanceForm.amount, 10) || 0);
+    if (amountXof <= 0) return;
+    const adv: Advance = { id: `av-${uid()}`, amountXof, date: avanceForm.date, note: avanceForm.note.trim() };
+    const sid = avanceFor.id;
+    setAdvances((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), adv] }));
+    setAvanceFor(null);
+  };
+  const removeAvance = (staffId: string, advId: string) =>
+    setAdvances((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((a) => a.id !== advId) }));
 
   const stats = useMemo(() => {
     const n = team.length;
@@ -51,7 +82,8 @@ export default function Personnel() {
     return { n, avgYears, avgSat, risky };
   }, [team]);
 
-  const payrollTotal = team.reduce((a, m) => a + netAVerser(m), 0);
+  const payrollTotal = team.reduce((a, m) => a + netApresAvances(m), 0);
+  const advancesTotal = team.reduce((a, m) => a + totalAdvances(m.id), 0);
 
   const openNew = () => { setEditId(null); setForm(emptyForm(branch.id)); setModalOpen(true); };
   const openEdit = (m: StaffMember) => {
@@ -149,7 +181,8 @@ export default function Personnel() {
                       <td className="num">{fmtMoney(m.salaireXof, currency)}</td>
                       <td><Pill tone={m.statut === 'Présent' ? 'ok' : 'muted'}>{m.statut}</Pill></td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                        <button className="tre-link-btn" onClick={() => openEdit(m)}>Modifier</button>
+                        <button className="tre-link-btn" onClick={() => openAvance(m)}>Avance sur salaire</button>
+                        <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={() => openEdit(m)}>Modifier</button>
                         <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={() => remove(m.id)}>Retirer</button>
                       </td>
                     </tr>
@@ -187,10 +220,13 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
-                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Net à verser</th></tr>
+                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Avances</th><th>Net à verser (après avances)</th></tr>
                 </thead>
                 <tbody>
-                  {team.map((m) => (
+                  {team.map((m) => {
+                    const list = advancesFor(m.id);
+                    const adv = totalAdvances(m.id);
+                    return (
                     <tr key={m.id}>
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -202,11 +238,30 @@ export default function Personnel() {
                       <td>{fmtMoney(m.commPrestaXof, currency)}</td>
                       <td>{fmtMoney(m.commProduitXof, currency)}</td>
                       <td className="mnd-copper">{fmtMoney(m.primeXof, currency)}</td>
-                      <td className="num">{fmtMoney(netAVerser(m), currency)}</td>
+                      <td>
+                        {adv > 0 ? (
+                          <div className="tre-adv-cell">
+                            <span className="tre-adv-total">− {fmtMoney(adv, currency)}</span>
+                            <ul className="tre-adv-list">
+                              {list.map((a) => (
+                                <li key={a.id} className="tre-adv-item">
+                                  <span className="tre-adv-amt">− {fmtMoney(a.amountXof, currency)}</span>
+                                  <span className="mnd-muted tre-adv-meta">{shortDate(a.date)}{a.note ? ` · ${a.note}` : ''}</span>
+                                  <button className="tre-link-btn tre-link-btn--danger tre-adv-rm" onClick={() => removeAvance(m.id, a.id)} aria-label="Retirer l’avance">×</button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <button className="tre-link-btn" onClick={() => openAvance(m)}>+ Avance sur salaire</button>
+                        )}
+                      </td>
+                      <td className="num">{fmtMoney(netApresAvances(m), currency)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {team.length === 0 && (
-                    <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
+                    <tr><td colSpan={7} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
                   )}
                   {team.length > 0 && (
                     <tr>
@@ -215,6 +270,7 @@ export default function Personnel() {
                       <td>{fmtMoney(team.reduce((a, m) => a + m.commPrestaXof, 0), currency)}</td>
                       <td>{fmtMoney(team.reduce((a, m) => a + m.commProduitXof, 0), currency)}</td>
                       <td className="mnd-copper">{fmtMoney(team.reduce((a, m) => a + m.primeXof, 0), currency)}</td>
+                      <td>{advancesTotal > 0 ? <span className="tre-adv-total">− {fmtMoney(advancesTotal, currency)}</span> : '—'}</td>
                       <td className="num">{fmtMoney(payrollTotal, currency)}</td>
                     </tr>
                   )}
@@ -329,6 +385,39 @@ export default function Personnel() {
               <Button variant="ghost" onClick={() => setModalOpen(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={!form.name.trim()}>
                 {editId ? 'Enregistrer les modifications' : 'Ajouter à l’équipe'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {avanceFor && (
+        <Modal title="Avance sur salaire." onClose={() => setAvanceFor(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{avanceFor.name}</strong> · déduite du net à verser de {monthLabel()}.
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
+                <Input value={avanceForm.amount} onChange={(e) => setAvanceForm({ ...avanceForm, amount: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="50000" />
+              </Field>
+              <Field label="Date de l’avance">
+                <Input type="date" value={avanceForm.date} onChange={(e) => setAvanceForm({ ...avanceForm, date: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Note (facultatif)">
+              <Input value={avanceForm.note} onChange={(e) => setAvanceForm({ ...avanceForm, note: e.target.value })} placeholder="Motif de l’avance…" />
+            </Field>
+            {totalAdvances(avanceFor.id) > 0 && (
+              <div className="tre-inline-note">
+                <span className="mark">✦</span>
+                <span>Déjà avancé ce mois — {fmtMoney(totalAdvances(avanceFor.id), currency)}.</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setAvanceFor(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveAvance} disabled={!avanceForm.amount || (parseInt(avanceForm.amount, 10) || 0) <= 0}>
+                Enregistrer l’avance
               </Button>
             </div>
           </div>
