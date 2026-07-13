@@ -8,6 +8,17 @@ type Listener = () => void;
 
 const EVT = 'mnd:store';
 
+/* Réinitialisation de la Maison — v2 (2026-07-13) : purge unique des anciennes
+   données de démonstration. Chaque visiteur repart à neuf ; le drapeau évite
+   de re-purger à chaque chargement. S'exécute avant toute création de magasin. */
+const RESET_FLAG = 'mnd_reset_v2';
+if (!localStorage.getItem(RESET_FLAG)) {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('mnd_'))
+    .forEach((k) => localStorage.removeItem(k));
+  localStorage.setItem(RESET_FLAG, '1');
+}
+
 export type Store<T> = {
   key: string;
   get: () => T;

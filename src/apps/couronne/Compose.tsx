@@ -75,7 +75,7 @@ export default function Compose({ onClose, toast }: Props) {
     const payload: ComposePayload = {
       id: uid(),
       createdAt: new Date().toISOString(),
-      client: client?.name ?? 'Adjoa Hounkpatin',
+      client: client?.name ?? 'Cliente Ma Couronne',
       mode,
       discountPct,
       items: lines.map((l) => ({

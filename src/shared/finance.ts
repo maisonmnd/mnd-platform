@@ -74,63 +74,14 @@ export const invoiceTotal = (inv: Invoice): number => {
 
 export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Souffle'] as const;
 
-export const INVOICES_SEED: Invoice[] = [
-  {
-    id: 'f-1042', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1042', clientId: 'c-adjoa', date: '2026-07-10',
-    lines: [
-      { id: 'l1', label: 'Resserrage racines', qty: 1, unitXof: 25000, discountPct: 0 },
-      { id: 'l2', label: 'Huile Couronne', qty: 2, unitXof: 12000, discountPct: 10 },
-    ],
-    globalDiscountPct: 0, theme: 'Aube', status: 'payée', payment: 'MTN MoMo', cashbox: 'MTN MoMo', time: '10:20', master: 'Aïcha',
-  },
-  {
-    id: 'd-118', branchId: 'cotonou-flagship', kind: 'devis', number: 'MND-D-2026-118', clientId: 'c-chanel', date: '2026-07-08',
-    lines: [{ id: 'l1', label: 'SOS restauration couronne (3 séances)', qty: 3, unitXof: 90000, discountPct: 0 }],
-    globalDiscountPct: 15, theme: 'Voyage', status: 'envoyée', master: 'Brice',
-  },
-  // — Fil des mois passés (démo P&L 6 mois) —
-  { id: 'f-0917', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0917', clientId: 'c-thierry', date: '2026-02-14', lines: [{ id: 'l1', label: 'Entretien complet', qty: 1, unitXof: 40000, discountPct: 0 }, { id: 'l2', label: 'Création locks moyennes', qty: 1, unitXof: 80000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Arbre', status: 'payée', payment: 'Espèces', cashbox: 'Caisse principale', master: 'Romuald' },
-  { id: 'f-0918', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0918', clientId: 'c-mariama', date: '2026-02-21', lines: [{ id: 'l1', label: 'Rituel des quatre temps', qty: 1, unitXof: 60000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Souffle', status: 'payée', payment: 'MTN MoMo', cashbox: 'MTN MoMo', master: 'Brice' },
-  { id: 'f-0946', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0946', clientId: 'c-adjoa', date: '2026-03-08', lines: [{ id: 'l1', label: 'Création microlocks', qty: 1, unitXof: 180000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'payée', payment: 'Carte', cashbox: 'Compte UBA', master: 'Brice' },
-  { id: 'f-0952', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0952', clientId: 'c-thierry', date: '2026-03-19', lines: [{ id: 'l1', label: 'Resserrage racines', qty: 1, unitXof: 25000, discountPct: 0 }, { id: 'l2', label: 'Sérum Racines', qty: 1, unitXof: 14000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Aube', status: 'payée', payment: 'Moov', cashbox: 'Moov Money', master: 'Aïcha' },
-  { id: 'f-0968', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0968', clientId: 'c-mariama', date: '2026-04-05', lines: [{ id: 'l1', label: 'Coiffure cérémonie', qty: 1, unitXof: 35000, discountPct: 0 }, { id: 'l2', label: 'Beurre Locks', qty: 2, unitXof: 9500, discountPct: 5 }], globalDiscountPct: 0, theme: 'Oiseau', status: 'payée', payment: 'Espèces', cashbox: 'Caisse principale', master: 'Yéman' },
-  { id: 'f-0975', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0975', clientId: 'c-chanel', date: '2026-04-18', lines: [{ id: 'l1', label: 'Reprise de locks abîmées', qty: 2, unitXof: 55000, discountPct: 0 }], globalDiscountPct: 10, theme: 'Voyage', status: 'payée', payment: 'MTN MoMo', cashbox: 'MTN MoMo', master: 'Yéman' },
-  { id: 'f-0991', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-0991', clientId: 'c-adjoa', date: '2026-05-09', lines: [{ id: 'l1', label: 'Entretien complet', qty: 1, unitXof: 40000, discountPct: 0 }, { id: 'l2', label: 'Huile Couronne', qty: 1, unitXof: 12000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Aube', status: 'payée', payment: 'MTN MoMo', cashbox: 'MTN MoMo', master: 'Romuald' },
-  { id: 'f-1003', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1003', clientId: 'c-ines', date: '2026-05-24', lines: [{ id: 'l1', label: 'Création locks moyennes', qty: 1, unitXof: 80000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'payée', payment: 'Espèces', cashbox: 'Caisse principale', master: 'Aïcha' },
-  { id: 'f-1018', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1018', clientId: 'c-thierry', date: '2026-06-06', lines: [{ id: 'l1', label: 'Rituel des quatre temps', qty: 1, unitXof: 60000, discountPct: 0 }, { id: 'l2', label: 'Bain vapeur & huiles', qty: 1, unitXof: 20000, discountPct: 0 }], globalDiscountPct: 5, theme: 'Souffle', status: 'payée', payment: 'Carte', cashbox: 'Compte UBA', master: 'Brice' },
-  { id: 'f-1027', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1027', clientId: 'c-mariama', date: '2026-06-17', lines: [{ id: 'l1', label: 'Resserrage racines', qty: 1, unitXof: 25000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Arbre', status: 'payée', payment: 'Moov', cashbox: 'Moov Money', master: 'Aïcha' },
-  { id: 'f-1034', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1034', clientId: 'c-adjoa', date: '2026-06-28', lines: [{ id: 'l1', label: 'Coiffure cérémonie', qty: 1, unitXof: 35000, discountPct: 0 }, { id: 'l2', label: 'Shampoing Naturel', qty: 2, unitXof: 8000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Oiseau', status: 'payée', payment: 'MTN MoMo', cashbox: 'MTN MoMo', master: 'Yéman' },
-  { id: 'f-1040', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1040', clientId: 'c-ines', date: '2026-07-04', lines: [{ id: 'l1', label: 'Bain vapeur & huiles', qty: 1, unitXof: 20000, discountPct: 0 }, { id: 'l2', label: 'Sérum Racines', qty: 1, unitXof: 14000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Aube', status: 'payée', payment: 'Espèces', cashbox: 'Caisse principale', time: '09:05', master: 'Aïcha' },
-  { id: 'f-1041', branchId: 'cotonou-flagship', kind: 'facture', number: 'MND-2026-1041', clientId: 'c-thierry', date: '2026-07-09', lines: [{ id: 'l1', label: 'Entretien complet', qty: 1, unitXof: 40000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Arbre', status: 'envoyée', master: 'Romuald' },
-  { id: 'f-ab-204', branchId: 'abidjan', kind: 'facture', number: 'MND-AB-2026-0204', clientId: 'c-fatou', date: '2026-07-06', lines: [{ id: 'l1', label: 'Resserrage racines', qty: 1, unitXof: 25000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Aube', status: 'payée', payment: 'Moov', cashbox: 'Caisse principale', master: 'Mariam' },
-  { id: 'f-pa-088', branchId: 'paris', kind: 'facture', number: 'MND-PA-2026-0088', clientId: 'c-awa', date: '2026-07-05', lines: [{ id: 'l1', label: 'Entretien complet', qty: 1, unitXof: 40000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Voyage', status: 'payée', payment: 'Carte', cashbox: 'Caisse principale', master: 'Awa' },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const INVOICES_SEED: Invoice[] = [];
 
-export const EXPENSES_SEED: Expense[] = [
-  { id: 'e-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-07-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-2', branchId: 'cotonou-flagship', label: 'Karité brut (25 kg)', amountXof: 85000, date: '2026-07-05', cashbox: 'Caisse laboratoire', category: 'Matières premières', subcategory: 'Beurres' },
-  { id: 'e-3', branchId: 'cotonou-flagship', label: 'Électricité SBEE', amountXof: 62000, date: '2026-07-06', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Énergie', recurring: 'mensuel' },
-  { id: 'e-4', branchId: 'cotonou-flagship', label: 'Campagne Instagram juillet', amountXof: 40000, date: '2026-07-07', cashbox: 'Caisse principale', category: 'Marketing', flagged: true },
-  { id: 'e-5', branchId: 'abidjan', label: 'Loyer Cocody', amountXof: 380000, date: '2026-07-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  // — Mois passés (démo P&L 6 mois) —
-  { id: 'e-fev-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-02-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-fev-2', branchId: 'cotonou-flagship', label: 'Salaires & commissions', amountXof: 620000, date: '2026-02-28', cashbox: 'Compte UBA', category: 'Salaires', subcategory: 'Base fixe', recurring: 'mensuel' },
-  { id: 'e-mar-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-03-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-mar-2', branchId: 'cotonou-flagship', label: 'Plantes & actifs · réserve', amountXof: 96000, date: '2026-03-12', cashbox: 'Caisse laboratoire', category: 'Matières premières', subcategory: 'Plantes & actifs' },
-  { id: 'e-avr-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-04-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-avr-2', branchId: 'cotonou-flagship', label: 'Shooting gamme DÒDÒ™', amountXof: 120000, date: '2026-04-15', cashbox: 'Caisse principale', category: 'Marketing', subcategory: 'Shooting & contenu' },
-  { id: 'e-mai-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-05-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-mai-2', branchId: 'cotonou-flagship', label: 'Contenants & packaging', amountXof: 74000, date: '2026-05-20', cashbox: 'Caisse laboratoire', category: 'Matières premières', subcategory: 'Contenants & packaging' },
-  { id: 'e-juin-1', branchId: 'cotonou-flagship', label: 'Loyer flagship', amountXof: 450000, date: '2026-06-01', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Loyer', recurring: 'mensuel' },
-  { id: 'e-juin-2', branchId: 'cotonou-flagship', label: 'Électricité SBEE', amountXof: 58000, date: '2026-06-06', cashbox: 'Caisse principale', category: 'Local', subcategory: 'Énergie', recurring: 'mensuel' },
-  { id: 'e-juin-3', branchId: 'cotonou-flagship', label: 'Salaires & commissions', amountXof: 640000, date: '2026-06-30', cashbox: 'Compte UBA', category: 'Salaires', subcategory: 'Base fixe', recurring: 'mensuel' },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const EXPENSES_SEED: Expense[] = [];
 
-export const BUDGETS_SEED: Budget[] = [
-  { id: 'b-1', branchId: 'cotonou-flagship', category: 'Local', monthlyXof: 600000 },
-  { id: 'b-2', branchId: 'cotonou-flagship', category: 'Matières premières', monthlyXof: 200000 },
-  { id: 'b-3', branchId: 'cotonou-flagship', category: 'Marketing', monthlyXof: 100000 },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const BUDGETS_SEED: Budget[] = [];
 
 export const CASHBOXES_SEED: Cashbox[] = [
   { id: 'cx-cot-principale', branchId: 'cotonou-flagship', name: 'Caisse principale', sub: 'Espèces · coffre salon', glyph: '◈', openingXof: 1850000 },

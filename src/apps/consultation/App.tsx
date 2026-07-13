@@ -681,7 +681,7 @@ export default function App() {
             <input
               id="lc-nom"
               className="lc-input lc-input--serif"
-              placeholder="Adjoa Vodounon"
+              placeholder="Nom et prénom"
               value={answers.nom}
               onChange={(e) => setA({ nom: e.target.value })}
             />

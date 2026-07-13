@@ -9,7 +9,8 @@ import {
   type Product,
 } from '../../shared/catalog';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { useClients, type Client } from '../../shared/clients';
+import { clientsStore, useClients, type Client } from '../../shared/clients';
+import { branchesStore } from '../../shared/branches';
 import { OPEN_HOUR, CLOSE_HOUR, type Appointment } from '../../shared/agenda';
 
 /* Ma Couronne — bibliothèque locale : session, visibilité, dates, créneaux, offres. */
@@ -19,7 +20,23 @@ import { OPEN_HOUR, CLOSE_HOUR, type Appointment } from '../../shared/agenda';
 export type Session = { phone: string; clientId: string; loggedAt: string };
 export const sessionStore = createStore<Session | null>('mnd_couronne_session', null);
 
-export const CLIENT_ID = 'c-adjoa';
+export const CLIENT_ID = 'c-couronne';
+
+/* Maison neuve : la cliente de l'app naît à sa première visite — créée dans le
+   CRM partagé pour que réservations et ponts vers le Trône restent cohérents.
+   (En production réelle, ce profil viendra de l'authentification OTP.) */
+const todaySince = new Date().toISOString().slice(0, 10);
+if (!clientsStore.get().some((c) => c.id === CLIENT_ID)) {
+  const branchId = branchesStore.get()[0]?.id ?? 'cotonou-flagship';
+  clientsStore.set((prev) => [
+    ...prev,
+    {
+      id: CLIENT_ID, branchId, name: 'Cliente Ma Couronne', phone: '', city: '',
+      persona: 'p-initie', since: todaySince, segments: ['Nouvelle'],
+      priceCoef: 1, loyaltyPoints: 0,
+    },
+  ]);
+}
 
 export function useClient(): Client | undefined {
   const [clients] = useClients();
@@ -27,7 +44,7 @@ export function useClient(): Client | undefined {
 }
 
 export function firstName(name: string | undefined): string {
-  return (name ?? 'Adjoa').split(' ')[0];
+  return (name ?? 'Bienvenue').split(' ')[0];
 }
 
 /* ---------- Visibilité — catalogue × configuration Vitrine du Trône ---------- */

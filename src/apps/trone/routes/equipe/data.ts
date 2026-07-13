@@ -69,72 +69,8 @@ export type StaffMember = {
   statut: string;
 };
 
-export const STAFF_SEED: StaffMember[] = [
-  {
-    id: 'st-yeman', branchId: 'cotonou-flagship', name: 'Yéman', role: 'Maître fondateur',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2018-06-01', auFauteuil: true,
-    salaireXof: 250000, commPrestaXof: 680000, commProduitXof: 90000, primeXof: 60000,
-    satisfaction: 4.9, wellbeing: 72, charge: 92, risk: 'modéré',
-    riskDrivers: 'Charge élevée 4 semaines de suite, peu de repos — surveiller le surmenage.',
-    nextStep: 'Transmettre le module Nano-locks à l’Académie', recognition: 'Maître de l’année 2025', statut: 'Présent',
-  },
-  {
-    id: 'st-brice', branchId: 'cotonou-flagship', name: 'Brice', role: 'Maître fondateur',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2018-06-01', auFauteuil: true,
-    salaireXof: 250000, commPrestaXof: 540000, commProduitXof: 70000, primeXof: 40000,
-    satisfaction: 4.8, wellbeing: 81, charge: 88, risk: 'faible',
-    riskDrivers: 'Charge équilibrée, congés pris régulièrement.',
-    nextStep: 'Certification formateur · niveau III', recognition: 'Mentor de 4 apprenants', statut: 'Présent',
-  },
-  {
-    id: 'st-adele', branchId: 'cotonou-flagship', name: 'Adèle', role: 'Maîtresse',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2023-03-15', auFauteuil: true,
-    salaireXof: 180000, commPrestaXof: 360000, commProduitXof: 50000, primeXof: 25000,
-    satisfaction: 4.7, wellbeing: 84, charge: 79, risk: 'faible',
-    riskDrivers: 'En montée de palier, fortement engagée.',
-    nextStep: 'Passage Maîtrise · L’Œuvre (juillet)', recognition: 'Progression la plus rapide', statut: 'Formation',
-  },
-  {
-    id: 'st-naissa', branchId: 'cotonou-flagship', name: 'Naïssa', role: 'Praticienne',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2025-05-01', auFauteuil: true,
-    salaireXof: 140000, commPrestaXof: 180000, commProduitXof: 30000, primeXof: 10000,
-    satisfaction: 4.5, wellbeing: 58, charge: 71, risk: 'élevé',
-    riskDrivers: 'Junior, commissions faibles, signe d’isolement — agir vite.',
-    nextStep: 'Mentorat par Brice + Fondations niveau II', recognition: '—', statut: 'Présent',
-  },
-  {
-    id: 'st-mariam', branchId: 'abidjan', name: 'Mariam', role: 'Maîtresse',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2022-02-01', auFauteuil: true,
-    salaireXof: 210000, commPrestaXof: 410000, commProduitXof: 40000, primeXof: 30000,
-    satisfaction: 4.8, wellbeing: 78, charge: 82, risk: 'faible',
-    riskDrivers: 'Cadence stable, équipe soudée.', nextStep: 'Ouvrir le samedi matin en autonomie',
-    recognition: 'Pilier de Cocody', statut: 'Présent',
-  },
-  {
-    id: 'st-koffi', branchId: 'abidjan', name: 'Koffi', role: 'Praticien',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2024-09-01', auFauteuil: true,
-    salaireXof: 150000, commPrestaXof: 190000, commProduitXof: 20000, primeXof: 10000,
-    satisfaction: 4.6, wellbeing: 75, charge: 64, risk: 'modéré',
-    riskDrivers: 'Charge en dessous de la capacité — nourrir son carnet.',
-    nextStep: 'Fondations du Lock · niveau I', recognition: '—', statut: 'Présent',
-  },
-  {
-    id: 'st-awa', branchId: 'paris', name: 'Awa', role: 'Maîtresse',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2021-11-01', auFauteuil: true,
-    salaireXof: 1180000, commPrestaXof: 620000, commProduitXof: 90000, primeXof: 65000,
-    satisfaction: 4.9, wellbeing: 80, charge: 90, risk: 'modéré',
-    riskDrivers: 'Très demandée — liste d’attente longue, veiller à la charge.',
-    nextStep: 'Recruter une praticienne en soutien', recognition: 'Visage de Château d’Eau', statut: 'Présent',
-  },
-  {
-    id: 'st-seb', branchId: 'paris', name: 'Sébastien', role: 'Praticien',
-    phone: '+229 ** ** ** **', email: 'retire@mnd.bj', since: '2024-04-01', auFauteuil: true,
-    salaireXof: 920000, commPrestaXof: 280000, commProduitXof: 45000, primeXof: 20000,
-    satisfaction: 4.6, wellbeing: 82, charge: 68, risk: 'faible',
-    riskDrivers: 'Intégration réussie, en progression.', nextStep: 'Resserrage & Soin · niveau II',
-    recognition: '—', statut: 'Présent',
-  },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const STAFF_SEED: StaffMember[] = [];
 
 export const staffStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
 export const useStaff = () => useStore(staffStore);
@@ -157,14 +93,8 @@ export type Campaign = {
   lift: string;
 };
 
-export const CAMPAIGNS_SEED: Campaign[] = [
-  { id: 'cp-cadence', branchId: 'cotonou-flagship', name: 'Cadence de resserrage', segment: 'En cycle · 6 semaines', canal: 'WhatsApp', statut: 'Active', reach: '128', lift: '+18 %' },
-  { id: 'cp-reveil', branchId: 'cotonou-flagship', name: 'Réveil des dormantes', segment: 'Dormantes 90 j+', canal: 'WhatsApp', statut: 'Active', reach: '64', lift: '+11 %' },
-  { id: 'cp-anniv', branchId: 'cotonou-flagship', name: 'Anniversaire de couronne', segment: '1 an de loc', canal: 'WhatsApp', statut: 'Programmée', reach: '22', lift: '+24 %' },
-  { id: 'cp-apressoin', branchId: 'cotonou-flagship', name: 'Rituel maison · après-soin', segment: 'Soin < 7 j', canal: 'SMS', statut: 'Brouillon', reach: '—', lift: '—' },
-  { id: 'cp-abj-ouv', branchId: 'abidjan', name: 'Les matinées de Cocody', segment: 'Actives · heures creuses', canal: 'WhatsApp', statut: 'Active', reach: '46', lift: '+9 %' },
-  { id: 'cp-par-diaspora', branchId: 'paris', name: 'Retour au pays · diaspora', segment: 'Diaspora · été', canal: 'WhatsApp', statut: 'Programmée', reach: '31', lift: '+15 %' },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const CAMPAIGNS_SEED: Campaign[] = [];
 
 export const campaignsStore = createStore<Campaign[]>('mnd_campaigns', CAMPAIGNS_SEED);
 export const useCampaigns = () => useStore(campaignsStore);
@@ -187,15 +117,8 @@ export type InstantOffer = {
   active: boolean;
 };
 
-export const OFFERS_SEED: InstantOffer[] = [
-  { id: 'of-serum', branchId: 'cotonou-flagship', title: 'Resserrage racines', tag: 'Offre éclair', deal: '−25%', sub: 'Sérum Densité offert', audience: 'Actifs', days: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'], heureDebut: '09h', heureFin: '18h', active: true },
-  { id: 'of-duo', branchId: 'cotonou-flagship', title: 'Resserrage + Soin profond', tag: 'Duo découverte', deal: '−15%', sub: 'Réservé aujourd’hui', audience: 'Tous', days: ['Sam'], heureDebut: '10h', heureFin: '19h', active: true },
-  { id: 'of-parrain', branchId: 'cotonou-flagship', title: 'Parrainez une amie', tag: 'Cadeau', deal: '✦', sub: 'Un soin offert à sa 1ʳᵉ visite', audience: 'Cercle', days: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], heureDebut: '08h', heureFin: '20h', active: false },
-  { id: 'of-matin', branchId: 'cotonou-flagship', title: 'Soin profond du matin', tag: 'Heure creuse', deal: '−20%', sub: 'Créneaux 8h–11h uniquement', audience: 'Tous', days: ['Mar', 'Mer', 'Jeu'], heureDebut: '08h', heureFin: '11h', active: true },
-  { id: 'of-vip', branchId: 'cotonou-flagship', title: 'Rituel signature VIP', tag: 'Privilège', deal: '+1 soin', sub: 'Un masque cuir chevelu offert', audience: 'VIP', days: ['Jeu', 'Ven'], heureDebut: '14h', heureFin: '19h', active: true },
-  { id: 'of-reveil', branchId: 'cotonou-flagship', title: 'On vous a manqué', tag: 'Retour', deal: '−30%', sub: 'Pour un retour après 90 jours', audience: 'Dormants', days: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], heureDebut: '09h', heureFin: '20h', active: true },
-  { id: 'of-produit', branchId: 'cotonou-flagship', title: 'Huile Couronne Maison', tag: 'Produit', deal: '2 = 1', sub: 'La 2ᵉ huile à moitié prix', audience: 'Actifs', days: ['Ven', 'Sam'], heureDebut: '10h', heureFin: '18h', active: false },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const OFFERS_SEED: InstantOffer[] = [];
 
 /** Consommées par l'app cliente Ma Couronne — clé partagée. */
 export const offersStore = createStore<InstantOffer[]>('mnd_offers', OFFERS_SEED);
@@ -320,16 +243,8 @@ export type Subscriber = {
   note?: string;
 };
 
-export const SUBSCRIBERS_SEED: Subscriber[] = [
-  { id: 'ab-adjoa', branchId: 'cotonou-flagship', name: 'Adjoa Koudjo', planId: 'pl-couronne', slot: 'Jeu · 14h00 · Yéman', nextIso: isoInDays(4), since: '8 mois', status: 'active', mrrXof: 58000 },
-  { id: 'ab-koffi', branchId: 'cotonou-flagship', name: 'Koffi Mensah', planId: 'pl-souveraine', slot: 'Sam · 10h00 · Brice', nextIso: isoInDays(2), since: '1 an', status: 'active', mrrXof: 120000 },
-  { id: 'ab-naima', branchId: 'cotonou-flagship', name: 'Naïma Sow', planId: 'pl-constance', slot: 'Mar · 16h00 · Adèle', nextIso: isoInDays(8), since: '4 mois', status: 'new', mrrXof: 35000 },
-  { id: 'ab-fatou', branchId: 'cotonou-flagship', name: 'Fatou Diallo', planId: 'pl-couronne', slot: 'Ven · 11h00 · Yéman', nextIso: isoInDays(1), since: '6 mois', status: 'risk', mrrXof: 58000, note: 'Paiement en retard · relance douce envoyée' },
-  { id: 'ab-yasmine', branchId: 'cotonou-flagship', name: 'Yasmine Bâ', planId: 'pl-souveraine', slot: 'Mer · 15h00 · Brice', nextIso: isoInDays(5), since: '2 ans', status: 'active', mrrXof: 120000 },
-  { id: 'ab-aicha', branchId: 'cotonou-flagship', name: 'Aïcha Touré', planId: 'pl-constance', slot: 'Lun · 09h30 · Adèle', nextIso: isoInDays(10), since: '2 mois', status: 'new', mrrXof: 35000 },
-  { id: 'ab-abj-1', branchId: 'abidjan', name: 'Fatou Koné', planId: 'pl-couronne', slot: 'Sam · 11h00 · Mariam', nextIso: isoInDays(6), since: '5 mois', status: 'active', mrrXof: 58000 },
-  { id: 'ab-par-1', branchId: 'paris', name: 'Awa Diallo', planId: 'pl-souveraine', slot: 'Jeu · 18h00 · Awa', nextIso: isoInDays(3), since: '9 mois', status: 'active', mrrXof: 120000 },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const SUBSCRIBERS_SEED: Subscriber[] = [];
 
 export const subscribersStore = createStore<Subscriber[]>('mnd_abo_members', SUBSCRIBERS_SEED);
 export const useSubscribers = () => useStore(subscribersStore);

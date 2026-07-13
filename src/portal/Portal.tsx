@@ -1,7 +1,19 @@
 import { asset } from '../shared/asset';
 import { Eyebrow, Seal } from '../ds/components';
 
-/* Le portail présente les cinq sœurs — même sang, visages très distincts. */
+/* Le portail présente les cinq sœurs — même sang, visages très distincts.
+   Les liens sont surchargeables à la construction (VITE_LINK_*) : en déploiement
+   séparé, chaque sœur vit sur son propre lien ; sinon, entrées locales du MPA. */
+
+const env = import.meta.env;
+const LINKS: Record<string, string | undefined> = {
+  '/trone.html': env.VITE_LINK_TRONE,
+  '/couronne.html': env.VITE_LINK_COURONNE,
+  '/consultation.html': env.VITE_LINK_CONSULTATION,
+  '/lokaa.html': env.VITE_LINK_LOKAA,
+  '/certificat.html': env.VITE_LINK_CERTIFICAT,
+};
+const resolveHref = (local: string): string => LINKS[local] || asset(local);
 
 const SISTERS = [
   {
@@ -58,7 +70,7 @@ export default function Portal() {
 
       <main className="po-grid">
         {SISTERS.map((s) => (
-          <a key={s.name} href={asset(s.href)} className={`po-card ${s.cls}`}>
+          <a key={s.name} href={resolveHref(s.href)} className={`po-card ${s.cls}`}>
             <span className="seal">
               <Seal color={s.seal} size={40} />
             </span>

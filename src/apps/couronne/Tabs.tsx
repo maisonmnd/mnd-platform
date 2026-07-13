@@ -79,7 +79,7 @@ export function HomeTab({
 
   const points = client?.loyaltyPoints ?? 0;
   const goldPct = Math.min(100, Math.round((points / GOLD_AT) * 100));
-  const crownDays = daysSince('2024-03-14');
+  const crownDays = daysSince(client?.since ?? todayIso());
 
   const reco = products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
 
@@ -201,8 +201,9 @@ export function HomeTab({
 
 export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
   const [services] = useServices();
+  const client = useClient();
   const next = useNextAppointment();
-  const crownDays = daysSince('2024-03-14');
+  const crownDays = daysSince(client?.since ?? todayIso());
 
   const timeline = [
     { d: 'Mars 2024', t: 'Le démarrage', s: 'Création des microlocks · avec Brice', done: true },
@@ -400,7 +401,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       <div className="mc-idcard">
         <span className="mc-idcard__photo" style={{ backgroundImage: `url(${asset('/assets/photos/portrait-1.jpg')})` }} />
         <div>
-          <div className="mc-idcard__name">{client?.name ?? 'Adjoa Hounkpatin'}</div>
+          <div className="mc-idcard__name">{client?.name ?? 'Cliente Ma Couronne'}</div>
           <div className="mc-idcard__meta">{client?.phone ?? '+229 01 97 44 12 08'} · {client?.city ?? 'Cotonou'}</div>
           <div className="mc-idcard__meta">Tête couronnée depuis {client ? new Date(client.since).getFullYear() : 2021}</div>
         </div>

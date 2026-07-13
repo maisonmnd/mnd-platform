@@ -127,6 +127,17 @@ export default function Academie() {
         eyebrow="Académie · Transmission"
         title="L’Académie."
         sub="Former, suivre, sceller. La méthode « les quatre temps » se transmet — chaque parcours achevé devient un certificat scellé MND."
+        actions={
+          <a
+            href={asset('/certificat.html')}
+            target="_blank"
+            rel="noreferrer"
+            className="mnd-btn mnd-btn--ghost"
+            style={{ textDecoration: 'none' }}
+          >
+            Ouvrir le Certificat →
+          </a>
+        }
       />
 
       <Tabs<Tab>

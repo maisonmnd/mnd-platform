@@ -315,7 +315,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
         </div>
 
         <Field label="Nom complet">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Adjoa Hounkpatin" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom et prénom" />
         </Field>
 
         <div className="tr-grid tr-grid--2">

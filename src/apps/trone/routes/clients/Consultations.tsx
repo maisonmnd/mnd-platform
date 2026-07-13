@@ -5,6 +5,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas } from '../../../../shared/clients';
+import { asset } from '../../../../shared/asset';
 import { Avatar, relDays, useBranchAppointments, useBranchClients } from './_shared';
 import './clients.css';
 
@@ -81,22 +82,6 @@ const FORMS_SEED: ConsultForm[] = [
 /* Stores locaux (persistés) propres au module Consultations. */
 const consultFormsStore = createStore<ConsultForm[]>('mnd_consult_forms', FORMS_SEED);
 const dossierArchiveStore = createStore<string[]>('mnd_consult_dossier_arch', []);
-
-/* Consultations en ligne de démonstration — reçues du parcours mondial payant. */
-const ONLINE_SEED: OnlineConsultation[] = [
-  { id: 'oc-carine', createdAt: new Date(Date.now() - 14 * 60000).toISOString(), parcours: 'creation',
-    client: { name: 'Carine M.', phone: '+33 6 41 22 07 55', city: 'Paris', currency: 'EUR' },
-    answers: {}, diagnostic: { palier: 'L’Affirmation', scores: { Hydratation: 62, Cuir: 74, Intégrité: 80, Densité: 58, Maturité: 45 } },
-    reservation: { mode: 'salon', date: '2026-07-18', time: '10:00' }, paidXof: 15000, status: 'nouvelle' },
-  { id: 'oc-delphine', createdAt: new Date(Date.now() - 62 * 60000).toISOString(), parcours: 'creation',
-    client: { name: 'Délphine A.', phone: '+1 514 220 88 03', city: 'Montréal', currency: 'CAD' },
-    answers: {}, diagnostic: { palier: 'L’Initiation', scores: { Hydratation: 70, Cuir: 66, Intégrité: 55, Densité: 72, Maturité: 30 } },
-    reservation: { mode: 'visio', date: '2026-07-20', time: '15:30' }, paidXof: 15000, status: 'nouvelle' },
-  { id: 'oc-sandra', createdAt: new Date(Date.now() - 26 * 3600000).toISOString(), parcours: 'sos',
-    client: { name: 'Sandra K.', phone: '+229 01 22 45 90', city: 'Cotonou', currency: 'XOF' },
-    answers: {}, diagnostic: { palier: 'Restauration', scores: { Hydratation: 40, Cuir: 52, Intégrité: 34, Densité: 60, Maturité: 68 } },
-    reservation: { mode: 'salon', date: '2026-07-16', time: '09:30' }, paidXof: 15000, status: 'traitée' },
-];
 
 type Tab = 'dossiers' | 'formulaires' | 'enligne';
 const TABS: { k: Tab; label: string }[] = [
@@ -302,11 +287,6 @@ function FormsSection() {
 function OnlineSection() {
   const [queue] = useStore(consultationsQueueStore);
 
-  // Amorce la queue de démonstration à la première ouverture (pont La Consultation → Trône).
-  useEffect(() => {
-    if (consultationsQueueStore.get().length === 0) consultationsQueueStore.set(ONLINE_SEED);
-  }, []);
-
   const setStatus = (id: string, status: OnlineConsultation['status']) =>
     consultationsQueueStore.set((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
 
@@ -323,8 +303,19 @@ function OnlineSection() {
 
   return (
     <div>
-      <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginBottom: 16 }}>
-        Les diagnostics reçus depuis La Consultation Souveraine — confirmez la séance, traitez, puis clôturez.
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>
+          Les diagnostics reçus depuis La Consultation Souveraine — confirmez la séance, traitez, puis clôturez.
+        </div>
+        <a
+          href={asset('/consultation.html')}
+          target="_blank"
+          rel="noreferrer"
+          className="mnd-btn mnd-btn--copper"
+          style={{ flex: 'none', textDecoration: 'none' }}
+        >
+          Ouvrir La Consultation →
+        </a>
       </div>
 
       {/* Carte live · dernier diagnostic reçu */}
