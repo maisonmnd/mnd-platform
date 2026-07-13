@@ -196,6 +196,60 @@
   padding: 8px 0;
 }
 
+/* Boutons discrets Modifier / Supprimer (cartes, listes de gestion) */
+.trf-iconbtn {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  transition: var(--transition-base);
+}
+.trf-iconbtn:hover { background: var(--hover-veil); color: var(--color-indigo); border-color: var(--color-indigo); }
+.trf-iconbtn--danger:hover { color: var(--trf-error); border-color: var(--trf-error); }
+
+/* Gestion des catégories & sous-catégories (modale) */
+.trf-manage { padding: 13px 0; border-top: 1px solid var(--hairline); }
+.trf-manage:first-child { border-top: none; }
+.trf-manage__name { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+
+.trf-subchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-sable);
+  border-radius: var(--radius-pill);
+  padding: 3px 4px 3px 4px;
+}
+.trf-subchip__name {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink);
+}
+.trf-subchip__name:hover { color: var(--color-indigo); }
+.trf-subchip__x {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-soft);
+  border-radius: var(--radius-sm);
+}
+.trf-subchip__x:hover { color: var(--trf-error); }
+
 /* ---------- Le Juste Prix ---------- */
 .trf-jp-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
 @media (max-width: 1080px) { .trf-jp-grid { grid-template-columns: 1fr; } }

@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, Gem, LogOut } from 'lucide-react';
+import { ChevronDown, Gem, LogOut } from 'lucide-react';
 import { NAV } from '../routes/index';
+import NotificationsBell from './Notifications';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
@@ -68,10 +69,7 @@ export default function Shell() {
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>
-          <button className="tr-top__bell" aria-label="Notifications">
-            <Bell size={15} />
-            <span className="tr-top__bell-count">4</span>
-          </button>
+          <NotificationsBell />
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
           {session && (
             <button

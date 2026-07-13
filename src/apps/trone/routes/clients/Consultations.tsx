@@ -5,9 +5,13 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
-import { usePersonas } from '../../../../shared/clients';
+import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
+import { useBranch } from '../../../../shared/branches';
 import { asset } from '../../../../shared/asset';
-import { Avatar, relDays, useBranchAppointments, useBranchClients } from './_shared';
+import {
+  Avatar, Drawer, RdvModal, StatusPill, apptLabel, apptTotalXof, frDay, frLong, relDays,
+  useBranchAppointments, useBranchClients, useServicesById,
+} from './_shared';
 import './clients.css';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
@@ -119,8 +123,10 @@ export default function Consultations() {
 function DossiersSection() {
   const clients = useBranchClients();
   const appts = useBranchAppointments();
+  const byId = useServicesById();
   const [personas] = usePersonas();
   const [archived] = useStore(dossierArchiveStore);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const personaName = (id: string) => personas.find((p) => p.id === id)?.name ?? 'À classer';
 
@@ -143,15 +149,17 @@ function DossiersSection() {
   const active = rows.filter((r) => !archived.includes(r.client.id));
   const archivedRows = rows.filter((r) => archived.includes(r.client.id));
 
-  const archive = (id: string) => dossierArchiveStore.set((prev) => [...prev, id]);
+  const archive = (id: string) => dossierArchiveStore.set((prev) => (prev.includes(id) ? prev : [...prev, id]));
   const restore = (id: string) => dossierArchiveStore.set((prev) => prev.filter((x) => x !== id));
+
+  const openClient = clients.find((c) => c.id === openId) ?? null;
 
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {active.length === 0 && <div className="trc-empty">Aucun dossier ouvert sur cette branche.</div>}
         {active.map((d) => (
-          <div key={d.client.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '14px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px' }}>
+          <div key={d.client.id} className="trc-dossier-row" role="button" tabIndex={0} onClick={() => setOpenId(d.client.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(d.client.id); } }} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '14px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px', cursor: 'pointer' }}>
             <Avatar client={d.client} size={42} />
             <div style={{ flex: '1 1 160px', minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{d.client.name}</div>
@@ -167,7 +175,7 @@ function DossiersSection() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
               <span className="trc-src">{d.tag}</span>
-              <button className="trc-iconbtn trc-iconbtn--danger" style={{ width: 'auto', height: 28, padding: '0 12px', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase' }} onClick={() => archive(d.client.id)}>
+              <button className="trc-iconbtn trc-iconbtn--danger" style={{ width: 'auto', height: 28, padding: '0 12px', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase' }} onClick={(e) => { e.stopPropagation(); archive(d.client.id); }}>
                 Archiver
               </button>
             </div>
@@ -181,7 +189,7 @@ function DossiersSection() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {archivedRows.map((d) => (
               <div key={d.client.id} style={{ background: 'var(--hover-veil)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 14, opacity: 0.72 }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink)', flex: 1 }}>{d.client.name}</span>
+                <span role="button" tabIndex={0} onClick={() => setOpenId(d.client.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(d.client.id); } }} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink)', flex: 1, cursor: 'pointer' }}>{d.client.name}</span>
                 <span style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>{d.type}</span>
                 <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--color-indigo)' }} onClick={() => restore(d.client.id)}>Restaurer</button>
               </div>
@@ -189,7 +197,193 @@ function DossiersSection() {
           </div>
         </div>
       )}
+
+      {openClient && (
+        <DossierPanel
+          key={openClient.id}
+          client={openClient}
+          personaName={personaName(openClient.persona)}
+          appts={appts.filter((a) => a.clientId === openClient.id)}
+          byId={byId}
+          archived={archived.includes(openClient.id)}
+          onArchive={() => { archive(openClient.id); setOpenId(null); }}
+          onRestore={() => restore(openClient.id)}
+          onClose={() => setOpenId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ---------- Panneau · Dossier client ---------- */
+const digitsOnly = (s: string) => s.replace(/\D/g, '');
+
+function DossierPanel({
+  client, personaName, appts, byId, archived, onArchive, onRestore, onClose,
+}: {
+  client: Client;
+  personaName: string;
+  appts: ReturnType<typeof useBranchAppointments>;
+  byId: ReturnType<typeof useServicesById>;
+  archived: boolean;
+  onArchive: () => void;
+  onRestore: () => void;
+  onClose: () => void;
+}) {
+  const { currency } = useBranch();
+  const [queue] = useStore(consultationsQueueStore);
+  const [bookOpen, setBookOpen] = useState(false);
+  const [notes, setNotes] = useState(client.notes ?? '');
+
+  const honored = appts.filter((a) => a.status === 'honoré');
+  const spend = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
+  const lastVisit = [...honored].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const history = [...appts].sort((a, b) => b.date.localeCompare(a.date));
+
+  const notesDirty = notes.trim() !== (client.notes ?? '');
+  const saveNotes = () =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: notes.trim() || undefined } : c)));
+
+  /* Consultation en ligne rapprochée par nom ou téléphone. */
+  const cPhone = digitsOnly(client.phone);
+  const online = queue.find((o) => {
+    const sameName = o.client.name.trim().toLowerCase() === client.name.trim().toLowerCase();
+    const oPhone = digitsOnly(o.client.phone);
+    const samePhone = cPhone.length >= 6 && oPhone.length >= 6 && oPhone.endsWith(cPhone.slice(-8));
+    return sameName || samePhone;
+  });
+
+  return (
+    <Drawer onClose={onClose}>
+      <div className="trc-drawer__cover">
+        <button className="trc-drawer__close" onClick={onClose} aria-label="Fermer">✕</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Avatar client={client} size={64} />
+          <div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* Identité */}
+        <div>
+          <span className="trc-microlabel">Identité</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: 'var(--ink)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Téléphone</span><span>{client.phone || '—'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Ville</span><span>{client.city || '—'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Persona</span><span>{personaName}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Cliente depuis</span><span>{client.since ? frLong(client.since) : '—'}</span></div>
+          </div>
+        </div>
+
+        {/* Segments */}
+        <div>
+          <span className="trc-microlabel">Segments</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {client.segments.length === 0 && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun segment.</span>}
+            {client.segments.map((s) => <span key={s} className="trc-src">{s}</span>)}
+          </div>
+        </div>
+
+        {/* La couronne — si renseignée */}
+        {(client.crownStyle || client.lockCount != null) && (
+          <div>
+            <span className="trc-microlabel">La couronne</span>
+            <div className="trc-crown">
+              <div className="trc-crown__style">{client.crownStyle ?? 'Style à définir'}</div>
+              <div className="trc-crown__meta">{client.lockCount != null ? `${client.lockCount} locks` : 'Locks à compter'}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Ministats */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Total dépensé</span></div>
+          <div className="trc-ministat"><b>{honored.length}</b><span>Séances honorées</span></div>
+          <div className="trc-ministat"><b>{lastVisit ? relDays(lastVisit.date) : '—'}</b><span>Dernière visite</span></div>
+        </div>
+
+        {/* Prendre rendez-vous */}
+        <div className="trc-next">
+          <div className="trc-next__eyebrow">Carnet</div>
+          <div style={{ fontSize: 12, color: 'var(--indigo-100)', marginTop: 4 }}>Proposez le fauteuil à {client.name.split(' ')[0]}.</div>
+          <Button variant="copper" size="sm" style={{ marginTop: 12 }} onClick={() => setBookOpen(true)}>+ Prendre rendez-vous</Button>
+        </div>
+
+        {/* Consultation en ligne rapprochée */}
+        {online && (
+          <div className="trc-dossier-online">
+            <span className="trc-microlabel" style={{ margin: 0 }}>Consultation en ligne rapprochée</span>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)', marginTop: 4 }}>
+              {online.parcours === 'sos' ? 'SOS Locks' : 'Création'} · {online.diagnostic?.palier ?? 'palier à lire'}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3 }}>
+              {fmtMoney(online.paidXof, online.client.currency)} crédités · statut {online.status}
+              {online.reservation ? ` · ${online.reservation.mode} ${online.reservation.date} ${online.reservation.time}` : ''}
+            </div>
+          </div>
+        )}
+
+        {/* Historique du carnet */}
+        <div>
+          <span className="trc-microlabel">Historique du carnet</span>
+          {history.length === 0 && (
+            <div className="trc-empty" style={{ marginTop: 4 }}>Aucun passage enregistré — le carnet de {client.name.split(' ')[0]} est encore vierge.</div>
+          )}
+          {history.length > 0 && (
+            <div className="trc-timeline" style={{ flexDirection: 'column', gap: 0 }}>
+              {history.map((a, i) => (
+                <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div className="trc-timeline__rail">
+                    <span className="trc-timeline__dot" style={{ background: a.status === 'honoré' ? 'var(--color-copper)' : 'var(--indigo-200)' }} />
+                    {i < history.length - 1 && <span className="trc-timeline__line" />}
+                  </div>
+                  <div style={{ paddingBottom: 14, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frDay(a.date)} · {a.time}</span>
+                      <StatusPill status={a.status} />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>{apptLabel(a, byId)} · {a.master}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notes éditables */}
+        <div>
+          <span className="trc-microlabel">Note de la maison</span>
+          <textarea
+            className="trc-dossier-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Une attention, une préférence, un détail du rituel…"
+            rows={4}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button variant="indigo" size="sm" disabled={!notesDirty} onClick={saveNotes}>Enregistrer</Button>
+          </div>
+        </div>
+
+        {/* Archivage du dossier */}
+        <div className="trc-danger">
+          <span className="trc-microlabel">{archived ? 'Dossier archivé' : 'Archiver le dossier'}</span>
+          {archived ? (
+            <Button variant="ghost" size="sm" onClick={onRestore}>Restaurer le dossier</Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={onArchive}>Archiver le dossier</Button>
+          )}
+          <p className="trc-danger__note">L’archivage retire le dossier des listes sans effacer la cliente ni son carnet.</p>
+        </div>
+      </div>
+
+      {bookOpen && (
+        <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />
+      )}
+    </Drawer>
   );
 }
 

@@ -27,7 +27,10 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire' };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string };
+
+const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Depenses() {
   const { branch, currency } = useBranch();
@@ -35,13 +38,18 @@ export default function Depenses() {
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
   const [categories, setCategories] = useExpenseCategories();
-  const [invoices] = useInvoices();
+  const [invoices, setInvoices] = useInvoices();
 
   const [tab, setTab] = useState<Tab>('flux');
   const [filterCaisse, setFilterCaisse] = useState('all');
   const [filterCat, setFilterCat] = useState('all');
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false });
+  const [catOpen, setCatOpen] = useState(false);
+  const [boxOpen, setBoxOpen] = useState(false);
+  const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '' });
 
   const thisMonth = monthKey(todayISO());
   const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
@@ -102,36 +110,127 @@ export default function Depenses() {
   const togglePause = (e: Expense) => patch(e.id, (x) => ({ ...x, paused: !x.paused }));
 
   const openFor = (cashbox?: string) => {
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '' });
+    setEditingId(null);
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false });
+    setOpen(true);
+  };
+  const openEdit = (e: Expense) => {
+    setEditingId(e.id);
+    setForm({
+      label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
+      cashbox: e.cashbox, recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
+    });
     setOpen(true);
   };
   const save = () => {
     const amountXof = parseInt(form.amount || '0', 10);
     if (!form.label.trim() || !amountXof || !form.cashbox) return;
-    const e: Expense = {
-      id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
-      date: todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
-      subcategory: form.subcategory || undefined, recurring: form.recurring || null,
-    };
-    setExpenses((prev) => [e, ...prev]);
+    if (editingId) {
+      setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
+        ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
+        category: form.category || 'Divers', subcategory: form.subcategory || undefined,
+        recurring: form.recurring || null, flagged: form.flagged || undefined,
+      } : e)));
+    } else {
+      const e: Expense = {
+        id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
+        date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
+        subcategory: form.subcategory || undefined, recurring: form.recurring || null,
+        flagged: form.flagged || undefined,
+      };
+      setExpenses((prev) => [e, ...prev]);
+    }
     setOpen(false);
   };
+  const removeExpense = (e: Expense) => {
+    if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(e.amountXof, currency)}) ? Cette action est définitive.`)) return;
+    setExpenses((prev) => prev.filter((x) => x.id !== e.id));
+  };
 
+  // — Catégories : ajouter / renommer / supprimer, avec réétiquetage des dépenses —
   const addCategory = () => {
     const name = window.prompt('Nom de la nouvelle catégorie de dépense');
-    if (name && !catNames.includes(name.trim())) setCategories((prev) => [...prev, { id: uid(), name: name.trim(), subs: [] }]);
+    if (name && name.trim() && !catNames.includes(name.trim())) setCategories((prev) => [...prev, { id: uid(), name: name.trim(), subs: [] }]);
   };
-  const addSubcat = () => {
-    const cat = window.prompt(`Catégorie à enrichir (${catNames.join(', ')})`);
-    if (!cat) return;
-    const found = categories.find((c) => c.name === cat.trim());
-    if (!found) return;
-    const sub = window.prompt(`Nouvelle sous-catégorie pour « ${found.name} »`);
-    if (sub) setCategories((prev) => prev.map((c) => (c.id === found.id ? { ...c, subs: [...c.subs, sub.trim()] } : c)));
+  const renameCategory = (c: ExpenseCategory) => {
+    const name = window.prompt('Renommer la catégorie', c.name);
+    if (!name || !name.trim()) return;
+    const nn = name.trim();
+    if (nn === c.name || catNames.some((x) => x === nn)) return;
+    setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, name: nn } : x)));
+    setExpenses((prev) => prev.map((e) => (e.category === c.name ? { ...e, category: nn } : e)));
+    setBudgets((prev) => prev.map((b) => (b.category === c.name ? { ...b, category: nn } : b)));
   };
-  const addCashbox = () => {
-    const name = window.prompt('Nom de la nouvelle caisse');
-    if (name) setCashboxes((prev) => [...prev, { id: uid(), branchId: branch.id, name: name.trim(), sub: 'Caisse manuelle', glyph: '◈', openingXof: 0 }]);
+  const deleteCategory = (c: ExpenseCategory) => {
+    const used = expenses.filter((e) => e.category === c.name).length;
+    const msg = used > 0
+      ? `« ${c.name} » est référencée par ${used} dépense(s) — leur libellé de catégorie sera conservé. Supprimer la catégorie quand même ?`
+      : `Supprimer la catégorie « ${c.name} » ?`;
+    if (!window.confirm(msg)) return;
+    setCategories((prev) => prev.filter((x) => x.id !== c.id));
+  };
+  const addSubTo = (c: ExpenseCategory) => {
+    const sub = window.prompt(`Nouvelle sous-catégorie pour « ${c.name} »`);
+    if (sub && sub.trim() && !c.subs.includes(sub.trim())) setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: [...x.subs, sub.trim()] } : x)));
+  };
+  const renameSub = (c: ExpenseCategory, sub: string) => {
+    const name = window.prompt('Renommer la sous-catégorie', sub);
+    if (!name || !name.trim()) return;
+    const nn = name.trim();
+    if (nn === sub || c.subs.some((s) => s === nn)) return;
+    setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: x.subs.map((s) => (s === sub ? nn : s)) } : x)));
+    setExpenses((prev) => prev.map((e) => (e.category === c.name && e.subcategory === sub ? { ...e, subcategory: nn } : e)));
+  };
+  const deleteSub = (c: ExpenseCategory, sub: string) => {
+    const used = expenses.filter((e) => e.category === c.name && e.subcategory === sub).length;
+    const msg = used > 0
+      ? `« ${sub} » est utilisée par ${used} dépense(s), qui perdront cette sous-catégorie. Supprimer ?`
+      : `Supprimer la sous-catégorie « ${sub} » ?`;
+    if (!window.confirm(msg)) return;
+    setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: x.subs.filter((s) => s !== sub) } : x)));
+    setExpenses((prev) => prev.map((e) => (e.category === c.name && e.subcategory === sub ? { ...e, subcategory: undefined } : e)));
+  };
+
+  // — Caisses : ajouter / modifier / supprimer, avec réétiquetage dépenses + encaissements —
+  const openNewBox = () => {
+    setBoxEditingId(null);
+    setBoxForm({ name: '', sub: 'Caisse manuelle', glyph: '◈', opening: '' });
+    setBoxOpen(true);
+  };
+  const openEditBox = (c: Cashbox) => {
+    setBoxEditingId(c.id);
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph || '◈', opening: String(c.openingXof) });
+    setBoxOpen(true);
+  };
+  const saveBox = () => {
+    const name = boxForm.name.trim();
+    if (!name) return;
+    const sub = boxForm.sub.trim() || 'Caisse';
+    const glyph = boxForm.glyph.trim() || '◈';
+    const opening = parseInt(boxForm.opening || '0', 10) || 0;
+    if (boxEditingId) {
+      const prevBox = cashboxes.find((b) => b.id === boxEditingId);
+      const oldName = prevBox?.name;
+      setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening } : b)));
+      if (oldName && oldName !== name) {
+        setExpenses((prev) => prev.map((e) => (e.cashbox === oldName ? { ...e, cashbox: name } : e)));
+        setInvoices((prev) => prev.map((i) => (i.cashbox === oldName ? { ...i, cashbox: name } : i)));
+        if (filterCaisse === oldName) setFilterCaisse(name);
+      }
+    } else {
+      setCashboxes((prev) => [...prev, { id: uid(), branchId: branch.id, name, sub, glyph, openingXof: opening }]);
+    }
+    setBoxOpen(false);
+  };
+  const deleteBox = (c: Cashbox) => {
+    const expUsed = expenses.filter((e) => e.cashbox === c.name).length;
+    const invUsed = invoices.filter((i) => i.cashbox === c.name).length;
+    const msg = expUsed + invUsed > 0
+      ? `« ${c.name} » est référencée par ${expUsed} dépense(s) et ${invUsed} encaissement(s) — ces écritures ne seront pas modifiées. Supprimer la caisse ?`
+      : `Supprimer la caisse « ${c.name} » ?`;
+    if (!window.confirm(msg)) return;
+    setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
+    if (filterCaisse === c.name) setFilterCaisse('all');
   };
   const addBudget = () => {
     const cat = window.prompt(`Catégorie du budget (${catNames.join(', ')})`);
@@ -206,7 +305,7 @@ export default function Depenses() {
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Flux des dépenses · par catégorie</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="trf-act" onClick={addCategory}>+ Catégorie</button>
-                <button className="trf-act" onClick={addSubcat}>+ Sous-catégorie</button>
+                <button className="trf-act" onClick={() => setCatOpen(true)}>Gérer les catégories</button>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginLeft: 4 }}>
                   Total filtré <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{fmtMoney(flow.total, currency)}</span>
                 </span>
@@ -273,7 +372,7 @@ export default function Depenses() {
               <div className="trf-obsidian__value">{fmtMoney(treasury, currency)}</div>
             </div>
             <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
-              <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={addCashbox}>+ Nouvelle caisse</button>
+              <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={openNewBox}>+ Nouvelle caisse</button>
               <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => openFor()}>+ Ajouter une dépense</button>
             </div>
           </div>
@@ -284,11 +383,17 @@ export default function Depenses() {
               const low = bal < 100000;
               return (
                 <div className="trf-caisse" key={c.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                    <span className="trf-caisse__glyph">{c.glyph}</span>
-                    <div>
-                      <div className="trf-caisse__name">{c.name}</div>
-                      <div className="trf-caisse__sub">{c.sub}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 11, justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                      <span className="trf-caisse__glyph">{c.glyph}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="trf-caisse__name">{c.name}</div>
+                        <div className="trf-caisse__sub">{c.sub}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, flex: 'none' }}>
+                      <button className="trf-iconbtn" title="Modifier la caisse" onClick={() => openEditBox(c)}>Modifier</button>
+                      <button className="trf-iconbtn trf-iconbtn--danger" title="Supprimer la caisse" onClick={() => deleteBox(c)}>Supprimer</button>
                     </div>
                   </div>
                   <div>
@@ -315,14 +420,18 @@ export default function Depenses() {
                 </div>
                 <span className="trf-tagbox">{e.cashbox}</span>
                 <span className="trf-exprow__amt">{fmtMoney(e.amountXof, currency)}</span>
-                {!e.stopped ? (
-                  <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                    <button className={`trf-act ${e.flagged ? 'trf-act--warn' : 'trf-act--ghost'}`} onClick={() => toggleFlag(e)}>{e.flagged ? 'Signalé' : 'Signaler'}</button>
-                    <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
-                  </div>
-                ) : (
-                  <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
-                )}
+                <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
+                  <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
+                  {!e.stopped ? (
+                    <>
+                      <button className={`trf-act ${e.flagged ? 'trf-act--warn' : 'trf-act--ghost'}`} onClick={() => toggleFlag(e)}>{e.flagged ? 'Signalé' : 'Signaler'}</button>
+                      <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
+                    </>
+                  ) : (
+                    <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
+                  )}
+                  <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
+                </div>
               </div>
             ))}
           </div>
@@ -394,7 +503,8 @@ export default function Depenses() {
                   <div className="trf-exprow__meta">{e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', flex: 'none', textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(e.amountXof, currency)}</span>
-                <div style={{ flex: 'none', display: 'flex', gap: 7, justifyContent: 'flex-end' }}>
+                <div style={{ flex: 'none', display: 'flex', gap: 7, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
                   {e.stopped ? (
                     <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
                   ) : (
@@ -404,6 +514,7 @@ export default function Depenses() {
                       <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
                     </>
                   )}
+                  <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
                 </div>
               </div>
             ))}
@@ -488,16 +599,22 @@ export default function Depenses() {
 
       {/* ============ MODALE · NOUVELLE DÉPENSE ============ */}
       {open && (
-        <Modal title="Nouvelle dépense" onClose={() => setOpen(false)} width={560}>
+        <Modal title={editingId ? 'Modifier la dépense' : 'Nouvelle dépense'} onClose={() => setOpen(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <label className="mnd-field">
               <span className="mnd-field__label">Bénéficiaire</span>
               <input className="mnd-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ex. Fournisseur · Karité Bénin" />
             </label>
-            <label className="mnd-field">
-              <span className="mnd-field__label">Montant · {form.amount ? fmtMoney(parseInt(form.amount, 10), currency) : fmtMoney(0, currency)}</span>
-              <input className="mnd-input" inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
-            </label>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <label className="mnd-field" style={{ flex: 1 }}>
+                <span className="mnd-field__label">Montant · {form.amount ? fmtMoney(parseInt(form.amount, 10), currency) : fmtMoney(0, currency)}</span>
+                <input className="mnd-input" inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
+              </label>
+              <label className="mnd-field" style={{ flex: 'none', width: 180 }}>
+                <span className="mnd-field__label">Date</span>
+                <input className="mnd-input" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+              </label>
+            </div>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -534,9 +651,80 @@ export default function Depenses() {
                 ))}
               </div>
             </div>
+            <div>
+              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Arbitrage</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <button className={`trf-chip ${!form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: false }))}>Validée</button>
+                <button className={`trf-chip ${form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: true }))}>Signalée · à revoir</button>
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="mnd-btn mnd-btn--ghost" onClick={() => setOpen(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={save}>Enregistrer la dépense</button>
+              <button className="mnd-btn" onClick={save}>{editingId ? 'Enregistrer les modifications' : 'Enregistrer la dépense'}</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ============ MODALE · GÉRER LES CATÉGORIES ============ */}
+      {catOpen && (
+        <Modal title="Catégories & sous-catégories" onClose={() => setCatOpen(false)} width={620}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {categories.length === 0 && <div className="trf-empty">Aucune catégorie. « + Nouvelle catégorie » ouvre la première nomenclature.</div>}
+            {categories.map((c) => (
+              <div className="trf-manage" key={c.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="trf-manage__name">{c.name}</span>
+                  <button className="trf-iconbtn" onClick={() => renameCategory(c)}>Renommer</button>
+                  <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => deleteCategory(c)}>Supprimer</button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {c.subs.length === 0 && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontStyle: 'italic', color: 'var(--ink-soft)' }}>Aucune sous-catégorie</span>}
+                  {c.subs.map((s) => (
+                    <span className="trf-subchip" key={s}>
+                      <button className="trf-subchip__name" onClick={() => renameSub(c, s)} title="Renommer">{s}</button>
+                      <button className="trf-subchip__x" onClick={() => deleteSub(c, s)} title="Supprimer" aria-label={`Supprimer ${s}`}>×</button>
+                    </span>
+                  ))}
+                  <button className="trf-iconbtn" onClick={() => addSubTo(c)}>+ Sous-catégorie</button>
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={addCategory}>+ Nouvelle catégorie</button>
+              <button className="mnd-btn" onClick={() => setCatOpen(false)}>Terminé</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ============ MODALE · CAISSE ============ */}
+      {boxOpen && (
+        <Modal title={boxEditingId ? 'Modifier la caisse' : 'Nouvelle caisse'} onClose={() => setBoxOpen(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Nom de la caisse</span>
+              <input className="mnd-input" value={boxForm.name} onChange={(e) => setBoxForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex. Caisse principale" />
+            </label>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Type / référence</span>
+              <input className="mnd-input" value={boxForm.sub} onChange={(e) => setBoxForm((f) => ({ ...f, sub: e.target.value }))} placeholder="Ex. MTN MoMo · 07 00 00 00" />
+            </label>
+            <div>
+              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Emblème</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {GLYPHS.map((g) => (
+                  <button key={g} className={`trf-chip ${boxForm.glyph === g ? 'is-active' : ''}`} style={{ fontSize: 15, padding: '4px 12px' }} onClick={() => setBoxForm((f) => ({ ...f, glyph: g }))}>{g}</button>
+                ))}
+              </div>
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Solde d’ouverture · {boxForm.opening ? fmtMoney(parseInt(boxForm.opening, 10), currency) : fmtMoney(0, currency)}</span>
+              <input className="mnd-input" inputMode="numeric" value={boxForm.opening} onChange={(e) => setBoxForm((f) => ({ ...f, opening: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
+            </label>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setBoxOpen(false)}>Annuler</button>
+              <button className="mnd-btn" onClick={saveBox}>{boxEditingId ? 'Enregistrer' : 'Créer la caisse'}</button>
             </div>
           </div>
         </Modal>

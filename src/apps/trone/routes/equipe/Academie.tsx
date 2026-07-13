@@ -76,7 +76,14 @@ export default function Academie() {
     setFoForm(null);
   };
   const toggleArchive = (f: Formation) => setFormations((prev) => prev.map((x) => (x.id === f.id ? { ...x, archived: !x.archived } : x)));
-  const removeFo = (id: string) => setFormations((prev) => prev.filter((f) => f.id !== id));
+  const removeFo = (f: Formation) => {
+    const enrolled = apprenants.filter((a) => a.formationId === f.id).length;
+    const warn = enrolled > 0
+      ? `\n\nAttention : ${enrolled} apprenant·e${enrolled > 1 ? 's' : ''} y ${enrolled > 1 ? 'sont inscrit·e·s' : 'est inscrit·e'}. Leur suivi restera sans formation rattachée.`
+      : '';
+    if (!window.confirm(`Supprimer la formation « ${f.name} » ?${warn}`)) return;
+    setFormations((prev) => prev.filter((x) => x.id !== f.id));
+  };
 
   /* — apprenants — */
   const openApNew = () => { setApEditId(null); setApForm({ name: '', formationId: formations.find((f) => !f.archived)?.id ?? formations[0]?.id ?? '', pay: 'À jour' }); };
@@ -202,7 +209,7 @@ export default function Academie() {
                   <div style={{ display: 'flex', gap: 12 }}>
                     <button className="tre-link-btn" onClick={() => openFoEdit(f)}>Modifier</button>
                     <button className="tre-link-btn" style={{ color: 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
-                    <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeFo(f.id)}>Retirer</button>
+                    <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeFo(f)}>Supprimer</button>
                   </div>
                 </div>
               </Card>

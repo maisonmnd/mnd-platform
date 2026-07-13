@@ -170,6 +170,93 @@ body[data-surface='trone'] {
   padding: 0 4px;
 }
 
+/* ---------- La Cloche — panneau de notifications ---------- */
+.tr-notif { position: relative; display: inline-flex; }
+.tr-notif__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  max-width: min(340px, calc(100vw - 32px));
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 60;
+}
+.tr-notif__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 14px;
+  color: var(--ink);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+}
+.tr-notif__badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+}
+.tr-notif__empty {
+  padding: 26px 16px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-style: italic;
+}
+.tr-notif__list { display: flex; flex-direction: column; }
+.tr-notif__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.tr-notif__item:last-child { border-bottom: none; }
+.tr-notif__item:hover,
+.tr-notif__item:focus-visible { background: var(--color-ivoire); outline: none; }
+.tr-notif__dot {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: var(--color-copper);
+}
+.tr-notif__dot--consultation { color: var(--color-indigo); }
+.tr-notif__dot--attente { color: var(--copper-600); }
+.tr-notif__dot--rdv { color: var(--color-copper); }
+.tr-notif__dot--devis { color: #4a7a5a; }
+.tr-notif__dot--impaye { color: #b0563e; }
+.tr-notif__dot--stock { color: #b0563e; }
+.tr-notif__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tr-notif__label { font-size: 13px; line-height: 1.3; color: var(--ink); }
+.tr-notif__meta { font-size: 11px; color: var(--ink-soft); }
+
 .tr-content {
   flex: 1;
   overflow-y: auto;

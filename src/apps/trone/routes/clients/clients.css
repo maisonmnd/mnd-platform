@@ -678,6 +678,38 @@
 }
 .trc-cal__col.is-drop { background-color: var(--copper-50); }
 .trc-week__day.is-drop { background-color: var(--copper-50); }
+
+/* ---------- Dossier client (Consultations) ---------- */
+.trc-dossier-row { transition: var(--transition-base); }
+.trc-dossier-row:hover { background: var(--hover-veil); border-color: var(--color-argile); }
+.trc-dossier-row:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
+.trc-dossier-online {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-left: var(--filet-copper);
+  border-radius: var(--radius-sm);
+  padding: 12px 15px;
+}
+.trc-dossier-notes {
+  width: 100%;
+  margin-top: 5px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.55;
+  resize: vertical;
+  transition: var(--transition-base);
+}
+.trc-dossier-notes:focus {
+  outline: none;
+  border-color: var(--copper-400);
+  box-shadow: 0 0 0 3px var(--copper-50);
+}
+.trc-dossier-notes::placeholder { color: var(--ink-soft); }
 .trc-cal__toast {
   position: fixed;
   left: 50%;

@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useProducts } from '../../../../shared/catalog';
+import { useCategories, useProducts, type Product } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import {
   LAB_CONCERNS, PERF_SEED, REINVENT_SEED,
@@ -25,8 +25,8 @@ const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; 
   blue: { bg: 'var(--indigo-50)', fg: 'var(--color-indigo)', accent: 'var(--color-indigo)' },
 };
 
-type ProductForm = { name: string; price: string; stock: string };
-const emptyProduct: ProductForm = { name: '', price: '', stock: '0' };
+type ProductForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
+const emptyProduct = (categoryId: string): ProductForm => ({ id: null, categoryId, name: '', price: '', stock: '0' });
 
 export default function Laboratoire() {
   const { currency } = useBranch();
@@ -40,9 +40,15 @@ export default function Laboratoire() {
   const [note, setNote] = useState<string | null>(null);
 
   // gamme — les produits Maison du catalogue (DÒDÒ™), stock réel partagé
+  const [categories] = useCategories();
   const [products, setProducts] = useProducts();
-  const [prodModal, setProdModal] = useState(false);
-  const [prodForm, setProdForm] = useState<ProductForm>(emptyProduct);
+  const [prodForm, setProdForm] = useState<ProductForm | null>(null);
+  const cats = useMemo(() => [...categories].sort((a, b) => a.order - b.order), [categories]);
+  const dodoId = cats.find((c) => c.id === 'dodo')?.id ?? cats[0]?.id ?? 'dodo';
+  const catLabel = (id: string) => {
+    const c = cats.find((x) => x.id === id);
+    return c ? `${c.fon} · ${c.label}` : 'Gamme & produits';
+  };
 
   const view = useMemo(() => buildFormulaView(concern, swaps, stock), [concern, swaps, stock]);
   const matches = useMemo(() => buildMatches(stock), [stock]);
@@ -83,14 +89,36 @@ export default function Laboratoire() {
   const lowCount = gammeRows.filter((p) => p.stock <= 8).length;
   const maxStock = Math.max(...gammeRows.map((p) => p.stock), 1);
 
+  const moveProduct = (prod: Product, dir: -1 | 1) => {
+    const idx = gammeRows.findIndex((p) => p.id === prod.id);
+    const other = gammeRows[idx + dir];
+    if (!other) return;
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === prod.id ? { ...p, order: other.order } : p.id === other.id ? { ...p, order: prod.order } : p,
+      ),
+    );
+  };
+
+  const openProductEdit = (prod: Product) =>
+    setProdForm({ id: prod.id, categoryId: prod.categoryId, name: prod.name, price: String(prod.priceXof), stock: String(prod.stock) });
+
+  const deleteProduct = (prod: Product) => {
+    if (!window.confirm(`Retirer le produit « ${prod.name} » de la gamme ?`)) return;
+    setProducts((prev) => prev.filter((p) => p.id !== prod.id));
+  };
+
   const saveProduct = () => {
-    if (!prodForm.name.trim()) return;
+    if (!prodForm || !prodForm.name.trim()) return;
     const price = parseInt(prodForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const stockN = parseInt(prodForm.stock.replace(/[^0-9]/g, ''), 10) || 0;
-    const maxOrder = gammeRows.reduce((m, p) => Math.max(m, p.order), 0);
-    setProducts((prev) => [...prev, { id: `pr-${uid()}`, categoryId: 'dodo', name: prodForm.name.trim(), priceXof: price, stock: stockN, order: maxOrder + 1 }]);
-    setProdForm(emptyProduct);
-    setProdModal(false);
+    if (prodForm.id) {
+      setProducts((prev) => prev.map((p) => (p.id === prodForm.id ? { ...p, categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock: stockN } : p)));
+    } else {
+      const maxOrder = gammeRows.reduce((m, p) => Math.max(m, p.order), 0);
+      setProducts((prev) => [...prev, { id: `pr-${uid()}`, categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock: stockN, order: maxOrder + 1 }]);
+    }
+    setProdForm(null);
   };
 
   const TABS: { k: LabTab; l: string }[] = [
@@ -328,7 +356,7 @@ export default function Laboratoire() {
               <div className="trv-sec-label" style={{ marginBottom: 4 }}>La Gamme & le stock</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>Vos produits Maison et leur stock en temps réel — partagé avec le Catalogue et la Caisse.</div>
             </div>
-            <Button onClick={() => { setProdForm(emptyProduct); setProdModal(true); }}>+ Ajouter un produit</Button>
+            <Button onClick={() => setProdForm(emptyProduct(dodoId))}>+ Ajouter un produit</Button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
@@ -342,10 +370,10 @@ export default function Laboratoire() {
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
-                  <tr><th>Produit Maison</th><th>Prix</th><th>Stock</th><th>État</th><th style={{ textAlign: 'right' }}>Réassort</th></tr>
+                  <tr><th>Produit Maison</th><th>Prix</th><th>Stock</th><th>État</th><th style={{ textAlign: 'right' }}>Réassort</th><th style={{ textAlign: 'right' }}>Gérer</th></tr>
                 </thead>
                 <tbody>
-                  {gammeRows.map((p) => {
+                  {gammeRows.map((p, pi) => {
                     const tagK = p.stock <= 2 ? 'error' : p.stock <= 8 ? 'warn' : 'ok';
                     const tag = tagK === 'error' ? 'Rupture proche' : tagK === 'warn' ? 'Réassort' : 'En gamme';
                     const sc = tagK === 'error' ? 'var(--trv-error)' : tagK === 'warn' ? 'var(--trv-warning)' : 'var(--trv-success)';
@@ -353,7 +381,7 @@ export default function Laboratoire() {
                       <tr key={p.id}>
                         <td>
                           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{p.name}</div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>Gamme & produits</div>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{catLabel(p.categoryId)}</div>
                         </td>
                         <td>{fmtMoney(p.priceXof, currency)}</td>
                         <td style={{ minWidth: 120 }}>
@@ -368,12 +396,20 @@ export default function Laboratoire() {
                             <button className="trv-minibtn" onClick={() => setUnits(p.id, p.stock + 10)}>+ 10</button>
                           </span>
                         </td>
+                        <td>
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                            <button className="trv-sq" title="Monter" disabled={pi === 0} onClick={() => moveProduct(p, -1)}>▲</button>
+                            <button className="trv-sq" title="Descendre" disabled={pi === gammeRows.length - 1} onClick={() => moveProduct(p, 1)}>▼</button>
+                            <button className="trv-minibtn" onClick={() => openProductEdit(p)}>Modifier</button>
+                            <button className="trv-minibtn" onClick={() => deleteProduct(p)}>Supprimer</button>
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
                   {gammeRows.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: 32, fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: 32, fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
                         La gamme attend son premier produit Maison — inscrivez-le, le stock vivra ici.
                       </td>
                     </tr>
@@ -445,23 +481,30 @@ export default function Laboratoire() {
         </div>
       )}
 
-      {prodModal && (
-        <Modal title="Nouveau produit Maison." onClose={() => setProdModal(false)} width={520}>
+      {prodForm && (
+        <Modal title={prodForm.id ? 'Le produit Maison.' : 'Nouveau produit Maison.'} onClose={() => setProdForm(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom de la formule">
               <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex. Le Sérum Moringa & Prêle" />
+            </Field>
+            <Field label="Catégorie ™">
+              <select className="mnd-select" value={prodForm.categoryId} onChange={(e) => setProdForm({ ...prodForm, categoryId: e.target.value })}>
+                {cats.map((c) => (
+                  <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
+                ))}
+              </select>
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Prix conseillé (F CFA)">
                 <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="12 000" />
               </Field>
-              <Field label="Stock initial">
+              <Field label="Stock">
                 <Input inputMode="numeric" value={prodForm.stock} onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })} placeholder="0" />
               </Field>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <Button variant="ghost" onClick={() => setProdModal(false)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveProduct} disabled={!prodForm.name.trim()}>Inscrire à la gamme</Button>
+              <Button variant="ghost" onClick={() => setProdForm(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveProduct} disabled={!prodForm.name.trim()}>{prodForm.id ? 'Enregistrer le produit' : 'Inscrire à la gamme'}</Button>
             </div>
           </div>
         </Modal>

@@ -6,13 +6,14 @@ import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration,
-  type CatalogCategory, type Service,
+  type CatalogCategory, type Service, type Product,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 
-/* Catalogue — double nomenclature fon™. Catégories réordonnables et activables
-   pour le front (Vitrine / Ma Couronne), prestations éditables au fauteuil. */
+/* Catalogue — double nomenclature fon™. Catégories réordonnables, activables,
+   éditables et supprimables ; prestations et produits Maison éditables au fauteuil.
+   Les produits partagent productsStore avec le Laboratoire (gamme & stock). */
 
 const PALIERS: Service['palier'][] = ['Fondation', 'Élévation', 'Souveraineté'];
 
@@ -32,6 +33,11 @@ const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', palier: 'Fondation', durationMin: '60', sessions: 1, master,
 });
 
+type CatForm = { id: string | null; fon: string; label: string; enabled: boolean };
+
+type ProdForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
+const emptyProdForm = (categoryId: string): ProdForm => ({ id: null, categoryId, name: '', price: '', stock: '0' });
+
 export default function Catalogue() {
   const { branch, currency } = useBranch();
   const [categories, setCategories] = useCategories();
@@ -39,7 +45,8 @@ export default function Catalogue() {
   const [products, setProducts] = useProducts();
 
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
-  const [catForm, setCatForm] = useState<{ id: string | null; fon: string; label: string } | null>(null);
+  const [catForm, setCatForm] = useState<CatForm | null>(null);
+  const [prodForm, setProdForm] = useState<ProdForm | null>(null);
 
   const masters = branch.masters;
   const cats = [...categories].sort((a, b) => a.order - b.order);
@@ -61,12 +68,23 @@ export default function Catalogue() {
   const saveCat = () => {
     if (!catForm || !catForm.fon.trim()) return;
     if (catForm.id) {
-      setCategories((prev) => prev.map((c) => (c.id === catForm.id ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim() } : c)));
+      setCategories((prev) => prev.map((c) => (c.id === catForm.id ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled } : c)));
     } else {
       const maxOrder = cats.reduce((m, c) => Math.max(m, c.order), 0);
-      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: true, order: maxOrder + 1 }]);
+      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, order: maxOrder + 1 }]);
     }
     setCatForm(null);
+  };
+
+  const deleteCat = (cat: CatalogCategory) => {
+    const svcCount = services.filter((s) => s.categoryId === cat.id).length;
+    const prodCount = products.filter((p) => p.categoryId === cat.id).length;
+    const refs = svcCount + prodCount;
+    const warn = refs > 0
+      ? `\n\nAttention : ${svcCount} prestation${svcCount > 1 ? 's' : ''} et ${prodCount} produit${prodCount > 1 ? 's' : ''} y sont rattaché${refs > 1 ? 's' : ''} — ils resteront sans catégorie tant que vous ne les réaffectez pas.`
+      : '';
+    if (!window.confirm(`Supprimer la catégorie « ${cat.fon} · ${cat.label} » ?${warn}`)) return;
+    setCategories((prev) => prev.filter((c) => c.id !== cat.id));
   };
 
   /* — prestations — */
@@ -115,6 +133,46 @@ export default function Catalogue() {
     setSvcForm(null);
   };
 
+  /* — produits — (partagés avec le Laboratoire via productsStore) */
+  const prodsOf = (catId: string) => products.filter((p) => p.categoryId === catId).sort((a, b) => a.order - b.order);
+
+  const moveProd = (prod: Product, dir: -1 | 1) => {
+    const list = prodsOf(prod.categoryId);
+    const idx = list.findIndex((p) => p.id === prod.id);
+    const other = list[idx + dir];
+    if (!other) return;
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === prod.id ? { ...p, order: other.order } : p.id === other.id ? { ...p, order: prod.order } : p,
+      ),
+    );
+  };
+  const patchProd = (id: string, patch: Partial<Product>) =>
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+  const openProdEdit = (prod: Product) =>
+    setProdForm({ id: prod.id, categoryId: prod.categoryId, name: prod.name, price: String(prod.priceXof), stock: String(prod.stock) });
+
+  const saveProd = () => {
+    if (!prodForm || !prodForm.name.trim()) return;
+    const price = parseInt(prodForm.price.replace(/[^0-9]/g, ''), 10) || 0;
+    const stock = parseInt(prodForm.stock.replace(/[^0-9]/g, ''), 10) || 0;
+    if (prodForm.id) {
+      patchProd(prodForm.id, { categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock });
+    } else {
+      const maxOrder = prodsOf(prodForm.categoryId).reduce((m, p) => Math.max(m, p.order), 0);
+      setProducts((prev) => [...prev, { id: uid(), categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock, order: maxOrder + 1 }]);
+    }
+    setProdForm(null);
+  };
+
+  const deleteProd = (prod: Product) => {
+    if (!window.confirm(`Retirer le produit « ${prod.name} » de la gamme ?`)) return;
+    setProducts((prev) => prev.filter((p) => p.id !== prod.id));
+  };
+
+  const dodoId = cats.find((c) => c.id === 'dodo')?.id ?? cats[0]?.id ?? 'dodo';
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -123,15 +181,22 @@ export default function Catalogue() {
         sub="Segmenté par catégorie ™ et par palier d’expérience — jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
         actions={
           <>
-            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '' })}>+ Catégorie</Button>
+            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true })}>+ Catégorie</Button>
+            <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>
           </>
         }
       />
 
+      {cats.length === 0 && (
+        <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '28px 0', textAlign: 'center' }}>
+          Le catalogue est vierge. Commencez par inscrire une catégorie ™ — elle accueillera vos prestations et vos produits Maison.
+        </div>
+      )}
+
       {cats.map((cat, ci) => {
         const list = svcOf(cat.id);
-        const prods = cat.id === 'dodo' ? [...products].sort((a, b) => a.order - b.order) : [];
+        const prods = prodsOf(cat.id);
         return (
           <section key={cat.id} style={{ marginBottom: 26, opacity: cat.enabled ? 1 : 0.55 }}>
             <div className="trv-cat-head">
@@ -147,8 +212,11 @@ export default function Catalogue() {
                 {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
               </button>
               <span className="tools">
-                <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label })}>
+                <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled })}>
                   Modifier
+                </button>
+                <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
+                  Supprimer
                 </button>
                 <button className="trv-sq" title="Monter" disabled={ci === 0} onClick={() => moveCat(cat, -1)}>↑</button>
                 <button className="trv-sq" title="Descendre" disabled={ci === cats.length - 1} onClick={() => moveCat(cat, 1)}>↓</button>
@@ -217,7 +285,7 @@ export default function Catalogue() {
                 </article>
               ))}
 
-              {prods.map((p) => (
+              {prods.map((p, pi) => (
                 <article key={p.id} className="trv-svc">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                     <div className="trv-svc__name">{p.name}</div>
@@ -231,11 +299,17 @@ export default function Catalogue() {
                     </span>
                   </div>
                   <div className="trv-svc__foot">
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>Réassort</span>
                     <span className="trv-stepper">
-                      <button className="trv-sq" onClick={() => setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, stock: Math.max(0, x.stock - 1) } : x)))}>−</button>
+                      <button className="trv-sq" title="Retirer une unité" onClick={() => patchProd(p.id, { stock: Math.max(0, p.stock - 1) })}>−</button>
                       <span className="val">{p.stock}</span>
-                      <button className="trv-sq" onClick={() => setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, stock: x.stock + 1 } : x)))}>+</button>
+                      <button className="trv-sq" title="Ajouter une unité" onClick={() => patchProd(p.id, { stock: p.stock + 1 })}>+</button>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>en stock</span>
+                    </span>
+                    <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                      <button className="trv-sq" title="Monter le produit" disabled={pi === 0} onClick={() => moveProd(p, -1)}>▲</button>
+                      <button className="trv-sq" title="Descendre le produit" disabled={pi === prods.length - 1} onClick={() => moveProd(p, 1)}>▼</button>
+                      <button className="trv-minibtn" onClick={() => openProdEdit(p)}>Modifier</button>
+                      <button className="trv-minibtn" onClick={() => deleteProd(p)}>Supprimer</button>
                     </span>
                   </div>
                 </article>
@@ -243,7 +317,7 @@ export default function Catalogue() {
 
               {list.length === 0 && prods.length === 0 && (
                 <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '8px 0' }}>
-                  Aucune prestation dans cette catégorie pour l’instant.
+                  Aucune prestation ni produit dans cette catégorie pour l’instant.
                 </div>
               )}
             </div>
@@ -313,8 +387,37 @@ export default function Catalogue() {
         </Modal>
       )}
 
+      {prodForm && (
+        <Modal title={prodForm.id ? 'Le produit Maison.' : 'Nouveau produit Maison.'} onClose={() => setProdForm(null)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Field label="Nom du produit">
+              <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex. Le Sérum Moringa & Prêle" />
+            </Field>
+            <Field label="Catégorie ™">
+              <Select value={prodForm.categoryId} onChange={(e) => setProdForm({ ...prodForm, categoryId: e.target.value })}>
+                {cats.map((c) => (
+                  <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Prix conseillé (F CFA)">
+                <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="12 000" />
+              </Field>
+              <Field label="Stock">
+                <Input inputMode="numeric" value={prodForm.stock} onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })} placeholder="0" />
+              </Field>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setProdForm(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveProd} disabled={!prodForm.name.trim()}>{prodForm.id ? 'Enregistrer le produit' : 'Inscrire à la gamme'}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {catForm && (
-        <Modal title="La catégorie." onClose={() => setCatForm(null)} width={480}>
+        <Modal title={catForm.id ? 'La catégorie.' : 'Nouvelle catégorie.'} onClose={() => setCatForm(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Code de la catégorie">
               <Input
@@ -327,6 +430,10 @@ export default function Catalogue() {
             <Field label="Libellé · ce qu’elle regroupe">
               <Input value={catForm.label} onChange={(e) => setCatForm({ ...catForm, label: e.target.value })} placeholder="Ex. Pose & structure" />
             </Field>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={catForm.enabled} onChange={(e) => setCatForm({ ...catForm, enabled: e.target.checked })} />
+              Visible aux clientes (Vitrine / Ma Couronne)
+            </label>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setCatForm(null)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveCat}>Enregistrer la catégorie</Button>
