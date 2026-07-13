@@ -1,13 +1,15 @@
 import { asset } from '../../shared/asset';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
+import { clientsStore } from '../../shared/clients';
+import { invoiceTotal, invoicesStore, useInvoices, type Invoice } from '../../shared/finance';
+import { useTiers } from '../../shared/offers';
 import {
   CLIENT_ID,
   GOLD_AT,
-  OFFERS,
   TIER_GOLD,
   TIER_SILVER,
   dayLabelIso,
@@ -17,6 +19,7 @@ import {
   sessionStore,
   todayIso,
   useClient,
+  useLiveOffers,
   useOfferCountdown,
   useVisibleCatalog,
   type BookingPrefill,
@@ -27,9 +30,23 @@ import {
 
 type OpenBooking = (prefill?: BookingPrefill) => void;
 
-/* ---------- prochain rituel — lu dans l'agenda partagé ---------- */
+/* ---------- rituels de la cliente — lus dans l'agenda partagé ---------- */
 
-function useNextAppointment(): Appointment | undefined {
+/** Tous les rendez-vous de la cliente, du plus ancien au plus récent. */
+function useClientAppointments(): Appointment[] {
+  const [appts] = useAppointments();
+  return useMemo(
+    () =>
+      appts
+        .filter((a) => a.clientId === CLIENT_ID)
+        .slice()
+        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)),
+    [appts]
+  );
+}
+
+/** Rendez-vous à venir (confirmés ou en attente), du plus proche au plus lointain. */
+function useUpcomingAppointments(): Appointment[] {
   const { branch } = useBranch();
   const [appts] = useAppointments();
   return useMemo(() => {
@@ -44,8 +61,34 @@ function useNextAppointment(): Appointment | undefined {
           (a.status === 'confirmé' || a.status === 'en attente') &&
           (a.date > today || (a.date === today && a.time >= nowTime))
       )
-      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   }, [appts, branch.id]);
+}
+
+function useNextAppointment(): Appointment | undefined {
+  return useUpcomingAppointments()[0];
+}
+
+/* ---------- devis — le pont Factures du Trône ---------- */
+
+/** Devis adressés à la cliente : envoyés (à accepter) et acceptés (informatifs). */
+function useClientDevis(): Invoice[] {
+  const [invoices] = useInvoices();
+  return useMemo(
+    () =>
+      invoices
+        .filter((i) => i.clientId === CLIENT_ID && i.kind === 'devis' && (i.status === 'envoyée' || i.status === 'acceptée'))
+        .slice()
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [invoices]
+  );
+}
+
+/** Pastille de la cloche : devis en attente + rendez-vous à venir. */
+function useNotifCount(): number {
+  const devis = useClientDevis();
+  const upcoming = useUpcomingAppointments();
+  return devis.filter((d) => d.status === 'envoyée').length + upcoming.length;
 }
 
 function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
@@ -75,11 +118,13 @@ export function HomeTab({
   const [services] = useServices();
   const { products } = useVisibleCatalog();
   const next = useNextAppointment();
-  const countdown = useOfferCountdown();
+  const { offers, endMin } = useLiveOffers();
+  const countdown = useOfferCountdown(endMin);
 
+  const notifCount = useNotifCount();
   const points = client?.loyaltyPoints ?? 0;
   const goldPct = Math.min(100, Math.round((points / GOLD_AT) * 100));
-  const crownDays = daysSince(client?.since ?? todayIso());
+  const crownDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
 
   const reco = products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
 
@@ -99,7 +144,7 @@ export function HomeTab({
         <div className="mc-homehero__veil" />
         <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
         <button className="mc-bell" aria-label="Notifications" onClick={onOpenNotif}>
-          ♟<span className="mc-bell__dot" />
+          ♟{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
         </button>
         <div className="mc-homehero__text">
           <div className="mc-micro-eyebrow">Votre couronne</div>
@@ -119,7 +164,7 @@ export function HomeTab({
           <span className="mc-crownstatus__filet" />
           <div className="mc-crownstatus__top">
             <div className="mc-crownstatus__id">
-              <span className="mc-crownstatus__style">Microlocks</span>
+              <span className="mc-crownstatus__style">{client?.crownStyle ?? 'Votre couronne'}</span>
               <span className="mc-crownstatus__day">Jour {crownDays}</span>
             </div>
             <span className="mc-pillseal">{TIER_SILVER}</span>
@@ -130,13 +175,15 @@ export function HomeTab({
           </div>
         </div>
 
-        {/* offres instantanées */}
+        {/* offres instantanées — créées au Trône (Marketing), fenêtre jour/heure vivante */}
+        {offers.length > 0 && (
+          <>
         <div className="mc-offershead">
           <span className="mc-offershead__label">Offres instantanées</span>
-          <span className="mc-offershead__timer">Expire dans {countdown}</span>
+          {countdown && <span className="mc-offershead__timer">Expire dans {countdown}</span>}
         </div>
         <div className="mc-scroll mc-offersrail">
-          {OFFERS.map((o) => (
+          {offers.map((o) => (
             <button key={o.id} className={`mc-offer mc-offer--${o.theme}`} onClick={() => pickOffer(o)}>
               <div className="mc-offer__top">
                 <span className="mc-offer__tag">{o.tag}</span>
@@ -148,6 +195,8 @@ export function HomeTab({
             </button>
           ))}
         </div>
+          </>
+        )}
 
         {/* prochain rituel */}
         <div className="mc-nextrdv">
@@ -184,7 +233,9 @@ export function HomeTab({
           <div className="mc-recocard">
             <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <div className="mc-recocard__body">
-              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>Recommandé par Aïcha</div>
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
+              </div>
               <div className="mc-recocard__name">{reco.name}</div>
               <div className="mc-recocard__line">Pour densifier d’ici le resserrage · {fmtMoney(reco.priceXof, currency)}</div>
             </div>
@@ -202,21 +253,44 @@ export function HomeTab({
 export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
   const [services] = useServices();
   const client = useClient();
+  const clientAppts = useClientAppointments();
   const next = useNextAppointment();
-  const crownDays = daysSince(client?.since ?? todayIso());
 
-  const timeline = [
-    { d: 'Mars 2024', t: 'Le démarrage', s: 'Création des microlocks · avec Brice', done: true },
-    { d: 'Juillet 2024', t: 'Premier resserrage', s: 'Racines reprises, cuir chevelu sain', done: true },
-    { d: 'Décembre 2025', t: 'Le Couronnement', s: 'Édition mère · tapis cuivre', done: true },
-    next
-      ? { d: `${dayLabelIso(next.date)} · ${next.time}`, t: serviceNames(next, services) || 'Prochain rituel', s: `avec ${next.master}`, done: false }
-      : { d: 'À composer', t: 'Prochain rituel', s: 'Réservez votre prochaine séance', done: false },
-  ];
+  const honored = clientAppts.filter((a) => a.status === 'honoré');
+  const lockDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
 
+  /* La timeline naît des vrais rendez-vous : naissance de la couronne,
+     rituels honorés, puis le prochain rendez-vous en attente. */
+  const timeline: { d: string; t: string; s: string; done: boolean }[] = [];
+  if (client?.crownSince) {
+    timeline.push({
+      d: dayLabelIso(client.crownSince),
+      t: 'Naissance de la couronne',
+      s: client.crownStyle ? `${client.crownStyle} · la maison veille` : 'La maison veille',
+      done: true,
+    });
+  }
+  for (const a of honored) {
+    timeline.push({
+      d: `${dayLabelIso(a.date)} · ${a.time}`,
+      t: serviceNames(a, services) || 'Rituel de la maison',
+      s: `avec ${a.master}`,
+      done: true,
+    });
+  }
+  if (next) {
+    timeline.push({
+      d: `${dayLabelIso(next.date)} · ${next.time}`,
+      t: serviceNames(next, services) || 'Prochain rituel',
+      s: `avec ${next.master} · ${next.status === 'confirmé' ? 'confirmé' : 'en attente de la maison'}`,
+      done: false,
+    });
+  }
+
+  /* Re-réserver à l'identique : la prestation du rendez-vous le plus récent. */
+  const lastAppt = clientAppts.filter((a) => a.status !== 'annulé' && a.serviceIds.length > 0).slice(-1)[0];
   const rebook = () => {
-    /* Re-réserver à l'identique : la dernière prestation, directement au créneau. */
-    onOpenBooking({ serviceId: 'sv-resserrage' });
+    if (lastAppt) onOpenBooking({ serviceId: lastAppt.serviceIds[0] });
   };
 
   return (
@@ -224,24 +298,19 @@ export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
       <div className="mc-micro-eyebrow">Carnet de Suivi · votre lignée</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>Mon parcours.</h1>
 
-      {/* avant / après — séparés d'un filet cuivre 2 px */}
-      <div className="mc-beforeafter">
-        <div className="mc-beforeafter__shot">
-          <img src={asset("/assets/photos/portrait-3.jpg")} alt="Avant" />
-          <span className="mc-beforeafter__tag">Avant · mars 2024</span>
-        </div>
-        <span className="mc-beforeafter__filet" aria-hidden="true" />
-        <div className="mc-beforeafter__shot">
-          <img src={asset("/assets/photos/model-microlocks.jpg")} alt="Aujourd’hui" />
+      {/* portrait de la couronne — seulement si la maison l'a consigné */}
+      {client?.photo && (
+        <div className="mc-suiviphoto">
+          <img src={client.photo} alt="Votre couronne aujourd’hui" />
           <span className="mc-beforeafter__tag mc-beforeafter__tag--now">Aujourd’hui</span>
         </div>
-      </div>
+      )}
 
-      {/* état capillaire */}
+      {/* état de la couronne — chiffres réels du CRM et de l'agenda */}
       <div className="mc-metrics">
-        <div className="mc-metric"><div className="mc-metric__v">Sain</div><div className="mc-metric__l">Cuir chevelu</div></div>
-        <div className="mc-metric"><div className="mc-metric__v">+14 cm</div><div className="mc-metric__l">Longueur</div></div>
-        <div className="mc-metric"><div className="mc-metric__v">{crownDays}</div><div className="mc-metric__l">Jours de loc</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{client?.lockCount ?? '—'}</div><div className="mc-metric__l">Locks</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">Jours de locks</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">Rituels honorés</div></div>
       </div>
 
       {/* timeline mèche-après-mèche */}
@@ -259,8 +328,21 @@ export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
           </div>
         </div>
       ))}
+      {timeline.length === 0 && (
+        <div className="mc-tlempty">
+          <div className="mc-tlempty__t">Votre histoire commence ici.</div>
+          <div className="mc-tlempty__s">
+            Chaque rituel honoré s’inscrira dans ce carnet, mèche après mèche.
+          </div>
+          <button className="mc-cta mc-cta--copper" onClick={() => onOpenBooking()}>Réserver mon premier rituel</button>
+        </div>
+      )}
 
-      <button className="mc-cta mc-cta--outline" onClick={rebook}>Re-réserver à l’identique</button>
+      {lastAppt && (
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: timeline.length ? 0 : 16 }} onClick={rebook}>
+          Re-réserver à l’identique
+        </button>
+      )}
       <div style={{ height: 10 }} />
     </div>
   );
@@ -310,14 +392,15 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
 
 export function CercleTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
+  const [tiers] = useTiers();
+  const [services] = useServices();
   const points = client?.loyaltyPoints ?? 0;
-  const goldPct = Math.min(100, Math.round((points / GOLD_AT) * 100));
 
-  const ladder = [
-    { g: '✦', t: 'Soin offert', s: 'À 1 500 points de reconnaissance', st: points >= 1500 ? 'Obtenu' : `${points} / 1 500`, on: points >= 1500 },
-    { g: '♛', t: TIER_GOLD, s: 'À 2 000 points · privilèges de la maison', st: points >= GOLD_AT ? 'Obtenu' : `${points} / 2 000`, on: points >= GOLD_AT },
-    { g: '◇', t: 'Cercle Restreint', s: 'À 3 000 points · sur invitation', st: points >= 3000 ? 'Obtenu' : `${points} / 3 000`, on: points >= 3000 },
-  ];
+  /* Les paliers sont ceux définis au Trône (Cercle) — la prestation offerte
+     vient du catalogue partagé. */
+  const ladder = useMemo(() => tiers.slice().sort((a, b) => a.pts - b.pts), [tiers]);
+  const nextTier = ladder.find((t) => points < t.pts);
+  const pct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
@@ -331,49 +414,44 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-pointscard__label">Reconnaissance de la maison</div>
           <div className="mc-pointscard__row">
             <span className="mc-pointscard__big">{points.toLocaleString('fr-FR')}</span>
-            <span className="mc-pointscard__unit">points · {TIER_SILVER}</span>
+            <span className="mc-pointscard__unit">points de reconnaissance</span>
           </div>
-          <div className="mc-bar mc-bar--invert"><div style={{ width: `${goldPct}%` }} /></div>
-          <div className="mc-pointscard__hint">{TIER_GOLD} à {GOLD_AT.toLocaleString('fr-FR')} points — encore {Math.max(0, GOLD_AT - points)}.</div>
+          <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
+          <div className="mc-pointscard__hint">
+            {nextTier
+              ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
+              : ladder.length > 0
+                ? 'Tous les paliers sont honorés — la maison vous salue.'
+                : 'Chaque rituel honoré nourrit votre reconnaissance.'}
+          </div>
           <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
             Introduire par WhatsApp
           </button>
         </div>
       </div>
 
-      {/* paliers de reconnaissance */}
+      {/* paliers de reconnaissance — définis au Trône */}
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>
       <div className="mc-stack" style={{ gap: 10 }}>
-        {ladder.map((r) => (
-          <div key={r.t} className="mc-rewardrow">
-            <span className="mc-rewardrow__glyph">{r.g}</span>
-            <div className="mc-rewardrow__body">
-              <div className="mc-rewardrow__t">{r.t}</div>
-              <div className="mc-rewardrow__s">{r.s}</div>
+        {ladder.map((t) => {
+          const svc = services.find((s) => s.id === t.serviceId);
+          const on = points >= t.pts;
+          return (
+            <div key={t.id} className="mc-rewardrow">
+              <span className="mc-rewardrow__glyph">{t.g}</span>
+              <div className="mc-rewardrow__body">
+                <div className="mc-rewardrow__t">{svc?.name ?? 'Prestation de la maison'}</div>
+                <div className="mc-rewardrow__s">{t.desc} · à {t.pts.toLocaleString('fr-FR')} points</div>
+              </div>
+              <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>
+                {on ? 'Obtenu' : `${points.toLocaleString('fr-FR')} / ${t.pts.toLocaleString('fr-FR')}`}
+              </span>
             </div>
-            <span className={`mc-rewardrow__st ${r.on ? 'is-on' : ''}`}>{r.st}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* RACINES · Skool · Le Couronnement */}
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>La maison vous parle</div>
-      <div className="mc-circlecard mc-circlecard--obsidian">
-        <div className="mc-circlecard__eyebrow">RACINES · le podcast</div>
-        <div className="mc-circlecard__title">Épisode 12 — la couronne se transmet.</div>
-        <div className="mc-circlecard__sub">Yéman et Brice reçoivent trois têtes couronnées de la diaspora.</div>
-        <button className="mc-smallcta" onClick={() => toast('Épisode transmis sur WhatsApp.')}>Écouter</button>
-      </div>
-      <div className="mc-circlecard mc-circlecard--sable">
-        <div className="mc-circlecard__eyebrow mc-circlecard__eyebrow--copper">Communauté · Skool</div>
-        <div className="mc-circlecard__title mc-circlecard__title--indigo">Le Cercle des têtes couronnées.</div>
-        <div className="mc-circlecard__sub mc-circlecard__sub--ink">Rituels filmés, réponses des maîtres, transmission entre membres.</div>
-        <button className="mc-smallcta mc-smallcta--indigo" onClick={() => toast('Demande d’accès transmise au Cercle.')}>Rejoindre</button>
-      </div>
-      <div className="mc-circlecard mc-circlecard--indigo">
-        <div className="mc-circlecard__eyebrow">Le Couronnement</div>
-        <div className="mc-circlecard__title">Vous êtes conviée · Cotonou.</div>
-        <div className="mc-circlecard__sub">Édition mère · décembre · tapis cuivre.</div>
+          );
+        })}
+        {ladder.length === 0 && (
+          <div className="mc-emptyline">Les paliers du Cercle se préparent — la maison vous les révélera bientôt.</div>
+        )}
       </div>
       <div style={{ height: 14 }} />
     </div>
@@ -384,14 +462,31 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
 export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
-  const { branch, currency } = useBranch();
+  const { branch } = useBranch();
 
-  const prefs = [
-    { l: 'Maître préféré', v: 'Aïcha' },
-    { l: 'Canal de rappel', v: 'WhatsApp' },
-    { l: 'Langue', v: 'Français' },
-    { l: 'Maison', v: branch.city },
-  ];
+  const [name, setName] = useState(client?.name ?? '');
+  const [phone, setPhone] = useState(client?.phone ?? '');
+  const [city, setCity] = useState(client?.city ?? '');
+
+  const save = () => {
+    const n = name.trim();
+    if (!n) {
+      toast('Votre nom est nécessaire — la maison vous appelle par votre nom.');
+      return;
+    }
+    clientsStore.set((prev) =>
+      prev.map((c) => (c.id === CLIENT_ID ? { ...c, name: n, phone: phone.trim(), city: city.trim() } : c))
+    );
+    toast('Profil enregistré — la maison vous connaît.');
+  };
+
+  const setMaster = (m: string) => {
+    clientsStore.set((prev) => prev.map((c) => (c.id === CLIENT_ID ? { ...c, preferredMaster: m || undefined } : c)));
+    toast(m ? `${m} vous accueillera en priorité.` : 'La maison choisira votre maître.');
+  };
+
+  const sinceYear = client ? new Date(client.since).getFullYear() : new Date().getFullYear();
+  const initial = (client?.name?.trim() || 'C').charAt(0).toUpperCase();
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
@@ -399,39 +494,59 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       <h1 className="mc-serif-title" style={{ margin: '6px 0 18px' }}>Mon profil.</h1>
 
       <div className="mc-idcard">
-        <span className="mc-idcard__photo" style={{ backgroundImage: `url(${asset('/assets/photos/portrait-1.jpg')})` }} />
+        {client?.photo ? (
+          <span className="mc-idcard__photo" style={{ backgroundImage: `url(${client.photo})` }} />
+        ) : (
+          <span className="mc-idcard__initial">{initial}</span>
+        )}
         <div>
-          <div className="mc-idcard__name">{client?.name ?? 'Cliente Ma Couronne'}</div>
-          <div className="mc-idcard__meta">{client?.phone ?? '+229 01 97 44 12 08'} · {client?.city ?? 'Cotonou'}</div>
-          <div className="mc-idcard__meta">Tête couronnée depuis {client ? new Date(client.since).getFullYear() : 2021}</div>
+          <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
+          <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
       </div>
 
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Préférences</div>
-      <div className="mc-preflist">
-        {prefs.map((p) => (
-          <button key={p.l} className="mc-prefrow" onClick={() => toast('Réglage bientôt disponible — la maison y travaille.')}>
-            <span>{p.l}</span>
-            <span className="mc-prefrow__v">{p.v} →</span>
-          </button>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Vos informations</div>
+      <div className="mc-profform">
+        <label className="mc-profield">
+          <span>Nom complet</span>
+          <input value={name} autoComplete="name" onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="mc-profield">
+          <span>Téléphone</span>
+          <input value={phone} inputMode="tel" autoComplete="tel" onChange={(e) => setPhone(e.target.value)} />
+        </label>
+        <label className="mc-profield">
+          <span>Ville</span>
+          <input value={city} autoComplete="address-level2" onChange={(e) => setCity(e.target.value)} />
+        </label>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={save}>Enregistrer</button>
+      </div>
+
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Maître préféré</div>
+      <select
+        className="mc-profselect"
+        value={client?.preferredMaster ?? ''}
+        aria-label="Maître préféré"
+        onChange={(e) => setMaster(e.target.value)}
+      >
+        <option value="">La maison choisit</option>
+        {branch.masters.map((m) => (
+          <option key={m} value={m}>{m}</option>
         ))}
-      </div>
+      </select>
 
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Moyens de paiement</div>
-      <div className="mc-paytiles">
-        <div className="mc-paytile is-on">MTN MoMo</div>
-        <div className="mc-paytile">Moov Money</div>
-        <div className="mc-paytile">Carte</div>
-      </div>
-
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Abonnement actif</div>
-      <div className="mc-subcard">
-        <div>
-          <div className="mc-subcard__name">Entretien mensuel</div>
-          <div className="mc-subcard__meta">Resserrage · prélèvement MoMo</div>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Votre couronne</div>
+      <div className="mc-preflist">
+        <div className="mc-inforow">
+          <span>Style de couronne</span>
+          <span className="mc-inforow__v">{client?.crownStyle ?? 'À renseigner'}</span>
         </div>
-        <span className="mc-subcard__price">{fmtMoney(35000, currency)}</span>
+        <div className="mc-inforow">
+          <span>Nombre de locks</span>
+          <span className="mc-inforow__v">{client?.lockCount ?? '—'}</span>
+        </div>
       </div>
+      <div className="mc-emptyline" style={{ paddingTop: 6 }}>Renseignés par la maison, lors de vos rituels.</div>
 
       <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => sessionStore.set(null)}>
         Se déconnecter
@@ -443,37 +558,89 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
 
 /* ================= NOTIFICATIONS ================= */
 
-const NOTIFS = [
-  { kind: 'Confirmation', t: 'il y a 2 h', msg: 'Votre acompte est confirmé. Resserrage racines scellé — la maison vous attend.', tone: 'success' },
-  { kind: 'Rappel · J-1', t: 'hier', msg: 'Demain 09:00 avec Aïcha. Venez les locks secs, sans produit.', tone: 'copper' },
-  { kind: 'Suivi de série', t: 'mar.', msg: 'Séance 2 / 3 de votre SOS restauration la semaine prochaine.', tone: 'indigo' },
-  { kind: 'Après-soin', t: 'lun.', msg: 'Recommandation d’Aïcha : Sérum Racines, matin et soir, 14 jours.', tone: 'copper' },
-  { kind: 'Reçu', t: 'sam.', msg: 'Votre reçu du bain vapeur & huiles est disponible.', tone: 'soft' },
-] as const;
-
 export function Notifications({ onClose }: { onClose: () => void }) {
+  const { currency } = useBranch();
+  const [services] = useServices();
+  const devis = useClientDevis();
+  const upcoming = useUpcomingAppointments();
+  const next = upcoming[0];
+
+  /* Le pont devis → ERP : accepter ici rend le devis « accepté » au Trône (Factures). */
+  const acceptDevis = (id: string) => {
+    invoicesStore.set((prev) => prev.map((i) => (i.id === id && i.status === 'envoyée' ? { ...i, status: 'acceptée' } : i)));
+  };
+
+  const empty = devis.length === 0 && upcoming.length === 0;
+
   return (
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
       <div className="mc-flowhead mc-flowhead--split">
         <div>
-          <div className="mc-micro-eyebrow">WhatsApp · in-app</div>
+          <div className="mc-micro-eyebrow">La maison vous parle</div>
           <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Notifications.</h1>
         </div>
         <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
       </div>
-      <div className="mc-scroll" style={{ flex: 1, padding: '8px 0' }}>
-        {NOTIFS.map((n, i) => (
-          <div key={i} className="mc-notif">
-            <span className={`mc-notif__dot mc-notif__dot--${n.tone}`} />
+      <div className="mc-scroll" style={{ flex: 1, padding: '8px 0 calc(16px + env(safe-area-inset-bottom))' }}>
+        {/* devis — envoyés par le Trône, acceptés ici */}
+        {devis.map((d) => (
+          <div key={d.id} className="mc-notif">
+            <span className={`mc-notif__dot ${d.status === 'acceptée' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
-                <span className="mc-notif__kind">{n.kind}</span>
-                <span className="mc-notif__time">{n.t}</span>
+                <span className="mc-notif__kind">Devis · {d.number}</span>
+                <span className="mc-notif__time">{dayLabelIso(d.date)}</span>
               </div>
-              <div className="mc-notif__msg">{n.msg}</div>
+              <div className="mc-notif__msg">
+                {d.status === 'acceptée'
+                  ? 'Devis accepté — la maison prépare votre rituel.'
+                  : 'La maison vous propose un devis — à accepter pour sceller le rituel.'}
+              </div>
+              <div className="mc-notif__total">{fmtMoney(invoiceTotal(d), currency)}</div>
+              {d.status === 'envoyée' && (
+                <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => acceptDevis(d.id)}>
+                  Accepter le devis
+                </button>
+              )}
             </div>
           </div>
         ))}
+
+        {/* rappel du prochain rituel */}
+        {next && (
+          <div className="mc-notif">
+            <span className="mc-notif__dot mc-notif__dot--indigo" />
+            <div className="mc-notif__body">
+              <div className="mc-notif__head">
+                <span className="mc-notif__kind">Rappel</span>
+                <span className="mc-notif__time">{dayLabelIso(next.date)}</span>
+              </div>
+              <div className="mc-notif__msg">
+                {serviceNames(next, services) || 'Votre rituel'} · {dayLabelIso(next.date)} à {next.time} avec {next.master}. Venez les locks secs, sans produit.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* réservations — l'état vu par la maison */}
+        {upcoming.map((a) => (
+          <div key={a.id} className="mc-notif">
+            <span className={`mc-notif__dot ${a.status === 'confirmé' ? 'mc-notif__dot--success' : 'mc-notif__dot--soft'}`} />
+            <div className="mc-notif__body">
+              <div className="mc-notif__head">
+                <span className="mc-notif__kind">{a.status === 'confirmé' ? 'Confirmation' : 'Réservation'}</span>
+                <span className="mc-notif__time">{dayLabelIso(a.date)} · {a.time}</span>
+              </div>
+              <div className="mc-notif__msg">
+                {a.status === 'confirmé'
+                  ? `${serviceNames(a, services) || 'Votre rituel'} confirmé — la maison vous attend, avec ${a.master}.`
+                  : `${serviceNames(a, services) || 'Votre rituel'} — acompte reçu, en attente de la maison.`}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>Aucune notification — la maison veille.</div>}
       </div>
     </div>
   );

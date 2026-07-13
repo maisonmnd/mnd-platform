@@ -109,7 +109,7 @@ export default function Personnel() {
             <Card filet="indigo" style={{ padding: 18 }}>
               <div className="mnd-stat__label">Ancienneté moyenne</div>
               <div className="mnd-stat__value" style={{ fontSize: 32 }}>
-                {stats.avgYears >= 1.5 ? `${Math.round(stats.avgYears)} ans` : `${Math.max(1, Math.round(stats.avgYears * 12))} mois`}
+                {stats.n === 0 ? '—' : stats.avgYears >= 1.5 ? `${Math.round(stats.avgYears)} ans` : `${Math.max(1, Math.round(stats.avgYears * 12))} mois`}
               </div>
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>fidélité de l’équipe</div>
             </Card>
@@ -205,14 +205,19 @@ export default function Personnel() {
                       <td className="num">{fmtMoney(netAVerser(m), currency)}</td>
                     </tr>
                   ))}
-                  <tr>
-                    <td style={{ fontWeight: 500 }}>Total · {monthLabel()}</td>
-                    <td className="mnd-muted">{fmtMoney(team.reduce((a, m) => a + m.salaireXof, 0), currency)}</td>
-                    <td>{fmtMoney(team.reduce((a, m) => a + m.commPrestaXof, 0), currency)}</td>
-                    <td>{fmtMoney(team.reduce((a, m) => a + m.commProduitXof, 0), currency)}</td>
-                    <td className="mnd-copper">{fmtMoney(team.reduce((a, m) => a + m.primeXof, 0), currency)}</td>
-                    <td className="num">{fmtMoney(payrollTotal, currency)}</td>
-                  </tr>
+                  {team.length === 0 && (
+                    <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
+                  )}
+                  {team.length > 0 && (
+                    <tr>
+                      <td style={{ fontWeight: 500 }}>Total · {monthLabel()}</td>
+                      <td className="mnd-muted">{fmtMoney(team.reduce((a, m) => a + m.salaireXof, 0), currency)}</td>
+                      <td>{fmtMoney(team.reduce((a, m) => a + m.commPrestaXof, 0), currency)}</td>
+                      <td>{fmtMoney(team.reduce((a, m) => a + m.commProduitXof, 0), currency)}</td>
+                      <td className="mnd-copper">{fmtMoney(team.reduce((a, m) => a + m.primeXof, 0), currency)}</td>
+                      <td className="num">{fmtMoney(payrollTotal, currency)}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -232,6 +237,12 @@ export default function Personnel() {
           <div className="tre-quote" style={{ marginBottom: 18 }}>
             « On ne retient pas un Maître par le salaire seul, mais par la charge juste, la croissance visible et la reconnaissance. La maison veille sur ceux qui couronnent. »
           </div>
+          {team.length === 0 && (
+            <Card className="tre-empty">
+              <div className="tre-empty__title">Personne à veiller pour l’instant.</div>
+              <div className="tre-empty__sub">Ajoutez un membre à l’équipe — bien-être, charge et reconnaissance se suivront ici.</div>
+            </Card>
+          )}
           <div className="tr-grid tr-grid--2">
             {team.map((m) => (
               <Card key={m.id} style={{ padding: '18px 20px', borderLeft: `3px solid ${m.risk === 'élevé' ? '#8f3b30' : m.risk === 'modéré' ? '#c9a227' : 'var(--color-copper)'}` }}>

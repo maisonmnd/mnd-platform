@@ -7,8 +7,8 @@ import Compose from './Compose';
 import { HomeTab, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications } from './Tabs';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
-   Sur desktop : un téléphone 390×844 posé sur un fond sable.
-   Sous 480 px : l'app remplit l'écran. */
+   Une vraie app : plein écran sur mobile (100dvh, safe-areas),
+   colonne centrée (~480 px) sur fond obsidienne/indigo sur desktop. */
 
 type TabId = 'accueil' | 'suivi' | 'gamme' | 'cercle' | 'profil';
 
@@ -90,24 +90,8 @@ export default function App() {
   const [session] = useStore(sessionStore);
 
   return (
-    <div className="mc-stage">
-      <header className="mc-stage__head">
-        <div className="mc-stage__eyebrow">Espace client · Ma Couronne</div>
-        <div className="mc-stage__line">mi nyɔ́ ɖɛkpɛ — le héros, c’est vous. MND vous guide.</div>
-      </header>
-
-      <div className="mc-phone">
-        <div className="mc-statusbar">
-          <span>9:41</span>
-          <span className="mc-statusbar__notch" aria-hidden="true" />
-          <span className="mc-statusbar__right">
-            ▆ ▼ <span className="mc-statusbar__batt">82</span>
-          </span>
-        </div>
-        <div className="mc-screen">{session ? <Shell /> : <Onboarding />}</div>
-      </div>
-
-      <div className="mc-stage__foot">Maison MND · Cotonou — réservation, suivi, gamme, cercle et rituel sur-mesure.</div>
+    <div className="mc-app">
+      <div className="mc-viewport">{session ? <Shell /> : <Onboarding />}</div>
     </div>
   );
 }

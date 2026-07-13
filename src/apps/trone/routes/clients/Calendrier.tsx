@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { OPEN_HOUR, CLOSE_HOUR } from '../../../../shared/agenda';
+import { OPEN_HOUR, CLOSE_HOUR, type Appointment } from '../../../../shared/agenda';
 import {
   RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById,
@@ -22,6 +22,7 @@ export default function Calendrier() {
   const [view, setView] = useState<'jour' | 'semaine'>('jour');
   const [anchor, setAnchor] = useState(today);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage';
 
@@ -139,7 +140,13 @@ export default function Calendrier() {
                   const live = anchor === today && nowMin >= startMin && nowMin < startMin + dur && a.status !== 'honoré';
                   const cls = live ? 'trc-cal__appt--deep' : a.status === 'honoré' ? 'trc-cal__appt--muted' : '';
                   return (
-                    <div className={`trc-cal__appt ${cls}`} key={a.id} style={{ top, height: h }} title={apptLabel(a, byId)}>
+                    <div
+                      className={`trc-cal__appt ${cls}`}
+                      key={a.id}
+                      style={{ top, height: h, cursor: 'pointer' }}
+                      title={`${apptLabel(a, byId)} — cliquer pour modifier`}
+                      onClick={() => setEditAppt(a)}
+                    >
                       <div className="trc-cal__appt-title">
                         {a.time} · {apptLabel(a, byId)}
                       </div>
@@ -167,7 +174,13 @@ export default function Calendrier() {
                     const first = byId.get(a.serviceIds[0]);
                     const deep = a.status === 'confirmé' || a.status === 'en attente';
                     return (
-                      <div className={`trc-week__chip ${deep ? 'trc-week__chip--deep' : ''}`} key={a.id} title={`${clientName(a.clientId)} · ${a.master}`}>
+                      <div
+                        className={`trc-week__chip ${deep ? 'trc-week__chip--deep' : ''}`}
+                        key={a.id}
+                        style={{ cursor: 'pointer' }}
+                        title={`${clientName(a.clientId)} · ${a.master} — cliquer pour modifier`}
+                        onClick={() => setEditAppt(a)}
+                      >
                         <b>{a.time}</b>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
@@ -183,6 +196,7 @@ export default function Calendrier() {
       )}
 
       {modalOpen && <RdvModal onClose={() => setModalOpen(false)} initial={{ date: anchor }} />}
+      {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
     </div>
   );
 }

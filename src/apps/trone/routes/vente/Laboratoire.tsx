@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { useProducts } from '../../../../shared/catalog';
+import { uid } from '../../../../shared/store';
 import {
-  LAB_CONCERNS, GAMME_SEED, PERF_SEED, REINVENT_SEED,
+  LAB_CONCERNS, PERF_SEED, REINVENT_SEED,
   buildFormulaView, buildMatches, composeFromStock, labPantry, isAvail, effectiveStock,
-  type GammeProduct, type Sub, type StockMap,
+  type Sub, type StockMap,
 } from './lab';
 import './vente.css';
 
@@ -23,8 +25,8 @@ const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; 
   blue: { bg: 'var(--indigo-50)', fg: 'var(--color-indigo)', accent: 'var(--color-indigo)' },
 };
 
-type ProductForm = { name: string; concern: string; price: string; cap: string; unit: string };
-const emptyProduct: ProductForm = { name: '', concern: 'Hydratation', price: '', cap: '40', unit: 'flacons' };
+type ProductForm = { name: string; price: string; stock: string };
+const emptyProduct: ProductForm = { name: '', price: '', stock: '0' };
 
 export default function Laboratoire() {
   const { currency } = useBranch();
@@ -37,9 +39,8 @@ export default function Laboratoire() {
   const [openSub, setOpenSub] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  // gamme — stock local par produit + produits ajoutés
-  const [gammeStock, setGammeStock] = useState<Record<string, number>>({});
-  const [userGamme, setUserGamme] = useState<GammeProduct[]>([]);
+  // gamme — les produits Maison du catalogue (DÒDÒ™), stock réel partagé
+  const [products, setProducts] = useProducts();
   const [prodModal, setProdModal] = useState(false);
   const [prodForm, setProdForm] = useState<ProductForm>(emptyProduct);
 
@@ -73,18 +74,21 @@ export default function Laboratoire() {
 
   const f = view.base;
 
-  /* — gamme — */
-  const gammeRows = [...GAMME_SEED, ...userGamme];
-  const gammeUnits = (g: GammeProduct) => (gammeStock[g.name] != null ? gammeStock[g.name] : g.unitsN);
-  const setUnits = (g: GammeProduct, n: number) => setGammeStock((prev) => ({ ...prev, [g.name]: Math.max(0, n) }));
-  const stockValue = gammeRows.reduce((a, g) => a + gammeUnits(g) * g.priceN, 0);
-  const lowCount = gammeRows.filter((g) => gammeUnits(g) / g.cap < 0.25).length;
+  /* — gamme : lit et écrit le stock réel du catalogue (productsStore) — */
+  const gammeRows = useMemo(() => [...products].sort((a, b) => a.order - b.order), [products]);
+  const setUnits = (id: string, n: number) =>
+    setProducts((prev) => prev.map((x) => (x.id === id ? { ...x, stock: Math.max(0, n) } : x)));
+  const stockValue = gammeRows.reduce((a, p) => a + p.stock * p.priceXof, 0);
+  const totalUnits = gammeRows.reduce((a, p) => a + p.stock, 0);
+  const lowCount = gammeRows.filter((p) => p.stock <= 8).length;
+  const maxStock = Math.max(...gammeRows.map((p) => p.stock), 1);
 
   const saveProduct = () => {
     if (!prodForm.name.trim()) return;
     const price = parseInt(prodForm.price.replace(/[^0-9]/g, ''), 10) || 0;
-    const cap = parseInt(prodForm.cap.replace(/[^0-9]/g, ''), 10) || 40;
-    setUserGamme((prev) => [...prev, { name: prodForm.name.trim(), concern: prodForm.concern, priceN: price, margin: '—', unitsN: cap, cap, unit: prodForm.unit }]);
+    const stockN = parseInt(prodForm.stock.replace(/[^0-9]/g, ''), 10) || 0;
+    const maxOrder = gammeRows.reduce((m, p) => Math.max(m, p.order), 0);
+    setProducts((prev) => [...prev, { id: `pr-${uid()}`, categoryId: 'dodo', name: prodForm.name.trim(), priceXof: price, stock: stockN, order: maxOrder + 1 }]);
     setProdForm(emptyProduct);
     setProdModal(false);
   };
@@ -101,12 +105,6 @@ export default function Laboratoire() {
         eyebrow="Gamme & stock · l’atelier des formules"
         title="Le Laboratoire."
         sub="Le formulateur maître : un besoin de couronne, une formule souveraine — nom, origines, protocole. L’intelligence substitue ce qui manque et recalibre le geste."
-        actions={
-          <span style={{ textAlign: 'right' }}>
-            <div className="mnd-eyebrow">Maîtresse formulatrice</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 19, color: 'var(--color-indigo)' }}>Nana Ifé</div>
-          </span>
-        }
       />
 
       <div className="trv-tabs">
@@ -328,54 +326,58 @@ export default function Laboratoire() {
           <div className="tre-actions-row">
             <div>
               <div className="trv-sec-label" style={{ marginBottom: 4 }}>La Gamme & le stock</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>Vos produits Maison, leurs marges et leur stock en temps réel.</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>Vos produits Maison et leur stock en temps réel — partagé avec le Catalogue et la Caisse.</div>
             </div>
             <Button onClick={() => { setProdForm(emptyProduct); setProdModal(true); }}>+ Ajouter un produit</Button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
-            <div className="trv-kpi"><div className="l">Formules en gamme</div><div className="v">{gammeRows.length}</div><div className="c">4 piliers · 2 saisonnières</div></div>
-            <div className="trv-kpi"><div className="l">Marge matière moy.</div><div className="v" style={{ color: 'var(--trv-success)' }}>88 %</div><div className="c">coût matière maîtrisé</div></div>
-            <div className="trv-kpi trv-kpi--copper"><div className="l">Alertes réassort</div><div className="v" style={{ color: 'var(--trv-warning)' }}>{lowCount}</div><div className="c">niveaux sous le seuil</div></div>
-            <div className="trv-kpi trv-kpi--copper"><div className="l">Valeur du stock</div><div className="v">{fmtMoney(stockValue, currency)}</div><div className="c">≈ 6 sem. de vente</div></div>
+            <div className="trv-kpi"><div className="l">Produits en gamme</div><div className="v">{gammeRows.length}</div><div className="c">catalogue DÒDÒ™</div></div>
+            <div className="trv-kpi"><div className="l">Unités en réserve</div><div className="v">{totalUnits > 0 ? totalUnits : '—'}</div><div className="c">tous produits confondus</div></div>
+            <div className="trv-kpi trv-kpi--copper"><div className="l">Alertes réassort</div><div className="v" style={{ color: lowCount > 0 ? 'var(--trv-warning)' : undefined }}>{lowCount}</div><div className="c">niveaux sous le seuil</div></div>
+            <div className="trv-kpi trv-kpi--copper"><div className="l">Valeur du stock</div><div className="v">{fmtMoney(stockValue, currency)}</div><div className="c">au prix catalogue</div></div>
           </div>
 
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
-                  <tr><th>Formule</th><th>Prix</th><th>Marge</th><th>Stock</th><th>État</th><th style={{ textAlign: 'right' }}>Réassort</th></tr>
+                  <tr><th>Produit Maison</th><th>Prix</th><th>Stock</th><th>État</th><th style={{ textAlign: 'right' }}>Réassort</th></tr>
                 </thead>
                 <tbody>
-                  {gammeRows.map((g) => {
-                    const units = gammeUnits(g);
-                    const pct = Math.max(0, Math.min(1, units / g.cap));
-                    const tagK = pct < 0.12 ? 'error' : pct < 0.25 ? 'warn' : 'ok';
+                  {gammeRows.map((p) => {
+                    const tagK = p.stock <= 2 ? 'error' : p.stock <= 8 ? 'warn' : 'ok';
                     const tag = tagK === 'error' ? 'Rupture proche' : tagK === 'warn' ? 'Réassort' : 'En gamme';
-                    const sc = pct < 0.2 ? 'var(--trv-error)' : pct < 0.45 ? 'var(--trv-warning)' : 'var(--trv-success)';
+                    const sc = tagK === 'error' ? 'var(--trv-error)' : tagK === 'warn' ? 'var(--trv-warning)' : 'var(--trv-success)';
                     return (
-                      <tr key={g.name}>
+                      <tr key={p.id}>
                         <td>
-                          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{g.name}</div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{g.concern}</div>
+                          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{p.name}</div>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>Gamme & produits</div>
                         </td>
-                        <td>{fmtMoney(g.priceN, currency)}</td>
-                        <td className="mnd-muted">{g.margin}</td>
+                        <td>{fmtMoney(p.priceXof, currency)}</td>
                         <td style={{ minWidth: 120 }}>
-                          <div className="trv-perf-bar"><div style={{ width: `${Math.round(pct * 100)}%`, background: sc }} /></div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: sc, marginTop: 4 }}>{units} {g.unit}</div>
+                          <div className="trv-perf-bar"><div style={{ width: `${Math.round((p.stock / maxStock) * 100)}%`, background: sc }} /></div>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: sc, marginTop: 4 }}>{p.stock} unité{p.stock > 1 ? 's' : ''}</div>
                         </td>
                         <td><span className={`tre-pill tre-pill--${tagK}`}>{tag}</span></td>
                         <td>
                           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                            <button className="trv-sq" title="Retirer" onClick={() => setUnits(g, units - 1)}>−</button>
-                            <button className="trv-sq" title="Ajouter" onClick={() => setUnits(g, units + 1)}>+</button>
-                            <button className="trv-minibtn" onClick={() => setUnits(g, g.cap)}>Réassort</button>
+                            <button className="trv-sq" title="Retirer" onClick={() => setUnits(p.id, p.stock - 1)}>−</button>
+                            <button className="trv-sq" title="Ajouter" onClick={() => setUnits(p.id, p.stock + 1)}>+</button>
+                            <button className="trv-minibtn" onClick={() => setUnits(p.id, p.stock + 10)}>+ 10</button>
                           </span>
                         </td>
                       </tr>
                     );
                   })}
+                  {gammeRows.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: 32, fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                        La gamme attend son premier produit Maison — inscrivez-le, le stock vivra ici.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -389,6 +391,11 @@ export default function Laboratoire() {
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '20px 22px' }}>
             <div className="trv-sec-label" style={{ marginBottom: 4 }}>Le palmarès des formules</div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Rachat, résultats consignés au Carnet, satisfaction et vitesse de vente — combinés en un Indice de mérite.</div>
+            {PERF_SEED.length === 0 && (
+              <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '14px 0', borderTop: '1px solid var(--hairline)' }}>
+                Le palmarès se mérite — il naîtra des premières ventes, des rachats et des résultats consignés au Carnet.
+              </div>
+            )}
             {PERF_SEED.map((p, i) => {
               const col = p.score >= 85 ? 'var(--trv-success)' : p.score >= 60 ? 'var(--copper-700)' : 'var(--trv-warning)';
               return (
@@ -416,6 +423,11 @@ export default function Laboratoire() {
               <div className="mnd-eyebrow" style={{ color: 'var(--copper-200)' }}>À réinventer · l’atelier ne dort jamais</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-ivoire)', marginTop: 7, lineHeight: 1.35 }}>Une grande formule cesse de l’être le jour où on la croit finie.</div>
             </div>
+            {REINVENT_SEED.length === 0 && (
+              <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '16px 18px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
+                Rien à réinventer pour l’instant — les signaux viendront des ventes et des retours consignés au Carnet.
+              </div>
+            )}
             {REINVENT_SEED.map((r) => {
               const t = REINVENT_TONE[r.flagK];
               return (
@@ -440,21 +452,11 @@ export default function Laboratoire() {
               <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex. Le Sérum Moringa & Prêle" />
             </Field>
             <div className="tr-grid tr-grid--2">
-              <Field label="Besoin ciblé">
-                <Select value={prodForm.concern} onChange={(e) => setProdForm({ ...prodForm, concern: e.target.value })}>
-                  {LAB_CONCERNS.map((c) => <option key={c.k} value={c.label}>{c.label}</option>)}
-                </Select>
-              </Field>
               <Field label="Prix conseillé (F CFA)">
                 <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="12 000" />
               </Field>
-            </div>
-            <div className="tr-grid tr-grid--2">
-              <Field label="Capacité de production">
-                <Input inputMode="numeric" value={prodForm.cap} onChange={(e) => setProdForm({ ...prodForm, cap: e.target.value })} placeholder="40" />
-              </Field>
-              <Field label="Unité">
-                <Input value={prodForm.unit} onChange={(e) => setProdForm({ ...prodForm, unit: e.target.value })} placeholder="flacons" />
+              <Field label="Stock initial">
+                <Input inputMode="numeric" value={prodForm.stock} onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })} placeholder="0" />
               </Field>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

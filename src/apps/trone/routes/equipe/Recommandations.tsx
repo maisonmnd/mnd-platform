@@ -54,8 +54,12 @@ export default function Recommandations() {
       {pending.length === 0 ? (
         <Card className="tre-empty">
           <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
-          <div className="tre-empty__title">Tout est traité.</div>
-          <div className="tre-empty__sub">L’IA reviendra vers vous dès qu’un signal mérite votre regard.</div>
+          <div className="tre-empty__title">{RECOS.length === 0 ? 'Aucun signal pour l’instant.' : 'Tout est traité.'}</div>
+          <div className="tre-empty__sub">
+            {RECOS.length === 0
+              ? 'Les recommandations naîtront de l’activité de la maison — rendez-vous, ventes, Cercle.'
+              : 'L’IA reviendra vers vous dès qu’un signal mérite votre regard.'}
+          </div>
         </Card>
       ) : (
         <div className="tr-grid tr-grid--2">

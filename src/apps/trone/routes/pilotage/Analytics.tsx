@@ -3,61 +3,27 @@ import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoneyCompact } from '../../../../shared/currency';
-import { useAppointments, type Appointment } from '../../../../shared/agenda';
+import { useAppointments } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
+import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { apptTotalXof, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 
-/* Analytics — lecture de tendance : indices prospectifs, prévision IA, transmission. */
+/* Analytics — lecture de tendance. Maison neuve : tout est dérivé des magasins
+   réels (carnet, factures, clientes, consultations) — aucun indice fabriqué.
+   « L'intelligence a besoin de vécu — les indices apparaîtront avec l'activité. » */
 
 type Period = 'm30' | 'trim' | 'annee';
 
-const INDICES: Record<Period, { l: string; v: string; cap: string; up: boolean; a: string; pct: number }[]> = {
-  m30: [
-    { l: 'Coefficient de transmission', v: '1,6×', cap: '▲ 0,2 vs période préc.', up: true, a: 'var(--color-copper)', pct: 53 },
-    { l: 'Longévité de couronne', v: '13 mois', cap: 'durée moyenne de loc', up: false, a: 'var(--color-indigo)', pct: 54 },
-    { l: 'Valeur à vie (LTV)', v: '1,18 M F', cap: 'par tête couronnée', up: false, a: 'var(--copper-600)', pct: 59 },
-    { l: 'Revenu récurrent', v: '35 %', cap: '▲ 3 pts', up: true, a: 'var(--indigo-400)', pct: 35 },
-  ],
-  trim: [
-    { l: 'Coefficient de transmission', v: '1,8×', cap: '▲ 0,3 vs an dernier', up: true, a: 'var(--color-copper)', pct: 60 },
-    { l: 'Longévité de couronne', v: '14 mois', cap: 'durée moyenne de loc', up: false, a: 'var(--color-indigo)', pct: 58 },
-    { l: 'Valeur à vie (LTV)', v: '1,24 M F', cap: 'par tête couronnée', up: false, a: 'var(--copper-600)', pct: 62 },
-    { l: 'Revenu récurrent', v: '38 %', cap: '▲ 4 pts', up: true, a: 'var(--indigo-400)', pct: 38 },
-  ],
-  annee: [
-    { l: 'Coefficient de transmission', v: '2,1×', cap: '▲ 0,5 sur 12 mois', up: true, a: 'var(--color-copper)', pct: 70 },
-    { l: 'Longévité de couronne', v: '16 mois', cap: 'durée moyenne de loc', up: false, a: 'var(--color-indigo)', pct: 67 },
-    { l: 'Valeur à vie (LTV)', v: '1,42 M F', cap: 'par tête couronnée', up: false, a: 'var(--copper-600)', pct: 71 },
-    { l: 'Revenu récurrent', v: '41 %', cap: '▲ 6 pts', up: true, a: 'var(--indigo-400)', pct: 41 },
-  ],
-};
-
-const TRANSMISSION: Record<Period, { coef: string; note: string }> = {
-  m30: { coef: '1,6×', note: '58 % des nouvelles têtes couronnées sont arrivées par une introduction du Cercle.' },
-  trim: { coef: '1,8×', note: '62 % des nouvelles têtes couronnées sont arrivées par une introduction. Chaque cliente fidèle en transmet près de deux.' },
-  annee: { coef: '2,1×', note: '67 % d’acquisition par transmission sur l’année — le Cercle reste le premier moteur, à coût d’acquisition nul.' },
-};
-
-/* Revenu par source · 12 mois — milliers de F [Atelier, Care & Store, Académie, Abonnements] */
-const MONTHLY: [string, number, number, number, number][] = [
-  ['J', 2600, 520, 180, 90], ['F', 2800, 560, 200, 110], ['M', 3100, 640, 220, 130], ['A', 3000, 610, 260, 150],
-  ['M', 3300, 720, 280, 170], ['J', 3560, 780, 300, 190], ['J', 3700, 820, 320, 210], ['A', 3900, 860, 340, 230],
-  ['S', 4100, 900, 380, 260], ['O', 4300, 960, 400, 290], ['N', 4500, 1020, 430, 320], ['D', 4760, 1080, 470, 360],
-];
-const LEGEND = [
-  ['Atelier', 'var(--indigo-400)'],
-  ['Care & Store', 'var(--color-copper)'],
-  ['Académie', 'var(--indigo-200)'],
-  ['Abonnements', 'var(--copper-200)'],
-] as const;
+const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
 
 export default function Analytics() {
   const { branch, branches, currency } = useBranch();
   const [appointments] = useAppointments();
+  const [invoices] = useInvoices();
   const [clients] = useClients();
   const [categories] = useCategories();
   const [queue] = useStore(consultationsQueueStore);
@@ -74,11 +40,70 @@ export default function Analytics() {
     () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope)),
     [clients, scope],
   );
+  const scopedPaidInvoices = useMemo(
+    () => invoices.filter((i) => (scope === 'toutes' ? true : i.branchId === scope) && i.kind === 'facture' && i.status === 'payée'),
+    [invoices, scope],
+  );
 
   const today = todayISO();
   const thisMonth = today.slice(0, 7);
+  const periodStart = addDaysISO(today, -PERIOD_DAYS[period]);
 
-  /* — prévision IA : rythme du mois × jours restants — */
+  /* — indices prospectifs : dérivés du vécu de la période, jamais inventés — */
+  const life = useMemo(() => {
+    const inWindow = scopedAppts.filter((a) => a.date >= periodStart && a.date <= today && a.status !== 'annulé');
+    const honored = inWindow.filter((a) => a.status === 'honoré');
+    const honoredXof = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
+    const invXof = scopedPaidInvoices
+      .filter((i) => i.date >= periodStart && i.date <= today)
+      .reduce((s, i) => s + invoiceTotal(i), 0);
+    const revenue = honoredXof + invXof;
+    const heads = new Set(inWindow.map((a) => a.clientId)).size;
+    const basket = honored.length > 0 ? Math.round(honoredXof / honored.length) : 0;
+    const maxTicket = honored.reduce((m, a) => Math.max(m, apptTotalXof(a, byId)), 0);
+    return {
+      revenue, honoredXof, honoredCount: honored.length, apptCount: inWindow.length,
+      heads, basket, maxTicket,
+      hasLife: revenue > 0 || inWindow.length > 0,
+    };
+  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today]);
+
+  const indices = [
+    {
+      l: 'Revenu encaissé · période',
+      v: life.revenue > 0 ? fmtMoneyCompact(life.revenue, currency) : '—',
+      cap: life.revenue > 0 ? 'rituels honorés + factures payées' : 'en attente de vécu',
+      up: life.revenue > 0,
+      a: 'var(--color-copper)',
+      pct: life.revenue > 0 ? Math.round((life.honoredXof / life.revenue) * 100) : 0,
+    },
+    {
+      l: 'Rituels honorés',
+      v: life.honoredCount > 0 ? String(life.honoredCount) : '—',
+      cap: life.apptCount > 0 ? `${life.apptCount} rendez-vous sur la période` : 'le carnet est encore vierge',
+      up: false,
+      a: 'var(--color-indigo)',
+      pct: life.apptCount > 0 ? Math.round((life.honoredCount / life.apptCount) * 100) : 0,
+    },
+    {
+      l: 'Têtes actives',
+      v: life.heads > 0 ? String(life.heads) : '—',
+      cap: `${scopedClients.length} au carnet de la maison`,
+      up: false,
+      a: 'var(--copper-600)',
+      pct: scopedClients.length > 0 ? Math.min(100, Math.round((life.heads / scopedClients.length) * 100)) : 0,
+    },
+    {
+      l: 'Panier moyen · rituel',
+      v: life.basket > 0 ? fmtMoneyCompact(life.basket, currency) : '—',
+      cap: life.basket > 0 ? 'par rituel honoré' : 'se calculera à l’usage',
+      up: false,
+      a: 'var(--indigo-400)',
+      pct: life.maxTicket > 0 ? Math.round((life.basket / life.maxTicket) * 100) : 0,
+    },
+  ];
+
+  /* — prévision : rythme du mois × jours restants — */
   const forecast = useMemo(() => {
     const realized = scopedAppts.filter(
       (a) => a.date.slice(0, 7) === thisMonth && a.date <= today && (a.status === 'honoré' || a.status === 'confirmé'),
@@ -100,22 +125,26 @@ export default function Analytics() {
           if (sv) perCat.set(sv.categoryId, (perCat.get(sv.categoryId) ?? 0) + sv.priceXof);
         }),
       );
-    const total = Array.from(perCat.values()).reduce((s, v) => s + v, 0) || 1;
-    return categories
-      .slice()
-      .sort((a, b) => a.order - b.order)
-      .map((c, i) => ({
-        name: c.fon,
-        pct: Math.round(((perCat.get(c.id) ?? 0) / total) * 100),
-        fill: ['var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--indigo-300)', 'var(--copper-300)', 'var(--color-argile)'][i % 6],
-      }));
+    const total = Array.from(perCat.values()).reduce((s, v) => s + v, 0);
+    return {
+      hasData: total > 0,
+      rows: categories
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((c, i) => ({
+          name: c.fon,
+          pct: total > 0 ? Math.round(((perCat.get(c.id) ?? 0) / total) * 100) : 0,
+          fill: ['var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--indigo-300)', 'var(--copper-300)', 'var(--color-argile)'][i % 6],
+        })),
+    };
   }, [scopedAppts, byId, categories]);
 
-  /* — taux de remplissage par maître (fenêtre ± 7 jours) — */
+  /* — taux de remplissage par maître (fenêtre ± 7 jours, 10 h / jour) — */
   const fillRates = useMemo(() => {
     const masters = scope === 'toutes' ? branches.flatMap((b) => b.masters) : (branches.find((b) => b.id === scope)?.masters ?? []);
     const lo = addDaysISO(today, -7);
     const hi = addDaysISO(today, 7);
+    const capacityMin = 15 * 10 * 60; // 15 jours × 10 h d'ouverture
     const booked = new Map<string, number>();
     scopedAppts
       .filter((a) => a.status !== 'annulé' && a.date >= lo && a.date <= hi)
@@ -123,12 +152,8 @@ export default function Analytics() {
         const min = a.serviceIds.reduce((s, id) => s + (byId.get(id)?.durationMin ?? 60), 0);
         booked.set(a.master, (booked.get(a.master) ?? 0) + min);
       });
-    const max = Math.max(...masters.map((m) => booked.get(m) ?? 0), 1);
     return masters
-      .map((m) => {
-        const b = booked.get(m) ?? 0;
-        return { name: m, pct: b === 0 ? 8 : Math.round(38 + (b / max) * 54) };
-      })
+      .map((m) => ({ name: m, pct: Math.min(100, Math.round(((booked.get(m) ?? 0) / capacityMin) * 100)) }))
       .sort((a, b) => b.pct - a.pct);
   }, [scopedAppts, byId, branches, scope, today]);
 
@@ -146,10 +171,25 @@ export default function Analytics() {
     ];
   }, [queue, scopedAppts, scopedClients]);
   const funnelMax = Math.max(...funnel.map((f) => f.n), 1);
+  const hasTransmission = funnel.some((f) => f.n > 0);
 
-  /* — revenu par source, mis à l'échelle du périmètre — */
-  const scale = scope === 'toutes' ? branches.length * 0.7 : scope === branch.id && branch.flagship ? 1 : 0.55;
-  const chartMax = Math.max(...MONTHLY.map(([, a, b, c, d]) => a + b + c + d));
+  /* — revenu encaissé · 12 mois, dérivé des rituels honorés et des factures payées — */
+  const monthly = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const appt = scopedAppts
+        .filter((a) => a.status === 'honoré' && a.date.slice(0, 7) === mk)
+        .reduce((s, a) => s + apptTotalXof(a, byId), 0);
+      const inv = scopedPaidInvoices
+        .filter((x) => x.date.slice(0, 7) === mk)
+        .reduce((s, x) => s + invoiceTotal(x), 0);
+      return { mk, label: d.toLocaleDateString('fr-FR', { month: 'narrow' }).toUpperCase(), total: appt + inv };
+    });
+  }, [scopedAppts, scopedPaidInvoices, byId]);
+  const yearTotal = monthly.reduce((s, m) => s + m.total, 0);
+  const chartMax = Math.max(...monthly.map((m) => m.total), 1);
 
   const scopeChips = [
     { id: 'toutes', label: 'Toutes les branches' },
@@ -182,9 +222,17 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Indices prospectifs, jauges fines */}
+      {!life.hasLife && (
+        <div className="trp-panel" style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
+            L’intelligence a besoin de vécu — les indices apparaîtront avec l’activité de la maison.
+          </div>
+        </div>
+      )}
+
+      {/* Indices prospectifs, jauges fines — dérivés de la période */}
       <div className="tr-grid tr-grid--4" style={{ marginTop: 18 }}>
-        {INDICES[period].map((i) => (
+        {indices.map((i) => (
           <div className="trp-index" key={i.l}>
             <span className="trp-kpi__bar" style={{ background: i.a }} />
             <div className="trp-index__label">{i.l}</div>
@@ -198,46 +246,39 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Revenu par source · 12 mois */}
+      {/* Revenu encaissé · 12 mois */}
       <div className="trp-rev" style={{ marginTop: 18, borderRadius: 4 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div className="trp-rev__eyebrow">Revenu par source · 12 mois</div>
+            <div className="trp-rev__eyebrow">Revenu encaissé · 12 mois</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>
-              La preuve de scale : la part hors-atelier progresse.
+              Rituels honorés et factures payées — la preuve se construit mois après mois.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {LEGEND.map(([label, fill]) => (
-              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--indigo-100)' }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: fill }} />
-                {label}
-              </span>
-            ))}
-          </div>
         </div>
-        <svg viewBox="0 0 480 190" style={{ width: '100%', height: 190, marginTop: 18, display: 'block' }} aria-hidden>
-          {MONTHLY.map(([m, at, care, acad, abo], i) => {
-            const x = 10 + i * 39;
-            const parts = [at, care, acad, abo];
-            let y = 168;
-            return (
-              <g key={i}>
-                {parts.map((v, j) => {
-                  const h = (v / chartMax) * 150;
-                  y -= h;
-                  return <rect key={j} x={x} y={y} width={26} height={Math.max(1, h - 1)} fill={LEGEND[j][1]} />;
-                })}
-                <text x={x + 13} y={184} textAnchor="middle" fontSize={9} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
-                  {m}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        {yearTotal > 0 ? (
+          <svg viewBox="0 0 480 190" style={{ width: '100%', height: 190, marginTop: 18, display: 'block' }} aria-hidden>
+            {monthly.map((m, i) => {
+              const x = 10 + i * 39;
+              const h = (m.total / chartMax) * 150;
+              return (
+                <g key={m.mk}>
+                  <rect x={x} y={168 - h} width={26} height={Math.max(1, h)} fill={m.total > 0 ? 'var(--color-copper)' : 'rgba(246,241,231,0.10)'} />
+                  <text x={x + 13} y={184} textAnchor="middle" fontSize={9} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
+                    {m.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        ) : (
+          <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
+            Aucun encaissement encore — le premier rituel honoré posera la première pierre de cette courbe.
+          </div>
+        )}
         <div className="trp-rev__foot">
           <span>Périmètre · {scope === 'toutes' ? 'toutes les branches' : (branches.find((b) => b.id === scope)?.name ?? '')}</span>
-          <span className="trp-rev__best">{fmtMoneyCompact(MONTHLY.reduce((s, [, a, b2, c, d]) => s + (a + b2 + c + d) * 1000, 0) * scale, currency)}</span>
+          <span className="trp-rev__best">{yearTotal > 0 ? fmtMoneyCompact(yearTotal, currency) : '—'}</span>
         </div>
       </div>
 
@@ -245,11 +286,16 @@ export default function Analytics() {
       <div className="tr-grid tr-grid--2" style={{ marginTop: 18 }}>
         <div className="trp-panel">
           <div className="trp-panel__title">Mix de services · lexique ™</div>
-          {mix.map((x) => (
+          {!mix.hasData && (
+            <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic', marginBottom: 12 }}>
+              Le mix se dessinera avec les premiers rituels du carnet.
+            </div>
+          )}
+          {mix.rows.map((x) => (
             <div key={x.name} style={{ marginBottom: 11 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>{x.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{x.pct} %</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{mix.hasData ? `${x.pct} %` : '—'}</span>
               </div>
               <div className="trp-bar" style={{ marginTop: 5 }}>
                 <div style={{ width: `${x.pct}%`, background: x.fill }} />
@@ -263,7 +309,7 @@ export default function Analytics() {
             <div key={f.name} style={{ marginBottom: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 13, color: 'var(--ink)' }}>{f.name}</span>
-                <span className="mnd-serif" style={{ fontSize: 17, color: 'var(--color-indigo)' }}>{f.pct} %</span>
+                <span className="mnd-serif" style={{ fontSize: 17, color: 'var(--color-indigo)' }}>{f.pct > 0 ? `${f.pct} %` : '—'}</span>
               </div>
               <div className="trp-bar" style={{ height: 6, marginTop: 6 }}>
                 <div style={{ width: `${f.pct}%`, background: i === 0 ? 'var(--color-copper)' : 'var(--indigo-400)' }} />
@@ -271,10 +317,15 @@ export default function Analytics() {
             </div>
           ))}
           {fillRates.length === 0 && <div className="mnd-muted" style={{ fontSize: 13 }}>Aucun maître sur ce périmètre.</div>}
+          {fillRates.length > 0 && fillRates.every((f) => f.pct === 0) && (
+            <div className="mnd-muted" style={{ fontSize: 12, fontFamily: 'var(--font-serif)', fontStyle: 'italic', marginTop: 4 }}>
+              Les fauteuils attendent leurs premiers rendez-vous — le remplissage se lira ici.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Prévision IA + transmission */}
+      {/* Prévision + transmission */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 18, marginTop: 18, alignItems: 'stretch' }}>
         <div className="trp-panel" style={{ position: 'relative', overflow: 'hidden' }}>
           <span className="trp-kpi__bar" style={{ background: 'var(--indigo-400)' }} />
@@ -284,12 +335,14 @@ export default function Analytics() {
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 14 }}>
             <span className="mnd-serif" style={{ fontSize: 42, lineHeight: 1, color: 'var(--color-indigo)' }}>
-              {fmtMoneyCompact(forecast, currency)}
+              {forecast > 0 ? fmtMoneyCompact(forecast, currency) : '—'}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--copper-600)' }}>fourchette ± 5 %</span>
+            <span style={{ fontSize: 12, color: 'var(--copper-600)' }}>{forecast > 0 ? 'au rythme réel du carnet' : ''}</span>
           </div>
           <div style={{ fontSize: 13, fontWeight: 300, color: 'var(--ink-soft)', marginTop: 10, lineHeight: 1.5 }}>
-            Projection au rythme réel du carnet — portée par les rituels confirmés et le réassort Care & Store.
+            {forecast > 0
+              ? 'Projection au rythme réel du carnet — portée par les rituels confirmés et honorés du mois.'
+              : 'La prévision attend les premiers rituels du mois — elle se calcule sur le rythme réel du carnet, jamais sur une hypothèse.'}
           </div>
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
             L’humain décide · la maison propose.
@@ -299,8 +352,8 @@ export default function Analytics() {
         <div className="trp-obsidian">
           <div className="trp-rev__eyebrow">Le Cercle · transmission</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 10 }}>
-            <span className="mnd-serif" style={{ fontSize: 44, lineHeight: 1 }}>{TRANSMISSION[period].coef}</span>
-            <span style={{ fontSize: 12, color: 'var(--indigo-100)' }}>têtes apportées / cliente</span>
+            <span className="mnd-serif" style={{ fontSize: 44, lineHeight: 1 }}>{hasTransmission ? funnel[0].n : '—'}</span>
+            <span style={{ fontSize: 12, color: 'var(--indigo-100)' }}>{hasTransmission ? 'consultations reçues' : 'têtes apportées / cliente'}</span>
           </div>
           <div style={{ marginTop: 16 }}>
             {funnel.map((f) => (
@@ -314,7 +367,9 @@ export default function Analytics() {
             ))}
           </div>
           <div style={{ fontSize: 12.5, fontWeight: 300, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
-            {TRANSMISSION[period].note}
+            {hasTransmission
+              ? `${funnel[1].n} réservation${funnel[1].n > 1 ? 's' : ''} nées de la consultation · ${funnel[2].n} tête${funnel[2].n > 1 ? 's' : ''} fidélisée${funnel[2].n > 1 ? 's' : ''} — le coefficient de transmission se calculera avec la lignée.`
+              : 'Le Cercle s’exprimera dès les premières introductions — l’intelligence a besoin de vécu.'}
           </div>
         </div>
       </div>

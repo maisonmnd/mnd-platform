@@ -4,7 +4,7 @@
 /* ============================================================
    MA COURONNE — identité chaude et aérée.
    Papier ivoire/sable, cuivre en ponctuation, grands serifs.
-   Sur desktop : téléphone 390×844 posé sur fond sable.
+   Vraie app : plein écran sur mobile, colonne centrée sur desktop.
    ============================================================ */
 
 :root {
@@ -13,107 +13,44 @@
   --mc-error: #9b4a45;
 }
 
-/* ---------- Scène desktop ---------- */
+/* ---------- L'app — le vrai viewport ---------- */
 
-.mc-stage {
+/* Fond pleine page (voile obsidienne/indigo) ; sur mobile la colonne
+   occupe tout l'écran et le fond n'apparaît jamais. */
+.mc-app {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--paper-2);
-  background-image: radial-gradient(circle at 50% 0%, rgba(30, 33, 80, 0.06), transparent 60%);
+  background: var(--color-obsidian);
+  background-image:
+    radial-gradient(circle at 50% -12%, rgba(46, 51, 120, 0.55), transparent 62%),
+    linear-gradient(180deg, rgba(30, 33, 80, 0.22), transparent 45%);
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 36px 16px 44px;
   font-family: var(--font-sans);
 }
 
-.mc-stage__head { text-align: center; max-width: 430px; }
-.mc-stage__eyebrow {
-  font-size: 10px;
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.mc-stage__line {
-  font-family: var(--font-serif);
-  font-weight: 300;
-  font-style: italic;
-  font-size: 17px;
-  color: var(--color-indigo);
-  margin-top: 6px;
-}
-.mc-stage__foot { font-size: 11px; color: var(--ink-soft); text-align: center; max-width: 380px; }
-
-/* ---------- Le téléphone ---------- */
-
-.mc-phone {
-  width: 392px;
-  flex: 0 0 auto;
-  border-radius: 46px;
-  border: 11px solid #14141b;
-  background: #14141b;
-  box-shadow: 0 36px 80px -28px rgba(20, 20, 27, 0.62);
-  overflow: hidden;
+/* La colonne de l'app : 100 % du viewport, son propre défilement interne. */
+.mc-viewport {
   position: relative;
-}
-
-.mc-statusbar {
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 26px;
-  background: var(--color-obsidian);
-  color: var(--color-ivoire);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  position: relative;
-  z-index: 50;
-}
-.mc-statusbar__notch {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 104px;
-  height: 20px;
-  background: #000;
-  border-radius: 0 0 14px 14px;
-}
-.mc-statusbar__right { display: flex; gap: 5px; align-items: center; font-size: 10px; }
-.mc-statusbar__batt {
-  border: 1px solid var(--ink-invert-soft);
-  border-radius: 3px;
-  padding: 0 3px;
-  font-size: 8px;
-}
-
-.mc-screen {
-  position: relative;
-  height: 766px;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   background: var(--paper);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Sous 480 px, l'app remplit l'écran. */
-@media (max-width: 479px) {
-  .mc-stage { padding: 0; gap: 0; }
-  .mc-stage__head, .mc-stage__foot, .mc-statusbar { display: none; }
-  .mc-phone {
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    display: flex;
-    flex-direction: column;
+/* Desktop : colonne centrée (~480 px), filets discrets, ombre douce —
+   la barre d'onglets et les écrans superposés restent alignés à la colonne
+   (ils sont positionnés dans .mc-viewport, pas dans le viewport navigateur). */
+@media (min-width: 640px) {
+  .mc-viewport {
+    max-width: 480px;
+    border-left: 1px solid rgba(246, 241, 231, 0.09);
+    border-right: 1px solid rgba(246, 241, 231, 0.09);
+    box-shadow: 0 0 110px -36px rgba(0, 0, 0, 0.85);
   }
-  .mc-screen { height: auto; flex: 1; }
 }
 
 /* ---------- Génériques ---------- */
@@ -253,7 +190,7 @@
   position: absolute;
   left: 24px;
   right: 24px;
-  bottom: 88px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
   z-index: 60;
   background: var(--color-obsidian);
   color: var(--color-ivoire);
@@ -269,7 +206,7 @@
    ============================================================ */
 
 .mc-onb { display: flex; flex-direction: column; height: 100%; }
-.mc-onb__hero { position: relative; height: 56%; min-height: 380px; overflow: hidden; flex: 0 0 auto; animation: mc-fade 0.5s var(--ease-soft); }
+.mc-onb__hero { position: relative; height: 56%; min-height: 300px; overflow: hidden; flex: 0 0 auto; animation: mc-fade 0.5s var(--ease-soft); }
 .mc-onb__hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mc-onb__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 6%, rgba(20, 20, 27, 0.12) 58%); }
 .mc-onb__seal { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); width: 38px; }
@@ -306,7 +243,7 @@
 .mc-onb__body .mc-cta--copper { margin-top: 14px; }
 .mc-onb__body .mc-cta--outline { margin-top: 12px; }
 
-.mc-onb-form { display: flex; flex-direction: column; height: 100%; padding: 34px 28px; }
+.mc-onb-form { display: flex; flex-direction: column; height: 100%; padding: calc(34px + env(safe-area-inset-top)) 28px calc(34px + env(safe-area-inset-bottom)); }
 .mc-onb-form__seal { width: 32px; margin-top: 30px; }
 
 .mc-field-label {
@@ -338,6 +275,7 @@
   color: var(--color-indigo);
   letter-spacing: 0.02em;
 }
+.mc-phoneline input::placeholder { font-family: var(--font-sans); font-weight: 300; font-size: 14px; color: var(--ink-soft); }
 
 .mc-channels { margin-top: 22px; display: flex; gap: 10px; }
 .mc-channel {
@@ -398,10 +336,10 @@
    ACCUEIL
    ============================================================ */
 
-.mc-homehero { position: relative; height: 288px; overflow: hidden; }
+.mc-homehero { position: relative; height: clamp(240px, 36vh, 330px); overflow: hidden; }
 .mc-homehero img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
 .mc-homehero__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 2%, rgba(20, 20, 27, 0.1) 56%); }
-.mc-homehero__seal { position: absolute; top: 20px; left: 22px; width: 28px; opacity: 0.92; height: auto; }
+.mc-homehero__seal { position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 22px; width: 28px; opacity: 0.92; height: auto; }
 .mc-homehero__text { position: absolute; left: 22px; right: 22px; bottom: 20px; }
 .mc-homehero__greet {
   font-family: var(--font-serif);
@@ -414,7 +352,7 @@
 
 .mc-bell {
   position: absolute;
-  top: 18px;
+  top: calc(18px + env(safe-area-inset-top));
   right: 20px;
   width: 38px;
   height: 38px;
@@ -429,14 +367,22 @@
   color: var(--color-ivoire);
   font-size: 15px;
 }
-.mc-bell__dot {
+.mc-bell__count {
   position: absolute;
-  top: 7px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
   background: var(--accent);
+  color: var(--color-ivoire);
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid var(--color-obsidian);
 }
 
@@ -614,10 +560,9 @@
    SUIVI
    ============================================================ */
 
-.mc-beforeafter { display: flex; align-items: stretch; }
-.mc-beforeafter__shot { flex: 1; position: relative; border-radius: 4px; overflow: hidden; aspect-ratio: 3 / 4; }
-.mc-beforeafter__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.mc-beforeafter__filet { width: 2px; flex: 0 0 auto; background: var(--color-copper); margin: 0 5px; }
+/* portrait de la couronne — la vraie photo consignée au CRM, sinon rien */
+.mc-suiviphoto { position: relative; border-radius: 4px; overflow: hidden; aspect-ratio: 3 / 2; margin-bottom: 16px; }
+.mc-suiviphoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mc-beforeafter__tag {
   position: absolute;
   bottom: 8px;
@@ -659,6 +604,25 @@
 .mc-tl__body { padding-bottom: 20px; }
 .mc-tl__t { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); margin-top: 2px; }
 .mc-tl__s { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+
+/* histoire vierge — l'invitation au premier rituel */
+.mc-tlempty {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 28px 20px 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.mc-tlempty__t { font-family: var(--font-serif); font-weight: 300; font-size: 23px; color: var(--color-indigo); }
+.mc-tlempty__s {
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 6px auto 18px;
+  max-width: 260px;
+}
 
 /* ============================================================
    GAMME
@@ -755,24 +719,6 @@
 .mc-rewardrow__st { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
 .mc-rewardrow__st.is-on { color: var(--mc-success); }
 
-.mc-circlecard { border-radius: 4px; padding: 18px; margin-bottom: 12px; position: relative; overflow: hidden; }
-.mc-circlecard--obsidian { background: var(--grad-obsidian); }
-.mc-circlecard--indigo { background: var(--color-indigo); margin-bottom: 0; }
-.mc-circlecard--sable { background: var(--color-sable); }
-.mc-circlecard__eyebrow {
-  font-size: 10px;
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--copper-200);
-}
-.mc-circlecard__eyebrow--copper { color: var(--accent-strong); }
-.mc-circlecard__title { font-family: var(--font-serif); font-size: 21px; color: var(--color-ivoire); margin-top: 6px; }
-.mc-circlecard__title--indigo { color: var(--color-indigo); }
-.mc-circlecard__sub { font-size: 12px; font-weight: 300; color: var(--indigo-100); margin-top: 4px; }
-.mc-circlecard__sub--ink { color: var(--ink-soft); }
-.mc-circlecard .mc-smallcta { margin-top: 14px; }
-
 /* ============================================================
    PROFIL
    ============================================================ */
@@ -786,59 +732,87 @@
   background-position: center;
   flex: 0 0 auto;
 }
+.mc-idcard__initial {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: 26px;
+  flex: 0 0 auto;
+}
 .mc-idcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
 .mc-idcard__meta { font-size: 12px; color: var(--ink-soft); }
 
-.mc-preflist { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
-.mc-prefrow {
+/* formulaire — les vraies informations, écrites au CRM partagé */
+.mc-profform {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 4px 16px 16px;
+}
+.mc-profield { display: block; }
+.mc-profield > span {
+  display: block;
+  margin-top: 14px;
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.mc-profield input {
   width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  padding: 7px 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--color-indigo);
+  transition: border-color 0.2s var(--ease-soft);
+}
+.mc-profield input:focus { border-bottom-color: var(--accent); }
+.mc-profield input::placeholder { font-family: var(--font-sans); font-weight: 300; font-size: 13px; color: var(--ink-soft); }
+
+.mc-profselect {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  padding: 13px 14px;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--color-indigo);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s var(--ease-soft);
+}
+.mc-profselect:focus { border-color: var(--color-indigo); }
+
+/* la couronne — lecture seule, renseignée par la maison */
+.mc-preflist { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
+.mc-inforow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  border: none;
   border-bottom: 1px solid var(--hairline);
-  background: transparent;
-  cursor: pointer;
-  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--ink);
-  text-align: left;
-  transition: background 0.14s var(--ease-soft);
 }
-.mc-prefrow:last-child { border-bottom: none; }
-.mc-prefrow:hover { background: var(--hover-veil); }
-.mc-prefrow__v { color: var(--color-indigo); white-space: nowrap; }
-
-.mc-paytiles { display: flex; gap: 10px; }
-.mc-paytile {
-  flex: 1;
-  border: 1px solid var(--hairline);
-  background: var(--surface-card);
-  border-radius: 3px;
-  padding: 13px 10px;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.mc-paytile.is-on { border-color: var(--color-indigo); background: var(--indigo-50); color: var(--color-indigo); }
-
-.mc-subcard {
-  background: var(--surface-card);
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.mc-subcard__name { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
-.mc-subcard__meta { font-size: 11.5px; color: var(--ink-soft); }
-.mc-subcard__price { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); white-space: nowrap; }
+.mc-inforow:last-child { border-bottom: none; }
+.mc-inforow__v { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); white-space: nowrap; }
 
 /* ============================================================
    TAB BAR
@@ -850,6 +824,8 @@
   background: rgba(246, 241, 231, 0.96);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--hairline);
+  /* Ancrée au vrai bas d'écran — encoches et barres gestuelles respectées. */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .mc-tab {
   flex: 1;
@@ -881,7 +857,7 @@
   flex-direction: column;
 }
 
-.mc-flowhead { flex: 0 0 auto; padding: 30px 24px 16px; border-bottom: 1px solid var(--hairline); }
+.mc-flowhead { flex: 0 0 auto; padding: calc(30px + env(safe-area-inset-top)) 24px 16px; border-bottom: 1px solid var(--hairline); }
 .mc-flowhead--split { display: flex; justify-content: space-between; align-items: flex-end; }
 .mc-flowhead__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .mc-flowhead__titles { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; }
@@ -891,7 +867,7 @@
 .mc-progress { height: 3px; background: var(--hairline); border-radius: 3px; margin-top: 14px; overflow: hidden; }
 .mc-progress > div { height: 100%; background: var(--accent); transition: width 0.3s var(--ease-soft); }
 
-.mc-flowbody { flex: 1; padding: 18px 24px 24px; position: relative; }
+.mc-flowbody { flex: 1; padding: 18px 24px calc(24px + env(safe-area-inset-bottom)); position: relative; }
 
 /* -------- étape 1 · objectif -------- */
 .mc-rowcard {
@@ -1109,7 +1085,7 @@
   width: 100%;
   background: var(--color-ivoire);
   border-top: 2px solid var(--color-copper);
-  padding: 24px 24px 34px;
+  padding: 24px 24px calc(34px + env(safe-area-inset-bottom));
   text-align: center;
 }
 .mc-paysheet__amount { font-family: var(--font-serif); font-size: 40px; color: var(--color-indigo); margin-top: 10px; line-height: 1; }
@@ -1226,7 +1202,7 @@
   flex: 0 0 auto;
   border-top: 1px solid var(--hairline);
   background: var(--paper);
-  padding: 14px 24px 22px;
+  padding: 14px 24px calc(22px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 20px -14px rgba(20, 20, 27, 0.3);
 }
 .mc-cmfooter__row { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); margin-bottom: 3px; }
@@ -1262,3 +1238,4 @@
 .mc-notif__kind { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: var(--weight-medium); }
 .mc-notif__time { font-size: 11px; color: var(--ink-soft); }
 .mc-notif__msg { font-size: 13.5px; color: var(--ink); margin-top: 4px; line-height: 1.45; }
+.mc-notif__total { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); margin-top: 6px; }

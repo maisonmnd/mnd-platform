@@ -36,7 +36,8 @@ export default function Vitrine() {
   const [mode, setMode] = useState<'apercu' | 'regie'>('apercu');
   const clients = useBranchClients();
   const [cIdx, setCIdx] = useState(0);
-  const client = clients[cIdx] ?? clients[0];
+  const safeIdx = Math.min(cIdx, Math.max(0, clients.length - 1));
+  const client = clients[safeIdx];
 
   if (!client) {
     return (
@@ -68,7 +69,7 @@ export default function Vitrine() {
             <button
               key={c.id}
               className="trc-chip"
-              style={i === cIdx ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
+              style={i === safeIdx ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
               onClick={() => setCIdx(i)}
             >
               {c.name.split(' ')[0]}
@@ -98,7 +99,8 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
   const [q2, setQ2] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
-  const days = Math.max(1, Math.round((Date.now() - fromISO(client.since).getTime()) / 86400000));
+  /* La naissance de la couronne prime (CRM) ; sinon l'entrée au CRM. */
+  const days = Math.max(1, Math.round((Date.now() - fromISO(client.crownSince ?? client.since).getTime()) / 86400000));
   const persona = personas.find((p) => p.id === client.persona);
   const nextAppt = appts
     .filter((a) => a.clientId === client.id && a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')

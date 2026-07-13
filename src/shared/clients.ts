@@ -18,7 +18,17 @@ export type Client = {
   notes?: string;
   archived?: boolean;
   diaspora?: boolean;
+  /* — la couronne : partagé Trône (CRM 360) ↔ Ma Couronne (statut, suivi) — */
+  crownStyle?: string; // Microlocks, Locks fines, Sisterlocks…
+  lockCount?: number; // nombre de locks
+  crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
+  preferredMaster?: string;
 };
+
+/** Styles de couronne proposés dans le CRM et affichés dans Ma Couronne. */
+export const CROWN_STYLES = [
+  'Microlocks', 'Sisterlocks', 'Locks fines', 'Locks moyennes', 'Locks larges', 'Traditionnelles',
+];
 
 export type Persona = {
   id: string;

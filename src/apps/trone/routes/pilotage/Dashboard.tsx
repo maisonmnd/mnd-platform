@@ -1,14 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eyebrow } from '../../../../ds/components';
+import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { useProducts } from '../../../../shared/catalog';
+import { useCategories, useProducts } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal } from '../../../../shared/finance';
 import {
-  Avatar, SourceBadge, StatusPill, apptLabel, apptTotalXof, addDaysISO, frShort, fromISO,
+  Avatar, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from '../clients/_shared';
 import './pilotage.css';
@@ -28,6 +28,10 @@ export default function Dashboard() {
   const [products] = useProducts();
   const [invoices] = useInvoices();
   const [expenses] = useExpenses();
+  const [categories] = useCategories();
+
+  const [breakOpen, setBreakOpen] = useState(false);
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
 
   const today = todayISO();
   const now = new Date();
@@ -70,6 +74,48 @@ export default function Dashboard() {
     };
   }, [appts, byId, invoices, expenses, products, branch.id, today, thisMonth, prevMonth]);
 
+  /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
+  const breakdown = useMemo(() => {
+    const realized = (a: Appointment) => a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today);
+
+    const rit = new Map<string, { count: number; total: number }>();
+    for (const a of appts) {
+      if (monthKey(a.date) !== thisMonth || !realized(a)) continue;
+      for (const sid of a.serviceIds) {
+        const sv = byId.get(sid);
+        if (!sv) continue;
+        const cur = rit.get(sv.categoryId) ?? { count: 0, total: 0 };
+        cur.count += 1;
+        cur.total += sv.priceXof;
+        rit.set(sv.categoryId, cur);
+      }
+    }
+    const rituels = [...rit]
+      .map(([catId, v]) => {
+        const cat = categories.find((c) => c.id === catId);
+        return { id: catId, label: cat ? `${cat.fon} · ${cat.label}` : 'Hors catalogue', ...v };
+      })
+      .sort((a, b) => b.total - a.total);
+
+    const pay = new Map<string, { count: number; total: number }>();
+    for (const i of invoices) {
+      if (i.branchId !== branch.id || monthKey(i.date) !== thisMonth || i.kind !== 'facture' || i.status !== 'payée') continue;
+      const k = i.payment ?? 'Autre';
+      const cur = pay.get(k) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += invoiceTotal(i);
+      pay.set(k, cur);
+    }
+    const encaissements = [...pay].map(([k, v]) => ({ id: k, label: k, ...v })).sort((a, b) => b.total - a.total);
+
+    return {
+      rituels,
+      encaissements,
+      rituelsTotal: rituels.reduce((s, r) => s + r.total, 0),
+      encTotal: encaissements.reduce((s, e) => s + e.total, 0),
+    };
+  }, [appts, byId, categories, invoices, branch.id, thisMonth, today]);
+
   const net = revenue - spent;
   const prevNet = prevRevenue - prevSpent;
 
@@ -80,9 +126,9 @@ export default function Dashboard() {
   };
 
   const kpis = [
-    { label: 'Revenus réels du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue) },
-    { label: 'Dépenses réelles du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)', trend: trend(spent, prevSpent) },
-    { label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)', trend: trend(net, prevNet) },
+    { label: 'Revenus réels du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue), action: () => setBreakOpen(true) },
+    { label: 'Dépenses réelles du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)', trend: trend(spent, prevSpent), action: () => navigate('/depenses') },
+    { label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)', trend: trend(net, prevNet), action: () => navigate('/synthese') },
   ];
 
   const revTrend = trend(revenue, prevRevenue);
@@ -125,13 +171,20 @@ export default function Dashboard() {
       {/* KPI majeurs */}
       <div className="tr-grid tr-grid--3" style={{ marginTop: 24 }}>
         {kpis.map((k) => (
-          <div className="trp-kpi" key={k.label}>
+          <div
+            className="trp-kpi trp-kpi--click"
+            key={k.label}
+            role="button"
+            tabIndex={0}
+            onClick={k.action}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') k.action(); }}
+          >
             <span className="trp-kpi__bar" style={{ background: k.bar }} />
             <div className="trp-kpi__label">{k.label}</div>
             <div className="trp-kpi__value">{k.value}</div>
             <div className="trp-kpi__foot">
               <span className={`trp-kpi__trend ${k.trend.down ? 'trp-kpi__trend--down' : ''}`}>{k.trend.t}</span>
-              <button className="trp-kpi__link" onClick={() => navigate('/synthese')}>
+              <button className="trp-kpi__link" onClick={(e) => { e.stopPropagation(); k.action(); }}>
                 Voir le détail →
               </button>
             </div>
@@ -163,7 +216,12 @@ export default function Dashboard() {
           {todayRows.map((a) => {
             const c = clientOf(a.clientId);
             return (
-              <div className="trp-day__row" key={a.id}>
+              <div
+                className="trp-day__row trp-day__row--click"
+                key={a.id}
+                onClick={() => setEditAppt(a)}
+                title="Modifier ce rendez-vous"
+              >
                 <div className="trp-day__time">{a.time}</div>
                 {c && <Avatar client={c} size={34} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -176,7 +234,7 @@ export default function Dashboard() {
                 <StatusPill status={a.status} />
                 {a.status !== 'honoré' && (
                   <button
-                    onClick={() => advance(a)}
+                    onClick={(e) => { e.stopPropagation(); advance(a); }}
                     style={{
                       cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '8px 12px',
                       fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
@@ -217,6 +275,65 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Décomposition du revenu du mois */}
+      {breakOpen && (
+        <Modal
+          title={`Revenus réels · ${fromISO(`${thisMonth}-15`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}.`}
+          onClose={() => setBreakOpen(false)}
+          width={560}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <div className="trp-break__head">Rituels honorés · par catégorie</div>
+              {breakdown.rituels.length === 0 && (
+                <div className="trp-break__empty">Aucun rituel honoré ce mois-ci — le carnet écrira la suite.</div>
+              )}
+              {breakdown.rituels.map((r) => (
+                <button className="trp-break__row" key={r.id} onClick={() => { setBreakOpen(false); navigate('/calendrier'); }}>
+                  <span className="trp-break__label">{r.label}</span>
+                  <span className="trp-break__count">{r.count} prestation{r.count > 1 ? 's' : ''}</span>
+                  <span className="trp-break__num">{fmtMoney(r.total, currency)}</span>
+                </button>
+              ))}
+              {breakdown.rituels.length > 0 && (
+                <div className="trp-break__sub">
+                  <span>Sous-total rituels</span>
+                  <span>{fmtMoney(breakdown.rituelsTotal, currency)}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="trp-break__head">Encaissements · par moyen de paiement</div>
+              {breakdown.encaissements.length === 0 && (
+                <div className="trp-break__empty">Aucune facture payée ce mois-ci.</div>
+              )}
+              {breakdown.encaissements.map((e) => (
+                <button className="trp-break__row" key={e.id} onClick={() => { setBreakOpen(false); navigate('/factures'); }}>
+                  <span className="trp-break__label">{e.label}</span>
+                  <span className="trp-break__count">{e.count} facture{e.count > 1 ? 's' : ''}</span>
+                  <span className="trp-break__num">{fmtMoney(e.total, currency)}</span>
+                </button>
+              ))}
+              {breakdown.encaissements.length > 0 && (
+                <div className="trp-break__sub">
+                  <span>Sous-total encaissements</span>
+                  <span>{fmtMoney(breakdown.encTotal, currency)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="trp-break__total">
+              <span>Total du mois</span>
+              <span>{fmtMoney(revenue, currency)}</span>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modification d’un rendez-vous du carnet du jour */}
+      {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} />}
     </div>
   );
 }

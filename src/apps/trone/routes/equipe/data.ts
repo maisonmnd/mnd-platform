@@ -99,30 +99,13 @@ export const CAMPAIGNS_SEED: Campaign[] = [];
 export const campaignsStore = createStore<Campaign[]>('mnd_campaigns', CAMPAIGNS_SEED);
 export const useCampaigns = () => useStore(campaignsStore);
 
-export const OFFER_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
-export const OFFER_AUDIENCES = ['Tous', 'Actifs', 'VIP', 'Cercle', 'Dormants'] as const;
-export const OFFER_HOURS = ['00h', '06h', '07h', '08h', '09h', '10h', '11h', '12h', '14h', '16h', '17h', '18h', '19h', '20h', '21h', '22h'];
-
-export type InstantOffer = {
-  id: string;
-  branchId: string;
-  title: string;
-  tag: string; // accroche — « Offre éclair », « Heure creuse »…
-  deal: string; // avantage — « −25% », « 2 = 1 »…
-  sub: string; // détail
-  audience: string; // persona / segment qui la voit
-  days: string[]; // jours d'affichage
-  heureDebut: string;
-  heureFin: string;
-  active: boolean;
-};
-
-/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
-export const OFFERS_SEED: InstantOffer[] = [];
-
-/** Consommées par l'app cliente Ma Couronne — clé partagée. */
-export const offersStore = createStore<InstantOffer[]>('mnd_offers', OFFERS_SEED);
-export const useOffers = () => useStore(offersStore);
+/* Offres instantanées : déplacées vers `shared/offers.ts` (pont Trône → Ma
+   Couronne, synchronisé Supabase) — ré-exportées ici pour les routes équipe. */
+export {
+  OFFER_DAYS, OFFER_AUDIENCES, OFFER_HOURS,
+  offersStore, useOffers, offerLiveNow,
+  type InstantOffer,
+} from '../../../../shared/offers';
 
 export type Automation = {
   id: string;
@@ -132,13 +115,14 @@ export type Automation = {
   runs: number;
 };
 
+/* Maison neuve — les compteurs d'envois partent de zéro ; ils vivront avec l'usage. */
 export const AUTOMATIONS: Automation[] = [
-  { id: 'a1', trig: 'J-1 avant un rituel', act: 'Rappel WhatsApp + itinéraire', canal: 'WhatsApp', runs: 312 },
-  { id: 'a2', trig: 'Loc · jour 365', act: 'Invitation au Couronnement', canal: 'WhatsApp', runs: 22 },
-  { id: 'a3', trig: 'Dormante · 90 jours', act: 'Réveil rituel doux', canal: 'WhatsApp', runs: 64 },
-  { id: 'a4', trig: 'Après un soin · J+5', act: 'Recommandation produit du Carnet', canal: 'WhatsApp', runs: 148 },
-  { id: 'a5', trig: 'Acompte non réglé · 2 h', act: 'Relance douce + lien MoMo', canal: 'WhatsApp', runs: 53 },
-  { id: 'a6', trig: 'Stock bas · seuil', act: 'Bon de réassort fournisseur', canal: 'Système', runs: 9 },
+  { id: 'a1', trig: 'J-1 avant un rituel', act: 'Rappel WhatsApp + itinéraire', canal: 'WhatsApp', runs: 0 },
+  { id: 'a2', trig: 'Loc · jour 365', act: 'Invitation au Couronnement', canal: 'WhatsApp', runs: 0 },
+  { id: 'a3', trig: 'Dormante · 90 jours', act: 'Réveil rituel doux', canal: 'WhatsApp', runs: 0 },
+  { id: 'a4', trig: 'Après un soin · J+5', act: 'Recommandation produit du Carnet', canal: 'WhatsApp', runs: 0 },
+  { id: 'a5', trig: 'Acompte non réglé · 2 h', act: 'Relance douce + lien MoMo', canal: 'WhatsApp', runs: 0 },
+  { id: 'a6', trig: 'Stock bas · seuil', act: 'Bon de réassort fournisseur', canal: 'Système', runs: 0 },
 ];
 
 /** Interrupteurs des automatisations — actives par défaut. */
@@ -164,36 +148,12 @@ export const useAutoConfig = () => useStore(autoConfigStore);
    3 · Cercle MND — points & paliers de récompense
    ============================================================ */
 
-export type RewardTier = {
-  id: string;
-  pts: number; // seuil de points
-  serviceId: string; // prestation offerte, tirée du catalogue
-  desc: string;
-  g: string; // chiffre du sceau — Ⅰ · Ⅱ · Ⅲ…
-};
-
-export const TIERS_SEED: RewardTier[] = [
-  { id: 'tier-1', pts: 3000, serviceId: 'sv-resserrage', desc: 'Un entretien racines, sans frais.', g: 'Ⅰ' },
-  { id: 'tier-2', pts: 6000, serviceId: 'sv-rituel-quatre-temps', desc: 'Un soin signature, sans frais.', g: 'Ⅱ' },
-  { id: 'tier-3', pts: 12000, serviceId: 'sv-locks-moyennes', desc: 'La création qu’elle désire, sans frais.', g: 'Ⅲ' },
-];
-
-export const tiersStore = createStore<RewardTier[]>('mnd_cercle_tiers', TIERS_SEED);
-export const useTiers = () => useStore(tiersStore);
-
-/** 1 point / N F dépensés. */
-export const pointsRateStore = createStore<number>('mnd_points_rate', 100);
-
-export type PointsEvent = {
-  id: string;
-  clientId: string;
-  clientName: string;
-  label: string; // récompense offerte ou ajustement
-  pts: number; // négatif = points rendus en soin
-  at: string; // ISO
-};
-
-export const pointsHistoryStore = createStore<PointsEvent[]>('mnd_points_history', []);
+/* Paliers & points : déplacés vers `shared/offers.ts` (lus par Ma Couronne). */
+export {
+  TIERS_SEED, tiersStore, useTiers,
+  pointsRateStore, pointsHistoryStore, usePointsHistory,
+  type RewardTier, type PointsEvent,
+} from '../../../../shared/offers';
 
 /* ============================================================
    4 · Abonnements
@@ -269,14 +229,9 @@ export type Reco = {
   conf: string; // « confiance 86 % »
 };
 
-/** Suggestions de croissance remontées des données — l'humain décide, jamais d'injonction. */
-export const RECOS: Reco[] = [
-  { k: 'react', cat: 'Réactivation', title: '12 têtes à réveiller', why: 'Dormantes 90–120 j, fort historique. Un rappel rituel — sans rabais — suffit souvent.', impact: '≈ 420 000 F de potentiel', conf: 'confiance 86 %' },
-  { k: 'upsell', cat: 'Upsell', title: 'Sérum Racines · 8 clientes', why: 'Diagnostic densité faible et dernier soin > 30 j dans leur Carnet de Suivi.', impact: '≈ 128 000 F', conf: 'confiance 79 %' },
-  { k: 'stock', cat: 'Réassort', title: 'Réassort Huile Couronne sous 6 j', why: 'Vitesse de vente en hausse, stock bas — rupture prédite samedi.', impact: 'évite une rupture', conf: 'confiance 91 %' },
-  { k: 'slot', cat: 'Créneau', title: 'Ouvrir 2 créneaux mardi PM', why: 'Demande prédite supérieure à la capacité ce jour ; Adèle est disponible.', impact: '≈ 70 000 F', conf: 'confiance 74 %' },
-  { k: 'churn', cat: 'Risque de fuite', title: '3 VIP à choyer cette semaine', why: 'Cadence ralentie vs leur habitude — premier signal de désengagement.', impact: 'protège 1,2 M F de LTV', conf: 'confiance 82 %' },
-];
+/** Suggestions de croissance remontées des données — l'humain décide, jamais d'injonction.
+    Maison neuve : aucune suggestion fabriquée ; elles naîtront de l'activité réelle. */
+export const RECOS: Reco[] = [];
 
 export const RECO_ACCENT: Record<RecoCat, string> = {
   'Réactivation': 'var(--color-indigo)',
@@ -349,13 +304,8 @@ export type Apprenant = {
   modulesDone: boolean[]; // les quatre temps
 };
 
-export const APPRENANTS_SEED: Apprenant[] = [
-  { id: 'ap-ines', name: 'Inès Tossou', formationId: 'fo-fondations', pay: 'À jour', modulesDone: [true, true, true, false] },
-  { id: 'ap-marc', name: 'Marc Adjovi', formationId: 'fo-nano', pay: 'Échéance', modulesDone: [true, true, false, false] },
-  { id: 'ap-sarah', name: 'Sarah Koudjo', formationId: 'fo-resserrage', pay: 'À jour', modulesDone: [true, true, true, true] },
-  { id: 'ap-yann', name: 'Yann Hounkpè', formationId: 'fo-certif', pay: 'À jour', modulesDone: [true, false, false, false] },
-  { id: 'ap-adele', name: 'Adèle Sika', formationId: 'fo-nano', pay: 'À jour', modulesDone: [true, true, true, false] },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const APPRENANTS_SEED: Apprenant[] = [];
 
 export const apprenantsStore = createStore<Apprenant[]>('mnd_apprenants', APPRENANTS_SEED);
 export const useApprenants = () => useStore(apprenantsStore);
@@ -371,12 +321,8 @@ export type Certification = {
   statut: 'Délivrée' | 'En cours';
 };
 
-export const CERTIFS_SEED: Certification[] = [
-  { id: 'ce-adele', name: 'Adèle Sika', parcours: 'Maîtrise Nano-locks', date: '12 mars 2026', statut: 'Délivrée' },
-  { id: 'ce-koffi', name: 'Koffi · Studio Lumière', parcours: 'Certification Référentiel MND', date: '4 fév 2026', statut: 'Délivrée' },
-  { id: 'ce-sarah', name: 'Sarah Koudjo', parcours: 'Resserrage & Soin', date: 'jury · 18 juil', statut: 'En cours' },
-  { id: 'ce-marc', name: 'Marc Adjovi', parcours: 'Maîtrise Nano-locks', date: '—', statut: 'En cours' },
-];
+/* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
+export const CERTIFS_SEED: Certification[] = [];
 
 export const certifsStore = createStore<Certification[]>('mnd_certifs', CERTIFS_SEED);
 export const useCertifs = () => useStore(certifsStore);

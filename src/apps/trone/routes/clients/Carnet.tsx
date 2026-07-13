@@ -17,7 +17,7 @@ export default function Carnet() {
   const byId = useServicesById();
   const today = todayISO();
 
-  const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string } | null>(null);
+  const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,7 +65,13 @@ export default function Carnet() {
     const canHonor = a.status === 'confirmé';
     const canCancel = a.status === 'confirmé' || a.status === 'en attente';
     return (
-      <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID }} key={a.id}>
+      <div
+        className="trc-sheet__row"
+        style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
+        key={a.id}
+        onClick={() => setModal({ appt: a })}
+        title="Modifier ce rendez-vous"
+      >
         <span className="trc-date">{frDay(a.date)}</span>
         <span className="trc-time">{a.time}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -144,7 +150,7 @@ export default function Carnet() {
         {past.map(renderRow)}
       </div>
 
-      {modal && <RdvModal onClose={() => setModal(null)} initial={modal.initial} title={modal.title ?? 'Nouveau rendez-vous.'} />}
+      {modal && <RdvModal onClose={() => setModal(null)} initial={modal.initial} appt={modal.appt} title={modal.title} />}
     </div>
   );
 }

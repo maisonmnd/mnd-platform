@@ -58,6 +58,24 @@ export function useSettings() {
   return useStore(settingsStore);
 }
 
+/* ---------- Heures d'ouverture résolues (partagé Trône ↔ Ma Couronne) ---------- */
+
+/** '09h30' → minutes depuis minuit. */
+export const hourToMin = (h: string): number => {
+  const m = /^(\d{1,2})h(\d{2})?$/.exec(h.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2] ?? 0) : 9 * 60;
+};
+
+const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+
+/** Fenêtre d'ouverture d'une date ISO — la disponibilité de réservation la respecte. */
+export function openingForIso(dateIso: string): { closed: boolean; openMin: number; closeMin: number } {
+  const dow = new Date(`${dateIso}T00:00:00`).getDay();
+  const day = settingsStore.get().hours.find((h) => h.key === DAY_KEYS[dow]);
+  if (!day || day.closed) return { closed: true, openMin: 0, closeMin: 0 };
+  return { closed: false, openMin: hourToMin(day.open), closeMin: hourToMin(day.close) };
+}
+
 /* ---------- Marque & thème ---------- */
 export type Brand = {
   accent: string;

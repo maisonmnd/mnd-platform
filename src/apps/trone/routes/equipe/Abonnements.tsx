@@ -10,66 +10,6 @@ import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-const MONTHS_SHORT = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
-
-/** Série 12 mois se terminant sur le MRR courant — évolution + churn pour le graphe. */
-function buildSeries(mrrNow: number): { m: string; mrr: number; churn: number }[] {
-  const factors = [0.52, 0.55, 0.61, 0.64, 0.7, 0.73, 0.78, 0.84, 0.88, 0.92, 0.97, 1];
-  const churns = [9.5, 9.1, 8.4, 8.8, 7.9, 7.4, 7.6, 7.1, 6.8, 6.4, 6.2, 6.0];
-  const now = new Date();
-  return factors.map((f, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return { m: MONTHS_SHORT[d.getMonth()], mrr: Math.round(mrrNow * f), churn: churns[i] };
-  });
-}
-
-function MrrChart({ mrrNow, currency }: { mrrNow: number; currency: string }) {
-  const series = useMemo(() => buildSeries(mrrNow), [mrrNow]);
-  const W = 620, H = 190, padX = 14, padTop = 18, padBottom = 26;
-  const max = Math.max(...series.map((p) => p.mrr)) || 1;
-  const x = (i: number) => padX + (i * (W - padX * 2)) / (series.length - 1);
-  const y = (v: number) => padTop + (1 - v / max) * (H - padTop - padBottom);
-  const churnMax = 12;
-  const yc = (v: number) => padTop + (1 - v / churnMax) * (H - padTop - padBottom);
-
-  const line = series.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.mrr).toFixed(1)}`).join(' ');
-  const area = `${line} L ${x(series.length - 1).toFixed(1)} ${H - padBottom} L ${x(0).toFixed(1)} ${H - padBottom} Z`;
-  const churnLine = series.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${yc(p.churn).toFixed(1)}`).join(' ');
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--ink-soft)' }}>
-          <span style={{ width: 9, height: 9, borderRadius: 2, background: 'var(--color-indigo)' }} />Revenu récurrent
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--ink-soft)' }}>
-          <span style={{ width: 9, height: 2, background: 'var(--color-copper)' }} />Churn · %
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Évolution du revenu récurrent et du churn sur douze mois">
-        {[0.25, 0.5, 0.75, 1].map((f) => (
-          <line key={f} x1={padX} x2={W - padX} y1={y(max * f)} y2={y(max * f)} stroke="var(--hairline)" strokeWidth="1" />
-        ))}
-        <path d={area} fill="rgba(30,33,80,0.08)" />
-        <path d={line} fill="none" stroke="var(--color-indigo)" strokeWidth="2" />
-        <path d={churnLine} fill="none" stroke="var(--color-copper)" strokeWidth="1.5" strokeDasharray="4 3" />
-        {series.map((p, i) => (
-          <g key={i}>
-            <circle cx={x(i)} cy={y(p.mrr)} r={i === series.length - 1 ? 3.5 : 2} fill={i === series.length - 1 ? 'var(--color-copper)' : 'var(--color-indigo)'} />
-            <text x={x(i)} y={H - 8} textAnchor="middle" style={{ fontFamily: 'var(--font-sans)', fontSize: 9, fill: 'var(--ink-soft)' }}>{p.m}</text>
-          </g>
-        ))}
-        <text x={x(series.length - 1)} y={y(series[series.length - 1].mrr) - 10} textAnchor="end" style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fill: 'var(--color-indigo)' }}>
-          {fmtMoneyCompact(mrrNow, currency)}
-        </text>
-        <text x={x(series.length - 1)} y={yc(series[series.length - 1].churn) - 8} textAnchor="end" style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, fill: 'var(--copper-700)' }}>
-          churn 6,0 %
-        </text>
-      </svg>
-    </div>
-  );
-}
-
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string };
 type SubForm = { name: string; planId: string; slot: string };
 
@@ -85,10 +25,10 @@ export default function Abonnements() {
   const [subModal, setSubModal] = useState(false);
   const [subForm, setSubForm] = useState<SubForm>({ name: '', planId: plans[0]?.id ?? '', slot: '' });
 
-  const members = useMemo(
-    () => subs.filter((m) => m.branchId === branch.id && m.status !== 'churn'),
-    [subs, branch.id],
-  );
+  const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
+  const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);
+  const churned = branchSubs.length - members.length;
+  const retention = branchSubs.length > 0 ? Math.round((members.length / branchSubs.length) * 100) : null;
   const mrr = members.reduce((a, m) => a + m.mrrXof, 0);
   const planOf = (id: string) => plans.find((p) => p.id === id);
 
@@ -159,40 +99,66 @@ export default function Abonnements() {
 
       {tab === 'moteur' && (
         <div>
-          <DeepNote eyebrow="Avant même d’ouvrir les portes">
-            {fmtMoney(mrr, currency)} sont déjà encaissés ce mois — <span className="accent">le salon classique vend une fois ; la Maison perçoit chaque lune.</span>
+          <DeepNote eyebrow={mrr > 0 ? 'Avant même d’ouvrir les portes' : 'Le moteur attend sa première lune'}>
+            {mrr > 0
+              ? <>{fmtMoney(mrr, currency)} sont déjà encaissés ce mois — <span className="accent">le salon classique vend une fois ; la Maison perçoit chaque lune.</span></>
+              : <>Aucun abonnement encore — <span className="accent">le salon classique vend une fois ; la Maison percevra chaque lune.</span></>}
           </DeepNote>
 
           <div className="tr-grid tr-grid--4">
             <Card filet="copper" style={{ padding: 18 }}>
               <div className="mnd-stat__label">MRR · revenu récurrent</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{fmtMoneyCompact(mrr, currency)}</div>
-              <div style={{ fontSize: 11, marginTop: 6, color: 'var(--copper-600)' }}>▲ 12 % vs mois dernier</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{mrr > 0 ? fmtMoneyCompact(mrr, currency) : '—'}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>revenu des abonnements actifs</div>
             </Card>
             <Card filet="indigo" style={{ padding: 18 }}>
               <div className="mnd-stat__label">Abonnés actifs</div>
               <div className="mnd-stat__value" style={{ fontSize: 30 }}>{members.length}</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>+ {members.filter((m) => m.status === 'new').length} ce mois</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {members.length > 0 ? `+ ${members.filter((m) => m.status === 'new').length} ce mois` : 'la première lune reste à inscrire'}
+              </div>
             </Card>
             <Card filet="indigo" style={{ padding: 18 }}>
               <div className="mnd-stat__label">Rétention</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>94 %</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>churn 6 % · cible &lt; 8 %</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{retention != null ? `${retention} %` : '—'}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {retention != null ? `${churned} résiliation${churned > 1 ? 's' : ''}` : 'se mesurera avec l’usage'}
+              </div>
             </Card>
             <Card filet="copper" style={{ padding: 18 }}>
               <div className="mnd-stat__label">Valeur à vie · LTV</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{fmtMoneyCompact(1240000, currency)}</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>par abonné fidèle</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>—</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>se calculera avec l’historique</div>
             </Card>
           </div>
 
           <div className="tr-grid tr-grid--2" style={{ marginTop: 16, alignItems: 'start' }}>
             <Card style={{ padding: '20px 22px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                <Eyebrow>Évolution & churn · 12 mois</Eyebrow>
-                <span className="mnd-muted" style={{ fontSize: 11 }}>intelligence de marché</span>
+                <Eyebrow>Le moteur · ce mois</Eyebrow>
               </div>
-              <MrrChart mrrNow={mrr} currency={currency} />
+              {members.length === 0 ? (
+                <div className="mnd-muted" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, padding: '14px 0' }}>
+                  L’évolution du revenu récurrent se dessinera lune après lune — inscrivez la première abonnée, la courbe naîtra d’elle.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                  {([['new', 'Nouvelles ce mois'], ['active', 'Actives'], ['risk', 'À veiller']] as const).map(([st, label]) => {
+                    const n = members.filter((m) => m.status === st).length;
+                    return (
+                      <div key={st}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                          <span>{label}</span>
+                          <span className="mnd-muted">{n} abonné{n > 1 ? 's' : ''}</span>
+                        </div>
+                        <div style={{ marginTop: 5 }}>
+                          <Bar pct={(n / Math.max(1, members.length)) * 100} fill={st === 'risk' ? '#8f3b30' : st === 'new' ? 'var(--color-copper)' : 'var(--color-indigo)'} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

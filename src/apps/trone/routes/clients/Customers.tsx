@@ -3,11 +3,11 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
+import { CROWN_STYLES, clientsStore, usePersonas, type Client } from '../../../../shared/clients';
 import { uid } from '../../../../shared/store';
 import {
   Avatar, Drawer, RdvModal, StatusPill, addDaysISO, apptLabel, apptTotalXof, frLong, frShort, frDay,
-  relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
 
@@ -16,6 +16,17 @@ import './clients.css';
 
 const GRID = '1.7fr 1fr 1fr 1fr 0.8fr 34px';
 const SEGMENT_PRESETS = ['VIP', 'Abonnée', 'Nouvelle', 'Diaspora', 'Famille', 'Cercle', 'Régulier', 'Dormante'];
+
+/** Âge éditorial de la couronne : « 24 j », « 8 mois », « 2 ans 3 mois ». */
+const crownAge = (iso: string): string => {
+  const days = Math.max(0, Math.round((Date.now() - fromISO(iso).getTime()) / 86400000));
+  if (days < 30) return `${days} j`;
+  if (days < 365) return `${Math.max(1, Math.round(days / 30))} mois`;
+  const years = Math.floor(days / 365);
+  const months = Math.round((days % 365) / 30);
+  const y = `${years} an${years > 1 ? 's' : ''}`;
+  return months > 0 ? `${y} ${months} mois` : y;
+};
 
 export default function Customers() {
   const clients = useBranchClients();
@@ -143,11 +154,15 @@ function Customer360({
   byId: ReturnType<typeof useServicesById>;
   predicted: { iso: string | null; predicted: boolean };
 }) {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
   const [personas] = usePersonas();
   const [bookOpen, setBookOpen] = useState(false);
   const [pickPersona, setPickPersona] = useState(false);
   const today = todayISO();
+
+  /* La couronne — persistance immédiate ; ce bloc alimente le statut dans Ma Couronne. */
+  const patch = (p: Partial<Client>) =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
 
   const honored = appts.filter((a) => a.status === 'honoré');
   const spend = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
@@ -192,6 +207,50 @@ function Customer360({
           <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Dépense cumulée</span></div>
           <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
           <div className="trc-ministat"><b>{client.loyaltyPoints}</b><span>Points cercle</span></div>
+        </div>
+
+        {/* La couronne — partagé avec Ma Couronne */}
+        <div>
+          <span className="trc-microlabel">La couronne · statut Ma Couronne</span>
+          <div className="trc-crown">
+            <div className="trc-crown__style">{client.crownStyle ?? 'Style à définir'}</div>
+            <div className="trc-crown__meta">
+              {client.lockCount ? `${client.lockCount} locks` : 'Locks à compter'}
+              {' · '}
+              {client.crownSince ? `couronnée depuis ${crownAge(client.crownSince)}` : 'naissance à renseigner'}
+              {client.preferredMaster ? ` · fidèle à ${client.preferredMaster}` : ''}
+            </div>
+            <div className="trc-crown__grid">
+              <Field label="Style de couronne">
+                <Select value={client.crownStyle ?? ''} onChange={(e) => patch({ crownStyle: e.target.value || undefined })}>
+                  <option value="">—</option>
+                  {CROWN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              </Field>
+              <Field label="Nombre de locks">
+                <Input
+                  type="number"
+                  min={0}
+                  value={client.lockCount ?? ''}
+                  onChange={(e) => patch({ lockCount: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Couronne depuis">
+                <Input
+                  type="date"
+                  value={client.crownSince ?? ''}
+                  onChange={(e) => patch({ crownSince: e.target.value || undefined })}
+                />
+              </Field>
+              <Field label="Maître préféré(e)">
+                <Select value={client.preferredMaster ?? ''} onChange={(e) => patch({ preferredMaster: e.target.value || undefined })}>
+                  <option value="">—</option>
+                  {branch.masters.map((m) => <option key={m} value={m}>{m}</option>)}
+                </Select>
+              </Field>
+            </div>
+          </div>
         </div>
 
         {/* Persona */}
@@ -268,6 +327,10 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [persona, setPersona] = useState(personas[0]?.id ?? '');
   const [photo, setPhoto] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>([]);
+  const [crownStyle, setCrownStyle] = useState('');
+  const [lockCount, setLockCount] = useState('');
+  const [crownSince, setCrownSince] = useState('');
+  const [preferredMaster, setPreferredMaster] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const onPhoto = (file?: File) => {
@@ -294,6 +357,10 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       priceCoef: 1.0,
       loyaltyPoints: 0,
       diaspora: branch.country !== 'Bénin' && branch.country !== "Côte d’Ivoire",
+      crownStyle: crownStyle || undefined,
+      lockCount: lockCount === '' ? undefined : Math.max(0, Number(lockCount)),
+      crownSince: crownSince || undefined,
+      preferredMaster: preferredMaster || undefined,
     };
     clientsStore.set((prev) => [...prev, client]);
     onClose();
@@ -332,6 +399,30 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
         </Field>
+
+        <div>
+          <span className="trc-microlabel">La couronne · partagé avec Ma Couronne</span>
+          <div className="tr-grid tr-grid--2">
+            <Field label="Style de couronne">
+              <Select value={crownStyle} onChange={(e) => setCrownStyle(e.target.value)}>
+                <option value="">—</option>
+                {CROWN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </Select>
+            </Field>
+            <Field label="Nombre de locks">
+              <Input type="number" min={0} value={lockCount} onChange={(e) => setLockCount(e.target.value)} placeholder="—" />
+            </Field>
+            <Field label="Couronne depuis">
+              <Input type="date" value={crownSince} onChange={(e) => setCrownSince(e.target.value)} />
+            </Field>
+            <Field label="Maître préféré(e)">
+              <Select value={preferredMaster} onChange={(e) => setPreferredMaster(e.target.value)}>
+                <option value="">—</option>
+                {branch.masters.map((m) => <option key={m} value={m}>{m}</option>)}
+              </Select>
+            </Field>
+          </div>
+        </div>
 
         <div>
           <span className="trc-microlabel">Segments</span>

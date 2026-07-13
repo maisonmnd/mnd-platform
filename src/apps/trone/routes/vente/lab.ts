@@ -168,12 +168,9 @@ export const LAB_FORMULAS: Record<string, Formula> = {
   },
 };
 
-/** Ingrédients absents des réserves au réveil (par défaut). true/absent = en réserve. */
-export const LAB_STOCK_DEFAULTS: Record<string, boolean> = {
-  'Macérât de café vert': false,
-  'Huile de mafura': false,
-  'Protéine de soie hydrolysée': false,
-};
+/** Ingrédients marqués absents des réserves. true/absent = en réserve.
+    Maison neuve : rien n'est déclaré manquant — l'atelier bascule lui-même ses réserves. */
+export const LAB_STOCK_DEFAULTS: Record<string, boolean> = {};
 
 export type Sub = { ingredient: string; origin: string; grade: string };
 
@@ -213,37 +210,16 @@ export const LAB_PROTO_TOKENS: Record<string, string> = {
   'Huile essentielle de tea-tree': 'tea-tree', 'Vinaigre de cidre cru': 'cidre', 'Infusion de romarin': 'romarin', 'Jus de citron vert': 'citron vert',
 };
 
-/* ---- La Gamme & le stock ---- */
-export type GammeProduct = { name: string; concern: string; priceN: number; margin: string; unitsN: number; cap: number; unit: string };
-
-export const GAMME_SEED: GammeProduct[] = [
-  { name: 'Le Voile Aloès & Lin', concern: 'Hydratation', priceN: 9500, margin: '88 %', unitsN: 34, cap: 45, unit: 'flacons' },
-  { name: 'L’Élixir Baobab & Café vert', concern: 'Volume & densité', priceN: 16000, margin: '88 %', unitsN: 6, cap: 40, unit: 'flacons' },
-  { name: 'Le Beurre Karité & Mafura', concern: 'Sécheresse', priceN: 12000, margin: '88 %', unitsN: 22, cap: 40, unit: 'pots' },
-  { name: 'La Cure Soie & Hibiscus', concern: 'Anti-casse', priceN: 14000, margin: '87 %', unitsN: 15, cap: 38, unit: 'pots' },
-  { name: 'Le Baume Neem & Calendula', concern: 'Anti-psoriasis', priceN: 18000, margin: '87 %', unitsN: 2, cap: 25, unit: 'pots' },
-  { name: 'Le Tonique Tea-tree & Citron vert', concern: 'Anti-pellicules', priceN: 8000, margin: '88 %', unitsN: 41, cap: 45, unit: 'flacons' },
-];
-
 /* ---- Performance ---- */
 export type PerfRow = { name: string; score: number; rachat: string; resultats: string; vitesse: string };
 
-export const PERF_SEED: PerfRow[] = [
-  { name: 'Le Voile Aloès & Lin', score: 94, rachat: '71 %', resultats: '+0,9', vitesse: 'Rapide' },
-  { name: 'Le Beurre Karité & Mafura', score: 89, rachat: '64 %', resultats: '+0,8', vitesse: 'Soutenue' },
-  { name: 'L’Élixir Baobab & Café vert', score: 82, rachat: '58 %', resultats: '+0,6', vitesse: 'Rapide' },
-  { name: 'Le Tonique Tea-tree & Citron vert', score: 68, rachat: '41 %', resultats: '+0,5', vitesse: 'Régulière' },
-  { name: 'La Cure Soie & Hibiscus', score: 54, rachat: '33 %', resultats: '+0,3', vitesse: 'Lente' },
-  { name: 'Le Baume Neem & Calendula', score: 47, rachat: '52 %', resultats: '+0,7', vitesse: 'Confidentielle' },
-];
+/* Maison neuve — le palmarès se mérite à l'usage ; aucune performance fabriquée. */
+export const PERF_SEED: PerfRow[] = [];
 
 export type ReinventRow = { name: string; flag: string; flagK: 'red' | 'amber' | 'blue'; why: string; move: string };
 
-export const REINVENT_SEED: ReinventRow[] = [
-  { name: 'La Cure Soie & Hibiscus', flag: 'À réinventer', flagK: 'red', why: 'Rachat en baisse (33 %) et résultats consignés modestes : la cliente la juge trop raide. La protéine domine la formule.', move: 'Baisser la soie à 2 %, ajouter glycérine et guimauve pour la souplesse — tester sur 8 têtes.' },
-  { name: 'Le Baume Neem & Calendula', flag: 'À déployer', flagK: 'amber', why: 'Résultats cliniques excellents (+0,7) mais ventes confidentielles : produit méconnu, odeur de neem dissuasive.', move: 'Reparfumer au néroli, créer une fiche pédagogie cuir, le mettre en avant dans la Vitrine des clientes concernées.' },
-  { name: 'Le Tonique Tea-tree & Citron vert', flag: 'À surveiller', flagK: 'blue', why: 'Score correct mais rachat sous la barre des 45 % : effet réel, mais la cliente oublie de renouveler.', move: 'Passer en abonnement « cuir net » trimestriel — rappel automatique du Carnet à J+50.' },
-];
+/* Maison neuve — les signaux de réinvention viendront des ventes et du Carnet. */
+export const REINVENT_SEED: ReinventRow[] = [];
 
 /* ============================================================
    Logique pure du formulateur — swaps, protocole, correspondances.

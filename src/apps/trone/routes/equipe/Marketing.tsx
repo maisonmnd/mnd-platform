@@ -3,50 +3,62 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
+import { useClients } from '../../../../shared/clients';
+import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import {
   AUTOMATIONS, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, autoConfigStore, useCampaigns, useOffers,
   type InstantOffer,
 } from './data';
-import { Bar, DeepNote, Pill, Tabs, Toggle } from './ui';
+import { Pill, Tabs, Toggle } from './ui';
 import './equipe.css';
 
 type Tab = 'campagnes' | 'offres' | 'auto' | 'audience';
 
-const AUDIENCE_ROWS = [
-  { seg: 'VIP · têtes couronnées', size: '46', valeur: '1,2 M F', prop: 88, moment: 'dim. 18h' },
-  { seg: 'En cycle de resserrage', size: '128', valeur: '74 000 F', prop: 76, moment: 'jeu. 12h' },
-  { seg: 'Cercle · transmetteuses', size: '88', valeur: '415 000 F', prop: 64, moment: 'sam. 10h' },
-  { seg: 'Dormantes réveillables', size: '60', valeur: '295 000 F', prop: 38, moment: 'mar. 19h' },
-];
-
 type OfferForm = {
   title: string; tag: string; deal: string; sub: string; audience: string;
   days: string[]; heureDebut: string; heureFin: string;
+  serviceId: string; discountPct: string;
 };
 
 const emptyOffer: OfferForm = {
   title: '', tag: 'Offre éclair', deal: '', sub: '', audience: 'Tous',
   days: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'], heureDebut: '09h', heureFin: '18h',
+  serviceId: '', discountPct: '',
 };
 
 const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' : s === 'Programmée' ? 'warn' : 'muted');
 
 export default function Marketing() {
-  const { branch } = useBranch();
+  const { branch, currency } = useBranch();
   const [tab, setTab] = useState<Tab>('campagnes');
   const [campaigns] = useCampaigns();
   const [offers, setOffers] = useOffers();
+  const [clients] = useClients();
+  const [services] = useServices();
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);
   const [offerForm, setOfferForm] = useState<OfferForm>(emptyOffer);
-  const [campNote, setCampNote] = useState<string | null>(null);
 
   const branchCampaigns = useMemo(() => campaigns.filter((c) => c.branchId === branch.id), [campaigns, branch.id]);
   const branchOffers = useMemo(() => offers.filter((o) => o.branchId === branch.id), [offers, branch.id]);
+
+  /* — audience : segments réels des têtes couronnées de la branche — */
+  const audienceRows = useMemo(() => {
+    const map = new Map<string, number>();
+    clients
+      .filter((c) => c.branchId === branch.id && !c.archived)
+      .forEach((c) => c.segments.forEach((s) => map.set(s, (map.get(s) ?? 0) + 1)));
+    return Array.from(map.entries())
+      .map(([seg, size]) => ({ seg, size }))
+      .sort((a, b) => b.size - a.size);
+  }, [clients, branch.id]);
+
+  const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');
 
   const isOn = (id: string) => autoActive[id] !== false;
   const activeCount = AUTOMATIONS.filter((a) => isOn(a.id)).length;
@@ -55,15 +67,26 @@ export default function Marketing() {
   const openNewOffer = () => { setOfferEditId(null); setOfferForm(emptyOffer); setOfferModal(true); };
   const openEditOffer = (o: InstantOffer) => {
     setOfferEditId(o.id);
-    setOfferForm({ title: o.title, tag: o.tag, deal: o.deal, sub: o.sub, audience: o.audience, days: [...o.days], heureDebut: o.heureDebut, heureFin: o.heureFin });
+    setOfferForm({
+      title: o.title, tag: o.tag, deal: o.deal, sub: o.sub, audience: o.audience,
+      days: [...o.days], heureDebut: o.heureDebut, heureFin: o.heureFin,
+      serviceId: o.serviceId ?? '', discountPct: o.discountPct != null ? String(o.discountPct) : '',
+    });
     setOfferModal(true);
   };
   const saveOffer = () => {
     if (!offerForm.title.trim()) return;
+    const disc = parseInt(offerForm.discountPct, 10);
+    const payload = {
+      title: offerForm.title.trim(), tag: offerForm.tag, deal: offerForm.deal, sub: offerForm.sub,
+      audience: offerForm.audience, days: [...offerForm.days], heureDebut: offerForm.heureDebut, heureFin: offerForm.heureFin,
+      serviceId: offerForm.serviceId || undefined,
+      discountPct: Number.isFinite(disc) && disc > 0 ? Math.min(90, disc) : undefined,
+    };
     if (offerEditId) {
-      setOffers((prev) => prev.map((o) => (o.id === offerEditId ? { ...o, ...offerForm, title: offerForm.title.trim() } : o)));
+      setOffers((prev) => prev.map((o) => (o.id === offerEditId ? { ...o, ...payload } : o)));
     } else {
-      setOffers((prev) => [...prev, { id: `of-${uid()}`, branchId: branch.id, active: true, ...offerForm, title: offerForm.title.trim() }]);
+      setOffers((prev) => [...prev, { id: `of-${uid()}`, branchId: branch.id, active: true, ...payload }]);
     }
     setOfferModal(false);
   };
@@ -100,25 +123,17 @@ export default function Marketing() {
 
       {tab === 'campagnes' && (
         <div>
-          <DeepNote
-            eyebrow="Intelligence — l’IA propose une campagne"
-            actions={
-              <>
-                <Button variant="copper" onClick={() => setCampNote('Campagne « Couronnement » programmée · dimanche 18h.')}>Lancer</Button>
-                <Button variant="ghost-invert" onClick={() => setCampNote('Brouillon de campagne ouvert — ajustez la cible et le moment.')}>Ajuster</Button>
-              </>
-            }
-          >
-            Inviter VIP &amp; Cercle au Couronnement
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'rgba(246,241,231,.7)', marginTop: 5 }}>
-              88 têtes ciblées · moment idéal prédit : dimanche 18h · lift estimé <span className="accent">+31 %</span> de présence.
+          <div className="tre-deep" style={{ marginBottom: 16 }}>
+            <div>
+              <div className="tre-deep__eyebrow">Intelligence — en attente de vécu</div>
+              <div className="tre-deep__body">
+                L’intelligence attend l’activité de la maison.
+                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'rgba(246,241,231,.7)', marginTop: 5 }}>
+                  Les propositions de campagne naîtront des rendez-vous, des ventes et du Cercle — jamais d’invention.
+                </div>
+              </div>
             </div>
-          </DeepNote>
-          {campNote && (
-            <div className="tre-inline-note" style={{ marginBottom: 16 }}>
-              <span className="mark">✦</span><span>{campNote}</span>
-            </div>
-          )}
+          </div>
 
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
@@ -191,6 +206,14 @@ export default function Marketing() {
                         <div className="tre-offer__meta-label">Heures</div>
                         <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{o.heureDebut} – {o.heureFin}</div>
                       </div>
+                      <div>
+                        <div className="tre-offer__meta-label">Prestation liée</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{o.serviceId ? serviceName(o.serviceId) : '—'}</div>
+                      </div>
+                      <div>
+                        <div className="tre-offer__meta-label">Remise appliquée</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--copper-700)' }}>{o.discountPct ? `−${o.discountPct} %` : '—'}</div>
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none', width: 160 }}>
@@ -218,11 +241,11 @@ export default function Marketing() {
             </Card>
             <Card filet="indigo" style={{ padding: 16 }}>
               <div className="mnd-stat__label">Messages ce mois</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{msgCount}</div>
+              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{msgCount > 0 ? msgCount : '—'}</div>
             </Card>
             <Card filet="indigo" style={{ padding: 16 }}>
               <div className="mnd-stat__label">Taux d’action</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>31 %</div>
+              <div className="mnd-stat__value" style={{ fontSize: 28 }}>—</div>
             </Card>
           </div>
 
@@ -235,7 +258,7 @@ export default function Marketing() {
                   <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{a.act}</span>
                 </div>
                 <Pill tone="muted">{a.canal}</Pill>
-                <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none', width: 110, textAlign: 'right' }}>{a.runs} ce mois</span>
+                <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none', width: 110, textAlign: 'right' }}>{a.runs > 0 ? `${a.runs} ce mois` : '—'}</span>
                 <Toggle on={isOn(a.id)} onToggle={() => setAutoActive((prev) => ({ ...prev, [a.id]: !isOn(a.id) }))} />
               </Card>
             ))}
@@ -271,31 +294,39 @@ export default function Marketing() {
       )}
 
       {tab === 'audience' && (
-        <Card style={{ overflow: 'hidden' }}>
-          <div className="mnd-scroll-x">
-            <table className="tre-table">
-              <thead>
-                <tr><th>Segment prédictif</th><th>Taille</th><th>Valeur moy.</th><th>Propension à réserver</th><th>Moment idéal</th></tr>
-              </thead>
-              <tbody>
-                {AUDIENCE_ROWS.map((a) => (
-                  <tr key={a.seg}>
-                    <td><span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{a.seg}</span></td>
-                    <td>{a.size}</td>
-                    <td className="num">{a.valeur}</td>
-                    <td>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Bar pct={a.prop} fill={a.prop >= 75 ? 'var(--color-copper)' : 'var(--indigo-400, #5B5F94)'} />
-                        <span className="mnd-muted" style={{ fontSize: 11.5 }}>{a.prop} %</span>
-                      </span>
-                    </td>
-                    <td className="mnd-copper" style={{ fontSize: 12 }}>{a.moment}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <div>
+          {audienceRows.length === 0 ? (
+            <Card className="tre-empty">
+              <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
+              <div className="tre-empty__title">Aucun segment pour l’instant.</div>
+              <div className="tre-empty__sub">Les segments naîtront des têtes couronnées de la maison — inscrivez-les au CRM, l’audience se dessinera ici.</div>
+            </Card>
+          ) : (
+            <Card style={{ overflow: 'hidden' }}>
+              <div className="mnd-scroll-x">
+                <table className="tre-table">
+                  <thead>
+                    <tr><th>Segment</th><th>Taille</th><th>Valeur moy.</th><th>Propension à réserver</th><th>Moment idéal</th></tr>
+                  </thead>
+                  <tbody>
+                    {audienceRows.map((a) => (
+                      <tr key={a.seg}>
+                        <td><span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{a.seg}</span></td>
+                        <td>{a.size}</td>
+                        <td className="num mnd-muted">—</td>
+                        <td className="mnd-muted">—</td>
+                        <td className="mnd-muted" style={{ fontSize: 12 }}>—</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11, padding: '10px 18px', borderTop: '1px solid var(--hairline)' }}>
+                Valeur, propension et moment idéal se calculeront avec le vécu — jamais d’invention.
+              </div>
+            </Card>
+          )}
+        </div>
       )}
 
       {offerModal && (
@@ -315,6 +346,27 @@ export default function Marketing() {
             <Field label="Détail">
               <Input value={offerForm.sub} placeholder="Ex. Sérum Densité offert" onChange={(e) => setOfferForm({ ...offerForm, sub: e.target.value })} />
             </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Prestation liée · réservable en un geste">
+                <Select value={offerForm.serviceId} onChange={(e) => setOfferForm({ ...offerForm, serviceId: e.target.value })}>
+                  <option value="">Aucune — offre libre</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Remise (%) · appliquée au prix">
+                <Input
+                  inputMode="numeric"
+                  value={offerForm.discountPct}
+                  placeholder="Ex. 25"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                    setOfferForm({ ...offerForm, discountPct: raw });
+                  }}
+                />
+              </Field>
+            </div>
             <Field label="Qui peut la voir · audience">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {OFFER_AUDIENCES.map((a) => (

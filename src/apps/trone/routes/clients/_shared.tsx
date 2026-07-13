@@ -143,36 +143,56 @@ export const TIME_SLOTS: string[] = (() => {
   return out;
 })();
 
-/* ---------- Modale « Nouveau rendez-vous » ---------- */
+/* ---------- Modale rendez-vous — création & modification ---------- */
 export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | 'date' | 'time' | 'master' | 'note'>>;
+
+const RDV_STATUSES: Appointment['status'][] = ['en attente', 'confirmé', 'honoré', 'annulé'];
 
 export function RdvModal({
   onClose,
   initial,
-  title = 'Nouveau rendez-vous.',
+  appt,
+  title,
 }: {
   onClose: () => void;
   initial?: RdvInitial;
+  /** Rendez-vous existant — la modale passe en mode modification (statut, suppression). */
+  appt?: Appointment;
   title?: string;
 }) {
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
+  const branchAppts = useBranchAppointments();
   const [services] = useServices();
   const byId = useServicesById();
 
-  const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? '');
-  const [serviceIds, setServiceIds] = useState<string[]>(initial?.serviceIds ?? []);
-  const [date, setDate] = useState(initial?.date ?? todayISO());
-  const [time, setTime] = useState(initial?.time ?? '09:00');
-  const [master, setMaster] = useState(initial?.master ?? branch.masters[0] ?? '');
-  const [note, setNote] = useState(initial?.note ?? '');
+  const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? clients[0]?.id ?? '');
+  const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
+  const [date, setDate] = useState(appt?.date ?? initial?.date ?? todayISO());
+  const [time, setTime] = useState(appt?.time ?? initial?.time ?? '09:00');
+  const [master, setMaster] = useState(appt?.master ?? initial?.master ?? branch.masters[0] ?? '');
+  const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
+  const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
   const totalXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
 
-  const save = (status: Appointment['status']) => {
+  /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
+  const overlap = useMemo(() => {
+    const start = timeToMin(time);
+    const end = start + (chosen.reduce((s, sv) => s + sv.durationMin, 0) || 60);
+    return branchAppts.find((a) => {
+      if (a.id === appt?.id || a.date !== date || a.master !== master || a.status === 'annulé') return false;
+      const s2 = timeToMin(a.time);
+      return start < s2 + apptDurationMin(a, byId) && s2 < end;
+    });
+  }, [branchAppts, appt?.id, date, time, master, chosen, byId]);
+
+  const overlapName = overlap ? clients.find((c) => c.id === overlap.clientId)?.name ?? 'une cliente' : '';
+
+  const save = (chosenStatus: Appointment['status']) => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
       return;
@@ -181,24 +201,41 @@ export function RdvModal({
       setError('Ajoutez au moins une prestation.');
       return;
     }
-    const appt: Appointment = {
-      id: uid(),
-      branchId: branch.id,
-      clientId,
-      serviceIds,
-      date,
-      time,
-      master,
-      status,
-      source: 'trone',
-      note: note.trim() || undefined,
-    };
-    appointmentsStore.set((prev) => [...prev, appt]);
+    if (appt) {
+      appointmentsStore.set((prev) =>
+        prev.map((x) =>
+          x.id === appt.id
+            ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined }
+            : x,
+        ),
+      );
+    } else {
+      const created: Appointment = {
+        id: uid(),
+        branchId: branch.id,
+        clientId,
+        serviceIds,
+        date,
+        time,
+        master,
+        status: chosenStatus,
+        source: 'trone',
+        note: note.trim() || undefined,
+      };
+      appointmentsStore.set((prev) => [...prev, created]);
+    }
+    onClose();
+  };
+
+  const remove = () => {
+    if (!appt) return;
+    if (!window.confirm('Supprimer ce rendez-vous ? Cette action est définitive.')) return;
+    appointmentsStore.set((prev) => prev.filter((x) => x.id !== appt.id));
     onClose();
   };
 
   return (
-    <Modal title={title} onClose={onClose} width={520}>
+    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Tête couronnée">
           <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
@@ -264,6 +301,7 @@ export function RdvModal({
           </Field>
           <Field label="Heure">
             <Select value={time} onChange={(e) => setTime(e.target.value)}>
+              {!TIME_SLOTS.includes(time) && <option value={time}>{time}</option>}
               {TIME_SLOTS.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -273,15 +311,37 @@ export function RdvModal({
           </Field>
         </div>
 
-        <Field label="Maître au fauteuil">
-          <Select value={master} onChange={(e) => setMaster(e.target.value)}>
-            {branch.masters.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <div className="tr-grid tr-grid--2">
+          <Field label="Maître au fauteuil">
+            <Select value={master} onChange={(e) => setMaster(e.target.value)}>
+              {branch.masters.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {appt ? (
+            <Field label="Statut">
+              <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
+                {RDV_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <span />
+          )}
+        </div>
+
+        {overlap && (
+          <div className="trc-overlap">
+            Attention — {master} reçoit déjà {overlapName} à {overlap.time} ce jour-là. Les deux rituels se chevauchent ;
+            vous pouvez tout de même enregistrer.
+          </div>
+        )}
 
         <Field label="Note du carnet">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
@@ -302,14 +362,25 @@ export function RdvModal({
           <div style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Button variant="copper" onClick={() => save('confirmé')}>
-            Confirmer & demander l’acompte
-          </Button>
-          <Button variant="ghost" onClick={() => save('en attente')}>
-            Enregistrer en attente
-          </Button>
-        </div>
+        {appt ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Button variant="copper" onClick={() => save(status)}>
+              Enregistrer les modifications
+            </Button>
+            <Button variant="ghost" onClick={remove} style={{ color: 'var(--copper-700)' }}>
+              Supprimer le rendez-vous
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Button variant="copper" onClick={() => save('confirmé')}>
+              Confirmer & demander l’acompte
+            </Button>
+            <Button variant="ghost" onClick={() => save('en attente')}>
+              Enregistrer en attente
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );

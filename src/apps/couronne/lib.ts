@@ -10,8 +10,10 @@ import {
 } from '../../shared/catalog';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { clientsStore, useClients, type Client } from '../../shared/clients';
-import { branchesStore } from '../../shared/branches';
-import { OPEN_HOUR, CLOSE_HOUR, type Appointment } from '../../shared/agenda';
+import { branchesStore, useBranch } from '../../shared/branches';
+import { type Appointment } from '../../shared/agenda';
+import { openingForIso, hourToMin } from '../../shared/settings';
+import { useOffers, offerLiveNow } from '../../shared/offers';
 
 /* Ma Couronne — bibliothèque locale : session, visibilité, dates, créneaux, offres. */
 
@@ -130,7 +132,8 @@ const toMin = (hhmm: string) => {
   return h * 60 + (m || 0);
 };
 
-/** Heures de départ libres pour un maître, un jour, une durée — 08:00 → 18:00. */
+/** Heures de départ libres pour un maître, un jour, une durée — dans la fenêtre
+    d'ouverture configurée au Trône (Paramètres : jours & heures, jours fermés). */
 export function freeSlots(
   dateIso: string,
   master: string,
@@ -139,6 +142,9 @@ export function freeSlots(
   services: Service[],
   branchId: string
 ): string[] {
+  const opening = openingForIso(dateIso);
+  if (opening.closed) return [];
+
   const busy = appts
     .filter((a) => a.branchId === branchId && a.master === master && a.date === dateIso && a.status !== 'annulé')
     .map((a) => {
@@ -151,7 +157,7 @@ export function freeSlots(
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
   const out: string[] = [];
-  for (let m = OPEN_HOUR * 60; m + durationMin <= CLOSE_HOUR * 60; m += 60) {
+  for (let m = opening.openMin; m + durationMin <= opening.closeMin; m += 60) {
     if (isToday && m <= nowMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + durationMin > s);
     if (!overlaps) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
@@ -176,7 +182,7 @@ export const QUATRE_TEMPS = [
   { no: '04', n: 'Couronner', g: 'Sculpter, parfumer, révéler la tête haute.' },
 ];
 
-/* ---------- Offres instantanées ---------- */
+/* ---------- Offres instantanées — créées au Trône (Marketing), vécues ici ---------- */
 
 export type Offer = {
   id: string;
@@ -191,30 +197,41 @@ export type Offer = {
   act: 'book' | 'invite';
 };
 
-export const OFFERS: Offer[] = [
-  {
-    id: 'off-resserrage', tag: 'Offre éclair', deal: '−25 %', discountPct: 25,
-    serviceId: 'sv-resserrage', title: 'Resserrage racines', sub: 'Sérum Racines offert',
-    cta: 'Réserver −25 %', theme: 'copper', act: 'book',
-  },
-  {
-    id: 'off-entretien', tag: 'Duo découverte', deal: '−15 %', discountPct: 15,
-    serviceId: 'sv-entretien-complet', title: 'Entretien complet', sub: 'Réservé aujourd’hui seulement',
-    cta: 'Réserver −15 %', theme: 'indigo', act: 'book',
-  },
-  {
-    id: 'off-parrainage', tag: 'Cadeau', deal: '✦', discountPct: 0,
-    title: 'Parrainez une amie', sub: 'Un soin offert à sa première visite',
-    cta: 'Inviter', theme: 'sable', act: 'invite',
-  },
-];
+const OFFER_THEMES: Offer['theme'][] = ['copper', 'indigo', 'sable'];
 
-/** Les offres expirent au prochain 21:00 — compte à rebours vivant. */
-export function useOfferCountdown(): string {
+/** Offres visibles maintenant pour cette branche — fenêtre jour/heure respectée. */
+export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
+  const { branch } = useBranch();
+  const [all] = useOffers();
+  const now = new Date();
+  return useMemo(() => {
+    const live = all.filter((o) => o.branchId === branch.id && offerLiveNow(o, now));
+    const offers = live.map((o, i): Offer => ({
+      id: o.id,
+      tag: o.tag,
+      deal: o.deal,
+      discountPct: o.discountPct ?? 0,
+      serviceId: o.serviceId,
+      title: o.title,
+      sub: o.sub,
+      cta: o.serviceId ? `Réserver ${o.deal}` : o.deal,
+      theme: OFFER_THEMES[i % OFFER_THEMES.length],
+      act: o.serviceId ? 'book' : 'invite',
+    }));
+    /* Fin de fenêtre la plus proche — pour le compte à rebours. */
+    const endMin = live.length ? Math.min(...live.map((o) => hourToMin(o.heureFin))) : null;
+    return { offers, endMin };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, branch.id, now.getHours(), now.getMinutes()]);
+}
+
+/** Compte à rebours vivant jusqu'à la fin de fenêtre d'offre (minutes depuis minuit). */
+export function useOfferCountdown(endMin: number | null): string {
   const compute = () => {
+    if (endMin == null) return '';
     const now = new Date();
     const end = new Date(now);
-    end.setHours(21, 0, 0, 0);
+    end.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
     if (end.getTime() <= now.getTime()) end.setDate(end.getDate() + 1);
     const s = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 1000));
     return `${pad2(Math.floor(s / 3600))}:${pad2(Math.floor((s % 3600) / 60))}:${pad2(s % 60)}`;
@@ -223,7 +240,8 @@ export function useOfferCountdown(): string {
   useEffect(() => {
     const t = window.setInterval(() => setV(compute()), 1000);
     return () => window.clearInterval(t);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endMin]);
   return v;
 }
 

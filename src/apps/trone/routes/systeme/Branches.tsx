@@ -4,6 +4,9 @@ import { Button, Field, Input, Modal, Seal, Select } from '../../../../ds/compon
 import { branchesStore, useBranch, type Branch } from '../../../../shared/branches';
 import { COUNTRIES, CURRENCIES } from '../../../../shared/geo';
 import { fmtMoney } from '../../../../shared/currency';
+import { useAppointments } from '../../../../shared/agenda';
+import { useInvoices, invoiceTotal } from '../../../../shared/finance';
+import { apptTotalXof, todayISO, useServicesById } from '../clients/_shared';
 import { uid } from '../../../../shared/store';
 import './systeme.css';
 
@@ -21,10 +24,6 @@ const LOGO_OPTS: { k: SealColor; l: string }[] = [
   { k: 'ivoire', l: 'Ivoire' }, { k: 'obsidian', l: 'Obsidienne' },
 ];
 const PICTO_OPTS = ['◈', '❖', '▦', '⌂', '✦', '◍', '⬗', '⬣'];
-
-/** Recette indicative du jour (démo) — base XOF, formatée dans la devise de la branche. */
-const dailyXof = (b: Branch) => (b.status === 'active' ? b.seats * 68000 : 0);
-const occupancy = (b: Branch) => (b.status === 'active' ? Math.min(96, 52 + b.seats * 6) : 0);
 
 type BranchForm = {
   name: string;
@@ -55,16 +54,32 @@ function reconcileMasters(existing: string[], count: number): string[] {
 
 export default function Branches() {
   const { branch, branches, setBranch } = useBranch();
+  const [appointments] = useAppointments();
+  const [invoices] = useInvoices();
+  const byId = useServicesById();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<BranchForm>(emptyForm);
 
+  /* Recette réelle du jour, par branche : rituels honorés + factures payées d'aujourd'hui. */
+  const today = todayISO();
+  const todayRevenue = useMemo(() => {
+    const map = new Map<string, number>();
+    appointments
+      .filter((a) => a.date === today && a.status === 'honoré')
+      .forEach((a) => map.set(a.branchId, (map.get(a.branchId) ?? 0) + apptTotalXof(a, byId)));
+    invoices
+      .filter((i) => i.kind === 'facture' && i.status === 'payée' && i.date === today)
+      .forEach((i) => map.set(i.branchId, (map.get(i.branchId) ?? 0) + invoiceTotal(i)));
+    return map;
+  }, [appointments, invoices, byId, today]);
+
   const totals = useMemo(() => {
     const masters = branches.reduce((a, b) => a + b.masters.length, 0);
     const seats = branches.reduce((a, b) => a + b.seats, 0);
-    const jourXof = branches.reduce((a, b) => a + dailyXof(b), 0);
+    const jourXof = branches.reduce((a, b) => a + (todayRevenue.get(b.id) ?? 0), 0);
     return { masters, seats, jourXof };
-  }, [branches]);
+  }, [branches, todayRevenue]);
 
   const patch = (p: Partial<BranchForm>) => setForm((f) => ({ ...f, ...p }));
 
@@ -149,7 +164,7 @@ export default function Branches() {
         </div>
         <div className="sys-summary__sep" />
         <div>
-          <div className="sys-summary__num" style={{ color: 'var(--color-copper)' }}>{fmtMoney(totals.jourXof, branch.currency)}</div>
+          <div className="sys-summary__num" style={{ color: 'var(--color-copper)' }}>{totals.jourXof > 0 ? fmtMoney(totals.jourXof, branch.currency) : '—'}</div>
           <div className="sys-summary__label">aujourd’hui · consolidé</div>
         </div>
       </div>
@@ -190,12 +205,10 @@ export default function Branches() {
               </div>
 
               <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Recette indicative · jour</span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{dailyXof(b) ? fmtMoney(dailyXof(b), b.currency) : '—'}</span>
-              </div>
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="tre-bar"><span className="tre-bar__fill" style={{ width: `${occupancy(b)}%`, background: 'var(--color-copper)' }} /></span>
-                <span style={{ fontSize: 11, color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>{occupancy(b)} %</span>
+                <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Recette du jour</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>
+                  {(todayRevenue.get(b.id) ?? 0) > 0 ? fmtMoney(todayRevenue.get(b.id) ?? 0, b.currency) : '—'}
+                </span>
               </div>
 
               <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>

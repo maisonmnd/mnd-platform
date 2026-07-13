@@ -1,6 +1,7 @@
 import { asset } from '../../shared/asset';
 import { useEffect, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
+import { clientsStore } from '../../shared/clients';
 import { CLIENT_ID, sessionStore, useClient } from './lib';
 
 /* Onboarding — slides photographiques, connexion par téléphone + OTP WhatsApp.
@@ -37,7 +38,8 @@ export default function Onboarding() {
 
   const [stage, setStage] = useState<'welcome' | 'phone' | 'otp'>('welcome');
   const [slide, setSlide] = useState(0);
-  const defaultPhone = (client?.phone ?? '+229 01 97 44 12 08').replace(/^\+\d+\s*/, '');
+  /* Aucun numéro de démonstration — le profil réel, s'il existe, pré-remplit. */
+  const defaultPhone = (client?.phone ?? '').replace(/^\+\d+\s*/, '');
   const [phone, setPhone] = useState(defaultPhone);
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [err, setErr] = useState<string | null>(null);
@@ -79,8 +81,11 @@ export default function Onboarding() {
       return;
     }
     setErr(null);
+    const fullPhone = `${dial} ${phone.trim()}`;
+    /* Le numéro vérifié devient celui du profil — le CRM partagé reste la vérité. */
+    clientsStore.set((prev) => prev.map((c) => (c.id === CLIENT_ID ? { ...c, phone: fullPhone } : c)));
     sessionStore.set({
-      phone: `${dial} ${phone.trim()}`,
+      phone: fullPhone,
       clientId: CLIENT_ID,
       loggedAt: new Date().toISOString(),
     });
@@ -151,6 +156,7 @@ export default function Onboarding() {
             value={phone}
             inputMode="tel"
             autoComplete="tel"
+            placeholder="Votre numéro"
             onChange={(e) => { setPhone(e.target.value); setErr(null); }}
           />
         </div>

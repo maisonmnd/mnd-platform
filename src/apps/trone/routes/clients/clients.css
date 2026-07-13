@@ -548,6 +548,44 @@
   margin-top: 3px;
 }
 
+/* ---------- Avertissement chevauchement (modale RDV) ---------- */
+.trc-overlap {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--copper-700);
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+}
+
+/* ---------- La couronne (fiche 360 — partagé avec Ma Couronne) ---------- */
+.trc-crown {
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-md);
+  padding: 15px 17px;
+}
+.trc-crown__style {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 22px;
+  color: var(--color-indigo);
+  line-height: 1.1;
+  margin-top: 5px;
+}
+.trc-crown__meta {
+  font-size: 11.5px;
+  color: var(--copper-700);
+  margin-top: 6px;
+}
+.trc-crown__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin-top: 14px;
+}
+
 /* ---------- Divers ---------- */
 .trc-microlabel {
   display: block;

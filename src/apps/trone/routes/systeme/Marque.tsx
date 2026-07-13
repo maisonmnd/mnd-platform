@@ -164,7 +164,7 @@ export default function Marque() {
               <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, padding: '16px 18px', position: 'relative', overflow: 'hidden' }}>
                 <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: brand.accent }} />
                 <div style={{ fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Recette du jour</div>
-                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, color: brand.accent, marginTop: 6, lineHeight: 1 }}>412 000 F</div>
+                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, color: brand.accent, marginTop: 6, lineHeight: 1 }}>—</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 16, padding: '9px 12px', background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4 }}>
                 <span style={{ width: 5, height: 5, background: brand.accent, transform: 'rotate(45deg)', flex: '0 0 auto' }} />

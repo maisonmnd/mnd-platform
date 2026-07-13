@@ -46,6 +46,68 @@
 }
 .trp-kpi__link:hover { color: var(--copper-600); }
 
+.trp-kpi--click { cursor: pointer; transition: var(--transition-base); }
+.trp-kpi--click:hover { border-color: var(--copper-300); box-shadow: var(--shadow-sm); }
+
+/* ---------- Décomposition du revenu (modale) ---------- */
+.trp-break__head {
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-copper);
+  margin-bottom: 6px;
+}
+.trp-break__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  padding: 11px 4px;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.trp-break__row:hover { background: var(--hover-veil); }
+.trp-break__label { font-family: var(--font-sans); font-size: 13px; color: var(--ink); }
+.trp-break__count { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.trp-break__num { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 16px; color: var(--color-indigo); white-space: nowrap; }
+.trp-break__sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 9px 4px 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trp-break__empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+  padding: 14px 4px;
+}
+.trp-break__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 2px solid var(--color-indigo);
+  padding-top: 13px;
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 19px;
+  color: var(--color-indigo);
+}
+
+.trp-day__row--click { cursor: pointer; transition: background var(--dur-fast) var(--ease-soft); }
+.trp-day__row--click:hover { background: var(--hover-veil); }
+
 /* ---------- Tuiles secondaires ---------- */
 .trp-tile {
   background: var(--surface-card);
