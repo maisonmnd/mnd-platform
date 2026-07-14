@@ -51,6 +51,7 @@ export default function Prestataires() {
     { name: '', specialty: '', phone: '', mode: 'prestation', rate: '', note: '' },
   );
   const [missionFor, setMissionFor] = useState<Provider | null>(null);
+  const [missionEditId, setMissionEditId] = useState<string | null>(null);
   const [missionForm, setMissionForm] = useState<{ label: string; date: string; qty: string; amount: string; note: string }>(
     { label: '', date: todayIso(), qty: '1', amount: '', note: '' },
   );
@@ -100,8 +101,16 @@ export default function Prestataires() {
 
   /* ---------- Missions ---------- */
   const openMission = (p: Provider) => {
+    setMissionEditId(null);
     setMissionFor(p);
     setMissionForm({ label: '', date: todayIso(), qty: '1', amount: p.mode === 'forfait' && p.rateXof ? String(p.rateXof) : '', note: '' });
+  };
+  const openEditMission = (m: Mission) => {
+    const p = providerOf(m.providerId);
+    if (!p) return;
+    setMissionEditId(m.id);
+    setMissionFor(p);
+    setMissionForm({ label: m.label, date: m.date, qty: m.qty ? String(m.qty) : '1', amount: String(m.amountXof), note: m.note ?? '' });
   };
   const setMissionQty = (p: Provider, qtyStr: string) => {
     const qty = qtyStr.replace(/[^0-9.]/g, '');
@@ -113,7 +122,20 @@ export default function Prestataires() {
     const amountXof = parseXof(missionForm.amount);
     if (!missionForm.label.trim() || amountXof <= 0) return;
     const qty = parseFloat(missionForm.qty) || undefined;
-    setMissions((prev) => [...prev, { id: `ms-${uid()}`, branchId: branch.id, providerId: missionFor.id, label: missionForm.label.trim(), date: missionForm.date, qty, amountXof, note: missionForm.note.trim() || undefined }]);
+    const label = missionForm.label.trim();
+    const note = missionForm.note.trim() || undefined;
+    if (missionEditId) {
+      const existing = missions.find((m) => m.id === missionEditId);
+      setMissions((prev) => prev.map((m) => (m.id === missionEditId ? { ...m, label, date: missionForm.date, qty, amountXof, note } : m)));
+      // Si la mission est déjà payée, on ajuste la charge liée (montant & libellé).
+      if (existing?.expenseId) {
+        const eid = existing.expenseId;
+        expensesStore.set((prev) => prev.map((e) => (e.id === eid ? { ...e, label: `Prestataire · ${missionFor.name} — ${label}`, amountXof } : e)));
+      }
+    } else {
+      setMissions((prev) => [...prev, { id: `ms-${uid()}`, branchId: branch.id, providerId: missionFor.id, label, date: missionForm.date, qty, amountXof, note }]);
+    }
+    setMissionEditId(null);
     setMissionFor(null);
   };
   const removeMission = (id: string) => {
@@ -290,6 +312,7 @@ export default function Prestataires() {
                   </td>
                   <td>
                     <div className="tre-pay">
+                      <button className="tre-link-btn" onClick={() => openEditMission(m)}>Modifier</button>
                       {m.paidAt ? (
                         <>
                           <button className="tre-link-btn" onClick={() => void downloadReceipt(m)}>Reçu PDF</button>
@@ -338,7 +361,7 @@ export default function Prestataires() {
 
       {/* Modale mission */}
       {missionFor && (
-        <Modal title="Nouvelle mission." onClose={() => setMissionFor(null)} width={500}>
+        <Modal title={missionEditId ? 'Modifier la mission.' : 'Nouvelle mission.'} onClose={() => { setMissionFor(null); setMissionEditId(null); }} width={500}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
               Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{missionFor.name}</strong> · {MODE_LABEL[missionFor.mode]}{missionFor.rateXof ? ` · ${fmtMoney(missionFor.rateXof, currency)}` : ''}.
@@ -353,8 +376,8 @@ export default function Prestataires() {
             </div>
             <Field label="Note (facultatif)"><Input value={missionForm.note} onChange={(e) => setMissionForm({ ...missionForm, note: e.target.value })} placeholder="Précision…" /></Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <Button variant="ghost" onClick={() => setMissionFor(null)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveMission} disabled={!missionForm.label.trim() || parseXof(missionForm.amount) <= 0}>Enregistrer la mission</Button>
+              <Button variant="ghost" onClick={() => { setMissionFor(null); setMissionEditId(null); }}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveMission} disabled={!missionForm.label.trim() || parseXof(missionForm.amount) <= 0}>{missionEditId ? 'Enregistrer les modifications' : 'Enregistrer la mission'}</Button>
             </div>
           </div>
         </Modal>
@@ -398,6 +421,7 @@ export default function Prestataires() {
                       <td>{m.paidAt ? <span className="tre-pay__ok" title={fmtStamp(m.paidAt)}>✓ {m.byName}</span> : <span style={{ color: 'var(--color-copper)', fontSize: 12 }}>À payer</span>}</td>
                       <td>
                         <div className="tre-pay">
+                          <button className="tre-link-btn" onClick={() => { openEditMission(m); setProviderFor(null); }}>Modifier</button>
                           {m.paidAt
                             ? <button className="tre-link-btn" onClick={() => void downloadReceipt(m)}>Reçu</button>
                             : <button className="tre-link-btn" onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); setProviderFor(null); }}>Payer</button>}
