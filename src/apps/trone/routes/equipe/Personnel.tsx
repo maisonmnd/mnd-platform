@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Badge, Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -346,6 +346,33 @@ export default function Personnel() {
       return next;
     });
   };
+
+  /* Resynchronisation : si le net d'un mois déjà confirmé change (prime/retenue/
+     pourboire/avance ajoutés après coup), on met à jour le montant confirmé et la
+     charge « Salaires » liée. Sûr : ne met à jour que sur écart réel (converge). */
+  useEffect(() => {
+    const confUpdates: Record<string, PayConfirm> = {};
+    const expUpdates = new Map<string, number>();
+    for (const [key, conf] of Object.entries(confirms)) {
+      const sep = key.indexOf(':');
+      const month = key.slice(0, sep);
+      const staffId = key.slice(sep + 1);
+      const m = team.find((s) => s.id === staffId);
+      if (!m) continue;
+      const net = netForMonth(m, month);
+      if (net !== conf.amountXof) {
+        confUpdates[key] = { ...conf, amountXof: net };
+        if (conf.expenseId) expUpdates.set(conf.expenseId, net);
+      }
+    }
+    if (Object.keys(confUpdates).length) {
+      setConfirms((prev) => ({ ...prev, ...confUpdates }));
+      if (expUpdates.size) {
+        expensesStore.set((prev) => prev.map((e) => (expUpdates.has(e.id) ? { ...e, amountXof: expUpdates.get(e.id)! } : e)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirms, team, appts, invoices, services, rates, primes, tips, advances, retenues]);
 
   /* Montant en ASCII pur pour le PDF (jsPDF n'affiche pas les espaces fins Unicode). */
   const pdfMoney = (n: number) => {
