@@ -192,3 +192,27 @@
 .sys-master__rm:hover { color: var(--color-copper); border-color: var(--color-copper); background: var(--copper-50); }
 .sys-master--add { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--hairline); }
 .sys-master--add .mnd-btn { flex: none; white-space: nowrap; }
+
+/* ============================================================
+   Responsive (contenu Système)
+   ============================================================ */
+
+/* Aperçu marque : grille inline (minmax 0 1fr / 360px) empilée. */
+@media (max-width: 900px) {
+  [style*="1fr) 360px"] { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 620px) {
+  /* Lignes de réglage : label puis contrôle passent à la ligne. */
+  .sys-row { flex-wrap: wrap; }
+  .sys-day { flex-wrap: wrap; }
+  .sys-day__name { flex: 0 0 100%; }
+  .sys-day__hours { justify-content: flex-start; }
+
+  /* Champ d'identité : ne force plus une largeur qui déborde. */
+  .sys-input { min-width: 0; max-width: 60vw; }
+
+  .sys-branch { padding: 18px 16px 20px; }
+  .sys-branch__name { font-size: clamp(20px, 6vw, 25px); }
+  .sys-summary { gap: 18px 22px; }
+}

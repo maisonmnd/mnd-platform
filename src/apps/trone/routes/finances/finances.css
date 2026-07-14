@@ -415,3 +415,25 @@
   color: var(--color-indigo);
 }
 .trf-catgroup__sum { font-family: var(--font-serif); font-size: 17px; color: var(--color-copper); white-space: nowrap; }
+
+/* ============================================================
+   Responsive (contenu Finances)
+   ============================================================ */
+@media (max-width: 620px) {
+  /* Grands chiffres bornés pour ne pas déborder. */
+  .trf-kpi .v { font-size: clamp(26px, 7vw, 34px); white-space: normal; }
+  .trf-obsidian__value { font-size: clamp(26px, 7vw, 32px); }
+  .trf-mirror__price { font-size: clamp(34px, 11vw, 46px); }
+  .trf-caisse__bal { font-size: clamp(22px, 6vw, 26px); }
+
+  /* Cartes plus compactes. */
+  .trf-kpi { padding: 16px 16px 14px; }
+  .trf-panel { padding: 16px 16px; }
+  .trf-mirror { padding: 20px 18px; }
+
+  /* Lignes qui empilent leurs éléments quand la place manque. */
+  .trf-exprow { flex-wrap: wrap; gap: 8px 12px; }
+  .trf-engage { flex-wrap: wrap; gap: 10px; }
+  .trf-detail__grid { grid-template-columns: 1fr; gap: 8px; }
+  .trf-breakrow__name { width: 110px; }
+}

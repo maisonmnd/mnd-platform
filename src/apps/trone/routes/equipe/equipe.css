@@ -368,3 +368,26 @@
   line-height: 1;
   padding: 0 4px;
 }
+
+/* ============================================================
+   Responsive (contenu Équipe & Croissance)
+   ============================================================ */
+
+/* Les tables défilent horizontalement dans leur .mnd-scroll-x. */
+@media (max-width: 900px) {
+  .tre-table { min-width: 640px; }
+}
+
+@media (max-width: 620px) {
+  /* Bandeau obsidienne : action sous le message. */
+  .tre-deep { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .tre-deep__actions { flex-wrap: wrap; }
+
+  /* Grands chiffres bornés. */
+  .tre-mrr { font-size: clamp(32px, 10vw, 44px); }
+  .tre-plan__price { font-size: clamp(28px, 9vw, 34px); }
+  .tre-plan__name { font-size: clamp(24px, 7vw, 28px); }
+
+  .tre-offer__meta { gap: 12px 18px; }
+  .tre-actions-row { gap: 10px; }
+}

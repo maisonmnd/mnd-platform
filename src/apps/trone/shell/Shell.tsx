@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ChevronDown, Gem, LogOut } from 'lucide-react';
+import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
 import { NAV } from '../routes/index';
 import NotificationsBell from './Notifications';
 import { useBranch } from '../../../shared/branches';
@@ -18,9 +18,12 @@ export default function Shell() {
   const staff = useStaff();
   const navigate = useNavigate();
   const today = new Date();
+  const [sideOpen, setSideOpen] = useState(false);
+  const closeSide = () => setSideOpen(false);
 
   return (
-    <div className="tr-shell">
+    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''}`}>
+      {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
         <div className="tr-side__brand">
           <Seal color="or" size={34} />
@@ -28,6 +31,9 @@ export default function Shell() {
             <h1 className="mnd-serif">Maison MND</h1>
             <div className="tr-side__powered">Propulsé par LOKAA</div>
           </div>
+          <button className="tr-side__close" onClick={closeSide} aria-label="Fermer le menu">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="tr-branch" title="Changer de branche">
@@ -51,7 +57,7 @@ export default function Shell() {
             <div key={g.group}>
               <div className="tr-nav__group">{g.group}</div>
               {g.items.map((it) => (
-                <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item">
+                <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item" onClick={closeSide}>
                   <it.icon />
                   {it.label}
                 </NavLink>
@@ -63,6 +69,9 @@ export default function Shell() {
 
       <div className="tr-main">
         <header className="tr-top">
+          <button className="tr-burger" onClick={() => setSideOpen(true)} aria-label="Ouvrir le menu">
+            <Menu size={20} />
+          </button>
           <div className="tr-top__trail">
             Le Trône · {branch.city} · {fmtDate(today)}
           </div>

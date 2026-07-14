@@ -627,6 +627,46 @@
   padding: 1px 7px;
 }
 
+/* ============================================================
+   Responsive (contenu Vente)
+   ============================================================ */
+@media (max-width: 900px) {
+  /* Grilles inline du Laboratoire / POS empilées. */
+  [style*="grid-template-columns: 1.05fr 1fr"],
+  [style*="grid-template-columns: 1.4fr 1fr"] { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 620px) {
+  /* Journal de caisse : plus de grille figée, chaque écriture s'empile. */
+  .trv-journal-head { display: none; }
+  .trv-journal-row { grid-template-columns: 1fr; gap: 4px; padding: 14px 16px; }
+
+  /* Bandeau KPI de caisse (5 colonnes inline) → 2 colonnes. */
+  [style*="grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
+
+  /* Chiffres d'affichage : on borne pour éviter le débordement. */
+  .trv-net { font-size: clamp(24px, 8vw, 32px); }
+  .trv-kpi .v { font-size: clamp(22px, 6vw, 27px); white-space: normal; }
+  .trv-formula-band .name { font-size: clamp(24px, 7vw, 30px); }
+
+  /* Voix du Laboratoire : citation sous le titre. */
+  .trv-lab-voice { flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px 18px; }
+  .trv-lab-voice .quote { font-size: clamp(19px, 6vw, 23px); }
+
+  /* Catalogue : cadres de catégorie plus compacts. */
+  .trv-catblock__band { padding: 13px 14px; }
+  .trv-catblock__body { padding: 14px 14px 18px; }
+  .trv-catblock__id .fon { font-size: 22px; }
+  .trv-svc { padding: 15px; }
+  .trv-svc__name, .trv-svc__price { font-size: 19px; }
+
+  /* Document vivant (facture/devis) : marges intérieures réduites. */
+  .trv-doc-stage { padding: 16px; }
+  .trv-doc { padding: 28px 24px 26px; }
+  .trv-doc__pour { font-size: clamp(26px, 8vw, 33px); }
+  .trv-doc__total { font-size: clamp(26px, 8vw, 34px); }
+}
+
 /* Note de confirmation après téléchargement du PDF (flux WhatsApp). */
 .trv-pdf-hint {
   font-family: var(--font-sans);

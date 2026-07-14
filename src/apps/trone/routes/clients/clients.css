@@ -913,3 +913,31 @@
   transition: var(--transition-base);
 }
 .trc-consult-card__summary:hover { background: var(--hover-veil); border-color: var(--color-copper); }
+
+/* ============================================================
+   Responsive (contenu Clients & Agenda)
+   ============================================================ */
+
+/* Les tableaux à grille fixe (carnet, clients) défilent horizontalement
+   au lieu d'écraser leurs colonnes. */
+@media (max-width: 900px) {
+  .trc-sheet { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .trc-sheet__head,
+  .trc-sheet__row,
+  .trc-sheet__group { min-width: 680px; }
+
+  /* Grilles inline propres à Clients (vitrine, consultations). */
+  [style*="grid-template-columns: 340px 1fr"],
+  [style*="grid-template-columns: 1.4fr 1fr 1fr auto"] { grid-template-columns: 1fr !important; }
+}
+
+/* Tiroir fiche 360 : plein écran sur téléphone. */
+@media (max-width: 620px) {
+  .trc-drawer { width: 100vw; }
+  .trc-drawer__cover { min-height: 112px; padding: 16px; }
+  .trc-idgrid { grid-template-columns: 1fr; }
+  .trc-crown__grid { grid-template-columns: 1fr; }
+  .trc-persona { grid-template-columns: 1fr; gap: 14px; }
+  .trc-next__date { font-size: 19px; }
+  .trc-timeline { gap: 10px; }
+}

@@ -386,3 +386,29 @@
   color: var(--color-copper);
   white-space: nowrap;
 }
+
+/* ============================================================
+   Responsive (contenu Pilotage)
+   ============================================================ */
+
+/* Grilles inline (Dashboard, Analytics) empilées. */
+@media (max-width: 900px) {
+  [style*="grid-template-columns: 1.55fr 1fr"],
+  [style*="grid-template-columns: 1.2fr 1fr"] { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 620px) {
+  /* Grands chiffres bornés. */
+  .trp-kpi__value { font-size: clamp(30px, 9vw, 40px); white-space: normal; }
+  .trp-rev__value { font-size: clamp(28px, 8vw, 36px); white-space: normal; }
+  .trp-index__value,
+  .trp-tile__value { font-size: clamp(26px, 8vw, 34px); }
+
+  /* Cartes plus compactes. */
+  .trp-kpi { padding: 16px 16px 14px; }
+  .trp-panel { padding: 16px 16px; }
+
+  /* Rendez-vous impayés : la grille à 5 colonnes se resserre. */
+  .trp-pay__row { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .trp-funnel__label { width: 92px; }
+}

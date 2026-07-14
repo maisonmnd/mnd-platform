@@ -211,4 +211,49 @@
 .mnd-serif { font-family: var(--font-serif); font-weight: var(--weight-light); }
 .mnd-muted { color: var(--ink-soft); }
 .mnd-copper { color: var(--copper-600); }
-.mnd-scroll-x { overflow-x: auto; }
+.mnd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ============================================================
+   Responsive — l'ERP dans la main (contenu)
+   ============================================================ */
+
+/* Garde-fou : rien ne dépasse la largeur du téléphone. */
+@media (max-width: 900px) {
+  img { max-width: 100%; height: auto; }
+  .mnd-scroll-x { -webkit-overflow-scrolling: touch; }
+}
+
+/* Modale quasi plein écran, en feuille ancrée au bas de l'écran. */
+@media (max-width: 620px) {
+  .mnd-overlay { padding: 10px; align-items: flex-end; }
+  .mnd-modal {
+    width: 100% !important;
+    max-width: 100%;
+    max-height: 92dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+  .mnd-modal__head { flex: none; padding: var(--space-4) var(--space-4) var(--space-3); }
+  .mnd-modal__body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-4);
+  }
+  .mnd-stat__value { font-size: clamp(30px, 9vw, 40px); }
+}
+
+/* Grilles génériques posées en style inline (sans classe dédiée) :
+   on les empile sur mobile pour éviter tout débordement horizontal.
+   Le préfixe de propriété évite d'attraper les grilles à 5 colonnes. */
+@media (max-width: 900px) {
+  [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 620px) {
+  [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+  [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+}

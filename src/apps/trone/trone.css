@@ -282,3 +282,66 @@ body[data-surface='trone'] {
   .tr-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tr-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ============================================================
+   Mobile — l'ERP tient dans la main
+   ============================================================ */
+
+/* Hamburger + bouton fermer : cachés sur desktop */
+.tr-burger, .tr-side__close { display: none; }
+.tr-burger {
+  background: none; border: none; cursor: pointer; color: var(--color-indigo);
+  padding: 6px; margin-right: 4px; flex: none;
+}
+.tr-side__close {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: var(--color-ivoire); opacity: 0.7; padding: 4px;
+}
+
+@media (max-width: 900px) {
+  .tr-shell { grid-template-columns: 1fr; height: 100dvh; }
+
+  /* Sidebar en tiroir hors-champ */
+  .tr-side {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(284px, 84vw);
+    z-index: 1200;
+    transform: translateX(-100%);
+    transition: transform 0.28s var(--ease-soft, ease);
+    box-shadow: 8px 0 40px -12px rgba(0, 0, 0, 0.6);
+  }
+  .tr-shell.is-side-open .tr-side { transform: none; }
+  .tr-side-veil {
+    position: fixed; inset: 0; z-index: 1100;
+    background: rgba(20, 20, 27, 0.5);
+    animation: mnd-fade var(--dur-base, .25s) var(--ease-soft, ease);
+  }
+  .tr-burger { display: inline-flex; align-items: center; }
+  .tr-side__close { display: inline-flex; align-items: center; }
+
+  /* Topbar condensée : on garde l'essentiel */
+  .tr-top { padding: 12px 16px; gap: 8px; flex-wrap: wrap; }
+  .tr-top__trail { font-size: 10px; letter-spacing: 0.1em; order: 2; flex: 1 1 100%; }
+  .tr-top__chip { display: none; }
+
+  /* Contenu pleine largeur */
+  .tr-content { padding: 20px 16px 40px; }
+  .tr-content__inner { max-width: none; }
+  .tr-page-head h1 { font-size: clamp(30px, 8vw, 42px); }
+
+  /* Grilles empilées */
+  .tr-grid--2, .tr-grid--3, .tr-grid--4 { grid-template-columns: 1fr; }
+
+  /* Panneau de notifications ancré à droite de l'écran */
+  .tr-notif__panel { position: fixed; top: 60px; right: 12px; left: 12px; width: auto; max-width: none; }
+}
+
+/* Deux colonnes intermédiaires sur tablette étroite */
+@media (min-width: 620px) and (max-width: 900px) {
+  .tr-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Petits écrans : encaisser plus compact */
+@media (max-width: 520px) {
+  .tr-top .mnd-btn { padding: 8px 12px; font-size: 11px; }
+}
