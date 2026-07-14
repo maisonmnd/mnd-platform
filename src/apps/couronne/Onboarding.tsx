@@ -8,8 +8,10 @@ import { startEmailOtp, verifyEmailOtp } from '../../shared/auth';
 
 const SLIDES = [
   {
-    photo: asset('/assets/photos/ma-couronne-hero.png'),
-    pos: 'center 30%',
+    // Photo sans logo incrusté (l'ancienne ma-couronne-hero.png portait un logo
+    // gravé → double logo avec le sceau). Le sceau cuivre suffit à signer la marque.
+    photo: asset('/assets/photos/portrait-3.jpg'),
+    pos: 'center 25%',
     eyebrow: 'Bénin · Édition Souveraine',
     title: 'Ma Couronne.',
     copy: 'Votre rituel, vos locks, votre lignée — réunis dans un seul espace. Réservez, suivez votre couronne, transmettez la reconnaissance.',
@@ -30,8 +32,19 @@ const SLIDES = [
   },
 ];
 
-const errMessage = (e: unknown, fallback: string): string =>
-  e instanceof Error && e.message ? e.message : fallback;
+/* Traduit les erreurs Supabase Auth en messages clairs pour la cliente. */
+const errMessage = (e: unknown, fallback: string): string => {
+  const raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
+  if (/rate limit|too many|over_email_send/.test(raw))
+    return 'Trop de demandes de code — patientez quelques minutes avant de réessayer.';
+  if (/for security purposes|only request this after|seconds/.test(raw))
+    return 'Patientez quelques secondes avant de redemander un code.';
+  if (/expired|invalid|otp|token/.test(raw))
+    return 'Code expiré ou incorrect — demandez un nouveau code (n’utilisez pas le lien de l’e-mail).';
+  if (/email.*disabled|provider/.test(raw))
+    return 'La connexion par e-mail n’est pas encore activée côté maison.';
+  return e instanceof Error && e.message ? e.message : fallback;
+};
 
 export default function Onboarding() {
   const [stage, setStage] = useState<'welcome' | 'email' | 'otp'>('welcome');
@@ -72,7 +85,7 @@ export default function Onboarding() {
     try {
       await startEmailOtp(email.trim());
       setOtp(['', '', '', '', '', '']);
-      setResendIn(45);
+      setResendIn(60);
       setStage('otp');
     } catch (e) {
       setErr(errMessage(e, 'Envoi impossible — réessayez dans un instant.'));
@@ -85,7 +98,7 @@ export default function Onboarding() {
     setErr(null);
     try {
       await startEmailOtp(email.trim());
-      setResendIn(45);
+      setResendIn(60);
     } catch (e) {
       setErr(errMessage(e, 'Renvoi impossible — réessayez.'));
     }
@@ -199,7 +212,10 @@ export default function Onboarding() {
       <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
       <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Vérification</div>
       <h1 className="mc-serif-title">Votre code.</h1>
-      <p className="mc-lead">Transmis par e-mail à {email.trim()}.</p>
+      <p className="mc-lead">
+        Saisissez le code à 6 chiffres reçu par e-mail à {email.trim()}.
+        Entrez le code ici — inutile de cliquer sur le lien.
+      </p>
 
       <div className="mc-otp">
         {otp.map((v, i) => (
