@@ -954,6 +954,27 @@
   [style*="grid-template-columns: 1.4fr 1fr 1fr auto"] { grid-template-columns: 1fr !important; }
 }
 
+/* Le Carnet en cartes empilées sur téléphone — plus de défilement latéral :
+   ligne 1 « date · heure … statut », puis cliente, prestations, montant. */
+@media (max-width: 760px) {
+  .trc-carnet { overflow: hidden; }
+  .trc-carnet .trc-sheet__head { display: none; }
+  .trc-carnet .trc-sheet__row {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 10px;
+    min-width: 0 !important;
+    padding: 14px 16px;
+  }
+  .trc-carnet .trc-date { order: 1; }
+  .trc-carnet .trc-time { order: 2; font-size: 16px; }
+  .trc-carnet .trc-carnet__status { order: 3; margin-left: auto; }
+  .trc-carnet .trc-carnet__client { order: 4; flex: 1 1 100%; }
+  .trc-carnet .trc-carnet__svc { order: 5; flex: 1 1 100%; }
+  .trc-carnet .trc-carnet__amount { order: 6; flex: 1 1 100%; }
+}
+
 /* Tiroir fiche 360 : plein écran sur téléphone. */
 @media (max-width: 620px) {
   .trc-drawer { width: 100vw; }

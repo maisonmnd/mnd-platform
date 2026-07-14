@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
@@ -11,6 +11,7 @@ import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { useClientSessions, isOnline, type ClientSession } from '../../../../shared/activity';
 import { apptTotalXof, apptNetXof, apptDueXof, apptLabel, frShort, StatusPill, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
+import { PayAppointmentModal } from '../clients/actions';
 import './pilotage.css';
 
 /* Analytics — lecture de tendance. Maison neuve : tout est dérivé des magasins
@@ -57,6 +58,7 @@ export default function Analytics() {
 
   const [period, setPeriod] = useState<Period>('trim');
   const [scope, setScope] = useState<string>(branch.id); // id de branche ou 'toutes'
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement d'un RDV impayé
 
   const scopedAppts = useMemo(
     () => appointments.filter((a) => (scope === 'toutes' ? true : a.branchId === scope)),
@@ -507,11 +509,20 @@ export default function Analytics() {
                 <div className="trp-pay__total">{fmtMoney(net, currency)}</div>
                 <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
                 <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
+                <button
+                  className="trp-pay__cta"
+                  onClick={() => setPayAppt(a)}
+                  title="Encaisser — paiement partiel ou total"
+                >
+                  Encaisser
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

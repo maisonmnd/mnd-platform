@@ -366,7 +366,7 @@
 /* — Rendez-vous impayés — */
 .trp-pay__row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto auto;
   align-items: center;
   gap: 16px;
   padding: 12px 2px;
@@ -374,6 +374,23 @@
 }
 .trp-pay__row:last-child { border-bottom: none; }
 .trp-pay__date { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.trp-pay__cta {
+  flex: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 2px;
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: var(--weight-medium);
+  color: var(--copper-700);
+  background: transparent;
+  border: 1px solid var(--color-copper);
+  transition: background var(--dur-fast, .2s) var(--ease-soft, ease), color var(--dur-fast, .2s) var(--ease-soft, ease);
+}
+.trp-pay__cta:hover { background: var(--color-copper); color: var(--color-ivoire); }
 .trp-pay__total {
   font-family: var(--font-serif);
   font-size: 16px;

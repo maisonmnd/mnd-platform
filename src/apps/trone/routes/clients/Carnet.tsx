@@ -78,18 +78,18 @@ export default function Carnet() {
       >
         <span className="trc-date">{frDay(a.date)}</span>
         <span className="trc-time">{a.time}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <span className="trc-carnet__client" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           {c && <Avatar client={c} size={30} />}
           <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {c?.name ?? 'Cliente de passage'}
           </span>
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
+        <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{apptLabel(a, byId)}</span>
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
           <SourceBadge source={a.source} />
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span className="trc-carnet__amount" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {a.seriesIndex && a.seriesIndex > 1 ? (
             <span className="trc-serie-incluse">
               Séance {a.seriesIndex}/{a.seriesTotal ?? a.seriesIndex} · incluse
@@ -103,7 +103,7 @@ export default function Carnet() {
             </>
           )}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+        <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <StatusPill status={a.status} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button className="trc-dots" aria-label="Actions" onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>
@@ -148,7 +148,7 @@ export default function Carnet() {
         }
       />
 
-      <div className="trc-sheet">
+      <div className="trc-sheet trc-carnet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
           <span>Date</span>
           <span>Heure</span>

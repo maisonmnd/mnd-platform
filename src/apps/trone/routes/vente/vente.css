@@ -352,8 +352,19 @@
 }
 .trv-doc-item:hover { background: var(--hover-veil); }
 .trv-doc-item.is-active { background: var(--surface-card); border-color: var(--color-indigo); border-left-color: var(--color-copper); }
+.trv-doc-item__id { min-width: 0; display: flex; flex-direction: column; }
+.trv-doc-item__end { display: flex; align-items: center; gap: 8px; flex: none; }
+.trv-doc-item__fig { text-align: right; }
 .trv-doc-item .cl { display: block; font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trv-doc-item .no { display: block; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-soft); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mobile : la ligne document se replie — nom en tête, chiffres & action dessous. */
+@media (max-width: 620px) {
+  .trv-doc-item { flex-wrap: wrap; row-gap: 9px; }
+  .trv-doc-item__id { flex: 1 1 100%; }
+  .trv-doc-item__end { flex: 1 1 100%; justify-content: space-between; }
+  .trv-doc-item__fig { display: flex; align-items: baseline; gap: 8px; text-align: left; }
+}
 .trv-doc-item .amt { display: block; font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
 
 .trv-status {

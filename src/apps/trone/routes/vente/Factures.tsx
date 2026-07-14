@@ -310,12 +310,12 @@ export default function Factures() {
                 const isActive = (editing?.draft.id ?? selected?.id) === d.id;
                 return (
                   <div key={d.id} className={`trv-doc-item ${isActive ? 'is-active' : ''}`} style={{ cursor: 'pointer' }} onClick={() => { setSelectedId(d.id); if (editing) setEditing(null); }}>
-                    <span style={{ minWidth: 0 }}>
+                    <span className="trv-doc-item__id">
                       <span className="cl">{clientNameOf(d)}</span>
                       <span className="no">{d.kind === 'devis' ? 'Devis' : 'Facture'} · {d.number}</span>
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-                      <span style={{ textAlign: 'right' }}>
+                    <span className="trv-doc-item__end">
+                      <span className="trv-doc-item__fig">
                         <span className="amt">{fmtMoney(invoiceTotal(d), currency)}</span>
                         <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
                       </span>
