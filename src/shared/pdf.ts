@@ -284,6 +284,10 @@ export type PayslipData = {
   paid?: { line: string; by: string };
   gerantName?: string;
   filename: string;
+  /** Libellés surchargeables — pour réutiliser sur un reçu prestataire. */
+  docLabel?: string; // défaut « BULLETIN DE PAIE »
+  partyLabel?: string; // défaut « MAÎTRE »
+  netLabel?: string; // défaut « NET À VERSER »
 };
 
 /** Bulletin de paie MND — en-tête au sceau, encadré NET, zone signature Gérant +
@@ -304,7 +308,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   doc.text(d.houseName, nameX, y);
   if (d.houseSub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(d.houseSub, nameX, y + 5); }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(COPPER);
-  doc.text('BULLETIN DE PAIE', W - M, y - 1, { align: 'right' });
+  doc.text(d.docLabel ?? 'BULLETIN DE PAIE', W - M, y - 1, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
   doc.text(d.period, W - M, y + 4.5, { align: 'right' });
   y += 12;
@@ -312,7 +316,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   y += 11;
 
   // — Salarié —
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(SOFT); doc.text('MAÎTRE', M, y);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(SOFT); doc.text(d.partyLabel ?? 'MAÎTRE', M, y);
   doc.setFont('times', 'normal'); doc.setFontSize(17); doc.setTextColor(INK); doc.text(d.employeeName, M, y + 8);
   if (d.role) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT); doc.text(d.role, M, y + 13.5); }
   y += 22;
@@ -333,7 +337,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
 
   // — Encadré NET À VERSER —
   doc.setFillColor(INDIGO); doc.roundedRect(M, y, W - 2 * M, 17, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor('#C9A98A'); doc.text('NET À VERSER', M + 7, y + 10.5);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor('#C9A98A'); doc.text(d.netLabel ?? 'NET À VERSER', M + 7, y + 10.5);
   doc.setFont('times', 'normal'); doc.setFontSize(19); doc.setTextColor('#FFFFFF'); doc.text(d.net, W - M - 7, y + 11.5, { align: 'right' });
   y += 26;
 
