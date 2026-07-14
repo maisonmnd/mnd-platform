@@ -916,11 +916,13 @@ export default function Personnel() {
               <div className="mnd-muted" style={{ fontSize: 12.5, maxWidth: 520 }}>
                 Détail mois par mois. « Confirmer » enregistre le règlement avec votre nom et l'horodatage — une preuve datée. « Bulletin » génère le PDF à remettre.
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen</span>
-                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 36, width: 210, flex: 'none', paddingRight: 34 }}>
-                  {PAY_METHODS.map((p) => <option key={p} value={p}>{p}</option>)}
-                </Select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen de règlement</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {PAY_METHODS.map((p) => (
+                    <button key={p} type="button" className={`tre-chip ${payMethod === p ? 'is-on' : ''}`} onClick={() => setPayMethod(p)}>{p}</button>
+                  ))}
+                </div>
                 <Button variant="copper" size="sm" onClick={() => void downloadYearlyPayslip(staff, year)}>Bulletin annuel · PDF</Button>
               </div>
             </div>
