@@ -66,6 +66,24 @@ const confirmStore = createStore<Record<string, PayConfirm>>('mnd_paie_confirm',
 bindDocument(confirmStore, 'mnd_paie_confirm');
 const useConfirm = () => useStore(confirmStore);
 
+/* Retenues sur salaire — staffId → liste, datées. Diminuent le net à verser.
+   Motifs : absence non rémunérée (maladie sans maintien, sabbatique, congé sans
+   solde), mise à pied (conservatoire/disciplinaire), absence injustifiée
+   (déduction stricte du temps non travaillé), autre. */
+type RetenueType = 'absence_non_rem' | 'mise_a_pied' | 'absence_injustifiee' | 'autre';
+type Retenue = { id: string; type: RetenueType; amountXof: number; date: string; days?: number; note?: string };
+const retenuesStore = createStore<Record<string, Retenue[]>>('mnd_retenues', {});
+bindDocument(retenuesStore, 'mnd_retenues');
+const useRetenues = () => useStore(retenuesStore);
+const RETENUE_LABEL: Record<RetenueType, string> = {
+  absence_non_rem: 'Absence non rémunérée', mise_a_pied: 'Mise à pied', absence_injustifiee: 'Absence injustifiée', autre: 'Autre retenue',
+};
+const RETENUE_TYPES: [RetenueType, string][] = [
+  ['absence_non_rem', 'Absence non rémunérée'], ['mise_a_pied', 'Mise à pied'], ['absence_injustifiee', 'Absence injustifiée'], ['autre', 'Autre'],
+];
+/** Jours ouvrables de référence pour le salaire journalier (retenue au prorata). */
+const JOURS_OUVRABLES = 26;
+
 const PAY_METHODS = ['Mobile Money', 'Espèces', 'Virement', 'Autre'];
 /** Date+heure lisibles d'un ISO (« 14 juil. 2026, 18:32 »). */
 const fmtStamp = (iso: string) =>
@@ -122,6 +140,7 @@ export default function Personnel() {
   const [overrides, setOverrides] = useOverrides();
   const [primes, setPrimes] = usePrimes();
   const [tips, setTips] = useTips();
+  const [retenues, setRetenues] = useRetenues();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [services] = useServices();
@@ -133,6 +152,10 @@ export default function Personnel() {
   );
   const [tipFor, setTipFor] = useState<StaffMember | null>(null);
   const [tipForm, setTipForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  const [retenueFor, setRetenueFor] = useState<StaffMember | null>(null);
+  const [retenueForm, setRetenueForm] = useState<{ type: RetenueType; amount: string; days: string; date: string; note: string }>(
+    { type: 'absence_non_rem', amount: '', days: '', date: new Date().toISOString().slice(0, 10), note: '' },
+  );
   const [yearFor, setYearFor] = useState<StaffMember | null>(null);
   const [confirms, setConfirms] = useConfirm();
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
@@ -185,6 +208,9 @@ export default function Personnel() {
   /* Pourboires d'un maître pour un mois. */
   const tipsForMonth = (id: string, month: string) => (tips[id] ?? []).filter((t) => t.date.slice(0, 7) === month);
   const tipTotalMonth = (id: string, month: string) => tipsForMonth(id, month).reduce((a, t) => a + t.amountXof, 0);
+  /* Retenues d'un maître pour un mois. */
+  const retenuesForMonth = (id: string, month: string) => (retenues[id] ?? []).filter((r) => r.date.slice(0, 7) === month);
+  const retenueTotalMonth = (id: string, month: string) => retenuesForMonth(id, month).reduce((a, r) => a + r.amountXof, 0);
   const advancesForMonth = (id: string, month: string) => advancesFor(id).filter((a) => a.date.slice(0, 7) === month);
   const advancesTotalMonth = (id: string, month: string) => advancesForMonth(id, month).reduce((a, x) => a + x.amountXof, 0);
 
@@ -198,7 +224,7 @@ export default function Personnel() {
     return o.commPresta != null || o.commProduit != null;
   };
   const netAVerserEff = (m: StaffMember) => m.salaireXof + commPrestaOf(m) + commProduitOf(m) + primeOf(m) + tipOf(m);
-  const netApresAvances = (m: StaffMember) => netAVerserEff(m) - advancesTotalMonth(m.id, M);
+  const netApresAvances = (m: StaffMember) => netAVerserEff(m) - advancesTotalMonth(m.id, M) - retenueTotalMonth(m.id, M);
 
   const setRate = (k: keyof CommRates, v: string) =>
     setRates((r) => ({ ...r, [k]: Math.max(0, Math.min(100, Math.round(Number(v) || 0))) }));
@@ -253,11 +279,38 @@ export default function Personnel() {
   const removeTip = (staffId: string, tipId: string) =>
     setTips((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((t) => t.id !== tipId) }));
 
+  /* Retenues — ajout (montant direct ou au prorata des jours) et retrait. */
+  const openRetenue = (m: StaffMember) => {
+    setRetenueFor(m);
+    setRetenueForm({ type: 'absence_non_rem', amount: '', days: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  };
+  /* Saisir des jours propose une retenue = jours × salaire journalier (éditable). */
+  const setRetenueDays = (m: StaffMember, daysStr: string) => {
+    const days = daysStr.replace(/[^0-9.]/g, '');
+    const n = parseFloat(days) || 0;
+    setRetenueForm((f) => ({ ...f, days, amount: n > 0 ? String(Math.round(dailyRate(m) * n)) : f.amount }));
+  };
+  const saveRetenue = () => {
+    if (!retenueFor) return;
+    const amountXof = parseXof(retenueForm.amount);
+    if (amountXof <= 0) return;
+    const days = parseFloat(retenueForm.days) || undefined;
+    const r: Retenue = { id: `re-${uid()}`, type: retenueForm.type, amountXof, date: retenueForm.date, days, note: retenueForm.note.trim() || undefined };
+    const sid = retenueFor.id;
+    setRetenues((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), r] }));
+    setRetenueFor(null);
+  };
+  const removeRetenue = (staffId: string, retenueId: string) =>
+    setRetenues((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((r) => r.id !== retenueId) }));
+
   /* Net à verser d'un maître pour un mois quelconque (réutilisé partout). */
   const netForMonth = (m: StaffMember, month: string) => {
     const c = computeComm(m, month);
-    return m.salaireXof + c.presta + c.produit + primeTotalMonth(m.id, month) + tipTotalMonth(m.id, month) - advancesTotalMonth(m.id, month);
+    return m.salaireXof + c.presta + c.produit + primeTotalMonth(m.id, month) + tipTotalMonth(m.id, month)
+      - advancesTotalMonth(m.id, month) - retenueTotalMonth(m.id, month);
   };
+  /** Salaire journalier de référence (base ÷ jours ouvrables). */
+  const dailyRate = (m: StaffMember) => Math.round(m.salaireXof / JOURS_OUVRABLES);
 
   /* Confirmation de règlement — la « signature » qui protège d'un litige. */
   const confKey = (month: string, staffId: string) => `${month}:${staffId}`;
@@ -294,6 +347,8 @@ export default function Personnel() {
     const prime = primeTotalMonth(m.id, month);
     const tip = tipTotalMonth(m.id, month);
     const av = advancesTotalMonth(m.id, month);
+    const reList = retenuesForMonth(m.id, month);
+    const ret = retenueTotalMonth(m.id, month);
     const net = netForMonth(m, month);
     const conf = confirmOf(month, m.id);
     const prList = primesForMonth(m.id, month);
@@ -304,7 +359,9 @@ export default function Personnel() {
       { label: 'Primes', value: pdfMoney(prime) },
       ...prList.map((p) => ({ label: `— ${PRIME_LABEL[p.type]}${p.note ? ` · ${p.note}` : ''}`, value: pdfMoney(p.amountXof), sub: true })),
       { label: 'Pourboires', value: pdfMoney(tip) },
-      { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av).replace('- ', '')}` : pdfMoney(0) },
+      { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
+      { label: 'Retenues', value: ret > 0 ? `- ${pdfMoney(ret)}` : pdfMoney(0) },
+      ...reList.map((r) => ({ label: `— ${RETENUE_LABEL[r.type]}${r.days ? ` · ${r.days} j` : ''}${r.note ? ` · ${r.note}` : ''}`, value: `- ${pdfMoney(r.amountXof)}`, sub: true })),
     ];
     await payslipPdf({
       houseName: 'Maison MND',
@@ -376,6 +433,7 @@ export default function Personnel() {
 
   const payrollTotal = team.reduce((a, m) => a + netApresAvances(m), 0);
   const advancesTotal = team.reduce((a, m) => a + advancesTotalMonth(m.id, M), 0);
+  const retenuesTotal = team.reduce((a, m) => a + retenueTotalMonth(m.id, M), 0);
 
   const openNew = () => { setEditId(null); setForm(emptyForm(branch.id)); setModalOpen(true); };
   const openEdit = (m: StaffMember) => {
@@ -512,7 +570,7 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
-                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Pourboires</th><th>Avances</th><th>Net à verser (après avances)</th></tr>
+                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Pourboires</th><th>Avances</th><th>Retenues</th><th>Net à verser</th></tr>
                 </thead>
                 <tbody>
                   {team.map((m) => {
@@ -520,6 +578,8 @@ export default function Personnel() {
                     const adv = advancesTotalMonth(m.id, M);
                     const mPrimes = primesForMonth(m.id, M);
                     const mTips = tipsForMonth(m.id, M);
+                    const mRetenues = retenuesForMonth(m.id, M);
+                    const retTotal = retenueTotalMonth(m.id, M);
                     return (
                     <tr key={m.id}>
                       <td>
@@ -596,12 +656,31 @@ export default function Personnel() {
                           <button className="tre-link-btn" onClick={() => openAvance(m)}>+ Avance sur salaire</button>
                         )}
                       </td>
+                      <td>
+                        {mRetenues.length > 0 ? (
+                          <div className="tre-adv-cell">
+                            <span className="tre-adv-total" style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(retTotal, currency)}</span>
+                            <ul className="tre-adv-list">
+                              {mRetenues.map((r) => (
+                                <li key={r.id} className="tre-adv-item">
+                                  <span className="tre-adv-amt" style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(r.amountXof, currency)}</span>
+                                  <span className="mnd-muted tre-adv-meta">{RETENUE_LABEL[r.type]}{r.days ? ` · ${r.days} j` : ''}{r.note ? ` · ${r.note}` : ''}</span>
+                                  <button className="tre-link-btn tre-link-btn--danger tre-adv-rm" onClick={() => removeRetenue(m.id, r.id)} aria-label="Retirer la retenue">×</button>
+                                </li>
+                              ))}
+                            </ul>
+                            <button className="tre-link-btn" onClick={() => openRetenue(m)}>+ Retenue</button>
+                          </div>
+                        ) : (
+                          <button className="tre-link-btn" onClick={() => openRetenue(m)}>+ Retenue</button>
+                        )}
+                      </td>
                       <td className="num">{fmtMoney(netApresAvances(m), currency)}</td>
                     </tr>
                     );
                   })}
                   {team.length === 0 && (
-                    <tr><td colSpan={8} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
+                    <tr><td colSpan={9} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
                   )}
                   {team.length > 0 && (
                     <tr>
@@ -612,6 +691,7 @@ export default function Personnel() {
                       <td className="mnd-copper">{fmtMoney(team.reduce((a, m) => a + primeOf(m), 0), currency)}</td>
                       <td>{fmtMoney(team.reduce((a, m) => a + tipOf(m), 0), currency)}</td>
                       <td>{advancesTotal > 0 ? <span className="tre-adv-total">− {fmtMoney(advancesTotal, currency)}</span> : '—'}</td>
+                      <td>{retenuesTotal > 0 ? <span className="tre-adv-total" style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(retenuesTotal, currency)}</span> : '—'}</td>
                       <td className="num">{fmtMoney(payrollTotal, currency)}</td>
                     </tr>
                   )}
@@ -894,6 +974,47 @@ export default function Personnel() {
         </Modal>
       )}
 
+      {retenueFor && (
+        <Modal title="Retenue sur salaire." onClose={() => setRetenueFor(null)} width={500}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{retenueFor.name}</strong> · déduite du net à verser du mois de la date choisie.
+            </div>
+            <Field label="Motif de la retenue">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {RETENUE_TYPES.map(([k, label]) => (
+                  <button key={k} type="button" className={`tre-chip ${retenueForm.type === k ? 'is-on' : ''}`} onClick={() => setRetenueForm({ ...retenueForm, type: k })}>{label}</button>
+                ))}
+              </div>
+            </Field>
+            <div className="tre-inline-note">
+              <span className="mark">✦</span>
+              <span>Salaire journalier de référence · {fmtMoney(dailyRate(retenueFor), currency)} (base ÷ {JOURS_OUVRABLES} j ouvrables). Saisissez des jours pour calculer, ou un montant directement.</span>
+            </div>
+            <div className="tr-grid tr-grid--3">
+              <Field label="Jours non travaillés">
+                <Input value={retenueForm.days} inputMode="decimal" placeholder="0" onChange={(e) => setRetenueDays(retenueFor, e.target.value)} />
+              </Field>
+              <Field label={`Montant retenu · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
+                <Input value={retenueForm.amount} inputMode="numeric" placeholder="0" onChange={(e) => setRetenueForm({ ...retenueForm, amount: e.target.value.replace(/[^0-9]/g, ''), days: '' })} />
+              </Field>
+              <Field label="Date">
+                <Input type="date" value={retenueForm.date} onChange={(e) => setRetenueForm({ ...retenueForm, date: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Note (facultatif)">
+              <Input value={retenueForm.note} onChange={(e) => setRetenueForm({ ...retenueForm, note: e.target.value })} placeholder="Précision — ex. maladie sans maintien, mise à pied disciplinaire…" />
+            </Field>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setRetenueFor(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveRetenue} disabled={!retenueForm.amount || parseXof(retenueForm.amount) <= 0}>
+                Appliquer la retenue
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {yearFor && (() => {
         const year = new Date().getFullYear();
         const rows = yearMonths(year).map((mk) => {
@@ -901,14 +1022,15 @@ export default function Personnel() {
           const pr = primeTotalMonth(yearFor.id, mk);
           const tp = tipTotalMonth(yearFor.id, mk);
           const av = advancesTotalMonth(yearFor.id, mk);
+          const re = retenueTotalMonth(yearFor.id, mk);
           const base = yearFor.salaireXof;
-          const net = base + c.presta + c.produit + pr + tp - av;
-          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, tip: tp, avance: av, net };
+          const net = base + c.presta + c.produit + pr + tp - av - re;
+          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, tip: tp, avance: av, retenue: re, net };
         });
         const tot = rows.reduce((t, r) => ({
           base: t.base + r.base, presta: t.presta + r.presta, produit: t.produit + r.produit,
-          prime: t.prime + r.prime, tip: t.tip + r.tip, avance: t.avance + r.avance, net: t.net + r.net,
-        }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, avance: 0, net: 0 });
+          prime: t.prime + r.prime, tip: t.tip + r.tip, avance: t.avance + r.avance, retenue: t.retenue + r.retenue, net: t.net + r.net,
+        }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, avance: 0, retenue: 0, net: 0 });
         const staff = yearFor;
         return (
           <Modal title={`Salaire ${year} · ${staff.name}`} onClose={() => setYearFor(null)} width={980}>
@@ -929,7 +1051,7 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table tre-year">
                 <thead>
-                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Net versé</th><th>Règlement</th></tr>
+                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Retenues</th><th>Net versé</th><th>Règlement</th></tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => {
@@ -943,6 +1065,7 @@ export default function Personnel() {
                       <td className="mnd-copper">{fmtMoney(r.prime, currency)}</td>
                       <td>{fmtMoney(r.tip, currency)}</td>
                       <td>{r.avance > 0 ? `− ${fmtMoney(r.avance, currency)}` : '—'}</td>
+                      <td>{r.retenue > 0 ? <span style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(r.retenue, currency)}</span> : '—'}</td>
                       <td className="num">{fmtMoney(r.net, currency)}</td>
                       <td>
                         <div className="tre-pay">
@@ -970,6 +1093,7 @@ export default function Personnel() {
                     <td className="mnd-copper">{fmtMoney(tot.prime, currency)}</td>
                     <td>{fmtMoney(tot.tip, currency)}</td>
                     <td>{tot.avance > 0 ? `− ${fmtMoney(tot.avance, currency)}` : '—'}</td>
+                    <td>{tot.retenue > 0 ? <span style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(tot.retenue, currency)}</span> : '—'}</td>
                     <td className="num">{fmtMoney(tot.net, currency)}</td>
                     <td>{months12Paid(staff.id, year)} / 12 réglés</td>
                   </tr>
