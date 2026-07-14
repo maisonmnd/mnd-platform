@@ -253,6 +253,7 @@
 }
 .sys-acc-row__sub { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
 .sys-acc-row__role { flex: 0 0 auto; max-width: 230px; }
+.sys-acc-row__name { flex: 0 0 auto; width: 180px; }
 .sys-acc-you {
   margin-left: 8px;
   font-family: var(--font-sans);
@@ -268,4 +269,5 @@
   .sys-acc-row { flex-wrap: wrap; }
   .sys-acc-row__id { flex: 1 1 100%; }
   .sys-acc-row__role { flex: 1 1 auto; max-width: none; }
+  .sys-acc-row__name { flex: 1 1 100%; width: auto; }
 }

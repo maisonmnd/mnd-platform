@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Select } from '../../../../ds/components';
+import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './systeme.css';
@@ -37,6 +37,10 @@ export default function Acces() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [team, setTeam] = useState<StaffFull[]>([]);
   const [roleFor, setRoleFor] = useState<Record<string, Role>>({});
+  const [nameFor, setNameFor] = useState<Record<string, string>>({});
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState<Role>('maitre');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -60,12 +64,33 @@ export default function Acces() {
     if (!supabase) return;
     setBusy(u.user_id); setMsg(null);
     const role = roleFor[u.user_id] ?? 'maitre';
+    const name = (nameFor[u.user_id] ?? nameFromEmail(u.email)).trim();
     const { error } = await supabase.rpc('authorize_staff', {
-      target: u.user_id, display_name: nameFromEmail(u.email), new_role: role,
+      target: u.user_id, display_name: name, new_role: role,
     });
     setBusy(null);
     if (error) { setMsg({ kind: 'err', text: error.message }); return; }
-    setMsg({ kind: 'ok', text: `${u.email ?? 'Le compte'} a été autorisé (${role}).` });
+    setMsg({ kind: 'ok', text: `${name || u.email} a été autorisé (${role}).` });
+    await load();
+  };
+
+  const startEdit = (m: StaffFull) => {
+    setEditId(m.user_id);
+    setEditName(m.name ?? '');
+    setEditRole((['souverain', 'gerant', 'maitre'].includes(m.role) ? m.role : 'maitre') as Role);
+    setMsg(null);
+  };
+
+  const saveEdit = async (m: StaffFull) => {
+    if (!supabase) return;
+    setBusy(m.user_id); setMsg(null);
+    const { error } = await supabase.rpc('authorize_staff', {
+      target: m.user_id, display_name: editName.trim(), new_role: editRole,
+    });
+    setBusy(null);
+    if (error) { setMsg({ kind: 'err', text: error.message }); return; }
+    setEditId(null);
+    setMsg({ kind: 'ok', text: `${editName.trim() || m.email} mis à jour.` });
     await load();
   };
 
@@ -118,6 +143,13 @@ export default function Acces() {
                   <div className="sys-acc-row__email">{u.email ?? '—'}</div>
                   <div className="sys-acc-row__sub">Connecté depuis le {fmtDate(u.created_at)}</div>
                 </div>
+                <Input
+                  className="sys-input sys-acc-row__name"
+                  value={nameFor[u.user_id] ?? nameFromEmail(u.email)}
+                  onChange={(e) => setNameFor((n) => ({ ...n, [u.user_id]: e.target.value }))}
+                  placeholder="Nom affiché"
+                  aria-label="Nom affiché"
+                />
                 <Select
                   className="sys-select sys-acc-row__role"
                   value={roleFor[u.user_id] ?? 'maitre'}
@@ -146,24 +178,63 @@ export default function Acces() {
             {team.map((m) => {
               const self = m.user_id === myId;
               const lastSouverain = m.role === 'souverain' && team.filter((x) => x.role === 'souverain').length <= 1;
+              const editing = editId === m.user_id;
               return (
                 <div className="sys-acc-row" key={m.user_id}>
                   <div className="sys-acc-row__id">
-                    <div className="sys-acc-row__email">
-                      {m.email ?? m.name ?? '—'}{self && <span className="sys-acc-you">vous</span>}
+                    {editing ? (
+                      <Input
+                        className="sys-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Nom affiché"
+                        aria-label="Nom affiché"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="sys-acc-row__email">
+                        {m.name || m.email || '—'}{self && <span className="sys-acc-you">vous</span>}
+                      </div>
+                    )}
+                    <div className="sys-acc-row__sub">
+                      {m.email}{!editing && ` · ${ROLE_LABEL[m.role] ?? m.role}`}
                     </div>
-                    <div className="sys-acc-row__sub">{ROLE_LABEL[m.role] ?? m.role}</div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    style={{ color: 'var(--trv-error, #b0563e)' }}
-                    disabled={busy === m.user_id || self || lastSouverain}
-                    title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain — accès protégé.' : 'Retirer l’accès'}
-                    onClick={() => void revoke(m)}
-                  >
-                    {busy === m.user_id ? '…' : 'Retirer'}
-                  </Button>
+
+                  {editing ? (
+                    <>
+                      <Select
+                        className="sys-select sys-acc-row__role"
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as Role)}
+                        aria-label="Rôle"
+                        disabled={self}
+                        title={self ? 'Vous ne pouvez pas changer votre propre rôle.' : undefined}
+                      >
+                        <option value="maitre">Maître — clients & vente</option>
+                        <option value="gerant">Gérant·e — tout sauf système</option>
+                        <option value="souverain">Souverain·e — accès total</option>
+                      </Select>
+                      <Button variant="copper" size="sm" disabled={busy === m.user_id} onClick={() => void saveEdit(m)}>
+                        {busy === m.user_id ? '…' : 'Enregistrer'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setEditId(null)}>Annuler</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(m)}>Modifier</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        style={{ color: 'var(--trv-error, #b0563e)' }}
+                        disabled={busy === m.user_id || self || lastSouverain}
+                        title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain — accès protégé.' : 'Retirer l’accès'}
+                        onClick={() => void revoke(m)}
+                      >
+                        {busy === m.user_id ? '…' : 'Retirer'}
+                      </Button>
+                    </>
+                  )}
                 </div>
               );
             })}
