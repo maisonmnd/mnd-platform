@@ -76,10 +76,10 @@ function Shell() {
             toast={toast}
           />
         )}
-        {tab === 'suivi' && <SuiviTab onOpenBooking={openBooking} onOpenRdv={openRdv} />}
+        {tab === 'suivi' && <SuiviTab onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} />}
         {tab === 'gamme' && <GammeTab toast={toast} onOpenOrders={openOrders} />}
         {tab === 'cercle' && <CercleTab toast={toast} />}
-        {tab === 'profil' && <ProfilTab toast={toast} onOpenRdv={openRdv} onOpenOrders={openOrders} />}
+        {tab === 'profil' && <ProfilTab toast={toast} />}
       </div>
 
       <nav className="mc-tabbar">

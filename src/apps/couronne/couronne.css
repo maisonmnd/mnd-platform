@@ -1861,6 +1861,8 @@
 .mc-navrow:last-child { border-bottom: none; }
 .mc-navrow:hover { background: var(--hover-veil); }
 .mc-navrow__arrow { font-family: var(--font-sans); font-size: 14px; color: var(--accent); flex: 0 0 auto; }
+.mc-navrow__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mc-navrow__sub { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
 
 /* Série multi-séances — progression et séances reprenables (Réserver). */
 .mc-sessionhead__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }

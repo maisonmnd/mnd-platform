@@ -322,7 +322,7 @@ export function HomeTab({
 
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ onOpenBooking, onOpenRdv }: { onOpenBooking: OpenBooking; onOpenRdv: () => void }) {
+export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders }: { onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void }) {
   const [services] = useServices();
   const client = useClient();
   const clientAppts = useClientAppointments();
@@ -410,11 +410,26 @@ export function SuiviTab({ onOpenBooking, onOpenRdv }: { onOpenBooking: OpenBook
         </div>
       )}
 
-      <button className="mc-cta mc-cta--outline" style={{ marginTop: timeline.length ? 0 : 16 }} onClick={onOpenRdv}>
-        Mes rendez-vous · voir, déplacer, annuler
-      </button>
+      {/* Tout suivre — rendez-vous & commandes, réunis dans le Carnet de Suivi */}
+      <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Tout suivre</div>
+      <div className="mc-preflist">
+        <button className="mc-navrow" onClick={onOpenRdv}>
+          <span className="mc-navrow__main">
+            <span>Mes rendez-vous</span>
+            <span className="mc-navrow__sub">voir, déplacer, annuler</span>
+          </span>
+          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+        </button>
+        <button className="mc-navrow" onClick={onOpenOrders}>
+          <span className="mc-navrow__main">
+            <span>Mes commandes</span>
+            <span className="mc-navrow__sub">suivre l’état de la Gamme</span>
+          </span>
+          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
       {lastAppt && (
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={rebook}>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 14 }} onClick={rebook}>
           Re-réserver à l’identique
         </button>
       )}
@@ -806,15 +821,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
 /* ================= PROFIL ================= */
 
-export function ProfilTab({
-  toast,
-  onOpenRdv,
-  onOpenOrders,
-}: {
-  toast: (m: string) => void;
-  onOpenRdv: () => void;
-  onOpenOrders: () => void;
-}) {
+export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
@@ -863,18 +870,6 @@ export function ProfilTab({
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
-      </div>
-
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Tout suivre</div>
-      <div className="mc-preflist">
-        <button className="mc-navrow" onClick={onOpenRdv}>
-          <span>Mes rendez-vous</span>
-          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
-        </button>
-        <button className="mc-navrow" onClick={onOpenOrders}>
-          <span>Mes commandes</span>
-          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
-        </button>
       </div>
 
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Vos informations</div>
