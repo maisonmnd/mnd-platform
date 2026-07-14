@@ -58,8 +58,13 @@ export const apptServices = (a: Appointment, byId: Map<string, Service>): Servic
 export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).reduce((sum, s) => sum + s.durationMin, 0) || 60;
 
-export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) =>
-  apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
+/* Série multi-séances : la prestation n'est facturée qu'UNE fois.
+   Le montant est porté par la séance 1 ; les séances suivantes valent 0
+   (partout : tableau de bord, carnet, synthèse, fidélité, impayés). */
+export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
+  if (a.seriesIndex && a.seriesIndex > 1) return 0;
+  return apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
+};
 
 /** Total après remise du RDV. */
 export const apptNetXof = (a: Appointment, byId: Map<string, Service>) =>

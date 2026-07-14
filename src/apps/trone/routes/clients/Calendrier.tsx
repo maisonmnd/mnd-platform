@@ -45,6 +45,10 @@ export default function Calendrier() {
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage';
 
+  /* Marque « k/N » d'une séance appartenant à une série multi-séances. */
+  const serieMark = (a: Appointment): string | null =>
+    a.seriesIndex && a.seriesTotal && a.seriesTotal > 1 ? `${a.seriesIndex}/${a.seriesTotal}` : null;
+
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const collides = (moved: Appointment, date: string, time: string, master: string): boolean => {
     const start = timeToMin(time);
@@ -257,6 +261,7 @@ export default function Calendrier() {
                     >
                       <div className="trc-cal__appt-title">
                         {a.time} · {apptLabel(a, byId)}
+                        {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       </div>
                       <div className="trc-cal__appt-sub">{clientName(a.clientId)}</div>
                       {a.status !== 'honoré' && (
@@ -310,6 +315,7 @@ export default function Calendrier() {
                         <b>{a.time}</b>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
+                          {serieMark(a) ? ` · ${serieMark(a)}` : ''}
                         </i>
                       </div>
                     );

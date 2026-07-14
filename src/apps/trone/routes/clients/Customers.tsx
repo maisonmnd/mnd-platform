@@ -1,21 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, useCrownStyles, usePersonas, type Client } from '../../../../shared/clients';
+import type { Appointment } from '../../../../shared/agenda';
+import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
+import { usePointsHistory } from '../../../../shared/offers';
+import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid } from '../../../../shared/store';
+import { PayAppointmentModal } from './actions';
 import {
-  Avatar, Drawer, RdvModal, StatusPill, addDaysISO, apptLabel, apptTotalXof, frLong, frShort, frDay,
+  Avatar, Drawer, RdvModal, StatusPill, addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
   fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
 
-/* Customers — le CRM 360 : segments, persona attribué, prochain RDV prédit,
-   fiche complète (dépense, fidélité, historique) et ajout d'une cliente. */
+/* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
+   prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
+   rendez-vous à venir, fidélité, historique) et ajout d'une cliente. */
 
-const GRID = '1.7fr 1fr 1fr 1fr 0.8fr 34px';
+const GRID = '2.1fr 1fr 0.95fr 0.95fr 0.55fr 132px';
 const SEGMENT_PRESETS = ['VIP', 'Abonnée', 'Nouvelle', 'Diaspora', 'Famille', 'Cercle', 'Régulier', 'Dormante'];
+
+type SortKey = 'nom' | 'visite' | 'depense' | 'points';
+
+/** Chiffres seulement — pour wa.me et la recherche téléphone. */
+const digitsOf = (s: string) => s.replace(/\D/g, '');
+/** Href téléphone — garde le + international. */
+const telHref = (s: string) => `tel:${s.replace(/[^+\d]/g, '')}`;
+
+/** Durée éditoriale : « 45 min », « 3 h 20 min ». */
+const fmtDur = (sec: number): string => {
+  const m = Math.max(1, Math.round(sec / 60));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r > 0 ? `${h} h ${r} min` : `${h} h`;
+};
 
 /** Âge éditorial de la couronne : « 24 j », « 8 mois », « 2 ans 3 mois ». */
 const crownAge = (iso: string): string => {
@@ -144,15 +166,35 @@ function CrownStyleField({ value, onChange }: { value: string; onChange: (v: str
 }
 
 export default function Customers() {
+  const { currency } = useBranch();
   const clients = useBranchClients();
   const appts = useBranchAppointments();
+  const [invoices] = useInvoices();
+  const [sessions] = useClientSessions();
   const byId = useServicesById();
   const [personas] = usePersonas();
   const today = todayISO();
 
   const [seg, setSeg] = useState('Tous');
+  const [query, setQuery] = useState('');
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState<SortKey>('nom');
   const [selId, setSelId] = useState<string | null>(null);
+  const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
+
+  /* Recherche vivante — légèrement différée pour rester fluide sur les grandes maisons. */
+  useEffect(() => {
+    const t = window.setTimeout(() => setQ(query.trim().toLowerCase()), 180);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  /* La présence Ma Couronne se rafraîchit toute seule (battement de 30 s). */
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((x) => x + 1), 30000);
+    return () => window.clearInterval(t);
+  }, []);
 
   const personaName = (id: string) => personas.find((p) => p.id === id)?.name ?? 'À classer';
 
@@ -177,10 +219,44 @@ export default function Customers() {
     return { iso: null, predicted: false };
   };
 
-  const lastVisit = (id: string) => {
-    const last = apptsOf(id).filter((a) => a.status === 'honoré').sort((a, b) => b.date.localeCompare(a.date))[0];
-    return last ? relDays(last.date) : 'jamais venue';
-  };
+  /* Chiffres de la maison par cliente : dépense à vie (rituels honorés au net
+     + factures payées hors règlements de RDV, pour ne rien compter deux fois)
+     et dernière visite. */
+  const stats = useMemo(() => {
+    const linked = new Set<string>();
+    for (const a of appts) if (a.invoiceId) linked.add(a.invoiceId);
+    const m = new Map<string, { spend: number; lastISO: string | null }>();
+    for (const c of clients) m.set(c.id, { spend: 0, lastISO: null });
+    for (const a of appts) {
+      const s = m.get(a.clientId);
+      if (!s || a.status !== 'honoré') continue;
+      s.spend += apptNetXof(a, byId);
+      if (!s.lastISO || a.date > s.lastISO) s.lastISO = a.date;
+    }
+    for (const inv of invoices) {
+      const s = m.get(inv.clientId);
+      if (!s) continue;
+      if (inv.kind === 'facture' && inv.status === 'payée' && !linked.has(inv.id)
+        && !inv.lines.some((l) => l.label.startsWith('Règlement ·'))) {
+        s.spend += invoiceTotal(inv);
+      }
+    }
+    return m;
+  }, [clients, appts, invoices, byId]);
+
+  /* Qui est sur Ma Couronne en ce moment. */
+  const onlineIds = useMemo(() => {
+    void tick;
+    const set = new Set<string>();
+    for (const s of sessions) if (isOnline(s)) set.add(s.clientId);
+    return set;
+  }, [sessions, tick]);
+
+  /* Indicateurs de tête de page. */
+  const monthKey = today.slice(0, 7);
+  const newThisMonth = clients.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
+  const bdaySoonCount = clients.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30).length;
+  const onlineCount = clients.filter((c) => onlineIds.has(c.id)).length;
 
   const segments = useMemo(() => {
     const counts = new Map<string, number>();
@@ -188,7 +264,23 @@ export default function Customers() {
     return [{ label: 'Tous', count: clients.length }, ...[...counts].map(([label, count]) => ({ label, count }))];
   }, [clients]);
 
-  const filtered = seg === 'Tous' ? clients : clients.filter((c) => c.segments.includes(seg));
+  const filtered = useMemo(() => {
+    let list = seg === 'Tous' ? clients : clients.filter((c) => c.segments.includes(seg));
+    if (q) {
+      const qd = digitsOf(q);
+      list = list.filter((c) =>
+        c.name.toLowerCase().includes(q) || (qd !== '' && digitsOf(c.phone).includes(qd)),
+      );
+    }
+    const st = (id: string) => stats.get(id);
+    const arr = [...list];
+    if (sort === 'nom') arr.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    else if (sort === 'visite') arr.sort((a, b) => (st(b.id)?.lastISO ?? '').localeCompare(st(a.id)?.lastISO ?? ''));
+    else if (sort === 'depense') arr.sort((a, b) => (st(b.id)?.spend ?? 0) - (st(a.id)?.spend ?? 0));
+    else if (sort === 'points') arr.sort((a, b) => (b.loyaltyPoints ?? 0) - (a.loyaltyPoints ?? 0));
+    return arr;
+  }, [clients, seg, q, sort, stats]);
+
   const selected = clients.find((c) => c.id === selId) ?? null;
 
   return (
@@ -199,6 +291,34 @@ export default function Customers() {
         actions={<Button variant="indigo" onClick={() => setIntake(true)}>+ Nouvelle cliente</Button>}
       />
 
+      {/* Indicateurs de la maison */}
+      <div className="trc-kpis">
+        <div className="trc-kpi"><b>{clients.length}</b><span>Têtes couronnées</span></div>
+        <div className="trc-kpi"><b>{newThisMonth}</b><span>Nouvelles ce mois</span></div>
+        <div className="trc-kpi"><b>{bdaySoonCount}</b><span>Anniversaires sous 30 j</span></div>
+        <div className={`trc-kpi ${onlineCount > 0 ? 'trc-kpi--live' : ''}`}>
+          <b>{onlineCount}</b><span>En ligne · Ma Couronne</span>
+        </div>
+      </div>
+
+      {/* Recherche & tri */}
+      <div className="trc-toolbar">
+        <div className="trc-searchwrap">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher une cliente (nom, téléphone)…"
+            aria-label="Rechercher une cliente"
+          />
+        </div>
+        <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 200, flex: 'none' }} aria-label="Trier les clientes">
+          <option value="nom">Tri · Nom</option>
+          <option value="visite">Tri · Dernière visite</option>
+          <option value="depense">Tri · Dépensé</option>
+          <option value="points">Tri · Points</option>
+        </Select>
+      </div>
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         {segments.map((s) => (
           <button key={s.label} className={`trc-chip ${seg === s.label ? 'is-active' : ''}`} onClick={() => setSeg(s.label)}>
@@ -207,36 +327,78 @@ export default function Customers() {
         ))}
       </div>
 
-      <div className="trc-sheet">
+      <div className="trc-sheet trc-crm-sheet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
           <span>Cliente</span>
-          <span>Téléphone</span>
           <span>Prochain RDV</span>
           <span>Dernière visite</span>
-          <span>Segment</span>
+          <span>Dépensé</span>
+          <span>Points</span>
           <span />
         </div>
-        {filtered.length === 0 && <div className="trc-empty">Aucune tête couronnée sur ce segment.</div>}
+        {filtered.length === 0 && (
+          <div className="trc-empty">
+            {clients.length === 0
+              ? 'Aucune tête couronnée — ajoutez la première.'
+              : q
+                ? `Aucune cliente ne répond à « ${query.trim()} ».`
+                : 'Aucune tête couronnée sur ce segment.'}
+          </div>
+        )}
         {filtered.map((c) => {
           const next = predictNext(c.id);
+          const st = stats.get(c.id);
+          const online = onlineIds.has(c.id);
+          const bd = c.birthday ? bdayInfo(c.birthday) : null;
+          const phoneDigits = digitsOf(c.phone);
           return (
             <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} key={c.id} onClick={() => setSelId(c.id)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                <Avatar client={c} size={36} />
+                <span className="trc-avatarwrap">
+                  <Avatar client={c} size={36} />
+                  {online && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
+                </span>
                 <span style={{ minWidth: 0 }}>
-                  <span className="trc-name" style={{ display: 'block' }}>{c.name}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, borderRadius: 999, padding: '2px 9px', background: 'var(--indigo-50)' }}>
-                    <span style={{ fontSize: 10, letterSpacing: '.02em', color: 'var(--indigo-600)' }}>{personaName(c.persona)}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                    <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    {bd && bd.daysUntil <= 30 && (
+                      <span className="trc-bday-chip">{bd.daysUntil === 0 ? 'Anniv. aujourd’hui' : `Anniv. J−${bd.daysUntil}`}</span>
+                    )}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4, minWidth: 0 }}>
+                    <span style={{ flex: 'none', borderRadius: 999, padding: '2px 9px', background: 'var(--indigo-50)', fontSize: 10, letterSpacing: '.02em', color: 'var(--indigo-600)' }}>
+                      {personaName(c.persona)}
+                    </span>
+                    <span className="trc-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.phone || '—'}</span>
                   </span>
                 </span>
               </span>
-              <span className="trc-sub">{c.phone}</span>
               <span style={{ fontSize: 13, color: next.predicted ? 'var(--copper-600)' : 'var(--color-indigo)', fontStyle: next.predicted ? 'italic' : 'normal' }}>
                 {next.iso ? (next.predicted ? `≈ ${frShort(next.iso)}` : frShort(next.iso)) : '—'}
               </span>
-              <span className="trc-sub">{lastVisit(c.id)}</span>
-              <span><span className="trc-src">{c.segments[0] ?? '—'}</span></span>
-              <span style={{ color: 'var(--color-copper)', textAlign: 'right' }}>→</span>
+              <span className="trc-sub">{st?.lastISO ? relDays(st.lastISO) : 'jamais venue'}</span>
+              <span className="trc-money">{st && st.spend > 0 ? fmtMoney(st.spend, currency) : '—'}</span>
+              <span className="trc-sub">{c.loyaltyPoints ?? 0}</span>
+              <span className="trc-rowacts">
+                {c.phone ? (
+                  <a className="trc-rowact" href={telHref(c.phone)} onClick={(e) => e.stopPropagation()} title={`Appeler ${c.name}`}>Tél</a>
+                ) : (
+                  <span className="trc-rowact is-off" aria-hidden>Tél</span>
+                )}
+                {phoneDigits ? (
+                  <a className="trc-rowact" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`WhatsApp ${c.name}`}>WA</a>
+                ) : (
+                  <span className="trc-rowact is-off" aria-hidden>WA</span>
+                )}
+                <button
+                  type="button"
+                  className="trc-rowact trc-rowact--rdv"
+                  onClick={(e) => { e.stopPropagation(); setRdvFor(c); }}
+                  title={`Proposer un rendez-vous à ${c.name}`}
+                >
+                  + RDV
+                </button>
+              </span>
             </div>
           );
         })}
@@ -250,6 +412,14 @@ export default function Customers() {
           appts={apptsOf(selected.id)}
           byId={byId}
           predicted={predictNext(selected.id)}
+        />
+      )}
+
+      {rdvFor && (
+        <RdvModal
+          onClose={() => setRdvFor(null)}
+          initial={{ clientId: rdvFor.id }}
+          title={`Rendez-vous · ${rdvFor.name.split(' ')[0]}.`}
         />
       )}
 
@@ -271,7 +441,12 @@ function Customer360({
 }) {
   const { branch, currency } = useBranch();
   const [personas] = usePersonas();
+  const [invoices] = useInvoices();
+  const [pointsHistory] = usePointsHistory();
+  const [sessions] = useClientSessions();
   const [bookOpen, setBookOpen] = useState(false);
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
   const today = todayISO();
 
@@ -290,13 +465,56 @@ function Customer360({
   };
 
   const bday = client.birthday ? bdayInfo(client.birthday) : null;
+  const phoneDigits = digitsOf(client.phone);
 
+  /* ----- Fiche financière ----- */
   const honored = appts.filter((a) => a.status === 'honoré');
-  const spend = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
+  const myInvoices = invoices.filter((i) => i.clientId === client.id);
+  const linkedIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of appts) if (a.invoiceId) set.add(a.invoiceId);
+    return set;
+  }, [appts]);
+  /* Factures payées hors règlements de RDV (produits, POS) — évite le double comptage. */
+  const paidExtras = myInvoices.filter((i) =>
+    i.kind === 'facture' && i.status === 'payée' && !linkedIds.has(i.id)
+    && !i.lines.some((l) => l.label.startsWith('Règlement ·')),
+  );
+  const spend = honored.reduce((s, a) => s + apptNetXof(a, byId), 0)
+    + paidExtras.reduce((s, i) => s + invoiceTotal(i), 0);
+  const basketCount = honored.length + paidExtras.length;
+  const basket = basketCount > 0 ? Math.round(spend / basketCount) : 0;
+
+  /* Solde dû — tout RDV non annulé dont il reste à encaisser. */
+  const owing = appts
+    .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const due = owing.reduce((s, a) => s + apptDueXof(a, byId), 0);
+
+  const myPoints = pointsHistory.filter((e) => e.clientId === client.id).slice(0, 4);
+
+  /* ----- Présence Ma Couronne ----- */
+  const mySessions = sessions.filter((s) => s.clientId === client.id);
+  const onlineNow = mySessions.some((s) => isOnline(s));
+  const lastSeenISO = mySessions.reduce<string | null>(
+    (acc, s) => (!acc || s.lastSeenAt > acc ? s.lastSeenAt : acc), null,
+  );
+  const totalSec = mySessions.reduce((s, x) => s + (x.durationSec || 0), 0);
+  const lastScreen = mySessions
+    .slice()
+    .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))[0]?.screen;
+
+  /* ----- Commandes — ses devis produits ----- */
+  const orders = myInvoices
+    .filter((i) => i.kind === 'devis')
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  /* ----- Rendez-vous ----- */
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
-  const upcoming = appts
+  const upcomingAll = appts
     .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
+    .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
+  const upcoming = upcomingAll[0];
 
   const setPersona = (persona: string) => {
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, persona } : c)));
@@ -318,21 +536,35 @@ function Customer360({
     onClose();
   };
 
+  const orderStatusClass = (s: Invoice['status']) =>
+    s === 'payée' || s === 'acceptée' ? 'trc-src' : 'trc-src trc-src--indigo';
+
   return (
     <Drawer onClose={onClose}>
       <div className="trc-drawer__cover">
         <button className="trc-drawer__close" onClick={onClose} aria-label="Fermer">✕</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Avatar client={client} size={64} />
-          <div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, width: '100%', minWidth: 0 }}>
+          <span className="trc-avatarwrap">
+            <Avatar client={client} size={64} />
+            {onlineNow && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
+            {client.phone && (
+              <div className="trc-cover-acts">
+                <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>
+                {phoneDigits && (
+                  <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* Prochain RDV prédit */}
+        {/* Prochain RDV — réel ou prédit */}
         <div className="trc-next">
           <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
           <div className="trc-next__date">
@@ -344,11 +576,69 @@ function Customer360({
           <Button variant="copper" size="sm" style={{ marginTop: 12 }} onClick={() => setBookOpen(true)}>+ Proposer un rendez-vous</Button>
         </div>
 
-        {/* Ministats */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Dépense cumulée</span></div>
-          <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
-          <div className="trc-ministat"><b>{client.loyaltyPoints}</b><span>Points cercle</span></div>
+        {/* Rendez-vous à venir — la liste complète, cliquable pour modifier */}
+        {upcomingAll.length > 0 && (
+          <div>
+            <span className="trc-microlabel">Rendez-vous à venir · {upcomingAll.length}</span>
+            <div className="trc-upcoming">
+              {upcomingAll.map((a) => (
+                <button key={a.id} type="button" className="trc-upcoming__row" onClick={() => setEditAppt(a)} title="Modifier ce rendez-vous">
+                  <span className="trc-upcoming__date">{frShort(a.date)} · {a.time}</span>
+                  <span className="trc-upcoming__svc">
+                    {apptLabel(a, byId)} · {a.master}
+                    {a.seriesIndex && a.seriesTotal ? <span className="trc-serie-chip" style={{ marginLeft: 6 }}>{a.seriesIndex}/{a.seriesTotal}</span> : null}
+                  </span>
+                  <StatusPill status={a.status} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Fiche financière */}
+        <div>
+          <span className="trc-microlabel">Fiche financière</span>
+          <div className="trc-finrow">
+            <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Total dépensé</span></div>
+            <div className="trc-ministat"><b>{basket > 0 ? fmtMoney(basket, currency) : '—'}</b><span>Panier moyen</span></div>
+            <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
+            <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>
+          </div>
+          {due > 0 && (
+            <div className="trc-due">
+              <div>
+                <span className="trc-due__label">Solde dû · {owing.length} rituel{owing.length > 1 ? 's' : ''}</span>
+                <span className="trc-due__amount">{fmtMoney(due, currency)}</span>
+              </div>
+              <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+            </div>
+          )}
+          {myPoints.length > 0 && (
+            <div className="trc-ptlog">
+              {myPoints.map((e) => (
+                <div className="trc-ptlog__row" key={e.id}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>
+                  <span className="trc-sub" style={{ flex: 'none' }}>{frDay(e.at.slice(0, 10))}</span>
+                  <span className="trc-ptlog__pts">{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Présence Ma Couronne — ligne discrète */}
+        <div>
+          <span className="trc-microlabel">Présence Ma Couronne</span>
+          <div className={`trc-presence ${onlineNow ? 'is-online' : ''}`}>
+            <span className="trc-presence__dot" />
+            <span>
+              {mySessions.length === 0
+                ? 'Jamais connectée à Ma Couronne.'
+                : onlineNow
+                  ? `En ligne maintenant${lastScreen ? ` · ${lastScreen}` : ''}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`
+                  : `Vue ${lastSeenISO ? relDays(lastSeenISO.slice(0, 10)) : '—'}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`}
+            </span>
+          </div>
         </div>
 
         {/* Identité */}
@@ -447,6 +737,28 @@ function Customer360({
           </div>
         </div>
 
+        {/* Commandes — ses devis produits */}
+        <div>
+          <span className="trc-microlabel">Commandes · {orders.length}</span>
+          {orders.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucune commande — ses devis apparaîtront ici.</div>
+          )}
+          {orders.length > 0 && (
+            <div className="trc-orders">
+              {orders.map((o) => (
+                <div className="trc-order" key={o.id}>
+                  <span className="trc-order__id">
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{frDay(o.date)}</span>
+                  </span>
+                  <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
+                  <span className={orderStatusClass(o.status)}>{o.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Historique */}
         <div>
           <span className="trc-microlabel">Historique du carnet</span>
@@ -519,6 +831,8 @@ function Customer360({
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
+      {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </Drawer>
   );
 }

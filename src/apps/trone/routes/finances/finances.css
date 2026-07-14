@@ -78,6 +78,16 @@
   transition: color var(--dur-fast, .2s) var(--ease-soft, ease);
 }
 .trf-tab.is-active { color: var(--color-indigo); border-bottom-color: var(--color-copper); font-weight: var(--weight-medium); }
+.trf-tab__sum {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.trf-tab.is-active .trf-tab__sum { color: var(--color-copper); }
 
 /* ---------- Chips (filtres, catégories) ---------- */
 .trf-chip {
@@ -416,6 +426,93 @@
 }
 .trf-catgroup__sum { font-family: var(--font-serif); font-size: 17px; color: var(--color-copper); white-space: nowrap; }
 
+/* ---------- Barre d'outils : période + recherche + export ---------- */
+.trf-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.trf-search {
+  flex: 1;
+  min-width: 220px;
+  height: 40px;
+}
+
+/* Navigation ‹ mois › */
+.trf-monthnav { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.trf-monthnav__btn {
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--color-indigo);
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast, .2s) var(--ease-soft, ease), border-color var(--dur-fast, .2s) var(--ease-soft, ease);
+}
+.trf-monthnav__btn:hover { background: var(--color-sable); border-color: var(--color-copper); }
+.trf-monthnav__label {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 18px;
+  color: var(--color-indigo);
+  min-width: 148px;
+  text-align: center;
+  text-transform: capitalize;
+}
+.trf-monthnav__today {
+  cursor: pointer;
+  margin-left: 4px;
+  padding: 7px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-copper);
+  background: transparent;
+  color: var(--color-copper);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: background var(--dur-fast, .2s) var(--ease-soft, ease), color var(--dur-fast, .2s) var(--ease-soft, ease);
+}
+.trf-monthnav__today:hover { background: var(--color-copper); color: var(--color-ivoire); }
+
+/* Étincelle — historique 3 mois d'une enveloppe budgétaire */
+.trf-spark { display: flex; align-items: flex-end; gap: 5px; flex: none; }
+.trf-spark__col { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 12px; }
+.trf-spark__bar { width: 100%; border-radius: 2px; min-height: 2px; }
+.trf-spark__lbl { font-family: var(--font-sans); font-size: 8.5px; text-transform: uppercase; color: var(--ink-soft); }
+
+/* Barre de mix + lignes — modes de paiement */
+.trf-mixbar { display: flex; height: 12px; border-radius: var(--radius-pill); overflow: hidden; background: var(--color-sable); }
+.trf-mixbar > div { min-width: 2px; }
+.trf-mixrow { display: flex; align-items: baseline; gap: 9px; padding: 8px 0; border-top: 1px solid var(--hairline); }
+.trf-mixrow:first-of-type { border-top: none; }
+.trf-mixrow__dot { width: 9px; height: 9px; border-radius: 2px; flex: none; align-self: center; }
+.trf-mixrow__name { font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trf-mixrow__pct { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); flex: none; font-variant-numeric: tabular-nums; }
+.trf-mixrow__val { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); flex: none; font-variant-numeric: tabular-nums; }
+
+/* Podium — top prestations / meilleures clientes */
+.trf-toprow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--hairline); }
+.trf-toprow:first-of-type { border-top: none; }
+.trf-rank {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--color-sable);
+  color: var(--color-copper);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.trf-toprow__name { font-family: var(--font-sans); font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trf-toprow__val { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trf-toprow__meta { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); }
+
 /* ============================================================
    Responsive (contenu Finances)
    ============================================================ */
@@ -436,4 +533,10 @@
   .trf-engage { flex-wrap: wrap; gap: 10px; }
   .trf-detail__grid { grid-template-columns: 1fr; gap: 8px; }
   .trf-breakrow__name { width: 110px; }
+
+  /* Barre d'outils : la recherche passe sous la navigation mois. */
+  .trf-toolbar { gap: 10px; }
+  .trf-search { flex-basis: 100%; order: 3; }
+  .trf-monthnav { flex: 1; }
+  .trf-monthnav__label { min-width: 0; flex: 1; }
 }

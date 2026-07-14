@@ -941,3 +941,266 @@
   .trc-next__date { font-size: 19px; }
   .trc-timeline { gap: 10px; }
 }
+
+/* ---------- Séries multi-séances — affichage des montants ---------- */
+/* Séance 2..N : la prestation est déjà comptée sur la séance 1. */
+.trc-serie-incluse {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+/* Petit repère « Séance 1/N » à côté du montant porteur. */
+.trc-serie-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--copper-600);
+  border: 1px solid var(--copper-300);
+  border-radius: 2px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+/* Marque « k/N » sur les blocs du calendrier. */
+.trc-cal__serie {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 4px;
+  opacity: 0.75;
+  vertical-align: 1px;
+}
+
+/* ============================================================
+   CRM · Têtes couronnées — indicateurs, recherche, actions de ligne
+   ============================================================ */
+
+/* ---------- Indicateurs de tête de page ---------- */
+.trc-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.trc-kpi {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+}
+.trc-kpi b {
+  display: block;
+  font-family: var(--font-serif);
+  font-weight: var(--weight-regular);
+  font-size: 24px;
+  color: var(--color-indigo);
+  line-height: 1;
+}
+.trc-kpi span {
+  display: block;
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+.trc-kpi--live { border-left: var(--filet-copper); }
+.trc-kpi--live b { color: var(--color-copper); }
+@media (max-width: 760px) {
+  .trc-kpis { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- Barre recherche + tri ---------- */
+.trc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.trc-toolbar .trc-searchwrap { flex: 1 1 240px; min-width: 200px; }
+.trc-toolbar .trc-searchwrap input { width: 100%; box-sizing: border-box; }
+
+/* ---------- Lignes du CRM : présence, montants, actions rapides ---------- */
+.trc-avatarwrap { position: relative; display: inline-flex; flex: none; }
+.trc-dot-online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-copper);
+  border: 2px solid var(--surface-card);
+}
+.trc-money { font-family: var(--font-serif); font-size: 14.5px; color: var(--color-indigo); white-space: nowrap; }
+.trc-rowacts { display: flex; gap: 6px; justify-content: flex-end; }
+.trc-rowact {
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 5px 8px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: var(--transition-base);
+}
+.trc-rowact:hover { border-color: var(--copper-400); color: var(--copper-700); background: var(--copper-50); }
+.trc-rowact--rdv { color: var(--copper-600); border-color: var(--copper-300); }
+.trc-rowact.is-off { opacity: 0.3; pointer-events: none; }
+
+/* Le CRM enrichi demande un peu plus de largeur avant de défiler. */
+@media (max-width: 900px) {
+  .trc-crm-sheet .trc-sheet__head,
+  .trc-crm-sheet .trc-sheet__row { min-width: 860px; }
+}
+
+/* ============================================================
+   Fiche 360 — en-tête, finances, présence, commandes, RDV à venir
+   ============================================================ */
+
+/* Appeler / WhatsApp sur la couverture indigo. */
+.trc-cover-acts { display: flex; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+.trc-cover-act {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ivoire);
+  border: 1px solid rgba(246, 241, 231, 0.35);
+  border-radius: 2px;
+  padding: 6px 12px;
+  text-decoration: none;
+  transition: var(--transition-base);
+}
+.trc-cover-act:hover { background: rgba(246, 241, 231, 0.12); border-color: var(--copper-200); }
+
+/* Fiche financière — quatre ministats + solde dû + mouvements de points. */
+.trc-finrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.trc-due {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  margin-top: 10px;
+}
+.trc-due__label {
+  display: block;
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--copper-600);
+}
+.trc-due__amount {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--copper-700);
+  line-height: 1.1;
+  margin-top: 3px;
+}
+.trc-ptlog { display: flex; flex-direction: column; margin-top: 10px; }
+.trc-ptlog__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink);
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--hairline);
+}
+.trc-ptlog__row > span:first-child { flex: 1; }
+.trc-ptlog__pts { flex: none; font-family: var(--font-serif); font-size: 13.5px; color: var(--color-copper); }
+
+/* Présence Ma Couronne — ligne discrète, filet cuivre quand elle est là. */
+.trc-presence {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+}
+.trc-presence__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-argile); flex: none; }
+.trc-presence.is-online { border-left: var(--filet-copper); color: var(--copper-700); }
+.trc-presence.is-online .trc-presence__dot { background: var(--color-copper); }
+
+/* Commandes — ses devis produits. */
+.trc-orders {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.trc-order {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12.5px;
+}
+.trc-order:last-child { border-bottom: none; }
+.trc-order__id { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trc-order__total { font-family: var(--font-serif); font-size: 14px; color: var(--color-indigo); white-space: nowrap; }
+
+/* Rendez-vous à venir — lignes cliquables (modification via la modale RDV). */
+.trc-upcoming { display: flex; flex-direction: column; gap: 7px; }
+.trc-upcoming__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-family: var(--font-sans);
+  transition: var(--transition-base);
+}
+.trc-upcoming__row:hover { border-color: var(--copper-300); background: var(--hover-veil); }
+.trc-upcoming__date { flex: none; font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); white-space: nowrap; }
+.trc-upcoming__svc {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tiroir plein écran (≤620px) : les nouvelles sections passent en une colonne. */
+@media (max-width: 620px) {
+  .trc-finrow { grid-template-columns: 1fr 1fr; }
+  .trc-due { flex-wrap: wrap; }
+  .trc-upcoming__row { flex-wrap: wrap; }
+  .trc-upcoming__svc { flex-basis: 100%; white-space: normal; }
+  .trc-cover-acts { margin-top: 9px; }
+}

@@ -1,5 +1,6 @@
 import { asset } from '../../shared/asset';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { notifyLocal } from '../../shared/ics';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { signOut } from '../../shared/auth';
@@ -89,6 +90,20 @@ function useClientDevis(): Invoice[] {
   );
 }
 
+/** Commandes de la cliente — tous ses devis transmis (produits & prestations). */
+function useClientOrders(): Invoice[] {
+  const [invoices] = useInvoices();
+  const clientId = useClientId();
+  return useMemo(
+    () =>
+      invoices
+        .filter((i) => i.clientId === clientId && i.kind === 'devis' && i.status !== 'brouillon')
+        .slice()
+        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
+    [invoices, clientId]
+  );
+}
+
 /** Pastille de la cloche : devis en attente + rendez-vous à venir. */
 function useNotifCount(): number {
   const devis = useClientDevis();
@@ -120,12 +135,14 @@ export function HomeTab({
   onOpenBooking,
   onOpenCompose,
   onOpenNotif,
+  onOpenRdv,
   goGamme,
   toast,
 }: {
   onOpenBooking: OpenBooking;
   onOpenCompose: () => void;
   onOpenNotif: () => void;
+  onOpenRdv: () => void;
   goGamme: () => void;
   toast: (m: string) => void;
 }) {
@@ -143,6 +160,23 @@ export function HomeTab({
   const crownDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
 
   const reco = products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
+
+  /* Rituel sous 48 h : bannière discrète + une notification locale, une seule fois. */
+  const soon = useMemo(() => {
+    if (!next) return null;
+    const start = new Date(`${next.date}T${next.time}:00`).getTime();
+    const diff = start - Date.now();
+    return diff > 0 && diff <= 48 * 3600 * 1000 ? next : null;
+  }, [next]);
+
+  useEffect(() => {
+    if (!soon) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const key = `mc_rappel_${soon.id}_${soon.date}_${soon.time}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    notifyLocal('Votre rituel approche', `${dayLabelIso(soon.date)} · ${soon.time} — la maison vous attend.`);
+  }, [soon]);
 
   const pickOffer = (o: Offer) => {
     if (o.act === 'invite') {
@@ -169,6 +203,17 @@ export function HomeTab({
       </div>
 
       <div className="mc-pagepad">
+        {/* rappel discret — rituel sous 48 h */}
+        {soon && (
+          <button className="mc-remindbanner" onClick={onOpenRdv}>
+            <span className="mc-remindbanner__dot" aria-hidden="true" />
+            <span className="mc-remindbanner__txt">
+              Votre rituel approche — {dayLabelIso(soon.date)} · {soon.time}
+            </span>
+            <span className="mc-remindbanner__go">Voir</span>
+          </button>
+        )}
+
         {/* citation de la maison */}
         <div className="mc-quote">
           <span className="mc-quote__mark">“</span>
@@ -224,6 +269,11 @@ export function HomeTab({
             <>
               <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
               <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
+              {next.seriesTotal && (
+                <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
+                  Séance {next.seriesIndex}/{next.seriesTotal}
+                </span>
+              )}
               {next.depositXof != null && (
                 <span className="mc-nextrdv__seal">Acompte réglé · {fmtMoney(next.depositXof, currency)}</span>
               )}
@@ -234,6 +284,9 @@ export function HomeTab({
               <div className="mc-nextrdv__when">Votre couronne mérite sa prochaine séance — réservez en sept temps.</div>
             </>
           )}
+          <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
+            Mes rendez-vous · voir, déplacer, annuler
+          </button>
         </div>
 
         <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
@@ -268,7 +321,7 @@ export function HomeTab({
 
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
+export function SuiviTab({ onOpenBooking, onOpenRdv }: { onOpenBooking: OpenBooking; onOpenRdv: () => void }) {
   const [services] = useServices();
   const client = useClient();
   const clientAppts = useClientAppointments();
@@ -356,8 +409,11 @@ export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
         </div>
       )}
 
+      <button className="mc-cta mc-cta--outline" style={{ marginTop: timeline.length ? 0 : 16 }} onClick={onOpenRdv}>
+        Mes rendez-vous · voir, déplacer, annuler
+      </button>
       {lastAppt && (
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: timeline.length ? 0 : 16 }} onClick={rebook}>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={rebook}>
           Re-réserver à l’identique
         </button>
       )}
@@ -368,15 +424,18 @@ export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
 
 /* ================= GAMME ================= */
 
-export function GammeTab({ toast }: { toast: (m: string) => void }) {
+export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; onOpenOrders: () => void }) {
   const { branch, currency } = useBranch();
   const { products } = useVisibleCatalog();
   const client = useClient();
   const clientId = useClientId();
+  const orders = useClientOrders();
 
   /* Panier réel : id produit → quantité. */
   const [cart, setCart] = useState<Record<string, number>>({});
   const [basketOpen, setBasketOpen] = useState(false);
+  /* État après-commande : le récapitulatif reste affiché, le suivi à un geste. */
+  const [orderDone, setOrderDone] = useState<{ number: string; totalXof: number } | null>(null);
 
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
   const dec = (id: string) =>
@@ -427,8 +486,13 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
     const confirmed = fmtMoney(total, currency);
     invoicesStore.set((prev) => [...prev, inv]);
     setCart({});
-    setBasketOpen(false);
+    setOrderDone({ number: inv.number, totalXof: total });
     toast(`Commande transmise à la maison — ${confirmed}`);
+  };
+
+  const closeBasket = () => {
+    setBasketOpen(false);
+    setOrderDone(null);
   };
 
   return (
@@ -438,6 +502,14 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
       <p className="mc-lead" style={{ margin: '0 0 18px' }}>
         Formules naturelles — moringa, karité, niaouli. Sans silicone ni paraben.
       </p>
+
+      {/* Suivre ses commandes — visible dès qu'une commande existe. */}
+      {orders.length > 0 && (
+        <button className="mc-orderslink" onClick={onOpenOrders}>
+          <span>Mes commandes · {orders.length}</span>
+          <span className="mc-orderslink__arrow" aria-hidden="true">→</span>
+        </button>
+      )}
 
       <div className="mc-stack mc-productgrid" style={{ gap: 12 }}>
         {products.map((p) => {
@@ -498,20 +570,49 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
         <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
           <div className="mc-flowhead mc-flowhead--split">
             <div>
-              <div className="mc-micro-eyebrow">Votre panier</div>
-              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Le panier.</h1>
+              <div className="mc-micro-eyebrow">{orderDone ? 'Commande transmise' : 'Votre panier'}</div>
+              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>
+                {orderDone ? 'C’est transmis.' : 'Le panier.'}
+              </h1>
             </div>
-            <button className="mc-x" aria-label="Fermer" onClick={() => setBasketOpen(false)}>✕</button>
+            <button className="mc-x" aria-label="Fermer" onClick={closeBasket}>✕</button>
           </div>
           <div className="mc-scroll" style={{ flex: 1, padding: '18px 24px calc(24px + env(safe-area-inset-bottom))' }}>
-            {items.length === 0 ? (
+            {orderDone ? (
+              <div className="mc-confirm mc-rise" style={{ paddingTop: 26 }}>
+                <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
+                <h2>Commande transmise.</h2>
+                <p>
+                  La maison la reçoit à l’instant et vous confirme sur WhatsApp.
+                  Suivez son état à tout moment dans « Mes commandes ».
+                </p>
+                <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
+                  <div className="mc-recapcard__line"><span>Commande</span><span>{orderDone.number}</span></div>
+                  <div className="mc-recapcard__line"><span>Statut</span><span>Reçue par la maison</span></div>
+                  <div className="mc-hairline" />
+                  <div className="mc-recapcard__total">
+                    <span>Total</span>
+                    <span>{fmtMoney(orderDone.totalXof, currency)}</span>
+                  </div>
+                  <div className="mc-recapcard__meta">Réglée au retrait en maison.</div>
+                </div>
+                <button
+                  className="mc-cta mc-cta--indigo"
+                  style={{ marginTop: 20 }}
+                  onClick={() => { closeBasket(); onOpenOrders(); }}
+                >
+                  Suivre mes commandes
+                </button>
+                <button className="mc-quietbtn" onClick={closeBasket}>Revenir à la gamme</button>
+              </div>
+            ) : items.length === 0 ? (
               <div className="mc-emptyzone">
                 <div className="mc-emptyzone__glyph">⬡</div>
                 <div className="mc-emptyzone__t">Votre panier est vide.</div>
                 <div className="mc-emptyzone__s">
                   Ajoutez une formule de la gamme pour composer votre commande.
                 </div>
-                <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={() => setBasketOpen(false)}>
+                <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={closeBasket}>
                   Revenir à la gamme
                 </button>
               </div>
@@ -623,7 +724,15 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
 /* ================= PROFIL ================= */
 
-export function ProfilTab({ toast }: { toast: (m: string) => void }) {
+export function ProfilTab({
+  toast,
+  onOpenRdv,
+  onOpenOrders,
+}: {
+  toast: (m: string) => void;
+  onOpenRdv: () => void;
+  onOpenOrders: () => void;
+}) {
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
@@ -672,6 +781,18 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
+      </div>
+
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Tout suivre</div>
+      <div className="mc-preflist">
+        <button className="mc-navrow" onClick={onOpenRdv}>
+          <span>Mes rendez-vous</span>
+          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+        </button>
+        <button className="mc-navrow" onClick={onOpenOrders}>
+          <span>Mes commandes</span>
+          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+        </button>
       </div>
 
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Vos informations</div>
@@ -732,6 +853,60 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         Se déconnecter
       </button>
       <div style={{ height: 12 }} />
+    </div>
+  );
+}
+
+/* ================= MES COMMANDES ================= */
+
+/** Suivi des commandes : chaque devis transmis, son numéro, son total et son état
+    vu par la maison — envoyée → « Reçue », acceptée → « Confirmée », payée → « Réglée ». */
+const ORDER_STATUS: Record<Invoice['status'], { label: string; cls: string }> = {
+  brouillon: { label: 'Brouillon', cls: '' },
+  'envoyée': { label: 'Reçue par la maison', cls: 'mc-stchip--wait' },
+  'acceptée': { label: 'Confirmée', cls: 'mc-stchip--info' },
+  'payée': { label: 'Réglée', cls: 'mc-stchip--ok' },
+};
+
+export function MesCommandes({ onClose }: { onClose: () => void }) {
+  const { currency } = useBranch();
+  const orders = useClientOrders();
+
+  return (
+    <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
+      <div className="mc-flowhead mc-flowhead--split">
+        <div>
+          <div className="mc-micro-eyebrow">Votre suivi · la Gamme</div>
+          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Mes commandes.</h1>
+        </div>
+        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+      </div>
+      <div className="mc-scroll" style={{ flex: 1, padding: '8px 0 calc(16px + env(safe-area-inset-bottom))' }}>
+        {orders.map((o) => (
+          <div key={o.id} className="mc-orderrow">
+            <div className="mc-orderrow__head">
+              <span className="mc-orderrow__no">{o.number}</span>
+              <span className="mc-orderrow__date">{dayLabelIso(o.date)}</span>
+            </div>
+            <div className="mc-orderrow__lines">
+              {o.lines.map((l) => (l.qty > 1 ? `${l.qty}× ${l.label}` : l.label)).join(' · ')}
+            </div>
+            <div className="mc-orderrow__foot">
+              <span className="mc-orderrow__total">{fmtMoney(invoiceTotal(o), currency)}</span>
+              <span className={`mc-stchip ${ORDER_STATUS[o.status].cls}`}>{ORDER_STATUS[o.status].label}</span>
+            </div>
+          </div>
+        ))}
+        {orders.length === 0 && (
+          <div className="mc-emptyzone">
+            <div className="mc-emptyzone__glyph">⬡</div>
+            <div className="mc-emptyzone__t">Aucune commande pour l’instant.</div>
+            <div className="mc-emptyzone__s">
+              Composez votre commande depuis la Gamme — vous suivrez ici chacun de ses états.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

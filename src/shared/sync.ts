@@ -71,6 +71,31 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     }
   })();
 
+  /* Filet de fraîcheur : au retour de focus, on re-tire l'état distant
+     (throttlé, et jamais pendant qu'une poussée locale est en attente)
+     — couvre un éventuel événement Realtime manqué en arrière-plan. */
+  let lastRefetch = 0;
+  const refetch = async () => {
+    if (timer) return; // une écriture locale part bientôt — ne pas écraser
+    if (Date.now() - lastRefetch < 15000) return;
+    lastRefetch = Date.now();
+    const { data, error } = await sb.from(table).select('id,data');
+    if (error || !data) return;
+    const items = data.map((r) => (r as { data: T }).data);
+    const next = snapshot(items);
+    const cur = snapshot(store.get());
+    const same = next.size === cur.size && [...next].every(([k, v]) => cur.get(k) === v);
+    if (same) return;
+    applyingRemote = true;
+    store.set(items);
+    applyingRemote = false;
+    lastPushed = next;
+  };
+  window.addEventListener('focus', () => void refetch());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void refetch();
+  });
+
   // 2. Poussée des changements locaux (coalescée).
   let timer: ReturnType<typeof setTimeout> | undefined;
   store.subscribe(() => {

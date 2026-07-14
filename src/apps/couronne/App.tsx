@@ -5,7 +5,8 @@ import { useEnsureClient, useActivityTracker, type BookingPrefill } from './lib'
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
-import { HomeTab, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications } from './Tabs';
+import MesRendezVous from './MesRendezVous';
+import { HomeTab, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications, MesCommandes } from './Tabs';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
    Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
@@ -33,6 +34,8 @@ function Shell() {
   const [booking, setBooking] = useState<{ prefill?: BookingPrefill } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [rdvOpen, setRdvOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -44,7 +47,20 @@ function Shell() {
 
   const openBooking = useCallback((prefill?: BookingPrefill) => {
     setNotifOpen(false);
+    setRdvOpen(false);
     setBooking({ prefill });
+  }, []);
+
+  const openRdv = useCallback(() => {
+    setNotifOpen(false);
+    setOrdersOpen(false);
+    setRdvOpen(true);
+  }, []);
+
+  const openOrders = useCallback(() => {
+    setNotifOpen(false);
+    setRdvOpen(false);
+    setOrdersOpen(true);
   }, []);
 
   return (
@@ -55,14 +71,15 @@ function Shell() {
             onOpenBooking={openBooking}
             onOpenCompose={() => setComposeOpen(true)}
             onOpenNotif={() => setNotifOpen(true)}
+            onOpenRdv={openRdv}
             goGamme={() => setTab('gamme')}
             toast={toast}
           />
         )}
-        {tab === 'suivi' && <SuiviTab onOpenBooking={openBooking} />}
-        {tab === 'gamme' && <GammeTab toast={toast} />}
+        {tab === 'suivi' && <SuiviTab onOpenBooking={openBooking} onOpenRdv={openRdv} />}
+        {tab === 'gamme' && <GammeTab toast={toast} onOpenOrders={openOrders} />}
         {tab === 'cercle' && <CercleTab toast={toast} />}
-        {tab === 'profil' && <ProfilTab toast={toast} />}
+        {tab === 'profil' && <ProfilTab toast={toast} onOpenRdv={openRdv} onOpenOrders={openOrders} />}
       </div>
 
       <nav className="mc-tabbar">
@@ -90,6 +107,14 @@ function Shell() {
       )}
       {composeOpen && <Compose onClose={() => setComposeOpen(false)} toast={toast} />}
       {notifOpen && <Notifications onClose={() => setNotifOpen(false)} />}
+      {rdvOpen && (
+        <MesRendezVous
+          onClose={() => setRdvOpen(false)}
+          onBook={() => openBooking()}
+          toast={toast}
+        />
+      )}
+      {ordersOpen && <MesCommandes onClose={() => setOrdersOpen(false)} />}
 
       {toastMsg && <div className="mc-toast mc-rise">{toastMsg}</div>}
     </>

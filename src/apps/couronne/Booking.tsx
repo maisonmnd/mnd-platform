@@ -4,6 +4,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { onlineDepositRate } from '../../shared/settings';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
+import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { uid } from '../../shared/store';
 import type { Service } from '../../shared/catalog';
 import {
@@ -192,7 +193,35 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       appointmentsStore.set((prev) => [...prev, ...newAppts]);
       setPaying(false);
       setStep(6);
+      /* Le bon moment pour demander la permission de notifier : juste après
+         une réservation réussie — jamais au chargement de l'app. */
+      const first = sessionDates[0];
+      void askNotifyPermission().then((ok) => {
+        if (ok && first) {
+          notifyLocal(
+            'Réservation transmise',
+            `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time} — la maison confirmera.`
+          );
+        }
+      });
     }, 1700);
+  };
+
+  /* ---- Rappel fiable : le calendrier natif du téléphone (un événement par séance) ---- */
+  const addToCalendar = () => {
+    const names = selected.map((s) => s.name).join(' + ') || 'Rituel de la maison';
+    const events: IcsEvent[] = sessionDates.map((sd, i) => ({
+      title: `Maison MND · ${names}`,
+      description:
+        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · avec ${master}` : `Avec ${master}`,
+      location: branch.name,
+      dateIso: sd.iso,
+      time: sd.time,
+      durationMin: totalDuration,
+      alarmMin: 120,
+    }));
+    downloadIcs(events, 'rituel-maison-mnd.ics');
+    toast('Fichier calendrier téléchargé — votre téléphone vous rappellera 2 h avant.');
   };
 
   const priceLabel = (s: Service, pct = 0) =>
@@ -301,7 +330,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       {priceLabel(s)} · {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · avec {s.master}
                     </div>
                     {s.description && <div className="mc-svccard__meta">{s.description}</div>}
-                    {s.sessions > 1 && <span className="mc-pillseal">Série liée · J1 → J{s.sessions}</span>}
+                    {s.sessions > 1 && (
+                      <span className="mc-pillseal">Série · {s.sessions} séances · prix unique</span>
+                    )}
                   </button>
                 );
               })}
@@ -342,15 +373,40 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             )}
             {totalSessions > 1 && (
               <div className="mc-sessionhead">
-                <span className="mc-sessionhead__k">Séance {sessionDates.length + 1} / {totalSessions}</span>
+                <div className="mc-sessionhead__row">
+                  <span className="mc-sessionhead__k">Séance {sessionDates.length + 1} sur {totalSessions}</span>
+                  <span className="mc-sessionhead__steps" aria-hidden="true">
+                    {Array.from({ length: totalSessions }, (_, i) => (
+                      <i key={i} className={i < sessionDates.length ? 'is-done' : i === sessionDates.length ? 'is-now' : ''} />
+                    ))}
+                  </span>
+                </div>
                 <span className="mc-sessionhead__s">Choisissez la date et l’heure de cette séance.</span>
                 {sessionDates.length > 0 && (
                   <div className="mc-sessionchips">
                     {sessionDates.map((sd, i) => (
-                      <span key={i} className="mc-sessionchip">S{i + 1} · {dayLabelIso(sd.iso)} · {sd.time}</span>
+                      <button
+                        key={i}
+                        className="mc-sessionchip mc-sessionchip--btn"
+                        aria-label={`Reprendre la séance ${i + 1} — ${dayLabelIso(sd.iso)} à ${sd.time}`}
+                        onClick={() => {
+                          setSessionDates((prev) => prev.filter((_, k) => k !== i));
+                          setSelIso(null);
+                          setTime(null);
+                        }}
+                      >
+                        S{i + 1} · {dayLabelIso(sd.iso)} · {sd.time}
+                        <span className="mc-sessionchip__x" aria-hidden="true">✕</span>
+                      </button>
                     ))}
                   </div>
                 )}
+                {sessionDates.length > 0 && (
+                  <span className="mc-sessionhead__hint">Touchez une séance pour la reprendre.</span>
+                )}
+                <span className="mc-sessionhead__note">
+                  La prestation est réglée une fois — les séances suivantes sont incluses.
+                </span>
               </div>
             )}
             <div className="mc-calnav">
@@ -455,7 +511,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 </div>
               ))}
               {totalSessions > 1 && (
-                <div className="mc-recapcard__meta">Série liée · {totalSessions} séances · acompte sur la 1ʳᵉ.</div>
+                <div className="mc-recapcard__meta">
+                  Série liée · la prestation est réglée une fois — les séances 2 à {totalSessions} sont incluses ·
+                  acompte sur la 1ʳᵉ.
+                </div>
               )}
               <div className="mc-recapcard__line"><span>Maison</span><span>{branch.name}</span></div>
             </div>
@@ -527,7 +586,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           <div className="mc-confirm mc-rise">
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <h2>Votre rituel est scellé.</h2>
-            <p>Confirmation envoyée sur WhatsApp. Un rappel vous parviendra la veille — la maison vous attend.</p>
+            <p>
+              Confirmation envoyée sur WhatsApp. Ajoutez le rituel à votre calendrier :
+              c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.
+            </p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
               <div className="mc-recapcard__name">{summaryLabel}</div>
               <div className="mc-recapcard__meta">
@@ -544,7 +606,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-recapcard__line"><span>{allHidden ? 'Acompte' : 'Acompte réglé'}</span><span>{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</span></div>
               <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
             </div>
-            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={() => { toast('Ajouté à votre calendrier.'); }}>
+            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
               Ajouter au calendrier
             </button>
             <button className="mc-quietbtn" onClick={onClose}>Revenir à l’accueil</button>

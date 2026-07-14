@@ -1,13 +1,13 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
+import { fmtMoney, fmtMoneyCompact, convertFromXof } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory,
 } from '../../../../shared/finance';
-import { todayISO, monthKey, monthLabel, paceForecast } from './_shared';
+import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
@@ -16,15 +16,10 @@ const fmtDay = (iso: string): string =>
 
 /* Dépenses — maîtrise des sorties de caisse. Flux par catégorie, caisses multiples,
    engagements à arbitrer (signaler / suspendre), paiements récurrents, budgets avec
-   « reste à dépenser », prévision de fin de mois. Tout est persisté et filtré par la branche. */
+   « reste à dépenser », prévision de fin de mois. Tout est persisté et filtré par la branche.
+   La période est explicite : le mois se navigue ‹ mois › et une recherche filtre les listes. */
 
 type Tab = 'flux' | 'caisses' | 'engagements' | 'budgets';
-const TABS: [Tab, string][] = [
-  ['flux', 'Le flux'],
-  ['caisses', 'Les caisses'],
-  ['engagements', 'Engagements'],
-  ['budgets', 'Budgets & prévision'],
-];
 
 const FLOW_FILLS = [
   'var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--copper-400)',
@@ -47,6 +42,7 @@ export default function Depenses() {
   const [tab, setTab] = useState<Tab>('flux');
   const [filterCaisse, setFilterCaisse] = useState('all');
   const [filterCat, setFilterCat] = useState('all');
+  const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [] });
@@ -58,52 +54,75 @@ export default function Depenses() {
   const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '' });
 
   const thisMonth = monthKey(todayISO());
+  const [month, setMonth] = useState(thisMonth);
+  const monthName = monthLabel(month);
+  const isCurrent = month === thisMonth;
   const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
 
+  // — Recherche : libellé, catégorie, sous-catégorie (et articles de l'achat) —
+  const q = query.trim().toLowerCase();
+  const matches = (e: Expense): boolean =>
+    !q
+    || e.label.toLowerCase().includes(q)
+    || e.category.toLowerCase().includes(q)
+    || (e.subcategory ?? '').toLowerCase().includes(q)
+    || (e.items ?? []).some((it) => it.label.toLowerCase().includes(q));
+
   const monthExp = useMemo(
-    () => expenses.filter((e) => e.branchId === branch.id && monthKey(e.date) === thisMonth),
-    [expenses, branch.id, thisMonth],
+    () => expenses.filter((e) => e.branchId === branch.id && monthKey(e.date) === month),
+    [expenses, branch.id, month],
   );
   const live = monthExp.filter((e) => !e.stopped);
+  const visibleMonthExp = monthExp.filter(matches);
 
   const engaged = live.reduce((s, e) => s + expenseTotal(e), 0);
   const potential = live.filter((e) => e.flagged).reduce((s, e) => s + expenseTotal(e), 0);
   const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + expenseTotal(e), 0);
   const revenue = useMemo(
     () => invoices
-      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && monthKey(i.date) === thisMonth)
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && monthKey(i.date) === month)
       .reduce((s, i) => s + invoiceTotal(i), 0),
-    [invoices, branch.id, thisMonth],
+    [invoices, branch.id, month],
   );
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const forecast = paceForecast(engaged, now.getDate(), daysInMonth);
+  // Prévision : au rythme réel pour le mois courant ; sinon, le total constaté du mois.
+  const forecast = isCurrent ? paceForecast(engaged, now.getDate(), daysInMonth) : engaged;
+  const forecastNote = isCurrent ? 'au rythme réel du mois' : month < thisMonth ? 'mois clos · total constaté' : 'mois à venir · engagé à date';
 
-  // Solde par caisse : ouverture − dépenses vivantes + encaissements crédités
+  // Solde par caisse : ouverture − dépenses vivantes + encaissements crédités (mois choisi)
   const boxBalance = (name: string) => {
     const box = branchBoxes.find((b) => b.name === name);
     const opening = box?.openingXof ?? 0;
     const out = live.filter((e) => e.cashbox === name).reduce((s, e) => s + expenseTotal(e), 0);
     const inn = invoices
-      .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === thisMonth)
+      .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === month)
       .reduce((s, i) => s + invoiceTotal(i), 0);
     return opening - out + inn;
   };
   const treasury = branchBoxes.reduce((s, b) => s + boxBalance(b.name), 0);
 
-  // Flux par catégorie (filtré)
+  // Flux par catégorie (filtres caisse / catégorie + recherche)
   const flow = useMemo(() => {
     const map = new Map<string, number>();
     live
-      .filter((e) => (filterCaisse === 'all' || e.cashbox === filterCaisse) && (filterCat === 'all' || e.category === filterCat))
+      .filter((e) => (filterCaisse === 'all' || e.cashbox === filterCaisse) && (filterCat === 'all' || e.category === filterCat) && matches(e))
       .forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + expenseTotal(e)));
     const rows = Array.from(map.entries()).map(([cat, n]) => ({ cat, n })).sort((a, b) => b.n - a.n);
     const total = rows.reduce((s, r) => s + r.n, 0);
     const max = Math.max(...rows.map((r) => r.n), 1);
     return { rows, total, max };
-  }, [live, filterCaisse, filterCat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, filterCaisse, filterCat, q]);
 
-  const recurring = live.filter((e) => e.recurring);
+  // Engagements récurrents — globaux, hors période : ils courent tant qu'ils vivent.
+  const recurringAll = useMemo(
+    () => expenses
+      .filter((e) => e.branchId === branch.id && !e.stopped && e.recurring)
+      .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [expenses, branch.id],
+  );
+  const recurringVisible = recurringAll.filter(matches);
 
   const catNames = categories.map((c) => c.name);
   const subsOf = (cat: string) => categories.find((c) => c.name === cat)?.subs ?? [];
@@ -262,6 +281,30 @@ export default function Depenses() {
 
   const branchBudgets = budgets.filter((b) => b.branchId === branch.id);
   const spentOfCat = (cat: string) => live.filter((e) => e.category === cat).reduce((s, e) => s + expenseTotal(e), 0);
+  // Historique d'une enveloppe : dépensé (vivant) sur les 3 derniers mois, mois choisi inclus.
+  const historyOfCat = (cat: string) =>
+    lastMonths(month, 3).map((mk) => ({
+      mk,
+      n: expenses
+        .filter((e) => e.branchId === branch.id && !e.stopped && e.category === cat && monthKey(e.date) === mk)
+        .reduce((s, e) => s + expenseTotal(e), 0),
+    }));
+
+  // — Export CSV du mois sélectionné —
+  const csvAmt = (xof: number) => convertFromXof(xof, currency).toFixed(2).replace('.', ',');
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ['Libellé', 'Date', 'Caisse', 'Catégorie', 'Sous-catégorie', 'Articles', `Montant (${currency})`],
+      ...[...monthExp]
+        .sort((a, b) => (a.date < b.date ? 1 : -1))
+        .map((e) => [
+          e.label, e.date, e.cashbox, e.category, e.subcategory ?? '',
+          (e.items ?? []).map((it) => `${it.label} (${csvAmt(it.amountXof)})`).join(' + '),
+          csvAmt(expenseTotal(e)),
+        ]),
+    ];
+    downloadCsv(`depenses-${month}.csv`, rows);
+  };
 
   const kpiCard = (l: string, v: string, a: string, col: string, c: string, cCls = '') => (
     <div className="trf-kpi" style={{ '--accent': a } as CSSProperties}>
@@ -273,6 +316,15 @@ export default function Depenses() {
 
   const expRatio = revenue > 0 ? Math.round((engaged / revenue) * 100) : 0;
   const net = revenue - engaged;
+  const allocated = branchBudgets.reduce((s, b) => s + b.monthlyXof, 0);
+
+  // Onglets avec leur total — le poids de chaque vue se lit avant d'y entrer.
+  const TABS: [Tab, string, string][] = [
+    ['flux', 'Le flux', fmtMoneyCompact(engaged, currency)],
+    ['caisses', 'Les caisses', fmtMoneyCompact(treasury, currency)],
+    ['engagements', 'Engagements', `${recurringAll.length} récurrent${recurringAll.length > 1 ? 's' : ''}`],
+    ['budgets', 'Budgets & prévision', allocated ? fmtMoneyCompact(allocated, currency) : '—'],
+  ];
 
   return (
     <div className="mnd-rise">
@@ -283,7 +335,7 @@ export default function Depenses() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Économies réalisées · ce mois</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Économies réalisées · {monthName}</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, lineHeight: 1, color: 'var(--trf-success)', marginTop: 3 }}>{fmtMoney(savings, currency)}</div>
           </div>
           <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }} onClick={() => openFor()}>
@@ -292,9 +344,25 @@ export default function Depenses() {
         </div>
       </div>
 
+      {/* Période explicite + recherche + export — la barre d'outils de l'écran */}
+      <div className="trf-toolbar">
+        <MonthNav month={month} onChange={setMonth} />
+        <input
+          className="mnd-input trf-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher une dépense (libellé, catégorie, article…)"
+          aria-label="Rechercher une dépense"
+        />
+        <button className="trf-act" onClick={exportCsv} title="Télécharger les dépenses du mois en CSV">Exporter (CSV)</button>
+      </div>
+
       <div className="trf-tabs">
-        {TABS.map(([k, label]) => (
-          <button key={k} className={`trf-tab ${tab === k ? 'is-active' : ''}`} onClick={() => setTab(k)}>{label}</button>
+        {TABS.map(([k, label, sum]) => (
+          <button key={k} className={`trf-tab ${tab === k ? 'is-active' : ''}`} onClick={() => setTab(k)}>
+            {label}
+            <span className="trf-tab__sum">{sum}</span>
+          </button>
         ))}
       </div>
 
@@ -305,7 +373,7 @@ export default function Depenses() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--trf-warning)', flex: 'none' }} />
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--color-ivoire)' }}>
-                L’intelligence a repéré <span style={{ color: 'var(--copper-200)', fontWeight: 500 }}>{fmtMoney(potential, currency)}</span> d’économies possibles ce mois — {live.filter((e) => e.flagged).length} engagement(s) à arbitrer.
+                L’intelligence a repéré <span style={{ color: 'var(--copper-200)', fontWeight: 500 }}>{fmtMoney(potential, currency)}</span> d’économies possibles en {monthName} — {live.filter((e) => e.flagged).length} engagement(s) à arbitrer.
               </div>
             </div>
             <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', flex: 'none' }} onClick={() => setTab('engagements')}>
@@ -314,20 +382,20 @@ export default function Depenses() {
           </div>
 
           <div className="tr-grid tr-grid--4">
-            {kpiCard('Dépenses engagées · ce mois', fmtMoney(engaged, currency), 'var(--color-indigo)', 'var(--color-indigo)', `${expRatio} % du revenu · cible < 35 %`)}
+            {kpiCard(`Dépenses engagées · ${monthName}`, fmtMoney(engaged, currency), 'var(--color-indigo)', 'var(--color-indigo)', `${expRatio} % du revenu · cible < 35 %`)}
             {kpiCard('Potentiel d’économie · IA', fmtMoney(potential, currency), 'var(--color-copper)', 'var(--copper-600)', `${live.filter((e) => e.flagged).length} à arbitrer`, 'up')}
-            {kpiCard('Économies réalisées', fmtMoney(savings, currency), 'var(--trf-success)', 'var(--trf-success)', 'capturées ce mois', 'good')}
-            {kpiCard('Prévision · fin de mois', fmtMoney(forecast, currency), 'var(--indigo-400)', 'var(--color-indigo)', 'au rythme réel du mois')}
+            {kpiCard('Économies réalisées', fmtMoney(savings, currency), 'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good')}
+            {kpiCard(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`, fmtMoney(forecast, currency), 'var(--indigo-400)', 'var(--color-indigo)', forecastNote)}
           </div>
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Flux des dépenses · par catégorie</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Flux des dépenses · par catégorie · {monthName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="trf-act" onClick={addCategory}>+ Catégorie</button>
                 <button className="trf-act" onClick={() => setCatOpen(true)}>Gérer les catégories</button>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginLeft: 4 }}>
-                  Total filtré <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{fmtMoney(flow.total, currency)}</span>
+                  Total filtré <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(flow.total, currency)}</span>
                 </span>
               </div>
             </div>
@@ -348,7 +416,13 @@ export default function Depenses() {
             </div>
 
             <div style={{ marginTop: 18 }}>
-              {flow.rows.length === 0 && <div className="trf-empty">Aucune dépense pour ce filtre. Saisis une dépense depuis cette caisse pour la voir circuler ici.</div>}
+              {flow.rows.length === 0 && (
+                <div className="trf-empty">
+                  {q
+                    ? <>Aucune dépense de {monthName} ne répond à « {query.trim()} ».</>
+                    : <>Aucune dépense pour ce filtre en {monthName}. Saisis une dépense depuis cette caisse pour la voir circuler ici.</>}
+                </div>
+              )}
               {flow.rows.map((b, i) => (
                 <div className="trf-linerow" key={b.cat}>
                   <div className="trf-linerow__top">
@@ -368,9 +442,9 @@ export default function Depenses() {
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Revenu vs dépenses · {monthLabel(thisMonth)}</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Revenu vs dépenses · {monthName}</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
-                Résultat net <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)' }}>{fmtMoney(net, currency)}</span>
+                Résultat net <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(net, currency)}</span>
               </div>
             </div>
             <div style={{ marginTop: 16 }}>
@@ -388,7 +462,7 @@ export default function Depenses() {
         <div>
           <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
             <div>
-              <div className="trf-obsidian__eyebrow">Trésorerie disponible · toutes caisses</div>
+              <div className="trf-obsidian__eyebrow">Trésorerie disponible · toutes caisses · {monthName}</div>
               <div className="trf-obsidian__value">{fmtMoney(treasury, currency)}</div>
             </div>
             <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
@@ -417,7 +491,7 @@ export default function Depenses() {
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde</div>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde · {monthName}</div>
                     <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtMoney(bal, currency)}</div>
                   </div>
                   <button className="trf-act" style={{ padding: 9 }} onClick={() => openFor(c.name)}>Dépenser d’ici</button>
@@ -428,11 +502,19 @@ export default function Depenses() {
 
           <div className="trf-panel" style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {monthLabel(thisMonth)}</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>{monthExp.length} · {fmtMoney(monthExp.reduce((s, e) => s + expenseTotal(e), 0), currency)}</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {monthName}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
+                {visibleMonthExp.length}{q ? ` / ${monthExp.length}` : ''} · {fmtMoney(visibleMonthExp.reduce((s, e) => s + expenseTotal(e), 0), currency)}
+              </div>
             </div>
-            {monthExp.length === 0 && <div className="trf-empty">Aucune dépense saisie ce mois. « Ajouter une dépense » l’enregistre ici et débite la caisse choisie.</div>}
-            {monthExp.map((e) => (
+            {visibleMonthExp.length === 0 && (
+              <div className="trf-empty">
+                {q
+                  ? <>Aucune dépense de {monthName} ne répond à « {query.trim()} ».</>
+                  : <>Aucune dépense saisie en {monthName}. « Ajouter une dépense » l’enregistre ici et débite la caisse choisie.</>}
+              </div>
+            )}
+            {visibleMonthExp.map((e) => (
               <div key={e.id}>
                 <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`}>
                   <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
@@ -482,7 +564,7 @@ export default function Depenses() {
           <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 26 }}>
               <div>
-                <div className="trf-obsidian__eyebrow">Économies capturées</div>
+                <div className="trf-obsidian__eyebrow">Économies capturées · {monthName}</div>
                 <div className="trf-obsidian__value">{fmtMoney(savings, currency)}</div>
               </div>
               <div>
@@ -492,20 +574,26 @@ export default function Depenses() {
             </div>
             <button
               className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', flex: 'none' }}
-              onClick={() => setExpenses((prev) => prev.map((e) => (e.branchId === branch.id && monthKey(e.date) === thisMonth && e.flagged ? { ...e, stopped: true } : e)))}
+              onClick={() => setExpenses((prev) => prev.map((e) => (e.branchId === branch.id && monthKey(e.date) === month && e.flagged ? { ...e, stopped: true } : e)))}
             >
               Suspendre tout l’évitable
             </button>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div className="trf-panel__title" style={{ marginBottom: 0 }}>Paiements récurrents programmés</div>
+            <div className="trf-panel__title" style={{ marginBottom: 0 }}>Paiements récurrents programmés · toute période</div>
             <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={() => openFor()}>+ Paiement récurrent</button>
           </div>
-          {recurring.length === 0 && <div className="trf-empty" style={{ marginBottom: 18 }}>Aucun paiement récurrent ce mois. Ajoute une dépense avec une récurrence pour la programmer ici.</div>}
-          {recurring.length > 0 && (
+          {recurringVisible.length === 0 && (
+            <div className="trf-empty" style={{ marginBottom: 18 }}>
+              {q
+                ? <>Aucun paiement récurrent ne répond à « {query.trim()} ».</>
+                : <>Aucun paiement récurrent. Ajoute une dépense avec une récurrence pour la programmer ici.</>}
+            </div>
+          )}
+          {recurringVisible.length > 0 && (
             <div className="trf-panel" style={{ padding: '6px 18px', marginBottom: 18 }}>
-              {recurring.map((e) => (
+              {recurringVisible.map((e) => (
                 <div className="trf-exprow" key={e.id} style={{ opacity: e.paused ? 0.55 : 1 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: e.paused ? 'var(--color-argile)' : 'var(--color-copper)', flex: 'none' }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -527,11 +615,18 @@ export default function Depenses() {
             </div>
           )}
 
-          <div className="trf-panel__title">Engagements à arbitrer</div>
+          <div className="trf-panel__title">Engagements à arbitrer · {monthName}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {monthExp.length === 0 && <div className="trf-empty">Aucun engagement ce mois.</div>}
-            {monthExp.map((e) => (
+            {visibleMonthExp.length === 0 && (
+              <div className="trf-empty">
+                {q
+                  ? <>Aucun engagement de {monthName} ne répond à « {query.trim()} ».</>
+                  : <>Aucun engagement en {monthName}.</>}
+              </div>
+            )}
+            {visibleMonthExp.map((e) => (
               <div className={`trf-engage ${e.stopped ? 'is-stopped' : e.flagged ? 'is-flagged' : ''}`} key={e.id}>
+                <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)', textDecoration: e.stopped ? 'line-through' : 'none' }}>{e.label}</span>
@@ -539,7 +634,7 @@ export default function Depenses() {
                       {e.stopped ? 'Suspendu' : e.flagged ? 'À revoir' : e.recurring ? 'Engagement' : 'Ponctuel'}
                     </span>
                   </div>
-                  <div className="trf-exprow__meta">{fmtDay(e.date)} · {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
+                  <div className="trf-exprow__meta">{e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
                   {e.items && e.items.length ? (
                     <div className="trf-itembreak trf-itembreak--inline">
                       {e.items.map((it) => (
@@ -551,7 +646,7 @@ export default function Depenses() {
                     </div>
                   ) : null}
                 </div>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', flex: 'none', textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(expenseTotal(e), currency)}</span>
+                <span className="trf-exprow__amt" style={{ fontSize: 21, textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(expenseTotal(e), currency)}</span>
                 <div style={{ flex: 'none', display: 'flex', gap: 7, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
                   {e.stopped ? (
@@ -573,10 +668,10 @@ export default function Depenses() {
 
       {/* ============ BUDGETS & PRÉVISION ============ */}
       {tab === 'budgets' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, alignItems: 'start' }}>
+        <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
           <div className="trf-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Budget souverain · alloué vs engagé</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Budget souverain · alloué vs engagé · {monthName}</div>
               <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={addBudget}>+ Budget</button>
             </div>
             {branchBudgets.length === 0 && <div className="trf-empty">Aucun budget défini. « + Budget » ouvre une enveloppe mensuelle par catégorie.</div>}
@@ -586,21 +681,33 @@ export default function Depenses() {
               const over = remaining < 0;
               const spentW = Math.min(100, Math.round((spent / (b.monthlyXof || 1)) * 100));
               const col = over ? 'var(--trf-error)' : remaining < b.monthlyXof * 0.15 ? 'var(--trf-warning)' : 'var(--trf-success)';
+              const hist = historyOfCat(b.category);
+              const histMax = Math.max(...hist.map((h) => h.n), b.monthlyXof, 1);
               return (
-                <div key={b.id} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink)' }}>{b.category}</span>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--trf-error)' : 'var(--trf-success)' }}>{over ? 'Dépassé' : 'Maîtrisé'}</span>
+                <div key={b.id} style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink)' }}>{b.category}</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--trf-error)' : 'var(--trf-success)', marginLeft: 9 }}>{over ? 'Dépassé' : 'Maîtrisé'}</span>
+                    </div>
+                    <div className="trf-spark" title="Dépensé sur les 3 derniers mois" aria-label="Historique des 3 derniers mois">
+                      {hist.map((h) => (
+                        <div className="trf-spark__col" key={h.mk} title={`${monthLabel(h.mk)} · ${fmtMoney(h.n, currency)}`}>
+                          <div className="trf-spark__bar" style={{ height: Math.max(2, Math.round((h.n / histMax) * 20)), background: h.mk === month ? 'var(--color-copper)' : 'var(--indigo-300)' }} />
+                          <span className="trf-spark__lbl">{monthShort(h.mk).slice(0, 1)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="trf-bar" style={{ height: 8, marginTop: 6 }}>
                     <div style={{ width: `${spentW}%`, background: over ? 'var(--trf-error)' : 'var(--trf-success)' }} />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginTop: 4 }}>
-                    <span>Engagé {fmtMoney(spent, currency)}</span><span>Alloué {fmtMoney(b.monthlyXof, currency)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+                    <span>Engagé {fmtMoney(spent, currency)} · {spentW} %</span><span>Alloué {fmtMoney(b.monthlyXof, currency)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: 6, marginTop: 3 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{over ? 'Dépassement' : 'Reste à dépenser'}</span>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: col }}>{fmtMoney(Math.abs(remaining), currency)}</span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: col, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(Math.abs(remaining), currency)}</span>
                   </div>
                 </div>
               );
@@ -609,7 +716,7 @@ export default function Depenses() {
 
           <div>
             <div className="trf-obsidian" style={{ marginBottom: 14 }}>
-              <div className="trf-obsidian__eyebrow">Prévision · fin de mois</div>
+              <div className="trf-obsidian__eyebrow">{isCurrent ? 'Prévision · fin de mois' : `Total du mois · ${monthName}`}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8 }}>
                 <span className="trf-obsidian__value" style={{ fontSize: 36 }}>{fmtMoneyCompact(forecast, currency)}</span>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: savings > 0 ? 'var(--trf-success)' : 'var(--indigo-100)' }}>
@@ -617,18 +724,20 @@ export default function Depenses() {
                 </span>
               </div>
               <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'var(--indigo-100)', marginTop: 8 }}>
-                Après arbitrage des engagements évitables, le résultat net gagne en marge.
+                {isCurrent
+                  ? 'Après arbitrage des engagements évitables, le résultat net gagne en marge.'
+                  : 'Le mois est arrêté — les enveloppes ci-contre disent où il est parti.'}
               </div>
             </div>
 
             <div className="trf-panel">
-              <div className="trf-panel__title">Dépenses par catégorie · {monthLabel(thisMonth)}</div>
+              <div className="trf-panel__title">Dépenses par catégorie · {monthName}</div>
               {(() => {
                 const map = new Map<string, number>();
                 live.forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + expenseTotal(e)));
                 const rows = Array.from(map.entries()).map(([cat, n]) => ({ cat, n })).sort((a, b) => b.n - a.n);
                 const max = Math.max(...rows.map((r) => r.n), 1);
-                if (rows.length === 0) return <div className="trf-empty">Rien à analyser ce mois.</div>;
+                if (rows.length === 0) return <div className="trf-empty">Rien à analyser en {monthName}.</div>;
                 return rows.map((r, i) => (
                   <div className="trf-linerow" key={r.cat}>
                     <div className="trf-linerow__top">
