@@ -6,10 +6,12 @@ import { signOut } from '../../shared/auth';
 import { useAppointments, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { clientsStore } from '../../shared/clients';
-import { invoiceTotal, invoicesStore, useInvoices, type Invoice } from '../../shared/finance';
+import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { useTiers } from '../../shared/offers';
+import { uid } from '../../shared/store';
 import {
   GOLD_AT,
+  MONTHS,
   TIER_GOLD,
   TIER_SILVER,
   dayLabelIso,
@@ -99,6 +101,17 @@ function serviceNames(a: Appointment, services: { id: string; name: string }[]):
     .map((id) => services.find((s) => s.id === id)?.name)
     .filter(Boolean)
     .join(' + ');
+}
+
+/** « 12 mars 1990 · 34 ans » — date de naissance lisible et âge courant. */
+function birthdayLabel(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()} · ${age} ans`;
 }
 
 /* ================= ACCUEIL ================= */
@@ -356,8 +369,67 @@ export function SuiviTab({ onOpenBooking }: { onOpenBooking: OpenBooking }) {
 /* ================= GAMME ================= */
 
 export function GammeTab({ toast }: { toast: (m: string) => void }) {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
   const { products } = useVisibleCatalog();
+  const client = useClient();
+  const clientId = useClientId();
+
+  /* Panier réel : id produit → quantité. */
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [basketOpen, setBasketOpen] = useState(false);
+
+  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+  const dec = (id: string) =>
+    setCart((c) => {
+      const q = (c[id] ?? 0) - 1;
+      const next = { ...c };
+      if (q <= 0) delete next[id];
+      else next[id] = q;
+      return next;
+    });
+  const drop = (id: string) =>
+    setCart((c) => {
+      const next = { ...c };
+      delete next[id];
+      return next;
+    });
+
+  const items = products.filter((p) => (cart[p.id] ?? 0) > 0).map((p) => ({ p, qty: cart[p.id] }));
+  const count = items.reduce((n, it) => n + it.qty, 0);
+  const total = items.reduce((n, it) => n + it.p.priceXof * it.qty, 0);
+
+  /* Commander : un vrai devis produit adressé à la maison (Trône · Factures/devis). */
+  const checkout = () => {
+    if (items.length === 0) return;
+    const year = new Date().getFullYear();
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const inv: Invoice = {
+      id: uid(),
+      branchId: branch.id,
+      kind: 'devis',
+      number: `CMD-${year}-${rand}`,
+      clientId,
+      date: todayIso(),
+      lines: items.map(
+        (it): InvoiceLine => ({
+          id: uid(),
+          label: it.p.name,
+          qty: it.qty,
+          unitXof: it.p.priceXof,
+          discountPct: 0,
+        })
+      ),
+      globalDiscountPct: 0,
+      theme: 'Souffle',
+      status: 'envoyée',
+      clientName: client?.name,
+    };
+    const confirmed = fmtMoney(total, currency);
+    invoicesStore.set((prev) => [...prev, inv]);
+    setCart({});
+    setBasketOpen(false);
+    toast(`Commande transmise à la maison — ${confirmed}`);
+  };
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade mc-page--wide">
@@ -370,6 +442,7 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
       <div className="mc-stack mc-productgrid" style={{ gap: 12 }}>
         {products.map((p) => {
           const meta = productMeta(p.id);
+          const qty = cart[p.id] ?? 0;
           return (
             <div key={p.id} className="mc-productcard">
               <div className="mc-productvisual mc-productvisual--tall"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
@@ -381,7 +454,15 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
               </div>
               <div className="mc-productcard__side">
                 <span className="mc-productcard__price">{fmtMoney(p.priceXof, currency)}</span>
-                <button className="mc-plusbtn" aria-label={`Ajouter ${p.name}`} onClick={() => toast(`${p.name} ajouté au panier.`)}>+</button>
+                {qty > 0 ? (
+                  <div className="mc-qtystep">
+                    <button aria-label={`Retirer ${p.name}`} onClick={() => dec(p.id)}>−</button>
+                    <span>{qty}</span>
+                    <button aria-label={`Ajouter ${p.name}`} onClick={() => add(p.id)}>+</button>
+                  </div>
+                ) : (
+                  <button className="mc-plusbtn" aria-label={`Ajouter ${p.name}`} onClick={() => add(p.id)}>+</button>
+                )}
               </div>
             </div>
           );
@@ -396,7 +477,76 @@ export function GammeTab({ toast }: { toast: (m: string) => void }) {
           </div>
         )}
       </div>
+
+      {/* Barre panier — synthèse vivante, visible depuis la Gamme. */}
+      {count > 0 && (
+        <div className="mc-basketbar">
+          <div className="mc-basketbar__info">
+            <span className="mc-basketbar__count">{count} article{count > 1 ? 's' : ''}</span>
+            <span className="mc-basketbar__total">{fmtMoney(total, currency)}</span>
+          </div>
+          <button className="mc-cta mc-cta--copper mc-basketbar__cta" onClick={() => setBasketOpen(true)}>
+            Voir le panier
+          </button>
+        </div>
+      )}
+
       <div style={{ height: 70 }} />
+
+      {/* Vue panier — liste, quantités, total, commander. */}
+      {basketOpen && (
+        <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
+          <div className="mc-flowhead mc-flowhead--split">
+            <div>
+              <div className="mc-micro-eyebrow">Votre panier</div>
+              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Le panier.</h1>
+            </div>
+            <button className="mc-x" aria-label="Fermer" onClick={() => setBasketOpen(false)}>✕</button>
+          </div>
+          <div className="mc-scroll" style={{ flex: 1, padding: '18px 24px calc(24px + env(safe-area-inset-bottom))' }}>
+            {items.length === 0 ? (
+              <div className="mc-emptyzone">
+                <div className="mc-emptyzone__glyph">⬡</div>
+                <div className="mc-emptyzone__t">Votre panier est vide.</div>
+                <div className="mc-emptyzone__s">
+                  Ajoutez une formule de la gamme pour composer votre commande.
+                </div>
+                <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={() => setBasketOpen(false)}>
+                  Revenir à la gamme
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mc-stack" style={{ gap: 10 }}>
+                  {items.map((it) => (
+                    <div key={it.p.id} className="mc-basketrow">
+                      <div className="mc-basketrow__body">
+                        <div className="mc-basketrow__name">{it.p.name}</div>
+                        <div className="mc-basketrow__unit">{fmtMoney(it.p.priceXof, currency)} l’unité</div>
+                      </div>
+                      <div className="mc-qtystep">
+                        <button aria-label={`Retirer ${it.p.name}`} onClick={() => dec(it.p.id)}>−</button>
+                        <span>{it.qty}</span>
+                        <button aria-label={`Ajouter ${it.p.name}`} onClick={() => add(it.p.id)}>+</button>
+                      </div>
+                      <div className="mc-basketrow__total">{fmtMoney(it.p.priceXof * it.qty, currency)}</div>
+                      <button className="mc-basketrow__x" aria-label={`Retirer ${it.p.name} du panier`} onClick={() => drop(it.p.id)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mc-recapcard" style={{ marginTop: 16 }}>
+                  <div className="mc-recapcard__total"><span>Total</span><span>{fmtMoney(total, currency)}</span></div>
+                  <div className="mc-recapcard__meta">{count} article{count > 1 ? 's' : ''} · réglés au retrait en maison.</div>
+                </div>
+                <button className="mc-cta mc-cta--copper" style={{ marginTop: 18 }} onClick={checkout}>
+                  Commander · {fmtMoney(total, currency)}
+                </button>
+                <div className="mc-footnote">La maison confirmera votre commande sur WhatsApp.</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,6 +631,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [name, setName] = useState(client?.name ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
   const [city, setCity] = useState(client?.city ?? '');
+  const [birthday, setBirthday] = useState(client?.birthday ?? '');
 
   const save = () => {
     const n = name.trim();
@@ -489,7 +640,11 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       return;
     }
     clientsStore.set((prev) =>
-      prev.map((c) => (c.id === clientId ? { ...c, name: n, phone: phone.trim(), city: city.trim() } : c))
+      prev.map((c) =>
+        c.id === clientId
+          ? { ...c, name: n, phone: phone.trim(), city: city.trim(), birthday: birthday || undefined }
+          : c
+      )
     );
     toast('Profil enregistré — la maison vous connaît.');
   };
@@ -532,6 +687,17 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         <label className="mc-profield">
           <span>Ville</span>
           <input value={city} autoComplete="address-level2" onChange={(e) => setCity(e.target.value)} />
+        </label>
+        <label className="mc-profield">
+          <span>Date de naissance</span>
+          <input
+            type="date"
+            value={birthday}
+            max={todayIso()}
+            autoComplete="bday"
+            onChange={(e) => setBirthday(e.target.value)}
+          />
+          {birthday && <span className="mc-profield__read">{birthdayLabel(birthday)}</span>}
         </label>
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={save}>Enregistrer</button>
       </div>

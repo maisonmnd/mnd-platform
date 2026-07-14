@@ -17,6 +17,10 @@ export type Appointment = {
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
+  /** Série multi-séances : les RDV liés partagent cet identifiant. */
+  seriesId?: string;
+  seriesIndex?: number; // n° de la séance (1..N)
+  seriesTotal?: number; // nombre total de séances de la série
   note?: string;
   source?: 'trone' | 'couronne' | 'consultation';
   /** Points de fidélité déjà attribués à l'honneur du RDV (évite le double comptage). */

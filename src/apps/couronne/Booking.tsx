@@ -64,6 +64,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [monthIdx, setMonthIdx] = useState(0);
   const [selIso, setSelIso] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  /* Séries multi-séances : chaque séance choisie (date + heure), dans l'ordre. */
+  const [sessionDates, setSessionDates] = useState<{ iso: string; time: string }[]>([]);
   const [pay, setPay] = useState<PayKey | null>(null);
   const [paying, setPaying] = useState(false);
   const payTimer = useRef<number | undefined>(undefined);
@@ -77,6 +79,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     [services, selectedIds]
   );
   const totalDuration = selected.reduce((n, s) => n + s.durationMin, 0);
+  /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
+  const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
   const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + s.priceXof, 0);
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
@@ -133,34 +137,59 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const back = () => {
     if (paying) return;
     if (step === 0) { onClose(); return; }
-    if (step === 3) { setSelIso(null); setTime(null); }
+    /* Depuis le récapitulatif : revenir programmer la dernière séance. */
+    if (step === 4) {
+      setSessionDates((prev) => prev.slice(0, -1));
+      setSelIso(null); setTime(null);
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
+      /* Séance déjà posée dans la série : dépiler pour la reprendre. */
+      if (sessionDates.length > 0) {
+        setSessionDates((prev) => prev.slice(0, -1));
+        setSelIso(null); setTime(null);
+        return;
+      }
+      setSelIso(null); setTime(null);
+      setStep(2);
+      return;
+    }
     setStep(step - 1);
   };
 
   /* ---- Paiement simulé + écriture dans l'agenda partagé ---- */
   const settle = () => {
     if (!pay) { toast('Choisissez votre moyen de paiement.'); return; }
-    if (!selected.length || !selIso || !time) return;
+    if (!selected.length || sessionDates.length < totalSessions) return;
     setPaying(true);
     window.clearTimeout(payTimer.current);
     payTimer.current = window.setTimeout(() => {
-      const notes: string[] = [];
-      if (offerLabel) notes.push(`Offre instantanée · ${offerLabel}`);
-      if (masterVaries) notes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
-      const appt: Appointment = {
-        id: uid(),
-        branchId: branch.id,
-        clientId,
-        serviceIds: [...selectedIds],
-        date: selIso,
-        time,
-        master,
-        status: 'en attente',
-        depositXof: deposit,
-        source: 'couronne',
-        note: notes.length ? notes.join(' · ') : undefined,
-      };
-      appointmentsStore.set((prev) => [...prev, appt]);
+      const baseNotes: string[] = [];
+      if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
+      if (masterVaries) baseNotes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
+      /* Série liée : un identifiant commun quand il y a plusieurs séances. */
+      const seriesId = totalSessions > 1 ? uid() : undefined;
+      const newAppts: Appointment[] = sessionDates.map((sd, i) => {
+        const notes = [...baseNotes];
+        if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
+        return {
+          id: uid(),
+          branchId: branch.id,
+          clientId,
+          serviceIds: [...selectedIds],
+          date: sd.iso,
+          time: sd.time,
+          master,
+          status: 'en attente',
+          /* L'acompte ne s'applique qu'à la première séance. */
+          depositXof: i === 0 ? deposit : undefined,
+          source: 'couronne',
+          note: notes.length ? notes.join(' · ') : undefined,
+          ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
+        };
+      });
+      appointmentsStore.set((prev) => [...prev, ...newAppts]);
       setPaying(false);
       setStep(6);
     }, 1700);
@@ -293,7 +322,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <button
                   className="mc-cta mc-cta--indigo mc-multibar__cta"
                   disabled={selectedIds.length === 0}
-                  onClick={() => { setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
+                  onClick={() => { setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
                 >
                   Continuer
                 </button>
@@ -309,6 +338,19 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-prefillnote">
                 {summaryLabel}
                 {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ` · avec ${master}`}
+              </div>
+            )}
+            {totalSessions > 1 && (
+              <div className="mc-sessionhead">
+                <span className="mc-sessionhead__k">Séance {sessionDates.length + 1} / {totalSessions}</span>
+                <span className="mc-sessionhead__s">Choisissez la date et l’heure de cette séance.</span>
+                {sessionDates.length > 0 && (
+                  <div className="mc-sessionchips">
+                    {sessionDates.map((sd, i) => (
+                      <span key={i} className="mc-sessionchip">S{i + 1} · {dayLabelIso(sd.iso)} · {sd.time}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <div className="mc-calnav">
@@ -347,7 +389,21 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <div className="mc-micro-eyebrow" style={{ marginBottom: 10 }}>{dayLabelIso(selIso)} · heures libres</div>
                 <div className="mc-stack">
                   {dayTimes.map((t) => (
-                    <button key={t} className="mc-slotcard" onClick={() => { setTime(t); setStep(4); }}>
+                    <button
+                      key={t}
+                      className="mc-slotcard"
+                      onClick={() => {
+                        if (!selIso) return;
+                        const next = [...sessionDates, { iso: selIso, time: t }];
+                        setSessionDates(next);
+                        setTime(t);
+                        if (next.length < totalSessions) {
+                          setSelIso(null); setTime(null); setMonthIdx(0);
+                        } else {
+                          setStep(4);
+                        }
+                      }}
+                    >
                       <div>
                         <div className="mc-slotcard__time">{t}</div>
                         <div className="mc-slotcard__who">avec {master}{masterVaries ? ' +' : ''} · {fmtDuration(totalDuration)}</div>
@@ -392,7 +448,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
               )}
               <div className="mc-hairline" />
-              <div className="mc-recapcard__line"><span>Créneau</span><span>{dayLabelIso(selIso)} · {time}</span></div>
+              {sessionDates.map((sd, i) => (
+                <div key={i} className="mc-recapcard__line">
+                  <span>{totalSessions > 1 ? `Séance ${i + 1}/${totalSessions}` : 'Créneau'}</span>
+                  <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
+                </div>
+              ))}
+              {totalSessions > 1 && (
+                <div className="mc-recapcard__meta">Série liée · {totalSessions} séances · acompte sur la 1ʳᵉ.</div>
+              )}
               <div className="mc-recapcard__line"><span>Maison</span><span>{branch.name}</span></div>
             </div>
 
@@ -466,8 +530,17 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <p>Confirmation envoyée sur WhatsApp. Un rappel vous parviendra la veille — la maison vous attend.</p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
               <div className="mc-recapcard__name">{summaryLabel}</div>
-              <div className="mc-recapcard__meta">{dayLabelIso(selIso)} · {time} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}</div>
+              <div className="mc-recapcard__meta">
+                {totalSessions > 1 ? `${totalSessions} séances liées` : `${dayLabelIso(selIso)} · ${time}`} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}
+              </div>
               <div className="mc-hairline" />
+              {totalSessions > 1 &&
+                sessionDates.map((sd, i) => (
+                  <div key={i} className="mc-recapcard__line">
+                    <span>Séance {i + 1}/{totalSessions}</span>
+                    <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
+                  </div>
+                ))}
               <div className="mc-recapcard__line"><span>{allHidden ? 'Acompte' : 'Acompte réglé'}</span><span>{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</span></div>
               <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
             </div>
