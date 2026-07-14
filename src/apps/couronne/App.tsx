@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
-import { useEnsureClient, useActivityTracker, type BookingPrefill } from './lib';
+import { useEnsureClient, useActivityTracker, useClientId, type BookingPrefill } from './lib';
+import { registerSW, ensurePush } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
@@ -25,6 +26,15 @@ const TABS: { id: TabId; label: string; glyph: string }[] = [
 function Shell() {
   /* Le dossier de la cliente est garanti dès l'entrée dans l'app. */
   useEnsureClient();
+  const clientId = useClientId();
+
+  /* Web Push : on enregistre le service worker au chargement, et on ré-abonne
+     silencieusement si la cliente a déjà accordé la permission (nouvel appareil,
+     abonnement expiré). La 1re demande de permission se fait à la réservation. */
+  useEffect(() => {
+    void registerSW();
+    if (clientId && clientId !== 'c-local') void ensurePush(clientId);
+  }, [clientId]);
 
   const [tab, setTab] = useState<TabId>('accueil');
 

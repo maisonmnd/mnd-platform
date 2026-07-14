@@ -5,6 +5,7 @@ import { fmtMoney } from '../../shared/currency';
 import { onlineDepositRate } from '../../shared/settings';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
+import { enablePush, pushNotify } from '../../shared/push';
 import { uid } from '../../shared/store';
 import type { Service } from '../../shared/catalog';
 import {
@@ -193,16 +194,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       appointmentsStore.set((prev) => [...prev, ...newAppts]);
       setPaying(false);
       setStep(6);
-      /* Le bon moment pour demander la permission de notifier : juste après
-         une réservation réussie — jamais au chargement de l'app. */
+      /* Le bon moment pour proposer les notifications : juste après une réservation
+         réussie. Web Push si possible (arrive même app fermée) ; sinon notif locale. */
       const first = sessionDates[0];
-      void askNotifyPermission().then((ok) => {
-        if (ok && first) {
-          notifyLocal(
-            'Réservation transmise',
-            `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time} — la maison confirmera.`
-          );
-        }
+      const url = `${import.meta.env.BASE_URL}#/suivi`;
+      void enablePush(clientId).then((subbed) => {
+        if (!first) return;
+        const body = `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time} — la maison confirmera.`;
+        if (subbed) void pushNotify(clientId, 'Réservation transmise', body, url);
+        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Réservation transmise', body); });
       });
     }, 1700);
   };

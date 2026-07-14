@@ -1,6 +1,7 @@
 import { asset } from '../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
+import { enablePush, pushState, type PushState } from '../../shared/push';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { signOut } from '../../shared/auth';
@@ -831,6 +832,18 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [city, setCity] = useState(client?.city ?? '');
   const [birthday, setBirthday] = useState(client?.birthday ?? '');
 
+  /* Notifications téléphone (Web Push). */
+  const [pstate, setPstate] = useState<PushState>('default');
+  const [pbusy, setPbusy] = useState(false);
+  useEffect(() => { void pushState().then(setPstate); }, []);
+  const activatePush = async () => {
+    setPbusy(true);
+    const ok = await enablePush(clientId);
+    setPstate(await pushState());
+    setPbusy(false);
+    toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées.');
+  };
+
   const save = () => {
     const n = name.trim();
     if (!n) {
@@ -871,6 +884,29 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
       </div>
+
+      {pstate !== 'unsupported' && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Notifications</div>
+          <div className="mc-pushrow">
+            <div style={{ minWidth: 0 }}>
+              <div className="mc-pushrow__t">Rappels & confirmations sur ce téléphone</div>
+              <div className="mc-pushrow__s">
+                {pstate === 'subscribed' ? 'Vous serez prévenue à chaque réservation, modification et avant vos rendez-vous.'
+                  : pstate === 'denied' ? 'Notifications bloquées — réactivez-les dans les réglages du navigateur.'
+                  : 'Activez pour recevoir vos confirmations et rappels de rendez-vous.'}
+              </div>
+            </div>
+            {pstate === 'subscribed' ? (
+              <span className="mc-pushrow__on">Activées ✓</span>
+            ) : pstate === 'denied' ? null : (
+              <button className="mc-cta mc-cta--copper mc-pushrow__btn" onClick={() => void activatePush()} disabled={pbusy}>
+                {pbusy ? '…' : 'Activer'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Vos informations</div>
       <div className="mc-profform">

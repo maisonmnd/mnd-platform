@@ -4,6 +4,7 @@ import { fmtMoney } from '../../shared/currency';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
+import { enablePush, pushNotify } from '../../shared/push';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -127,8 +128,10 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     appointmentsStore.set((prev) =>
       prev.map((x) => (x.id === editing.id ? { ...x, date: selIso, time: t, status: 'en attente' as const } : x))
     );
-    void askNotifyPermission().then((ok) => {
-      if (ok) notifyLocal('Rendez-vous modifié', `${label} — en attente de confirmation de la maison.`);
+    const body = `${label} — en attente de confirmation de la maison.`;
+    void enablePush(clientId).then((subbed) => {
+      if (subbed) void pushNotify(clientId, 'Rendez-vous modifié', body, `${import.meta.env.BASE_URL}#/suivi`);
+      else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous modifié', body); });
     });
     toast('Rendez-vous déplacé — la maison confirmera.');
     setEditing(null);
@@ -142,8 +145,10 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     if (!cancelling) return;
     const a = cancelling;
     appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'annulé' as const } : x)));
-    void askNotifyPermission().then((ok) => {
-      if (ok) notifyLocal('Rendez-vous modifié', `${names(a)} du ${dayLabelIso(a.date)} à ${a.time} — annulé.`);
+    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time} — annulé.`;
+    void enablePush(clientId).then((subbed) => {
+      if (subbed) void pushNotify(clientId, 'Rendez-vous annulé', body, `${import.meta.env.BASE_URL}#/suivi`);
+      else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous annulé', body); });
     });
     toast('Rendez-vous annulé.');
     setCancelling(null);
