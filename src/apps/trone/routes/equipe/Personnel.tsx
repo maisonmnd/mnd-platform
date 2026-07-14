@@ -50,6 +50,12 @@ const PRIME_TYPES: [PrimeType, string][] = [
   ['performance', 'Performance'], ['nuit', 'Nuit'], ['fin_annee', 'Fin d’année'], ['autre', 'Autre'],
 ];
 
+/* Pourboires — staffId → liste, datés (rattachés au mois). Ajoutés au net à verser. */
+type Tip = { id: string; amountXof: number; date: string; note?: string };
+const tipsStore = createStore<Record<string, Tip[]>>('mnd_tips', {});
+bindDocument(tipsStore, 'mnd_tips');
+const useTips = () => useStore(tipsStore);
+
 /** Les 12 mois d'une année (AAAA-MM), de janvier à décembre. */
 const yearMonths = (year: number): string[] =>
   Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
@@ -96,6 +102,7 @@ export default function Personnel() {
   const [rates, setRates] = useCommRates();
   const [overrides, setOverrides] = useOverrides();
   const [primes, setPrimes] = usePrimes();
+  const [tips, setTips] = useTips();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [services] = useServices();
@@ -105,6 +112,8 @@ export default function Personnel() {
   const [primeForm, setPrimeForm] = useState<{ type: PrimeType; amount: string; date: string; note: string }>(
     { type: 'performance', amount: '', date: new Date().toISOString().slice(0, 10), note: '' },
   );
+  const [tipFor, setTipFor] = useState<StaffMember | null>(null);
+  const [tipForm, setTipForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [yearFor, setYearFor] = useState<StaffMember | null>(null);
   const M = payMonth();
 
@@ -149,6 +158,9 @@ export default function Personnel() {
   /* Primes typées d'un maître pour un mois. */
   const primesForMonth = (id: string, month: string) => (primes[id] ?? []).filter((p) => p.date.slice(0, 7) === month);
   const primeTotalMonth = (id: string, month: string) => primesForMonth(id, month).reduce((a, p) => a + p.amountXof, 0);
+  /* Pourboires d'un maître pour un mois. */
+  const tipsForMonth = (id: string, month: string) => (tips[id] ?? []).filter((t) => t.date.slice(0, 7) === month);
+  const tipTotalMonth = (id: string, month: string) => tipsForMonth(id, month).reduce((a, t) => a + t.amountXof, 0);
   const advancesForMonth = (id: string, month: string) => advancesFor(id).filter((a) => a.date.slice(0, 7) === month);
   const advancesTotalMonth = (id: string, month: string) => advancesForMonth(id, month).reduce((a, x) => a + x.amountXof, 0);
 
@@ -156,11 +168,12 @@ export default function Personnel() {
   const commPrestaOf = (m: StaffMember) => ovOf(m.id).commPresta ?? computeComm(m, M).presta;
   const commProduitOf = (m: StaffMember) => ovOf(m.id).commProduit ?? computeComm(m, M).produit;
   const primeOf = (m: StaffMember) => primeTotalMonth(m.id, M);
+  const tipOf = (m: StaffMember) => tipTotalMonth(m.id, M);
   const isAdjusted = (m: StaffMember) => {
     const o = ovOf(m.id);
     return o.commPresta != null || o.commProduit != null;
   };
-  const netAVerserEff = (m: StaffMember) => m.salaireXof + commPrestaOf(m) + commProduitOf(m) + primeOf(m);
+  const netAVerserEff = (m: StaffMember) => m.salaireXof + commPrestaOf(m) + commProduitOf(m) + primeOf(m) + tipOf(m);
   const netApresAvances = (m: StaffMember) => netAVerserEff(m) - advancesTotalMonth(m.id, M);
 
   const setRate = (k: keyof CommRates, v: string) =>
@@ -198,6 +211,23 @@ export default function Personnel() {
   };
   const removePrime = (staffId: string, primeId: string) =>
     setPrimes((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((p) => p.id !== primeId) }));
+
+  /* Pourboires — ajout et retrait. */
+  const openTip = (m: StaffMember) => {
+    setTipFor(m);
+    setTipForm({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  };
+  const saveTip = () => {
+    if (!tipFor) return;
+    const amountXof = parseXof(tipForm.amount);
+    if (amountXof <= 0) return;
+    const t: Tip = { id: `tp-${uid()}`, amountXof, date: tipForm.date, note: tipForm.note.trim() || undefined };
+    const sid = tipFor.id;
+    setTips((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), t] }));
+    setTipFor(null);
+  };
+  const removeTip = (staffId: string, tipId: string) =>
+    setTips((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((t) => t.id !== tipId) }));
   const resetAdjust = (id: string) =>
     setOverrides((prev) => {
       const next = { ...prev };
@@ -367,13 +397,14 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
-                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Avances</th><th>Net à verser (après avances)</th></tr>
+                  <tr><th>Maître</th><th>Base</th><th>Comm. prestations</th><th>Comm. produits</th><th>Prime</th><th>Pourboires</th><th>Avances</th><th>Net à verser (après avances)</th></tr>
                 </thead>
                 <tbody>
                   {team.map((m) => {
                     const list = advancesForMonth(m.id, M);
                     const adv = advancesTotalMonth(m.id, M);
                     const mPrimes = primesForMonth(m.id, M);
+                    const mTips = tipsForMonth(m.id, M);
                     return (
                     <tr key={m.id}>
                       <td>
@@ -413,6 +444,25 @@ export default function Personnel() {
                         )}
                       </td>
                       <td>
+                        {mTips.length > 0 ? (
+                          <div className="tre-adv-cell">
+                            <span className="tre-adv-total" style={{ color: 'var(--trv-success, #6e7c5c)' }}>{fmtMoney(tipOf(m), currency)}</span>
+                            <ul className="tre-adv-list">
+                              {mTips.map((t) => (
+                                <li key={t.id} className="tre-adv-item">
+                                  <span className="tre-adv-amt" style={{ color: 'var(--trv-success, #6e7c5c)' }}>{fmtMoney(t.amountXof, currency)}</span>
+                                  <span className="mnd-muted tre-adv-meta">{shortDate(t.date)}{t.note ? ` · ${t.note}` : ''}</span>
+                                  <button className="tre-link-btn tre-link-btn--danger tre-adv-rm" onClick={() => removeTip(m.id, t.id)} aria-label="Retirer le pourboire">×</button>
+                                </li>
+                              ))}
+                            </ul>
+                            <button className="tre-link-btn" onClick={() => openTip(m)}>+ Pourboire</button>
+                          </div>
+                        ) : (
+                          <button className="tre-link-btn" onClick={() => openTip(m)}>+ Pourboire</button>
+                        )}
+                      </td>
+                      <td>
                         {adv > 0 ? (
                           <div className="tre-adv-cell">
                             <span className="tre-adv-total">− {fmtMoney(adv, currency)}</span>
@@ -436,7 +486,7 @@ export default function Personnel() {
                     );
                   })}
                   {team.length === 0 && (
-                    <tr><td colSpan={7} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
+                    <tr><td colSpan={8} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
                   )}
                   {team.length > 0 && (
                     <tr>
@@ -445,6 +495,7 @@ export default function Personnel() {
                       <td>{fmtMoney(team.reduce((a, m) => a + commPrestaOf(m), 0), currency)}</td>
                       <td>{fmtMoney(team.reduce((a, m) => a + commProduitOf(m), 0), currency)}</td>
                       <td className="mnd-copper">{fmtMoney(team.reduce((a, m) => a + primeOf(m), 0), currency)}</td>
+                      <td>{fmtMoney(team.reduce((a, m) => a + tipOf(m), 0), currency)}</td>
                       <td>{advancesTotal > 0 ? <span className="tre-adv-total">− {fmtMoney(advancesTotal, currency)}</span> : '—'}</td>
                       <td className="num">{fmtMoney(payrollTotal, currency)}</td>
                     </tr>
@@ -695,21 +746,54 @@ export default function Personnel() {
         </Modal>
       )}
 
+      {tipFor && (
+        <Modal title="Pourboire." onClose={() => setTipFor(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{tipFor.name}</strong> · ajouté au net à verser du mois de la date choisie.
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
+                <Input value={tipForm.amount} inputMode="numeric" placeholder="5000" onChange={(e) => setTipForm({ ...tipForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
+              </Field>
+              <Field label="Date">
+                <Input type="date" value={tipForm.date} onChange={(e) => setTipForm({ ...tipForm, date: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Note (facultatif)">
+              <Input value={tipForm.note} onChange={(e) => setTipForm({ ...tipForm, note: e.target.value })} placeholder="Ex. espèces · cliente ravie" />
+            </Field>
+            {tipTotalMonth(tipFor.id, M) > 0 && (
+              <div className="tre-inline-note">
+                <span className="mark">✦</span>
+                <span>Déjà reçu ce mois — {fmtMoney(tipTotalMonth(tipFor.id, M), currency)}.</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setTipFor(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveTip} disabled={!tipForm.amount || parseXof(tipForm.amount) <= 0}>
+                Enregistrer le pourboire
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {yearFor && (() => {
         const year = new Date().getFullYear();
         const rows = yearMonths(year).map((mk) => {
           const c = computeComm(yearFor, mk);
           const pr = primeTotalMonth(yearFor.id, mk);
+          const tp = tipTotalMonth(yearFor.id, mk);
           const av = advancesTotalMonth(yearFor.id, mk);
           const base = yearFor.salaireXof;
-          const net = base + c.presta + c.produit + pr - av;
-          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, avance: av, net };
+          const net = base + c.presta + c.produit + pr + tp - av;
+          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, tip: tp, avance: av, net };
         });
-        const active = rows.filter((r) => r.presta || r.produit || r.prime || r.avance);
         const tot = rows.reduce((t, r) => ({
           base: t.base + r.base, presta: t.presta + r.presta, produit: t.produit + r.produit,
-          prime: t.prime + r.prime, avance: t.avance + r.avance, net: t.net + r.net,
-        }), { base: 0, presta: 0, produit: 0, prime: 0, avance: 0, net: 0 });
+          prime: t.prime + r.prime, tip: t.tip + r.tip, avance: t.avance + r.avance, net: t.net + r.net,
+        }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, avance: 0, net: 0 });
         return (
           <Modal title={`Salaire ${year} · ${yearFor.name}`} onClose={() => setYearFor(null)} width={820}>
             <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
@@ -718,16 +802,17 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table tre-year">
                 <thead>
-                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Avances</th><th>Net versé</th></tr>
+                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Net versé</th></tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.mk} className={active.includes(r) ? '' : 'tre-year--muted'}>
+                    <tr key={r.mk}>
                       <td style={{ textTransform: 'capitalize' }}>{shortMonth(r.mk)}</td>
                       <td className="mnd-muted">{fmtMoney(r.base, currency)}</td>
                       <td>{fmtMoney(r.presta, currency)}</td>
                       <td>{fmtMoney(r.produit, currency)}</td>
                       <td className="mnd-copper">{fmtMoney(r.prime, currency)}</td>
+                      <td>{fmtMoney(r.tip, currency)}</td>
                       <td>{r.avance > 0 ? `− ${fmtMoney(r.avance, currency)}` : '—'}</td>
                       <td className="num">{fmtMoney(r.net, currency)}</td>
                     </tr>
@@ -738,6 +823,7 @@ export default function Personnel() {
                     <td>{fmtMoney(tot.presta, currency)}</td>
                     <td>{fmtMoney(tot.produit, currency)}</td>
                     <td className="mnd-copper">{fmtMoney(tot.prime, currency)}</td>
+                    <td>{fmtMoney(tot.tip, currency)}</td>
                     <td>{tot.avance > 0 ? `− ${fmtMoney(tot.avance, currency)}` : '—'}</td>
                     <td className="num">{fmtMoney(tot.net, currency)}</td>
                   </tr>
