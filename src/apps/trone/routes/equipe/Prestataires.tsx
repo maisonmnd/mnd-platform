@@ -57,6 +57,7 @@ export default function Prestataires() {
   const [payFor, setPayFor] = useState<Mission | null>(null);
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
   const [providerFor, setProviderFor] = useState<Provider | null>(null);
+  const [stmtPeriod, setStmtPeriod] = useState<'mois' | 'annee' | 'tout'>('tout');
 
   const branchProviders = useMemo(() => providers.filter((p) => p.branchId === branch.id && !p.archived), [providers, branch.id]);
   const branchMissions = useMemo(
@@ -175,21 +176,27 @@ export default function Prestataires() {
     });
   };
 
-  /* Toutes les missions d'un prestataire (du plus récent au plus ancien). */
+  /* Missions d'un prestataire (récentes d'abord), filtrables par période. */
   const missionsForProvider = (id: string) => branchMissions.filter((m) => m.providerId === id);
-  const providerTotals = (id: string) => {
-    const list = missionsForProvider(id);
+  const inPeriod = (iso: string, period: 'mois' | 'annee' | 'tout') => {
+    if (period === 'tout') return true;
+    if (period === 'mois') return monthKey(iso) === monthKey(todayIso());
+    return iso.slice(0, 4) === String(new Date().getFullYear());
+  };
+  const PERIOD_LABEL: Record<'mois' | 'annee' | 'tout', string> = { mois: 'Ce mois', annee: 'Cette année', tout: 'Tout' };
+  const totalsOf = (list: Mission[]) => {
     const total = list.reduce((a, m) => a + m.amountXof, 0);
     const paid = list.filter((m) => m.paidAt).reduce((a, m) => a + m.amountXof, 0);
     return { count: list.length, total, paid, due: total - paid };
   };
-  const downloadStatement = async (p: Provider) => {
-    const list = [...missionsForProvider(p.id)].reverse(); // chronologique
-    const t = providerTotals(p.id);
+  const providerTotals = (id: string) => totalsOf(missionsForProvider(id));
+  const downloadStatement = async (p: Provider, period: 'mois' | 'annee' | 'tout') => {
+    const list = [...missionsForProvider(p.id)].filter((m) => inPeriod(m.date, period)).reverse(); // chronologique
+    const t = totalsOf(list);
     const sections: SummarySection[] = [
       { heading: `Missions · ${list.length}`, rows: list.length
         ? list.map((m) => ({ label: `${frDate(m.date)} · ${m.label}${m.paidAt ? ` · réglé ${m.method ? `(${m.method})` : ''}` : ' · à payer'}`, value: pdfMoney(m.amountXof) }))
-        : [{ label: 'Aucune mission enregistrée.' }] },
+        : [{ label: 'Aucune mission sur la période.' }] },
       { heading: 'Total', rows: [
         { label: 'Total des missions', value: pdfMoney(t.total) },
         { label: 'Déjà payé', value: pdfMoney(t.paid) },
@@ -197,13 +204,13 @@ export default function Prestataires() {
       ] },
     ];
     await summaryPdf({
-      eyebrow: 'Relevé prestataire',
+      eyebrow: `Relevé prestataire · ${PERIOD_LABEL[period]}`,
       title: p.name,
       houseName: 'Maison MND',
-      meta: [MODE_LABEL[p.mode] + (p.specialty ? ` · ${p.specialty}` : ''), `${branch.name} · ${branch.city}`],
+      meta: [MODE_LABEL[p.mode] + (p.specialty ? ` · ${p.specialty}` : ''), `${branch.name} · ${branch.city}`, `Période · ${PERIOD_LABEL[period]}`],
       sections,
       footer: 'Document généré par Le Trône · Maison MND',
-      filename: `releve-${p.name.replace(/\s+/g, '-')}.pdf`,
+      filename: `releve-${p.name.replace(/\s+/g, '-')}-${period}.pdf`,
     });
   };
 
@@ -355,17 +362,22 @@ export default function Prestataires() {
 
       {/* Relevé d'un prestataire — toutes ses missions */}
       {providerFor && (() => {
-        const list = missionsForProvider(providerFor.id);
-        const t = providerTotals(providerFor.id);
+        const list = missionsForProvider(providerFor.id).filter((m) => inPeriod(m.date, stmtPeriod));
+        const t = totalsOf(list);
         return (
           <Modal title={`Relevé · ${providerFor.name}`} onClose={() => setProviderFor(null)} width={820}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>
                 {MODE_LABEL[providerFor.mode]}{providerFor.rateXof ? ` · ${fmtMoney(providerFor.rateXof, currency)}` : ''}{providerFor.specialty ? ` · ${providerFor.specialty}` : ''}{providerFor.phone ? ` · ${providerFor.phone}` : ''}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['mois', 'annee', 'tout'] as const).map((k) => (
+                    <button key={k} className={`tre-chip ${stmtPeriod === k ? 'is-on' : ''}`} onClick={() => setStmtPeriod(k)}>{PERIOD_LABEL[k]}</button>
+                  ))}
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => { openMission(providerFor); setProviderFor(null); }}>+ Mission</Button>
-                <Button variant="copper" size="sm" onClick={() => void downloadStatement(providerFor)}>Relevé · PDF</Button>
+                <Button variant="copper" size="sm" onClick={() => void downloadStatement(providerFor, stmtPeriod)}>Relevé · PDF</Button>
               </div>
             </div>
             <div className="tr-grid tr-grid--3" style={{ marginBottom: 14 }}>
