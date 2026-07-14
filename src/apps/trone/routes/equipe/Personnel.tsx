@@ -918,7 +918,7 @@ export default function Personnel() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen</span>
-                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 36, minWidth: 170 }}>
+                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 36, width: 210, flex: 'none', paddingRight: 34 }}>
                   {PAY_METHODS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </Select>
                 <Button variant="copper" size="sm" onClick={() => void downloadYearlyPayslip(staff, year)}>Bulletin annuel · PDF</Button>
