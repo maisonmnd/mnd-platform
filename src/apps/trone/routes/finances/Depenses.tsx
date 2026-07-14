@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact, convertFromXof } from '../../../../shared/currency';
+import { fmtMoney, convertFromXof } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
@@ -320,10 +320,10 @@ export default function Depenses() {
 
   // Onglets avec leur total — le poids de chaque vue se lit avant d'y entrer.
   const TABS: [Tab, string, string][] = [
-    ['flux', 'Le flux', fmtMoneyCompact(engaged, currency)],
-    ['caisses', 'Les caisses', fmtMoneyCompact(treasury, currency)],
+    ['flux', 'Le flux', fmtMoney(engaged, currency)],
+    ['caisses', 'Les caisses', fmtMoney(treasury, currency)],
     ['engagements', 'Engagements', `${recurringAll.length} récurrent${recurringAll.length > 1 ? 's' : ''}`],
-    ['budgets', 'Budgets & prévision', allocated ? fmtMoneyCompact(allocated, currency) : '—'],
+    ['budgets', 'Budgets & prévision', allocated ? fmtMoney(allocated, currency) : '—'],
   ];
 
   return (
@@ -718,7 +718,7 @@ export default function Depenses() {
             <div className="trf-obsidian" style={{ marginBottom: 14 }}>
               <div className="trf-obsidian__eyebrow">{isCurrent ? 'Prévision · fin de mois' : `Total du mois · ${monthName}`}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8 }}>
-                <span className="trf-obsidian__value" style={{ fontSize: 36 }}>{fmtMoneyCompact(forecast, currency)}</span>
+                <span className="trf-obsidian__value" style={{ fontSize: 36 }}>{fmtMoney(forecast, currency)}</span>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: savings > 0 ? 'var(--trf-success)' : 'var(--indigo-100)' }}>
                   {savings > 0 ? `▼ ${fmtMoney(savings, currency)} déjà capturés` : 'conforme au budget'}
                 </span>
@@ -831,7 +831,7 @@ export default function Depenses() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
                   <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, cashbox: c.name }))}>
-                    {c.name} · {fmtMoneyCompact(boxBalance(c.name), currency)}
+                    {c.name} · {fmtMoney(boxBalance(c.name), currency)}
                   </button>
                 ))}
               </div>

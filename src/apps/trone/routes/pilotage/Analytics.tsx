@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
+import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
@@ -99,7 +99,7 @@ export default function Analytics() {
   const indices = [
     {
       l: 'Revenu encaissé · période',
-      v: life.revenue > 0 ? fmtMoneyCompact(life.revenue, currency) : '—',
+      v: life.revenue > 0 ? fmtMoney(life.revenue, currency) : '—',
       cap: life.revenue > 0 ? 'rituels honorés + factures payées' : 'en attente de vécu',
       up: life.revenue > 0,
       a: 'var(--color-copper)',
@@ -123,7 +123,7 @@ export default function Analytics() {
     },
     {
       l: 'Panier moyen · rituel',
-      v: life.basket > 0 ? fmtMoneyCompact(life.basket, currency) : '—',
+      v: life.basket > 0 ? fmtMoney(life.basket, currency) : '—',
       cap: life.basket > 0 ? 'par rituel honoré' : 'se calculera à l’usage',
       up: false,
       a: 'var(--indigo-400)',
@@ -345,7 +345,7 @@ export default function Analytics() {
         )}
         <div className="trp-rev__foot">
           <span>Périmètre · {scope === 'toutes' ? 'toutes les branches' : (branches.find((b) => b.id === scope)?.name ?? '')}</span>
-          <span className="trp-rev__best">{yearTotal > 0 ? fmtMoneyCompact(yearTotal, currency) : '—'}</span>
+          <span className="trp-rev__best">{yearTotal > 0 ? fmtMoney(yearTotal, currency) : '—'}</span>
         </div>
       </div>
 
@@ -402,7 +402,7 @@ export default function Analytics() {
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 14 }}>
             <span className="mnd-serif" style={{ fontSize: 42, lineHeight: 1, color: 'var(--color-indigo)' }}>
-              {forecast > 0 ? fmtMoneyCompact(forecast, currency) : '—'}
+              {forecast > 0 ? fmtMoney(forecast, currency) : '—'}
             </span>
             <span style={{ fontSize: 12, color: 'var(--copper-600)' }}>{forecast > 0 ? 'au rythme réel du carnet' : ''}</span>
           </div>

@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react';
 import { Badge, Button, Field, Input, Select } from '../../ds/components';
-import { fmtMoney, fmtMoneyCompact } from '../../shared/currency';
+import { fmtMoney } from '../../shared/currency';
 import { useStore } from '../../shared/store';
 import { CURRENCIES, currencyByCode } from '../../shared/geo';
 import { ACCENTS, VERROUILLES, accentNom, planById, tenantsStore, type Tenant } from './data';
@@ -267,7 +267,7 @@ export default function Espace({
               <div className="lk-tiles">
                 <div className="lk-tile">
                   <span>Revenu mois</span>
-                  <strong>{fmtMoneyCompact(22480000, devise)}</strong>
+                  <strong>{fmtMoney(22480000, devise)}</strong>
                   <em>en {devise} · pivot XOF</em>
                 </div>
                 <div className="lk-tile">
@@ -310,7 +310,7 @@ export default function Espace({
 
                 <section className="lk-card lk-card--indigo">
                   <div className="lk-card__eyebrow">Revenu · 7 jours</div>
-                  <div className="lk-card__big">{fmtMoneyCompact(SEMAINE_TOTAL, devise)}</div>
+                  <div className="lk-card__big">{fmtMoney(SEMAINE_TOTAL, devise)}</div>
                   <GrapheSemaine devise={devise} />
                   <div className="lk-card__footrow">
                     <span>Multi-devises · pivot XOF</span>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
+import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { shortDate, usePlans, useSubscribers, type Plan, type Subscriber } from './data';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
@@ -111,7 +111,7 @@ export default function Abonnements() {
           <div className="tr-grid tr-grid--4">
             <Card filet="copper" style={{ padding: 18 }}>
               <div className="mnd-stat__label">MRR · revenu récurrent</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{mrr > 0 ? fmtMoneyCompact(mrr, currency) : '—'}</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{mrr > 0 ? fmtMoney(mrr, currency) : '—'}</div>
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>revenu des abonnements actifs</div>
             </Card>
             <Card filet="indigo" style={{ padding: 18 }}>

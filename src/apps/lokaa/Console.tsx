@@ -1,5 +1,5 @@
 import { Button, Seal } from '../../ds/components';
-import { fmtMoney, fmtMoneyCompact } from '../../shared/currency';
+import { fmtMoney } from '../../shared/currency';
 import { useStore } from '../../shared/store';
 import { PLANS, STATUT_LABEL, mrrXof, planById, tenantsStore } from './data';
 import { TenantMark } from './ui';
@@ -59,7 +59,7 @@ export default function Console({
         </div>
         <div className="lk-tile">
           <span>MRR · réseau</span>
-          <strong>{fmtMoneyCompact(mrrTotal, 'XOF')}</strong>
+          <strong>{fmtMoney(mrrTotal, 'XOF')}</strong>
           <em>pivot XOF · taux indicatifs</em>
         </div>
         <div className="lk-tile">

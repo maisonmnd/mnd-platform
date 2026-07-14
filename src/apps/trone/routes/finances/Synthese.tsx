@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact, convertFromXof } from '../../../../shared/currency';
+import { fmtMoney, convertFromXof } from '../../../../shared/currency';
 import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
@@ -327,7 +327,7 @@ export default function Synthese() {
           ))}
           <div style={{ marginTop: 14, background: 'var(--color-sable)', borderRadius: 4, padding: '13px 15px', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>
             {net >= 0
-              ? <>La maison dégage <strong style={{ fontWeight: 500, color: 'var(--trf-success)' }}>{fmtMoneyCompact(net, currency)}</strong> de résultat en {monthName}. La discipline paie.</>
+              ? <>La maison dégage <strong style={{ fontWeight: 500, color: 'var(--trf-success)' }}>{fmtMoney(net, currency)}</strong> de résultat en {monthName}. La discipline paie.</>
               : month === thisMonth
                 ? <>Le mois est encore jeune : les charges fixes précèdent les encaissements. Le carnet comblera l’écart.</>
                 : <>Les charges ont dépassé les encaissements en {monthName} — le détail ci-dessous dit où.</>}
