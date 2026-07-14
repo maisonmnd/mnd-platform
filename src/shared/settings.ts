@@ -19,6 +19,8 @@ export type Settings = {
   automations: Automations;
   /** Acompte exigé à la réservation en ligne (%). Lu par Ma Couronne. */
   onlineDepositPct: number;
+  /** Frais de livraison à domicile (XOF). Lu par Ma Couronne · Gamme. */
+  deliveryFeeXof: number;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */
@@ -53,12 +55,19 @@ export const DEFAULT_SETTINGS: Settings = {
   hours: DEFAULT_HOURS,
   automations: { momoLink: '', mapsLink: '', reviewLink: '', itineraire: '' },
   onlineDepositPct: 30,
+  deliveryFeeXof: 2000,
 };
 
 /** Fraction d'acompte (0–1) exigée en ligne — défaut 30 %. */
 export const onlineDepositRate = (): number => {
   const pct = settingsStore.get().onlineDepositPct;
   return typeof pct === 'number' && pct >= 0 && pct <= 100 ? pct / 100 : 0.3;
+};
+
+/** Frais de livraison à domicile (XOF) — défaut 2 000 F ; 0 = livraison gratuite. */
+export const deliveryFee = (): number => {
+  const n = settingsStore.get().deliveryFeeXof;
+  return typeof n === 'number' && n >= 0 ? Math.round(n) : 2000;
 };
 
 export const settingsStore = createStore<Settings>('mnd_settings', DEFAULT_SETTINGS);

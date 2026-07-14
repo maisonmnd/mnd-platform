@@ -1283,6 +1283,54 @@
 }
 .mc-recapcard__total > span:last-child { font-family: var(--font-serif); font-size: 26px; color: var(--color-indigo); }
 .mc-recapcard__total em { font-family: var(--font-sans); font-style: normal; font-size: 12px; color: var(--ink-soft); }
+.mc-recapcard__line + .mc-recapcard__line { margin-top: 7px; }
+
+/* -------- Remise de la commande : retrait / livraison -------- */
+.mc-deliver__opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.mc-deliver__opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  padding: 13px 15px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  transition: border-color var(--dur-fast, .2s) var(--ease-soft, ease), background var(--dur-fast, .2s) var(--ease-soft, ease);
+}
+.mc-deliver__opt.is-active { border-color: var(--accent); background: var(--color-sable, rgba(185, 122, 74, 0.08)); }
+.mc-deliver__name { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.15; }
+.mc-deliver__price { font-size: 11.5px; letter-spacing: 0.02em; color: var(--ink-soft); }
+.mc-deliver__opt.is-active .mc-deliver__price { color: var(--accent-strong, var(--accent)); }
+.mc-deliver__addr { display: block; margin-top: 12px; }
+.mc-deliver__addrlabel {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.mc-deliver__addrinput {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 58px;
+  padding: 11px 13px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.mc-deliver__addrinput:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 380px) {
+  .mc-deliver__opts { grid-template-columns: 1fr; }
+}
 
 .mc-temps { display: flex; gap: 14px; align-items: flex-start; padding-bottom: 14px; }
 .mc-temps__no { font-family: var(--font-serif); font-size: 22px; color: var(--accent); flex: 0 0 auto; width: 26px; }

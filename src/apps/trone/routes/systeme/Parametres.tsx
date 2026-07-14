@@ -141,6 +141,12 @@ export default function Parametres() {
     setSettings((s) => ({ ...s, onlineDepositPct: n }));
   };
 
+  /** Frais de livraison à domicile (XOF) — entier ≥ 0 ; lu par Ma Couronne · Gamme. */
+  const setDeliveryFee = (raw: string) => {
+    const n = Math.max(0, Math.round(Number(raw) || 0));
+    setSettings((s) => ({ ...s, deliveryFeeXof: n }));
+  };
+
   /* ----- Styles de couronne — liste éditable (trim + dédoublonnage) ----- */
   const normalizeStyles = (list: string[]): string[] => {
     const seen = new Set<string>();
@@ -291,6 +297,25 @@ export default function Parametres() {
                 aria-label="Acompte exigé en ligne en pourcentage"
               />
               <span className="sys-row__value">%</span>
+            </div>
+          </div>
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Frais de livraison à domicile</div>
+              <div className="sys-row__sub">Ajoutés en ligne à la commande produits sur Ma Couronne. 0 = livraison offerte.</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                className="sys-select"
+                type="number"
+                min={0}
+                step={500}
+                value={settings.deliveryFeeXof}
+                onChange={(e) => setDeliveryFee(e.target.value)}
+                style={{ width: 96, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                aria-label="Frais de livraison à domicile en francs CFA"
+              />
+              <span className="sys-row__value">F</span>
             </div>
           </div>
           <ToggleRows rows={RITUEL_TOGGLES} />

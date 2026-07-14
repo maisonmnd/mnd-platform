@@ -9,6 +9,7 @@ import { useServices } from '../../shared/catalog';
 import { clientsStore } from '../../shared/clients';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { useTiers } from '../../shared/offers';
+import { deliveryFee } from '../../shared/settings';
 import { uid } from '../../shared/store';
 import {
   GOLD_AT,
@@ -434,8 +435,13 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
   /* Panier réel : id produit → quantité. */
   const [cart, setCart] = useState<Record<string, number>>({});
   const [basketOpen, setBasketOpen] = useState(false);
+  /* Remise : retrait en maison (offert) ou livraison à domicile (frais + adresse). */
+  const [mode, setMode] = useState<'retrait' | 'livraison'>('retrait');
+  const [address, setAddress] = useState(client?.city ? `${client.city}, ` : '');
   /* État après-commande : le récapitulatif reste affiché, le suivi à un geste. */
-  const [orderDone, setOrderDone] = useState<{ number: string; totalXof: number } | null>(null);
+  const [orderDone, setOrderDone] = useState<
+    { number: string; totalXof: number; mode: 'retrait' | 'livraison' } | null
+  >(null);
 
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
   const dec = (id: string) =>
@@ -455,13 +461,34 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 
   const items = products.filter((p) => (cart[p.id] ?? 0) > 0).map((p) => ({ p, qty: cart[p.id] }));
   const count = items.reduce((n, it) => n + it.qty, 0);
-  const total = items.reduce((n, it) => n + it.p.priceXof * it.qty, 0);
+  const subtotal = items.reduce((n, it) => n + it.p.priceXof * it.qty, 0);
+  /* Frais de livraison — pilotés par le Trône (Paramètres) ; 0 = offert. */
+  const fee = deliveryFee();
+  const deliveryCost = mode === 'livraison' ? fee : 0;
+  const total = subtotal + deliveryCost;
+  /* La livraison exige une adresse ; le retrait, jamais. */
+  const addressMissing = mode === 'livraison' && !address.trim();
 
-  /* Commander : un vrai devis produit adressé à la maison (Trône · Factures/devis). */
+  /* Commander : un vrai devis produit adressé à la maison (Trône · Factures/devis).
+     La livraison ajoute sa propre ligne au devis ; l'adresse voyage dans la note. */
   const checkout = () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || addressMissing) return;
     const year = new Date().getFullYear();
     const rand = Math.floor(1000 + Math.random() * 9000);
+    const productLines: InvoiceLine[] = items.map((it) => ({
+      id: uid(),
+      label: it.p.name,
+      qty: it.qty,
+      unitXof: it.p.priceXof,
+      discountPct: 0,
+    }));
+    if (mode === 'livraison') {
+      productLines.push({ id: uid(), label: 'Livraison à domicile', qty: 1, unitXof: fee, discountPct: 0 });
+    }
+    const note =
+      mode === 'livraison'
+        ? `Livraison à domicile — ${address.trim()}`
+        : 'Retrait en maison';
     const inv: Invoice = {
       id: uid(),
       branchId: branch.id,
@@ -469,24 +496,17 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
       number: `CMD-${year}-${rand}`,
       clientId,
       date: todayIso(),
-      lines: items.map(
-        (it): InvoiceLine => ({
-          id: uid(),
-          label: it.p.name,
-          qty: it.qty,
-          unitXof: it.p.priceXof,
-          discountPct: 0,
-        })
-      ),
+      lines: productLines,
       globalDiscountPct: 0,
       theme: 'Souffle',
       status: 'envoyée',
       clientName: client?.name,
+      note,
     };
     const confirmed = fmtMoney(total, currency);
     invoicesStore.set((prev) => [...prev, inv]);
     setCart({});
-    setOrderDone({ number: inv.number, totalXof: total });
+    setOrderDone({ number: inv.number, totalXof: total, mode });
     toast(`Commande transmise à la maison — ${confirmed}`);
   };
 
@@ -589,12 +609,18 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                 <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
                   <div className="mc-recapcard__line"><span>Commande</span><span>{orderDone.number}</span></div>
                   <div className="mc-recapcard__line"><span>Statut</span><span>Reçue par la maison</span></div>
+                  <div className="mc-recapcard__line">
+                    <span>Remise</span>
+                    <span>{orderDone.mode === 'livraison' ? 'Livraison à domicile' : 'Retrait en maison'}</span>
+                  </div>
                   <div className="mc-hairline" />
                   <div className="mc-recapcard__total">
                     <span>Total</span>
                     <span>{fmtMoney(orderDone.totalXof, currency)}</span>
                   </div>
-                  <div className="mc-recapcard__meta">Réglée au retrait en maison.</div>
+                  <div className="mc-recapcard__meta">
+                    {orderDone.mode === 'livraison' ? 'Réglée à la livraison.' : 'Réglée au retrait en maison.'}
+                  </div>
                 </div>
                 <button
                   className="mc-cta mc-cta--indigo"
@@ -635,13 +661,69 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                     </div>
                   ))}
                 </div>
-                <div className="mc-recapcard" style={{ marginTop: 16 }}>
-                  <div className="mc-recapcard__total"><span>Total</span><span>{fmtMoney(total, currency)}</span></div>
-                  <div className="mc-recapcard__meta">{count} article{count > 1 ? 's' : ''} · réglés au retrait en maison.</div>
+                {/* Remise — retrait en maison (offert) ou livraison à domicile. */}
+                <div className="mc-deliver" style={{ marginTop: 18 }}>
+                  <div className="mc-micro-eyebrow">Comment la recevoir</div>
+                  <div className="mc-deliver__opts">
+                    <button
+                      type="button"
+                      className={`mc-deliver__opt ${mode === 'retrait' ? 'is-active' : ''}`}
+                      onClick={() => setMode('retrait')}
+                    >
+                      <span className="mc-deliver__name">Retrait en maison</span>
+                      <span className="mc-deliver__price">Offert</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`mc-deliver__opt ${mode === 'livraison' ? 'is-active' : ''}`}
+                      onClick={() => setMode('livraison')}
+                    >
+                      <span className="mc-deliver__name">Livraison à domicile</span>
+                      <span className="mc-deliver__price">{fee > 0 ? fmtMoney(fee, currency) : 'Offert'}</span>
+                    </button>
+                  </div>
+                  {mode === 'livraison' && (
+                    <label className="mc-deliver__addr">
+                      <span className="mc-deliver__addrlabel">Adresse de livraison</span>
+                      <textarea
+                        className="mc-deliver__addrinput"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Quartier, rue, repère… et un numéro à joindre."
+                        rows={2}
+                      />
+                    </label>
+                  )}
                 </div>
-                <button className="mc-cta mc-cta--copper" style={{ marginTop: 18 }} onClick={checkout}>
+
+                <div className="mc-recapcard" style={{ marginTop: 16 }}>
+                  <div className="mc-recapcard__line">
+                    <span>Sous-total · {count} article{count > 1 ? 's' : ''}</span>
+                    <span>{fmtMoney(subtotal, currency)}</span>
+                  </div>
+                  <div className="mc-recapcard__line">
+                    <span>Livraison</span>
+                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? fmtMoney(deliveryCost, currency) : 'Offerte') : 'Retrait — offert'}</span>
+                  </div>
+                  <div className="mc-hairline" />
+                  <div className="mc-recapcard__total"><span>Total</span><span>{fmtMoney(total, currency)}</span></div>
+                  <div className="mc-recapcard__meta">
+                    {mode === 'livraison' ? 'Réglée à la livraison.' : 'Réglée au retrait en maison.'}
+                  </div>
+                </div>
+                <button
+                  className="mc-cta mc-cta--copper"
+                  style={{ marginTop: 18 }}
+                  onClick={checkout}
+                  disabled={addressMissing}
+                >
                   Commander · {fmtMoney(total, currency)}
                 </button>
+                {addressMissing && (
+                  <div className="mc-footnote" style={{ color: 'var(--mc-copper, #b97a4a)' }}>
+                    Indiquez l’adresse de livraison pour transmettre la commande.
+                  </div>
+                )}
                 <div className="mc-footnote">La maison confirmera votre commande sur WhatsApp.</div>
               </>
             )}

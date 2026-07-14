@@ -215,6 +215,29 @@
   font-size: 22px;
   margin-top: 5px;
 }
+.trc-next__cadence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--indigo-100);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline-invert);
+}
+.trc-next__overdue {
+  flex: none;
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  color: var(--color-ivoire);
+  background: var(--color-copper);
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+}
+.trc-next__acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 .trc-ministat {
   flex: 1;

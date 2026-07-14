@@ -4,14 +4,15 @@ import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, useCrownStyles, usePersonas, type Client } from '../../../../shared/clients';
-import type { Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid } from '../../../../shared/store';
 import { PayAppointmentModal } from './actions';
 import {
-  Avatar, Drawer, RdvModal, StatusPill, addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
+  Avatar, Drawer, RdvModal, StatusPill, type RdvInitial,
+  addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
   fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
@@ -24,6 +25,31 @@ const GRID = '2.1fr 1fr 0.95fr 0.95fr 0.55fr 132px';
 const SEGMENT_PRESETS = ['VIP', 'Abonnée', 'Nouvelle', 'Diaspora', 'Famille', 'Cercle', 'Régulier', 'Dormante'];
 
 type SortKey = 'nom' | 'visite' | 'depense' | 'points';
+
+/* Prédiction du prochain rendez-vous — cadence analysée + gabarit à dupliquer. */
+type Cadence = {
+  iso: string | null;
+  predicted: boolean; // true = estimé, false = vrai RDV à venir
+  avgDays: number | null; // intervalle médian de revisite
+  confidence: 'haute' | 'moyenne' | 'faible' | null;
+  overdueDays: number; // > 0 si la date estimée est déjà passée
+  sample: number; // nombre d'intervalles analysés
+  template: Appointment | null; // dernier rituel honoré, à dupliquer
+};
+
+/** Médiane entière — robuste aux visites exceptionnelles. */
+const median = (xs: number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
+};
+
+/** Lecture éditoriale d'un intervalle : « toutes les ~5 semaines », « ~9 j ». */
+const cadenceLabel = (days: number): string => {
+  if (days >= 60) return `toutes les ~${Math.round(days / 30)} mois`;
+  if (days >= 14) return `toutes les ~${Math.round(days / 7)} semaines`;
+  return `tous les ~${days} j`;
+};
 
 /** Chiffres seulement — pour wa.me et la recherche téléphone. */
 const digitsOf = (s: string) => s.replace(/\D/g, '');
@@ -200,23 +226,42 @@ export default function Customers() {
 
   const apptsOf = (id: string) => appts.filter((a) => a.clientId === id);
 
-  const predictNext = (id: string): { iso: string | null; predicted: boolean } => {
+  const predictNext = (id: string): Cadence => {
+    const none: Cadence = { iso: null, predicted: false, avgDays: null, confidence: null, overdueDays: 0, sample: 0, template: null };
     const mine = apptsOf(id);
     const upcoming = mine
       .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time))[0];
-    if (upcoming) return { iso: upcoming.date, predicted: false };
+    if (upcoming) return { ...none, iso: upcoming.date, predicted: false };
+
     const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
-    if (honored.length >= 2) {
-      let gaps = 0;
-      for (let i = 1; i < honored.length; i++) {
-        gaps += Math.round((new Date(honored[i].date).getTime() - new Date(honored[i - 1].date).getTime()) / 86400000);
-      }
-      const avg = Math.max(14, Math.round(gaps / (honored.length - 1)));
-      return { iso: addDaysISO(honored[honored.length - 1].date, avg), predicted: true };
+    if (honored.length === 0) return none;
+    const template = honored[honored.length - 1]; // le dernier rituel — à dupliquer
+
+    const daysBetween = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
+    // Cadence de revisite : une série multi-séances compte pour une seule visite.
+    const visits = honored.filter((a) => !(a.seriesIndex && a.seriesIndex > 1));
+
+    if (visits.length >= 2) {
+      const gaps: number[] = [];
+      for (let i = 1; i < visits.length; i++) gaps.push(daysBetween(visits[i - 1].date, visits[i].date));
+      const use = gaps.filter((g) => g > 0);
+      const sample = use.length || gaps.length;
+      const med = Math.max(14, median(use.length ? use : gaps));
+      // Confiance : régularité (écart-type / moyenne) pondérée par le nombre d'intervalles.
+      const base = use.length ? use : gaps;
+      const mean = base.reduce((s, g) => s + g, 0) / base.length;
+      const variance = base.reduce((s, g) => s + (g - mean) ** 2, 0) / base.length;
+      const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+      const confidence: Cadence['confidence'] =
+        sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
+      const iso = addDaysISO(visits[visits.length - 1].date, med);
+      return { iso, predicted: true, avgDays: med, confidence, overdueDays: Math.max(0, daysBetween(iso, today)), sample, template };
     }
-    if (honored.length === 1) return { iso: addDaysISO(honored[0].date, 30), predicted: true };
-    return { iso: null, predicted: false };
+
+    // Une seule visite : cadence par défaut, confiance faible.
+    const iso = addDaysISO(template.date, 30);
+    return { iso, predicted: true, avgDays: 30, confidence: 'faible', overdueDays: Math.max(0, daysBetween(iso, today)), sample: 0, template };
   };
 
   /* Chiffres de la maison par cliente : dépense à vie (rituels honorés au net
@@ -437,7 +482,7 @@ function Customer360({
   onClose: () => void;
   appts: ReturnType<typeof useBranchAppointments>;
   byId: ReturnType<typeof useServicesById>;
-  predicted: { iso: string | null; predicted: boolean };
+  predicted: Cadence;
 }) {
   const { branch, currency } = useBranch();
   const [personas] = usePersonas();
@@ -445,10 +490,42 @@ function Customer360({
   const [pointsHistory] = usePointsHistory();
   const [sessions] = useClientSessions();
   const [bookOpen, setBookOpen] = useState(false);
+  const [adjust, setAdjust] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
   const today = todayISO();
+
+  /* Confirmer la date prédite en un geste : un vrai RDV, duplicata du dernier rituel
+     (mêmes prestations, même maître, même heure) posé à la date anticipée. */
+  const confirmPredicted = () => {
+    if (!predicted.iso || !predicted.template) return;
+    const t = predicted.template;
+    const created: Appointment = {
+      id: uid(),
+      branchId: branch.id,
+      clientId: client.id,
+      serviceIds: [...t.serviceIds],
+      date: predicted.iso,
+      time: t.time,
+      master: t.master,
+      status: 'confirmé',
+      source: 'trone',
+    };
+    appointmentsStore.set((prev) => [...prev, created]);
+  };
+
+  /* Ajuster avant de confirmer : ouvre la modale pré-remplie du duplicata. */
+  const adjustPredicted = () => {
+    const t = predicted.template;
+    setAdjust({
+      clientId: client.id,
+      serviceIds: t ? [...t.serviceIds] : undefined,
+      date: predicted.iso ?? undefined,
+      time: t?.time,
+      master: t?.master,
+    });
+  };
 
   /* La couronne — persistance immédiate ; ce bloc alimente le statut dans Ma Couronne. */
   const patch = (p: Partial<Client>) =>
@@ -564,16 +641,40 @@ function Customer360({
       </div>
 
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* Prochain RDV — réel ou prédit */}
+        {/* Prochain RDV — réel, ou prédit avec confirmation en un geste */}
         <div className="trc-next">
           <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
           <div className="trc-next__date">
             {upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}` : predicted.iso ? `≈ ${frLong(predicted.iso)}` : 'À reconquérir'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--indigo-100)', marginTop: 6 }}>
-            {upcoming ? `${apptLabel(upcoming, byId)} · ${upcoming.master}` : 'La maison anticipe sa cadence — proposez le fauteuil.'}
+            {upcoming
+              ? `${apptLabel(upcoming, byId)} · ${upcoming.master}`
+              : predicted.template
+                ? `${apptLabel(predicted.template, byId)} · ${predicted.template.master}`
+                : 'La maison anticipe sa cadence — proposez le fauteuil.'}
           </div>
-          <Button variant="copper" size="sm" style={{ marginTop: 12 }} onClick={() => setBookOpen(true)}>+ Proposer un rendez-vous</Button>
+
+          {/* Analyse de la cadence — visible seulement sur une prédiction */}
+          {!upcoming && predicted.iso && (
+            <div className="trc-next__cadence">
+              {predicted.avgDays
+                ? <>Revient {cadenceLabel(predicted.avgDays)}{predicted.sample >= 1 ? ` · d’après ${predicted.sample + 1} visites` : ''}{predicted.confidence ? ` · confiance ${predicted.confidence}` : ''}.</>
+                : 'Première cadence estimée — à confirmer.'}
+              {predicted.overdueDays > 0 && <span className="trc-next__overdue">En retard de {predicted.overdueDays} j</span>}
+            </div>
+          )}
+
+          <div className="trc-next__acts">
+            {!upcoming && predicted.iso && predicted.template ? (
+              <>
+                <Button variant="copper" size="sm" onClick={confirmPredicted}>Confirmer ce rendez-vous</Button>
+                <Button variant="ghost-invert" size="sm" onClick={adjustPredicted}>Ajuster la date</Button>
+              </>
+            ) : (
+              <Button variant="copper" size="sm" onClick={() => setBookOpen(true)}>+ Proposer un rendez-vous</Button>
+            )}
+          </div>
         </div>
 
         {/* Rendez-vous à venir — la liste complète, cliquable pour modifier */}
@@ -831,6 +932,7 @@ function Customer360({
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
+      {adjust && <RdvModal onClose={() => setAdjust(null)} initial={adjust} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
       {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </Drawer>
