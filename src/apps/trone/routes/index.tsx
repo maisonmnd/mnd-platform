@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, Lightbulb, GraduationCap, Settings, MapPin, Palette, type LucideIcon,
+  Megaphone, Crown, Repeat, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -68,6 +68,7 @@ export const NAV: TroneGroup[] = [
     group: 'Système',
     items: [
       { path: '/parametres', label: 'Paramètres', icon: Settings, Component: lazy(() => import('./systeme/Parametres')) },
+      { path: '/acces', label: 'Accès & personnel', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
       { path: '/branches', label: 'Branches', icon: MapPin, Component: lazy(() => import('./systeme/Branches')) },
       { path: '/marque', label: 'Marque & thème', icon: Palette, Component: lazy(() => import('./systeme/Marque')) },
     ],

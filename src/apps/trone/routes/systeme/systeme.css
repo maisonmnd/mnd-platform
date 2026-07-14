@@ -216,3 +216,56 @@
   .sys-branch__name { font-size: clamp(20px, 6vw, 25px); }
   .sys-summary { gap: 18px 22px; }
 }
+
+/* ---------- Accès & personnel (autorisation des comptes) ---------- */
+.sys-acc-msg {
+  border-radius: 3px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+}
+.sys-acc-msg.is-ok { background: rgba(110, 124, 92, 0.14); color: var(--trv-success, #6e7c5c); }
+.sys-acc-msg.is-err { background: rgba(176, 86, 62, 0.12); color: var(--trv-error, #b0563e); }
+.sys-acc-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+  padding: 12px 0 4px;
+}
+.sys-acc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--hairline);
+}
+.sys-acc-row:first-of-type { border-top: none; }
+.sys-acc-row__id { flex: 1; min-width: 0; }
+.sys-acc-row__email {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-indigo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sys-acc-row__sub { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.sys-acc-row__role { flex: 0 0 auto; max-width: 230px; }
+.sys-acc-you {
+  margin-left: 8px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  border: 1px solid var(--color-copper);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+}
+@media (max-width: 620px) {
+  .sys-acc-row { flex-wrap: wrap; }
+  .sys-acc-row__id { flex: 1 1 100%; }
+  .sys-acc-row__role { flex: 1 1 auto; max-width: none; }
+}
