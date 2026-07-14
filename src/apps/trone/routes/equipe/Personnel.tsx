@@ -4,7 +4,7 @@ import { Badge, Button, Card, Field, Input, Modal, Select } from '../../../../ds
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
-import { useInvoices, invoiceTotal } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
@@ -61,7 +61,8 @@ const useTips = () => useStore(tipsStore);
 /* Confirmation de règlement (la « signature ») — clé `${AAAA-MM}:${staffId}`.
    Enregistre qui a confirmé le paiement et quand : preuve datée, infalsifiable côté
    usage (réservée au personnel autorisé), pour ne jamais contester un versement. */
-type PayConfirm = { paidAt: string; byId: string; byName: string; method?: string; amountXof: number };
+type PayConfirm = { paidAt: string; byId: string; byName: string; method?: string; amountXof: number; expenseId?: string };
+const SALAIRE_CATEGORY = 'Salaires';
 const confirmStore = createStore<Record<string, PayConfirm>>('mnd_paie_confirm', {});
 bindDocument(confirmStore, 'mnd_paie_confirm');
 const useConfirm = () => useStore(confirmStore);
@@ -319,14 +320,26 @@ export default function Personnel() {
   const confirmPay = (m: StaffMember, month: string, amountXof: number) => {
     const method = payMethod;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
-    if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve.`)) return;
+    if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve, et la charge s'inscrira dans les Dépenses.`)) return;
+    const paidAt = new Date().toISOString();
+    const expId = `exp-paie-${month}-${m.id}`;
+    // La charge « Salaires » remonte dans les Dépenses & la Synthèse (résultat).
+    const charge: Expense = {
+      id: expId, branchId: m.branchId,
+      label: `Salaire · ${m.name} — ${cap(monthTitle(month))}`,
+      amountXof, date: paidAt.slice(0, 10), cashbox: method, category: SALAIRE_CATEGORY,
+    };
+    expensesStore.set((prev) => (prev.some((e) => e.id === expId) ? prev.map((e) => (e.id === expId ? charge : e)) : [charge, ...prev]));
+    expenseCategoriesStore.set((prev) => (prev.some((c) => c.name === SALAIRE_CATEGORY) ? prev : [...prev, { id: 'ec-salaires', name: SALAIRE_CATEGORY, subs: [] }]));
     setConfirms((prev) => ({
       ...prev,
-      [confKey(month, m.id)]: { paidAt: new Date().toISOString(), byId: session?.user?.id ?? '', byName, method, amountXof },
+      [confKey(month, m.id)]: { paidAt, byId: session?.user?.id ?? '', byName, method, amountXof, expenseId: expId },
     }));
   };
   const unconfirmPay = (month: string, staffId: string) => {
-    if (!window.confirm('Annuler la confirmation de règlement de ce mois ?')) return;
+    if (!window.confirm('Annuler la confirmation de règlement ? La charge correspondante sera retirée des Dépenses.')) return;
+    const eid = confirms[confKey(month, staffId)]?.expenseId;
+    if (eid) expensesStore.set((prev) => prev.filter((e) => e.id !== eid));
     setConfirms((prev) => {
       const next = { ...prev };
       delete next[confKey(month, staffId)];
