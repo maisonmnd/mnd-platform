@@ -391,3 +391,20 @@
   .tre-offer__meta { gap: 12px 18px; }
   .tre-actions-row { gap: 10px; }
 }
+
+/* ---------- Taux de commission par palier (Paie) ---------- */
+.tre-rates__head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px; }
+.tre-rates__title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: var(--weight-medium);
+  color: var(--color-indigo);
+}
+.tre-rates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tre-rate { display: flex; flex-direction: column; gap: 6px; }
+.tre-rate__label { font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); }
+.tre-rate__field { display: flex; align-items: center; gap: 6px; }
+.tre-rate__pct { font-family: var(--font-serif); font-size: 15px; color: var(--ink-soft); }
+@media (max-width: 620px) { .tre-rates { grid-template-columns: 1fr 1fr; } }
