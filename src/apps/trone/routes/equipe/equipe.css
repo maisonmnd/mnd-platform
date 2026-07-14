@@ -413,3 +413,7 @@
 .tre-year td { white-space: nowrap; }
 .tre-year--muted td { color: var(--ink-soft); opacity: 0.7; }
 .tre-year--muted td.mnd-copper { color: var(--ink-soft); }
+
+/* Règlement dans le détail annuel — confirmation + bulletin. */
+.tre-pay { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.tre-pay__ok { color: var(--trv-success, #6e7c5c); font-size: 11.5px; display: inline-flex; align-items: center; }

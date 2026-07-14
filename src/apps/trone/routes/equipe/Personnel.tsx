@@ -6,6 +6,8 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
+import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
+import { summaryPdf, type SummarySection } from '../../../../shared/pdf';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk,
@@ -56,12 +58,29 @@ const tipsStore = createStore<Record<string, Tip[]>>('mnd_tips', {});
 bindDocument(tipsStore, 'mnd_tips');
 const useTips = () => useStore(tipsStore);
 
+/* Confirmation de règlement (la « signature ») — clé `${AAAA-MM}:${staffId}`.
+   Enregistre qui a confirmé le paiement et quand : preuve datée, infalsifiable côté
+   usage (réservée au personnel autorisé), pour ne jamais contester un versement. */
+type PayConfirm = { paidAt: string; byId: string; byName: string; method?: string; amountXof: number };
+const confirmStore = createStore<Record<string, PayConfirm>>('mnd_paie_confirm', {});
+bindDocument(confirmStore, 'mnd_paie_confirm');
+const useConfirm = () => useStore(confirmStore);
+
+const PAY_METHODS = ['Mobile Money', 'Espèces', 'Virement', 'Autre'];
+/** Date+heure lisibles d'un ISO (« 14 juil. 2026, 18:32 »). */
+const fmtStamp = (iso: string) =>
+  new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 /** Les 12 mois d'une année (AAAA-MM), de janvier à décembre. */
 const yearMonths = (year: number): string[] =>
   Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
 /** Libellé court d'un mois AAAA-MM (« janv. »). */
 const shortMonth = (mk: string): string =>
   new Date(`${mk}-15T00:00:00`).toLocaleDateString('fr-FR', { month: 'short' });
+/** « juillet 2026 » — titre de période. */
+const monthTitle = (mk: string): string =>
+  new Date(`${mk}-15T00:00:00`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Mois de paie courant, clé AAAA-MM. */
 const payMonth = (): string => new Date().toISOString().slice(0, 7);
@@ -115,6 +134,11 @@ export default function Personnel() {
   const [tipFor, setTipFor] = useState<StaffMember | null>(null);
   const [tipForm, setTipForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [yearFor, setYearFor] = useState<StaffMember | null>(null);
+  const [confirms, setConfirms] = useConfirm();
+  const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
+  const me = useMyStaff();
+  const { session } = useAuth();
+  const isSouverain = me?.role === 'souverain';
   const M = payMonth();
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
@@ -228,6 +252,92 @@ export default function Personnel() {
   };
   const removeTip = (staffId: string, tipId: string) =>
     setTips((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((t) => t.id !== tipId) }));
+
+  /* Net à verser d'un maître pour un mois quelconque (réutilisé partout). */
+  const netForMonth = (m: StaffMember, month: string) => {
+    const c = computeComm(m, month);
+    return m.salaireXof + c.presta + c.produit + primeTotalMonth(m.id, month) + tipTotalMonth(m.id, month) - advancesTotalMonth(m.id, month);
+  };
+
+  /* Confirmation de règlement — la « signature » qui protège d'un litige. */
+  const confKey = (month: string, staffId: string) => `${month}:${staffId}`;
+  const confirmOf = (month: string, staffId: string): PayConfirm | undefined => confirms[confKey(month, staffId)];
+  const months12Paid = (staffId: string, year: number) => yearMonths(year).filter((mk) => confirmOf(mk, staffId)).length;
+  const confirmPay = (m: StaffMember, month: string, amountXof: number) => {
+    const method = payMethod;
+    const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
+    if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve.`)) return;
+    setConfirms((prev) => ({
+      ...prev,
+      [confKey(month, m.id)]: { paidAt: new Date().toISOString(), byId: session?.user?.id ?? '', byName, method, amountXof },
+    }));
+  };
+  const unconfirmPay = (month: string, staffId: string) => {
+    if (!window.confirm('Annuler la confirmation de règlement de ce mois ?')) return;
+    setConfirms((prev) => {
+      const next = { ...prev };
+      delete next[confKey(month, staffId)];
+      return next;
+    });
+  };
+
+  /* Bulletin de paie mensuel (PDF) — remis à tout moment. */
+  const downloadMonthlyPayslip = async (m: StaffMember, month: string) => {
+    const c = computeComm(m, month);
+    const prime = primeTotalMonth(m.id, month);
+    const tip = tipTotalMonth(m.id, month);
+    const av = advancesTotalMonth(m.id, month);
+    const net = netForMonth(m, month);
+    const conf = confirmOf(month, m.id);
+    const prList = primesForMonth(m.id, month);
+    const sections: SummarySection[] = [
+      { heading: 'Rémunération', rows: [
+        { label: 'Salaire de base', value: fmtMoney(m.salaireXof, currency) },
+        { label: 'Commission prestations', value: fmtMoney(c.presta, currency) },
+        { label: 'Commission produits', value: fmtMoney(c.produit, currency) },
+        { label: 'Primes', value: fmtMoney(prime, currency) },
+        { label: 'Pourboires', value: fmtMoney(tip, currency) },
+        { label: 'Avances déduites', value: av > 0 ? `− ${fmtMoney(av, currency)}` : fmtMoney(0, currency) },
+        { label: 'NET À VERSER', value: fmtMoney(net, currency) },
+      ] },
+    ];
+    if (prList.length) sections.push({ heading: 'Détail des primes', rows: prList.map((p) => ({ label: PRIME_LABEL[p.type] + (p.note ? ` · ${p.note}` : ''), value: fmtMoney(p.amountXof, currency) })) });
+    sections.push({ heading: 'Règlement', rows: conf
+      ? [{ label: `Réglé le ${fmtStamp(conf.paidAt)}${conf.method ? ` · ${conf.method}` : ''}` }, { label: `Confirmé par ${conf.byName}` }, { label: 'Signature électronique enregistrée par Le Trône.' }]
+      : [{ label: 'En attente de règlement — non confirmé à ce jour.' }] });
+    await summaryPdf({
+      eyebrow: 'Bulletin de paie',
+      title: m.name,
+      houseName: branch.name,
+      meta: [`Période · ${cap(monthTitle(month))}`, m.role].filter(Boolean),
+      sections,
+      footer: conf ? `Réglé · ${fmtStamp(conf.paidAt)} · ${conf.byName}` : 'Document généré par Le Trône · Maison MND',
+      filename: `bulletin-${m.name.replace(/\s+/g, '-')}-${month}.pdf`,
+    });
+  };
+
+  /* Récapitulatif annuel (PDF) — un net par mois + statut de règlement. */
+  const downloadYearlyPayslip = async (m: StaffMember, year: number) => {
+    const months = yearMonths(year);
+    const rows = months.map((mk) => {
+      const conf = confirmOf(mk, m.id);
+      return { label: `${cap(shortMonth(mk))}${conf ? `  · réglé ${fmtStamp(conf.paidAt).split(',')[0]}` : ''}`, value: fmtMoney(netForMonth(m, mk), currency) };
+    });
+    const total = months.reduce((s, mk) => s + netForMonth(m, mk), 0);
+    const paid = months.filter((mk) => confirmOf(mk, m.id)).length;
+    await summaryPdf({
+      eyebrow: 'Récapitulatif annuel de paie',
+      title: m.name,
+      houseName: branch.name,
+      meta: [`Année · ${year}`, m.role].filter(Boolean),
+      sections: [
+        { heading: `Net versé par mois · ${year}`, rows },
+        { heading: 'Total', rows: [{ label: `Net total ${year}`, value: fmtMoney(total, currency) }, { label: 'Mois réglés & confirmés', value: `${paid} / 12` }] },
+      ],
+      footer: 'Document généré par Le Trône · Maison MND',
+      filename: `recap-annuel-${m.name.replace(/\s+/g, '-')}-${year}.pdf`,
+    });
+  };
   const resetAdjust = (id: string) =>
     setOverrides((prev) => {
       const next = { ...prev };
@@ -794,18 +904,30 @@ export default function Personnel() {
           base: t.base + r.base, presta: t.presta + r.presta, produit: t.produit + r.produit,
           prime: t.prime + r.prime, tip: t.tip + r.tip, avance: t.avance + r.avance, net: t.net + r.net,
         }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, avance: 0, net: 0 });
+        const staff = yearFor;
         return (
-          <Modal title={`Salaire ${year} · ${yearFor.name}`} onClose={() => setYearFor(null)} width={820}>
-            <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-              Détail mois par mois — base fixe, commissions calculées, primes attribuées, avances déduites.
+          <Modal title={`Salaire ${year} · ${staff.name}`} onClose={() => setYearFor(null)} width={980}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5, maxWidth: 520 }}>
+                Détail mois par mois. « Confirmer » enregistre le règlement avec votre nom et l'horodatage — une preuve datée. « Bulletin » génère le PDF à remettre.
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen</span>
+                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 34, width: 140 }}>
+                  {PAY_METHODS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </Select>
+                <Button variant="copper" size="sm" onClick={() => void downloadYearlyPayslip(staff, year)}>Bulletin annuel · PDF</Button>
+              </div>
             </div>
             <div className="mnd-scroll-x">
               <table className="tre-table tre-year">
                 <thead>
-                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Net versé</th></tr>
+                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Net versé</th><th>Règlement</th></tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {rows.map((r) => {
+                    const conf = confirmOf(r.mk, staff.id);
+                    return (
                     <tr key={r.mk}>
                       <td style={{ textTransform: 'capitalize' }}>{shortMonth(r.mk)}</td>
                       <td className="mnd-muted">{fmtMoney(r.base, currency)}</td>
@@ -815,8 +937,24 @@ export default function Personnel() {
                       <td>{fmtMoney(r.tip, currency)}</td>
                       <td>{r.avance > 0 ? `− ${fmtMoney(r.avance, currency)}` : '—'}</td>
                       <td className="num">{fmtMoney(r.net, currency)}</td>
+                      <td>
+                        <div className="tre-pay">
+                          {conf ? (
+                            <span className="tre-pay__ok" title={`Réglé ${fmtStamp(conf.paidAt)}${conf.method ? ` · ${conf.method}` : ''}`}>
+                              ✓ {conf.byName}
+                              {isSouverain && (
+                                <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 6 }} onClick={() => unconfirmPay(r.mk, staff.id)} title="Annuler la confirmation">↺</button>
+                              )}
+                            </span>
+                          ) : (
+                            <button className="tre-link-btn" onClick={() => confirmPay(staff, r.mk, r.net)}>Confirmer</button>
+                          )}
+                          <button className="tre-link-btn" onClick={() => void downloadMonthlyPayslip(staff, r.mk)}>Bulletin</button>
+                        </div>
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   <tr style={{ fontWeight: 500 }}>
                     <td>Total {year}</td>
                     <td className="mnd-muted">{fmtMoney(tot.base, currency)}</td>
@@ -826,6 +964,7 @@ export default function Personnel() {
                     <td>{fmtMoney(tot.tip, currency)}</td>
                     <td>{tot.avance > 0 ? `− ${fmtMoney(tot.avance, currency)}` : '—'}</td>
                     <td className="num">{fmtMoney(tot.net, currency)}</td>
+                    <td>{months12Paid(staff.id, year)} / 12 réglés</td>
                   </tr>
                 </tbody>
               </table>
