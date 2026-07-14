@@ -408,3 +408,8 @@
 .tre-rate__field { display: flex; align-items: center; gap: 6px; }
 .tre-rate__pct { font-family: var(--font-serif); font-size: 15px; color: var(--ink-soft); }
 @media (max-width: 620px) { .tre-rates { grid-template-columns: 1fr 1fr; } }
+
+/* Détail annuel du salaire — mois sans activité en retrait. */
+.tre-year td { white-space: nowrap; }
+.tre-year--muted td { color: var(--ink-soft); opacity: 0.7; }
+.tre-year--muted td.mnd-copper { color: var(--ink-soft); }

@@ -31,11 +31,31 @@ const commRatesStore = createStore<CommRates>('mnd_commission_rates', DEFAULT_CO
 bindDocument(commRatesStore, 'mnd_commission_rates');
 const useCommRates = () => useStore(commRatesStore);
 
-/* Ajustements manuels par mois + maître : `${AAAA-MM}:${staffId}` → montants forcés. */
-type PaieOverride = { commPresta?: number; commProduit?: number; prime?: number };
+/* Ajustements manuels des commissions par mois + maître : `${AAAA-MM}:${staffId}`. */
+type PaieOverride = { commPresta?: number; commProduit?: number };
 const overridesStore = createStore<Record<string, PaieOverride>>('mnd_paie_overrides', {});
 bindDocument(overridesStore, 'mnd_paie_overrides');
 const useOverrides = () => useStore(overridesStore);
+
+/* Primes typées — staffId → liste. Chaque prime est datée (donc rattachée à un mois). */
+type PrimeType = 'fin_annee' | 'performance' | 'nuit' | 'autre';
+type Prime = { id: string; type: PrimeType; label?: string; amountXof: number; date: string; note?: string };
+const primesStore = createStore<Record<string, Prime[]>>('mnd_primes', {});
+bindDocument(primesStore, 'mnd_primes');
+const usePrimes = () => useStore(primesStore);
+const PRIME_LABEL: Record<PrimeType, string> = {
+  fin_annee: 'Fin d’année', performance: 'Performance', nuit: 'Nuit', autre: 'Autre',
+};
+const PRIME_TYPES: [PrimeType, string][] = [
+  ['performance', 'Performance'], ['nuit', 'Nuit'], ['fin_annee', 'Fin d’année'], ['autre', 'Autre'],
+];
+
+/** Les 12 mois d'une année (AAAA-MM), de janvier à décembre. */
+const yearMonths = (year: number): string[] =>
+  Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+/** Libellé court d'un mois AAAA-MM (« janv. »). */
+const shortMonth = (mk: string): string =>
+  new Date(`${mk}-15T00:00:00`).toLocaleDateString('fr-FR', { month: 'short' });
 
 /** Mois de paie courant, clé AAAA-MM. */
 const payMonth = (): string => new Date().toISOString().slice(0, 7);
@@ -72,14 +92,20 @@ export default function Personnel() {
   const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
   const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
 
-  /* Commissions — taux, ajustements, et sources (rituels honorés + ventes). */
+  /* Commissions & primes — taux, ajustements, primes typées, sources. */
   const [rates, setRates] = useCommRates();
   const [overrides, setOverrides] = useOverrides();
+  const [primes, setPrimes] = usePrimes();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [services] = useServices();
   const [adjustFor, setAdjustFor] = useState<StaffMember | null>(null);
-  const [adjustForm, setAdjustForm] = useState({ presta: '', produit: '', prime: '' });
+  const [adjustForm, setAdjustForm] = useState({ presta: '', produit: '' });
+  const [primeFor, setPrimeFor] = useState<StaffMember | null>(null);
+  const [primeForm, setPrimeForm] = useState<{ type: PrimeType; amount: string; date: string; note: string }>(
+    { type: 'performance', amount: '', date: new Date().toISOString().slice(0, 10), note: '' },
+  );
+  const [yearFor, setYearFor] = useState<StaffMember | null>(null);
   const M = payMonth();
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
@@ -87,57 +113,62 @@ export default function Personnel() {
   const advancesFor = (id: string) => advances[id] ?? [];
   const totalAdvances = (id: string) => advancesFor(id).reduce((a, x) => a + x.amountXof, 0);
 
-  /* Commission auto : par maître, sur le mois de paie courant. Prestations =
-     rituels honorés × taux du palier (remise appliquée, une série comptée une
-     fois). Produits = factures produits qui lui sont attribuées × taux produits. */
-  const auto = useMemo(() => {
-    const byId = new Map(services.map((s) => [s.id, s]));
-    const rate = (p: string) =>
-      (p === 'Fondation' ? rates.fondation : p === 'Élévation' ? rates.elevation : rates.souverainete) / 100;
-    const linked = new Set<string>();
-    for (const a of appts) if (a.invoiceId) linked.add(a.invoiceId);
-    const map = new Map<string, { presta: number; produit: number }>();
-    for (const m of team) {
-      let presta = 0;
-      for (const a of appts) {
-        if (a.branchId !== branch.id || a.master !== m.name || a.status !== 'honoré') continue;
-        if (a.date.slice(0, 7) !== M) continue;
-        if (a.seriesIndex && a.seriesIndex > 1) continue;
-        const disc = 1 - (a.discountPct ?? 0) / 100;
-        for (const id of a.serviceIds) {
-          const s = byId.get(id);
-          if (s) presta += Math.round(s.priceXof * disc * rate(s.palier));
-        }
+  /* Commission d'un maître pour un mois donné (AAAA-MM) — réutilisable pour le
+     mois courant et pour le détail annuel. Prestations = rituels honorés × taux
+     du palier (remise appliquée, une série comptée une fois). Produits =
+     factures produits attribuées × taux produits. */
+  const byId = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
+  const linkedInv = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of appts) if (a.invoiceId) s.add(a.invoiceId);
+    return s;
+  }, [appts]);
+  const paletteRate = (p: string) =>
+    (p === 'Fondation' ? rates.fondation : p === 'Élévation' ? rates.elevation : rates.souverainete) / 100;
+  const computeComm = (m: StaffMember, month: string) => {
+    let presta = 0;
+    let produit = 0;
+    for (const a of appts) {
+      if (a.branchId !== branch.id || a.master !== m.name || a.status !== 'honoré') continue;
+      if (a.date.slice(0, 7) !== month || (a.seriesIndex && a.seriesIndex > 1)) continue;
+      const disc = 1 - (a.discountPct ?? 0) / 100;
+      for (const id of a.serviceIds) {
+        const s = byId.get(id);
+        if (s) presta += Math.round(s.priceXof * disc * paletteRate(s.palier));
       }
-      let produit = 0;
-      for (const i of invoices) {
-        if (i.branchId !== branch.id || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
-        if (i.date.slice(0, 7) !== M || linked.has(i.id)) continue;
-        if (i.lines.some((l) => l.label.startsWith('Règlement ·'))) continue;
-        produit += Math.round(invoiceTotal(i) * (rates.produits / 100));
-      }
-      map.set(m.id, { presta, produit });
     }
-    return map;
-  }, [appts, invoices, services, team, rates, branch.id, M]);
+    for (const i of invoices) {
+      if (i.branchId !== branch.id || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
+      if (i.date.slice(0, 7) !== month || linkedInv.has(i.id)) continue;
+      if (i.lines.some((l) => l.label.startsWith('Règlement ·'))) continue;
+      produit += Math.round(invoiceTotal(i) * (rates.produits / 100));
+    }
+    return { presta, produit };
+  };
+
+  /* Primes typées d'un maître pour un mois. */
+  const primesForMonth = (id: string, month: string) => (primes[id] ?? []).filter((p) => p.date.slice(0, 7) === month);
+  const primeTotalMonth = (id: string, month: string) => primesForMonth(id, month).reduce((a, p) => a + p.amountXof, 0);
+  const advancesForMonth = (id: string, month: string) => advancesFor(id).filter((a) => a.date.slice(0, 7) === month);
+  const advancesTotalMonth = (id: string, month: string) => advancesForMonth(id, month).reduce((a, x) => a + x.amountXof, 0);
 
   const ovOf = (id: string): PaieOverride => overrides[`${M}:${id}`] ?? {};
-  const commPrestaOf = (m: StaffMember) => ovOf(m.id).commPresta ?? auto.get(m.id)?.presta ?? 0;
-  const commProduitOf = (m: StaffMember) => ovOf(m.id).commProduit ?? auto.get(m.id)?.produit ?? 0;
-  const primeOf = (m: StaffMember) => ovOf(m.id).prime ?? m.primeXof ?? 0;
+  const commPrestaOf = (m: StaffMember) => ovOf(m.id).commPresta ?? computeComm(m, M).presta;
+  const commProduitOf = (m: StaffMember) => ovOf(m.id).commProduit ?? computeComm(m, M).produit;
+  const primeOf = (m: StaffMember) => primeTotalMonth(m.id, M);
   const isAdjusted = (m: StaffMember) => {
     const o = ovOf(m.id);
-    return o.commPresta != null || o.commProduit != null || o.prime != null;
+    return o.commPresta != null || o.commProduit != null;
   };
   const netAVerserEff = (m: StaffMember) => m.salaireXof + commPrestaOf(m) + commProduitOf(m) + primeOf(m);
-  const netApresAvances = (m: StaffMember) => netAVerserEff(m) - totalAdvances(m.id);
+  const netApresAvances = (m: StaffMember) => netAVerserEff(m) - advancesTotalMonth(m.id, M);
 
   const setRate = (k: keyof CommRates, v: string) =>
     setRates((r) => ({ ...r, [k]: Math.max(0, Math.min(100, Math.round(Number(v) || 0))) }));
 
   const openAdjust = (m: StaffMember) => {
     setAdjustFor(m);
-    setAdjustForm({ presta: String(commPrestaOf(m)), produit: String(commProduitOf(m)), prime: String(primeOf(m)) });
+    setAdjustForm({ presta: String(commPrestaOf(m)), produit: String(commProduitOf(m)) });
   };
   const saveAdjust = () => {
     if (!adjustFor) return;
@@ -146,11 +177,27 @@ export default function Personnel() {
       [`${M}:${adjustFor.id}`]: {
         commPresta: parseXof(adjustForm.presta),
         commProduit: parseXof(adjustForm.produit),
-        prime: parseXof(adjustForm.prime),
       },
     }));
     setAdjustFor(null);
   };
+
+  /* Primes — ajout typé et retrait. */
+  const openPrime = (m: StaffMember) => {
+    setPrimeFor(m);
+    setPrimeForm({ type: 'performance', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  };
+  const savePrime = () => {
+    if (!primeFor) return;
+    const amountXof = parseXof(primeForm.amount);
+    if (amountXof <= 0) return;
+    const p: Prime = { id: `pr-${uid()}`, type: primeForm.type, amountXof, date: primeForm.date, note: primeForm.note.trim() || undefined };
+    const sid = primeFor.id;
+    setPrimes((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), p] }));
+    setPrimeFor(null);
+  };
+  const removePrime = (staffId: string, primeId: string) =>
+    setPrimes((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((p) => p.id !== primeId) }));
   const resetAdjust = (id: string) =>
     setOverrides((prev) => {
       const next = { ...prev };
@@ -183,7 +230,7 @@ export default function Personnel() {
   }, [team]);
 
   const payrollTotal = team.reduce((a, m) => a + netApresAvances(m), 0);
-  const advancesTotal = team.reduce((a, m) => a + totalAdvances(m.id), 0);
+  const advancesTotal = team.reduce((a, m) => a + advancesTotalMonth(m.id, M), 0);
 
   const openNew = () => { setEditId(null); setForm(emptyForm(branch.id)); setModalOpen(true); };
   const openEdit = (m: StaffMember) => {
@@ -324,8 +371,9 @@ export default function Personnel() {
                 </thead>
                 <tbody>
                   {team.map((m) => {
-                    const list = advancesFor(m.id);
-                    const adv = totalAdvances(m.id);
+                    const list = advancesForMonth(m.id, M);
+                    const adv = advancesTotalMonth(m.id, M);
+                    const mPrimes = primesForMonth(m.id, M);
                     return (
                     <tr key={m.id}>
                       <td>
@@ -333,16 +381,37 @@ export default function Personnel() {
                           <span className="tre-avatar">{m.name.slice(0, 1)}</span>
                           <span>
                             <span style={{ display: 'block' }}>{m.name}</span>
-                            <button className="tre-link-btn" onClick={() => openAdjust(m)}>
-                              {isAdjusted(m) ? '● ajusté · modifier' : 'Ajuster comm./prime'}
-                            </button>
+                            <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                              <button className="tre-link-btn" onClick={() => openAdjust(m)}>
+                                {isAdjusted(m) ? '● comm. ajustée' : 'Ajuster comm.'}
+                              </button>
+                              <button className="tre-link-btn" onClick={() => setYearFor(m)}>Détail annuel</button>
+                            </span>
                           </span>
                         </span>
                       </td>
                       <td className="mnd-muted">{fmtMoney(m.salaireXof, currency)}</td>
                       <td>{fmtMoney(commPrestaOf(m), currency)}</td>
                       <td>{fmtMoney(commProduitOf(m), currency)}</td>
-                      <td className="mnd-copper">{fmtMoney(primeOf(m), currency)}</td>
+                      <td className="mnd-copper">
+                        {mPrimes.length > 0 ? (
+                          <div className="tre-adv-cell">
+                            <span className="tre-adv-total" style={{ color: 'var(--color-copper)' }}>{fmtMoney(primeOf(m), currency)}</span>
+                            <ul className="tre-adv-list">
+                              {mPrimes.map((p) => (
+                                <li key={p.id} className="tre-adv-item">
+                                  <span className="tre-adv-amt" style={{ color: 'var(--color-copper)' }}>{fmtMoney(p.amountXof, currency)}</span>
+                                  <span className="mnd-muted tre-adv-meta">{PRIME_LABEL[p.type]}{p.note ? ` · ${p.note}` : ''}</span>
+                                  <button className="tre-link-btn tre-link-btn--danger tre-adv-rm" onClick={() => removePrime(m.id, p.id)} aria-label="Retirer la prime">×</button>
+                                </li>
+                              ))}
+                            </ul>
+                            <button className="tre-link-btn" onClick={() => openPrime(m)}>+ Prime</button>
+                          </div>
+                        ) : (
+                          <button className="tre-link-btn" onClick={() => openPrime(m)}>+ Prime</button>
+                        )}
+                      </td>
                       <td>
                         {adv > 0 ? (
                           <div className="tre-adv-cell">
@@ -356,6 +425,7 @@ export default function Personnel() {
                                 </li>
                               ))}
                             </ul>
+                            <button className="tre-link-btn" onClick={() => openAvance(m)}>+ Avance</button>
                           </div>
                         ) : (
                           <button className="tre-link-btn" onClick={() => openAvance(m)}>+ Avance sur salaire</button>
@@ -542,10 +612,10 @@ export default function Personnel() {
             <Field label="Note (facultatif)">
               <Input value={avanceForm.note} onChange={(e) => setAvanceForm({ ...avanceForm, note: e.target.value })} placeholder="Motif de l’avance…" />
             </Field>
-            {totalAdvances(avanceFor.id) > 0 && (
+            {advancesTotalMonth(avanceFor.id, M) > 0 && (
               <div className="tre-inline-note">
                 <span className="mark">✦</span>
-                <span>Déjà avancé ce mois — {fmtMoney(totalAdvances(avanceFor.id), currency)}.</span>
+                <span>Déjà avancé ce mois — {fmtMoney(advancesTotalMonth(avanceFor.id, M), currency)}.</span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -559,26 +629,23 @@ export default function Personnel() {
       )}
 
       {adjustFor && (
-        <Modal title="Ajuster la rémunération." onClose={() => setAdjustFor(null)} width={480}>
+        <Modal title="Ajuster les commissions." onClose={() => setAdjustFor(null)} width={460}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{adjustFor.name}</strong> · paie de {monthLabel()}. Les montants saisis remplacent le calcul automatique de ce mois.
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{adjustFor.name}</strong> · paie de {monthLabel()}. Les montants saisis remplacent le calcul automatique de ce mois. (Les primes se gèrent à part.)
             </div>
             <div className="tre-inline-note">
               <span className="mark">✦</span>
               <span>
-                Calcul auto : prestations {fmtMoney(auto.get(adjustFor.id)?.presta ?? 0, currency)} · produits {fmtMoney(auto.get(adjustFor.id)?.produit ?? 0, currency)}.
+                Calcul auto : prestations {fmtMoney(computeComm(adjustFor, M).presta, currency)} · produits {fmtMoney(computeComm(adjustFor, M).produit, currency)}.
               </span>
             </div>
-            <div className="tr-grid tr-grid--3">
+            <div className="tr-grid tr-grid--2">
               <Field label="Comm. prestations">
                 <Input value={adjustForm.presta} inputMode="numeric" onChange={(e) => setAdjustForm({ ...adjustForm, presta: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
               <Field label="Comm. produits">
                 <Input value={adjustForm.produit} inputMode="numeric" onChange={(e) => setAdjustForm({ ...adjustForm, produit: e.target.value.replace(/[^0-9]/g, '') })} />
-              </Field>
-              <Field label="Prime">
-                <Input value={adjustForm.prime} inputMode="numeric" onChange={(e) => setAdjustForm({ ...adjustForm, prime: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4, alignItems: 'center' }}>
@@ -593,6 +660,93 @@ export default function Personnel() {
           </div>
         </Modal>
       )}
+
+      {primeFor && (
+        <Modal title="Attribuer une prime." onClose={() => setPrimeFor(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{primeFor.name}</strong> · ajoutée à la paie du mois de la date choisie.
+            </div>
+            <Field label="Type de prime">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {PRIME_TYPES.map(([k, label]) => (
+                  <button key={k} type="button" className={`tre-chip ${primeForm.type === k ? 'is-on' : ''}`} onClick={() => setPrimeForm({ ...primeForm, type: k })}>{label}</button>
+                ))}
+              </div>
+            </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
+                <Input value={primeForm.amount} inputMode="numeric" placeholder="25000" onChange={(e) => setPrimeForm({ ...primeForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
+              </Field>
+              <Field label="Date">
+                <Input type="date" value={primeForm.date} onChange={(e) => setPrimeForm({ ...primeForm, date: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Note (facultatif)">
+              <Input value={primeForm.note} onChange={(e) => setPrimeForm({ ...primeForm, note: e.target.value })} placeholder="Motif — ex. objectif de rétention atteint" />
+            </Field>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setPrimeFor(null)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={savePrime} disabled={!primeForm.amount || parseXof(primeForm.amount) <= 0}>
+                Attribuer la prime
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {yearFor && (() => {
+        const year = new Date().getFullYear();
+        const rows = yearMonths(year).map((mk) => {
+          const c = computeComm(yearFor, mk);
+          const pr = primeTotalMonth(yearFor.id, mk);
+          const av = advancesTotalMonth(yearFor.id, mk);
+          const base = yearFor.salaireXof;
+          const net = base + c.presta + c.produit + pr - av;
+          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, avance: av, net };
+        });
+        const active = rows.filter((r) => r.presta || r.produit || r.prime || r.avance);
+        const tot = rows.reduce((t, r) => ({
+          base: t.base + r.base, presta: t.presta + r.presta, produit: t.produit + r.produit,
+          prime: t.prime + r.prime, avance: t.avance + r.avance, net: t.net + r.net,
+        }), { base: 0, presta: 0, produit: 0, prime: 0, avance: 0, net: 0 });
+        return (
+          <Modal title={`Salaire ${year} · ${yearFor.name}`} onClose={() => setYearFor(null)} width={820}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+              Détail mois par mois — base fixe, commissions calculées, primes attribuées, avances déduites.
+            </div>
+            <div className="mnd-scroll-x">
+              <table className="tre-table tre-year">
+                <thead>
+                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Avances</th><th>Net versé</th></tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.mk} className={active.includes(r) ? '' : 'tre-year--muted'}>
+                      <td style={{ textTransform: 'capitalize' }}>{shortMonth(r.mk)}</td>
+                      <td className="mnd-muted">{fmtMoney(r.base, currency)}</td>
+                      <td>{fmtMoney(r.presta, currency)}</td>
+                      <td>{fmtMoney(r.produit, currency)}</td>
+                      <td className="mnd-copper">{fmtMoney(r.prime, currency)}</td>
+                      <td>{r.avance > 0 ? `− ${fmtMoney(r.avance, currency)}` : '—'}</td>
+                      <td className="num">{fmtMoney(r.net, currency)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ fontWeight: 500 }}>
+                    <td>Total {year}</td>
+                    <td className="mnd-muted">{fmtMoney(tot.base, currency)}</td>
+                    <td>{fmtMoney(tot.presta, currency)}</td>
+                    <td>{fmtMoney(tot.produit, currency)}</td>
+                    <td className="mnd-copper">{fmtMoney(tot.prime, currency)}</td>
+                    <td>{tot.avance > 0 ? `− ${fmtMoney(tot.avance, currency)}` : '—'}</td>
+                    <td className="num">{fmtMoney(tot.net, currency)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
