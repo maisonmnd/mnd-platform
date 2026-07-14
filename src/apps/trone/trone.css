@@ -285,6 +285,14 @@ body[data-surface='trone'] {
 
 /* En-tête de page standard */
 .tr-page-head { margin-bottom: var(--space-6); }
+.tr-page-head--actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.tr-page-head__head { min-width: 0; }
+.tr-page-head__actions { display: flex; gap: 12px; flex: none; }
 .tr-page-head h2 {
   font-size: var(--text-h2);
   margin-top: var(--space-2);
@@ -342,10 +350,16 @@ body[data-surface='trone'] {
   .tr-top__trail { font-size: 10px; letter-spacing: 0.1em; order: 2; flex: 1 1 100%; }
   .tr-top__chip { display: none; }
 
-  /* Contenu pleine largeur */
-  .tr-content { padding: 20px 16px 40px; }
-  .tr-content__inner { max-width: none; }
+  /* Contenu pleine largeur — et jamais de débordement horizontal de la page. */
+  .tr-content { padding: 20px 16px 40px; overflow-x: hidden; }
+  .tr-content__inner { max-width: none; min-width: 0; }
   .tr-page-head h1 { font-size: clamp(30px, 8vw, 42px); }
+  .tr-page-head h2 { font-size: clamp(28px, 7.5vw, 40px); }
+
+  /* En-tête : les actions passent sous le titre et se partagent la largeur. */
+  .tr-page-head--actions { flex-wrap: wrap; gap: 14px; }
+  .tr-page-head__actions { flex: 1 1 100%; flex-wrap: wrap; }
+  .tr-page-head__actions > * { flex: 1 1 auto; }
 
   /* Grilles empilées */
   .tr-grid--2, .tr-grid--3, .tr-grid--4 { grid-template-columns: 1fr; }

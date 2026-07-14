@@ -352,8 +352,8 @@
 }
 .trv-doc-item:hover { background: var(--hover-veil); }
 .trv-doc-item.is-active { background: var(--surface-card); border-color: var(--color-indigo); border-left-color: var(--color-copper); }
-.trv-doc-item .cl { display: block; font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); }
-.trv-doc-item .no { display: block; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-soft); margin-top: 1px; }
+.trv-doc-item .cl { display: block; font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trv-doc-item .no { display: block; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-soft); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trv-doc-item .amt { display: block; font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
 
 .trv-status {
