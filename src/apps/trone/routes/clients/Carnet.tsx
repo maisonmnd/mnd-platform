@@ -46,6 +46,12 @@ export default function Carnet() {
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
 
+  /* Suppression définitive — réservée aux rendez-vous annulés, pour nettoyer le carnet. */
+  const deleteAppt = (a: Appointment) => {
+    if (!window.confirm('Supprimer définitivement ce rendez-vous annulé ? Cette action est irréversible.')) return;
+    appointmentsStore.set((prev) => prev.filter((x) => x.id !== a.id));
+  };
+
   const duplicateLast = (clientId: string) => {
     const last = appts
       .filter((a) => a.clientId === clientId && a.status !== 'annulé')
@@ -123,6 +129,11 @@ export default function Carnet() {
                 {canCancel && (
                   <button className="is-danger" onClick={() => { setStatus(a.id, 'annulé'); setMenuFor(null); }}>
                     Annuler le rendez-vous
+                  </button>
+                )}
+                {a.status === 'annulé' && (
+                  <button className="is-danger" onClick={() => { deleteAppt(a); setMenuFor(null); }}>
+                    Supprimer définitivement
                   </button>
                 )}
               </div>
