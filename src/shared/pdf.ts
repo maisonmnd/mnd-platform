@@ -269,3 +269,109 @@ export async function summaryPdf(o: {
   doc.save(o.filename);
   return o.filename;
 }
+
+/* ---------- Bulletin de paie (mise en page soignée + signature & tampon) ---------- */
+
+export type PayslipRow = { label: string; value: string; strong?: boolean; sub?: boolean };
+export type PayslipData = {
+  houseName: string;
+  houseSub?: string;
+  employeeName: string;
+  role?: string;
+  period: string;
+  rows: PayslipRow[];
+  net: string;
+  paid?: { line: string; by: string };
+  gerantName?: string;
+  filename: string;
+};
+
+/** Bulletin de paie MND — en-tête au sceau, encadré NET, zone signature Gérant +
+    tampon de la Maison + mention PAYÉ. Toutes les valeurs doivent être en ASCII
+    (espaces simples) : le PDF n'affiche pas les espaces fins Unicode. */
+export async function payslipPdf(d: PayslipData): Promise<string> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210;
+  const M = 18;
+  let y = 22;
+
+  // — En-tête —
+  const seal = await loadSeal();
+  if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13); } catch { /* indisponible */ } }
+  const nameX = seal ? M + 16 : M;
+  doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
+  doc.text(d.houseName, nameX, y);
+  if (d.houseSub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(d.houseSub, nameX, y + 5); }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(COPPER);
+  doc.text('BULLETIN DE PAIE', W - M, y - 1, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
+  doc.text(d.period, W - M, y + 4.5, { align: 'right' });
+  y += 12;
+  doc.setDrawColor(COPPER); doc.setLineWidth(0.6); doc.line(M, y, W - M, y);
+  y += 11;
+
+  // — Salarié —
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(SOFT); doc.text('MAÎTRE', M, y);
+  doc.setFont('times', 'normal'); doc.setFontSize(17); doc.setTextColor(INK); doc.text(d.employeeName, M, y + 8);
+  if (d.role) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT); doc.text(d.role, M, y + 13.5); }
+  y += 22;
+
+  // — Rémunération —
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(COPPER); doc.text('RÉMUNÉRATION', M, y); y += 8;
+  for (const r of d.rows) {
+    doc.setFont('helvetica', r.strong ? 'bold' : 'normal');
+    doc.setFontSize(r.sub ? 9.5 : 10.5);
+    doc.setTextColor(r.sub ? SOFT : INK);
+    doc.text(r.label, M + (r.sub ? 4 : 0), y);
+    doc.setTextColor(r.strong ? INDIGO : SOFT);
+    doc.text(r.value, W - M, y, { align: 'right' });
+    doc.setDrawColor(232); doc.setLineWidth(0.1); doc.line(M, y + 2.4, W - M, y + 2.4);
+    y += r.sub ? 6 : 7.5;
+  }
+  y += 4;
+
+  // — Encadré NET À VERSER —
+  doc.setFillColor(INDIGO); doc.roundedRect(M, y, W - 2 * M, 17, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor('#C9A98A'); doc.text('NET À VERSER', M + 7, y + 10.5);
+  doc.setFont('times', 'normal'); doc.setFontSize(19); doc.setTextColor('#FFFFFF'); doc.text(d.net, W - M - 7, y + 11.5, { align: 'right' });
+  y += 26;
+
+  // — Règlement —
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(COPPER); doc.text('RÈGLEMENT', M, y); y += 6.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(INK);
+  doc.text(d.paid ? d.paid.line : 'En attente de règlement — non confirmé à ce jour.', M, y); y += 5.5;
+  if (d.paid) { doc.setTextColor(SOFT); doc.setFontSize(9); doc.text(d.paid.by, M, y); }
+
+  // — Zone de signatures (bas de page) —
+  const zY = 238;
+  doc.setDrawColor(210); doc.setLineWidth(0.2); doc.line(M, zY - 8, W - M, zY - 8);
+
+  // Le Gérant (gauche)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(SOFT); doc.text('LE GÉRANT', M, zY);
+  doc.setDrawColor(170); doc.setLineWidth(0.35); doc.line(M, zY + 22, M + 62, zY + 22);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT);
+  doc.text(`Signature${d.gerantName ? ` · ${d.gerantName}` : ''}`, M, zY + 27);
+
+  // Tampon de la Maison (droite) — emplacement réservé (double cercle cuivre)
+  const cx = W - M - 22; const cy = zY + 13; const R = 17;
+  doc.setDrawColor(COPPER); doc.setLineWidth(0.6); doc.circle(cx, cy, R, 'S'); doc.setLineWidth(0.3); doc.circle(cx, cy, R - 2.6, 'S');
+  doc.setFont('times', 'normal'); doc.setFontSize(12); doc.setTextColor(COPPER); doc.text('MND', cx, cy + 0.5, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.text('MAISON MND', cx, cy + 5, { align: 'center' });
+  doc.setFontSize(7.5); doc.setTextColor(SOFT); doc.text('Tampon de la Maison', cx, zY, { align: 'center' });
+
+  // Mention PAYÉ (centre) — cadre cuivre si réglé, sinon EN ATTENTE grisé
+  const px = W / 2 - 20; const py = zY + 4;
+  if (d.paid) {
+    doc.setDrawColor(COPPER); doc.setLineWidth(0.9); doc.roundedRect(px, py, 40, 15, 2, 2, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(COPPER); doc.text('PAYÉ', px + 20, py + 10, { align: 'center' });
+  } else {
+    doc.setDrawColor(200); doc.setLineWidth(0.5); doc.roundedRect(px, py, 40, 15, 2, 2, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(SOFT); doc.text('EN ATTENTE', px + 20, py + 9.5, { align: 'center' });
+  }
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
+  doc.text('Document généré par Le Trône · Maison MND', W / 2, 288, { align: 'center' });
+  doc.save(d.filename);
+  return d.filename;
+}

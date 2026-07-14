@@ -7,7 +7,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
-import { summaryPdf, type SummarySection } from '../../../../shared/pdf';
+import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk,
@@ -281,7 +281,14 @@ export default function Personnel() {
     });
   };
 
-  /* Bulletin de paie mensuel (PDF) — remis à tout moment. */
+  /* Montant en ASCII pur pour le PDF (jsPDF n'affiche pas les espaces fins Unicode). */
+  const pdfMoney = (n: number) => {
+    const neg = n < 0;
+    const grouped = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `${neg ? '- ' : ''}${grouped} ${currency === 'XOF' ? 'F' : currency}`;
+  };
+
+  /* Bulletin de paie mensuel (PDF) — mise en page soignée, signature & tampon. */
   const downloadMonthlyPayslip = async (m: StaffMember, month: string) => {
     const c = computeComm(m, month);
     const prime = primeTotalMonth(m.id, month);
@@ -290,28 +297,25 @@ export default function Personnel() {
     const net = netForMonth(m, month);
     const conf = confirmOf(month, m.id);
     const prList = primesForMonth(m.id, month);
-    const sections: SummarySection[] = [
-      { heading: 'Rémunération', rows: [
-        { label: 'Salaire de base', value: fmtMoney(m.salaireXof, currency) },
-        { label: 'Commission prestations', value: fmtMoney(c.presta, currency) },
-        { label: 'Commission produits', value: fmtMoney(c.produit, currency) },
-        { label: 'Primes', value: fmtMoney(prime, currency) },
-        { label: 'Pourboires', value: fmtMoney(tip, currency) },
-        { label: 'Avances déduites', value: av > 0 ? `− ${fmtMoney(av, currency)}` : fmtMoney(0, currency) },
-        { label: 'NET À VERSER', value: fmtMoney(net, currency) },
-      ] },
+    const rows: PayslipRow[] = [
+      { label: 'Salaire de base', value: pdfMoney(m.salaireXof) },
+      { label: 'Commission prestations', value: pdfMoney(c.presta) },
+      { label: 'Commission produits', value: pdfMoney(c.produit) },
+      { label: 'Primes', value: pdfMoney(prime) },
+      ...prList.map((p) => ({ label: `— ${PRIME_LABEL[p.type]}${p.note ? ` · ${p.note}` : ''}`, value: pdfMoney(p.amountXof), sub: true })),
+      { label: 'Pourboires', value: pdfMoney(tip) },
+      { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av).replace('- ', '')}` : pdfMoney(0) },
     ];
-    if (prList.length) sections.push({ heading: 'Détail des primes', rows: prList.map((p) => ({ label: PRIME_LABEL[p.type] + (p.note ? ` · ${p.note}` : ''), value: fmtMoney(p.amountXof, currency) })) });
-    sections.push({ heading: 'Règlement', rows: conf
-      ? [{ label: `Réglé le ${fmtStamp(conf.paidAt)}${conf.method ? ` · ${conf.method}` : ''}` }, { label: `Confirmé par ${conf.byName}` }, { label: 'Signature électronique enregistrée par Le Trône.' }]
-      : [{ label: 'En attente de règlement — non confirmé à ce jour.' }] });
-    await summaryPdf({
-      eyebrow: 'Bulletin de paie',
-      title: m.name,
-      houseName: branch.name,
-      meta: [`Période · ${cap(monthTitle(month))}`, m.role].filter(Boolean),
-      sections,
-      footer: conf ? `Réglé · ${fmtStamp(conf.paidAt)} · ${conf.byName}` : 'Document généré par Le Trône · Maison MND',
+    await payslipPdf({
+      houseName: 'Maison MND',
+      houseSub: [branch.name, branch.city].filter(Boolean).join(' · '),
+      employeeName: m.name,
+      role: m.role,
+      period: cap(monthTitle(month)),
+      rows,
+      net: pdfMoney(net),
+      paid: conf ? { line: `Réglé le ${fmtStamp(conf.paidAt)}${conf.method ? ` · ${conf.method}` : ''}`, by: `Confirmé par ${conf.byName} · signature électronique enregistrée par Le Trône` } : undefined,
+      gerantName: me?.name ?? undefined,
       filename: `bulletin-${m.name.replace(/\s+/g, '-')}-${month}.pdf`,
     });
   };
@@ -321,19 +325,20 @@ export default function Personnel() {
     const months = yearMonths(year);
     const rows = months.map((mk) => {
       const conf = confirmOf(mk, m.id);
-      return { label: `${cap(shortMonth(mk))}${conf ? `  · réglé ${fmtStamp(conf.paidAt).split(',')[0]}` : ''}`, value: fmtMoney(netForMonth(m, mk), currency) };
+      return { label: `${cap(shortMonth(mk))}${conf ? `  · réglé ${fmtStamp(conf.paidAt).split(',')[0]}` : ''}`, value: pdfMoney(netForMonth(m, mk)) };
     });
     const total = months.reduce((s, mk) => s + netForMonth(m, mk), 0);
     const paid = months.filter((mk) => confirmOf(mk, m.id)).length;
+    const sections: SummarySection[] = [
+      { heading: `Net versé par mois · ${year}`, rows },
+      { heading: 'Total', rows: [{ label: `Net total ${year}`, value: pdfMoney(total) }, { label: 'Mois réglés & confirmés', value: `${paid} / 12` }] },
+    ];
     await summaryPdf({
       eyebrow: 'Récapitulatif annuel de paie',
       title: m.name,
-      houseName: branch.name,
-      meta: [`Année · ${year}`, m.role].filter(Boolean),
-      sections: [
-        { heading: `Net versé par mois · ${year}`, rows },
-        { heading: 'Total', rows: [{ label: `Net total ${year}`, value: fmtMoney(total, currency) }, { label: 'Mois réglés & confirmés', value: `${paid} / 12` }] },
-      ],
+      houseName: 'Maison MND',
+      meta: [`${branch.name} · ${branch.city}`, `Année · ${year} · ${m.role}`],
+      sections,
       footer: 'Document généré par Le Trône · Maison MND',
       filename: `recap-annuel-${m.name.replace(/\s+/g, '-')}-${year}.pdf`,
     });
@@ -913,7 +918,7 @@ export default function Personnel() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen</span>
-                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 34, width: 140 }}>
+                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ height: 36, minWidth: 170 }}>
                   {PAY_METHODS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </Select>
                 <Button variant="copper" size="sm" onClick={() => void downloadYearlyPayslip(staff, year)}>Bulletin annuel · PDF</Button>
