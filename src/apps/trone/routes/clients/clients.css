@@ -6,8 +6,12 @@
   background: var(--surface-card);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  /* overflow visible : le menu ⋯ (absolu) de la dernière ligne n'est pas rogné.
+     Les coins restent arrondis via l'en-tête et la dernière ligne. */
+  overflow: visible;
 }
+.trc-sheet > .trc-sheet__head { border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md); }
+.trc-sheet > *:last-child { border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); }
 .trc-sheet__head {
   display: grid;
   align-items: center;
@@ -958,7 +962,7 @@
 /* Le Carnet en cartes empilées sur téléphone — plus de défilement latéral :
    ligne 1 « date · heure … statut », puis cliente, prestations, montant. */
 @media (max-width: 760px) {
-  .trc-carnet { overflow: hidden; }
+  .trc-carnet { overflow: visible; }
   .trc-carnet .trc-sheet__head { display: none; }
   .trc-carnet .trc-sheet__row {
     display: flex !important;

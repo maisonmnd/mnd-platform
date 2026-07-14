@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -23,31 +23,13 @@ export default function Carnet() {
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  /* Position fixe du menu ⋯ — calculée depuis le bouton pour échapper au
-     rognage (overflow) de la feuille, et basculée vers le haut près du bas. */
-  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
 
-  const openMenu = (e: MouseEvent, id: string) => {
-    if (menuFor === id) { setMenuFor(null); return; }
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const right = Math.max(8, window.innerWidth - r.right);
-    const spaceBelow = window.innerHeight - r.bottom;
-    const openUp = spaceBelow < 280 && r.top > spaceBelow;
-    setMenuPos(openUp ? { bottom: window.innerHeight - r.top + 4, right } : { top: r.bottom + 4, right });
-    setMenuFor(id);
-  };
-
+  /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
   useEffect(() => {
     if (!menuFor) return;
     const close = () => setMenuFor(null);
     window.addEventListener('click', close);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
+    return () => window.removeEventListener('click', close);
   }, [menuFor]);
 
   const { upcoming, past } = useMemo(() => {
@@ -131,14 +113,15 @@ export default function Carnet() {
         <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <StatusPill status={a.status} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
-            <button className="trc-dots" aria-label="Actions" onClick={(e) => openMenu(e, a.id)}>
+            <button
+              className="trc-dots"
+              aria-label="Actions"
+              onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === a.id ? null : a.id); }}
+            >
               ⋯
             </button>
-            {menuFor === a.id && menuPos && (
-              <div
-                className="trc-menu trc-menu--fixed"
-                style={{ position: 'fixed', top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right, left: 'auto' }}
-              >
+            {menuFor === a.id && (
+              <div className="trc-menu">
                 <button onClick={() => { setModal({ appt: a }); setMenuFor(null); }}>Modifier le rendez-vous</button>
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
