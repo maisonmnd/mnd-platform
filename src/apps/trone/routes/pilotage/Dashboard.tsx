@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, fmtMoneyCompact } from '../../../../shared/currency';
+import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, useProducts } from '../../../../shared/catalog';
@@ -142,7 +142,7 @@ export default function Dashboard() {
 
   const revTrend = trend(revenue, prevRevenue);
   const tiles = [
-    { label: 'Revenu mois', value: fmtMoneyCompact(revenue, currency), cap: revTrend.t, up: !revTrend.down },
+    { label: 'Revenu mois', value: fmtMoney(revenue, currency), cap: revTrend.t, up: !revTrend.down },
     { label: 'RDV aujourd’hui', value: String(todayRows.length), cap: 'au carnet de la branche', up: false },
     { label: 'Têtes couronnées', value: String(clients.length), cap: 'rattachées à cette branche', up: false },
     {
@@ -276,7 +276,7 @@ export default function Dashboard() {
 
         <div className="trp-rev">
           <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
-          <div className="trp-rev__value">{fmtMoneyCompact(rev7Total, currency)}</div>
+          <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
           <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} aria-hidden>
             {rev7.map((d, i) => {
               const h = Math.max(4, Math.round((d.total / rev7Max) * 118));
@@ -294,7 +294,7 @@ export default function Dashboard() {
           </svg>
           <div className="trp-rev__foot">
             <span>Meilleur jour · {bestName}</span>
-            <span className="trp-rev__best">{fmtMoneyCompact(best.total, currency)}</span>
+            <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
           </div>
         </div>
       </div>
