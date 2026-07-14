@@ -12,6 +12,7 @@ import {
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from '../clients/_shared';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
+import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
@@ -38,6 +39,12 @@ export default function Dashboard() {
   const today = todayISO();
   const now = new Date();
   const greeting = now.getHours() >= 17 || now.getHours() < 5 ? 'Bonsoir' : 'Bonjour';
+  /* Salutation à la personne connectée — nom du personnel, sinon la partie
+     locale de l'e-mail ; jamais un nom en dur. */
+  const { session } = useAuth();
+  const staff = useStaff();
+  const rawWho = (staff?.name?.trim().split(' ')[0]) || (session?.user?.email?.split('@')[0]) || '';
+  const who = rawWho ? rawWho.charAt(0).toUpperCase() + rawWho.slice(1) : '';
   const thisMonth = monthKey(today);
   const prevMonth = monthKey(addDaysISO(`${thisMonth}-01`, -1));
   const prevMonthName = fromISO(`${prevMonth}-15`).toLocaleDateString('fr-FR', { month: 'long' });
@@ -170,7 +177,7 @@ export default function Dashboard() {
       <h2
         style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}
       >
-        {greeting}, Yéman.
+        {greeting}{who ? `, ${who}` : ''}.
       </h2>
 
       {/* KPI majeurs */}
