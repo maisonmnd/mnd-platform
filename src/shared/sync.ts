@@ -73,11 +73,13 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
 
   /* Filet de fraîcheur : au retour de focus, on re-tire l'état distant
      (throttlé, et jamais pendant qu'une poussée locale est en attente)
-     — couvre un éventuel événement Realtime manqué en arrière-plan. */
+     — couvre un éventuel événement Realtime manqué en arrière-plan.
+     `force` ignore le throttle : utilisé au changement de session (login/logout),
+     car sous RLS les données visibles dépendent de l'utilisateur connecté. */
   let lastRefetch = 0;
-  const refetch = async () => {
+  const refetch = async (force = false) => {
     if (timer) return; // une écriture locale part bientôt — ne pas écraser
-    if (Date.now() - lastRefetch < 15000) return;
+    if (!force && Date.now() - lastRefetch < 15000) return;
     lastRefetch = Date.now();
     const { data, error } = await sb.from(table).select('id,data');
     if (error || !data) return;
@@ -94,6 +96,12 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   window.addEventListener('focus', () => void refetch());
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void refetch();
+  });
+  /* Session prête / connexion / déconnexion : re-tire immédiatement — sous RLS,
+     les lignes visibles dépendent de l'utilisateur, et l'hydratation initiale peut
+     précéder la restauration de la session (INITIAL_SESSION). */
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') void refetch(true);
   });
 
   // 2. Poussée des changements locaux (coalescée).
@@ -147,8 +155,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
 
   const upsert = (val: T) => sb.from('documents').upsert({ key, data: val });
 
-  // 1. Hydratation (ou amorçage).
-  void (async () => {
+  // 1. Hydratation (ou amorçage). `seed` n'est vrai qu'au premier appel :
+  //    les ré-hydratations sur changement de session ne font que lire.
+  const hydrate = async (seed: boolean) => {
     const { data, error } = await sb.from('documents').select('data').eq('key', key).maybeSingle();
     if (error) {
       console.warn(`[mnd-sync] doc ${key} hydrate:`, error.message);
@@ -159,13 +168,18 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       store.set((data as { data: T }).data);
       applyingRemote = false;
       lastPushed = JSON.stringify((data as { data: T }).data);
-    } else {
+    } else if (seed) {
       const local = store.get();
       lastPushed = JSON.stringify(local);
       const { error: upErr } = await upsert(local);
       if (upErr) console.warn(`[mnd-sync] doc ${key} seed:`, upErr.message);
     }
-  })();
+  };
+  void hydrate(true);
+  /* Session prête / connexion / déconnexion : re-lit (droits RLS changés), sans ré-amorcer. */
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') void hydrate(false);
+  });
 
   // 2. Poussée locale (coalescée).
   let timer: ReturnType<typeof setTimeout> | undefined;
