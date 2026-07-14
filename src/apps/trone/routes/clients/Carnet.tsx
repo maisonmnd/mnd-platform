@@ -65,9 +65,9 @@ export default function Carnet() {
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
 
-  /* Suppression définitive — réservée aux rendez-vous annulés, pour nettoyer le carnet. */
+  /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
   const deleteAppt = (a: Appointment) => {
-    if (!window.confirm('Supprimer définitivement ce rendez-vous annulé ? Cette action est irréversible.')) return;
+    if (!window.confirm('Supprimer définitivement ce rendez-vous ? Cette action est irréversible.')) return;
     appointmentsStore.set((prev) => prev.filter((x) => x.id !== a.id));
   };
 
@@ -139,6 +139,7 @@ export default function Carnet() {
                 className="trc-menu trc-menu--fixed"
                 style={{ position: 'fixed', top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right, left: 'auto' }}
               >
+                <button onClick={() => { setModal({ appt: a }); setMenuFor(null); }}>Modifier le rendez-vous</button>
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
                 )}
@@ -153,11 +154,9 @@ export default function Carnet() {
                     Annuler le rendez-vous
                   </button>
                 )}
-                {a.status === 'annulé' && (
-                  <button className="is-danger" onClick={() => { deleteAppt(a); setMenuFor(null); }}>
-                    Supprimer définitivement
-                  </button>
-                )}
+                <button className="is-danger" onClick={() => { deleteAppt(a); setMenuFor(null); }}>
+                  Supprimer définitivement
+                </button>
               </div>
             )}
           </span>
