@@ -108,6 +108,7 @@
   padding: 6px 0;
   animation: mnd-rise var(--dur-fast) var(--ease-soft);
 }
+.trc-menu--fixed { z-index: 200; }
 .trc-menu button {
   display: block;
   width: 100%;
