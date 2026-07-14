@@ -5,8 +5,9 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
+import { expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
-import { payslipPdf, type PayslipRow } from '../../../../shared/pdf';
+import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import './equipe.css';
 
 /* Prestataires extérieurs — répertoire + missions + paiements confirmés (reçu PDF).
@@ -14,7 +15,9 @@ import './equipe.css';
 
 type ProviderMode = 'prestation' | 'forfait' | 'pourcentage' | 'horaire';
 type Provider = { id: string; branchId: string; name: string; specialty?: string; phone?: string; mode: ProviderMode; rateXof?: number; note?: string; archived?: boolean };
-type Mission = { id: string; branchId: string; providerId: string; label: string; date: string; qty?: number; amountXof: number; paidAt?: string; byName?: string; method?: string; note?: string };
+type Mission = { id: string; branchId: string; providerId: string; label: string; date: string; qty?: number; amountXof: number; paidAt?: string; byName?: string; method?: string; note?: string; expenseId?: string };
+
+const CHARGE_CATEGORY = 'Sous-traitance';
 
 const providersStore = createStore<Provider[]>('mnd_prestataires', []);
 bindDocument(providersStore, 'mnd_prestataires');
@@ -53,6 +56,7 @@ export default function Prestataires() {
   );
   const [payFor, setPayFor] = useState<Mission | null>(null);
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
+  const [providerFor, setProviderFor] = useState<Provider | null>(null);
 
   const branchProviders = useMemo(() => providers.filter((p) => p.branchId === branch.id && !p.archived), [providers, branch.id]);
   const branchMissions = useMemo(
@@ -112,20 +116,37 @@ export default function Prestataires() {
     setMissionFor(null);
   };
   const removeMission = (id: string) => {
+    const m = missions.find((x) => x.id === id);
     if (!window.confirm('Retirer cette mission du registre ? Action définitive.')) return;
-    setMissions((prev) => prev.filter((m) => m.id !== id));
+    if (m?.expenseId) expensesStore.set((prev) => prev.filter((e) => e.id !== m.expenseId));
+    setMissions((prev) => prev.filter((x) => x.id !== id));
   };
 
-  /* ---------- Paiement (confirmation signée) ---------- */
+  /* ---------- Paiement (confirmation signée) + charge dans les Dépenses ---------- */
   const confirmPayment = () => {
     if (!payFor) return;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
-    setMissions((prev) => prev.map((m) => (m.id === payFor.id ? { ...m, paidAt: new Date().toISOString(), byName, method: payMethod } : m)));
+    const paidAt = new Date().toISOString();
+    const expId = `exp-ms-${payFor.id}`;
+    const charge: Expense = {
+      id: expId,
+      branchId: payFor.branchId,
+      label: `Prestataire · ${providerName(payFor.providerId)} — ${payFor.label}`,
+      amountXof: payFor.amountXof,
+      date: paidAt.slice(0, 10),
+      cashbox: payMethod,
+      category: CHARGE_CATEGORY,
+    };
+    // La charge remonte dans les Dépenses & la Synthèse (résultat).
+    expensesStore.set((prev) => (prev.some((e) => e.id === expId) ? prev.map((e) => (e.id === expId ? charge : e)) : [charge, ...prev]));
+    expenseCategoriesStore.set((prev) => (prev.some((c) => c.name === CHARGE_CATEGORY) ? prev : [...prev, { id: 'ec-sous-traitance', name: CHARGE_CATEGORY, subs: [] }]));
+    setMissions((prev) => prev.map((m) => (m.id === payFor.id ? { ...m, paidAt, byName, method: payMethod, expenseId: expId } : m)));
     setPayFor(null);
   };
   const unpay = (m: Mission) => {
-    if (!window.confirm('Annuler la confirmation de paiement de cette mission ?')) return;
-    setMissions((prev) => prev.map((x) => (x.id === m.id ? { ...x, paidAt: undefined, byName: undefined, method: undefined } : x)));
+    if (!window.confirm('Annuler la confirmation de paiement ? La charge correspondante sera retirée des Dépenses.')) return;
+    if (m.expenseId) expensesStore.set((prev) => prev.filter((e) => e.id !== m.expenseId));
+    setMissions((prev) => prev.map((x) => (x.id === m.id ? { ...x, paidAt: undefined, byName: undefined, method: undefined, expenseId: undefined } : x)));
   };
 
   /* ---------- Reçu PDF ---------- */
@@ -154,12 +175,44 @@ export default function Prestataires() {
     });
   };
 
+  /* Toutes les missions d'un prestataire (du plus récent au plus ancien). */
+  const missionsForProvider = (id: string) => branchMissions.filter((m) => m.providerId === id);
+  const providerTotals = (id: string) => {
+    const list = missionsForProvider(id);
+    const total = list.reduce((a, m) => a + m.amountXof, 0);
+    const paid = list.filter((m) => m.paidAt).reduce((a, m) => a + m.amountXof, 0);
+    return { count: list.length, total, paid, due: total - paid };
+  };
+  const downloadStatement = async (p: Provider) => {
+    const list = [...missionsForProvider(p.id)].reverse(); // chronologique
+    const t = providerTotals(p.id);
+    const sections: SummarySection[] = [
+      { heading: `Missions · ${list.length}`, rows: list.length
+        ? list.map((m) => ({ label: `${frDate(m.date)} · ${m.label}${m.paidAt ? ` · réglé ${m.method ? `(${m.method})` : ''}` : ' · à payer'}`, value: pdfMoney(m.amountXof) }))
+        : [{ label: 'Aucune mission enregistrée.' }] },
+      { heading: 'Total', rows: [
+        { label: 'Total des missions', value: pdfMoney(t.total) },
+        { label: 'Déjà payé', value: pdfMoney(t.paid) },
+        { label: 'Reste à payer', value: pdfMoney(t.due) },
+      ] },
+    ];
+    await summaryPdf({
+      eyebrow: 'Relevé prestataire',
+      title: p.name,
+      houseName: 'Maison MND',
+      meta: [MODE_LABEL[p.mode] + (p.specialty ? ` · ${p.specialty}` : ''), `${branch.name} · ${branch.city}`],
+      sections,
+      footer: 'Document généré par Le Trône · Maison MND',
+      filename: `releve-${p.name.replace(/\s+/g, '-')}.pdf`,
+    });
+  };
+
   return (
     <div className="mnd-rise">
       <PageHead
         eyebrow="Équipe · Sous-traitance"
         title="Prestataires extérieurs."
-        sub="Vos intervenants ponctuels — payés à la prestation ou au forfait. Ce sont des charges, distinctes de la paie du personnel."
+        sub="Vos intervenants ponctuels — payés à la prestation ou au forfait. Chaque paiement confirmé s'inscrit en charge « Sous-traitance » dans les Dépenses et la Synthèse (résultat)."
         actions={<Button variant="copper" onClick={openNewProvider}>+ Prestataire</Button>}
       />
 
@@ -188,6 +241,7 @@ export default function Prestataires() {
                 {due > 0 && <div className="tre-prov__due">À payer · {fmtMoney(due, currency)}</div>}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button className="tre-link-btn" onClick={() => openMission(p)}>+ Mission</button>
+                  <button className="tre-link-btn" onClick={() => setProviderFor(p)}>Détail ({providerTotals(p.id).count})</button>
                   <button className="tre-link-btn" onClick={() => openEditProvider(p)}>Modifier</button>
                   <button className="tre-link-btn tre-link-btn--danger" onClick={() => archiveProvider(p)}>Archiver</button>
                 </div>
@@ -298,6 +352,53 @@ export default function Prestataires() {
           </div>
         </Modal>
       )}
+
+      {/* Relevé d'un prestataire — toutes ses missions */}
+      {providerFor && (() => {
+        const list = missionsForProvider(providerFor.id);
+        const t = providerTotals(providerFor.id);
+        return (
+          <Modal title={`Relevé · ${providerFor.name}`} onClose={() => setProviderFor(null)} width={820}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+                {MODE_LABEL[providerFor.mode]}{providerFor.rateXof ? ` · ${fmtMoney(providerFor.rateXof, currency)}` : ''}{providerFor.specialty ? ` · ${providerFor.specialty}` : ''}{providerFor.phone ? ` · ${providerFor.phone}` : ''}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="ghost" size="sm" onClick={() => { openMission(providerFor); setProviderFor(null); }}>+ Mission</Button>
+                <Button variant="copper" size="sm" onClick={() => void downloadStatement(providerFor)}>Relevé · PDF</Button>
+              </div>
+            </div>
+            <div className="tr-grid tr-grid--3" style={{ marginBottom: 14 }}>
+              <div className="mnd-stat"><div className="mnd-stat__label">Total missions</div><div className="mnd-stat__value" style={{ fontSize: 24 }}>{fmtMoney(t.total, currency)}</div></div>
+              <div className="mnd-stat"><div className="mnd-stat__label">Déjà payé</div><div className="mnd-stat__value" style={{ fontSize: 24 }}>{fmtMoney(t.paid, currency)}</div></div>
+              <div className="mnd-stat"><div className="mnd-stat__label">Reste à payer</div><div className="mnd-stat__value" style={{ fontSize: 24, color: t.due > 0 ? 'var(--color-copper)' : 'var(--color-indigo)' }}>{fmtMoney(t.due, currency)}</div></div>
+            </div>
+            <div className="mnd-scroll-x">
+              <table className="tre-table">
+                <thead><tr><th>Date</th><th>Prestation</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {list.length === 0 && <tr><td colSpan={5} className="mnd-muted" style={{ textAlign: 'center', padding: 24 }}>Aucune mission. « + Mission » l'enregistre.</td></tr>}
+                  {list.map((m) => (
+                    <tr key={m.id}>
+                      <td className="mnd-muted" style={{ whiteSpace: 'nowrap' }}>{frDate(m.date)}</td>
+                      <td>{m.label}{m.note ? <span className="mnd-muted"> · {m.note}</span> : ''}</td>
+                      <td className="num">{fmtMoney(m.amountXof, currency)}</td>
+                      <td>{m.paidAt ? <span className="tre-pay__ok" title={fmtStamp(m.paidAt)}>✓ {m.byName}</span> : <span style={{ color: 'var(--color-copper)', fontSize: 12 }}>À payer</span>}</td>
+                      <td>
+                        <div className="tre-pay">
+                          {m.paidAt
+                            ? <button className="tre-link-btn" onClick={() => void downloadReceipt(m)}>Reçu</button>
+                            : <button className="tre-link-btn" onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); setProviderFor(null); }}>Payer</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* Modale paiement */}
       {payFor && (
