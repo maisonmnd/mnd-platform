@@ -19,6 +19,11 @@ export const authEnabled = isRemote;
 /** L'accès est-il verrouillé derrière une connexion ? (à coupler au durcissement RLS) */
 export const requireAuth = isRemote && import.meta.env.VITE_REQUIRE_AUTH === 'true';
 
+/** URL de retour des e-mails d'authentification : l'app courante (jamais localhost).
+    Doit figurer dans « Redirect URLs » du tableau de bord Supabase. */
+const appRedirect = (): string | undefined =>
+  typeof window !== 'undefined' ? window.location.origin + import.meta.env.BASE_URL : undefined;
+
 // ---------- Magasin de session (source externe pour React) ----------
 type AuthState = { session: Session | null; loading: boolean };
 let state: AuthState = { session: null, loading: isRemote };
@@ -60,7 +65,11 @@ export async function signUpEmail(
   name: string,
 ): Promise<{ needsConfirmation: boolean }> {
   if (!supabase) throw new Error('Backend non configuré.');
-  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: appRedirect() },
+  });
   if (error) throw error;
   if (data.session) await ensureFounder(name);
   return { needsConfirmation: !data.session };
@@ -83,7 +92,7 @@ export async function startEmailOtp(email: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim(),
-    options: { shouldCreateUser: true },
+    options: { shouldCreateUser: true, emailRedirectTo: appRedirect() },
   });
   if (error) throw error;
 }
