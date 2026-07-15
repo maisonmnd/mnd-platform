@@ -41,7 +41,11 @@ alter table public.push_reminders enable row level security;  -- aucune policy â
 -- select cron.schedule('mnd-push-rappels', '0 * * * *', $$
 --   select net.http_post(
 --     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/push-notify',
---     headers := jsonb_build_object('Content-Type','application/json','x-cron-secret','<CRON_SECRET>'),
+--     headers := jsonb_build_object(
+--       'Content-Type','application/json',
+--       'Authorization','Bearer <PUBLISHABLE_KEY>',   -- requis par la passerelle
+--       'x-cron-secret','<CRON_SECRET>'
+--     ),
 --     body    := jsonb_build_object('mode','reminders')
 --   );
 -- $$);
