@@ -34,16 +34,19 @@ const SLIDES = [
 
 /* Traduit les erreurs Supabase Auth en messages clairs pour la cliente. */
 const errMessage = (e: unknown, fallback: string): string => {
-  const raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
+  const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
+  const raw = msg.toLowerCase();
   if (/rate limit|too many|over_email_send/.test(raw))
     return 'Trop de demandes de code — patientez quelques minutes avant de réessayer.';
   if (/for security purposes|only request this after|seconds/.test(raw))
     return 'Patientez quelques secondes avant de redemander un code.';
   if (/expired|invalid|otp|token/.test(raw))
     return 'Code expiré ou incorrect — demandez un nouveau code (n’utilisez pas le lien de l’e-mail).';
-  if (/email.*disabled|provider/.test(raw))
+  if (/sending|confirmation email|unexpected|smtp|500/.test(raw))
+    return 'L’envoi de l’e-mail a échoué côté maison — réessayez dans un instant, ou prévenez-nous.';
+  if (/email.*disabled|provider|signups? not allowed/.test(raw))
     return 'La connexion par e-mail n’est pas encore activée côté maison.';
-  return e instanceof Error && e.message ? e.message : fallback;
+  return msg && msg !== '{}' ? msg : fallback;
 };
 
 export default function Onboarding() {
