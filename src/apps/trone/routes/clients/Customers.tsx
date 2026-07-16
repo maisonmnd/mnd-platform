@@ -3,8 +3,9 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, ensureInitiePersona, type Client } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
@@ -433,6 +434,8 @@ function Customer360({
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
+  const [allTemps] = useClientTemps();
+  const myTemps = tempsOf(allTemps, client.id);
   const today = todayISO();
 
   /* Identité éditable — nom, téléphone, ville, segment principal. État local,
@@ -863,6 +866,46 @@ function Customer360({
           </div>
         </div>
 
+        {/* Les quatre temps — où en est sa couronne dans le protocole. */}
+        <div>
+          <span className="trc-microlabel">
+            Les quatre temps · {tempsDone(myTemps)}/4
+            {nextTemps(myTemps) ? ` · en cours : ${nextTemps(myTemps)!.name}` : ' · couronne complète'}
+          </span>
+          <div className="trc-temps">
+            {QUATRE_TEMPS.map((t) => {
+              const on = !!myTemps[t.key];
+              return (
+                <div key={t.key} className={`trc-temps__step ${on ? 'is-on' : ''}`}>
+                  <button
+                    type="button"
+                    className="trc-temps__mark"
+                    title={on ? `Fait le ${frShort(myTemps[t.key]!)} — cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
+                    aria-pressed={on}
+                    onClick={() => setTemps(client.id, t.key, on ? '' : today)}
+                  >
+                    {t.no}
+                  </button>
+                  <div className="trc-temps__body">
+                    <div className="trc-temps__name">{t.name}</div>
+                    <div className="trc-temps__essence">{t.essence}</div>
+                    {on && (
+                      <input
+                        type="date"
+                        className="trc-temps__date"
+                        value={myTemps[t.key]}
+                        max={today}
+                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
+                        aria-label={`Date du temps ${t.name}`}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Persona & segments — deux colonnes sur le panneau élargi */}
         <div className="tr-grid tr-grid--2">
           <div>
@@ -1016,7 +1059,12 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [email, setEmail] = useState('');
   const [city, setCity] = useState(branch.city);
-  const [persona, setPersona] = useState(personas[0]?.id ?? '');
+  /* Toute nouvelle tête couronnée entre « Initiée » — la maison la nommera
+     autrement quand elle la connaîtra. Le persona d'accueil est créé au besoin
+     (idempotent) : ici on est au Trône, donc côté personnel, seul habilité à
+     écrire les personas. */
+  const [persona, setPersona] = useState('');
+  useEffect(() => { setPersona(ensureInitiePersona()); }, []);
   const [birthday, setBirthday] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>([]);

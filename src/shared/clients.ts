@@ -58,8 +58,37 @@ export type Persona = {
   builtin: boolean;
 };
 
-/* Maison neuve — coquille vierge ; tout naît de l’usage. */
-export const PERSONAS_SEED: Persona[] = [];
+/** Persona d'accueil — toute nouvelle tête couronnée entre par là, avant que la
+    maison ne la nomme autrement. `builtin` : fourni par la maison, pas né de l'usage. */
+export const INITIE_PERSONA: Persona = {
+  id: 'p-initie',
+  name: 'Initiée',
+  essence: 'Elle franchit le seuil — la maison l’accueille, l’observe, et attend de la connaître.',
+  builtin: true,
+};
+
+/* Maison neuve — une seule exception à la coquille vierge : le persona d'accueil,
+   sans quoi une nouvelle fiche naîtrait sans identité. */
+export const PERSONAS_SEED: Persona[] = [INITIE_PERSONA];
+
+/* Reconnaît le persona d'accueil quelle que soit sa graphie (Initié / Initiée /
+   Initie) : une maison déjà en service peut avoir créé le sien à la main. */
+const isInitie = (p: Persona): boolean =>
+  p.id === INITIE_PERSONA.id || /^\s*initi/i.test(p.name);
+
+/** Id du persona d'accueil s'il existe — n'écrit JAMAIS. À utiliser partout où
+    le code peut tourner côté cliente : la RLS réserve l'écriture des personas
+    au personnel, une tentative depuis Ma Couronne serait rejetée. */
+export const initiePersonaId = (): string => personasStore.get().find(isInitie)?.id ?? '';
+
+/** Garantit le persona d'accueil et renvoie son id (idempotent).
+    ÉCRIT si absent → réservé au Trône (personnel). */
+export function ensureInitiePersona(): string {
+  const existing = initiePersonaId();
+  if (existing) return existing;
+  personasStore.set((prev) => [...prev, INITIE_PERSONA]);
+  return INITIE_PERSONA.id;
+}
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const CLIENTS_SEED: Client[] = [];

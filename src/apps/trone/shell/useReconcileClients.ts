@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useInvoices } from '../../../shared/finance';
-import { clientsStore, type Client } from '../../../shared/clients';
+import { clientsStore, ensureInitiePersona, type Client } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 import { useStore } from '../../../shared/store';
 import { consultationsQueueStore } from '../../../shared/bridges';
@@ -68,7 +68,9 @@ export function useReconcileClients(): void {
           name: m.name || 'Cliente Ma Couronne',
           phone: '',
           city: '',
-          persona: '',
+          /* Le Trône tourne côté personnel : il peut créer le persona d'accueil
+             s'il manque encore (idempotent). */
+          persona: ensureInitiePersona(),
           since: m.since,
           segments: ['Ma Couronne'],
           priceCoef: 1,
@@ -112,7 +114,7 @@ export function useReconcileClients(): void {
         name: nm,
         phone: o.client.phone || '',
         city: o.client.city || '',
-        persona: '',
+        persona: ensureInitiePersona(),
         since: (o.createdAt || new Date().toISOString()).slice(0, 10),
         segments: [PROSPECT_SEGMENT],
         priceCoef: 1,

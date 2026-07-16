@@ -11,7 +11,7 @@ import {
   type Product,
 } from '../../shared/catalog';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { clientsStore, useClients, type Client } from '../../shared/clients';
+import { clientsStore, initiePersonaId, useClients, type Client } from '../../shared/clients';
 import { branchesStore, useBranch } from '../../shared/branches';
 import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin } from '../../shared/settings';
@@ -62,7 +62,10 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
           ...prev,
           {
             id: clientId, branchId: bid, name, phone: '', email: mail, city: '',
-            persona: '', since, segments: ['Ma Couronne', 'Nouvelle'],
+            /* Lecture seule : la RLS réserve l'écriture des personas au personnel.
+               Si l'accueil n'existe pas encore, la fiche naît sans persona et le
+               Trône la nommera — mieux qu'une écriture rejetée. */
+            persona: initiePersonaId(), since, segments: ['Ma Couronne', 'Nouvelle'],
             priceCoef: 1, loyaltyPoints: 0,
           },
         ]

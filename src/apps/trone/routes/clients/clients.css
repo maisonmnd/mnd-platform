@@ -1315,3 +1315,68 @@
 /* Déplacement au doigt — neutralise le défilement/geste natif pendant le glisser tactile. */
 .trc-cal__appt--drag,
 .trc-week__chip--drag { touch-action: none; }
+
+/* ---------- Les quatre temps — suivi du protocole sur la fiche ---------- */
+.trc-temps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.trc-temps__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+  background: var(--surface-card);
+}
+/* Franchi : la maison marque le temps au cuivre. */
+.trc-temps__step.is-on {
+  border-color: var(--copper-300);
+  background: var(--copper-50);
+}
+.trc-temps__mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-argile);
+  background: var(--surface-card);
+  color: var(--ink-soft);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.trc-temps__mark:hover { border-color: var(--color-copper); }
+.trc-temps__step.is-on .trc-temps__mark {
+  background: var(--color-copper);
+  border-color: var(--color-copper);
+  color: var(--color-ivoire);
+}
+.trc-temps__body { min-width: 0; }
+.trc-temps__name {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-indigo);
+  line-height: 1.15;
+}
+.trc-temps__essence {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.trc-temps__step.is-on .trc-temps__essence { color: var(--copper-700); }
+.trc-temps__date {
+  margin-top: 7px;
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 4px 6px;
+}
