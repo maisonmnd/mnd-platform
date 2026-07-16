@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Input, Textarea } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
+import { autoConfigStore, AUTOMATIONS, automationsActiveStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
@@ -120,6 +122,11 @@ function EditRow({ l, sub, children }: { l: string; sub?: string; children: Reac
 export default function Parametres() {
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
+  const [autoCfgRaw, setAutoCfgRaw] = useStore(autoConfigStore);
+  const [autoActive] = useStore(automationsActiveStore);
+  /* Une automatisation sans interrupteur enregistré est ACTIVE — même règle que
+     Marketing (`isOn`), sinon le compteur mentirait sur l'état réel. */
+  const autoOnCount = AUTOMATIONS.filter((a) => autoActive[a.id] !== false).length;
   const [services] = useServices();
   const [identity, setIdentity] = useHouseIdentity();
   const [crownStyles, setCrownStyles] = useCrownStyles();
@@ -265,8 +272,19 @@ export default function Parametres() {
       hours: s.hours.map((d) => (d.key === key ? { ...d, [field]: val } : d)),
     }));
 
-  const setAuto = (field: keyof typeof settings.automations, val: string) =>
-    setSettings((s) => ({ ...s, automations: { ...s.automations, [field]: val } }));
+  /* Les liens d'automatisation vivaient en DOUBLE : `settings.automations` ici et
+     `autoConfigStore` dans Marketing — mêmes champs, jamais synchronisés, si bien
+     que remplir l'un laissait l'autre vide. Marketing porte les automatisations
+     elles-mêmes, donc son magasin fait foi ; Paramètres écrit désormais dedans.
+     `settings.automations` n'est plus que la source d'une reprise unique. */
+  const autoCfg: AutoConfig = {
+    momoLink: autoCfgRaw.momoLink || settings.automations.momoLink,
+    mapsLink: autoCfgRaw.mapsLink || settings.automations.mapsLink,
+    reviewLink: autoCfgRaw.reviewLink || settings.automations.reviewLink,
+    itineraire: autoCfgRaw.itineraire || settings.automations.itineraire,
+  };
+  const setAuto = (field: keyof AutoConfig, val: string) =>
+    setAutoCfgRaw({ ...autoCfg, [field]: val });
 
   const openDays = useMemo(() => settings.hours.filter((d) => !d.closed).length, [settings.hours]);
 
@@ -760,22 +778,43 @@ export default function Parametres() {
           Renseignez les liens et le texte utilisés par les messages automatiques (rappels, relances,
           invitations). Le Trône les insère tels quels dans les envois WhatsApp et SMS.
         </div>
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, flexWrap: 'wrap', marginTop: 10, padding: '11px 13px',
+            border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-card)',
+          }}
+        >
+          <div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+              {autoOnCount} automatisation{autoOnCount > 1 ? 's' : ''} active{autoOnCount > 1 ? 's' : ''} sur {AUTOMATIONS.length}
+            </div>
+            <div className="sys-row__sub" style={{ marginTop: 2 }}>
+              Rappels J−1, réveil des dormantes, relance d’acompte, réassort… Les interrupteurs
+              vivent au Marketing.
+            </div>
+          </div>
+          <Link to="/marketing?tab=auto" style={{ textDecoration: 'none' }}>
+            <Button variant="copper">Gérer les automatisations</Button>
+          </Link>
+        </div>
         <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
           <label className="mnd-field">
             <span className="mnd-field__label">Lien de paiement Mobile Money</span>
-            <Input value={settings.automations.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} placeholder="https://pay.moov-africa.bj/…" />
+            <Input value={autoCfg.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} placeholder="https://pay.moov-africa.bj/…" />
           </label>
           <label className="mnd-field">
             <span className="mnd-field__label">Lien Google Maps (itinéraire)</span>
-            <Input value={settings.automations.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} placeholder="https://maps.google.com/?q=…" />
+            <Input value={autoCfg.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} placeholder="https://maps.google.com/?q=…" />
           </label>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Lien Google Avis</span>
-            <Input value={settings.automations.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} placeholder="https://g.page/r/…/review" />
+            <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} placeholder="https://g.page/r/…/review" />
           </label>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Itinéraire · texte libre</span>
-            <Textarea rows={2} value={settings.automations.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage." />
+            <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage." />
           </label>
         </div>
         <div style={{ marginTop: 4 }}>

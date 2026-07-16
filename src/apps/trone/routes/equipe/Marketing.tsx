@@ -1,5 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -34,7 +35,13 @@ const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' 
 
 export default function Marketing() {
   const { branch, currency } = useBranch();
-  const [tab, setTab] = useState<Tab>('campagnes');
+  /* ?tab=auto — permet d'arriver droit sur les automatisations depuis ailleurs
+     (bouton des Paramètres). Onglet inconnu → on retombe sur les campagnes. */
+  const [params] = useSearchParams();
+  const asked = params.get('tab');
+  const [tab, setTab] = useState<Tab>(
+    asked === 'auto' || asked === 'offres' || asked === 'audience' ? asked : 'campagnes',
+  );
   const [campaigns] = useCampaigns();
   const [offers, setOffers] = useOffers();
   const [clients] = useClients();
