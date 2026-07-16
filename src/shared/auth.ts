@@ -6,8 +6,9 @@ import { supabase, isRemote } from './supabase';
 
    - Personnel (Le Trône / LOKAA) : e-mail + mot de passe. Le tout premier compte
      devient « souverain » (RPC `provision_first_staff`).
-   - Cliente (Ma Couronne) : OTP téléphone (WhatsApp/SMS) — helpers prêts, à
-     activer quand un fournisseur de messagerie est configuré côté Supabase.
+   - Cliente (Ma Couronne) : e-mail + mot de passe, avec réinitialisation par code
+     à 6 chiffres. Les helpers OTP (e-mail, téléphone) restent plus bas : l'OTP
+     e-mail a précédé le mot de passe, le téléphone attend un fournisseur SMS.
 
    L'application reste ouverte tant que l'ENFORCEMENT n'est pas demandé :
    `requireAuth` n'est vrai que si un backend existe ET VITE_REQUIRE_AUTH=true.
@@ -110,6 +111,31 @@ export async function signUpClient(
   });
   if (error) throw error;
   return { needsConfirmation: !data.session };
+}
+
+/* ---- Mot de passe oublié — code à 6 chiffres (même principe que l'OTP e-mail) ----
+   Le gabarit « Reset Password » du tableau de bord doit exposer {{ .Token }} :
+   sans lui l'e-mail ne montre qu'un lien, et la cliente n'a aucun code à saisir. */
+
+/** Envoie un code de réinitialisation à 6 chiffres. Ne révèle pas si le compte existe. */
+export async function startPasswordReset(email: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appRedirect() });
+  if (error) throw error;
+}
+
+/** Vérifie le code reçu et ouvre une session de récupération. */
+export async function verifyPasswordReset(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'recovery' });
+  if (error) throw error;
+}
+
+/** Redéfinit le mot de passe du compte connecté (session de récupération ouverte). */
+export async function updatePassword(password: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
 }
 
 // ---------- Actions cliente (OTP e-mail, sans mot de passe) — legacy Ma Couronne ----------

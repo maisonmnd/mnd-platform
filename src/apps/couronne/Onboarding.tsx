@@ -1,13 +1,21 @@
 import { asset } from '../../shared/asset';
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { signInClient, signUpClient } from '../../shared/auth';
+import {
+  signInClient, signUpClient, startPasswordReset, verifyPasswordReset, updatePassword,
+} from '../../shared/auth';
 import { pushNotifyStaff } from '../../shared/push';
 
 /* Onboarding — slides photographiques puis connexion par e-mail + mot de passe
    (même principe que Le Trône). La cliente s'inscrit avec son nom, son e-mail et
    un mot de passe ; ou se connecte si elle a déjà un compte. La session s'ouvre
-   côté Supabase et le verrou d'App bascule alors automatiquement sur l'app. */
+   côté Supabase et le verrou d'App bascule alors automatiquement sur l'app.
+
+   Mot de passe oublié : code à 6 chiffres par e-mail, puis nouveau mot de passe.
+   Le code et le nouveau mot de passe sont demandés sur le MÊME écran, à dessein :
+   vérifier le code ouvre déjà la session, donc le verrou d'App retire cet écran
+   aussitôt. En enchaînant les deux appels dans une seule soumission, le mot de
+   passe est bien redéfini avant que la cliente ne parte dans l'app. */
 
 const SLIDES = [
   {
@@ -45,6 +53,10 @@ const errMessage = (e: unknown, fallback: string): string => {
     return 'Mot de passe trop court — au moins 6 caractères.';
   if (/email.*not confirmed|confirm/.test(raw))
     return 'E-mail non confirmé — vérifiez votre boîte, puis connectez-vous.';
+  if (/expired|invalid.*(token|otp)|(token|otp).*invalid/.test(raw))
+    return 'Code invalide ou expiré — demandez-en un nouveau.';
+  if (/should be different|same.*password/.test(raw))
+    return 'Choisissez un mot de passe différent de l’ancien.';
   if (/rate limit|too many/.test(raw))
     return 'Trop de tentatives — patientez quelques minutes.';
   if (/sending|smtp|500|unexpected/.test(raw))
@@ -52,7 +64,7 @@ const errMessage = (e: unknown, fallback: string): string => {
   return msg && msg !== '{}' ? msg : fallback;
 };
 
-type Mode = 'connexion' | 'inscription';
+type Mode = 'connexion' | 'inscription' | 'oubli' | 'oubli-code';
 
 export default function Onboarding() {
   const [stage, setStage] = useState<'welcome' | 'auth'>('welcome');
@@ -62,6 +74,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -83,7 +96,56 @@ export default function Onboarding() {
     setStage('auth');
   };
 
+  /* Demande d'un code de réinitialisation. On annonce l'envoi sans dire si le
+     compte existe — inutile de renseigner un inconnu sur nos clientes. */
+  const askReset = async () => {
+    if (!emailOk) {
+      setErr('Saisissez une adresse e-mail valide.');
+      return;
+    }
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await startPasswordReset(email.trim());
+      setCode('');
+      setPassword('');
+      setMode('oubli-code');
+      setNotice('Si ce compte existe, un code à 6 chiffres vient de partir. Vérifiez vos indésirables.');
+    } catch (e) {
+      setErr(errMessage(e, 'Envoi impossible — réessayez dans un instant.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* Code + nouveau mot de passe en une seule soumission (voir l'en-tête). */
+  const confirmReset = async () => {
+    if (code.trim().length < 6) {
+      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
+      return;
+    }
+    if (password.length < 6) {
+      setErr('Mot de passe : au moins 6 caractères.');
+      return;
+    }
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await verifyPasswordReset(email.trim(), code.trim());
+      await updatePassword(password);
+      /* La session est ouverte : le verrou d'App bascule sur l'app. */
+    } catch (e) {
+      setErr(errMessage(e, 'Réinitialisation impossible — réessayez.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
+    if (mode === 'oubli') return askReset();
+    if (mode === 'oubli-code') return confirmReset();
     if (mode === 'inscription' && !name.trim()) {
       setErr('Indiquez votre nom.');
       return;
@@ -158,10 +220,19 @@ export default function Onboarding() {
       <button className="mc-linkback" onClick={() => setStage('welcome')}>← Retour</button>
       <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
       <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
-      <h1 className="mc-serif-title">{mode === 'inscription' ? 'Créer mon compte.' : 'Bon retour.'}</h1>
+      <h1 className="mc-serif-title">
+        {mode === 'inscription' ? 'Créer mon compte.'
+          : mode === 'oubli' ? 'Mot de passe oublié.'
+          : mode === 'oubli-code' ? 'Nouveau mot de passe.'
+          : 'Bon retour.'}
+      </h1>
       <p className="mc-lead">
         {mode === 'inscription'
           ? 'Votre nom, votre e-mail, un mot de passe — la maison vous reconnaît.'
+          : mode === 'oubli'
+          ? 'Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.'
+          : mode === 'oubli-code'
+          ? 'Saisissez le code reçu, puis choisissez votre nouveau mot de passe.'
           : 'Entrez votre e-mail et votre mot de passe.'}
       </p>
 
@@ -181,47 +252,96 @@ export default function Onboarding() {
         </>
       )}
 
-      <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
-      <div className="mc-emailline">
-        <input
-          id="mc-email"
-          type="email"
-          value={email}
-          inputMode="email"
-          autoComplete="email"
-          placeholder="vous@exemple.com"
-          onChange={(e) => { setEmail(e.target.value); setErr(null); }}
-        />
-      </div>
+      {mode !== 'oubli-code' && (
+        <>
+          <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
+          <div className="mc-emailline">
+            <input
+              id="mc-email"
+              type="email"
+              value={email}
+              inputMode="email"
+              autoComplete="email"
+              placeholder="vous@exemple.com"
+              onChange={(e) => { setEmail(e.target.value); setErr(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+            />
+          </div>
+        </>
+      )}
 
-      <label className="mc-field-label" htmlFor="mc-password">Mot de passe</label>
-      <div className="mc-emailline">
-        <input
-          id="mc-password"
-          type={showPw ? 'text' : 'password'}
-          value={password}
-          autoComplete={mode === 'inscription' ? 'new-password' : 'current-password'}
-          placeholder="Au moins 6 caractères"
-          onChange={(e) => { setPassword(e.target.value); setErr(null); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
-        />
-        <button
-          type="button"
-          className="mc-pw-toggle"
-          onClick={() => setShowPw((v) => !v)}
-          aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-          title={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-        >
-          {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </div>
+      {mode === 'oubli-code' && (
+        <>
+          <label className="mc-field-label" htmlFor="mc-code">Code reçu par e-mail</label>
+          <div className="mc-emailline">
+            <input
+              id="mc-code"
+              type="text"
+              value={code}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="6 chiffres"
+              onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setErr(null); }}
+            />
+          </div>
+        </>
+      )}
+
+      {mode !== 'oubli' && (
+        <>
+          <label className="mc-field-label" htmlFor="mc-password">
+            {mode === 'oubli-code' ? 'Nouveau mot de passe' : 'Mot de passe'}
+          </label>
+          <div className="mc-emailline">
+            <input
+              id="mc-password"
+              type={showPw ? 'text' : 'password'}
+              value={password}
+              autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
+              placeholder="Au moins 6 caractères"
+              onChange={(e) => { setPassword(e.target.value); setErr(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+            />
+            <button
+              type="button"
+              className="mc-pw-toggle"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              title={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            >
+              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </>
+      )}
 
       {err && <div className="mc-form-err">{err}</div>}
       {notice && <div className="mc-form-notice">{notice}</div>}
 
       <button className="mc-cta mc-cta--indigo" disabled={busy} onClick={() => void submit()}>
-        {busy ? 'Un instant…' : mode === 'inscription' ? 'Créer mon compte' : 'Se connecter'}
+        {busy ? 'Un instant…'
+          : mode === 'inscription' ? 'Créer mon compte'
+          : mode === 'oubli' ? 'Envoyer le code'
+          : mode === 'oubli-code' ? 'Définir le mot de passe'
+          : 'Se connecter'}
       </button>
+
+      {mode === 'connexion' && (
+        <button
+          type="button"
+          className="mc-authswitch"
+          onClick={() => { setMode('oubli'); setPassword(''); setErr(null); setNotice(null); }}
+        >
+          Mot de passe oublié ?
+        </button>
+      )}
+
+      {mode === 'oubli-code' && (
+        <button type="button" className="mc-authswitch" disabled={busy} onClick={() => void askReset()}>
+          Renvoyer un code
+        </button>
+      )}
 
       <button
         type="button"
