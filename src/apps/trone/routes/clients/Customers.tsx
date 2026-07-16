@@ -6,6 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, ensureInitiePersona, type Client } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
+import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
@@ -1073,6 +1074,41 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [crownSince, setCrownSince] = useState('');
   const [preferredMaster, setPreferredMaster] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
+  const [why, setWhy] = useState<string | null>(null);
+
+  /* L'IA propose, la maison dispose : la suggestion remplit les champs, elle ne
+     valide rien. Rien n'est écrit tant que le maître n'a pas enregistré. */
+  const suggest = async () => {
+    if (!name.trim()) { setError('Donnez d’abord un nom — l’IA n’a rien à lire.'); return; }
+    setError(null);
+    setWhy(null);
+    setThinking(true);
+    try {
+      const s = await suggestClient(
+        {
+          name: name.trim(),
+          city: city.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          crownStyle,
+          lockCount: lockCount === '' ? undefined : Number(lockCount),
+          crownSince,
+          birthday,
+          country: branch.country,
+        },
+        personas.map((p) => ({ id: p.id, name: p.name, essence: p.essence })),
+        segmentList,
+      );
+      if (s.personaId) setPersona(s.personaId);
+      if (s.segments.length) setSegments(s.segments);
+      setWhy(s.why || null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Suggestion impossible.');
+    } finally {
+      setThinking(false);
+    }
+  };
 
   const onPhoto = (file?: File) => {
     if (!file) return;
@@ -1150,6 +1186,27 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
           </Field>
         </div>
+
+        {/* L'IA lit ce qui est saisi et propose persona + segments. Elle remplit
+            les champs, elle ne valide rien : le maître garde la main. */}
+        {aiEnabled() && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 10, flexWrap: 'wrap', border: '1px solid var(--hairline)',
+              borderRadius: 'var(--radius-md)', padding: '10px 12px', background: 'var(--copper-50)',
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: 'var(--copper-700)' }}>
+                {why ?? 'La maison peut lire cette fiche et proposer un persona et des segments.'}
+              </div>
+            </div>
+            <Button variant="ghost" disabled={thinking} onClick={() => void suggest()}>
+              {thinking ? 'La maison réfléchit…' : 'Suggérer'}
+            </Button>
+          </div>
+        )}
 
         <div>
           <span className="trc-microlabel">La couronne · partagé avec Ma Couronne</span>
