@@ -4,6 +4,7 @@ import { Seal } from '../../ds/components';
 import { fmtMoney } from '../../shared/currency';
 import { COUNTRIES, currencyByCode } from '../../shared/geo';
 import { consultationsQueueStore, type OnlineConsultation } from '../../shared/bridges';
+import { pushNotifyStaff } from '../../shared/push';
 import { appointmentsStore, type Appointment } from '../../shared/agenda';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
@@ -356,6 +357,12 @@ export default function App() {
       status: 'nouvelle',
     };
     consultationsQueueStore.set((q) => [consultation, ...q]);
+    /* Alerte le personnel (Web Push), même Le Trône fermé. */
+    void pushNotifyStaff(
+      'Nouvelle consultation en ligne',
+      `${consultation.client.name} · ${pathLabel}`,
+      '/trone/#/consultations',
+    );
 
     if (mode === 'salon') {
       const appt: Appointment = {

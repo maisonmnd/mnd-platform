@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2, PackageSearch, Wallet,
-  type LucideIcon,
+  AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2,
+  KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
 } from 'lucide-react';
 import { useBranch } from '../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../shared/agenda';
@@ -11,32 +11,46 @@ import { useInvoices, invoiceTotal } from '../../../shared/finance';
 import { useProducts } from '../../../shared/catalog';
 import { useClients } from '../../../shared/clients';
 import { consultationsQueueStore } from '../../../shared/bridges';
-import { useStore } from '../../../shared/store';
+import { createStore, useStore } from '../../../shared/store';
 import { useSettings } from '../../../shared/settings';
+import { useClientSessions, isOnline } from '../../../shared/activity';
 import { fmtMoney } from '../../../shared/currency';
+import { useAuth } from '../../../shared/auth';
+import { enablePush, ensurePush, registerSW, pushSupported, clearAppNotifications } from '../../../shared/push';
 
-/* La Cloche — notifications réelles dérivées des magasins de la branche courante.
-   Rien de codé en dur : le compteur reflète les signaux vivants de la Maison. */
+/* La Cloche — notifications réelles dérivées des magasins de la branche courante,
+   avec état LU/NON-LU persistant : le compteur ne compte que les non-lues, ouvrir
+   la cloche marque comme lues, et les événements clés déclenchent aussi une
+   notification navigateur (consultation, prospect, inscription, RDV imminent,
+   réservation Ma Couronne). */
 
-type NotifKind = 'consultation' | 'attente' | 'rdv' | 'devis' | 'stock' | 'impaye' | 'couronne';
+/* ids des notifications déjà lues — persistant localement (préférence par appareil). */
+const readNotifsStore = createStore<string[]>('mnd_notif_read', []);
+/* ids des notifications EFFACÉES (masquées de la liste + hors compteur). */
+const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
-type Notif = {
-  id: string;
-  kind: NotifKind;
-  label: string;
-  meta?: string;
-  to: string;
-};
+type NotifKind =
+  | 'consultation' | 'prospect' | 'inscription' | 'enligne'
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne';
+
+type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
 const ICONS: Record<NotifKind, LucideIcon> = {
   consultation: ClipboardList,
+  prospect: UserPlus,
+  inscription: KeyRound,
+  enligne: Radio,
   attente: Clock,
   rdv: CalendarClock,
+  imminent: AlarmClock,
   devis: FileCheck2,
   stock: PackageSearch,
   impaye: Wallet,
   couronne: Crown,
 };
+
+/* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
+const PUSH_KINDS = new Set<NotifKind>(['consultation', 'prospect', 'inscription', 'imminent', 'couronne']);
 
 /* ---------- Dates ---------- */
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -75,39 +89,89 @@ function useNotifications(): Notif[] {
   const [products] = useProducts();
   const [clients] = useClients();
   const [queue] = useStore(consultationsQueueStore);
+  const [sessions] = useClientSessions();
   const [settings] = useSettings();
 
-  const t = settings.toggles;
-  const okRdv = t.notifRdv !== false;
-  const okStock = t.notifStock !== false;
-  const okPaie = t.notifPaie !== false;
+  /* Battement : « dans 1h » et « en ligne » doivent se rafraîchir avec le temps. */
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((x) => x + 1), 30000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const tg = settings.toggles;
+  const okRdv = tg.notifRdv !== false;
+  const okStock = tg.notifStock !== false;
+  const okPaie = tg.notifPaie !== false;
 
   return useMemo(() => {
+    void tick;
     const out: Notif[] = [];
     const nameOf = new Map(clients.map((c) => [c.id, c.name]));
     const today = isoOffset(0);
-    const horizon = isoOffset(3); // aujourd'hui + 3 jours
+    const horizon = isoOffset(3);
+    const now = Date.now();
 
     // 1 — Consultations en ligne nouvelles (La Consultation Souveraine).
     for (const c of queue) {
       if (c.status !== 'nouvelle') continue;
       out.push({
-        id: `cons-${c.id}`,
-        kind: 'consultation',
+        id: `cons-${c.id}`, kind: 'consultation',
         label: `Nouvelle consultation — ${c.client.name}`,
-        meta: relTime(c.createdAt),
-        to: '/consultations',
+        meta: relTime(c.createdAt), to: '/consultations',
       });
     }
 
-    // 2 — Rendez-vous (acompte en attente, aujourd'hui, à venir sous 3 jours).
+    // 2 — Prospects à qualifier (créés depuis une consultation en ligne).
+    for (const c of clients) {
+      if (c.branchId !== branch.id || c.archived) continue;
+      if (!c.segments.includes('Prospect')) continue;
+      out.push({
+        id: `prospect-${c.id}`, kind: 'prospect',
+        label: `Nouvelle cliente en consultation — ${c.name}`,
+        meta: 'prospect · à qualifier', to: '/customers',
+      });
+    }
+
+    // 3 — Nouvelles inscriptions Ma Couronne (compte créé aujourd'hui).
+    for (const c of clients) {
+      if (c.branchId !== branch.id || c.archived) continue;
+      if (!c.segments.includes('Ma Couronne') || (c.since ?? '') !== today) continue;
+      out.push({
+        id: `insc-${c.id}`, kind: 'inscription',
+        label: `Nouvelle inscription Ma Couronne — ${c.name}`,
+        meta: 'compte créé aujourd’hui', to: '/customers',
+      });
+    }
+
+    // 4 — Clientes en ligne maintenant sur Ma Couronne.
+    const onlineIds = new Set<string>();
+    for (const s of sessions) if (isOnline(s)) onlineIds.add(s.clientId);
+    for (const c of clients) {
+      if (c.branchId !== branch.id || c.archived || !onlineIds.has(c.id)) continue;
+      out.push({
+        id: `online-${c.id}`, kind: 'enligne',
+        label: `En ligne · Ma Couronne — ${c.name}`,
+        meta: 'connectée maintenant', to: '/customers',
+      });
+    }
+
+    // 5 — Rendez-vous : imminent (≤ 1h), acompte en attente, aujourd'hui, à venir (3 j).
     if (okRdv) {
       const appts = appointments
         .filter((a) => a.branchId === branch.id && a.status !== 'annulé' && a.status !== 'honoré')
         .sort((a, b) => (a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date)));
       for (const a of appts) {
         const who = nameOf.get(a.clientId) ?? 'une tête couronnée';
-        if (a.status === 'en attente') {
+        const when = new Date(`${a.date}T${a.time}:00`).getTime();
+        const mins = Math.round((when - now) / 60000);
+        if (a.date === today && mins >= 0 && mins <= 60) {
+          out.push({
+            id: `imm-${a.id}`, kind: 'imminent',
+            label: mins <= 1 ? `Rendez-vous maintenant — ${who}` : `Rendez-vous dans ${mins} min — ${who}`,
+            meta: a.time, to: '/calendrier',
+          });
+        } else if (a.status === 'en attente') {
           out.push({
             id: `att-${a.id}`, kind: 'attente',
             label: `Acompte en attente — ${who}`,
@@ -129,7 +193,7 @@ function useNotifications(): Notif[] {
       }
     }
 
-    // 3 — Devis acceptés à transformer en facture.
+    // 6 — Devis acceptés à transformer en facture.
     for (const inv of invoices) {
       if (inv.branchId !== branch.id || inv.kind !== 'devis' || inv.status !== 'acceptée') continue;
       const who = inv.clientName ?? nameOf.get(inv.clientId) ?? 'une tête couronnée';
@@ -140,7 +204,7 @@ function useNotifications(): Notif[] {
       });
     }
 
-    // 4 — Factures envoyées non réglées (best-effort, sous notifPaie).
+    // 7 — Factures envoyées non réglées.
     if (okPaie) {
       for (const inv of invoices) {
         if (inv.branchId !== branch.id || inv.kind !== 'facture' || inv.status !== 'envoyée') continue;
@@ -153,7 +217,7 @@ function useNotifications(): Notif[] {
       }
     }
 
-    // 5 — Produits en stock bas (< 10). Le catalogue est commun à la Maison.
+    // 8 — Produits en stock bas (< 10).
     if (okStock) {
       for (const p of products) {
         if (p.stock >= 10) continue;
@@ -166,14 +230,10 @@ function useNotifications(): Notif[] {
     }
 
     return out;
-  }, [appointments, invoices, products, clients, queue, branch.id, currency, okRdv, okStock, okPaie]);
+  }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick]);
 }
 
-/* ---------- Veille Ma Couronne — alerte active à l'arrivée d'une réservation ----------
-   On mémorise (ref) les rendez-vous déjà vus : id → « date heure ». Au premier passage,
-   rien n'est signalé (pas d'orage au chargement) ; ensuite, un id inconnu venu de
-   Ma Couronne déclenche une notification locale + un item en tête de cloche, et un id
-   connu dont date/heure a changé signale une modification par la cliente. */
+/* ---------- Veille Ma Couronne — alerte active à l'arrivée d'une réservation ---------- */
 function useCouronneAlerts(): Notif[] {
   const [appointments] = useAppointments();
   const [clients] = useClients();
@@ -197,18 +257,16 @@ function useCouronneAlerts(): Notif[] {
       seen.set(a.id, stamp);
       if (a.source !== 'couronne' || a.status === 'annulé') continue;
 
-      const who = clients.find((c) => c.id === a.clientId)?.name ?? 'Cliente';
+      const who = clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? 'Cliente';
       const when = `${frShort(a.date)} · ${a.time}`;
 
       if (prev === undefined) {
-        notifyLocal('Nouvelle réservation · Ma Couronne', `${who} · ${frShort(a.date)} ${a.time}`);
         fresh.push({
           id: `mc-new-${a.id}-${stamp}`, kind: 'couronne',
           label: 'Nouvelle réservation · Ma Couronne',
           meta: `${who} · ${when}`, to: '/calendrier',
         });
       } else if (prev !== stamp) {
-        notifyLocal('Rendez-vous modifié par la cliente', `${who} · ${frShort(a.date)} ${a.time}`);
         fresh.push({
           id: `mc-mod-${a.id}-${stamp}`, kind: 'couronne',
           label: 'Rendez-vous modifié par la cliente',
@@ -217,42 +275,130 @@ function useCouronneAlerts(): Notif[] {
       }
     }
 
-    if (fresh.length > 0) setAlerts((cur) => [...fresh, ...cur].slice(0, 8));
+    if (fresh.length > 0) setAlerts((cur) => [...fresh, ...cur].slice(0, 12));
   }, [appointments, clients]);
 
   return alerts;
 }
 
+/* Notification navigateur pour chaque nouvel événement clé (après le premier chargement). */
+function useBrowserDelivery(items: Notif[]): void {
+  const seenRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (seenRef.current === null) {
+      seenRef.current = new Set(items.map((n) => n.id));
+      return;
+    }
+    const seen = seenRef.current;
+    for (const n of items) {
+      if (seen.has(n.id)) continue;
+      seen.add(n.id);
+      if (PUSH_KINDS.has(n.kind)) notifyLocal(n.label, n.meta ?? '');
+    }
+  }, [items]);
+}
+
 export default function NotificationsBell() {
   const derived = useNotifications();
   const alerts = useCouronneAlerts();
-  const items = useMemo(() => [...alerts, ...derived], [alerts, derived]);
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    return [...alerts, ...derived].filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)));
+  }, [alerts, derived]);
+
+  useBrowserDelivery(items);
+
+  const [read] = useStore(readNotifsStore);
+  const [dismissed] = useStore(dismissedNotifsStore);
+  const readSet = useMemo(() => new Set(read), [read]);
+  const dismissedSet = useMemo(() => new Set(dismissed), [dismissed]);
+  /* Notifications visibles = non effacées. Le compteur ne compte que les visibles non lues. */
+  const visible = useMemo(() => items.filter((n) => !dismissedSet.has(n.id)), [items, dismissedSet]);
+  const unreadCount = useMemo(() => visible.reduce((n, it) => n + (readSet.has(it.id) ? 0 : 1), 0), [visible, readSet]);
+  const readVisibleCount = useMemo(() => visible.reduce((n, it) => n + (readSet.has(it.id) ? 1 : 0), 0), [visible, readSet]);
+
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const staffUid = session?.user?.id;
   const [open, setOpen] = useState(false);
   const [permState, setPermState] = useState<NotificationPermission | 'unsupported'>(
     () => (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'),
   );
 
+  /* Web Push personnel : enregistre le service worker et (ré)abonne ce membre du
+     personnel s'il a déjà autorisé — pour recevoir les alertes Le Trône fermé. */
+  useEffect(() => {
+    if (!staffUid || !pushSupported()) return;
+    void registerSW();
+    void ensurePush(staffUid);
+  }, [staffUid]);
+
+  /* Vide le tiroir + badge d'icône à CHAQUE reprise de l'app (ouverture, focus,
+     retour BFCache) — le badge Samsung retombe car il suit le tiroir. */
+  useEffect(() => {
+    const clear = () => { void clearAppNotifications(); };
+    clear();
+    const onVis = () => { if (!document.hidden) clear(); };
+    window.addEventListener('focus', clear);
+    window.addEventListener('pageshow', clear);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', clear);
+      window.removeEventListener('pageshow', clear);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
+  const markRead = (id: string) =>
+    readNotifsStore.set((prev) => (prev.includes(id) ? prev : [...prev, id].slice(-800)));
+  const markAllRead = () =>
+    readNotifsStore.set((prev) => {
+      const s = new Set(prev);
+      for (const n of visible) s.add(n.id);
+      return [...s].slice(-800);
+    });
+  /* Effacer = masquer de la liste et sortir du compteur (persistant). */
+  const dismiss = (id: string) =>
+    dismissedNotifsStore.set((prev) => (prev.includes(id) ? prev : [...prev, id].slice(-1200)));
+  const dismissRead = () =>
+    dismissedNotifsStore.set((prev) => {
+      const s = new Set(prev);
+      for (const n of visible) if (readSet.has(n.id)) s.add(n.id);
+      return [...s].slice(-1200);
+    });
+  const dismissAll = () =>
+    dismissedNotifsStore.set((prev) => {
+      const s = new Set(prev);
+      for (const n of visible) s.add(n.id);
+      return [...s].slice(-1200);
+    });
+
   const enableAlerts = async () => {
     await askNotifyPermission();
+    /* Abonne aussi ce membre du personnel au Web Push → alertes même Le Trône fermé. */
+    if (staffUid && pushSupported()) await enablePush(staffUid);
     setPermState('Notification' in window ? Notification.permission : 'unsupported');
   };
   const wrapRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLButtonElement>(null);
 
-  const count = items.length;
+  /* Ouvrir la cloche = « lire » : on marque tout comme lu → le badge retombe. */
+  /* Ouvrir la cloche NE marque PAS tout lu automatiquement : les non-lues restent
+     en gras jusqu'à ce qu'on les touche. On vide seulement le tiroir/badge d'icône
+     (on est en train de « regarder » les notifications sur le téléphone). */
+  useEffect(() => {
+    if (open) void clearAppNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
-  // Fermeture au clic extérieur + Échap (avec retour du focus à la cloche).
+  // Fermeture au clic extérieur + Échap.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        bellRef.current?.focus();
-      }
+      if (e.key === 'Escape') { setOpen(false); bellRef.current?.focus(); }
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -262,9 +408,10 @@ export default function NotificationsBell() {
     };
   }, [open]);
 
-  const go = (to: string) => {
+  const go = (n: Notif) => {
+    markRead(n.id);
     setOpen(false);
-    navigate(to);
+    navigate(n.to);
   };
 
   return (
@@ -272,20 +419,39 @@ export default function NotificationsBell() {
       <button
         ref={bellRef}
         className="tr-top__bell"
-        aria-label={`Notifications${count ? ` (${count})` : ''}`}
+        aria-label={`Notifications${unreadCount ? ` (${unreadCount})` : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         <Bell size={15} />
-        {count > 0 && <span className="tr-top__bell-count">{count}</span>}
+        {unreadCount > 0 && <span className="tr-top__bell-count">{unreadCount}</span>}
       </button>
 
       {open && (
         <div className="tr-notif__panel" role="dialog" aria-label="Notifications">
           <div className="tr-notif__head">
             <span className="mnd-serif">Le guet de la Maison</span>
-            {count > 0 && <span className="tr-notif__badge">{count}</span>}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'center' }}>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, letterSpacing: '.04em', color: 'var(--color-indigo)' }}
+                  onClick={markAllRead}
+                >
+                  Tout marquer comme lu
+                </button>
+              )}
+              {readVisibleCount > 0 && (
+                <button
+                  type="button"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, letterSpacing: '.04em', color: 'var(--ink-soft)' }}
+                  onClick={unreadCount === 0 ? dismissAll : dismissRead}
+                >
+                  {unreadCount === 0 ? 'Tout effacer' : 'Effacer les lues'}
+                </button>
+              )}
+            </div>
           </div>
 
           {permState === 'default' && (
@@ -294,27 +460,47 @@ export default function NotificationsBell() {
             </button>
           )}
 
-          {count === 0 ? (
+          {visible.length === 0 ? (
             <div className="tr-notif__empty">Rien à signaler — la Maison veille.</div>
           ) : (
             <div className="tr-notif__list" role="menu">
-              {items.map((n) => {
+              {visible.map((n) => {
                 const Icon = ICONS[n.kind];
+                const unread = !readSet.has(n.id);
                 return (
-                  <button
-                    key={n.id}
-                    className="tr-notif__item"
-                    role="menuitem"
-                    onClick={() => go(n.to)}
-                  >
-                    <span className={`tr-notif__dot tr-notif__dot--${n.kind}`}>
-                      <Icon size={13} />
-                    </span>
-                    <span className="tr-notif__body">
-                      <span className="tr-notif__label">{n.label}</span>
-                      {n.meta && <span className="tr-notif__meta">{n.meta}</span>}
-                    </span>
-                  </button>
+                  <div key={n.id} style={{ display: 'flex', alignItems: 'stretch' }}>
+                    <button
+                      className="tr-notif__item"
+                      role="menuitem"
+                      onClick={() => go(n)}
+                      style={{ flex: 1, minWidth: 0, ...(unread ? {} : { opacity: 0.55 }) }}
+                    >
+                      <span className={`tr-notif__dot tr-notif__dot--${n.kind}`}>
+                        <Icon size={13} />
+                      </span>
+                      <span className="tr-notif__body">
+                        <span className="tr-notif__label" style={{ fontWeight: unread ? 600 : 400 }}>
+                          {n.label}
+                        </span>
+                        {n.meta && <span className="tr-notif__meta">{n.meta}</span>}
+                      </span>
+                      {unread && (
+                        <span
+                          aria-hidden
+                          style={{ flex: 'none', width: 7, height: 7, borderRadius: '50%', background: 'var(--color-copper)', alignSelf: 'center' }}
+                        />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Effacer cette notification"
+                      title="Effacer"
+                      onClick={() => dismiss(n.id)}
+                      style={{ flex: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', padding: '0 12px', fontSize: 13 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 );
               })}
             </div>

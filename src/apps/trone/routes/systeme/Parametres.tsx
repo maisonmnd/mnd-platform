@@ -5,7 +5,9 @@ import { Toggle } from '../equipe/ui';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
-import { useCrownStyles } from '../../../../shared/clients';
+import { useCrownStyles, useSegments } from '../../../../shared/clients';
+import { useServices } from '../../../../shared/catalog';
+import { usePaymentMethods, paymentMethodsStore } from '../../../../shared/finance';
 import { createStore, useStore } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import './systeme.css';
@@ -118,13 +120,22 @@ function EditRow({ l, sub, children }: { l: string; sub?: string; children: Reac
 export default function Parametres() {
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
+  const [services] = useServices();
   const [identity, setIdentity] = useHouseIdentity();
   const [crownStyles, setCrownStyles] = useCrownStyles();
+  const [segments, setSegments] = useSegments();
+  const [payMethods] = usePaymentMethods();
   const [saved, setSaved] = useState(false);
   const [sentRole, setSentRole] = useState<string | null>(null);
   const [newStyle, setNewStyle] = useState('');
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editVal, setEditVal] = useState('');
+  const [newSeg, setNewSeg] = useState('');
+  const [segEditIdx, setSegEditIdx] = useState<number | null>(null);
+  const [segEditVal, setSegEditVal] = useState('');
+  const [newPay, setNewPay] = useState('');
+  const [payEditIdx, setPayEditIdx] = useState<number | null>(null);
+  const [payEditVal, setPayEditVal] = useState('');
 
   const curName = currencyByCode(currency)?.name ?? currency;
 
@@ -146,6 +157,14 @@ export default function Parametres() {
     const n = Math.max(0, Math.round(Number(raw) || 0));
     setSettings((s) => ({ ...s, deliveryFeeXof: n }));
   };
+
+  /** Prestations qui exigent un acompte — bascule dans la liste des Paramètres. */
+  const depositIds = settings.depositServiceIds ?? [];
+  const toggleDepositService = (id: string) =>
+    setSettings((s) => {
+      const cur = s.depositServiceIds ?? [];
+      return { ...s, depositServiceIds: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
+    });
 
   /* ----- Styles de couronne — liste éditable (trim + dédoublonnage) ----- */
   const normalizeStyles = (list: string[]): string[] => {
@@ -178,6 +197,44 @@ export default function Parametres() {
     if (!window.confirm(`Retirer le style « ${name} » ? Il ne sera plus proposé au CRM ni à Ma Couronne.`)) return;
     setCrownStyles((prev) => prev.filter((_, i) => i !== idx));
     if (editIdx === idx) setEditIdx(null);
+  };
+
+  /* ----- Segments de clientèle — même gestion (ajout / renommage / retrait) ----- */
+  const addSeg = () => {
+    const t = newSeg.trim();
+    if (!t) return;
+    setSegments((prev) => normalizeStyles([...prev, t]));
+    setNewSeg('');
+  };
+  const commitSegRename = (idx: number) => {
+    const t = segEditVal.trim();
+    if (t) setSegments((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
+    setSegEditIdx(null);
+    setSegEditVal('');
+  };
+  const removeSeg = (idx: number, name: string) => {
+    if (!window.confirm(`Retirer le segment « ${name} » ? Il ne sera plus proposé dans le CRM (les fiches déjà taguées le gardent).`)) return;
+    setSegments((prev) => prev.filter((_, i) => i !== idx));
+    if (segEditIdx === idx) setSegEditIdx(null);
+  };
+
+  /* ----- Modes de paiement — même gestion (ajout / renommage / retrait) ----- */
+  const addPay = () => {
+    const t = newPay.trim();
+    if (!t) return;
+    paymentMethodsStore.set((prev) => normalizeStyles([...prev, t]));
+    setNewPay('');
+  };
+  const commitPayRename = (idx: number) => {
+    const t = payEditVal.trim();
+    if (t) paymentMethodsStore.set((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
+    setPayEditIdx(null);
+    setPayEditVal('');
+  };
+  const removePay = (idx: number, name: string) => {
+    if (!window.confirm(`Retirer le mode de paiement « ${name} » ? Il ne sera plus proposé à l’encaissement (Factures & Académie).`)) return;
+    paymentMethodsStore.set((prev) => prev.filter((_, i) => i !== idx));
+    if (payEditIdx === idx) setPayEditIdx(null);
   };
 
   const setHour = (key: string, field: keyof DayHours, val: string | boolean) =>
@@ -299,6 +356,43 @@ export default function Parametres() {
               <span className="sys-row__value">%</span>
             </div>
           </div>
+          <div className="sys-row" style={{ display: 'block' }}>
+            <div style={{ marginBottom: 8 }}>
+              <div className="sys-row__label">Prestations exigeant un acompte</div>
+              <div className="sys-row__sub">
+                Seules les prestations sélectionnées demandent l’acompte (au taux ci-dessus), au Trône
+                comme sur Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe.
+              </div>
+            </div>
+            {services.length === 0 ? (
+              <div className="sys-row__sub">Aucune prestation au catalogue.</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {services.map((sv) => {
+                  const on = depositIds.includes(sv.id);
+                  return (
+                    <button
+                      key={sv.id}
+                      type="button"
+                      onClick={() => toggleDepositService(sv.id)}
+                      style={{
+                        border: `1px solid ${on ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                        borderRadius: 3,
+                        padding: '7px 12px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)',
+                        background: on ? 'var(--color-copper)' : 'var(--surface-card)',
+                        color: on ? 'var(--color-ivoire)' : 'var(--ink)',
+                      }}
+                    >
+                      {sv.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <div className="sys-row">
             <div>
               <div className="sys-row__label">Frais de livraison à domicile</div>
@@ -384,7 +478,7 @@ export default function Parametres() {
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {crownStyles.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row">
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
               {editIdx === i ? (
                 <>
                   <input
@@ -419,7 +513,7 @@ export default function Parametres() {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <Input
             value={newStyle}
             onChange={(e) => setNewStyle(e.target.value)}
@@ -428,6 +522,130 @@ export default function Parametres() {
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
+        </div>
+      </Card>
+
+      {/* ---------- CRM · segments de clientèle ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">CRM · segments de clientèle</div>
+            <div className="sys-section__cap">
+              Les segments proposés dans les fiches clientes (VIP, Prospect, Cercle…). Ajoutez, renommez, retirez ;
+              une fiche déjà taguée conserve ses segments même s’ils sont retirés d’ici.
+            </div>
+          </div>
+          <span className="sys-badge-count">{segments.length} segment{segments.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {segments.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
+              {segEditIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={segEditVal}
+                    autoFocus
+                    onChange={(e) => setSegEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitSegRename(i); if (e.key === 'Escape') setSegEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le segment"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitSegRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSegEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setSegEditIdx(i); setSegEditVal(s); }}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeSeg(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {segments.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun segment — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newSeg}
+            onChange={(e) => setNewSeg(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
+            placeholder="Nouveau segment — ex. Fidèle"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
+        </div>
+      </Card>
+
+      {/* ---------- Encaissement · modes de paiement ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Encaissement · modes de paiement</div>
+            <div className="sys-section__cap">
+              Les moyens de règlement proposés à l’encaissement — Factures &amp; Académie. Ajoutez, renommez, retirez ;
+              les changements se propagent aussitôt.
+            </div>
+          </div>
+          <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {payMethods.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
+              {payEditIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={payEditVal}
+                    autoFocus
+                    onChange={(e) => setPayEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitPayRename(i); if (e.key === 'Escape') setPayEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le mode de paiement"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitPayRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setPayEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setPayEditIdx(i); setPayEditVal(s); }}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removePay(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {payMethods.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun mode de paiement — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newPay}
+            onChange={(e) => setNewPay(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
+            placeholder="Nouveau mode — ex. Orange Money"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
         </div>
       </Card>
 

@@ -1,10 +1,11 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Eyebrow } from '../../../../ds/components';
+import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
 import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
+import { useApprenants, useFormations } from '../equipe/data';
 import { apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
 import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
@@ -18,6 +19,19 @@ import './finances.css';
 const fmtDay = (iso: string): string =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
+/* Date d'un règlement de scolarité (jj/mm/aaaa, ou ISO) → clé de mois « aaaa-mm ». */
+const payMonthKey = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (fr) return `${fr[3]}-${fr[2]}`;
+  const iso = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return iso ? `${iso[1]}-${iso[2]}` : '';
+};
+/* … et → ISO « aaaa-mm-jj » pour l'affichage/tri du journal. */
+const payISO = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
+};
+
 const MIX_FILLS = [
   'var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--copper-400)',
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
@@ -29,17 +43,21 @@ export default function Synthese() {
   const [expenses] = useExpenses();
   const [appts] = useAppointments();
   const [clients] = useClients();
+  const [apprenants] = useApprenants();
+  const [formations] = useFormations();
   const byId = useServicesById();
 
   const [showRev, setShowRev] = useState(false);
   const [showExp, setShowExp] = useState(false);
+  /* Détail cliquable d'un montant — écritures derrière le chiffre. */
+  const [detail, setDetail] = useState<{ title: string; rows: { date?: string; who: string; meta?: string; amount: number }[]; total: number } | null>(null);
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
   const prevMonth = shiftMonth(month, -1);
 
   const {
-    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, topServices, topClients,
+    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail,
   } = useMemo(() => {
     const nameOf = (id: string) => clients.find((c) => c.id === id)?.name;
 
@@ -53,9 +71,21 @@ export default function Synthese() {
     );
     const liveExp = expenses.filter((e) => e.branchId === branch.id && !e.stopped);
 
+    // Règlements de scolarité (Académie) — revenus de la Maison. Les apprenant·e·s
+    // ne sont pas rattaché·e·s à une branche : la scolarité compte comme revenu
+    // quelle que soit la branche affichée.
+    const fName = (id: string) => formations.find((f) => f.id === id)?.name ?? 'Formation';
+    const formationPays = apprenants.flatMap((ap) =>
+      (ap.payments ?? []).map((p) => ({
+        id: p.id, amount: p.amountXof, who: ap.name, formation: fName(ap.formationId),
+        mk: payMonthKey(p.date), iso: payISO(p.date),
+      })),
+    );
+
     const revenueOf = (mk: string) =>
       paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0) +
-      honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0);
+      honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0) +
+      formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
     const expenseOf = (mk: string) =>
       liveExp.filter((e) => monthKey(e.date) === mk).reduce((s, e) => s + expenseTotal(e), 0);
 
@@ -73,6 +103,7 @@ export default function Synthese() {
     // — Détail du mois sélectionné —
     const invM = paidInv.filter((i) => monthKey(i.date) === month);
     const ritM = honored.filter((a) => monthKey(a.date) === month);
+    const payM = formationPays.filter((p) => p.mk === month);
 
     const bump = (m: Map<string, { value: number; count: number }>, key: string, v: number) => {
       const cur = m.get(key) ?? { value: 0, count: 0 };
@@ -87,12 +118,14 @@ export default function Synthese() {
     const caisseMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => bump(caisseMap, i.cashbox ?? 'Autres', invoiceTotal(i)));
     ritM.forEach((a) => bump(caisseMap, 'Rituels honorés', apptNetXof(a, byId)));
+    payM.forEach((p) => bump(caisseMap, 'Académie · formations', p.amount));
     const byCashbox = spread(caisseMap);
 
     // Revenus par mode de paiement
     const methodMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => bump(methodMap, i.payment ?? 'Non précisé', invoiceTotal(i)));
     ritM.forEach((a) => bump(methodMap, 'Rituel · carnet', apptNetXof(a, byId)));
+    payM.forEach((p) => bump(methodMap, 'Académie · scolarité', p.amount));
     const byMethod = spread(methodMap);
 
     // Top prestations du mois — tous les rituels honorés du mois (facturés ou non),
@@ -102,9 +135,14 @@ export default function Synthese() {
         && monthKey(a.date) === month && !(a.seriesIndex && a.seriesIndex > 1),
     );
     const svcMap = new Map<string, { value: number; count: number }>();
+    const svcDetail = new Map<string, { date: string; who: string; amount: number }[]>();
     honoredAll.forEach((a) => {
       const disc = 1 - (a.discountPct ?? 0) / 100;
-      apptServices(a, byId).forEach((s) => bump(svcMap, s.name, Math.round(s.priceXof * disc)));
+      apptServices(a, byId).forEach((s) => {
+        const amt = Math.round(s.priceXof * disc);
+        bump(svcMap, s.name, amt);
+        svcDetail.set(s.name, [...(svcDetail.get(s.name) ?? []), { date: a.date, who: nameOf(a.clientId) ?? 'Cliente', amount: amt }]);
+      });
     });
     const topServices = spread(svcMap).slice(0, 5);
 
@@ -112,6 +150,7 @@ export default function Synthese() {
     const cliMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceTotal(i)));
     ritM.forEach((a) => bump(cliMap, nameOf(a.clientId) ?? 'Cliente', apptNetXof(a, byId)));
+    payM.forEach((p) => bump(cliMap, p.who, p.amount));
     const topClients = spread(cliMap).slice(0, 3);
 
     // Sources itemisées — factures payées + rituels honorés, du plus récent
@@ -119,10 +158,12 @@ export default function Synthese() {
       ...invM.map((i) => ({
         key: `f-${i.id}`,
         date: i.date,
-        who: i.clientName ?? nameOf(i.clientId) ?? 'Cliente',
+        who: i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage',
         title: `Facture ${i.number}`,
         mode: i.payment ?? 'Paiement non précisé',
         cashbox: i.cashbox ?? '',
+        methodKey: i.payment ?? 'Non précisé',
+        cashboxKey: i.cashbox ?? 'Autres',
         amount: invoiceTotal(i),
       })),
       ...ritM.map((a) => ({
@@ -132,7 +173,20 @@ export default function Synthese() {
         title: apptLabel(a, byId),
         mode: ['Rituel honoré', a.master].filter(Boolean).join(' · '),
         cashbox: '',
+        methodKey: 'Rituel · carnet',
+        cashboxKey: 'Rituels honorés',
         amount: apptNetXof(a, byId),
+      })),
+      ...payM.map((p) => ({
+        key: `af-${p.id}`,
+        date: p.iso,
+        who: p.who,
+        title: `Scolarité · ${p.formation}`,
+        mode: 'Formation · Académie',
+        cashbox: 'Académie',
+        methodKey: 'Académie · scolarité',
+        cashboxKey: 'Académie · formations',
+        amount: p.amount,
       })),
     ].sort((x, y) => (x.date < y.date ? 1 : -1));
 
@@ -151,8 +205,13 @@ export default function Synthese() {
       }))
       .sort((a, b) => b.total - a.total);
 
-    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, topServices, topClients };
-  }, [invoices, expenses, appts, clients, branch.id, month, thisMonth, byId]);
+    // Lignes de dépense aplaties — pour le détail cliquable « Dépenses ».
+    const expenseRows = expM
+      .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail };
+  }, [invoices, expenses, appts, clients, apprenants, formations, branch.id, month, thisMonth, byId]);
 
   const monthName = monthLabel(month);
   const revenue = revenueOf(month);
@@ -171,23 +230,42 @@ export default function Synthese() {
     return { t: `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)} % vs ${prevName}`, down: pct < 0 };
   };
 
+  /* — Détail cliquable : chaque montant ouvre la liste des écritures qui le composent — */
+  const openDetail = (title: string, rows: { date?: string; who: string; meta?: string; amount: number }[]) =>
+    setDetail({ title, rows, total: rows.reduce((s, r) => s + r.amount, 0) });
+  const openRevenue = () =>
+    openDetail(`Revenus encaissés · ${monthName}`, revSources.map((s) => ({ date: s.date, who: s.who, meta: [s.title, s.mode, s.cashbox].filter(Boolean).join(' · '), amount: s.amount })));
+  const openExpenses = () =>
+    openDetail(`Dépenses engagées · ${monthName}`, expenseRows.map((e) => ({ date: e.date, who: e.who, meta: e.meta, amount: e.amount })));
+  const openResult = () =>
+    setDetail({ title: `Résultat net · ${monthName}`, rows: [{ who: 'Revenus encaissés', amount: revenue }, { who: 'Charges & dépenses', amount: -spent }], total: net });
+  const openCashbox = (name: string) =>
+    openDetail(`Caisse · ${name}`, revSources.filter((s) => s.cashboxKey === name).map((s) => ({ date: s.date, who: s.who, meta: [s.title, s.mode].filter(Boolean).join(' · '), amount: s.amount })));
+  const openMethod = (name: string) =>
+    openDetail(`Mode de paiement · ${name}`, revSources.filter((s) => s.methodKey === name).map((s) => ({ date: s.date, who: s.who, meta: [s.title, s.cashbox].filter(Boolean).join(' · '), amount: s.amount })));
+  const openClient = (name: string) =>
+    openDetail(`Cliente · ${name}`, revSources.filter((s) => s.who === name).map((s) => ({ date: s.date, who: s.title, meta: [s.mode, s.cashbox].filter(Boolean).join(' · '), amount: s.amount })));
+  const openService = (name: string) =>
+    openDetail(`Prestation · ${name}`, (svcDetail.get(name) ?? []).map((d) => ({ date: d.date, who: d.who, meta: name, amount: d.amount })));
+
   const kpis = [
-    { l: `Revenus encaissés · ${monthName}`, v: fmtMoney(revenue, currency), a: 'var(--color-indigo)', col: 'var(--color-indigo)', tr: trend(revenue, prevRevenue), extra: '' },
-    { l: `Dépenses engagées · ${monthName}`, v: fmtMoney(spent, currency), a: 'var(--color-copper)', col: 'var(--color-indigo)', tr: trend(spent, prevSpent), extra: '' },
+    { l: `Revenus encaissés · ${monthName}`, v: fmtMoney(revenue, currency), a: 'var(--color-indigo)', col: 'var(--color-indigo)', tr: trend(revenue, prevRevenue), extra: '', on: openRevenue },
+    { l: `Dépenses engagées · ${monthName}`, v: fmtMoney(spent, currency), a: 'var(--color-copper)', col: 'var(--color-indigo)', tr: trend(spent, prevSpent), extra: '', on: openExpenses },
     {
       l: `Résultat net · ${monthName}`, v: fmtMoney(net, currency),
       a: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)', col: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)',
       tr: trend(net, prevNet),
       extra: `Marge nette ${margin} %${prevRevenue > 0 ? ` · ${prevMargin} % en ${prevName}` : ''}`,
+      on: openResult,
     },
   ];
 
   // Compte de résultat
   const pnl = [
-    { label: 'Chiffre d’affaires encaissé', value: fmtMoney(revenue, currency), strong: true, col: 'var(--color-indigo)' },
-    { label: 'Charges & dépenses', value: `− ${fmtMoney(spent, currency)}`, strong: false, col: 'var(--ink)' },
-    { label: 'Résultat net', value: fmtMoney(net, currency), strong: true, col: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)' },
-    { label: 'Marge nette', value: `${margin} %`, strong: false, col: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)' },
+    { label: 'Chiffre d’affaires encaissé', value: fmtMoney(revenue, currency), strong: true, col: 'var(--color-indigo)', on: openRevenue },
+    { label: 'Charges & dépenses', value: `− ${fmtMoney(spent, currency)}`, strong: false, col: 'var(--ink)', on: openExpenses },
+    { label: 'Résultat net', value: fmtMoney(net, currency), strong: true, col: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)', on: openResult },
+    { label: 'Marge nette', value: `${margin} %`, strong: false, col: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)', on: openResult },
   ];
 
   const cashMax = Math.max(...byCashbox.map((c) => c.value), 1);
@@ -239,7 +317,16 @@ export default function Synthese() {
 
       <div className="tr-grid tr-grid--3" style={{ marginTop: 24 }}>
         {kpis.map((k) => (
-          <div className="trf-kpi" key={k.l} style={{ '--accent': k.a } as CSSProperties}>
+          <div
+            className="trf-kpi trf-click"
+            key={k.l}
+            style={{ '--accent': k.a } as CSSProperties}
+            role="button"
+            tabIndex={0}
+            onClick={k.on}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.on(); } }}
+            title="Voir le détail"
+          >
             <div className="l">{k.l}</div>
             <div className="v" style={{ color: k.col }}>{k.v}</div>
             <div className={`c ${k.tr.down ? '' : 'up'}`}>{k.tr.t}</div>
@@ -298,7 +385,15 @@ export default function Synthese() {
           <div className="trf-panel__title">Revenus par caisse · {monthName}</div>
           {byCashbox.length === 0 && <div className="trf-empty">Aucun encaissement en {monthName} pour l’instant.</div>}
           {byCashbox.map((c, i) => (
-            <div className="trf-linerow" key={c.name}>
+            <div
+              className="trf-linerow trf-click"
+              key={c.name}
+              role="button"
+              tabIndex={0}
+              onClick={() => openCashbox(c.name)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCashbox(c.name); } }}
+              title={`Voir le détail · ${c.name}`}
+            >
               <div className="trf-linerow__top">
                 <span className="trf-linerow__cat">{c.name}</span>
                 <span className="trf-linerow__val">{fmtMoney(c.value, currency)}</span>
@@ -316,9 +411,16 @@ export default function Synthese() {
           {pnl.map((p, i) => (
             <div
               key={p.label}
+              className="trf-click"
+              role="button"
+              tabIndex={0}
+              onClick={p.on}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); p.on(); } }}
+              title="Voir le détail"
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '13px 0', borderBottom: i < pnl.length - 1 ? '1px solid var(--hairline)' : 'none',
+                padding: '13px 10px', margin: '0 -10px', borderRadius: 4,
+                borderBottom: i < pnl.length - 1 ? '1px solid var(--hairline)' : 'none',
               }}
             >
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: p.strong ? 13.5 : 13, fontWeight: p.strong ? 500 : 300, color: 'var(--ink)' }}>{p.label}</span>
@@ -341,7 +443,15 @@ export default function Synthese() {
           <div className="trf-panel__title">Top prestations · {monthName}</div>
           {topServices.length === 0 && <div className="trf-empty">Aucun rituel honoré en {monthName} — le classement attend ses lauréates.</div>}
           {topServices.map((s, i) => (
-            <div className="trf-toprow" key={s.name}>
+            <div
+              className="trf-toprow trf-click"
+              key={s.name}
+              role="button"
+              tabIndex={0}
+              onClick={() => openService(s.name)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openService(s.name); } }}
+              title={`Voir le détail · ${s.name}`}
+            >
               <span className="trf-rank">{i + 1}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="trf-toprow__name">{s.name}</div>
@@ -361,7 +471,15 @@ export default function Synthese() {
           <div className="trf-panel__title">Meilleures clientes · {monthName}</div>
           {topClients.length === 0 && <div className="trf-empty">Aucun encaissement en {monthName} — les têtes couronnées se font attendre.</div>}
           {topClients.map((c, i) => (
-            <div className="trf-toprow" key={c.name}>
+            <div
+              className="trf-toprow trf-click"
+              key={c.name}
+              role="button"
+              tabIndex={0}
+              onClick={() => openClient(c.name)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openClient(c.name); } }}
+              title={`Voir le détail · ${c.name}`}
+            >
               <span className="trf-rank">{i + 1}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="trf-toprow__name">{c.name}</div>
@@ -384,7 +502,15 @@ export default function Synthese() {
               </div>
               <div style={{ marginTop: 10 }}>
                 {byMethod.map((m, i) => (
-                  <div className="trf-mixrow" key={m.name}>
+                  <div
+                    className="trf-mixrow trf-click"
+                    key={m.name}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openMethod(m.name)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMethod(m.name); } }}
+                    title={`Voir le détail · ${m.name}`}
+                  >
                     <span className="trf-mixrow__dot" style={{ background: MIX_FILLS[i % MIX_FILLS.length] }} />
                     <span className="trf-mixrow__name">{m.name}</span>
                     <span className="trf-mixrow__pct">{mixTotal ? Math.round((m.value / mixTotal) * 100) : 0} %</span>
@@ -493,6 +619,32 @@ export default function Synthese() {
           )
         )}
       </div>
+
+      {/* Détail cliquable d'un montant — les écritures qui le composent */}
+      {detail && (
+        <Modal title={detail.title} onClose={() => setDetail(null)} width={560}>
+          {detail.rows.length === 0 ? (
+            <div className="trf-empty">Aucune écriture derrière ce montant en {monthName}.</div>
+          ) : (
+            <div>
+              {detail.rows.map((r, idx) => (
+                <div className="trf-exprow" key={idx}>
+                  {r.date ? <span className="trf-datepill">{fmtDay(r.date)}</span> : <span className="trf-datepill" style={{ visibility: 'hidden' }}>—</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="trf-exprow__vendor">{r.who}</div>
+                    {r.meta && <div className="trf-exprow__meta">{r.meta}</div>}
+                  </div>
+                  <span className="trf-exprow__amt" style={{ color: r.amount < 0 ? 'var(--trf-error)' : undefined }}>{fmtMoney(r.amount, currency)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16, paddingTop: 13, borderTop: '1px solid var(--hairline)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500, letterSpacing: '0.02em' }}>Total · {detail.rows.length} écriture{detail.rows.length > 1 ? 's' : ''}</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: detail.total < 0 ? 'var(--trf-error)' : 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(detail.total, currency)}</span>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

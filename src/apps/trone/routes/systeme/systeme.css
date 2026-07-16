@@ -271,3 +271,32 @@
   .sys-acc-row__role { flex: 1 1 auto; max-width: none; }
   .sys-acc-row__name { flex: 1 1 100%; width: auto; }
 }
+
+/* ---------- Listes éditables : catalogue des styles & segments CRM ----------
+   Sur mobile chaque ligne « sys-row--items » se comporte de façon identique :
+   le libellé (ou le champ de renommage) occupe toute la première ligne, et les
+   boutons Renommer/Retirer (ou Valider/Annuler) passent sur une seconde ligne
+   alignés à droite. Fin du rendu en escalier selon la longueur du libellé. */
+@media (max-width: 640px) {
+  .sys-row--items {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  /* Premier enfant = libellé (vue) ou champ de renommage (édition) : pleine largeur.
+     !important pour l'emporter sur le style inline flex:1 du champ de renommage. */
+  .sys-row--items > :first-child {
+    flex: 1 1 100% !important;
+    min-width: 0;
+    margin-right: 0 !important;
+  }
+  /* Dernier enfant = groupe de boutons : sa propre ligne, aligné à droite. */
+  .sys-row--items > :last-child {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+
+  /* Ligne d'ajout (Input + « Ajouter ») : l'Input rétrécit, jamais de débordement. */
+  .sys-additem { flex-wrap: wrap; }
+  .sys-additem > .mnd-input { min-width: 0; }
+}

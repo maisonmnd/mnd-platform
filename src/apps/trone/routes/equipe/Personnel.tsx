@@ -15,6 +15,7 @@ import {
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
+import { useTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
 type Tab = 'equipe' | 'paie' | 'retention';
@@ -52,11 +53,9 @@ const PRIME_TYPES: [PrimeType, string][] = [
   ['performance', 'Performance'], ['nuit', 'Nuit'], ['fin_annee', 'Fin d’année'], ['autre', 'Autre'],
 ];
 
-/* Pourboires — staffId → liste, datés (rattachés au mois). Ajoutés au net à verser. */
-type Tip = { id: string; amountXof: number; date: string; note?: string };
-const tipsStore = createStore<Record<string, Tip[]>>('mnd_tips', {});
-bindDocument(tipsStore, 'mnd_tips');
-const useTips = () => useStore(tipsStore);
+/* Pourboires — staffId → liste, datés (rattachés au mois). Ajoutés au net à verser.
+   Le magasin est partagé (`shared/tips.ts`) afin d'être alimenté aussi à
+   l'encaissement d'un RDV (pourboire pour le maître officiant). */
 
 /* Confirmation de règlement (la « signature ») — clé `${AAAA-MM}:${staffId}`.
    Enregistre qui a confirmé le paiement et quand : preuve datée, infalsifiable côté

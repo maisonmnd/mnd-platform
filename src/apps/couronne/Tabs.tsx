@@ -1,17 +1,18 @@
 import { asset } from '../../shared/asset';
+import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
-import { enablePush, pushState, type PushState } from '../../shared/push';
+import { enablePush, disablePush, pushState, type PushState } from '../../shared/push';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { signOut } from '../../shared/auth';
+import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { clientsStore } from '../../shared/clients';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
-import { uid } from '../../shared/store';
+import { createStore, uid, useStore } from '../../shared/store';
 import {
   GOLD_AT,
   MONTHS,
@@ -107,10 +108,16 @@ function useClientOrders(): Invoice[] {
 }
 
 /** Pastille de la cloche : devis en attente + rendez-vous à venir. */
+/* ids des notifications effacées par la cliente (masquées + hors compteur). */
+const dismissedMcStore = createStore<string[]>('mnd_mc_notif_dismissed', []);
+
 function useNotifCount(): number {
   const devis = useClientDevis();
   const upcoming = useUpcomingAppointments();
-  return devis.filter((d) => d.status === 'envoyée').length + upcoming.length;
+  const [dismissed] = useStore(dismissedMcStore);
+  const d = new Set(dismissed);
+  return devis.filter((x) => x.status === 'envoyée' && !d.has(`devis-${x.id}`)).length
+    + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length;
 }
 
 function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
@@ -454,6 +461,37 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
   /* Remise : retrait en maison (offert) ou livraison à domicile (frais + adresse). */
   const [mode, setMode] = useState<'retrait' | 'livraison'>('retrait');
   const [address, setAddress] = useState(client?.city ? `${client.city}, ` : '');
+  /* Position GPS partagée par la cliente — un point précis pour le livreur. */
+  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const mapsLink = geo ? `https://maps.google.com/?q=${geo.lat},${geo.lng}` : '';
+
+  const shareLocation = () => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      toast('La géolocalisation n’est pas disponible sur cet appareil.');
+      return;
+    }
+    setGeoBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        });
+        setGeoBusy(false);
+        toast('Position partagée — la maison vous trouvera facilement.');
+      },
+      (err) => {
+        setGeoBusy(false);
+        toast(
+          err.code === err.PERMISSION_DENIED
+            ? 'Autorisez la localisation pour partager votre position.'
+            : 'Impossible d’obtenir votre position. Réessayez.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  };
   /* État après-commande : le récapitulatif reste affiché, le suivi à un geste. */
   const [orderDone, setOrderDone] = useState<
     { number: string; totalXof: number; mode: 'retrait' | 'livraison' } | null
@@ -482,8 +520,8 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
   const fee = deliveryFee();
   const deliveryCost = mode === 'livraison' ? fee : 0;
   const total = subtotal + deliveryCost;
-  /* La livraison exige une adresse ; le retrait, jamais. */
-  const addressMissing = mode === 'livraison' && !address.trim();
+  /* La livraison exige un repère : une adresse saisie OU une position GPS partagée. */
+  const addressMissing = mode === 'livraison' && !address.trim() && !geo;
 
   /* Commander : un vrai devis produit adressé à la maison (Trône · Factures/devis).
      La livraison ajoute sa propre ligne au devis ; l'adresse voyage dans la note. */
@@ -503,7 +541,12 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
     }
     const note =
       mode === 'livraison'
-        ? `Livraison à domicile — ${address.trim()}`
+        ? [
+            `Livraison à domicile${address.trim() ? ` — ${address.trim()}` : ''}`,
+            mapsLink ? `Position GPS : ${mapsLink}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
         : 'Retrait en maison';
     const inv: Invoice = {
       id: uid(),
@@ -521,7 +564,11 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
     };
     const confirmed = fmtMoney(total, currency);
     invoicesStore.set((prev) => [...prev, inv]);
+    /* La position GPS partagée se dépose aussi sur la fiche cliente — le Trône
+       propose alors un itinéraire direct depuis le CRM. */
+    if (geo) clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, geo } : c)));
     setCart({});
+    setGeo(null);
     setOrderDone({ number: inv.number, totalXof: total, mode });
     toast(`Commande transmise à la maison — ${confirmed}`);
   };
@@ -699,16 +746,48 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                     </button>
                   </div>
                   {mode === 'livraison' && (
-                    <label className="mc-deliver__addr">
-                      <span className="mc-deliver__addrlabel">Adresse de livraison</span>
-                      <textarea
-                        className="mc-deliver__addrinput"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Quartier, rue, repère… et un numéro à joindre."
-                        rows={2}
-                      />
-                    </label>
+                    <>
+                      <label className="mc-deliver__addr">
+                        <span className="mc-deliver__addrlabel">Adresse de livraison</span>
+                        <textarea
+                          className="mc-deliver__addrinput"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder="Quartier, rue, repère… et un numéro à joindre."
+                          rows={2}
+                        />
+                      </label>
+                      <div className="mc-geo">
+                        <button
+                          type="button"
+                          className={`mc-geo__btn ${geo ? 'is-set' : ''}`}
+                          onClick={shareLocation}
+                          disabled={geoBusy}
+                        >
+                          <MapPin size={15} strokeWidth={1.75} />
+                          {geoBusy
+                            ? 'Localisation en cours…'
+                            : geo
+                              ? 'Actualiser ma position'
+                              : 'Partager ma position GPS'}
+                        </button>
+                        {geo && (
+                          <a
+                            className="mc-geo__link"
+                            href={mapsLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Position enregistrée · voir sur la carte
+                          </a>
+                        )}
+                        {!geo && (
+                          <span className="mc-geo__hint">
+                            Un point précis pour que le livreur vous trouve sans hésiter.
+                          </span>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -826,6 +905,8 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
+  const { session } = useAuth();
+  const email = client?.email ?? session?.user?.email ?? '';
 
   const [name, setName] = useState(client?.name ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
@@ -836,12 +917,20 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [pstate, setPstate] = useState<PushState>('default');
   const [pbusy, setPbusy] = useState(false);
   useEffect(() => { void pushState().then(setPstate); }, []);
-  const activatePush = async () => {
+  const togglePush = async () => {
+    if (pbusy) return;
     setPbusy(true);
-    const ok = await enablePush(clientId);
-    setPstate(await pushState());
-    setPbusy(false);
-    toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées.');
+    if (pstate === 'subscribed') {
+      await disablePush();
+      setPstate(await pushState());
+      setPbusy(false);
+      toast('Notifications désactivées sur ce téléphone.');
+    } else {
+      const ok = await enablePush(clientId);
+      setPstate(await pushState());
+      setPbusy(false);
+      toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées — autorisez-les dans le navigateur.');
+    }
   };
 
   const save = () => {
@@ -879,8 +968,9 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         ) : (
           <span className="mc-idcard__initial">{initial}</span>
         )}
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
+          {email && <div className="mc-idcard__meta" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>}
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
       </div>
@@ -897,11 +987,19 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
                   : 'Activez pour recevoir vos confirmations et rappels de rendez-vous.'}
               </div>
             </div>
-            {pstate === 'subscribed' ? (
-              <span className="mc-pushrow__on">Activées ✓</span>
-            ) : pstate === 'denied' ? null : (
-              <button className="mc-cta mc-cta--copper mc-pushrow__btn" onClick={() => void activatePush()} disabled={pbusy}>
-                {pbusy ? '…' : 'Activer'}
+            {pstate === 'denied' ? (
+              <span className="mc-pushrow__on" style={{ color: 'var(--mc-error)' }}>Bloquées</span>
+            ) : (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={pstate === 'subscribed'}
+                aria-label="Activer les notifications"
+                className={`mc-switch ${pstate === 'subscribed' ? 'is-on' : ''}`}
+                onClick={() => void togglePush()}
+                disabled={pbusy}
+              >
+                <span className="mc-switch__knob" />
               </button>
             )}
           </div>
@@ -1033,12 +1131,28 @@ export function Notifications({ onClose }: { onClose: () => void }) {
   const upcoming = useUpcomingAppointments();
   const next = upcoming[0];
 
+  /* Notifications effacées par la cliente : masquées + retirées du compteur. */
+  const [dismissed] = useStore(dismissedMcStore);
+  const dset = new Set(dismissed);
+  const devisV = devis.filter((d) => !dset.has(`devis-${d.id}`));
+  const upcomingV = upcoming.filter((a) => !dset.has(`resa-${a.id}`));
+  const showRappel = !!next && !dset.has(`rappel-${next.id}`);
+  const dismiss = (id: string) => dismissedMcStore.set((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const clearAll = () =>
+    dismissedMcStore.set((prev) => {
+      const s = new Set(prev);
+      for (const d of devis) s.add(`devis-${d.id}`);
+      for (const a of upcoming) s.add(`resa-${a.id}`);
+      if (next) s.add(`rappel-${next.id}`);
+      return [...s];
+    });
+
   /* Le pont devis → ERP : accepter ici rend le devis « accepté » au Trône (Factures). */
   const acceptDevis = (id: string) => {
     invoicesStore.set((prev) => prev.map((i) => (i.id === id && i.status === 'envoyée' ? { ...i, status: 'acceptée' } : i)));
   };
 
-  const empty = devis.length === 0 && upcoming.length === 0;
+  const empty = devisV.length === 0 && upcomingV.length === 0 && !showRappel;
 
   return (
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
@@ -1050,9 +1164,21 @@ export function Notifications({ onClose }: { onClose: () => void }) {
         <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
       </div>
       <div className="mc-scroll" style={{ flex: 1, padding: '8px 0 calc(16px + env(safe-area-inset-bottom))' }}>
+        {!empty && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 24px 6px' }}>
+            <button
+              type="button"
+              onClick={clearAll}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'underline', textUnderlineOffset: '3px' }}
+            >
+              Tout effacer
+            </button>
+          </div>
+        )}
         {/* devis — envoyés par le Trône, acceptés ici */}
-        {devis.map((d) => (
-          <div key={d.id} className="mc-notif">
+        {devisV.map((d) => (
+          <div key={d.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
+            <button type="button" aria-label="Effacer" onClick={() => dismiss(`devis-${d.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className={`mc-notif__dot ${d.status === 'acceptée' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
@@ -1075,8 +1201,9 @@ export function Notifications({ onClose }: { onClose: () => void }) {
         ))}
 
         {/* rappel du prochain rituel */}
-        {next && (
-          <div className="mc-notif">
+        {showRappel && next && (
+          <div className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
+            <button type="button" aria-label="Effacer" onClick={() => dismiss(`rappel-${next.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className="mc-notif__dot mc-notif__dot--indigo" />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
@@ -1091,8 +1218,9 @@ export function Notifications({ onClose }: { onClose: () => void }) {
         )}
 
         {/* réservations — l'état vu par la maison */}
-        {upcoming.map((a) => (
-          <div key={a.id} className="mc-notif">
+        {upcomingV.map((a) => (
+          <div key={a.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
+            <button type="button" aria-label="Effacer" onClick={() => dismiss(`resa-${a.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className={`mc-notif__dot ${a.status === 'confirmé' ? 'mc-notif__dot--success' : 'mc-notif__dot--soft'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">

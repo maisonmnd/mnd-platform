@@ -7,8 +7,9 @@ import { useClients } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal } from '../../../../shared/finance';
+import { useApprenants } from '../equipe/data';
 import {
-  Avatar, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, addDaysISO, frShort, fromISO,
+  Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from '../clients/_shared';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
@@ -19,6 +20,15 @@ import './pilotage.css';
    filtré par la branche, exprimé dans sa devise. */
 
 const monthKey = (iso: string) => iso.slice(0, 7);
+/* Date d'un règlement de scolarité (jj/mm/aaaa, ou ISO) → clé de mois / jour ISO. */
+const payMonthKey = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}` : d.slice(0, 7);
+};
+const payISO = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -31,6 +41,7 @@ export default function Dashboard() {
   const [invoices] = useInvoices();
   const [expenses] = useExpenses();
   const [categories] = useCategories();
+  const [apprenants] = useApprenants();
 
   const [breakOpen, setBreakOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
@@ -50,29 +61,40 @@ export default function Dashboard() {
   const prevMonthName = fromISO(`${prevMonth}-15`).toLocaleDateString('fr-FR', { month: 'long' });
 
   const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts } = useMemo(() => {
-    const realized = (a: Appointment) => a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today);
-    const apptRev = (mk: string) =>
-      appts.filter((a) => monthKey(a.date) === mk && realized(a)).reduce((s, a) => s + apptTotalXof(a, byId), 0);
-    const invRev = (mk: string) =>
-      invoices
-        .filter((i) => i.branchId === branch.id && monthKey(i.date) === mk && i.kind === 'facture' && i.status === 'payée')
-        .reduce((s, i) => s + invoiceTotal(i), 0);
+    /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
+       On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
+    const realized = (a: Appointment) => !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today));
+    const realizedAppts = appts.filter(realized);
+    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée');
+
+    const apptRev = (mk: string) => realizedAppts.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptTotalXof(a, byId), 0);
+    const invRev = (mk: string) => paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0);
     const exp = (mk: string) =>
       expenses
         .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped)
         .reduce((s, e) => s + e.amountXof, 0);
 
+    // Règlements de scolarité (Académie) — revenu réel de la Maison (hors branche).
+    const formPays = apprenants.flatMap((ap) =>
+      (ap.payments ?? []).map((p) => ({ amount: p.amountXof, mk: payMonthKey(p.date), iso: payISO(p.date) })),
+    );
+    const formRev = (mk: string) => formPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
+
+    /* Revenu réel d'un jour — MÊMES composantes que le mois (carnet non encaissé
+       + factures payées + scolarité) : le graphe 7 jours reste cohérent avec le KPI. */
+    const dayRev = (iso: string) =>
+      realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptTotalXof(a, byId), 0)
+      + paidInv.filter((i) => i.date === iso).reduce((s, i) => s + invoiceTotal(i), 0)
+      + formPays.filter((p) => p.iso === iso).reduce((s, p) => s + p.amount, 0);
+
     const rev7 = Array.from({ length: 7 }, (_, i) => {
       const iso = addDaysISO(today, i - 6);
-      const total = appts
-        .filter((a) => a.date === iso && (a.status === 'honoré' || a.status === 'confirmé'))
-        .reduce((s, a) => s + apptTotalXof(a, byId), 0);
-      return { iso, total, label: fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase() };
+      return { iso, total: dayRev(iso), label: fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase() };
     });
 
     return {
-      revenue: apptRev(thisMonth) + invRev(thisMonth),
-      prevRevenue: apptRev(prevMonth) + invRev(prevMonth),
+      revenue: apptRev(thisMonth) + invRev(thisMonth) + formRev(thisMonth),
+      prevRevenue: apptRev(prevMonth) + invRev(prevMonth) + formRev(prevMonth),
       spent: exp(thisMonth),
       prevSpent: exp(prevMonth),
       rev7,
@@ -81,11 +103,12 @@ export default function Dashboard() {
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
       stockAlerts: products.filter((p) => p.stock < 10),
     };
-  }, [appts, byId, invoices, expenses, products, branch.id, today, thisMonth, prevMonth]);
+  }, [appts, byId, invoices, expenses, products, apprenants, branch.id, today, thisMonth, prevMonth]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
-    const realized = (a: Appointment) => a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today);
+    // Même règle que le revenu : un rituel encaissé (invoiceId) est compté par sa facture, pas ici.
+    const realized = (a: Appointment) => !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today));
 
     const rit = new Map<string, { count: number; total: number }>();
     for (const a of appts) {
@@ -115,7 +138,14 @@ export default function Dashboard() {
       cur.total += invoiceTotal(i);
       pay.set(k, cur);
     }
-    const encaissements = [...pay].map(([k, v]) => ({ id: k, label: k, ...v })).sort((a, b) => b.total - a.total);
+    const encaissements = [...pay].map(([k, v]) => ({ id: k, label: k, ...v }));
+    // Scolarité de l'Académie — un encaissement du mois, tous parcours confondus.
+    const scol = apprenants
+      .flatMap((ap) => ap.payments ?? [])
+      .filter((p) => payMonthKey(p.date) === thisMonth)
+      .reduce((acc, p) => ({ count: acc.count + 1, total: acc.total + p.amountXof }), { count: 0, total: 0 });
+    if (scol.total > 0) encaissements.push({ id: 'academie', label: 'Académie · scolarité', count: scol.count, total: scol.total });
+    encaissements.sort((a, b) => b.total - a.total);
 
     return {
       rituels,
@@ -123,7 +153,25 @@ export default function Dashboard() {
       rituelsTotal: rituels.reduce((s, r) => s + r.total, 0),
       encTotal: encaissements.reduce((s, e) => s + e.total, 0),
     };
-  }, [appts, byId, categories, invoices, branch.id, thisMonth, today]);
+  }, [appts, byId, categories, invoices, apprenants, branch.id, thisMonth, today]);
+
+  /* Rendez-vous impayés — solde restant dû (net − acompte − encaissé), hors annulés.
+     Scindés : ÉCHUS (date passée, en retard) d'un côté, À VENIR (aujourd'hui + futur)
+     de l'autre. Chaque groupe trié du plus ancien au plus lourd, avec son total. */
+  const unpaid = useMemo(() => {
+    const rows = appts
+      .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
+      .map((a) => ({ a, net: apptNetXof(a, byId), due: apptDueXof(a, byId) }));
+    const byDate = (x: typeof rows[number], y: typeof rows[number]) =>
+      (x.a.date < y.a.date ? -1 : x.a.date > y.a.date ? 1 : y.due - x.due);
+    const sum = (rs: typeof rows) => rs.reduce((s, r) => s + r.due, 0);
+    const overdue = rows.filter((r) => r.a.date < today).sort(byDate);
+    const upcoming = rows.filter((r) => r.a.date >= today).sort(byDate);
+    return {
+      overdue: { rows: overdue, total: sum(overdue) },
+      upcoming: { rows: upcoming, total: sum(upcoming) },
+    };
+  }, [appts, byId, today]);
 
   const net = revenue - spent;
   const prevNet = prevRevenue - prevSpent;
@@ -154,6 +202,53 @@ export default function Dashboard() {
   ];
 
   const clientOf = (id: string) => allClients.find((c) => c.id === id);
+
+  /* Rendu d'un groupe d'impayés (échus / à venir) — carte avec total + lignes encaissables. */
+  const renderUnpaidGroup = (
+    title: string,
+    group: { rows: { a: Appointment; net: number; due: number }[]; total: number },
+    empty: string,
+  ) => (
+    <div className="trp-panel">
+      <div className="trp-mon__head">
+        <div className="trp-panel__title" style={{ marginBottom: 0 }}>{title}</div>
+        {group.rows.length > 0 && (
+          <div className="trp-mon__headline">
+            {group.rows.length} RDV
+            <span className="trp-mon__sep">·</span>
+            <span style={{ color: 'var(--color-copper)', fontFamily: 'var(--font-serif)', fontSize: 15 }}>
+              {fmtMoney(group.total, currency)} dus
+            </span>
+          </div>
+        )}
+      </div>
+      {group.rows.length === 0 ? (
+        <div className="trp-empty">{empty}</div>
+      ) : (
+        <div className="trp-pay">
+          {group.rows.map(({ a, net: rowNet, due }) => (
+            <div className="trp-pay__row" key={a.id}>
+              <div style={{ minWidth: 0 }}>
+                <div className="trp-act__name">{clientOf(a.clientId)?.name ?? 'Cliente'}</div>
+                <div className="trp-act__meta">{apptLabel(a, byId)}</div>
+              </div>
+              <div className="trp-pay__date">{frShort(a.date)}</div>
+              <div className="trp-pay__total">{fmtMoney(rowNet, currency)}</div>
+              <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
+              <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
+              <button
+                className="trp-pay__cta"
+                onClick={() => setPayAppt(a)}
+                title="Encaisser — paiement partiel ou total"
+              >
+                Encaisser
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const advance = (a: Appointment) => {
     if (a.status === 'en attente') {
@@ -243,6 +338,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <SourceBadge source={a.source} />
+                <PayStatusPill a={a} byId={byId} />
                 <StatusPill status={a.status} />
                 <button
                   onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
@@ -297,6 +393,12 @@ export default function Dashboard() {
             <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
           </div>
         </div>
+      </div>
+
+      {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total */}
+      <div className="tr-grid tr-grid--2" style={{ marginTop: 18, alignItems: 'start' }}>
+        {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu — rien en retard.')}
+        {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
       </div>
 
       {/* Décomposition du revenu du mois */}

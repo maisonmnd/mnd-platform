@@ -22,6 +22,19 @@
 }
 .tre-tab:hover { color: var(--ink); }
 .tre-tab.is-active { color: var(--color-indigo); border-bottom-color: var(--color-copper); }
+/* Sur téléphone uniquement, les onglets défilent horizontalement plutôt que de
+   déborder la page. Gardé hors desktop : overflow-x ferait de la barre un contexte
+   de défilement qui rognerait le filet cuivre de l'onglet actif (margin-bottom:-1px). */
+@media (max-width: 640px) {
+  .tre-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .tre-tabs::-webkit-scrollbar { display: none; } /* WebKit */
+  .tre-tab { white-space: nowrap; flex: none; }
+}
 
 /* ---------- Interrupteur ---------- */
 .tre-toggle {
@@ -463,3 +476,127 @@
 .tre-prov__meta { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
 .tre-prov__due { font-family: var(--font-sans); font-size: 12px; color: var(--color-copper); }
 @media (max-width: 760px) { .tre-prov-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   Abonnements — en-tête revenu + table des abonnés (mobile)
+   ============================================================ */
+
+/* Bloc « Revenu récurrent · ce mois » de la PageHead. */
+.tre-mrr-head { text-align: right; }
+
+@media (max-width: 640px) {
+  /* Le revenu récurrent passe à gauche et reste dans le viewport (fini le clip à droite). */
+  .tre-mrr-head { text-align: left; }
+  .tre-mrr-head .mnd-eyebrow { white-space: normal; }
+
+  /* La table « Les abonnés » (et elle seule — modificateur --cards) se réorganise
+     en fiches empilées ; les autres .tre-table gardent le défilement horizontal. */
+  .tre-table--cards { min-width: 0; }
+  .tre-table--cards thead { display: none; }
+  .tre-table--cards tbody tr {
+    display: block;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    padding: 6px 14px;
+    margin-bottom: 12px;
+  }
+  .tre-table--cards tbody tr:hover { background: var(--surface-card); }
+  .tre-table--cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--hairline);
+    text-align: left !important;
+  }
+  .tre-table--cards td:last-child { border-bottom: none; }
+  /* Étiquette du champ à gauche de chaque valeur. */
+  .tre-table--cards td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    font-family: var(--font-sans);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  /* Cellule identité (nom + ancienneté) sur toute la largeur, sans étiquette. */
+  .tre-table--cards td:first-child { padding-top: 4px; }
+  /* Bouton « Résilier » aligné à droite dans sa fiche. */
+  .tre-table--cards td:last-child .tre-link-btn { margin-left: auto; }
+  /* État vide : le message se lit en entier, centré, sans largeur forcée. */
+  .tre-table--cards td[colspan] {
+    display: block;
+    text-align: center !important;
+    white-space: normal;
+    padding: 24px 8px !important;
+  }
+}
+
+/* ============================================================
+   Académie — récapitulatif de scolarité (modale d'inscription + suivi)
+   ============================================================ */
+.tre-pay-recap {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  padding: 12px 14px;
+}
+.tre-pay-recap__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 5px 0;
+}
+.tre-pay-recap__line span:last-child {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-indigo);
+  white-space: nowrap;
+}
+.tre-pay-recap__reste {
+  border-top: 1px solid var(--hairline);
+  margin-top: 4px;
+  padding-top: 9px;
+}
+.tre-pay-recap__reste span:first-child {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-copper);
+}
+.tre-pay-recap__reste span:last-child { color: var(--color-copper); }
+
+/* Suivi — carte scolarité dans le tiroir apprenant. */
+.tre-pay-summary {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-sable, rgba(185, 122, 74, 0.06));
+  padding: 16px 18px;
+  margin: 16px 0 4px;
+}
+.tre-pay-summary__list {
+  margin-top: 10px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 8px;
+}
+.tre-pay-summary__pay {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12.5px;
+  padding: 4px 0;
+}
+.tre-pay-summary__pay span:last-child {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+  white-space: nowrap;
+}

@@ -1,4 +1,5 @@
 import { asset } from '../../../../shared/asset';
+import { MapPin } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
@@ -7,7 +8,8 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, invoiceTotal, PAYMENT_METHODS, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
+import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -16,6 +18,15 @@ import './vente.css';
    remises par ligne et globale, conversion devis → facture, impression.
    Édition complète : chaque document se rouvre dans l’éditeur (création & modification
    partagent le même formulaire) ; l’enregistrement met à jour le document existant. */
+
+/** Extrait « lat,lng » de la position GPS glissée dans la note d'un devis
+   (« Position GPS : https://maps.google.com/?q=6.37,2.42 » — partagée par la cliente
+   depuis Ma Couronne). Renvoie null si aucune position n'est présente. */
+function geoDestFromNote(note?: string): string | null {
+  if (!note) return null;
+  const m = note.match(/[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  return m ? `${m[1]},${m[2]}` : null;
+}
 
 type ThemeKey = Invoice['theme'];
 
@@ -37,7 +48,6 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
 }
 
 const DISC_OPTIONS = [0, 5, 10, 15, 20, 25, 30];
-const PAYMENTS: PaymentMethod[] = PAYMENT_METHODS;
 const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
 
 const todayIso = () => {
@@ -58,6 +68,7 @@ export default function Factures() {
   const [invoices, setInvoices] = useInvoices();
   const [clients] = useClients();
   const [services] = useServices();
+  const [methods] = usePaymentMethods();
 
   const [kindTab, setKindTab] = useState<'all' | 'facture' | 'devis'>('all');
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
@@ -81,14 +92,52 @@ export default function Factures() {
   /* Document affiché dans l’aperçu vivant : le brouillon en cours d’édition, sinon la sélection. */
   const active = editing ? editing.draft : selected;
 
+  /* Position GPS partagée par la cliente (livraison Ma Couronne) — ouvre l'itinéraire. */
+  const geoDest = selected ? geoDestFromNote(selected.note) : null;
+
   /* Écrit le document sélectionné (déjà enregistré) dans le magasin. */
   const patchSelected = (patch: Partial<Invoice>) => {
     if (!selected) return;
     setInvoices((prev) => prev.map((i) => (i.id === selected.id ? { ...i, ...patch } : i)));
+    if (patch.status === 'acceptée' && selected.kind === 'devis' && !selected.apptId) {
+      convertDevisToAppt({ ...selected, ...patch });
+    }
   };
   /* Écrit le brouillon local en cours d’édition (rien n’est enregistré avant « Enregistrer »). */
   const patchDraft = (patch: Partial<Invoice>) =>
     setEditing((e) => (e ? { ...e, draft: { ...e.draft, ...patch } } : e));
+
+  /* Devis accepté → rendez-vous dans le Carnet. Les lignes dont le libellé correspond
+     à une prestation du catalogue deviennent les services du RDV (qté comprise) ; il
+     est posé à un créneau par défaut (aujourd’hui 09:00, « en attente » à planifier).
+     Idempotent : le devis mémorise l’apptId créé, on ne convertit jamais deux fois. */
+  const convertDevisToAppt = (devis: Invoice) => {
+    if (!devis.clientId) { setWaHint('Rattachez une cliente au devis pour créer le rendez-vous.'); return; }
+    const svcIds: string[] = [];
+    devis.lines.forEach((l) => {
+      const svc = services.find((s) => s.name === l.label);
+      if (svc) for (let n = 0; n < Math.max(1, l.qty); n++) svcIds.push(svc.id);
+    });
+    const t = new Date();
+    const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const appt: Appointment = {
+      id: `apt-${uid()}`,
+      branchId: devis.branchId || branch.id,
+      clientId: devis.clientId,
+      clientName: devis.clientName ?? clientOf(devis)?.name,
+      serviceIds: svcIds,
+      date: todayIso,
+      time: '09:00',
+      master: devis.master ?? branch.masters[0] ?? '',
+      status: 'en attente',
+      discountPct: devis.globalDiscountPct || undefined,
+      note: `Devis ${devis.number} accepté — à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
+      source: 'trone',
+    };
+    appointmentsStore.set((prev) => [...prev, appt]);
+    setInvoices((prev) => prev.map((i) => (i.id === devis.id ? { ...i, apptId: appt.id } : i)));
+    setWaHint('Devis accepté → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
+  };
 
   const clientOf = (d: Invoice) => clients.find((c) => c.id === d.clientId);
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
@@ -188,6 +237,12 @@ export default function Factures() {
     else setInvoices((prev) => prev.map((i) => (i.id === d.id ? d : i)));
     setSelectedId(d.id);
     setEditing(null);
+    /* Un devis accepté sans RDV encore rattaché → Carnet. L'idempotence tient à
+       `apptId` (pas à la transition de statut) : si la conversion a été sautée faute
+       de cliente, elle se rattrape dès qu'on ré-enregistre avec une cliente. */
+    if (d.kind === 'devis' && d.status === 'acceptée' && !d.apptId) {
+      convertDevisToAppt(d);
+    }
   };
 
   const deleteDoc = (id: string, label: string) => {
@@ -488,7 +543,7 @@ export default function Factures() {
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Moyen de paiement</span>
                     <Select value={draft.payment ?? ''} onChange={(e) => patchDraft({ payment: (e.target.value || undefined) as PaymentMethod | undefined })} style={{ fontSize: 12 }}>
                       <option value="">—</option>
-                      {PAYMENTS.map((p) => (
+                      {methods.map((p) => (
                         <option key={p} value={p}>{p}</option>
                       ))}
                     </Select>
@@ -497,7 +552,7 @@ export default function Factures() {
               </div>
 
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                   <Button variant="copper" style={{ flex: 1 }} onClick={saveDraft}>
                     {editing?.mode === 'new' ? 'Créer le document' : 'Enregistrer les modifications'}
                   </Button>
@@ -516,8 +571,8 @@ export default function Factures() {
             </>
           ) : selected ? (
             /* ===== Actions du document sélectionné (hors édition) ===== */
-            <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+            <div className="trv-doc-actions" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                 <Button variant="copper" style={{ flex: 1 }} size="sm" onClick={() => openEdit(selected)}>Modifier</Button>
                 <Button
                   variant="ghost"
@@ -529,7 +584,17 @@ export default function Factures() {
                 </Button>
               </div>
               <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
-              <div style={{ display: 'flex', gap: 8 }}>
+              {geoDest && (
+                <a
+                  className="trv-route-btn"
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${geoDest}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MapPin size={14} strokeWidth={1.75} /> Itinéraire vers la cliente
+                </a>
+              )}
+              <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                 <Button style={{ flex: 1 }} size="sm" onClick={printDoc}>Imprimer</Button>
                 <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={() => void downloadPdf()}>PDF</Button>
               </div>
@@ -543,9 +608,9 @@ export default function Factures() {
                   Convertir en facture
                 </Button>
               ) : selected.status !== 'payée' ? (
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                   <Select value={payChoice} onChange={(e) => setPayChoice(e.target.value as PaymentMethod)} style={{ flex: 1, fontSize: 12 }}>
-                    {PAYMENTS.map((p) => (
+                    {methods.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </Select>

@@ -5,10 +5,10 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  Avatar, RdvModal, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptTotalXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, type RdvInitial,
+  addDaysISO, apptLabel, apptTotalXof, apptDueXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
-import { honorAppointment } from './actions';
+import { honorAppointment, PayAppointmentModal } from './actions';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -22,6 +22,7 @@ export default function Carnet() {
   const today = todayISO();
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
@@ -75,6 +76,12 @@ export default function Carnet() {
     const canConfirm = a.status === 'en attente';
     const canHonor = a.status === 'confirmé';
     const canCancel = a.status === 'confirmé' || a.status === 'en attente';
+    const isSeriesIncluded = !!(a.seriesIndex && a.seriesIndex > 1); // séance 2..N : valeur 0, non encaissable seule
+    const dueX = apptDueXof(a, byId);
+    const partlyPaid = (a.paidXof ?? 0) > 0 || (a.depositXof ?? 0) > 0;
+    // Impayé à signaler : solde restant dû sur un RDV déjà réglé en partie, ou passé/du jour.
+    const showReste = !isSeriesIncluded && dueX > 0 && (partlyPaid || a.date <= today);
+    const canEncaisser = a.status !== 'annulé' && !isSeriesIncluded;
     return (
       <div
         className="trc-sheet__row"
@@ -107,10 +114,20 @@ export default function Carnet() {
                 {fmtMoney(apptTotalXof(a, byId), currency)}
               </span>
               {(a.seriesTotal ?? 0) > 1 && <span className="trc-serie-chip">Séance 1/{a.seriesTotal}</span>}
+              {showReste && (
+                <span
+                  className="trc-serie-chip"
+                  style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+                  title="Solde restant dû — encaissez via le menu ⋯"
+                >
+                  reste {fmtMoney(dueX, currency)}
+                </span>
+              )}
             </>
           )}
         </span>
         <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+          <PayStatusPill a={a} byId={byId} />
           <StatusPill status={a.status} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button
@@ -122,6 +139,11 @@ export default function Carnet() {
             </button>
             {menuFor === a.id && (
               <div className="trc-menu">
+                {canEncaisser && (
+                  <button onClick={() => { setPayAppt(a); setMenuFor(null); }}>
+                    Encaisser {dueX > 0 ? `· reste ${fmtMoney(dueX, currency)}` : '(pourboire)'}
+                  </button>
+                )}
                 <button onClick={() => { setModal({ appt: a }); setMenuFor(null); }}>Modifier le rendez-vous</button>
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
@@ -183,6 +205,7 @@ export default function Carnet() {
       </div>
 
       {modal && <RdvModal onClose={() => setModal(null)} initial={modal.initial} appt={modal.appt} title={modal.title} />}
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

@@ -3,15 +3,14 @@ import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useAppointments, type Appointment } from '../../../../shared/agenda';
+import { useAppointments } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { useClientSessions, isOnline, type ClientSession } from '../../../../shared/activity';
-import { apptTotalXof, apptNetXof, apptDueXof, apptLabel, frShort, StatusPill, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
-import { PayAppointmentModal } from '../clients/actions';
+import { apptTotalXof, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 
 /* Analytics — lecture de tendance. Maison neuve : tout est dérivé des magasins
@@ -58,7 +57,6 @@ export default function Analytics() {
 
   const [period, setPeriod] = useState<Period>('trim');
   const [scope, setScope] = useState<string>(branch.id); // id de branche ou 'toutes'
-  const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement d'un RDV impayé
 
   const scopedAppts = useMemo(
     () => appointments.filter((a) => (scope === 'toutes' ? true : a.branchId === scope)),
@@ -246,17 +244,6 @@ export default function Analytics() {
     const avgSec = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.totalSec, 0) / rows.length) : 0;
     return { rows, onlineNow, avgSec };
   }, [sessions, scope, clientNameById]);
-
-  /* — Rendez-vous impayés : solde restant dû (net − acompte − encaissé), hors annulés —
-     Triés du plus en retard (date la plus ancienne) au plus lourd (reste dû). */
-  const unpaid = useMemo(() => {
-    const rows = scopedAppts
-      .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
-      .map((a) => ({ a, net: apptNetXof(a, byId), due: apptDueXof(a, byId) }));
-    rows.sort((x, y) => (x.a.date < y.a.date ? -1 : x.a.date > y.a.date ? 1 : y.due - x.due));
-    const totalDue = rows.reduce((s, r) => s + r.due, 0);
-    return { rows, totalDue };
-  }, [scopedAppts, byId]);
 
   const scopeChips = [
     { id: 'toutes', label: 'Toutes les branches' },
@@ -481,48 +468,6 @@ export default function Analytics() {
         )}
       </div>
 
-      {/* Rendez-vous impayés — solde restant dû sur le carnet du périmètre */}
-      <div className="trp-panel" style={{ marginTop: 18 }}>
-        <div className="trp-mon__head">
-          <div className="trp-panel__title" style={{ marginBottom: 0 }}>Rendez-vous impayés</div>
-          {unpaid.rows.length > 0 && (
-            <div className="trp-mon__headline">
-              {unpaid.rows.length} RDV impayé{unpaid.rows.length > 1 ? 's' : ''}
-              <span className="trp-mon__sep">·</span>
-              <span style={{ color: 'var(--color-copper)', fontFamily: 'var(--font-serif)', fontSize: 15 }}>
-                {fmtMoney(unpaid.totalDue, currency)} dus
-              </span>
-            </div>
-          )}
-        </div>
-        {unpaid.rows.length === 0 ? (
-          <div className="trp-empty">Tout est réglé — rien en attente.</div>
-        ) : (
-          <div className="trp-pay">
-            {unpaid.rows.map(({ a, net, due }) => (
-              <div className="trp-pay__row" key={a.id}>
-                <div style={{ minWidth: 0 }}>
-                  <div className="trp-act__name">{clientNameById.get(a.clientId) ?? 'Cliente'}</div>
-                  <div className="trp-act__meta">{apptLabel(a, byId)}</div>
-                </div>
-                <div className="trp-pay__date">{frShort(a.date)}</div>
-                <div className="trp-pay__total">{fmtMoney(net, currency)}</div>
-                <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
-                <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
-                <button
-                  className="trp-pay__cta"
-                  onClick={() => setPayAppt(a)}
-                  title="Encaisser — paiement partiel ou total"
-                >
-                  Encaisser
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

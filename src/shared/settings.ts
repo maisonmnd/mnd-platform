@@ -19,6 +19,9 @@ export type Settings = {
   automations: Automations;
   /** Acompte exigé à la réservation en ligne (%). Lu par Ma Couronne. */
   onlineDepositPct: number;
+  /** Prestations qui EXIGENT un acompte (ids). Vide = aucun acompte demandé.
+      L'acompte ne s'applique qu'aux prestations de cette liste. */
+  depositServiceIds?: string[];
   /** Frais de livraison à domicile (XOF). Lu par Ma Couronne · Gamme. */
   deliveryFeeXof: number;
 };
@@ -55,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hours: DEFAULT_HOURS,
   automations: { momoLink: '', mapsLink: '', reviewLink: '', itineraire: '' },
   onlineDepositPct: 30,
+  depositServiceIds: [],
   deliveryFeeXof: 2000,
 };
 
@@ -63,6 +67,13 @@ export const onlineDepositRate = (): number => {
   const pct = settingsStore.get().onlineDepositPct;
   return typeof pct === 'number' && pct >= 0 && pct <= 100 ? pct / 100 : 0.3;
 };
+
+/** Ids des prestations qui exigent un acompte (vide = aucune). */
+export const depositServiceIds = (): string[] => settingsStore.get().depositServiceIds ?? [];
+
+/** Une prestation exige-t-elle un acompte ? */
+export const serviceRequiresDeposit = (serviceId: string): boolean =>
+  (settingsStore.get().depositServiceIds ?? []).includes(serviceId);
 
 /** Frais de livraison à domicile (XOF) — défaut 2 000 F ; 0 = livraison gratuite. */
 export const deliveryFee = (): number => {

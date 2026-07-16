@@ -87,7 +87,7 @@ export default function Abonnements() {
         title="Abonnements."
         sub="Le salon classique vend une fois ; la Maison perçoit chaque lune."
         actions={
-          <div style={{ textAlign: 'right' }}>
+          <div className="tre-mrr-head">
             <div className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Revenu récurrent · ce mois</div>
             <div className="tre-mrr" style={{ marginTop: 4 }}>{fmtMoney(mrr, currency)}</div>
           </div>
@@ -272,7 +272,7 @@ export default function Abonnements() {
 
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
-              <table className="tre-table">
+              <table className="tre-table tre-table--cards">
                 <thead>
                   <tr><th>Tête couronnée</th><th>Formule</th><th>Son créneau · rien qu’à elle</th><th>Prochain prélèvement</th><th style={{ textAlign: 'right' }}>MRR</th><th></th></tr>
                 </thead>
@@ -288,13 +288,13 @@ export default function Abonnements() {
                           </span>
                         </span>
                       </td>
-                      <td><Pill tone={planOf(m.planId)?.popular ? 'copper' : 'muted'}>{planOf(m.planId)?.name ?? '—'}</Pill></td>
-                      <td style={{ fontSize: 12.5 }}>{m.slot}</td>
-                      <td>
+                      <td data-label="Formule"><Pill tone={planOf(m.planId)?.popular ? 'copper' : 'muted'}>{planOf(m.planId)?.name ?? '—'}</Pill></td>
+                      <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
+                      <td data-label="Prochain prélèvement">
                         <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{shortDate(m.nextIso)}</span>
                         {m.note && <div style={{ fontSize: 10.5, color: '#8f3b30', marginTop: 2 }}>{m.note}</div>}
                       </td>
-                      <td className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
+                      <td className="num" data-label="MRR" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <button
                           className="tre-link-btn tre-link-btn--danger"

@@ -8,6 +8,7 @@ export type Client = {
   branchId: string;
   name: string;
   phone: string;
+  email?: string;
   city: string;
   persona: string; // id de persona
   since: string; // ISO date
@@ -24,6 +25,8 @@ export type Client = {
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
   birthday?: string; // ISO — anniversaire de la cliente
+  birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
+  geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
@@ -35,6 +38,15 @@ export const CROWN_STYLES_DEFAULT = [
 /** Liste gérable des styles de couronne (Paramètres / CRM), synchronisée Supabase. */
 export const crownStylesStore = createStore<string[]>('mnd_crown_styles', CROWN_STYLES_DEFAULT);
 export const useCrownStyles = () => useStore(crownStylesStore);
+
+/** Segments de clientèle par défaut — la liste est éditable (segmentsStore). */
+export const SEGMENTS_DEFAULT = [
+  'Prospect', 'VIP', 'Abonnée', 'Nouvelle', 'Diaspora', 'Famille', 'Cercle', 'Régulier', 'Dormante', 'Ma Couronne',
+];
+
+/** Liste gérable des segments de clientèle (Paramètres / CRM), synchronisée Supabase. */
+export const segmentsStore = createStore<string[]>('mnd_segments', SEGMENTS_DEFAULT);
+export const useSegments = () => useStore(segmentsStore);
 
 /** Alias rétro-compatible (liste par défaut). Préférer `useCrownStyles()`. */
 export const CROWN_STYLES = CROWN_STYLES_DEFAULT;
@@ -62,3 +74,4 @@ import { bindCollection, bindDocument } from './sync';
 bindCollection(clientsStore, 'clients');
 bindCollection(personasStore, 'personas');
 bindDocument(crownStylesStore, 'mnd_crown_styles');
+bindDocument(segmentsStore, 'mnd_segments');

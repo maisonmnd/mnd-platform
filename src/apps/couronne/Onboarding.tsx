@@ -1,15 +1,16 @@
 import { asset } from '../../shared/asset';
-import { useEffect, useRef, useState } from 'react';
-import { startEmailOtp, verifyEmailOtp } from '../../shared/auth';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { signInClient, signUpClient } from '../../shared/auth';
+import { pushNotifyStaff } from '../../shared/push';
 
-/* Onboarding — slides photographiques puis connexion par e-mail + code à 6 chiffres.
-   Sans mot de passe : la maison vous reconnaît. La session s'ouvre côté Supabase
-   (verifyEmailOtp) ; le verrou d'App bascule alors automatiquement sur l'app. */
+/* Onboarding — slides photographiques puis connexion par e-mail + mot de passe
+   (même principe que Le Trône). La cliente s'inscrit avec son nom, son e-mail et
+   un mot de passe ; ou se connecte si elle a déjà un compte. La session s'ouvre
+   côté Supabase et le verrou d'App bascule alors automatiquement sur l'app. */
 
 const SLIDES = [
   {
-    // Photo sans logo incrusté (l'ancienne ma-couronne-hero.png portait un logo
-    // gravé → double logo avec le sceau). Le sceau cuivre suffit à signer la marque.
     photo: asset('/assets/photos/portrait-3.jpg'),
     pos: 'center 25%',
     eyebrow: 'Bénin · Édition Souveraine',
@@ -36,27 +37,35 @@ const SLIDES = [
 const errMessage = (e: unknown, fallback: string): string => {
   const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
   const raw = msg.toLowerCase();
-  if (/rate limit|too many|over_email_send/.test(raw))
-    return 'Trop de demandes de code — patientez quelques minutes avant de réessayer.';
-  if (/for security purposes|only request this after|seconds/.test(raw))
-    return 'Patientez quelques secondes avant de redemander un code.';
-  if (/expired|invalid|otp|token/.test(raw))
-    return 'Code expiré ou incorrect — demandez un nouveau code (n’utilisez pas le lien de l’e-mail).';
-  if (/sending|confirmation email|unexpected|smtp|500/.test(raw))
-    return 'L’envoi de l’e-mail a échoué côté maison — réessayez dans un instant, ou prévenez-nous.';
-  if (/email.*disabled|provider|signups? not allowed/.test(raw))
-    return 'La connexion par e-mail n’est pas encore activée côté maison.';
+  if (/invalid login credentials/.test(raw))
+    return 'E-mail ou mot de passe incorrect.';
+  if (/user already registered|already registered/.test(raw))
+    return 'Ce compte existe déjà — connectez-vous avec votre mot de passe.';
+  if (/password should be at least|weak.?password/.test(raw))
+    return 'Mot de passe trop court — au moins 6 caractères.';
+  if (/email.*not confirmed|confirm/.test(raw))
+    return 'E-mail non confirmé — vérifiez votre boîte, puis connectez-vous.';
+  if (/rate limit|too many/.test(raw))
+    return 'Trop de tentatives — patientez quelques minutes.';
+  if (/sending|smtp|500|unexpected/.test(raw))
+    return 'L’envoi de l’e-mail a échoué côté maison — réessayez dans un instant.';
   return msg && msg !== '{}' ? msg : fallback;
 };
 
-export default function Onboarding() {
-  const [stage, setStage] = useState<'welcome' | 'email' | 'otp'>('welcome');
-  const [slide, setSlide] = useState(0);
+type Mode = 'connexion' | 'inscription';
 
+export default function Onboarding() {
+  const [stage, setStage] = useState<'welcome' | 'auth'>('welcome');
+  const [slide, setSlide] = useState(0);
+  const [mode, setMode] = useState<Mode>('inscription');
+
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   /* Les slides défilent doucement tant que l'on reste sur l'accueil. */
   useEffect(() => {
@@ -65,76 +74,49 @@ export default function Onboarding() {
     return () => window.clearInterval(t);
   }, [stage]);
 
-  /* ---- Code à 6 chiffres ---- */
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
-  const boxRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [resendIn, setResendIn] = useState(45);
-  useEffect(() => {
-    if (stage !== 'otp' || resendIn <= 0) return;
-    const t = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
-    return () => window.clearTimeout(t);
-  }, [stage, resendIn]);
-
-  const digits = otp.join('');
   const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
 
-  const sendCode = async () => {
+  const goAuth = (m: Mode) => {
+    setMode(m);
+    setErr(null);
+    setNotice(null);
+    setStage('auth');
+  };
+
+  const submit = async () => {
+    if (mode === 'inscription' && !name.trim()) {
+      setErr('Indiquez votre nom.');
+      return;
+    }
     if (!emailOk) {
       setErr('Saisissez une adresse e-mail valide.');
       return;
     }
-    setErr(null);
-    setSending(true);
-    try {
-      await startEmailOtp(email.trim());
-      setOtp(['', '', '', '', '', '']);
-      setResendIn(60);
-      setStage('otp');
-    } catch (e) {
-      setErr(errMessage(e, 'Envoi impossible — réessayez dans un instant.'));
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const resend = async () => {
-    setErr(null);
-    try {
-      await startEmailOtp(email.trim());
-      setResendIn(60);
-    } catch (e) {
-      setErr(errMessage(e, 'Renvoi impossible — réessayez.'));
-    }
-  };
-
-  const enterApp = async () => {
-    if (digits.length < 6) {
-      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
+    if (password.length < 6) {
+      setErr('Mot de passe : au moins 6 caractères.');
       return;
     }
     setErr(null);
-    setVerifying(true);
+    setNotice(null);
+    setBusy(true);
     try {
-      await verifyEmailOtp(email.trim(), digits);
-      /* Succès : onAuthStateChange ouvre la session, le verrou d'App montre l'app. */
+      if (mode === 'inscription') {
+        const { needsConfirmation } = await signUpClient(email.trim(), password, name.trim());
+        /* Alerte le personnel du Trône (Web Push) d'une nouvelle inscription. */
+        void pushNotifyStaff('Nouvelle inscription Ma Couronne', name.trim(), '/trone/#/customers');
+        if (needsConfirmation) {
+          setNotice('Compte créé. Confirmez votre e-mail, puis connectez-vous.');
+          setMode('connexion');
+        }
+        /* Sinon : la session s'ouvre et le verrou d'App montre l'app. */
+      } else {
+        await signInClient(email.trim(), password);
+      }
     } catch (e) {
-      setErr(errMessage(e, 'Code invalide ou expiré — vérifiez et réessayez.'));
-      setVerifying(false);
+      setErr(errMessage(e, mode === 'inscription' ? 'Inscription impossible — réessayez.' : 'Connexion impossible — réessayez.'));
+    } finally {
+      setBusy(false);
     }
-  };
-
-  const onOtpChange = (i: number, v: string) => {
-    const d = v.replace(/\D/g, '').slice(-1);
-    setOtp((prev) => {
-      const next = [...prev];
-      next[i] = d;
-      return next;
-    });
-    setErr(null);
-    if (d && i < 5) boxRefs.current[i + 1]?.focus();
-  };
-  const onOtpKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otp[i] && i > 0) boxRefs.current[i - 1]?.focus();
   };
 
   /* ================= WELCOME ================= */
@@ -163,96 +145,94 @@ export default function Onboarding() {
               />
             ))}
           </div>
-          <button className="mc-cta mc-cta--copper" onClick={() => setStage('email')}>Commencer</button>
-          <button className="mc-cta mc-cta--outline" onClick={() => setStage('email')}>J’ai déjà un compte</button>
+          <button className="mc-cta mc-cta--copper" onClick={() => goAuth('inscription')}>Commencer</button>
+          <button className="mc-cta mc-cta--outline" onClick={() => goAuth('connexion')}>J’ai déjà un compte</button>
         </div>
       </div>
     );
   }
 
-  /* ================= E-MAIL ================= */
-  if (stage === 'email') {
-    return (
-      <div className="mc-onb-form mc-fade">
-        <button className="mc-linkback" onClick={() => setStage('welcome')}>← Retour</button>
-        <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
-        <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
-        <h1 className="mc-serif-title">Votre e-mail.</h1>
-        <p className="mc-lead">Un code de vérification vous sera transmis par e-mail. Sans mot de passe — la maison vous reconnaît.</p>
-
-        <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
-        <div className="mc-emailline">
-          <input
-            id="mc-email"
-            type="email"
-            value={email}
-            inputMode="email"
-            autoComplete="email"
-            placeholder="vous@exemple.com"
-            onChange={(e) => { setEmail(e.target.value); setErr(null); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void sendCode(); }}
-          />
-        </div>
-
-        {err && <div className="mc-form-err">{err}</div>}
-
-        <div className="mc-langrow">
-          <span>Langue</span>
-          <span className="mc-langrow__on">FR</span>
-          <span className="mc-langrow__off">EN</span>
-        </div>
-        <button className="mc-cta mc-cta--indigo" disabled={sending} onClick={() => void sendCode()}>
-          {sending ? 'Envoi…' : 'Recevoir mon code'}
-        </button>
-      </div>
-    );
-  }
-
-  /* ================= CODE ================= */
+  /* ================= CONNEXION / INSCRIPTION ================= */
   return (
     <div className="mc-onb-form mc-fade">
-      <button className="mc-linkback" onClick={() => setStage('email')}>← Retour</button>
+      <button className="mc-linkback" onClick={() => setStage('welcome')}>← Retour</button>
       <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
-      <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Vérification</div>
-      <h1 className="mc-serif-title">Votre code.</h1>
+      <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
+      <h1 className="mc-serif-title">{mode === 'inscription' ? 'Créer mon compte.' : 'Bon retour.'}</h1>
       <p className="mc-lead">
-        Saisissez le code à 6 chiffres reçu par e-mail à {email.trim()}.
-        Entrez le code ici — inutile de cliquer sur le lien.
+        {mode === 'inscription'
+          ? 'Votre nom, votre e-mail, un mot de passe — la maison vous reconnaît.'
+          : 'Entrez votre e-mail et votre mot de passe.'}
       </p>
 
-      <div className="mc-otp">
-        {otp.map((v, i) => (
-          <input
-            key={i}
-            ref={(el) => { boxRefs.current[i] = el; }}
-            className="mc-otp__box"
-            value={v}
-            inputMode="numeric"
-            maxLength={2}
-            aria-label={`Chiffre ${i + 1}`}
-            onChange={(e) => onOtpChange(i, e.target.value)}
-            onKeyDown={(e) => onOtpKey(i, e)}
-          />
-        ))}
+      {mode === 'inscription' && (
+        <>
+          <label className="mc-field-label" htmlFor="mc-name">Nom complet</label>
+          <div className="mc-emailline">
+            <input
+              id="mc-name"
+              type="text"
+              value={name}
+              autoComplete="name"
+              placeholder="Nom et prénom"
+              onChange={(e) => { setName(e.target.value); setErr(null); }}
+            />
+          </div>
+        </>
+      )}
+
+      <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
+      <div className="mc-emailline">
+        <input
+          id="mc-email"
+          type="email"
+          value={email}
+          inputMode="email"
+          autoComplete="email"
+          placeholder="vous@exemple.com"
+          onChange={(e) => { setEmail(e.target.value); setErr(null); }}
+        />
+      </div>
+
+      <label className="mc-field-label" htmlFor="mc-password">Mot de passe</label>
+      <div className="mc-emailline">
+        <input
+          id="mc-password"
+          type={showPw ? 'text' : 'password'}
+          value={password}
+          autoComplete={mode === 'inscription' ? 'new-password' : 'current-password'}
+          placeholder="Au moins 6 caractères"
+          onChange={(e) => { setPassword(e.target.value); setErr(null); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+        />
+        <button
+          type="button"
+          className="mc-pw-toggle"
+          onClick={() => setShowPw((v) => !v)}
+          aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          title={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        >
+          {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
       </div>
 
       {err && <div className="mc-form-err">{err}</div>}
+      {notice && <div className="mc-form-notice">{notice}</div>}
 
-      <div className="mc-resend">
-        {resendIn > 0 ? (
-          <>Renvoyer le code dans <span>0:{resendIn < 10 ? `0${resendIn}` : resendIn}</span></>
-        ) : (
-          <button className="mc-resend__btn" onClick={() => void resend()}>Renvoyer le code</button>
-        )}
-      </div>
+      <button className="mc-cta mc-cta--indigo" disabled={busy} onClick={() => void submit()}>
+        {busy ? 'Un instant…' : mode === 'inscription' ? 'Créer mon compte' : 'Se connecter'}
+      </button>
 
       <button
-        className="mc-cta mc-cta--copper"
-        style={{ marginTop: 'auto' }}
-        disabled={verifying}
-        onClick={() => void enterApp()}
+        type="button"
+        className="mc-authswitch"
+        onClick={() => {
+          setMode((m) => (m === 'connexion' ? 'inscription' : 'connexion'));
+          setErr(null);
+          setNotice(null);
+        }}
       >
-        {verifying ? 'Vérification…' : 'Entrer dans Ma Couronne'}
+        {mode === 'connexion' ? 'Première fois ? Créer un compte' : 'Déjà un compte ? Se connecter'}
       </button>
     </div>
   );

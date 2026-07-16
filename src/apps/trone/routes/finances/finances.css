@@ -540,3 +540,9 @@
   .trf-monthnav { flex: 1; }
   .trf-monthnav__label { min-width: 0; flex: 1; }
 }
+
+/* Éléments cliquables de la Synthèse — chaque montant ouvre son détail. */
+.trf-click { cursor: pointer; transition: background 0.15s ease, box-shadow 0.15s ease; }
+.trf-click:hover { background: var(--hover-veil, rgba(30, 33, 80, 0.045)); }
+.trf-kpi.trf-click:hover { box-shadow: 0 6px 20px rgba(20, 20, 27, 0.08); background: inherit; }
+.trf-click:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }

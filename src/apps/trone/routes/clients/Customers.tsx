@@ -3,12 +3,13 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, useCrownStyles, usePersonas, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, type Client } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid } from '../../../../shared/store';
+import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import {
   Avatar, Drawer, RdvModal, StatusPill, type RdvInitial,
@@ -16,13 +17,13 @@ import {
   fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
+import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
    rendez-vous à venir, fidélité, historique) et ajout d'une cliente. */
 
 const GRID = '2.1fr 1fr 0.95fr 0.95fr 0.55fr 132px';
-const SEGMENT_PRESETS = ['VIP', 'Abonnée', 'Nouvelle', 'Diaspora', 'Famille', 'Cercle', 'Régulier', 'Dormante'];
 
 type SortKey = 'nom' | 'visite' | 'depense' | 'points';
 
@@ -94,69 +95,7 @@ function bdayInfo(iso: string): { age: number; daysUntil: number; soon: boolean 
   return { age, daysUntil, soon: daysUntil >= 0 && daysUntil <= 14 };
 }
 
-/* ---------- Note de la maison : texte libre + blocs de consultation ---------- */
-type ConsultQA = { q: string; a: string };
-type ConsultBlock = { name: string; date: string; qa: ConsultQA[] };
-const CONSULT_HEADER = /^── Consultation · (.+) ──$/;
-
-/** Sépare la note en (texte libre) + (blocs consultation) + (texte brut des blocs, pour ré-enregistrer). */
-function splitNotes(raw: string | undefined): { free: string; consultRaw: string; blocks: ConsultBlock[] } {
-  const lines = (raw ?? '').split('\n');
-  let firstIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (CONSULT_HEADER.test(lines[i])) { firstIdx = i; break; }
-  }
-  const free = (firstIdx === -1 ? lines : lines.slice(0, firstIdx)).join('\n').trim();
-  const consultRaw = firstIdx === -1 ? '' : lines.slice(firstIdx).join('\n').trim();
-  const blocks: ConsultBlock[] = [];
-  let cur: { name: string; date: string; qa: ConsultQA[]; a: ConsultQA | null } | null = null;
-  const closeQA = () => { if (cur && cur.a) { cur.qa.push(cur.a); cur.a = null; } };
-  const flush = () => { if (cur) { closeQA(); blocks.push({ name: cur.name, date: cur.date, qa: cur.qa }); cur = null; } };
-  for (const line of consultRaw ? consultRaw.split('\n') : []) {
-    const h = line.match(CONSULT_HEADER);
-    if (h) {
-      flush();
-      const inner = h[1];
-      const idx = inner.lastIndexOf(' · ');
-      cur = { name: idx >= 0 ? inner.slice(0, idx) : inner, date: idx >= 0 ? inner.slice(idx + 3) : '', qa: [], a: null };
-      continue;
-    }
-    if (!cur) continue;
-    const qm = line.match(/^\d+\.\s?(.*)$/);
-    if (qm) { closeQA(); cur.a = { q: qm[1].trim(), a: '' }; continue; }
-    const am = line.match(/^\s*→\s?(.*)$/);
-    if (am && cur.a) { cur.a.a = cur.a.a ? `${cur.a.a}\n${am[1]}` : am[1]; continue; }
-    const t = line.trim();
-    if (t && cur.a) cur.a.a = cur.a.a ? `${cur.a.a}\n${t}` : t;
-  }
-  flush();
-  return { free, consultRaw, blocks };
-}
-
-/** Rendu des consultations en cartes distinctes (en-tête cuivre serif + Q/R). */
-function ConsultCards({ blocks }: { blocks: ConsultBlock[] }) {
-  if (blocks.length === 0) return null;
-  return (
-    <div className="trc-consults">
-      {blocks.map((b, i) => (
-        <div className="trc-consult-card" key={i}>
-          <div className="trc-consult-card__head">
-            <span className="trc-consult-card__name">{b.name}</span>
-            {b.date && <span className="trc-consult-card__date">{b.date}</span>}
-          </div>
-          <div className="trc-consult-card__body">
-            {b.qa.map((qa, j) => (
-              <div className="trc-consult-qa" key={j}>
-                <div className="trc-consult-qa__q">{qa.q}</div>
-                <div className="trc-consult-qa__a">{qa.a || '—'}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+/* Consultations (parsing / sérialisation / rendu / édition) : module partagé ./consultNotes */
 
 /** Champ « Style de couronne » — liste éditable (crownStylesStore) + ajout inline. */
 function CrownStyleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -496,6 +435,21 @@ function Customer360({
   const [pickPersona, setPickPersona] = useState(false);
   const today = todayISO();
 
+  /* Identité éditable — nom, téléphone, ville, segment principal. État local,
+     enregistré en un geste ; réinitialisé quand on change de cliente. */
+  const [segmentList] = useSegments();
+  const [idName, setIdName] = useState(client.name);
+  const [idPhone, setIdPhone] = useState(client.phone);
+  const [idEmail, setIdEmail] = useState(client.email ?? '');
+  const [idCity, setIdCity] = useState(client.city);
+  useEffect(() => {
+    setIdName(client.name);
+    setIdPhone(client.phone);
+    setIdEmail(client.email ?? '');
+    setIdCity(client.city);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
   /* Confirmer la date prédite en un geste : un vrai RDV, duplicata du dernier rituel
      (mêmes prestations, même maître, même heure) posé à la date anticipée. */
   const confirmPredicted = () => {
@@ -531,6 +485,47 @@ function Customer360({
   const patch = (p: Partial<Client>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
 
+  /* Enregistrement de l'identité — le nom ne peut pas être vidé ; le segment
+     principal remplace le premier segment (ou le retire si laissé vide). */
+  const idDirty =
+    idName !== client.name || idPhone !== client.phone || idCity !== client.city
+    || idEmail !== (client.email ?? '');
+  const saveIdentity = () => {
+    patch({ name: idName.trim() || client.name, phone: idPhone.trim(), email: idEmail.trim() || undefined, city: idCity.trim() });
+  };
+
+  /* Segments — multi-sélection depuis la liste gérée (Paramètres), persistée immédiatement. */
+  const toggleSegment = (seg: string) =>
+    patch({ segments: client.segments.includes(seg) ? client.segments.filter((s) => s !== seg) : [...client.segments, seg] });
+  const addSegment = () => {
+    const name = window.prompt('Nom du nouveau segment :')?.trim();
+    if (!name) return;
+    segmentsStore.set((prev) => (prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name]));
+    if (!client.segments.some((s) => s.toLowerCase() === name.toLowerCase())) patch({ segments: [...client.segments, name] });
+  };
+
+  /* Cadeau anniversaire — pousse une notification à la cliente + garde une trace au Trône. */
+  const [giftBusy, setGiftBusy] = useState(false);
+  const giftedThisYear = !!client.birthdayGiftAt && client.birthdayGiftAt.slice(0, 4) === todayISO().slice(0, 4);
+  const giftBirthday = async () => {
+    setGiftBusy(true);
+    const first = client.name.split(' ')[0];
+    const n = await pushToClient(
+      client.id,
+      'Joyeux anniversaire — Maison MND',
+      `${first}, une séance vous est offerte pour votre anniversaire. La Maison vous attend pour la célébrer.`,
+      '/couronne/',
+      client.email,
+    );
+    patch({ birthdayGiftAt: todayISO() });
+    setGiftBusy(false);
+    window.alert(
+      n > 0
+        ? `Cadeau envoyé — notification reçue sur le téléphone de ${first}.`
+        : `Cadeau enregistré côté Trône. ${first} n'a pas activé les notifications sur Ma Couronne — rien poussé sur son téléphone.`,
+    );
+  };
+
   /* Note de la maison — texte libre éditable, consultations préservées à part. */
   const parsedNotes = splitNotes(client.notes);
   const [consultOpen, setConsultOpen] = useState(false);
@@ -541,8 +536,33 @@ function Customer360({
     patch({ notes: merged || undefined });
   };
 
+  /* Modifier / supprimer une consultation enregistrée (depuis la fiche 360). */
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const editBlock = editIdx != null ? parsedNotes.blocks[editIdx] ?? null : null;
+  const persistBlocks = (blocks: ConsultBlock[]) => {
+    patch({ notes: serializeNotes(noteText, blocks) || undefined });
+    setEditIdx(null);
+  };
+  const saveConsult = (updated: ConsultBlock) => {
+    if (editIdx == null) return;
+    persistBlocks(parsedNotes.blocks.map((b, i) => (i === editIdx ? updated : b)));
+  };
+  const deleteConsult = () => {
+    if (editIdx == null) return;
+    if (!window.confirm('Supprimer définitivement cette consultation ?')) return;
+    persistBlocks(parsedNotes.blocks.filter((_, i) => i !== editIdx));
+  };
+
   const bday = client.birthday ? bdayInfo(client.birthday) : null;
   const phoneDigits = digitsOf(client.phone);
+
+  /* Itinéraire vers la cliente : position GPS précise (partagée à la livraison)
+     si disponible, sinon recherche par ville. */
+  const itineraireHref = client.geo
+    ? `https://www.google.com/maps/dir/?api=1&destination=${client.geo.lat},${client.geo.lng}`
+    : client.city.trim()
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.city.trim())}`
+      : null;
 
   /* ----- Fiche financière ----- */
   const honored = appts.filter((a) => a.status === 'honoré');
@@ -628,11 +648,22 @@ function Customer360({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
-            {client.phone && (
+            {(client.phone || itineraireHref) && (
               <div className="trc-cover-acts">
-                <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>
-                {phoneDigits && (
+                {client.phone && <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>}
+                {client.phone && phoneDigits && (
                   <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                )}
+                {itineraireHref && (
+                  <a
+                    className="trc-cover-act"
+                    href={itineraireHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={client.geo ? 'Position GPS précise partagée par la cliente' : 'Itinéraire vers la ville renseignée'}
+                  >
+                    Itinéraire
+                  </a>
                 )}
               </div>
             )}
@@ -742,14 +773,26 @@ function Customer360({
           </div>
         </div>
 
-        {/* Identité */}
+        {/* Identité — éditable */}
         <div>
           <span className="trc-microlabel">Identité</span>
-          <div className="trc-idgrid">
-            <div className="trc-idrow"><span>Téléphone</span><span>{client.phone || '—'}</span></div>
-            <div className="trc-idrow"><span>Ville</span><span>{client.city || '—'}</span></div>
-            <div className="trc-idrow"><span>Cliente depuis</span><span>{client.since ? frLong(client.since) : '—'}</span></div>
-            <div className="trc-idrow"><span>Segment</span><span>{client.segments[0] ?? '—'}</span></div>
+          <div className="trc-crown__grid">
+            <Field label="Nom complet">
+              <Input value={idName} onChange={(e) => setIdName(e.target.value)} placeholder="Nom et prénom" />
+            </Field>
+            <Field label="Téléphone">
+              <Input value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="—" />
+            </Field>
+            <Field label="Adresse e-mail">
+              <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />
+            </Field>
+            <Field label="Ville">
+              <Input value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
+            </Field>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
+            <span className="trc-sub">Cliente depuis {client.since ? frLong(client.since) : '—'}</span>
+            <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>Enregistrer l’identité</Button>
           </div>
           <div className="trc-bday">
             <div className="trc-bday__field">
@@ -764,6 +807,18 @@ function Customer360({
               </div>
             )}
           </div>
+          {client.birthday && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
+              <span className="trc-sub">
+                {giftedThisYear
+                  ? `Séance anniversaire offerte le ${frShort(client.birthdayGiftAt!)}`
+                  : 'Offrez-lui une séance pour son anniversaire (notification sur son téléphone).'}
+              </span>
+              <Button variant="copper" size="sm" disabled={giftBusy} onClick={() => void giftBirthday()}>
+                {giftBusy ? 'Envoi…' : giftedThisYear ? 'Renvoyer le cadeau' : 'Offrir une séance anniversaire'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* La couronne — partagé avec Ma Couronne */}
@@ -832,8 +887,19 @@ function Customer360({
           <div>
             <span className="trc-microlabel">Segments</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {client.segments.length === 0 && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun segment.</span>}
-              {client.segments.map((s) => <span key={s} className="trc-src">{s}</span>)}
+              {[...new Set([...segmentList, ...client.segments])].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`trc-chip ${client.segments.includes(s) ? 'is-active' : ''}`}
+                  onClick={() => toggleSegment(s)}
+                >
+                  {s}
+                </button>
+              ))}
+              <button type="button" className="trc-chip" style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }} onClick={addSegment}>
+                + Segment
+              </button>
             </div>
           </div>
         </div>
@@ -895,7 +961,7 @@ function Customer360({
               <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
               <span className="trc-consult-toggle__chev">{consultOpen ? 'Masquer ▲' : 'Afficher ▼'}</span>
             </button>
-            {consultOpen && <ConsultCards blocks={parsedNotes.blocks} />}
+            {consultOpen && <ConsultCards blocks={parsedNotes.blocks} onEdit={(i) => setEditIdx(i)} />}
           </div>
         )}
 
@@ -935,6 +1001,9 @@ function Customer360({
       {adjust && <RdvModal onClose={() => setAdjust(null)} initial={adjust} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
       {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {editBlock && (
+        <EditConsultModal block={editBlock} onSave={saveConsult} onDelete={deleteConsult} onClose={() => setEditIdx(null)} />
+      )}
     </Drawer>
   );
 }
@@ -942,8 +1011,10 @@ function Customer360({
 /* ---------- Ajout d'une cliente ---------- */
 function IntakeModal({ onClose, personas }: { onClose: () => void; personas: ReturnType<typeof usePersonas>[0] }) {
   const { branch } = useBranch();
+  const [segmentList] = useSegments();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState(branch.dial + ' ');
+  const [email, setEmail] = useState('');
   const [city, setCity] = useState(branch.city);
   const [persona, setPersona] = useState(personas[0]?.id ?? '');
   const [birthday, setBirthday] = useState('');
@@ -971,6 +1042,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       branchId: branch.id,
       name: name.trim(),
       phone: phone.trim(),
+      email: email.trim() || undefined,
       city: city.trim() || branch.city,
       persona,
       since: todayISO(),
@@ -1012,6 +1084,9 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
           <Field label="Téléphone">
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
+          <Field label="Adresse e-mail">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" autoComplete="email" />
+          </Field>
           <Field label="Ville">
             <Input value={city} onChange={(e) => setCity(e.target.value)} />
           </Field>
@@ -1050,7 +1125,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
         <div>
           <span className="trc-microlabel">Segments</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {SEGMENT_PRESETS.map((s) => (
+            {segmentList.map((s) => (
               <button key={s} className={`trc-chip ${segments.includes(s) ? 'is-active' : ''}`} onClick={() => toggleSeg(s)}>{s}</button>
             ))}
           </div>

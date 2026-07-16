@@ -9,6 +9,19 @@ const COPPER = '#B97A4A';
 const INK = '#14141B';
 const SOFT = '#6b6b73';
 
+/* Les polices standard du PDF (WinAnsi) n'ont pas les espaces fines / insécables —
+   dont le séparateur de milliers fr-FR (U+202F) que produit `toLocaleString`. jsPDF
+   les rend alors comme un glyphe parasite (« 14 / 000 F »). On les remplace par une
+   espace normale sur CHAQUE texte tracé, pour tous les documents. */
+const PDF_BAD_CODES = [0x00a0, 0x202f, 0x2007, 0x2008, 0x2009, 0x2060, 0x3000, 0xfeff];
+const PDF_BAD_SPACES = new RegExp('[' + PDF_BAD_CODES.map((c) => String.fromCharCode(c)).join('') + ']', 'g');
+function normalizeSpaces(doc: { text: (...args: any[]) => any }): void {
+  const orig = doc.text.bind(doc);
+  const fix = (s: unknown) => (typeof s === 'string' ? s.replace(PDF_BAD_SPACES, ' ') : s);
+  doc.text = ((text: any, ...rest: any[]) =>
+    orig(Array.isArray(text) ? text.map(fix) : fix(text), ...rest)) as any;
+}
+
 /** Charge le sceau MND (cuivre) en data-URL pour l'insérer dans le PDF. */
 async function loadSeal(): Promise<string | null> {
   try {
@@ -53,6 +66,7 @@ export type InvoicePdfData = {
 export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
   const W = 210;
   const M = 18;
   let y = 22;
@@ -193,6 +207,7 @@ export async function summaryPdf(o: {
 }): Promise<string> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
   const W = 210;
   const M = 18;
   let y = 20;
@@ -296,6 +311,7 @@ export type PayslipData = {
 export async function payslipPdf(d: PayslipData): Promise<string> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
   const W = 210;
   const M = 18;
   let y = 22;

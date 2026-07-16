@@ -7,6 +7,9 @@ export type Appointment = {
   id: string;
   branchId: string;
   clientId: string;
+  /** Nom de la cliente au moment du RDV — porté depuis Ma Couronne pour que Le Trône
+      l'affiche même si la fiche n'est pas (encore) synchronisée, et pour l'auto-réparation. */
+  clientName?: string;
   serviceIds: string[]; // RDV multi-services
   date: string; // YYYY-MM-DD
   time: string; // HH:mm

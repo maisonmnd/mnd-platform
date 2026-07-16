@@ -7,6 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
+import { pushBroadcastClients } from '../../../../shared/push';
 import {
   AUTOMATIONS, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, autoConfigStore, useCampaigns, useOffers,
@@ -43,6 +44,21 @@ export default function Marketing() {
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);
   const [offerForm, setOfferForm] = useState<OfferForm>(emptyOffer);
+  const [notifBusy, setNotifBusy] = useState<string | null>(null);
+
+  /* Diffuse une notification push à toutes les clientes abonnées pour cette offre. */
+  const notifyOffer = async (o: InstantOffer) => {
+    if (!window.confirm(`Notifier toutes les clientes de l’offre « ${o.title} » sur leur téléphone ?`)) return;
+    setNotifBusy(o.id);
+    const body = [o.deal, o.sub].filter(Boolean).join(' · ') || 'Une offre vous attend à la Maison.';
+    const n = await pushBroadcastClients(`${o.tag} · ${o.title}`, body, '/couronne/');
+    setNotifBusy(null);
+    window.alert(
+      n > 0
+        ? `Notification envoyée à ${n} cliente${n > 1 ? 's' : ''} abonnée${n > 1 ? 's' : ''}.`
+        : 'Aucune cliente n’a encore activé les notifications sur Ma Couronne.',
+    );
+  };
 
   const branchCampaigns = useMemo(() => campaigns.filter((c) => c.branchId === branch.id), [campaigns, branch.id]);
   const branchOffers = useMemo(() => offers.filter((o) => o.branchId === branch.id), [offers, branch.id]);
@@ -221,6 +237,9 @@ export default function Marketing() {
                       {o.active ? 'Mettre hors ligne' : 'Mettre en ligne'}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEditOffer(o)}>Modifier</Button>
+                    <Button size="sm" variant="copper" disabled={notifBusy === o.id} onClick={() => void notifyOffer(o)}>
+                      {notifBusy === o.id ? 'Envoi…' : 'Notifier les clientes'}
+                    </Button>
                     <button className="tre-link-btn" style={{ color: 'var(--ink-soft)' }} onClick={() => setOffers((prev) => prev.filter((x) => x.id !== o.id))}>
                       Retirer
                     </button>

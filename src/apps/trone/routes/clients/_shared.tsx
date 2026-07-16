@@ -5,7 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useServices, type Service } from '../../../../shared/catalog';
-import { onlineDepositRate } from '../../../../shared/settings';
+import { onlineDepositRate, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import './clients.css';
 
@@ -74,6 +74,16 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) =>
 export const apptDueXof = (a: Appointment, byId: Map<string, Service>) =>
   Math.max(0, apptNetXof(a, byId) - (a.depositXof ?? 0) - (a.paidXof ?? 0));
 
+/** État de règlement d'un RDV — support de la pastille payé/partiel/impayé/gratuit. */
+export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé' | 'partiel' | 'impayé' | 'gratuit' {
+  const net = apptNetXof(a, byId);
+  if (net <= 0) return 'gratuit';
+  const due = apptDueXof(a, byId);
+  if (due <= 0) return 'payé';
+  const paid = (a.paidXof ?? 0) + (a.depositXof ?? 0);
+  return paid > 0 ? 'partiel' : 'impayé';
+}
+
 export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).map((s) => s.name).join(' + ') || '—';
 
@@ -104,6 +114,33 @@ const STATUS_CLASS: Record<Appointment['status'], string> = {
 
 export function StatusPill({ status }: { status: Appointment['status'] }) {
   return <span className={`trc-pill ${STATUS_CLASS[status]}`}>{status}</span>;
+}
+
+/* Pastille de règlement — verte (payé), cuivre (partiel), rouge (impayé) ; rien si gratuit. */
+export function PayStatusPill({ a, byId }: { a: Appointment; byId: Map<string, Service> }) {
+  const state = apptPayState(a, byId);
+  if (state === 'gratuit') return null;
+  const color = state === 'payé' ? 'var(--trf-success)' : state === 'partiel' ? 'var(--color-copper)' : '#8f3b30';
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        fontSize: 9,
+        fontWeight: 600,
+        letterSpacing: '0.09em',
+        textTransform: 'uppercase',
+        borderRadius: 'var(--radius-pill)',
+        padding: '2px 7px',
+        border: `1px solid ${color}`,
+        color,
+        whiteSpace: 'nowrap',
+        lineHeight: 1.35,
+      }}
+    >
+      {state}
+    </span>
+  );
 }
 
 const SOURCE_LABEL: Record<string, string> = { couronne: 'Ma Couronne', consultation: 'Consultation', trone: 'Le Trône' };
@@ -167,12 +204,15 @@ export function RdvModal({
   initial,
   appt,
   title,
+  onEncaisser,
 }: {
   onClose: () => void;
   initial?: RdvInitial;
   /** Rendez-vous existant — la modale passe en mode modification (statut, suppression). */
   appt?: Appointment;
   title?: string;
+  /** Encaisser depuis la modale — n'apparaît qu'en modification d'un RDV existant. */
+  onEncaisser?: (a: Appointment) => void;
 }) {
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
@@ -188,23 +228,22 @@ export function RdvModal({
   const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
-  /* Prestations sur lesquelles porte l'acompte (défaut : toutes). */
-  const [depositServiceIds, setDepositServiceIds] = useState<string[]>(
-    appt?.depositServiceIds ?? appt?.serviceIds ?? initial?.serviceIds ?? [],
-  );
   const [error, setError] = useState<string | null>(null);
+  const [settings] = useSettings();
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
   const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
   const totalXof = Math.round(grossXof * (1 - discountPct / 100));
-  /* Acompte piloté par Paramètres, alloué aux prestations choisies (après remise). */
+  /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent.
+     Aucune prestation exigeant un acompte (ou taux 0) → pas d'acompte. */
+  const depRequired = new Set(settings.depositServiceIds ?? []);
   const depositRate = onlineDepositRate();
   const depositPct = Math.round(depositRate * 100);
-  const depositBaseGross = chosen.filter((s) => depositServiceIds.includes(s.id)).reduce((s, sv) => s + sv.priceXof, 0);
+  const depositServiceIds = chosen.filter((s) => depRequired.has(s.id)).map((s) => s.id);
+  const depositBaseGross = chosen.filter((s) => depRequired.has(s.id)).reduce((s, sv) => s + sv.priceXof, 0);
   const depositXof = Math.round(depositBaseGross * (1 - discountPct / 100) * depositRate);
-  const toggleDepositService = (id: string) =>
-    setDepositServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const hasDeposit = depositXof > 0;
 
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const overlap = useMemo(() => {
@@ -292,7 +331,7 @@ export function RdvModal({
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
                   <span style={{ fontSize: 13 }}>{sv.hidePrice ? 'sur devis' : fmtMoney(sv.priceXof, currency)}</span>
                   <button
-                    onClick={() => { setServiceIds((ids) => ids.filter((id) => id !== sv.id)); setDepositServiceIds((ids) => ids.filter((id) => id !== sv.id)); }}
+                    onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
                     aria-label="Retirer"
                     style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13 }}
                   >
@@ -306,7 +345,6 @@ export function RdvModal({
               onChange={(e) => {
                 if (e.target.value) {
                   setServiceIds((ids) => [...ids, e.target.value]);
-                  setDepositServiceIds((ids) => [...ids, e.target.value]);
                 }
               }}
               style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
@@ -401,25 +439,6 @@ export function RdvModal({
           </div>
         </Field>
 
-        {/* Acompte alloué à des prestations précises. */}
-        {chosen.length > 0 && (
-          <div>
-            <span className="trc-microlabel">Acompte sur ces prestations</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {chosen.map((sv) => (
-                <button
-                  key={sv.id}
-                  type="button"
-                  className={`trc-disc ${depositServiceIds.includes(sv.id) ? 'is-on' : ''}`}
-                  onClick={() => toggleDepositService(sv.id)}
-                >
-                  {sv.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="trc-total">
           {discountPct > 0 && (
             <div className="trc-total__row">
@@ -431,10 +450,12 @@ export function RdvModal({
             <span>Total prestations</span>
             <span className="trc-total__num">{fmtMoney(totalXof, currency)}</span>
           </div>
-          <div className="trc-total__row">
-            <span>Acompte Mobile Money · {depositPct} %{depositServiceIds.length < chosen.length ? ' (partiel)' : ''}</span>
-            <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
-          </div>
+          {hasDeposit && (
+            <div className="trc-total__row">
+              <span>Acompte Mobile Money · {depositPct} %{depositServiceIds.length < chosen.length ? ' (partiel)' : ''}</span>
+              <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -446,6 +467,11 @@ export function RdvModal({
             <Button variant="copper" onClick={() => save(status)}>
               Enregistrer les modifications
             </Button>
+            {onEncaisser && (
+              <Button variant="ghost" onClick={() => onEncaisser(appt)}>
+                Encaisser
+              </Button>
+            )}
             <Button variant="ghost" onClick={remove} style={{ color: 'var(--copper-700)' }}>
               Supprimer le rendez-vous
             </Button>
@@ -453,7 +479,7 @@ export function RdvModal({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Button variant="copper" onClick={() => save('confirmé')}>
-              Confirmer & demander l’acompte
+              {hasDeposit ? 'Confirmer & demander l’acompte' : 'Confirmer le rendez-vous'}
             </Button>
             <Button variant="ghost" onClick={() => save('en attente')}>
               Enregistrer en attente

@@ -429,6 +429,31 @@
   width: 100%;
 }
 
+/* Itinéraire vers la cliente — ouvre Google Maps sur la position GPS partagée. */
+.trv-route-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border: none;
+  border-radius: 2px;
+  padding: 12px;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: filter var(--dur-fast, 0.15s) var(--ease-soft, ease);
+}
+.trv-route-btn:hover { filter: brightness(1.12); }
+.trv-route-btn svg { flex: none; }
+
 /* Le document vivant */
 .trv-doc-stage {
   background: var(--color-sable);
@@ -676,6 +701,27 @@
   .trv-doc { padding: 28px 24px 26px; }
   .trv-doc__pour { font-size: clamp(26px, 8vw, 33px); }
   .trv-doc__total { font-size: clamp(26px, 8vw, 34px); }
+}
+
+/* Grille Factures : chaque colonne peut se rétrécir (empêche le débordement). */
+.trv-fac-grid > * { min-width: 0; }
+
+/* ============================================================
+   Factures & devis — actions & aperçu sur mobile
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Boutons d'action (Modifier · WhatsApp · Imprimer · PDF · Enregistrer…) :
+     chaque rangée s'empile, chaque bouton prend toute la largeur — aucun clip. */
+  .trv-doc-actions__row { flex-direction: column; }
+  .trv-doc-actions__row > * { width: 100%; }
+  .trv-doc-actions__row .mnd-btn { white-space: normal; }
+  .trv-doc-actions > .mnd-btn { width: 100%; white-space: normal; }
+
+  /* Aperçu du document : nom et libellés restent dans le cadre. */
+  .trv-doc__pour { overflow-wrap: anywhere; }
+  .trv-doc__item { gap: 10px; }
+  .trv-doc__item > div:first-child { min-width: 0; }
+  .trv-doc__item .lbl { overflow-wrap: anywhere; }
 }
 
 /* Note de confirmation après téléchargement du PDF (flux WhatsApp). */

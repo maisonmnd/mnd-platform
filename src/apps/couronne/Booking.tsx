@@ -2,11 +2,12 @@ import { asset } from '../../shared/asset';
 import { useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { onlineDepositRate } from '../../shared/settings';
+import { onlineDepositRate, useSettings } from '../../shared/settings';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
-import { enablePush, pushNotify } from '../../shared/push';
+import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
+import { useAuth } from '../../shared/auth';
 import type { Service } from '../../shared/catalog';
 import {
   DOW_LETTERS,
@@ -14,10 +15,12 @@ import {
   PALIERS,
   QUATRE_TEMPS,
   dayLabelIso,
+  ensureClient,
   fmtDuration,
   freeSlots,
   pad2,
   todayIso,
+  useClient,
   useClientId,
   useVisibleCatalog,
   type BookingPrefill,
@@ -55,6 +58,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const { cats, services } = useVisibleCatalog();
   const [appts] = useAppointments();
   const clientId = useClientId();
+  const client = useClient();
+  const { session } = useAuth();
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
@@ -91,11 +96,17 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const masterVaries = selected.length > 1 && !selected.every((s) => s.master === master);
   const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;
 
-  /* Prix effectif (offre appliquée sur le total) + acompte au taux de la Maison. */
+  /* Prix effectif (offre appliquée sur le total). */
+  const [settings] = useSettings();
+  const depRequired = new Set(settings.depositServiceIds ?? []);
   const depositRate = onlineDepositRate();
   const depositPct = Math.round(depositRate * 100);
   const price = Math.round(knownTotal * (1 - discountPct / 100));
-  const deposit = Math.round(price * depositRate);
+  /* Acompte UNIQUEMENT sur les prestations qui l'exigent (Paramètres du Trône).
+     Aucune → pas d'étape acompte, réservation confirmée directement. */
+  const depositBase = selected.filter((s) => !s.hidePrice && depRequired.has(s.id)).reduce((n, s) => n + s.priceXof, 0);
+  const deposit = Math.round(depositBase * (1 - discountPct / 100) * depositRate);
+  const hasDeposit = deposit > 0;
 
   /* Catégories réservables : au moins une prestation visible. */
   const bookableCats = cats.filter((c) => services.some((s) => s.categoryId === c.id));
@@ -160,16 +171,21 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     setStep(step - 1);
   };
 
-  /* ---- Paiement simulé + écriture dans l'agenda partagé ---- */
+  /* ---- Paiement simulé (si acompte) + écriture dans l'agenda partagé ---- */
   const settle = () => {
-    if (!pay) { toast('Choisissez votre moyen de paiement.'); return; }
+    if (hasDeposit && !pay) { toast('Choisissez votre moyen de paiement.'); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
-    setPaying(true);
-    window.clearTimeout(payTimer.current);
-    payTimer.current = window.setTimeout(() => {
+    const finalize = () => {
       const baseNotes: string[] = [];
       if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
       if (masterVaries) baseNotes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
+      /* Garantit la fiche cliente sur LA MÊME branche que le RDV, sous la session
+         authentifiée (l'écriture Supabase passe alors le RLS et remonte au Trône). */
+      ensureClient(clientId, session?.user?.email, branch.id);
+      const clientName =
+        client?.name ??
+        (session?.user?.email ? session.user.email.split('@')[0] : undefined) ??
+        'Cliente Ma Couronne';
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
@@ -179,19 +195,26 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           id: uid(),
           branchId: branch.id,
           clientId,
+          clientName,
           serviceIds: [...selectedIds],
           date: sd.iso,
           time: sd.time,
           master,
           status: 'en attente',
-          /* L'acompte ne s'applique qu'à la première séance. */
-          depositXof: i === 0 ? deposit : undefined,
+          /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
+          depositXof: i === 0 && hasDeposit ? deposit : undefined,
           source: 'couronne',
           note: notes.length ? notes.join(' · ') : undefined,
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
         };
       });
       appointmentsStore.set((prev) => [...prev, ...newAppts]);
+      /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
+      void pushNotifyStaff(
+        'Nouvelle réservation · Ma Couronne',
+        `${clientName} · ${summaryLabel}`,
+        '/trone/#/calendrier',
+      );
       setPaying(false);
       setStep(6);
       /* Le bon moment pour proposer les notifications : juste après une réservation
@@ -204,7 +227,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         if (subbed) void pushNotify(clientId, 'Réservation transmise', body, url);
         else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Réservation transmise', body); });
       });
-    }, 1700);
+    };
+
+    if (hasDeposit) {
+      setPaying(true);
+      window.clearTimeout(payTimer.current);
+      payTimer.current = window.setTimeout(finalize, 1700);
+    } else {
+      finalize();
+    }
   };
 
   /* ---- Rappel fiable : le calendrier natif du téléphone (un événement par séance) ---- */
@@ -512,8 +543,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               ))}
               {totalSessions > 1 && (
                 <div className="mc-recapcard__meta">
-                  Série liée · la prestation est réglée une fois — les séances 2 à {totalSessions} sont incluses ·
-                  acompte sur la 1ʳᵉ.
+                  Série liée · la prestation est réglée une fois — les séances 2 à {totalSessions} sont incluses{hasDeposit ? ' · acompte sur la 1ʳᵉ' : ''}.
                 </div>
               )}
               <div className="mc-recapcard__line"><span>Maison</span><span>{branch.name}</span></div>
@@ -530,8 +560,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               </div>
             ))}
 
-            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 6 }} onClick={() => setStep(5)}>
-              Continuer · acompte
+            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 6 }} onClick={() => (hasDeposit ? setStep(5) : settle())} disabled={paying}>
+              {hasDeposit ? 'Continuer · acompte' : 'Confirmer la réservation'}
             </button>
           </div>
         )}
@@ -603,7 +633,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
                   </div>
                 ))}
-              <div className="mc-recapcard__line"><span>{allHidden ? 'Acompte' : 'Acompte réglé'}</span><span>{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</span></div>
+              <div className="mc-recapcard__line"><span>Acompte</span><span>{hasDeposit ? fmtMoney(deposit, currency) : 'Au salon'}</span></div>
               <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>

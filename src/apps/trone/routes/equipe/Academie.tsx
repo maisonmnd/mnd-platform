@@ -3,12 +3,14 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
+import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { useBranch } from '../../../../shared/branches';
 import { uid } from '../../../../shared/store';
 import {
   QUATRE_TEMPS, REF_PALIERS, REF_LEXIQUE, FORMATION_NIVEAUX,
-  useFormations, useApprenants, useCertifs, apprAvancement,
-  type Formation, type Apprenant, type Certification,
+  useFormations, useApprenants, useCertifs,
+  apprPaid, apprDue, apprHasFinance, apprPayStatus,
+  type Formation, type Apprenant, type Certification, type Payment,
 } from './data';
 import { Bar, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -21,14 +23,33 @@ type Tab = 'formations' | 'apprenants' | 'certifications' | 'referentiel';
 
 const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jour' ? 'ok' : p === 'Échéance' ? 'warn' : 'error');
 
-type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string };
-const emptyFormation: FormationForm = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6' };
+/* Parcours par défaut d'une nouvelle formation — « les quatre temps ». Chaque
+   formation peut ensuite définir ses propres modules. */
+const DEFAULT_MODULES = QUATRE_TEMPS.map((t) => t.n);
 
-type ApprenantForm = { name: string; formationId: string; pay: Apprenant['pay'] };
+type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; modules: string[] };
+const emptyFormation: FormationForm = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', modules: [...DEFAULT_MODULES] };
+
+/* Inscription : identité + scolarité (montant convenu) + un règlement à saisir
+   — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
+   règlements déjà enregistrés (édition d'un·e apprenant·e existant·e). */
+type PayMode = 'integral' | 'partiel' | 'aucun';
+type ApprenantForm = {
+  name: string;
+  formationId: string;
+  priceInput: string;   // montant brut de la formation
+  remiseInput: string;  // remise accordée (F CFA)
+  payMode: PayMode;
+  amountInput: string;
+  payDate: string;      // ISO yyyy-mm-dd (calendrier)
+  payMethod: PaymentMethod;
+  payments: Payment[];
+};
 type CertifForm = { name: string; parcours: string; date: string; statut: Certification['statut'] };
 
 export default function Academie() {
   const { currency } = useBranch();
+  const [payMethods] = usePaymentMethods();
   const [tab, setTab] = useState<Tab>('formations');
   const [showArchived, setShowArchived] = useState(false);
 
@@ -50,6 +71,34 @@ export default function Academie() {
 
   const activeFormations = formations.filter((f) => f.archived === showArchived);
   const formationName = (id: string) => formations.find((f) => f.id === id)?.name ?? '—';
+  const formationPrice = (id: string) => formations.find((f) => f.id === id)?.priceXof ?? 0;
+  /* Les modules du parcours de la formation. `undefined` = fiche héritée d'avant la
+     fonctionnalité → repli sur « les quatre temps ». `[]` = parcours volontairement
+     vidé → on le respecte (aucun module). */
+  const formationModules = (id: string): string[] => {
+    const m = formations.find((f) => f.id === id)?.modules;
+    return m === undefined ? DEFAULT_MODULES : m;
+  };
+  /* Avancement = modules faits / modules de LA formation. On ne compte que dans la
+     limite des modules actuels (si la formation en a perdu, on ne dépasse pas 100 %). */
+  const avancementOf = (a: Apprenant) => {
+    const total = formationModules(a.formationId).length;
+    const done = a.modulesDone.slice(0, total).filter(Boolean).length;
+    return total ? Math.round((done / total) * 100) : 0;
+  };
+  const digits = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
+  /* Date du jour au format calendrier (yyyy-mm-dd, local). */
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  /* yyyy-mm-dd → jj/mm/aaaa (lisible), sans décalage de fuseau. */
+  const frDate = (iso: string) => {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+  };
+  /* Statut affiché : déduit des règlements réels si suivi financier, sinon champ historique. */
+  const payStatusOf = (a: Apprenant) => (apprHasFinance(a) ? apprPayStatus(a) : a.pay);
 
   const stats = useMemo(() => ({
     formations: formations.filter((f) => !f.archived).length,
@@ -61,17 +110,30 @@ export default function Academie() {
   const openFoNew = () => { setFoEditId(null); setFoForm(emptyFormation); };
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines) });
+    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), modules: f.modules && f.modules.length ? [...f.modules] : [...DEFAULT_MODULES] });
   };
   const saveFo = () => {
     if (!foForm || !foForm.name.trim()) return;
     const sessions = parseInt(foForm.sessions, 10) || 1;
     const priceXof = parseInt(foForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const dureeSemaines = parseInt(foForm.duree, 10) || 1;
+    const modules = foForm.modules.map((m) => m.trim()).filter(Boolean);
     if (foEditId) {
-      setFormations((prev) => prev.map((f) => (f.id === foEditId ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines } : f)));
+      const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
+      setFormations((prev) => prev.map((f) => (f.id === foEditId ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, modules } : f)));
+      /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
+         retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
+         repart de zéro pour ce module). */
+      const modulesChanged = oldNames.length !== modules.length || oldNames.some((nm, i) => nm !== modules[i]);
+      if (modulesChanged) {
+        setApprenants((prev) => prev.map((a) => {
+          if (a.formationId !== foEditId) return a;
+          const done = new Map(oldNames.map((nm, i) => [nm, !!a.modulesDone[i]]));
+          return { ...a, modulesDone: modules.map((nm) => done.get(nm) ?? false) };
+        }));
+      }
     } else {
-      setFormations((prev) => [...prev, { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, archived: false }]);
+      setFormations((prev) => [...prev, { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, archived: false, modules }]);
     }
     setFoForm(null);
   };
@@ -86,21 +148,75 @@ export default function Academie() {
   };
 
   /* — apprenants — */
-  const openApNew = () => { setApEditId(null); setApForm({ name: '', formationId: formations.find((f) => !f.archived)?.id ?? formations[0]?.id ?? '', pay: 'À jour' }); };
-  const openApEdit = (a: Apprenant) => { setApEditId(a.id); setApForm({ name: a.name, formationId: a.formationId, pay: a.pay }); };
+  const openApNew = () => {
+    setApEditId(null);
+    const fId = formations.find((f) => !f.archived)?.id ?? formations[0]?.id ?? '';
+    const price = formationPrice(fId);
+    /* Défaut « Plus tard » : aucun règlement n'est enregistré tant qu'on ne le choisit pas
+       explicitement — on ne marque jamais « soldé » par accident. */
+    setApForm({ name: '', formationId: fId, priceInput: price ? String(price) : '', remiseInput: '', payMode: 'aucun', amountInput: '', payDate: todayISO(), payMethod: 'MTN MoMo', payments: [] });
+  };
+  const openApEdit = (a: Apprenant) => {
+    setApEditId(a.id);
+    /* Fiche déjà financée → on rappelle son montant brut (net + remise) et sa remise.
+       Fiche héritée (sans suivi) → champs vides : un simple correctif ne la bascule pas
+       sur le suivi de paiement ni ne la fait paraître débitrice. */
+    const remise = a.remiseXof ?? 0;
+    const gross = apprHasFinance(a) ? (a.priceXof ?? 0) + remise : 0;
+    setApForm({ name: a.name, formationId: a.formationId, priceInput: gross ? String(gross) : '', remiseInput: remise ? String(remise) : '', payMode: 'aucun', amountInput: '', payDate: todayISO(), payMethod: 'MTN MoMo', payments: a.payments ?? [] });
+  };
   const saveAp = () => {
     if (!apForm || !apForm.name.trim()) return;
+    const gross = digits(apForm.priceInput);
+    const remise = Math.min(gross, digits(apForm.remiseInput)); // la remise ne dépasse pas le prix
+    const price = Math.max(0, gross - remise);                  // net dû = prix − remise
+    const already = apForm.payments.reduce((s, p) => s + p.amountXof, 0);
+    /* Le règlement saisi : intégral solde le reste (net − déjà réglé), partiel prend le montant saisi. */
+    let newPayment: Payment | null = null;
+    if (apForm.payMode !== 'aucun') {
+      const amount = apForm.payMode === 'integral' ? Math.max(0, price - already) : digits(apForm.amountInput);
+      if (amount > 0) newPayment = { id: `pay-${uid()}`, amountXof: amount, date: frDate(apForm.payDate || todayISO()), method: apForm.payMethod };
+    }
+    const payments = newPayment ? [...apForm.payments, newPayment] : apForm.payments;
+    const paid = payments.reduce((s, p) => s + p.amountXof, 0);
+    /* Soldé → « À jour », toute somme restant due → « Échéance ». */
+    const derived: Apprenant['pay'] = paid >= price ? 'À jour' : 'Échéance';
+    /* « Financé » = un montant, une remise ou au moins un règlement. Sinon (fiche héritée
+       laissée telle quelle) on préserve son statut d'origine — pas de bascule fortuite. */
+    const financed = price > 0 || remise > 0 || payments.length > 0;
     if (apEditId) {
-      setApprenants((prev) => prev.map((a) => (a.id === apEditId ? { ...a, name: apForm.name.trim(), formationId: apForm.formationId, pay: apForm.pay } : a)));
+      setApprenants((prev) => prev.map((a) => {
+        if (a.id !== apEditId) return a;
+        /* Changement de formation → on réaligne la progression sur le NOUVEAU parcours,
+           en conservant les modules dont le nom coïncide (les autres repartent à zéro). */
+        let modulesDone = a.modulesDone;
+        if (a.formationId !== apForm.formationId) {
+          const oldNames = formationModules(a.formationId);
+          const done = new Map(oldNames.map((nm, i) => [nm, !!a.modulesDone[i]]));
+          modulesDone = formationModules(apForm.formationId).map((nm) => done.get(nm) ?? false);
+        }
+        return { ...a, name: apForm.name.trim(), formationId: apForm.formationId, priceXof: price, remiseXof: remise || undefined, payments, pay: financed ? derived : a.pay, modulesDone };
+      }));
     } else {
-      setApprenants((prev) => [...prev, { id: `ap-${uid()}`, name: apForm.name.trim(), formationId: apForm.formationId, pay: apForm.pay, modulesDone: [false, false, false, false] }]);
-      setNote(`${apForm.name.trim()} inscrit·e sur « ${formationName(apForm.formationId)} ».`);
+      const mods = formationModules(apForm.formationId);
+      setApprenants((prev) => [...prev, { id: `ap-${uid()}`, name: apForm.name.trim(), formationId: apForm.formationId, pay: derived, modulesDone: mods.map(() => false), priceXof: price, remiseXof: remise || undefined, payments }]);
+      const reste = Math.max(0, price - paid);
+      setNote(
+        `${apForm.name.trim()} inscrit·e sur « ${formationName(apForm.formationId)} »`
+        + (price > 0 ? ` · ${fmtMoney(paid, currency)} réglé${reste > 0 ? ` · reste ${fmtMoney(reste, currency)}` : ' · soldé'}.` : '.'),
+      );
     }
     setApForm(null);
   };
   const removeAp = (id: string) => setApprenants((prev) => prev.filter((a) => a.id !== id));
   const toggleModule = (aid: string, idx: number) =>
-    setApprenants((prev) => prev.map((a) => (a.id === aid ? { ...a, modulesDone: a.modulesDone.map((m, i) => (i === idx ? !m : m)) } : a)));
+    setApprenants((prev) => prev.map((a) => {
+      if (a.id !== aid) return a;
+      const arr = [...a.modulesDone];
+      while (arr.length <= idx) arr.push(false); // aligne si la formation a gagné des modules
+      arr[idx] = !arr[idx];
+      return { ...a, modulesDone: arr };
+    }));
 
   /* — certifications — */
   const openCeNew = () => { setCeEditId(null); setCeForm({ name: '', parcours: formations[0]?.name ?? '', date: '', statut: 'En cours' }); };
@@ -232,7 +348,7 @@ export default function Academie() {
                 </thead>
                 <tbody>
                   {apprenants.map((a) => {
-                    const pct = apprAvancement(a);
+                    const pct = avancementOf(a);
                     return (
                       <tr key={a.id}>
                         <td>
@@ -248,7 +364,16 @@ export default function Academie() {
                             <span className="mnd-muted" style={{ fontSize: 11.5 }}>{pct} %</span>
                           </span>
                         </td>
-                        <td><Pill tone={payTone(a.pay)}>{a.pay}</Pill></td>
+                        <td>
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                            <Pill tone={payTone(payStatusOf(a))}>{payStatusOf(a)}</Pill>
+                            {apprHasFinance(a) && (
+                              <span className="mnd-muted" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>
+                                {apprDue(a) > 0 ? `reste ${fmtMoney(apprDue(a), currency)}` : `soldé · ${fmtMoney(a.priceXof ?? 0, currency)}`}
+                              </span>
+                            )}
+                          </span>
+                        </td>
                         <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                           <button className="tre-link-btn" onClick={() => setApDetail(a.id)}>Suivi</button>
                           <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={() => openApEdit(a)}>Modifier</button>
@@ -353,27 +478,52 @@ export default function Academie() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div className="mnd-muted" style={{ fontSize: 11.5 }}>{formationName(detail.formationId)}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-              <Bar pct={apprAvancement(detail)} />
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)', flex: 'none' }}>{apprAvancement(detail)} %</span>
+              <Bar pct={avancementOf(detail)} />
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)', flex: 'none' }}>{avancementOf(detail)} %</span>
             </div>
-            <div className="tre-sec-label" style={{ margin: '18px 0 10px' }}>Modules du parcours · les quatre temps</div>
-            {QUATRE_TEMPS.map((t, i) => {
-              const done = detail.modulesDone[i];
+
+            {apprHasFinance(detail) && (
+              <div className="tre-pay-summary">
+                <div className="tre-sec-label" style={{ marginBottom: 10 }}>Formation</div>
+                {(detail.remiseXof ?? 0) > 0 && (
+                  <div className="tre-pay-recap__line"><span className="mnd-muted">Remise accordée</span><span>− {fmtMoney(detail.remiseXof ?? 0, currency)}</span></div>
+                )}
+                <div className="tre-pay-recap__line"><span className="mnd-muted">Montant convenu</span><span>{fmtMoney(detail.priceXof ?? 0, currency)}</span></div>
+                <div className="tre-pay-recap__line"><span className="mnd-muted">Réglé</span><span>{fmtMoney(apprPaid(detail), currency)}</span></div>
+                <div className="tre-pay-recap__line tre-pay-recap__reste"><span>Reste à payer</span><span>{fmtMoney(apprDue(detail), currency)}</span></div>
+                {(detail.payments ?? []).length > 0 && (
+                  <div className="tre-pay-summary__list">
+                    {(detail.payments ?? []).map((p) => (
+                      <div key={p.id} className="tre-pay-summary__pay"><span className="mnd-muted">{p.date}{p.method ? ` · ${p.method}` : ''}</span><span>{fmtMoney(p.amountXof, currency)}</span></div>
+                    ))}
+                  </div>
+                )}
+                {apprDue(detail) > 0 && (
+                  <Button size="sm" variant="ghost" style={{ marginTop: 12 }} onClick={() => { openApEdit(detail); setApDetail(null); }}>Enregistrer un règlement</Button>
+                )}
+              </div>
+            )}
+
+            <div className="tre-sec-label" style={{ margin: '18px 0 10px' }}>Modules du parcours</div>
+            {formationModules(detail.formationId).length === 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucun module défini pour cette formation — ajoutez-en dans la fiche formation.</div>
+            )}
+            {formationModules(detail.formationId).map((name, i) => {
+              const done = !!detail.modulesDone[i];
               return (
                 <button
-                  key={t.no}
+                  key={i}
                   onClick={() => toggleModule(detail.id, i)}
-                  style={{ cursor: 'pointer', textAlign: 'left', background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}
+                  style={{ cursor: 'pointer', textAlign: 'left', background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8, width: '100%' }}
                 >
                   <span style={{ width: 22, height: 22, borderRadius: 999, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, background: done ? 'var(--color-copper)' : 'transparent', border: '2px solid var(--color-indigo)', color: 'var(--color-ivoire)' }}>{done ? '✓' : ''}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{t.no} · {t.n}</div>
-                    <div className="mnd-muted" style={{ fontSize: 11 }}>{t.g}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{String(i + 1).padStart(2, '0')} · {name}</div>
                   </div>
                 </button>
               );
             })}
-            {detail.modulesDone.every(Boolean) && (
+            {(() => { const mods = formationModules(detail.formationId); return mods.length > 0 && mods.every((_, i) => !!detail.modulesDone[i]); })() && (
               <div style={{ marginTop: 12, background: 'var(--color-obsidian)', borderRadius: 4, padding: '18px 20px' }}>
                 <div className="tre-deep__eyebrow">Parcours achevé · prêt à sceller</div>
                 <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-ivoire)', marginTop: 6 }}>La couronne peut être transmise.</div>
@@ -419,6 +569,40 @@ export default function Academie() {
                 <Input value={foForm.places} onChange={(e) => setFoForm({ ...foForm, places: e.target.value })} placeholder="4 places / complet" />
               </Field>
             </div>
+            <Field label="Modules du parcours">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {foForm.modules.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span className="mnd-muted" style={{ fontSize: 12, width: 18, flex: 'none', textAlign: 'right' }}>{i + 1}</span>
+                    <Input
+                      value={m}
+                      onChange={(e) => setFoForm((prev) => (prev ? { ...prev, modules: prev.modules.map((x, j) => (j === i ? e.target.value : x)) } : prev))}
+                      placeholder="Nom du module (ex. Purifier)"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Retirer le module"
+                      className="tre-link-btn tre-link-btn--danger"
+                      style={{ flex: 'none' }}
+                      onClick={() => setFoForm((prev) => (prev ? { ...prev, modules: prev.modules.filter((_, j) => j !== i) } : prev))}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="tre-chip"
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => setFoForm((prev) => (prev ? { ...prev, modules: [...prev.modules, ''] } : prev))}
+                >
+                  + Ajouter un module
+                </button>
+                <span className="mnd-muted" style={{ fontSize: 11, fontStyle: 'italic' }}>
+                  Chaque formation a ses propres étapes — l'avancement des apprenant·e·s s'y aligne.
+                </span>
+              </div>
+            </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setFoForm(null)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveFo} disabled={!foForm.name.trim()}>{foEditId ? 'Enregistrer' : 'Créer la formation'}</Button>
@@ -427,31 +611,106 @@ export default function Academie() {
         </Modal>
       )}
 
-      {apForm && (
+      {apForm && ((f: ApprenantForm) => {
+        const apGross = digits(f.priceInput);
+        const apRemise = Math.min(apGross, digits(f.remiseInput));
+        const apNet = Math.max(0, apGross - apRemise);
+        const apAlready = f.payments.reduce((s, p) => s + p.amountXof, 0);
+        const apThis = f.payMode === 'integral' ? Math.max(0, apNet - apAlready) : f.payMode === 'partiel' ? digits(f.amountInput) : 0;
+        const apReste = Math.max(0, apNet - (apAlready + apThis));
+        return (
         <Modal title={apEditId ? 'L’apprenant·e.' : 'Nouvel apprenant.'} onClose={() => setApForm(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom de l’apprenant·e">
-              <Input value={apForm.name} onChange={(e) => setApForm({ ...apForm, name: e.target.value })} placeholder="Prénom Nom" />
+              <Input value={f.name} onChange={(e) => setApForm({ ...f, name: e.target.value })} placeholder="Prénom Nom" />
             </Field>
             <Field label="Formation">
-              <Select value={apForm.formationId} onChange={(e) => setApForm({ ...apForm, formationId: e.target.value })}>
-                {formations.map((f) => <option key={f.id} value={f.id}>{f.name}{f.archived ? ' · archivée' : ''}</option>)}
+              <Select
+                value={f.formationId}
+                onChange={(e) => {
+                  const fid = e.target.value;
+                  setApForm({ ...f, formationId: fid, ...(apEditId ? {} : { priceInput: formationPrice(fid) ? String(formationPrice(fid)) : '' }) });
+                }}
+              >
+                {formations.map((fo) => <option key={fo.id} value={fo.id}>{fo.name}{fo.archived ? ' · archivée' : ''}</option>)}
               </Select>
             </Field>
-            <Field label="Paiement">
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(['À jour', 'Échéance', 'En retard'] as Apprenant['pay'][]).map((p) => (
-                  <button key={p} className={`tre-chip ${apForm.pay === p ? 'is-on' : ''}`} onClick={() => setApForm({ ...apForm, pay: p })}>{p}</button>
+
+            <div className="tr-grid tr-grid--2">
+              <Field label="Montant de la formation (F CFA)">
+                <Input inputMode="numeric" value={f.priceInput} onChange={(e) => setApForm({ ...f, priceInput: e.target.value })} placeholder="Ex. 250 000" />
+              </Field>
+              <Field label="Remise accordée (F CFA)">
+                <Input inputMode="numeric" value={f.remiseInput} onChange={(e) => setApForm({ ...f, remiseInput: e.target.value })} placeholder="0" />
+              </Field>
+            </div>
+
+            {f.payments.length > 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12, marginTop: -6 }}>
+                Déjà réglé : {fmtMoney(apAlready, currency)}{apNet > 0 && <> · reste {fmtMoney(Math.max(0, apNet - apAlready), currency)}</>}
+              </div>
+            )}
+
+            <Field label={f.payments.length > 0 ? 'Enregistrer un règlement' : 'Règlement à l’inscription'}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {([['integral', 'Intégral'], ['partiel', 'Partiel'], ['aucun', f.payments.length > 0 ? 'Aucun ajout' : 'Plus tard']] as [PayMode, string][]).map(([m, label]) => (
+                  <button key={m} type="button" className={`tre-chip ${f.payMode === m ? 'is-on' : ''}`} onClick={() => setApForm({ ...f, payMode: m })}>{label}</button>
                 ))}
               </div>
             </Field>
+
+            {f.payMode === 'partiel' && (
+              <div className="tr-grid tr-grid--2">
+                <Field label="Montant réglé (F CFA)">
+                  <Input inputMode="numeric" value={f.amountInput} onChange={(e) => setApForm({ ...f, amountInput: e.target.value })} placeholder="Ex. 100 000" />
+                </Field>
+                <Field label="Date du règlement">
+                  <Input type="date" value={f.payDate} onChange={(e) => setApForm({ ...f, payDate: e.target.value })} />
+                </Field>
+                <Field label="Mode de paiement">
+                  <Select value={f.payMethod} onChange={(e) => setApForm({ ...f, payMethod: e.target.value as PaymentMethod })}>
+                    {payMethods.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </Select>
+                </Field>
+              </div>
+            )}
+            {f.payMode === 'integral' && (
+              <div className="tr-grid tr-grid--2">
+                <Field label="Montant réglé">
+                  <Input value={fmtMoney(apThis, currency)} readOnly disabled />
+                </Field>
+                <Field label="Date du règlement">
+                  <Input type="date" value={f.payDate} onChange={(e) => setApForm({ ...f, payDate: e.target.value })} />
+                </Field>
+                <Field label="Mode de paiement">
+                  <Select value={f.payMethod} onChange={(e) => setApForm({ ...f, payMethod: e.target.value as PaymentMethod })}>
+                    {payMethods.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </Select>
+                </Field>
+              </div>
+            )}
+
+            {apGross > 0 && (
+              <div className="tre-pay-recap">
+                <div className="tre-pay-recap__line"><span className="mnd-muted">Formation</span><span>{fmtMoney(apGross, currency)}</span></div>
+                {apRemise > 0 && (
+                  <div className="tre-pay-recap__line"><span className="mnd-muted">Remise</span><span>− {fmtMoney(apRemise, currency)}</span></div>
+                )}
+                {f.payMode !== 'aucun' && apThis > 0 && (
+                  <div className="tre-pay-recap__line"><span className="mnd-muted">Ce règlement</span><span>{fmtMoney(apThis, currency)}</span></div>
+                )}
+                <div className="tre-pay-recap__line tre-pay-recap__reste"><span>Reste à payer</span><span>{fmtMoney(apReste, currency)}</span></div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setApForm(null)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveAp} disabled={!apForm.name.trim()}>{apEditId ? 'Enregistrer' : 'Inscrire l’apprenant·e'}</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveAp} disabled={!f.name.trim()}>{apEditId ? 'Enregistrer' : 'Inscrire l’apprenant·e'}</Button>
             </div>
           </div>
         </Modal>
-      )}
+        );
+      })(apForm)}
 
       {ceForm && (
         <Modal title={ceEditId ? 'La certification.' : 'Délivrer une certification.'} onClose={() => setCeForm(null)} width={520}>

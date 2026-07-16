@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
 import { useEnsureClient, useActivityTracker, useClientId, type BookingPrefill } from './lib';
-import { registerSW, ensurePush } from '../../shared/push';
+import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
@@ -35,6 +35,21 @@ function Shell() {
     void registerSW();
     if (clientId && clientId !== 'c-local') void ensurePush(clientId);
   }, [clientId]);
+
+  /* Vide le tiroir + badge d'icône à chaque reprise (ouverture, focus, BFCache). */
+  useEffect(() => {
+    const clear = () => { void clearAppNotifications(); };
+    clear();
+    const onVis = () => { if (!document.hidden) clear(); };
+    window.addEventListener('focus', clear);
+    window.addEventListener('pageshow', clear);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', clear);
+      window.removeEventListener('pageshow', clear);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
 
   const [tab, setTab] = useState<TabId>('accueil');
 

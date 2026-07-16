@@ -1,4 +1,5 @@
 import { createStore, useStore } from '../../../../shared/store';
+import type { PaymentMethod } from '../../../../shared/finance';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -269,6 +270,7 @@ export type Formation = {
   priceXof: number;
   dureeSemaines: number;
   archived: boolean;
+  modules?: string[]; // les étapes du parcours — propres à chaque formation
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
@@ -277,12 +279,18 @@ export const FORMATIONS_SEED: Formation[] = [];
 export const formationsStore = createStore<Formation[]>('mnd_formations', FORMATIONS_SEED);
 export const useFormations = () => useStore(formationsStore);
 
+/** Un règlement de la scolarité — intégral ou partiel, avec sa date. */
+export type Payment = { id: string; amountXof: number; date: string; method?: PaymentMethod };
+
 export type Apprenant = {
   id: string;
   name: string;
   formationId: string;
   pay: 'À jour' | 'Échéance' | 'En retard';
-  modulesDone: boolean[]; // les quatre temps
+  modulesDone: boolean[]; // avancement, aligné sur les modules de la formation
+  priceXof?: number;      // montant NET convenu (prix formation − remise) = ce qui est dû
+  remiseXof?: number;     // remise accordée sur la formation
+  payments?: Payment[];   // règlements enregistrés (intégral / partiels / échelonnés)
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -293,6 +301,16 @@ export const useApprenants = () => useStore(apprenantsStore);
 
 export const apprAvancement = (a: Apprenant) =>
   a.modulesDone.length ? Math.round((a.modulesDone.filter(Boolean).length / a.modulesDone.length) * 100) : 0;
+
+/** Somme réglée par l'apprenant·e (tous règlements confondus). */
+export const apprPaid = (a: Apprenant) => (a.payments ?? []).reduce((s, p) => s + p.amountXof, 0);
+/** Reste dû = montant convenu − déjà réglé (jamais négatif). */
+export const apprDue = (a: Apprenant) => Math.max(0, (a.priceXof ?? 0) - apprPaid(a));
+/** L'apprenant·e porte-t-il·elle un suivi financier (prix convenu, remise ou règlements) ? */
+export const apprHasFinance = (a: Apprenant) => (a.priceXof ?? 0) > 0 || (a.remiseXof ?? 0) > 0 || (a.payments?.length ?? 0) > 0;
+/** Statut de paiement déduit des règlements réels : soldé → « À jour », sinon « Échéance ». */
+export const apprPayStatus = (a: Apprenant): Apprenant['pay'] =>
+  apprPaid(a) >= (a.priceXof ?? 0) ? 'À jour' : 'Échéance';
 
 export type Certification = {
   id: string;

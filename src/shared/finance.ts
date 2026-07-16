@@ -2,14 +2,15 @@ import { createStore, useStore } from './store';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
-export type PaymentMethod =
-  | 'MTN MoMo' | 'Moov' | 'Celtis' | 'Wave'
-  | 'Espèces' | 'Carte' | 'Virement bancaire' | 'PayPal' | 'Chèque' | 'Lien WhatsApp';
+/** Un moyen de paiement — la liste est désormais gérable (usePaymentMethods), donc libre. */
+export type PaymentMethod = string;
 
-/** Liste ordonnée des moyens de paiement — source partagée (POS, RDV, factures). */
-export const PAYMENT_METHODS: PaymentMethod[] = [
+/** Moyens de paiement par défaut — la liste est éditable (paymentMethodsStore). */
+export const PAYMENT_METHODS_DEFAULT: string[] = [
   'MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp',
 ];
+/** Alias rétro-compatible (liste par défaut). Préférer `usePaymentMethods()`. */
+export const PAYMENT_METHODS = PAYMENT_METHODS_DEFAULT;
 
 export type InvoiceLine = {
   id: string;
@@ -41,6 +42,11 @@ export type Invoice = {
   note?: string;
   /** Maître qui a officié. */
   master?: string;
+  /** RDV créé automatiquement à l’acceptation d’un devis (évite les doublons). */
+  apptId?: string;
+  /** Pourboire encaissé dans la caisse (traçabilité POS) — HORS chiffre d'affaires,
+      reversé au maître. Ne compte jamais dans invoiceTotal. */
+  tipXof?: number;
 };
 
 /** Ligne d'une dépense — plusieurs articles peuvent être imputés à un même achat. */
@@ -118,16 +124,20 @@ export const expensesStore = createStore<Expense[]>('mnd_expenses', EXPENSES_SEE
 export const budgetsStore = createStore<Budget[]>('mnd_budgets', BUDGETS_SEED);
 export const cashboxesStore = createStore<Cashbox[]>('mnd_cashboxes', CASHBOXES_SEED);
 export const expenseCategoriesStore = createStore<ExpenseCategory[]>('mnd_expense_categories', EXPENSE_CATEGORIES_SEED);
+/** Liste gérable des moyens de paiement (Paramètres), synchronisée Supabase. */
+export const paymentMethodsStore = createStore<string[]>('mnd_payment_methods', PAYMENT_METHODS_DEFAULT);
 
 export const useInvoices = () => useStore(invoicesStore);
 export const useExpenses = () => useStore(expensesStore);
 export const useBudgets = () => useStore(budgetsStore);
 export const useCashboxes = () => useStore(cashboxesStore);
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
+export const usePaymentMethods = () => useStore(paymentMethodsStore);
 
-import { bindCollection } from './sync';
+import { bindCollection, bindDocument } from './sync';
 bindCollection(invoicesStore, 'invoices');
 bindCollection(expensesStore, 'expenses');
 bindCollection(budgetsStore, 'budgets');
 bindCollection(cashboxesStore, 'cashboxes');
 bindCollection(expenseCategoriesStore, 'expense_categories');
+bindDocument(paymentMethodsStore, 'mnd_payment_methods');

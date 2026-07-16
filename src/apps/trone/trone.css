@@ -254,6 +254,10 @@ body[data-surface='trone'] {
 .tr-notif__dot--impaye { color: #b0563e; }
 .tr-notif__dot--stock { color: #b0563e; }
 .tr-notif__dot--couronne { color: var(--color-copper); }
+.tr-notif__dot--prospect { color: var(--color-indigo); }
+.tr-notif__dot--inscription { color: var(--copper-600); }
+.tr-notif__dot--enligne { color: #4a7a5a; }
+.tr-notif__dot--imminent { color: #b0563e; }
 
 /* Ligne d'activation des alertes locales (permission non encore demandée) */
 .tr-notif__perm {

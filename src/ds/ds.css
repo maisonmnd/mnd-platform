@@ -243,6 +243,8 @@
     padding: var(--space-4);
   }
   .mnd-stat__value { font-size: clamp(30px, 9vw, 40px); }
+  /* Boutons d'action d'une modale : ils s'ajustent au lieu d'être coupés à droite. */
+  .mnd-modal__body .mnd-btn { white-space: normal; min-width: 0; }
 }
 
 /* Grilles génériques posées en style inline (sans classe dédiée) :

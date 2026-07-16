@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
 import { NAV } from '../routes/index';
 import NotificationsBell from './Notifications';
+import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
@@ -17,6 +18,8 @@ export default function Shell() {
   const { session } = useAuth();
   const staff = useStaff();
   const navigate = useNavigate();
+  /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
+  useReconcileClients();
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const closeSide = () => setSideOpen(false);

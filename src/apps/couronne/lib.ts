@@ -31,11 +31,29 @@ export function useClientId(): string {
 /** Crée le dossier de la cliente dans le CRM partagé s'il n'existe pas encore
     (idempotent). Le nom initial dérive de l'e-mail ; il reste éditable au Profil,
     de sorte que réservations et devis restent liés au bon compte, visibles au Trône. */
-export function ensureClient(clientId: string, email?: string | null): void {
-  if (clientsStore.get().some((c) => c.id === clientId)) return;
-  const branchId = branchesStore.get()[0]?.id ?? 'maison';
+export function ensureClient(clientId: string, email?: string | null, branchId?: string, fullName?: string | null): void {
+  if (!clientId || clientId === 'c-local') return;
+  const bid = branchId ?? branchesStore.get()[0]?.id ?? 'maison';
+  const mail = (email ?? '').trim() || undefined;
+  const existing = clientsStore.get().find((c) => c.id === clientId);
+  if (existing) {
+    /* Réaligne la branche si besoin, et complète l'e-mail s'il manque encore. */
+    const needBranch = !!branchId && existing.branchId !== branchId;
+    const needMail = !!mail && !existing.email;
+    if (needBranch || needMail) {
+      clientsStore.set((prev) =>
+        prev.map((c) =>
+          c.id === clientId
+            ? { ...c, ...(needBranch ? { branchId } : {}), ...(needMail ? { email: mail } : {}) }
+            : c,
+        ),
+      );
+    }
+    return;
+  }
   const local = (email ?? '').split('@')[0];
-  const name = local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Ma Couronne';
+  const name = (fullName && fullName.trim())
+    || (local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Cliente Ma Couronne');
   const since = new Date().toISOString().slice(0, 10);
   clientsStore.set((prev) =>
     prev.some((c) => c.id === clientId)
@@ -43,8 +61,8 @@ export function ensureClient(clientId: string, email?: string | null): void {
       : [
           ...prev,
           {
-            id: clientId, branchId, name, phone: '', city: '',
-            persona: '', since, segments: ['Nouvelle'],
+            id: clientId, branchId: bid, name, phone: '', email: mail, city: '',
+            persona: '', since, segments: ['Ma Couronne', 'Nouvelle'],
             priceCoef: 1, loyaltyPoints: 0,
           },
         ]
@@ -55,9 +73,10 @@ export function ensureClient(clientId: string, email?: string | null): void {
 export function useEnsureClient(): string {
   const { session } = useAuth();
   const clientId = session?.user?.id ?? 'c-local';
+  const metaName = (session?.user?.user_metadata as { name?: string } | undefined)?.name;
   useEffect(() => {
-    ensureClient(clientId, session?.user?.email);
-  }, [clientId, session?.user?.email]);
+    ensureClient(clientId, session?.user?.email, undefined, metaName);
+  }, [clientId, session?.user?.email, metaName]);
   return clientId;
 }
 

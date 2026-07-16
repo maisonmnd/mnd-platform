@@ -7,7 +7,7 @@ import { useCategories, useServices, useProducts } from '../../../../shared/cata
 import { useFormations } from '../equipe/data';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, useCashboxes, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -17,18 +17,20 @@ import './vente.css';
 
 type CartLine = { qty: number; disc: number };
 
-const PAY_METHODS: { k: PaymentMethod; n: string; sub: string }[] = [
-  { k: 'MTN MoMo', n: 'MTN MoMo', sub: 'Mobile Money' },
-  { k: 'Moov', n: 'Moov Money', sub: 'Mobile Money' },
-  { k: 'Celtis', n: 'Celtis', sub: 'Mobile Money' },
-  { k: 'Wave', n: 'Wave', sub: 'Mobile Money' },
-  { k: 'Espèces', n: 'Espèces', sub: 'Caisse' },
-  { k: 'Carte', n: 'Carte', sub: 'TPE bancaire' },
-  { k: 'Virement bancaire', n: 'Virement', sub: 'Banque' },
-  { k: 'PayPal', n: 'PayPal', sub: 'Diaspora' },
-  { k: 'Chèque', n: 'Chèque', sub: 'Bancaire' },
-  { k: 'Lien WhatsApp', n: 'Lien WhatsApp', sub: 'Paiement à distance' },
-];
+/* Sous-titres indicatifs des moyens connus ; la liste réelle est gérable
+   (usePaymentMethods) — un moyen personnalisé retombe sur « Paiement ». */
+const PAY_SUB: Record<string, string> = {
+  'MTN MoMo': 'Mobile Money',
+  'Moov': 'Mobile Money',
+  'Celtis': 'Mobile Money',
+  'Wave': 'Mobile Money',
+  'Espèces': 'Caisse',
+  'Carte': 'TPE bancaire',
+  'Virement bancaire': 'Banque',
+  'PayPal': 'Diaspora',
+  'Chèque': 'Bancaire',
+  'Lien WhatsApp': 'Paiement à distance',
+};
 
 const todayIso = () => {
   const d = new Date();
@@ -50,6 +52,7 @@ export default function Caisse() {
   const [clients] = useClients();
   const [invoices, setInvoices] = useInvoices();
   const [cashboxes] = useCashboxes();
+  const [methods] = usePaymentMethods();
 
   const [tab, setTab] = useState<'encaisser' | 'journal'>('encaisser');
   const [cart, setCart] = useState<Record<string, CartLine>>({});
@@ -211,6 +214,8 @@ export default function Caisse() {
     .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === today)
     .filter((i) => journalCaisse === 'Toutes' || (i.cashbox ?? 'Caisse principale') === journalCaisse);
   const journalTotal = journal.reduce((s, i) => s + invoiceTotal(i), 0);
+  /* Pourboires encaissés dans la caisse — hors chiffre d'affaires, à reverser aux maîtres. */
+  const tipsTotal = journal.reduce((s, i) => s + (i.tipXof ?? 0), 0);
   const sumBy = (fn: (p?: PaymentMethod) => boolean) => journal.filter((i) => fn(i.payment)).reduce((s, i) => s + invoiceTotal(i), 0);
   const clientName = (i: Invoice) => clients.find((c) => c.id === i.clientId)?.name ?? i.clientName ?? '—';
   const journalDateLabel = (() => {
@@ -352,10 +357,10 @@ export default function Caisse() {
             <div style={{ padding: '8px 22px 22px' }}>
               <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '6px 0 12px' }}>Paiement</div>
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                {PAY_METHODS.map((m) => (
-                  <button key={m.k} className={`trv-pay ${pay === m.k ? 'is-active' : ''}`} onClick={() => setPay(m.k)}>
-                    <div className="n">{m.n}</div>
-                    <div className="s">{m.sub}</div>
+                {methods.map((m) => (
+                  <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => setPay(m)}>
+                    <div className="n">{m}</div>
+                    <div className="s">{PAY_SUB[m] ?? 'Paiement'}</div>
                   </button>
                 ))}
               </div>
@@ -399,6 +404,17 @@ export default function Caisse() {
             <div className="trv-kpi"><div className="l">Carte</div><div className="v">{fmtMoney(sumBy((p) => p === 'Carte'), currency)}</div></div>
             <div className="trv-kpi"><div className="l">WhatsApp</div><div className="v">{fmtMoney(sumBy((p) => p === 'Lien WhatsApp'), currency)}</div></div>
           </div>
+
+          {tipsTotal > 0 && (
+            <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, padding: '14px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                Pourboires encaissés · à reverser aux maîtres : <strong style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, color: 'var(--copper-600)' }}>{fmtMoney(tipsTotal, currency)}</strong>
+              </div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                Encaissé en caisse (dont pourboires) : <strong style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, color: 'var(--color-indigo)' }}>{fmtMoney(journalTotal + tipsTotal, currency)}</strong>
+              </div>
+            </div>
+          )}
 
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, overflow: 'hidden' }}>
             <div className="trv-journal-head">

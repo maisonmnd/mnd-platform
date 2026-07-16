@@ -4,7 +4,7 @@ import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { OPEN_HOUR, CLOSE_HOUR, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
+  PayStatusPill, RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
@@ -35,6 +35,7 @@ export default function Calendrier() {
   const [hint, setHint] = useState<string | null>(null); // indication brève (chevauchement…)
   const grabOffsetY = useRef(0); // prise dans le bloc — pour un calage naturel
   const didDrag = useRef(false); // distingue glisser d'un simple clic
+  const touchStart = useRef<{ x: number; y: number; moved: boolean } | null>(null); // tap vs glissement tactile
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flashHint = (msg: string) => {
@@ -81,10 +82,12 @@ export default function Calendrier() {
     setDropKey(null);
   };
 
-  const onDragEnd = (e: React.DragEvent) => {
+  const onDragEnd = () => {
     endDrag();
-    // Glisser abandonné hors zone : autoriser le prochain clic à rouvrir la modale.
-    if (e.dataTransfer.dropEffect === 'none') didDrag.current = false;
+    // Après un glisser (réussi OU abandonné), libère le clic suivant — sinon le
+    // prochain clic réel serait avalé par le garde-fou didDrag. Différé (setTimeout 0)
+    // pour gober l'éventuel clic parasite qui suivrait immédiatement le dépôt.
+    window.setTimeout(() => { didDrag.current = false; }, 0);
   };
 
   const applyMove = (a: Appointment, next: { date: string; time: string; master: string }) => {
@@ -117,6 +120,62 @@ export default function Calendrier() {
     endDrag();
     if (!a) return;
     applyMove(a, { date: iso, time: a.time, master: a.master });
+  };
+
+  /* — Déplacement au doigt (tactile) — miroir du glisser natif, sans HTML5 DnD.
+     Les événements tactiles restent ciblés sur le bloc d'origine ; on retrouve la
+     colonne survolée via elementFromPoint aux attributs data-daycol / data-weekday. */
+  const onTouchStartAppt = (e: React.TouchEvent, a: Appointment) => {
+    setDragId(a.id);
+    // On NE marque PAS encore didDrag : un simple tap doit ouvrir la modale.
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY, moved: false };
+    // Prise dans le bloc (vue jour) — pour un calage naturel de l'heure.
+    grabOffsetY.current = t.clientY - e.currentTarget.getBoundingClientRect().top;
+  };
+
+  const onTouchMoveDrag = (e: React.TouchEvent) => {
+    if (!dragId || !touchStart.current) return;
+    const t = e.touches[0];
+    // En deçà du seuil, c'est encore un tap : on laisse faire (pas de déplacement).
+    if (!touchStart.current.moved && Math.hypot(t.clientX - touchStart.current.x, t.clientY - touchStart.current.y) < 8) return;
+    touchStart.current.moved = true;
+    didDrag.current = true; // désormais c'est un glissement : neutralise le clic parasite
+    e.preventDefault(); // empêche le défilement de la page pendant le glisser
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    const dayCol = el?.closest('[data-daycol]');
+    const weekDay = el?.closest('[data-weekday]');
+    if (dayCol) setDropKey(`d:${dayCol.getAttribute('data-daycol')}`);
+    else if (weekDay) setDropKey(`w:${weekDay.getAttribute('data-weekday')}`);
+    else setDropKey(null);
+  };
+
+  const onTouchEndDrag = (e: React.TouchEvent) => {
+    const moved = touchStart.current?.moved ?? false;
+    touchStart.current = null;
+    // Tap sans glissement : on ne déplace rien, le clic ouvrira la modale.
+    if (!moved) { endDrag(); return; }
+    const a = appts.find((x) => x.id === dragId);
+    const t = e.changedTouches[0];
+    const el = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
+    if (a && el) {
+      if (view === 'jour') {
+        const dayCol = el.closest('[data-daycol]');
+        const master = dayCol?.getAttribute('data-daycol');
+        if (dayCol && master) {
+          const rect = dayCol.getBoundingClientRect();
+          const y = t.clientY - rect.top - grabOffsetY.current;
+          applyMove(a, { date: anchor, time: yToTime(y), master });
+        }
+      } else if (view === 'semaine') {
+        const weekDay = el.closest('[data-weekday]');
+        const iso = weekDay?.getAttribute('data-weekday');
+        if (weekDay && iso) applyMove(a, { date: iso, time: a.time, master: a.master });
+      }
+    }
+    endDrag();
+    // Le glissement a posé didDrag=true : on le libère pour ne pas avaler le tap suivant.
+    window.setTimeout(() => { didDrag.current = false; }, 0);
   };
 
   /* Après un glisser, neutralise le clic parasite qui rouvrirait la modale. */
@@ -236,6 +295,7 @@ export default function Calendrier() {
               <div
                 className={`trc-cal__col ${dropKey === `d:${m.name}` ? 'is-drop' : ''}`}
                 key={m.name}
+                data-daycol={m.name}
                 style={{ height: hours.length * HOUR_PX }}
                 onDragOver={(e) => { if (dragId) { e.preventDefault(); setDropKey(`d:${m.name}`); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropKey((k) => (k === `d:${m.name}` ? null : k)); }}
@@ -257,13 +317,19 @@ export default function Calendrier() {
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
                       onDragEnd={onDragEnd}
+                      onTouchStart={(e) => onTouchStartAppt(e, a)}
+                      onTouchMove={onTouchMoveDrag}
+                      onTouchEnd={onTouchEndDrag}
                       onClick={() => clickAppt(a)}
                     >
                       <div className="trc-cal__appt-title">
                         {a.time} · {apptLabel(a, byId)}
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       </div>
-                      <div className="trc-cal__appt-sub">{clientName(a.clientId)}</div>
+                      <div className="trc-cal__appt-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clientName(a.clientId)}</span>
+                        <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
+                      </div>
                       {a.status !== 'honoré' && (
                         <button
                           className="trc-cal__encaisser"
@@ -290,6 +356,7 @@ export default function Calendrier() {
               <div
                 className={`trc-week__day ${dropKey === `w:${d.iso}` ? 'is-drop' : ''}`}
                 key={d.iso}
+                data-weekday={d.iso}
                 onDragOver={(e) => { if (dragId) { e.preventDefault(); setDropKey(`w:${d.iso}`); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropKey((k) => (k === `w:${d.iso}` ? null : k)); }}
                 onDrop={(e) => onDropWeek(e, d.iso)}
@@ -310,6 +377,9 @@ export default function Calendrier() {
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}
                         onDragEnd={onDragEnd}
+                        onTouchStart={(e) => onTouchStartAppt(e, a)}
+                        onTouchMove={onTouchMoveDrag}
+                        onTouchEnd={onTouchEndDrag}
                         onClick={() => clickAppt(a)}
                       >
                         <b>{a.time}</b>
@@ -317,6 +387,9 @@ export default function Calendrier() {
                           {a.master[0]} · {first?.name ?? 'Rituel'}
                           {serieMark(a) ? ` · ${serieMark(a)}` : ''}
                         </i>
+                        <span style={{ pointerEvents: 'none', display: 'inline-flex', marginTop: 2 }}>
+                          <PayStatusPill a={a} byId={byId} />
+                        </span>
                       </div>
                     );
                   })}
@@ -330,7 +403,13 @@ export default function Calendrier() {
       {hint && <div className="trc-cal__toast" role="status">{hint}</div>}
 
       {modalOpen && <RdvModal onClose={() => setModalOpen(false)} initial={{ date: anchor }} />}
-      {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
+      {editAppt && (
+        <RdvModal
+          onClose={() => setEditAppt(null)}
+          appt={editAppt}
+          onEncaisser={(a) => { setEditAppt(null); setPayAppt(a); }}
+        />
+      )}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );

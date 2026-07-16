@@ -29,7 +29,8 @@ export function registerSW(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return Promise.resolve(null);
   if (!regPromise) {
     regPromise = navigator.serviceWorker
-      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' })
+      .then((reg) => { try { void reg.update(); } catch { /* ignore */ } return reg; })
       .catch(() => null);
   }
   return regPromise;
@@ -76,6 +77,21 @@ export async function ensurePush(clientId: string): Promise<void> {
   await enablePush(clientId);
 }
 
+/** Désactive les notifications sur cet appareil : désabonnement + suppression en base. */
+export async function disablePush(): Promise<boolean> {
+  try {
+    const reg = await registerSW();
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      if (supabase) await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      await sub.unsubscribe();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Envoie une notification immédiate à la cliente via la fonction Edge (best-effort). */
 export async function pushNotify(clientId: string, title: string, body: string, url?: string): Promise<void> {
   if (!supabase || !clientId || clientId === 'c-local') return;
@@ -83,5 +99,65 @@ export async function pushNotify(clientId: string, title: string, body: string, 
     await supabase.functions.invoke('push-notify', { body: { clientId, title, body, url } });
   } catch {
     /* silencieux : la fonction n'est peut-être pas encore déployée */
+  }
+}
+
+/** Referme les notifications encore affichées (tiroir du téléphone) sur TOUTES les
+    inscriptions du service worker + efface le badge desktop/iOS (no-op sur Android
+    Chrome, où le badge est piloté par le système d'après le tiroir). À appeler à
+    chaque reprise de l'app pour que l'icône retombe. */
+export async function clearAppNotifications(): Promise<void> {
+  try {
+    const nav = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
+    if (typeof nav.clearAppBadge === 'function') await nav.clearAppBadge();
+  } catch { /* ignore */ }
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    /* Balaye toutes les inscriptions (évite qu'une inscription orpheline laisse
+       traîner des notifications que le nettoyage ne verrait pas). */
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) {
+      try {
+        const notifs = await reg.getNotifications();
+        for (const n of notifs) n.close();
+        reg.active?.postMessage({ type: 'mnd-clear' });
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}
+
+/** Notifie TOUT le personnel (souverain/gérants/maîtres) via la fonction Edge —
+    pour les événements de la Maison (consultation reçue, réservation, inscription…).
+    Appelable par une cliente authentifiée ou par le tunnel public de consultation. */
+export async function pushNotifyStaff(title: string, body: string, url?: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.functions.invoke('push-notify', { body: { mode: 'staff', title, body, url } });
+  } catch {
+    /* silencieux : la fonction n'est peut-être pas encore déployée */
+  }
+}
+
+/** Notifie UNE cliente précise depuis Le Trône (ex. cadeau anniversaire).
+    Réservé au personnel (la fonction Edge vérifie le JWT). Renvoie le nombre d'envois. */
+export async function pushToClient(clientId: string, title: string, body: string, url?: string, email?: string): Promise<number> {
+  if (!supabase || (!clientId && !email)) return 0;
+  try {
+    const { data } = await supabase.functions.invoke('push-notify', { body: { mode: 'to-client', clientId, email, title, body, url } });
+    return (data as { sent?: number })?.sent ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Diffuse une notification à TOUTES les clientes abonnées (offre, promo…).
+    Réservé au personnel (la fonction Edge vérifie le JWT). Renvoie le nombre d'envois. */
+export async function pushBroadcastClients(title: string, body: string, url?: string): Promise<number> {
+  if (!supabase) return 0;
+  try {
+    const { data } = await supabase.functions.invoke('push-notify', { body: { mode: 'broadcast', title, body, url } });
+    return (data as { sent?: number })?.sent ?? 0;
+  } catch {
+    return 0;
   }
 }

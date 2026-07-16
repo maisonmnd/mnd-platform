@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
@@ -14,6 +14,7 @@ import {
   todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
+import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
    formulaires personnalisables (gestionnaire de questions) et les consultations
@@ -100,10 +101,20 @@ const TABS: { k: Tab; label: string }[] = [
 
 export default function Consultations() {
   const [tab, setTab] = useState<Tab>('dossiers');
+  const [forms] = useStore(consultFormsStore);
+  const [chooser, setChooser] = useState(false);
+  const [quickFillId, setQuickFillId] = useState<string | null>(null);
+
+  const activeForms = forms.filter((f) => !f.archived);
+  const quickForm = activeForms.find((f) => f.id === quickFillId) ?? null;
 
   return (
     <div className="mnd-rise">
-      <PageHead eyebrow="Consultations · Diagnostic & rituel" title="La consultation." />
+      <PageHead
+        eyebrow="Consultations · Diagnostic & rituel"
+        title="La consultation."
+        actions={<Button variant="indigo" onClick={() => setChooser(true)}>+ Nouvelle consultation</Button>}
+      />
 
       <div className="trc-tabs" style={{ marginBottom: 22 }}>
         {TABS.map((t) => (
@@ -116,6 +127,53 @@ export default function Consultations() {
       {tab === 'dossiers' && <DossiersSection />}
       {tab === 'formulaires' && <FormsSection />}
       {tab === 'enligne' && <OnlineSection />}
+
+      {/* Nouvelle consultation — sélecteur de tous les types chargés */}
+      {chooser && (
+        <Modal title="Nouvelle consultation." onClose={() => setChooser(false)} width={620}>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: -4, marginBottom: 16 }}>
+            Choisissez le type de consultation à mener pour une cliente. Toutes vos consultations
+            sont ici — vous pourrez la remplir puis l’enregistrer au dossier.
+          </p>
+          {activeForms.length === 0 ? (
+            <div className="trc-empty">Aucune consultation disponible — créez un formulaire dans l’onglet « Formulaires ».</div>
+          ) : (
+            <div className="tr-grid tr-grid--2">
+              {activeForms.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className="trc-consult-pick"
+                  onClick={() => { setQuickFillId(f.id); setChooser(false); }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                    <span className="trc-microlabel" style={{ margin: 0 }}>{f.eyebrow}</span>
+                    <span className="trc-pill">{f.questions.length} questions</span>
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', marginTop: 8, lineHeight: 1.15 }}>{f.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 6 }}>{f.desc}</div>
+                  <span className="trc-consult-pick__cta">Remplir pour une cliente →</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="trc-consult-pick__foot">
+            <span style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>Diagnostic en autonomie par la cliente ?</span>
+            <a
+              href={asset('/consultation.html')}
+              target="_blank"
+              rel="noreferrer"
+              className="mnd-btn mnd-btn--ghost mnd-btn--sm"
+              style={{ textDecoration: 'none' }}
+              onClick={() => setChooser(false)}
+            >
+              Ouvrir La Consultation Souveraine →
+            </a>
+          </div>
+        </Modal>
+      )}
+
+      {quickForm && <FillPanel form={quickForm} onClose={() => setQuickFillId(null)} />}
     </div>
   );
 }
@@ -216,72 +274,8 @@ function DossiersSection() {
   );
 }
 
-/* ---------- Note de la maison : texte libre + blocs de consultation ---------- */
-type ConsultQA = { q: string; a: string };
-type ConsultBlock = { name: string; date: string; qa: ConsultQA[] };
-const CONSULT_HEADER = /^── Consultation · (.+) ──$/;
-
-/** Sépare la note en (texte libre) + (blocs consultation) + (texte brut des blocs, pour ré-enregistrer). */
-function splitNotes(raw: string | undefined): { free: string; consultRaw: string; blocks: ConsultBlock[] } {
-  const lines = (raw ?? '').split('\n');
-  let firstIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (CONSULT_HEADER.test(lines[i])) { firstIdx = i; break; }
-  }
-  const free = (firstIdx === -1 ? lines : lines.slice(0, firstIdx)).join('\n').trim();
-  const consultRaw = firstIdx === -1 ? '' : lines.slice(firstIdx).join('\n').trim();
-  const blocks: ConsultBlock[] = [];
-  let cur: { name: string; date: string; qa: ConsultQA[]; a: ConsultQA | null } | null = null;
-  const closeQA = () => { if (cur && cur.a) { cur.qa.push(cur.a); cur.a = null; } };
-  const flush = () => { if (cur) { closeQA(); blocks.push({ name: cur.name, date: cur.date, qa: cur.qa }); cur = null; } };
-  for (const line of consultRaw ? consultRaw.split('\n') : []) {
-    const h = line.match(CONSULT_HEADER);
-    if (h) {
-      flush();
-      const inner = h[1];
-      const idx = inner.lastIndexOf(' · ');
-      cur = { name: idx >= 0 ? inner.slice(0, idx) : inner, date: idx >= 0 ? inner.slice(idx + 3) : '', qa: [], a: null };
-      continue;
-    }
-    if (!cur) continue;
-    const qm = line.match(/^\d+\.\s?(.*)$/);
-    if (qm) { closeQA(); cur.a = { q: qm[1].trim(), a: '' }; continue; }
-    const am = line.match(/^\s*→\s?(.*)$/);
-    if (am && cur.a) { cur.a.a = cur.a.a ? `${cur.a.a}\n${am[1]}` : am[1]; continue; }
-    const t = line.trim();
-    if (t && cur.a) cur.a.a = cur.a.a ? `${cur.a.a}\n${t}` : t;
-  }
-  flush();
-  return { free, consultRaw, blocks };
-}
-
-/** Rendu des consultations en cartes distinctes (en-tête cuivre serif + Q/R). */
-function ConsultCards({ blocks, onSummary }: { blocks: ConsultBlock[]; onSummary?: (b: ConsultBlock) => void }) {
-  if (blocks.length === 0) return null;
-  return (
-    <div className="trc-consults">
-      {blocks.map((b, i) => (
-        <div className="trc-consult-card" key={i}>
-          <div className="trc-consult-card__head">
-            <span className="trc-consult-card__name">{b.name}</span>
-            {b.date && <span className="trc-consult-card__date">{b.date}</span>}
-            {onSummary && (
-              <button className="trc-consult-card__summary" onClick={() => onSummary(b)}>Résumé (PDF)</button>
-            )}
-          </div>
-          <div className="trc-consult-card__body">
-            {b.qa.map((qa, j) => (
-              <div className="trc-consult-qa" key={j}>
-                <div className="trc-consult-qa__q">{qa.q}</div>
-                <div className="trc-consult-qa__a">{qa.a || '—'}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+/* Parsing / sérialisation / rendu / édition des consultations : module partagé
+   ./consultNotes (utilisé aussi par la fiche CRM 360). */
 
 /* ---------- Panneau · Dossier client ---------- */
 const digitsOnly = (s: string) => s.replace(/\D/g, '');
@@ -334,6 +328,24 @@ function DossierPanel({
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: merged || undefined } : c)));
   };
 
+  /* Modifier / supprimer une consultation déjà enregistrée au dossier. */
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const editBlock = editIdx != null ? parsedNotes.blocks[editIdx] ?? null : null;
+  const persistBlocks = (blocks: ConsultBlock[]) => {
+    const merged = serializeNotes(notes, blocks);
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: merged || undefined } : c)));
+    setEditIdx(null);
+  };
+  const saveConsult = (updated: ConsultBlock) => {
+    if (editIdx == null) return;
+    persistBlocks(parsedNotes.blocks.map((b, i) => (i === editIdx ? updated : b)));
+  };
+  const deleteConsult = () => {
+    if (editIdx == null) return;
+    if (!window.confirm('Supprimer définitivement cette consultation du dossier ?')) return;
+    persistBlocks(parsedNotes.blocks.filter((_, i) => i !== editIdx));
+  };
+
   /* Consultation en ligne rapprochée par nom ou téléphone. */
   const cPhone = digitsOnly(client.phone);
   const online = queue.find((o) => {
@@ -362,6 +374,7 @@ function DossierPanel({
           <span className="trc-microlabel">Identité</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: 'var(--ink)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Téléphone</span><span>{client.phone || '—'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>E-mail</span><span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email || '—'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Ville</span><span>{client.city || '—'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Persona</span><span>{personaName}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--ink-soft)' }}>Cliente depuis</span><span>{client.since ? frLong(client.since) : '—'}</span></div>
@@ -443,13 +456,18 @@ function DossierPanel({
           )}
         </div>
 
-        {/* Consultations — chaque bloc rendu en carte distincte */}
-        {parsedNotes.blocks.length > 0 && (
-          <div>
-            <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
-            <ConsultCards blocks={parsedNotes.blocks} onSummary={summarizeBlock} />
-          </div>
-        )}
+        {/* Consultations — toujours visible ; chaque bloc a son bouton « Modifier » */}
+        <div>
+          <span className="trc-microlabel">Consultations · {parsedNotes.blocks.length}</span>
+          {parsedNotes.blocks.length === 0 ? (
+            <div className="trc-empty" style={{ marginTop: 4 }}>
+              Aucune consultation enregistrée pour {client.name.split(' ')[0]}. Remplissez-en une via
+              « + Nouvelle consultation » — elle apparaîtra ici, avec « Modifier » et « Résumé (PDF) ».
+            </div>
+          ) : (
+            <ConsultCards blocks={parsedNotes.blocks} onSummary={summarizeBlock} onEdit={(i) => setEditIdx(i)} />
+          )}
+        </div>
 
         {/* Notes éditables */}
         <div>
@@ -480,6 +498,15 @@ function DossierPanel({
 
       {bookOpen && (
         <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />
+      )}
+
+      {editBlock && (
+        <EditConsultModal
+          block={editBlock}
+          onSave={saveConsult}
+          onDelete={deleteConsult}
+          onClose={() => setEditIdx(null)}
+        />
       )}
     </Drawer>
   );
@@ -728,12 +755,157 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
   );
 }
 
+/* ---------- Modale · Modifier une consultation en ligne ---------- */
+function EditOnlineModal({
+  consult, onSave, onDelete, onClose,
+}: {
+  consult: OnlineConsultation;
+  onSave: (updated: OnlineConsultation) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(consult.client.name);
+  const [phone, setPhone] = useState(consult.client.phone);
+  const [city, setCity] = useState(consult.client.city);
+  const [parcours, setParcours] = useState<OnlineConsultation['parcours']>(consult.parcours);
+  const [status, setStatus] = useState<OnlineConsultation['status']>(consult.status);
+  const [palier, setPalier] = useState(consult.diagnostic?.palier ?? '');
+  const [scores, setScores] = useState<[string, string][]>(
+    Object.entries(consult.diagnostic?.scores ?? {}).map(([k, v]) => [k, String(v)]),
+  );
+  const [answers, setAnswers] = useState<[string, string][]>(
+    Object.entries(consult.answers ?? {}).map(([k, v]) => [k, typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v ?? '')]),
+  );
+  const [mode, setMode] = useState<'salon' | 'visio'>(consult.reservation?.mode ?? 'salon');
+  const [date, setDate] = useState(consult.reservation?.date ?? '');
+  const [time, setTime] = useState(consult.reservation?.time ?? '');
+  const [paid, setPaid] = useState(String(consult.paidXof));
+
+  const setPair = (
+    setter: (fn: (prev: [string, string][]) => [string, string][]) => void,
+    i: number, which: 'k' | 'v', val: string,
+  ) => setter((prev) => prev.map((e, j): [string, string] => (j === i ? (which === 'k' ? [val, e[1]] : [e[0], val]) : e)));
+
+  const save = () => {
+    const scoreObj: Record<string, number> = {};
+    for (const [k, v] of scores) if (k.trim()) scoreObj[k.trim()] = Math.round(Number(v) || 0);
+    const ansObj: Record<string, unknown> = {};
+    for (const [k, v] of answers) if (k.trim()) ansObj[k.trim()] = v;
+    onSave({
+      ...consult,
+      client: { ...consult.client, name: name.trim() || consult.client.name, phone: phone.trim(), city: city.trim() },
+      parcours,
+      status,
+      diagnostic: palier.trim() || Object.keys(scoreObj).length > 0 ? { palier: palier.trim(), scores: scoreObj } : undefined,
+      answers: ansObj,
+      reservation: date && time ? { mode, date, time } : undefined,
+      paidXof: Math.max(0, Math.round(Number(paid) || 0)),
+    });
+  };
+
+  return (
+    <Modal title="Modifier la consultation en ligne." onClose={onClose} width={620}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Cliente */}
+        <div>
+          <span className="trc-microlabel">Cliente</span>
+          <Field label="Nom"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom et prénom" /></Field>
+          <div className="tr-grid tr-grid--2" style={{ marginTop: 10 }}>
+            <Field label="Téléphone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="—" /></Field>
+            <Field label="Ville"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="—" /></Field>
+          </div>
+        </div>
+
+        {/* Parcours / statut / palier */}
+        <div className="tr-grid tr-grid--2">
+          <Field label="Parcours">
+            <Select value={parcours} onChange={(e) => setParcours(e.target.value as OnlineConsultation['parcours'])}>
+              <option value="creation">Création</option>
+              <option value="sos">SOS Locks</option>
+            </Select>
+          </Field>
+          <Field label="Statut">
+            <Select value={status} onChange={(e) => setStatus(e.target.value as OnlineConsultation['status'])}>
+              <option value="nouvelle">Nouvelle</option>
+              <option value="traitée">Traitée</option>
+              <option value="fermée">Fermée</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label="Palier lu"><Input value={palier} onChange={(e) => setPalier(e.target.value)} placeholder="—" /></Field>
+
+        {/* Diagnostic — scores */}
+        <div>
+          <span className="trc-microlabel">Diagnostic · scores</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {scores.map(([k, v], i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input value={k} onChange={(e) => setPair(setScores, i, 'k', e.target.value)} placeholder="Critère" />
+                <Input type="number" value={v} onChange={(e) => setPair(setScores, i, 'v', e.target.value)} placeholder="0" style={{ width: 90, flex: 'none' }} />
+                <button type="button" className="trc-iconbtn trc-iconbtn--danger" style={{ flex: 'none' }} onClick={() => setScores((prev) => prev.filter((_, j) => j !== i))} title="Retirer">✕</button>
+              </div>
+            ))}
+            <button type="button" className="trc-addline" onClick={() => setScores((prev) => [...prev, ['', '']])}>+ Ajouter un score</button>
+          </div>
+        </div>
+
+        {/* Réponses de la cliente */}
+        <div>
+          <span className="trc-microlabel">Réponses de la cliente</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {answers.map(([k, v], i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                  <Input value={k} onChange={(e) => setPair(setAnswers, i, 'k', e.target.value)} placeholder="Question / clé" />
+                  <textarea className="trc-dossier-notes trc-fill-answer" value={v} onChange={(e) => setPair(setAnswers, i, 'v', e.target.value)} placeholder="Réponse…" rows={2} />
+                </div>
+                <button type="button" className="trc-iconbtn trc-iconbtn--danger" style={{ flex: 'none', marginTop: 4 }} onClick={() => setAnswers((prev) => prev.filter((_, j) => j !== i))} title="Retirer">✕</button>
+              </div>
+            ))}
+            <button type="button" className="trc-addline" onClick={() => setAnswers((prev) => [...prev, ['', '']])}>+ Ajouter une réponse</button>
+          </div>
+        </div>
+
+        {/* Séance + montant */}
+        <div>
+          <span className="trc-microlabel">Séance souhaitée (vide = à convenir)</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 4 }}>
+            <Select value={mode} onChange={(e) => setMode(e.target.value as 'salon' | 'visio')}>
+              <option value="salon">Salon</option>
+              <option value="visio">Visio</option>
+            </Select>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+        </div>
+        <Field label={`Montant crédité (${consult.client.currency})`}>
+          <Input type="number" min={0} value={paid} onChange={(e) => setPaid(e.target.value)} />
+        </Field>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+        <button type="button" className="trc-danger__btn" onClick={onDelete}>Supprimer cette consultation</button>
+        <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="copper" onClick={save}>Enregistrer</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* ---------- Section · Consultations en ligne ---------- */
 function OnlineSection() {
   const [queue] = useStore(consultationsQueueStore);
+  const [editId, setEditId] = useState<string | null>(null);
+  const editConsult = queue.find((o) => o.id === editId) ?? null;
 
   const setStatus = (id: string, status: OnlineConsultation['status']) =>
     consultationsQueueStore.set((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+  const updateConsult = (updated: OnlineConsultation) =>
+    consultationsQueueStore.set((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  const removeConsult = (id: string) =>
+    consultationsQueueStore.set((prev) => prev.filter((o) => o.id !== id));
 
   const open = queue.filter((o) => o.status !== 'fermée');
   const closed = queue.filter((o) => o.status === 'fermée');
@@ -788,6 +960,7 @@ function OnlineSection() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="copper" onClick={() => setStatus(live.id, 'traitée')}>Confirmer la séance →</Button>
+              <Button variant="ghost-invert" onClick={() => setEditId(live.id)}>Modifier</Button>
               <Button variant="ghost-invert" onClick={() => setStatus(live.id, 'fermée')}>Fermer</Button>
             </div>
           </div>
@@ -818,6 +991,9 @@ function OnlineSection() {
             </div>
             <span style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>{whenAgo(o.createdAt)}</span>
             <span className={`trc-pill ${o.status === 'nouvelle' ? 'trc-pill--new' : 'trc-pill--honore'}`}>{o.status}</span>
+            <button className="trc-iconbtn" style={{ width: 'auto', height: 28, padding: '0 12px', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase' }} onClick={() => setEditId(o.id)}>
+              Modifier
+            </button>
             <button className="trc-iconbtn trc-iconbtn--danger" style={{ width: 'auto', height: 28, padding: '0 12px', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase' }} onClick={() => setStatus(o.id, 'fermée')}>
               Fermer
             </button>
@@ -833,11 +1009,26 @@ function OnlineSection() {
               <div key={o.id} style={{ background: 'var(--hover-veil)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '11px 18px', display: 'flex', alignItems: 'center', gap: 14, opacity: 0.72 }}>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink)', flex: 1 }}>{o.client.name}</span>
                 <span style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>{o.client.city}</span>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--color-indigo)' }} onClick={() => setEditId(o.id)}>Modifier</button>
                 <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--color-indigo)' }} onClick={() => setStatus(o.id, 'traitée')}>Rouvrir</button>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {editConsult && (
+        <EditOnlineModal
+          consult={editConsult}
+          onSave={(u) => { updateConsult(u); setEditId(null); }}
+          onDelete={() => {
+            if (window.confirm('Supprimer définitivement cette consultation en ligne ?')) {
+              removeConsult(editConsult.id);
+              setEditId(null);
+            }
+          }}
+          onClose={() => setEditId(null)}
+        />
       )}
     </div>
   );

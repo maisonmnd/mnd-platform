@@ -151,6 +151,21 @@
 .mc-emptyline { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); padding: 8px 2px; }
 .mc-footnote { text-align: center; margin-top: 10px; font-size: 11px; color: var(--ink-soft); }
 .mc-form-err { margin-top: 14px; font-size: 12px; color: var(--mc-error); }
+.mc-form-notice { margin-top: 14px; font-size: 12px; color: var(--color-indigo); }
+.mc-authswitch {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mc-authswitch:hover { color: var(--color-indigo); }
 
 /* CTA pleine largeur */
 .mc-cta {
@@ -358,6 +373,20 @@
   letter-spacing: 0.01em;
 }
 .mc-emailline input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 14px; color: var(--ink-soft); }
+/* Bouton œil — afficher/masquer le mot de passe. */
+.mc-pw-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: var(--ink-soft);
+  transition: color 0.2s var(--ease-soft);
+}
+.mc-pw-toggle:hover { color: var(--color-indigo); }
 
 .mc-channels { margin-top: 22px; display: flex; gap: 10px; }
 .mc-channel {
@@ -1328,6 +1357,43 @@
   line-height: 1.4;
 }
 .mc-deliver__addrinput:focus { outline: none; border-color: var(--accent); }
+
+/* Partage de position GPS — un repère précis pour le livreur. */
+.mc-geo { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.mc-geo__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border-radius: 4px;
+  border: 1px dashed var(--accent);
+  background: var(--color-sable, rgba(185, 122, 74, 0.08));
+  color: var(--accent-strong, var(--accent));
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+.mc-geo__btn:hover { background: rgba(185, 122, 74, 0.14); }
+.mc-geo__btn:disabled { opacity: 0.6; cursor: progress; }
+.mc-geo__btn.is-set { border-style: solid; }
+.mc-geo__btn svg { flex: none; }
+.mc-geo__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--accent-strong, var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mc-geo__hint { font-size: 11.5px; color: var(--ink-soft); line-height: 1.4; }
+
 @media (max-width: 380px) {
   .mc-deliver__opts { grid-template-columns: 1fr; }
 }
@@ -1911,3 +1977,31 @@
 .mc-pushrow__s { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
 .mc-pushrow__btn { flex: 0 0 auto; width: auto; margin: 0; padding: 10px 18px; }
 .mc-pushrow__on { flex: 0 0 auto; font-size: 12px; color: var(--accent-strong, var(--accent)); font-weight: 500; }
+
+/* Interrupteur notifications — activer/désactiver. */
+.mc-switch {
+  flex: 0 0 auto;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  background: var(--color-argile, #cfc4b4);
+  transition: background 0.2s var(--ease-soft, ease);
+}
+.mc-switch.is-on { background: var(--accent); }
+.mc-switch:disabled { opacity: 0.6; cursor: default; }
+.mc-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-ivoire, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s var(--ease-soft, ease);
+}
+.mc-switch.is-on .mc-switch__knob { transform: translateX(20px); }

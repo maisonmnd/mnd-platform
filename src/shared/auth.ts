@@ -86,7 +86,33 @@ async function ensureFounder(name: string): Promise<void> {
   if (error) console.warn('[auth] provision_first_staff:', error.message);
 }
 
-// ---------- Actions cliente (OTP e-mail, sans mot de passe) — Ma Couronne ----------
+// ---------- Actions cliente (e-mail + mot de passe) — Ma Couronne ----------
+/** Connexion cliente par e-mail + mot de passe (comme Le Trône). */
+export async function signInClient(email: string, password: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+}
+
+/** Inscription cliente : nom + e-mail + mot de passe. Le nom est stocké dans les
+    métadonnées du compte (`user_metadata.name`) et sert à nommer la fiche cliente.
+    N'amorce PAS le personnel (contrairement à `signUpEmail` du Trône). */
+export async function signUpClient(
+  email: string,
+  password: string,
+  name: string,
+): Promise<{ needsConfirmation: boolean }> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: appRedirect(), data: { name: name.trim() } },
+  });
+  if (error) throw error;
+  return { needsConfirmation: !data.session };
+}
+
+// ---------- Actions cliente (OTP e-mail, sans mot de passe) — legacy Ma Couronne ----------
 /** Envoie un code à 6 chiffres par e-mail (crée le compte si besoin). */
 export async function startEmailOtp(email: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');
