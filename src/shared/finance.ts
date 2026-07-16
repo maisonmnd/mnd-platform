@@ -29,6 +29,8 @@ export type Invoice = {
   date: string;
   lines: InvoiceLine[];
   globalDiscountPct: number;
+  /** Remise manuelle en CFA, retranchée APRÈS la remise globale en %. */
+  globalDiscountXof?: number;
   theme: 'Rose' | 'Arbre' | 'Oiseau' | 'Voyage' | 'Aube' | 'Souffle';
   status: 'brouillon' | 'envoyée' | 'payée' | 'acceptée';
   payment?: PaymentMethod;
@@ -89,9 +91,12 @@ export type Cashbox = {
 /** Nomenclature des dépenses — catégories & sous-catégories créables. */
 export type ExpenseCategory = { id: string; name: string; subs: string[] };
 
+/** Total encaissable : lignes remisées, puis remise globale en %, puis remise en
+    CFA. Jamais négatif. Le pourboire (`tipXof`) n'y entre JAMAIS — il transite par
+    la caisse mais n'est pas du chiffre d'affaires. */
 export const invoiceTotal = (inv: Invoice): number => {
   const sub = inv.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
-  return Math.round(sub * (1 - inv.globalDiscountPct / 100));
+  return Math.max(0, Math.round(sub * (1 - inv.globalDiscountPct / 100)) - (inv.globalDiscountXof ?? 0));
 };
 
 export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Souffle'] as const;

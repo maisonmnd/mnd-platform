@@ -57,6 +57,7 @@ export default function Caisse() {
   const [tab, setTab] = useState<'encaisser' | 'journal'>('encaisser');
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [globalDisc, setGlobalDisc] = useState(0);
+  const [globalDiscXof, setGlobalDiscXof] = useState(0);
   const [clientId, setClientId] = useState('');
   const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
@@ -135,7 +136,9 @@ export default function Caisse() {
       return { key: k, ...it, ...v, netXof };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
-  const netXof = Math.round(subXof * (1 - globalDisc / 100));
+  /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
+     sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
+  const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
 
   /* — encaissement — */
   const nextNumber = () => {
@@ -163,6 +166,7 @@ export default function Caisse() {
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.priceXof, discountPct: l.disc })),
       globalDiscountPct: globalDisc,
+      globalDiscountXof: globalDiscXof || undefined,
       theme: 'Aube',
       status: 'payée',
       payment: pay,
@@ -206,6 +210,7 @@ export default function Caisse() {
     }
     setCart({});
     setGlobalDisc(0);
+    setGlobalDiscXof(0);
   };
 
   /* — journal du jour — */
@@ -342,6 +347,24 @@ export default function Caisse() {
                     {pct === 0 ? '0' : `−${pct}%`}
                   </button>
                 ))}
+              </div>
+
+              {/* Remise manuelle en CFA — geste de comptoir, retranchée après le %. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                  Remise manuelle
+                </span>
+                <input
+                  className="mnd-input"
+                  type="number"
+                  min={0}
+                  value={globalDiscXof}
+                  onChange={(e) => setGlobalDiscXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                  style={{ width: 130, textAlign: 'right' }}
+                  placeholder="0"
+                  aria-label={`Remise manuelle en ${currency}`}
+                />
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>

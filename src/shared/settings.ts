@@ -17,10 +17,16 @@ export type Settings = {
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;
-  /** Acompte exigé à la réservation en ligne (%). Lu par Ma Couronne. */
+  /** Acompte proposé par défaut (%) quand on ajoute une prestation à la table
+      ci-dessous. Sert aussi de repli pour les réglages d'avant le taux par
+      prestation. Ce n'est PLUS le taux appliqué : chaque prestation porte le sien. */
   onlineDepositPct: number;
-  /** Prestations qui EXIGENT un acompte (ids). Vide = aucun acompte demandé.
-      L'acompte ne s'applique qu'aux prestations de cette liste. */
+  /** Acompte PAR PRESTATION : id de prestation → pourcentage (0–100).
+      Une prestation absente de la table n'exige aucun acompte ; table vide =
+      aucun acompte nulle part. */
+  depositPctByService?: Record<string, number>;
+  /** @deprecated Ancienne liste — toutes les prestations au taux global.
+      Encore lue en repli tant que des réglages d'avant la bascule circulent. */
   depositServiceIds?: string[];
   /** Frais de livraison à domicile (XOF). Lu par Ma Couronne · Gamme. */
   deliveryFeeXof: number;
@@ -68,12 +74,45 @@ export const onlineDepositRate = (): number => {
   return typeof pct === 'number' && pct >= 0 && pct <= 100 ? pct / 100 : 0.3;
 };
 
-/** Ids des prestations qui exigent un acompte (vide = aucune). */
-export const depositServiceIds = (): string[] => settingsStore.get().depositServiceIds ?? [];
+/** Pourcentage d'acompte d'UNE prestation. 0 = aucun acompte exigé. */
+export const depositPctFor = (serviceId: string): number => {
+  const s = settingsStore.get();
+  const map = s.depositPctByService;
+  if (map && serviceId in map) {
+    const p = map[serviceId];
+    return typeof p === 'number' && p > 0 && p <= 100 ? p : 0;
+  }
+  /* Repli — réglages d'avant le taux par prestation : la liste + le taux global. */
+  if (s.depositServiceIds?.includes(serviceId)) {
+    const g = s.onlineDepositPct;
+    return typeof g === 'number' && g > 0 && g <= 100 ? g : 30;
+  }
+  return 0;
+};
+
+/** Fraction (0–1) d'acompte d'une prestation. */
+export const depositRateFor = (serviceId: string): number => depositPctFor(serviceId) / 100;
 
 /** Une prestation exige-t-elle un acompte ? */
-export const serviceRequiresDeposit = (serviceId: string): boolean =>
-  (settingsStore.get().depositServiceIds ?? []).includes(serviceId);
+export const serviceRequiresDeposit = (serviceId: string): boolean => depositPctFor(serviceId) > 0;
+
+/** Ids des prestations qui exigent un acompte (vide = aucune). */
+export const depositServiceIds = (): string[] => {
+  const s = settingsStore.get();
+  const map = s.depositPctByService;
+  if (map) return Object.keys(map).filter((id) => depositPctFor(id) > 0);
+  return s.depositServiceIds ?? [];
+};
+
+/** Acompte dû pour un panier — chaque prestation à SON taux, remise répercutée.
+    Source unique de la règle : Ma Couronne et Le Trône doivent tomber d'accord. */
+export function depositForServices(
+  items: { id: string; priceXof: number }[],
+  discountPct = 0,
+): number {
+  const f = 1 - (discountPct || 0) / 100;
+  return Math.round(items.reduce((n, s) => n + s.priceXof * f * depositRateFor(s.id), 0));
+}
 
 /** Frais de livraison à domicile (XOF) — défaut 2 000 F ; 0 = livraison gratuite. */
 export const deliveryFee = (): number => {

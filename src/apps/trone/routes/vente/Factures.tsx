@@ -131,6 +131,7 @@ export default function Factures() {
       master: devis.master ?? branch.masters[0] ?? '',
       status: 'en attente',
       discountPct: devis.globalDiscountPct || undefined,
+      discountXof: devis.globalDiscountXof || undefined, // la remise en CFA suit le devis
       note: `Devis ${devis.number} accepté — à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
       source: 'trone',
     };
@@ -278,7 +279,8 @@ export default function Factures() {
         const afterLines = active.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
         const lineDisc = gross - afterLines;
         const globalDisc = afterLines * (active.globalDiscountPct / 100);
-        return { gross, lineDisc, globalDisc, net: invoiceTotal(active) };
+        const manualDisc = active.globalDiscountXof ?? 0;
+        return { gross, lineDisc, globalDisc, manualDisc, net: invoiceTotal(active) };
       })()
     : null;
 
@@ -689,6 +691,9 @@ export default function Factures() {
                   )}
                   {totals.globalDisc > 0 && (
                     <div className="trv-doc__totline disc"><span>Remise globale · −{active.globalDiscountPct}%</span><span>− {fmtMoney(Math.round(totals.globalDisc), currency)}</span></div>
+                  )}
+                  {totals.manualDisc > 0 && (
+                    <div className="trv-doc__totline disc"><span>Remise manuelle</span><span>− {fmtMoney(totals.manualDisc, currency)}</span></div>
                   )}
                 </>
               )}

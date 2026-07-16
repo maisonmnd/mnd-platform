@@ -6,7 +6,7 @@ import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../.
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { useApprenants, useFormations } from '../equipe/data';
-import { apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
+import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
 import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
 
@@ -137,7 +137,7 @@ export default function Synthese() {
     const svcMap = new Map<string, { value: number; count: number }>();
     const svcDetail = new Map<string, { date: string; who: string; amount: number }[]>();
     honoredAll.forEach((a) => {
-      const disc = 1 - (a.discountPct ?? 0) / 100;
+      const disc = apptDiscountFactor(a, byId);
       apptServices(a, byId).forEach((s) => {
         const amt = Math.round(s.priceXof * disc);
         bump(svcMap, s.name, amt);

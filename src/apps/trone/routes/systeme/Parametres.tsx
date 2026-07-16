@@ -158,12 +158,34 @@ export default function Parametres() {
     setSettings((s) => ({ ...s, deliveryFeeXof: n }));
   };
 
-  /** Prestations qui exigent un acompte — bascule dans la liste des Paramètres. */
-  const depositIds = settings.depositServiceIds ?? [];
+  /* Acompte par prestation : la table `depositPctByService` fait foi. On la
+     reconstruit une fois à partir des anciens réglages (liste + taux global)
+     pour ne pas perdre le paramétrage existant à la bascule. */
+  const depositMap: Record<string, number> =
+    settings.depositPctByService
+    ?? Object.fromEntries((settings.depositServiceIds ?? []).map((id) => [id, settings.onlineDepositPct ?? 30]));
+  const depositIds = Object.keys(depositMap).filter((id) => (depositMap[id] ?? 0) > 0);
+
+  /** Ajoute/retire une prestation de la table (au taux par défaut à l'ajout). */
   const toggleDepositService = (id: string) =>
     setSettings((s) => {
-      const cur = s.depositServiceIds ?? [];
-      return { ...s, depositServiceIds: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
+      const cur: Record<string, number> =
+        s.depositPctByService
+        ?? Object.fromEntries((s.depositServiceIds ?? []).map((x) => [x, s.onlineDepositPct ?? 30]));
+      const next = { ...cur };
+      if (id in next) delete next[id];
+      else next[id] = s.onlineDepositPct ?? 30;
+      return { ...s, depositPctByService: next };
+    });
+
+  /** Taux propre à une prestation (0–100). */
+  const setDepositPctFor = (id: string, raw: string) =>
+    setSettings((s) => {
+      const cur: Record<string, number> =
+        s.depositPctByService
+        ?? Object.fromEntries((s.depositServiceIds ?? []).map((x) => [x, s.onlineDepositPct ?? 30]));
+      const n = Math.max(0, Math.min(100, Math.round(Number(raw) || 0)));
+      return { ...s, depositPctByService: { ...cur, [id]: n } };
     });
 
   /* ----- Styles de couronne — liste éditable (trim + dédoublonnage) ----- */
@@ -360,37 +382,74 @@ export default function Parametres() {
             <div style={{ marginBottom: 8 }}>
               <div className="sys-row__label">Prestations exigeant un acompte</div>
               <div className="sys-row__sub">
-                Seules les prestations sélectionnées demandent l’acompte (au taux ci-dessus), au Trône
-                comme sur Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe.
+                Sélectionnez les prestations, puis fixez le taux de CHACUNE — au Trône comme sur
+                Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe. Le taux
+                ci-dessus ne sert plus que de valeur proposée à l’ajout.
               </div>
             </div>
             {services.length === 0 ? (
               <div className="sys-row__sub">Aucune prestation au catalogue.</div>
             ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {services.map((sv) => {
-                  const on = depositIds.includes(sv.id);
-                  return (
-                    <button
-                      key={sv.id}
-                      type="button"
-                      onClick={() => toggleDepositService(sv.id)}
-                      style={{
-                        border: `1px solid ${on ? 'var(--color-copper)' : 'var(--hairline)'}`,
-                        borderRadius: 3,
-                        padding: '7px 12px',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-sans)',
-                        background: on ? 'var(--color-copper)' : 'var(--surface-card)',
-                        color: on ? 'var(--color-ivoire)' : 'var(--ink)',
-                      }}
-                    >
-                      {sv.name}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {services.map((sv) => {
+                    const on = depositIds.includes(sv.id);
+                    return (
+                      <button
+                        key={sv.id}
+                        type="button"
+                        onClick={() => toggleDepositService(sv.id)}
+                        style={{
+                          border: `1px solid ${on ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                          borderRadius: 3,
+                          padding: '7px 12px',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-sans)',
+                          background: on ? 'var(--color-copper)' : 'var(--surface-card)',
+                          color: on ? 'var(--color-ivoire)' : 'var(--ink)',
+                        }}
+                      >
+                        {sv.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {depositIds.length > 0 && (
+                  <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+                    <div className="sys-row__sub" style={{ marginBottom: 2 }}>Taux par prestation</div>
+                    {depositIds.map((id) => {
+                      const sv = services.find((x) => x.id === id);
+                      if (!sv) return null; // prestation retirée du catalogue depuis
+                      return (
+                        <div
+                          key={id}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 13 }}>{sv.name}</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              className="sys-select"
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={depositMap[id] ?? 0}
+                              onChange={(e) => setDepositPctFor(id, e.target.value)}
+                              style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                              aria-label={`Acompte de ${sv.name} en pourcentage`}
+                            />
+                            <span className="sys-row__value">%</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="sys-row">

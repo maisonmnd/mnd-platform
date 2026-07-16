@@ -5,7 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useServices, type Service } from '../../../../shared/catalog';
-import { onlineDepositRate, useSettings } from '../../../../shared/settings';
+import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import './clients.css';
 
@@ -66,9 +66,21 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
   return apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
 };
 
-/** Total après remise du RDV. */
+/** Total après remise du RDV : le pourcentage d'abord, puis la remise en CFA.
+    Jamais négatif — une remise en CFA supérieure au reste rend le rituel offert. */
 export const apptNetXof = (a: Appointment, byId: Map<string, Service>) =>
-  Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100));
+  Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
+
+/** Facteur de remise EFFECTIF d'un RDV (0–1) — le pourcentage ET la remise en
+    CFA, cette dernière répartie au prorata des prestations. À utiliser pour
+    toute ventilation par prestation ou par maître : appliquer seulement
+    `discountPct` surévaluerait le chiffre d'affaires dès qu'une remise manuelle
+    existe, et les ventilations ne sommeraient plus au net encaissé. */
+export const apptDiscountFactor = (a: Appointment, byId: Map<string, Service>): number => {
+  const gross = apptTotalXof(a, byId);
+  if (gross <= 0) return 0;
+  return apptNetXof(a, byId) / gross;
+};
 
 /** Reste à encaisser : net − acompte − déjà encaissé (jamais négatif). */
 export const apptDueXof = (a: Appointment, byId: Map<string, Service>) =>
@@ -228,22 +240,28 @@ export function RdvModal({
   const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
+  const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
   const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
-  const totalXof = Math.round(grossXof * (1 - discountPct / 100));
-  /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent.
-     Aucune prestation exigeant un acompte (ou taux 0) → pas d'acompte. */
-  const depRequired = new Set(settings.depositServiceIds ?? []);
-  const depositRate = onlineDepositRate();
-  const depositPct = Math.round(depositRate * 100);
-  const depositServiceIds = chosen.filter((s) => depRequired.has(s.id)).map((s) => s.id);
-  const depositBaseGross = chosen.filter((s) => depRequired.has(s.id)).reduce((s, sv) => s + sv.priceXof, 0);
-  const depositXof = Math.round(depositBaseGross * (1 - discountPct / 100) * depositRate);
+  /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
+     `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé. */
+  const totalXof = Math.max(0, Math.round(grossXof * (1 - discountPct / 100)) - discountXof);
+  /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
+     CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
+  const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
+  /* La remise en CFA ne se répartit pas prestation par prestation : l'acompte se
+     calcule sur le prix remisé en %, puis on le plafonne au net — réclamer un
+     acompte supérieur au total à payer n'aurait aucun sens. */
+  const depositXof = Math.min(depositForServices(chosen, discountPct), totalXof);
   const hasDeposit = depositXof > 0;
+  /* Un pourcentage n'est affichable que s'il est unique parmi les prestations
+     concernées ; sinon seul le montant a du sens. */
+  const depositRates = [...new Set(chosen.map((s) => depositPctFor(s.id)).filter((p) => p > 0))];
+  const depositPct = depositRates.length === 1 ? depositRates[0] : null;
 
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const overlap = useMemo(() => {
@@ -272,7 +290,8 @@ export function RdvModal({
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
-                discountPct: discountPct || undefined, depositServiceIds, depositXof }
+                discountPct: discountPct || undefined, discountXof: discountXof || undefined,
+                depositServiceIds, depositXof }
             : x,
         ),
       );
@@ -289,6 +308,7 @@ export function RdvModal({
         source: 'trone',
         note: note.trim() || undefined,
         discountPct: discountPct || undefined,
+        discountXof: discountXof || undefined,
         depositServiceIds,
         depositXof,
       };
@@ -439,10 +459,28 @@ export function RdvModal({
           </div>
         </Field>
 
+        {/* Remise en CFA — geste de comptoir, retranchée après le pourcentage. */}
+        <Field label={`Remise manuelle (${currency})`}>
+          <input
+            className="mnd-input"
+            type="number"
+            min={0}
+            value={discountXof}
+            onChange={(e) => setDiscountXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+            style={{ width: 140, textAlign: 'right' }}
+            placeholder="0"
+            aria-label={`Remise manuelle en ${currency}`}
+          />
+        </Field>
+
         <div className="trc-total">
-          {discountPct > 0 && (
+          {(discountPct > 0 || discountXof > 0) && (
             <div className="trc-total__row">
-              <span>Sous-total · remise −{discountPct}%</span>
+              <span>
+                Sous-total
+                {discountPct > 0 ? ` · remise −${discountPct}%` : ''}
+                {discountXof > 0 ? ` · remise −${fmtMoney(discountXof, currency)}` : ''}
+              </span>
               <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{fmtMoney(grossXof, currency)}</s></span>
             </div>
           )}
@@ -452,7 +490,10 @@ export function RdvModal({
           </div>
           {hasDeposit && (
             <div className="trc-total__row">
-              <span>Acompte Mobile Money · {depositPct} %{depositServiceIds.length < chosen.length ? ' (partiel)' : ''}</span>
+              <span>
+                Acompte Mobile Money{depositPct !== null ? ` · ${depositPct} %` : ' · taux variables'}
+                {depositServiceIds.length < chosen.length ? ' (partiel)' : ''}
+              </span>
               <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
             </div>
           )}

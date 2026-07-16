@@ -18,6 +18,9 @@ export type Appointment = {
   depositXof?: number; // acompte Mobile Money (Ma Couronne)
   paidXof?: number; // total encaissé au salon (hors acompte) — suit les paiements partiels
   discountPct?: number; // remise appliquée au RDV (0–100)
+  /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
+      (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */
+  discountXof?: number;
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */

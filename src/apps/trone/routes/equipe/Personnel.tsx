@@ -8,6 +8,7 @@ import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type 
 import { useServices } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
+import { apptDiscountFactor } from '../clients/_shared';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk,
@@ -187,7 +188,7 @@ export default function Personnel() {
     for (const a of appts) {
       if (a.branchId !== branch.id || a.master !== m.name || a.status !== 'honoré') continue;
       if (a.date.slice(0, 7) !== month || (a.seriesIndex && a.seriesIndex > 1)) continue;
-      const disc = 1 - (a.discountPct ?? 0) / 100;
+      const disc = apptDiscountFactor(a, byId);
       for (const id of a.serviceIds) {
         const s = byId.get(id);
         if (s) presta += Math.round(s.priceXof * disc * paletteRate(s.palier));

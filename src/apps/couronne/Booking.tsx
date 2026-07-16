@@ -2,7 +2,7 @@ import { asset } from '../../shared/asset';
 import { useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { onlineDepositRate, useSettings } from '../../shared/settings';
+import { depositForServices, depositPctFor, useSettings } from '../../shared/settings';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
@@ -97,16 +97,21 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;
 
   /* Prix effectif (offre appliquée sur le total). */
-  const [settings] = useSettings();
-  const depRequired = new Set(settings.depositServiceIds ?? []);
-  const depositRate = onlineDepositRate();
-  const depositPct = Math.round(depositRate * 100);
+  useSettings(); // re-rend quand les taux d'acompte changent au Trône
   const price = Math.round(knownTotal * (1 - discountPct / 100));
-  /* Acompte UNIQUEMENT sur les prestations qui l'exigent (Paramètres du Trône).
-     Aucune → pas d'étape acompte, réservation confirmée directement. */
-  const depositBase = selected.filter((s) => !s.hidePrice && depRequired.has(s.id)).reduce((n, s) => n + s.priceXof, 0);
-  const deposit = Math.round(depositBase * (1 - discountPct / 100) * depositRate);
+  /* Acompte UNIQUEMENT sur les prestations qui l'exigent, CHACUNE à son propre
+     taux (Paramètres du Trône). Aucune → pas d'étape acompte, réservation directe. */
+  const priced = selected.filter((s) => !s.hidePrice);
+  const deposit = depositForServices(priced, discountPct);
   const hasDeposit = deposit > 0;
+  /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
+     pourcentage que s'il est unique — sinon le montant parle seul. */
+  const depositRates = [...new Set(priced.map((s) => depositPctFor(s.id)).filter((p) => p > 0))];
+  const depositPct = depositRates.length === 1 ? depositRates[0] : null;
+  /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
+  const depositBase = Math.round(
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + s.priceXof, 0) * (1 - discountPct / 100),
+  );
 
   /* Catégories réservables : au moins une prestation visible. */
   const bookableCats = cats.filter((c) => services.some((s) => s.categoryId === c.id));
@@ -574,10 +579,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-depositcard__amount">{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</div>
               <div className="mc-depositcard__sub">
                 {allHidden
-                  ? `Acompte de ${depositPct} % réglé au salon`
-                  : anyHidden
-                    ? `${depositPct} % de ${fmtMoney(price, currency)} · reste au salon`
-                    : `${depositPct} % de ${fmtMoney(price, currency)} · solde au salon`}
+                  ? 'Acompte réglé au salon'
+                  : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
               </div>
             </div>
             <div className="mc-sectionlabel">Mobile Money</div>
