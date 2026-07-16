@@ -10,9 +10,10 @@ import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import { pushBroadcastClients } from '../../../../shared/push';
 import {
-  AUTOMATIONS, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
-  automationsActiveStore, autoConfigStore, useCampaigns, useOffers,
-  type InstantOffer,
+  AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
+  automationsActiveStore, automationsStore, autoConfigStore, useAutomations,
+  useCampaigns, useOffers,
+  type Automation, type AutomationCanal, type InstantOffer,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import './equipe.css';
@@ -47,7 +48,10 @@ export default function Marketing() {
   const [clients] = useClients();
   const [services] = useServices();
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
+  const [automations, setAutomations] = useAutomations();
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
+  /* null = fermée ; objet = édition ; 'new' = création. */
+  const [autoModal, setAutoModal] = useState<Automation | 'new' | null>(null);
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);
   const [offerForm, setOfferForm] = useState<OfferForm>(emptyOffer);
@@ -84,8 +88,25 @@ export default function Marketing() {
   const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');
 
   const isOn = (id: string) => autoActive[id] !== false;
-  const activeCount = AUTOMATIONS.filter((a) => isOn(a.id)).length;
-  const msgCount = AUTOMATIONS.filter((a) => isOn(a.id)).reduce((s, a) => s + a.runs, 0);
+  const activeCount = automations.filter((a) => isOn(a.id)).length;
+  const msgCount = automations.filter((a) => isOn(a.id)).reduce((s, a) => s + a.runs, 0);
+
+  /** Enregistre une automatisation (création ou édition). */
+  const saveAutomation = (a: Automation) => {
+    setAutomations((prev) => (prev.some((x) => x.id === a.id) ? prev.map((x) => (x.id === a.id ? a : x)) : [...prev, a]));
+    setAutoModal(null);
+  };
+
+  /** Retire l'automatisation ET son interrupteur — sans quoi l'état resterait
+      orphelin dans `mnd_automations_active` et ressusciterait un id recréé. */
+  const removeAutomation = (id: string) => {
+    setAutomations((prev) => prev.filter((x) => x.id !== id));
+    setAutoActive((prev) => {
+      const { [id]: _drop, ...rest } = prev;
+      return rest;
+    });
+    setAutoModal(null);
+  };
 
   const openNewOffer = () => { setOfferEditId(null); setOfferForm(emptyOffer); setOfferModal(true); };
   const openEditOffer = (o: InstantOffer) => {
@@ -130,7 +151,11 @@ export default function Marketing() {
         eyebrow="Intelligence · Marketing & IA"
         title="L’intelligence."
         sub="Campagnes mesurées, offres instantanées poussées dans Ma Couronne, automatisations qui parlent d’une seule voix."
-        actions={tab === 'offres' ? <Button variant="copper" onClick={openNewOffer}>+ Offre instantanée</Button> : undefined}
+        actions={
+          tab === 'offres' ? <Button variant="copper" onClick={openNewOffer}>+ Offre instantanée</Button>
+          : tab === 'auto' ? <Button variant="copper" onClick={() => setAutoModal('new')}>+ Automatisation</Button>
+          : undefined
+        }
       />
 
       <Tabs<Tab>
@@ -263,7 +288,7 @@ export default function Marketing() {
           <div className="tr-grid tr-grid--3" style={{ marginBottom: 16 }}>
             <Card filet="copper" style={{ padding: 16 }}>
               <div className="mnd-stat__label">Automatisations actives</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{activeCount} / {AUTOMATIONS.length}</div>
+              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{activeCount} / {automations.length}</div>
             </Card>
             <Card filet="indigo" style={{ padding: 16 }}>
               <div className="mnd-stat__label">Messages ce mois</div>
@@ -276,13 +301,29 @@ export default function Marketing() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {AUTOMATIONS.map((a) => (
+            {automations.length === 0 && (
+              <Card style={{ padding: '22px 24px' }}>
+                <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
+                  Aucune automatisation. Créez-en une — la maison parlera d’une seule voix.
+                </p>
+              </Card>
+            )}
+            {automations.map((a) => (
               <Card key={a.id} style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: 18, opacity: isOn(a.id) ? 1 : 0.55 }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setAutoModal(a)}
+                  title="Modifier cette automatisation"
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', gap: 14, minWidth: 0,
+                    flexWrap: 'wrap', background: 'none', border: 'none', padding: 0,
+                    cursor: 'pointer', textAlign: 'left', font: 'inherit',
+                  }}
+                >
                   <span style={{ fontSize: 12.5, background: 'var(--color-sable)', borderRadius: 2, padding: '7px 11px' }}>{a.trig}</span>
                   <span style={{ color: 'var(--color-copper)' }}>→</span>
                   <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{a.act}</span>
-                </div>
+                </button>
                 <Pill tone="muted">{a.canal}</Pill>
                 <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none', width: 110, textAlign: 'right' }}>{a.runs > 0 ? `${a.runs} ce mois` : '—'}</span>
                 <Toggle on={isOn(a.id)} onToggle={() => setAutoActive((prev) => ({ ...prev, [a.id]: !isOn(a.id) }))} />
@@ -428,6 +469,86 @@ export default function Marketing() {
           </div>
         </Modal>
       )}
+
+      {autoModal && (
+        <AutomationModal
+          initial={autoModal === 'new' ? null : autoModal}
+          onSave={saveAutomation}
+          onRemove={removeAutomation}
+          onClose={() => setAutoModal(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ---------- Créer / modifier une automatisation ---------- */
+function AutomationModal({
+  initial, onSave, onRemove, onClose,
+}: {
+  initial: Automation | null;
+  onSave: (a: Automation) => void;
+  onRemove: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [trig, setTrig] = useState(initial?.trig ?? '');
+  const [act, setAct] = useState(initial?.act ?? '');
+  const [canal, setCanal] = useState<AutomationCanal>(initial?.canal ?? 'WhatsApp');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = () => {
+    if (!trig.trim()) { setError('Indiquez le déclencheur.'); return; }
+    if (!act.trim()) { setError('Indiquez l’action.'); return; }
+    onSave({
+      id: initial?.id ?? `au-${uid()}`,
+      trig: trig.trim(),
+      act: act.trim(),
+      canal,
+      /* Le compteur d'envois appartient à l'usage, pas au formulaire. */
+      runs: initial?.runs ?? 0,
+    });
+  };
+
+  return (
+    <Modal title={initial ? 'Modifier l’automatisation.' : 'Nouvelle automatisation.'} onClose={onClose} width={560}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Field label="Déclencheur — quand ?">
+          <Input
+            value={trig}
+            placeholder="Ex. Anniversaire · le jour même"
+            onChange={(e) => { setTrig(e.target.value); setError(null); }}
+          />
+        </Field>
+        <Field label="Action — quoi ?">
+          <Input
+            value={act}
+            placeholder="Ex. Mot d’anniversaire + geste du Cercle"
+            onChange={(e) => { setAct(e.target.value); setError(null); }}
+          />
+        </Field>
+        <Field label="Canal">
+          <Select value={canal} onChange={(e) => setCanal(e.target.value as AutomationCanal)}>
+            {AUTOMATION_CANAUX.map((c) => <option key={c} value={c}>{c}</option>)}
+          </Select>
+        </Field>
+
+        {error && <div className="mnd-muted" style={{ fontSize: 12, color: 'var(--color-copper)' }}>{error}</div>}
+
+        <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: 0 }}>
+          La maison consigne l’automatisation et son interrupteur. L’envoi lui-même n’est pas
+          encore câblé — aucun message ne partira tant que le canal ne sera pas relié.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          {initial ? (
+            <Button variant="ghost" onClick={() => onRemove(initial.id)}>Retirer</Button>
+          ) : <span />}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button variant="ghost" onClick={onClose}>Annuler</Button>
+            <Button variant="copper" onClick={submit}>{initial ? 'Enregistrer' : 'Créer'}</Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }

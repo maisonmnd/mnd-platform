@@ -108,16 +108,21 @@ export {
   type InstantOffer,
 } from '../../../../shared/offers';
 
+export const AUTOMATION_CANAUX = ['WhatsApp', 'Système'] as const;
+export type AutomationCanal = (typeof AUTOMATION_CANAUX)[number];
+
 export type Automation = {
   id: string;
   trig: string;
   act: string;
-  canal: 'WhatsApp' | 'Système';
+  canal: AutomationCanal;
   runs: number;
 };
 
-/* Maison neuve — les compteurs d'envois partent de zéro ; ils vivront avec l'usage. */
-export const AUTOMATIONS: Automation[] = [
+/* Les six automatisations que la maison fournit. Semence seulement : la liste est
+   désormais éditable (la maison crée les siennes), donc ceci ne sert qu'au premier
+   chargement. */
+export const AUTOMATIONS_SEED: Automation[] = [
   { id: 'a1', trig: 'J-1 avant un rituel', act: 'Rappel WhatsApp + itinéraire', canal: 'WhatsApp', runs: 0 },
   { id: 'a2', trig: 'Loc · jour 365', act: 'Invitation au Couronnement', canal: 'WhatsApp', runs: 0 },
   { id: 'a3', trig: 'Dormante · 90 jours', act: 'Réveil rituel doux', canal: 'WhatsApp', runs: 0 },
@@ -125,6 +130,13 @@ export const AUTOMATIONS: Automation[] = [
   { id: 'a5', trig: 'Acompte non réglé · 2 h', act: 'Relance douce + lien MoMo', canal: 'WhatsApp', runs: 0 },
   { id: 'a6', trig: 'Stock bas · seuil', act: 'Bon de réassort fournisseur', canal: 'Système', runs: 0 },
 ];
+
+/** Liste gérable des automatisations (Marketing), synchronisée Supabase. */
+export const automationsStore = createStore<Automation[]>('mnd_automations', AUTOMATIONS_SEED);
+export const useAutomations = () => useStore(automationsStore);
+
+/** Alias rétro-compatible (semence). Préférer `useAutomations()`. */
+export const AUTOMATIONS = AUTOMATIONS_SEED;
 
 /** Interrupteurs des automatisations — actives par défaut. */
 export const automationsActiveStore = createStore<Record<string, boolean>>('mnd_automations_active', {});
@@ -478,6 +490,7 @@ bindCollection(subscribersStore, 'subscribers');
 bindCollection(formationsStore, 'formations');
 bindCollection(apprenantsStore, 'apprenants');
 bindCollection(certifsStore, 'certifications');
+bindDocument(automationsStore, 'mnd_automations');
 bindDocument(automationsActiveStore, 'mnd_automations_active');
 bindDocument(autoConfigStore, 'mnd_auto_config');
 bindDocument(recoStateStore, 'mnd_reco_state');

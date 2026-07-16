@@ -1,9 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Input, Textarea } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
-import { autoConfigStore, AUTOMATIONS, automationsActiveStore, type AutoConfig } from '../equipe/data';
+import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
@@ -123,10 +122,6 @@ export default function Parametres() {
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
   const [autoCfgRaw, setAutoCfgRaw] = useStore(autoConfigStore);
-  const [autoActive] = useStore(automationsActiveStore);
-  /* Une automatisation sans interrupteur enregistré est ACTIVE — même règle que
-     Marketing (`isOn`), sinon le compteur mentirait sur l'état réel. */
-  const autoOnCount = AUTOMATIONS.filter((a) => autoActive[a.id] !== false).length;
   const [services] = useServices();
   const [identity, setIdentity] = useHouseIdentity();
   const [crownStyles, setCrownStyles] = useCrownStyles();
@@ -777,27 +772,6 @@ export default function Parametres() {
         <div className="sys-section__cap" style={{ maxWidth: 640 }}>
           Renseignez les liens et le texte utilisés par les messages automatiques (rappels, relances,
           invitations). Le Trône les insère tels quels dans les envois WhatsApp et SMS.
-        </div>
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 12, flexWrap: 'wrap', marginTop: 10, padding: '11px 13px',
-            border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)',
-            background: 'var(--surface-card)',
-          }}
-        >
-          <div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-              {autoOnCount} automatisation{autoOnCount > 1 ? 's' : ''} active{autoOnCount > 1 ? 's' : ''} sur {AUTOMATIONS.length}
-            </div>
-            <div className="sys-row__sub" style={{ marginTop: 2 }}>
-              Rappels J−1, réveil des dormantes, relance d’acompte, réassort… Les interrupteurs
-              vivent au Marketing.
-            </div>
-          </div>
-          <Link to="/marketing?tab=auto" style={{ textDecoration: 'none' }}>
-            <Button variant="copper">Gérer les automatisations</Button>
-          </Link>
         </div>
         <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
           <label className="mnd-field">
