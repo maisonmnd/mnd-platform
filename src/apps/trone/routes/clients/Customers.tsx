@@ -13,8 +13,9 @@ import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid } from '../../../../shared/store';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
+import { useNavigate } from 'react-router-dom';
 import {
-  Avatar, Drawer, RdvModal, StatusPill, type RdvInitial,
+  Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
   fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
@@ -426,11 +427,13 @@ function Customer360({
   predicted: Cadence;
 }) {
   const { branch, currency } = useBranch();
+  const navigate = useNavigate();
   const [personas] = usePersonas();
   const [invoices] = useInvoices();
   const [pointsHistory] = usePointsHistory();
   const [sessions] = useClientSessions();
   const [bookOpen, setBookOpen] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [adjust, setAdjust] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
@@ -488,6 +491,20 @@ function Customer360({
   /* La couronne — persistance immédiate ; ce bloc alimente le statut dans Ma Couronne. */
   const patch = (p: Partial<Client>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
+
+  /* Photo de profil — réduite avant d'être écrite (voir readImageDownscaled).
+     Le portrait suit la cliente partout : listes, carnet, factures, Ma Couronne. */
+  const onPhoto = async (file?: File) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      patch({ photo: await readImageDownscaled(file) });
+    } catch {
+      window.alert('Cette image n’a pas pu être lue. Essayez une photo JPEG ou PNG.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   /* Enregistrement de l'identité — le nom ne peut pas être vidé ; le segment
      principal remplace le premier segment (ou le retire si laissé vide). */
@@ -605,10 +622,10 @@ function Customer360({
     .slice()
     .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))[0]?.screen;
 
-  /* ----- Commandes — ses devis produits ----- */
-  const orders = myInvoices
-    .filter((i) => i.kind === 'devis')
-    .sort((a, b) => b.date.localeCompare(a.date));
+  /* ----- Factures & devis — tous ses documents, du plus récent au plus ancien.
+     Chacun s'ouvre depuis la fiche : la maison n'a plus à quitter la cliente
+     pour retrouver une pièce. ----- */
+  const documents = [...myInvoices].sort((a, b) => b.date.localeCompare(a.date));
 
   /* ----- Rendez-vous ----- */
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
@@ -646,13 +663,19 @@ function Customer360({
         <button className="trc-drawer__close" onClick={onClose} aria-label="Fermer">✕</button>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, width: '100%', minWidth: 0 }}>
           <span className="trc-avatarwrap">
-            <Avatar client={client} size={64} />
+            {/* La photo s'ajoute et se change ici même : un clic sur le portrait
+                ouvre le sélecteur de fichier. Le badge appareil le signale. */}
+            <label className="trc-avatar-edit" title={photoBusy ? 'Traitement…' : client.photo ? 'Changer la photo' : 'Ajouter une photo'}>
+              <Avatar client={client} size={64} />
+              <span className="trc-avatar-edit__badge" aria-hidden>{photoBusy ? '…' : '📷'}</span>
+              <input type="file" accept="image/*" style={{ display: 'none' }} disabled={photoBusy} onChange={(e) => void onPhoto(e.target.files?.[0])} />
+            </label>
             {onlineNow && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
-            {(client.phone || itineraireHref) && (
+            {(client.phone || itineraireHref || client.photo) && (
               <div className="trc-cover-acts">
                 {client.phone && <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>}
                 {client.phone && phoneDigits && (
@@ -668,6 +691,11 @@ function Customer360({
                   >
                     Itinéraire
                   </a>
+                )}
+                {client.photo && (
+                  <button type="button" className="trc-cover-act trc-cover-act--btn" onClick={() => patch({ photo: null })}>
+                    Retirer la photo
+                  </button>
                 )}
               </div>
             )}
@@ -948,29 +976,30 @@ function Customer360({
           </div>
         </div>
 
-        {/* Commandes — ses devis produits */}
+        {/* Factures & devis — tous ses documents, chacun ouvrable */}
         <div>
-          <span className="trc-microlabel">Commandes · {orders.length}</span>
-          {orders.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucune commande — ses devis apparaîtront ici.</div>
+          <span className="trc-microlabel">Factures & devis · {documents.length}</span>
+          {documents.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document — ses factures et devis apparaîtront ici.</div>
           )}
-          {orders.length > 0 && (
+          {documents.length > 0 && (
             <div className="trc-orders">
-              {orders.map((o) => (
-                <div className="trc-order" key={o.id}>
+              {documents.map((o) => (
+                <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
                   <span className="trc-order__id">
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{frDay(o.date)}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frDay(o.date)}</span>
                   </span>
                   <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
                   <span className={orderStatusClass(o.status)}>{o.status}</span>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Historique */}
+        {/* Historique — chaque passage s'ouvre : le RDV dans sa modale, et s'il a
+            été encaissé, sa facture d'un second geste. */}
         <div>
           <span className="trc-microlabel">Historique du carnet</span>
           {history.length === 0 && <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun passage enregistré.</div>}
@@ -981,13 +1010,26 @@ function Customer360({
                   <span className="trc-timeline__dot" style={{ background: a.status === 'honoré' ? 'var(--color-copper)' : 'var(--indigo-200)' }} />
                   {i < history.length - 1 && <span className="trc-timeline__line" />}
                 </div>
-                <div style={{ paddingBottom: 14, minWidth: 0 }}>
+                <button type="button" className="trc-timeline__open" onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frDay(a.date)} · {a.time}</span>
                     <StatusPill status={a.status} />
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>{apptLabel(a, byId)} · {a.master}</div>
-                </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>
+                    {apptLabel(a, byId)} · {a.master}
+                    {a.invoiceId && <span className="trc-timeline__inv"> · facture</span>}
+                  </div>
+                </button>
+                {a.invoiceId && (
+                  <button
+                    type="button"
+                    className="trc-timeline__facbtn"
+                    title="Ouvrir la facture"
+                    onClick={() => navigate(`/factures?id=${a.invoiceId}`)}
+                  >
+                    Facture →
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1110,11 +1152,13 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
     }
   };
 
-  const onPhoto = (file?: File) => {
+  const onPhoto = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      setPhoto(await readImageDownscaled(file));
+    } catch {
+      setError('Cette image n’a pas pu être lue. Essayez une photo JPEG ou PNG.');
+    }
   };
 
   const toggleSeg = (s: string) => setSegments((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
@@ -1156,7 +1200,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
           )}
           <label style={{ cursor: 'pointer', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-600)', border: '1px dashed var(--copper-500)', borderRadius: 2, padding: '9px 14px' }}>
             Ajouter une photo
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onPhoto(e.target.files?.[0])} />
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPhoto(e.target.files?.[0])} />
           </label>
         </div>
 

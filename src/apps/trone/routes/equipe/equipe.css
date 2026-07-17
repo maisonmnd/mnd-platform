@@ -642,3 +642,40 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 .tre-segdel:hover { color: var(--color-copper); background: var(--hover-veil); }
+
+/* ---------- Éditeur du référentiel méthode ---------- */
+.tre-ref-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tre-ref-row:last-of-type { border-bottom: none; padding-bottom: 0; }
+.tre-ref-no {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--color-copper);
+  width: 26px;
+  flex: none;
+  padding-top: 6px;
+  text-align: right;
+}
+.tre-ref-ctl {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm, 3px);
+  background: var(--surface-card);
+  color: var(--ink-soft);
+  font-size: 11px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+.tre-ref-ctl:hover:not(:disabled) { border-color: var(--color-indigo); color: var(--color-indigo); }
+.tre-ref-ctl:disabled { opacity: 0.4; cursor: default; }
+.tre-ref-ctl--danger:hover:not(:disabled) { border-color: #8f3b30; color: #8f3b30; }

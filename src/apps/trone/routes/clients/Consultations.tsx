@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -6,6 +7,8 @@ import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
+import { type Appointment } from '../../../../shared/agenda';
+import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { useBranch } from '../../../../shared/branches';
 import { asset } from '../../../../shared/asset';
 import { summaryPdf } from '../../../../shared/pdf';
@@ -293,8 +296,18 @@ function DossierPanel({
   onClose: () => void;
 }) {
   const { currency, branch } = useBranch();
+  const navigate = useNavigate();
   const [queue] = useStore(consultationsQueueStore);
+  const [invoices] = useInvoices();
   const [bookOpen, setBookOpen] = useState(false);
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+
+  /* Ses factures & devis — chacun ouvrable depuis le dossier, comme dans la fiche CRM. */
+  const documents = invoices
+    .filter((i) => i.clientId === client.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const docStatusClass = (s: Invoice['status']) =>
+    s === 'payée' || s === 'acceptée' ? 'trc-src' : 'trc-src trc-src--indigo';
 
   /* Résumé PDF d'une consultation déjà classée au dossier. */
   const summarizeBlock = (b: ConsultBlock) => {
@@ -443,14 +456,35 @@ function DossierPanel({
                     <span className="trc-timeline__dot" style={{ background: a.status === 'honoré' ? 'var(--color-copper)' : 'var(--indigo-200)' }} />
                     {i < history.length - 1 && <span className="trc-timeline__line" />}
                   </div>
-                  <div style={{ paddingBottom: 14, minWidth: 0 }}>
+                  <button type="button" className="trc-timeline__open" onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frDay(a.date)} · {a.time}</span>
                       <StatusPill status={a.status} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>{apptLabel(a, byId)} · {a.master}</div>
-                  </div>
+                  </button>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Factures & devis — ouvrables sans quitter le dossier */}
+        <div>
+          <span className="trc-microlabel">Factures & devis · {documents.length}</span>
+          {documents.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document pour cette cliente.</div>
+          ) : (
+            <div className="trc-orders">
+              {documents.map((o) => (
+                <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
+                  <span className="trc-order__id">
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frDay(o.date)}</span>
+                  </span>
+                  <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
+                  <span className={docStatusClass(o.status)}>{o.status}</span>
+                </button>
               ))}
             </div>
           )}
@@ -499,6 +533,8 @@ function DossierPanel({
       {bookOpen && (
         <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />
       )}
+
+      {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
 
       {editBlock && (
         <EditConsultModal

@@ -249,27 +249,39 @@ export const RECO_ACCENT: Record<RecoCat, string> = {
    6 · Académie
    ============================================================ */
 
-export const QUATRE_TEMPS: { no: string; n: string; g: string }[] = [
-  { no: '01', n: 'Purifier', g: 'Laver en douceur, libérer le cuir chevelu.' },
-  { no: '02', n: 'Nourrir', g: 'Hydrater la fibre, fortifier la racine.' },
-  { no: '03', n: 'Sceller', g: 'Fixer le soin, protéger la mèche.' },
-  { no: '04', n: 'Couronner', g: 'Sculpter, parfumer, révéler la tête haute.' },
+/* Le référentiel méthode — la doctrine « powered by MND ». Éditable par la maison
+   (onglet Référentiel de l'Académie), synchronisé, house-wide (jamais par branche).
+   Une entrée = un nom (`n`) + sa glose (`g`) ; la numérotation des « quatre temps »
+   se lit de la position, jamais stockée — ajouter ou réordonner ne renumérote rien. */
+export type RefEntry = { n: string; g: string };
+
+/** Graines du référentiel — servent de défaut au premier lancement ET de « rétablir ». */
+export const REF_TEMPS_SEED: RefEntry[] = [
+  { n: 'Purifier', g: 'Laver en douceur, libérer le cuir chevelu.' },
+  { n: 'Nourrir', g: 'Hydrater la fibre, fortifier la racine.' },
+  { n: 'Sceller', g: 'Fixer le soin, protéger la mèche.' },
+  { n: 'Couronner', g: 'Sculpter, parfumer, révéler la tête haute.' },
+];
+export const REF_PALIERS_SEED: RefEntry[] = [
+  { n: 'L’Initiation', g: 'Découvrir le rituel' },
+  { n: 'L’Affirmation', g: 'Affirmer sa couronne' },
+  { n: 'L’Œuvre', g: 'La maîtrise, mèche après mèche' },
+];
+export const REF_LEXIQUE_SEED: RefEntry[] = [
+  { n: 'VÈKPÈ™', g: 'Pose & structure' },
+  { n: 'SÍNSIN™', g: 'Resserrage' },
+  { n: 'FÍNFÍN™', g: 'Soin & lavage' },
+  { n: 'GBÈZÀ™', g: 'Réparation' },
+  { n: 'ÀGBÓ™', g: 'Purification' },
+  { n: 'DÒDÒ™', g: 'Extensions' },
 ];
 
-export const REF_PALIERS: [string, string][] = [
-  ['L’Initiation', 'Découvrir le rituel'],
-  ['L’Affirmation', 'Affirmer sa couronne'],
-  ['L’Œuvre', 'La maîtrise, mèche après mèche'],
-];
-
-export const REF_LEXIQUE: [string, string][] = [
-  ['VÈKPÈ™', 'Pose & structure'],
-  ['SÍNSIN™', 'Resserrage'],
-  ['FÍNFÍN™', 'Soin & lavage'],
-  ['GBÈZÀ™', 'Réparation'],
-  ['ÀGBÓ™', 'Purification'],
-  ['DÒDÒ™', 'Extensions'],
-];
+export const refTempsStore = createStore<RefEntry[]>('mnd_ref_temps', REF_TEMPS_SEED);
+export const useRefTemps = () => useStore(refTempsStore);
+export const refPaliersStore = createStore<RefEntry[]>('mnd_ref_paliers', REF_PALIERS_SEED);
+export const useRefPaliers = () => useStore(refPaliersStore);
+export const refLexiqueStore = createStore<RefEntry[]>('mnd_ref_lexique', REF_LEXIQUE_SEED);
+export const useRefLexique = () => useStore(refLexiqueStore);
 
 export const FORMATION_NIVEAUX = [
   'Niveau I · L’Initiation',
@@ -506,3 +518,6 @@ bindDocument(staffAccessStore, 'mnd_staff_access');
 bindDocument(accessCodesStore, 'mnd_access_codes');
 bindDocument(houseSettingsStore, 'mnd_house_settings');
 bindDocument(themeStore, 'mnd_theme');
+bindDocument(refTempsStore, 'mnd_ref_temps');
+bindDocument(refPaliersStore, 'mnd_ref_paliers');
+bindDocument(refLexiqueStore, 'mnd_ref_lexique');

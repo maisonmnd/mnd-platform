@@ -1226,6 +1226,62 @@
 .trc-order:last-child { border-bottom: none; }
 .trc-order__id { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trc-order__total { font-family: var(--font-serif); font-size: 14px; color: var(--color-indigo); white-space: nowrap; }
+/* Un document ouvrable — même grille que .trc-order, mais bouton dénudé. */
+.trc-order--btn { width: 100%; text-align: left; font: inherit; background: none; cursor: pointer; }
+.trc-order--btn:hover { background: var(--hover-veil); }
+
+/* ---------- Photo de profil (fiche 360) ---------- */
+.trc-avatar-edit { position: relative; display: inline-flex; cursor: pointer; border-radius: 50%; }
+.trc-avatar-edit__badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  border: 2px solid var(--color-indigo);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.trc-avatar-edit:hover .trc-avatar-edit__badge { background: var(--copper-200); }
+/* Bouton « Retirer la photo » aligné sur les liens de la bannière (fond indigo). */
+.trc-cover-act--btn { background: none; cursor: pointer; font: inherit; font-size: 9.5px; font-weight: var(--weight-medium); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ---------- Historique du carnet — chaque passage s'ouvre ---------- */
+.trc-timeline__open {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0 0 14px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.trc-timeline__open:hover { color: var(--color-indigo); }
+.trc-timeline__inv { color: var(--copper-700); }
+.trc-timeline__facbtn {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
+  background: none;
+  border: 1px solid var(--copper-300);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--copper-700);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.trc-timeline__facbtn:hover { background: var(--copper-50); }
 
 /* Rendez-vous à venir — lignes cliquables (modification via la modale RDV). */
 .trc-upcoming { display: flex; flex-direction: column; gap: 7px; }

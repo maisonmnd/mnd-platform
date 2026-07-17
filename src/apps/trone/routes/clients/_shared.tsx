@@ -170,6 +170,40 @@ export function SourceBadge({ source }: { source?: Appointment['source'] }) {
 }
 
 /* ---------- Avatar (photo ou initiales) ---------- */
+/** Lit un fichier image et le RÉDUIT avant stockage : la photo part en JSONB
+    synchronisé (Supabase) puis vit dans localStorage — une photo de téléphone
+    brute (3–5 Mo en base64) saturerait les deux. On la ramène à `max` px de côté,
+    en JPEG : un avatar net pèse alors quelques dizaines de Ko. Repli sur le
+    data-URL d'origine si le canvas n'est pas disponible. */
+export async function readImageDownscaled(file: File, max = 512): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(new Error('Lecture du fichier impossible.'));
+    r.readAsDataURL(file);
+  });
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Image illisible.'));
+      i.src = dataUrl;
+    });
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  } catch {
+    return dataUrl; // un GIF animé ou un format exotique : on garde l'original plutôt que rien
+  }
+}
+
 export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'photo'>; size?: number }) {
   const initials = client.name
     .split(' ')

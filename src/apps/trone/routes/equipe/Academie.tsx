@@ -7,11 +7,15 @@ import { usePaymentMethods, type PaymentMethod } from '../../../../shared/financ
 import { useBranch } from '../../../../shared/branches';
 import { uid } from '../../../../shared/store';
 import {
-  QUATRE_TEMPS, REF_PALIERS, REF_LEXIQUE, FORMATION_NIVEAUX,
+  FORMATION_NIVEAUX,
+  refTempsStore, refPaliersStore, refLexiqueStore,
+  useRefTemps, useRefPaliers, useRefLexique,
+  REF_TEMPS_SEED, REF_PALIERS_SEED, REF_LEXIQUE_SEED,
   useFormations, useApprenants, useCertifs,
   apprPaid, apprDue, apprHasFinance, apprPayStatus,
-  type Formation, type Apprenant, type Certification, type Payment,
+  type Formation, type Apprenant, type Certification, type Payment, type RefEntry,
 } from './data';
+import type { Store } from '../../../../shared/store';
 import { Bar, Pill, Tabs } from './ui';
 import './equipe.css';
 
@@ -23,12 +27,11 @@ type Tab = 'formations' | 'apprenants' | 'certifications' | 'referentiel';
 
 const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jour' ? 'ok' : p === 'Échéance' ? 'warn' : 'error');
 
-/* Parcours par défaut d'une nouvelle formation — « les quatre temps ». Chaque
-   formation peut ensuite définir ses propres modules. */
-const DEFAULT_MODULES = QUATRE_TEMPS.map((t) => t.n);
-
+/* Parcours par défaut d'une nouvelle formation — « les quatre temps » du
+   référentiel, désormais éditable : le défaut se lit donc au moment de la création
+   (dans le composant), non plus à l'import de ce module. */
 type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; modules: string[] };
-const emptyFormation: FormationForm = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', modules: [...DEFAULT_MODULES] };
+const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6' };
 
 /* Inscription : identité + scolarité (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
@@ -57,6 +60,13 @@ export default function Academie() {
   const [apprenants, setApprenants] = useApprenants();
   const [certifs, setCertifs] = useCertifs();
 
+  /* Le référentiel — éditable. Les « quatre temps » servent aussi de parcours par
+     défaut à toute nouvelle formation, d'où leur lecture ici. */
+  const [refTemps] = useRefTemps();
+  const [refPaliers] = useRefPaliers();
+  const [refLexique] = useRefLexique();
+  const defaultModules = useMemo(() => refTemps.map((t) => t.n.trim()).filter(Boolean), [refTemps]);
+
   const [foForm, setFoForm] = useState<FormationForm | null>(null);
   const [foEditId, setFoEditId] = useState<string | null>(null);
 
@@ -77,7 +87,7 @@ export default function Academie() {
      vidé → on le respecte (aucun module). */
   const formationModules = (id: string): string[] => {
     const m = formations.find((f) => f.id === id)?.modules;
-    return m === undefined ? DEFAULT_MODULES : m;
+    return m === undefined ? defaultModules : m;
   };
   /* Avancement = modules faits / modules de LA formation. On ne compte que dans la
      limite des modules actuels (si la formation en a perdu, on ne dépasse pas 100 %). */
@@ -107,10 +117,10 @@ export default function Academie() {
   }), [formations, apprenants, certifs]);
 
   /* — formations — */
-  const openFoNew = () => { setFoEditId(null); setFoForm(emptyFormation); };
+  const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: [...defaultModules] }); };
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), modules: f.modules && f.modules.length ? [...f.modules] : [...DEFAULT_MODULES] });
+    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules] });
   };
   const saveFo = () => {
     if (!foForm || !foForm.name.trim()) return;
@@ -434,39 +444,36 @@ export default function Academie() {
             </div>
           </div>
           <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
-            <Card style={{ padding: '20px 22px' }}>
-              <div className="tre-sec-label" style={{ marginBottom: 14 }}>Les quatre temps</div>
-              {QUATRE_TEMPS.map((t) => (
-                <div key={t.no} style={{ display: 'flex', gap: 14, alignItems: 'baseline', paddingBottom: 13 }}>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-copper)', width: 26, flex: 'none' }}>{t.no}</span>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{t.n}</div>
-                    <div className="mnd-muted" style={{ fontSize: 12, fontWeight: 300 }}>{t.g}</div>
-                  </div>
-                </div>
-              ))}
-            </Card>
+            <RefEditor
+              title="Les quatre temps"
+              note="Le geste du rituel — et le parcours par défaut de toute nouvelle formation."
+              rows={refTemps}
+              store={refTempsStore}
+              seed={REF_TEMPS_SEED}
+              numbered
+              namePlaceholder="Nom du temps (ex. Purifier)"
+              glossPlaceholder="Le geste en une phrase"
+              addLabel="+ Ajouter un temps"
+            />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <Card style={{ padding: '20px 22px' }}>
-                <div className="tre-sec-label" style={{ marginBottom: 12 }}>La logique de palier</div>
-                {REF_PALIERS.map(([n, g]) => (
-                  <div key={n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '8px 0', borderBottom: '1px solid var(--hairline)' }}>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{n}</span>
-                    <span className="mnd-muted" style={{ fontSize: 12 }}>{g}</span>
-                  </div>
-                ))}
-              </Card>
-              <Card style={{ padding: '20px 22px' }}>
-                <div className="tre-sec-label" style={{ marginBottom: 12 }}>Le lexique ™</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 18px' }}>
-                  {REF_LEXIQUE.map(([n, g]) => (
-                    <div key={n}>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{n}</span>
-                      <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 7 }}>{g}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+              <RefEditor
+                title="La logique de palier"
+                rows={refPaliers}
+                store={refPaliersStore}
+                seed={REF_PALIERS_SEED}
+                namePlaceholder="Nom du palier"
+                glossPlaceholder="Ce qu’il promet"
+                addLabel="+ Ajouter un palier"
+              />
+              <RefEditor
+                title="Le lexique ™"
+                rows={refLexique}
+                store={refLexiqueStore}
+                seed={REF_LEXIQUE_SEED}
+                namePlaceholder="Terme (ex. VÈKPÈ™)"
+                glossPlaceholder="Ce qu’il désigne"
+                addLabel="+ Ajouter un terme"
+              />
             </div>
           </div>
         </div>
@@ -744,6 +751,70 @@ export default function Academie() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/* ---------- Éditeur d'une section du référentiel ----------
+   Trois sections, une même forme (nom + glose) : un seul éditeur les gère toutes.
+   La numérotation des « quatre temps » se lit de la position (`numbered`) — ajouter,
+   retirer ou réordonner ne renumérote donc jamais à la main. */
+function RefEditor({
+  title, note, rows, store, seed, numbered, namePlaceholder, glossPlaceholder, addLabel,
+}: {
+  title: string;
+  note?: string;
+  rows: RefEntry[];
+  store: Store<RefEntry[]>;
+  seed: RefEntry[];
+  numbered?: boolean;
+  namePlaceholder: string;
+  glossPlaceholder: string;
+  addLabel: string;
+}) {
+  const setField = (i: number, field: keyof RefEntry, v: string) =>
+    store.set((prev) => prev.map((r, j) => (j === i ? { ...r, [field]: v } : r)));
+  const move = (i: number, dir: -1 | 1) =>
+    store.set((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  const del = (i: number) => store.set((prev) => prev.filter((_, j) => j !== i));
+  const add = () => store.set((prev) => [...prev, { n: '', g: '' }]);
+  const reset = () => {
+    if (window.confirm(`Rétablir « ${title} » au standard MND ? Vos modifications de cette section seront remplacées.`)) {
+      store.set(() => seed.map((r) => ({ ...r })));
+    }
+  };
+
+  return (
+    <Card style={{ padding: '20px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: note ? 4 : 14 }}>
+        <div className="tre-sec-label" style={{ margin: 0 }}>{title}</div>
+        <button className="tre-link-btn" style={{ color: 'var(--copper-700)' }} onClick={reset} title="Rétablir le standard MND">Rétablir</button>
+      </div>
+      {note && <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic', marginBottom: 14 }}>{note}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {rows.map((r, i) => (
+          <div key={i} className="tre-ref-row">
+            {numbered && <span className="tre-ref-no">{String(i + 1).padStart(2, '0')}</span>}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <Input value={r.n} onChange={(e) => setField(i, 'n', e.target.value)} placeholder={namePlaceholder} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }} />
+              <Input value={r.g} onChange={(e) => setField(i, 'g', e.target.value)} placeholder={glossPlaceholder} style={{ fontSize: 12 }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 'none' }}>
+              <button className="tre-ref-ctl" disabled={i === 0} onClick={() => move(i, -1)} title="Monter" aria-label="Monter">▲</button>
+              <button className="tre-ref-ctl" disabled={i === rows.length - 1} onClick={() => move(i, 1)} title="Descendre" aria-label="Descendre">▼</button>
+              <button className="tre-ref-ctl tre-ref-ctl--danger" onClick={() => del(i)} title="Retirer" aria-label="Retirer">✕</button>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Section vide — ajoutez une première entrée.</div>}
+      </div>
+      <button className="tre-chip" style={{ marginTop: 12 }} onClick={add}>{addLabel}</button>
+    </Card>
   );
 }
 
