@@ -8,7 +8,7 @@ import { useClients, clientsStore } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { type Service } from '../../../../shared/catalog';
 import {
-  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods,
+  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency,
   type Invoice, type InvoiceLine, type PaymentMethod,
 } from '../../../../shared/finance';
 import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
@@ -89,6 +89,13 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      et convertir le seul règlement lui ferait payer le pourboire en francs. */
   const tenderXof = amount + tip;
   const fxAmount = fxOn && fxRateNum > 0 ? Math.round((tenderXof / fxRateNum) * 100) / 100 : 0;
+  /* Une caisse ne reçoit que sa devise : les euros vont au tiroir en euros, pas
+     à celui de la maison. Sans caisse dans la devise reçue, on refuse plutôt que
+     de fausser deux soldes d'un coup. */
+  const payCurrency = fxOn ? fxCode : currency;
+  const eligibleBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
+  const fxBlocked = fxOn && eligibleBoxes.length === 0;
 
   const submitting = useRef(false); // garde-fou anti double-clic (double facture / double pourboire)
   const fullyPaid = remainingAfter === 0;
@@ -118,7 +125,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         theme: 'Rose',
         status: 'payée',
         payment: pay,
-        cashbox,
+        cashbox: activeBox,
         time: new Date().toTimeString().slice(0, 5),
         clientName: client?.name,
         master: appt.master,
@@ -150,7 +157,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         theme: 'Rose',
         status: 'payée',
         payment: pay,
-        cashbox,
+        cashbox: activeBox,
         time: new Date().toTimeString().slice(0, 5),
         clientName: client?.name,
         master: appt.master,
@@ -214,10 +221,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             {methods.map((m) => <option key={m} value={m}>{m}</option>)}
           </Select>
         </Field>
-        {branchBoxes.length > 0 && (
+        {eligibleBoxes.length > 0 && (
           <Field label="Caisse">
-            <Select value={cashbox} onChange={(e) => setCashbox(e.target.value)}>
-              {branchBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+            <Select value={activeBox} onChange={(e) => setCashbox(e.target.value)}>
+              {eligibleBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
             </Select>
           </Field>
         )}
@@ -282,7 +289,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={(amount <= 0 && (tip <= 0 || !tipMaster)) || (fxOn && fxAmount <= 0)}
+          disabled={(amount <= 0 && (tip <= 0 || !tipMaster)) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
           {fxOn && fxAmount > 0

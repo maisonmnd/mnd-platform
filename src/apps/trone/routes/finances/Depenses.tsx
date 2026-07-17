@@ -1,10 +1,12 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney, convertFromXof } from '../../../../shared/currency';
+import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
+import { CURRENCIES } from '../../../../shared/geo';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
+  cashboxCurrency,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
@@ -27,7 +29,8 @@ const FLOW_FILLS = [
 ];
 
 type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[] };
-type BoxForm = { name: string; sub: string; glyph: string; opening: string };
+/** `currency` vide = la caisse tient la devise de la maison. */
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
@@ -51,7 +54,7 @@ export default function Depenses() {
   const [catOpen, setCatOpen] = useState(false);
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '' });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
@@ -90,17 +93,28 @@ export default function Depenses() {
   const forecast = isCurrent ? paceForecast(engaged, now.getDate(), daysInMonth) : engaged;
   const forecastNote = isCurrent ? 'au rythme réel du mois' : month < thisMonth ? 'mois clos · total constaté' : 'mois à venir · engagé à date';
 
-  // Solde par caisse : ouverture − dépenses vivantes + encaissements crédités (mois choisi)
+  /* Solde par caisse : ouverture − dépenses vivantes + encaissements du mois.
+     TOUT se compte dans la devise de la caisse. Pour une caisse en devise, on
+     crédite `fx.amount` — les euros réellement reçus — et surtout PAS le total
+     de la facture reconverti : le taux du jour n'est pas celui figé dans le
+     code, et le tiroir doit tomber juste au billet près. */
   const boxBalance = (name: string) => {
     const box = branchBoxes.find((b) => b.name === name);
     const opening = box?.openingXof ?? 0;
+    const boxCur = box ? cashboxCurrency(box) : currency;
+    const foreign = boxCur !== currency;
     const out = live.filter((e) => e.cashbox === name).reduce((s, e) => s + expenseTotal(e), 0);
     const inn = invoices
       .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === month)
-      .reduce((s, i) => s + invoiceTotal(i), 0);
+      .reduce((s, i) => s + (foreign ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0) : invoiceTotal(i)), 0);
     return opening - out + inn;
   };
-  const treasury = branchBoxes.reduce((s, b) => s + boxBalance(b.name), 0);
+  /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
+     à des francs donnerait un nombre qui ne veut rien dire. Les caisses en
+     devise se lisent séparément, chacune dans son unité. */
+  const treasury = branchBoxes
+    .filter((b) => cashboxCurrency(b) === currency)
+    .reduce((s, b) => s + boxBalance(b.name), 0);
 
   // Flux par catégorie (filtres caisse / catégorie + recherche)
   const flow = useMemo(() => {
@@ -233,12 +247,12 @@ export default function Depenses() {
   // — Caisses : ajouter / modifier / supprimer, avec réétiquetage dépenses + encaissements —
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: 'Caisse manuelle', glyph: '◈', opening: '' });
+    setBoxForm({ name: '', sub: 'Caisse manuelle', glyph: '◈', opening: '', currency: '' });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph || '◈', opening: String(c.openingXof) });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph || '◈', opening: String(c.openingXof), currency: c.currency ?? '' });
     setBoxOpen(true);
   };
   const saveBox = () => {
@@ -250,14 +264,14 @@ export default function Depenses() {
     if (boxEditingId) {
       const prevBox = cashboxes.find((b) => b.id === boxEditingId);
       const oldName = prevBox?.name;
-      setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening } : b)));
+      setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined } : b)));
       if (oldName && oldName !== name) {
         setExpenses((prev) => prev.map((e) => (e.cashbox === oldName ? { ...e, cashbox: name } : e)));
         setInvoices((prev) => prev.map((i) => (i.cashbox === oldName ? { ...i, cashbox: name } : i)));
         if (filterCaisse === oldName) setFilterCaisse(name);
       }
     } else {
-      setCashboxes((prev) => [...prev, { id: uid(), branchId: branch.id, name, sub, glyph, openingXof: opening }]);
+      setCashboxes((prev) => [...prev, { id: uid(), branchId: branch.id, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined }]);
     }
     setBoxOpen(false);
   };
@@ -474,7 +488,10 @@ export default function Depenses() {
           <div className="tr-grid tr-grid--3">
             {branchBoxes.map((c) => {
               const bal = boxBalance(c.name);
-              const low = bal < 100000;
+              const boxCur = cashboxCurrency(c);
+              /* Le seuil « bas » est pensé en francs : l'appliquer à 100 000 € n'aurait
+                 aucun sens, on ne l'affiche donc que sur les caisses de la maison. */
+              const low = boxCur === currency && bal < 100000;
               return (
                 <div className="trf-caisse" key={c.id}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11, justifyContent: 'space-between' }}>
@@ -492,7 +509,7 @@ export default function Depenses() {
                   </div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde · {monthName}</div>
-                    <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtMoney(bal, currency)}</div>
+                    <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
                   </div>
                   <button className="trf-act" style={{ padding: 9 }} onClick={() => openFor(c.name)}>Dépenser d’ici</button>
                 </div>
@@ -831,7 +848,7 @@ export default function Depenses() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
                   <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, cashbox: c.name }))}>
-                    {c.name} · {fmtMoney(boxBalance(c.name), currency)}
+                    {c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}
                   </button>
                 ))}
               </div>
@@ -911,8 +928,25 @@ export default function Depenses() {
                 ))}
               </div>
             </div>
+            {/* Une caisse en devise garde des billets étrangers : elle ne reçoit
+                que les règlements dans SA devise, et son solde se compte dedans. */}
             <label className="mnd-field">
-              <span className="mnd-field__label">Solde d’ouverture · {boxForm.opening ? fmtMoney(parseInt(boxForm.opening, 10), currency) : fmtMoney(0, currency)}</span>
+              <span className="mnd-field__label">Devise détenue</span>
+              <select
+                className="mnd-select"
+                value={boxForm.currency}
+                onChange={(e) => setBoxForm((f) => ({ ...f, currency: e.target.value }))}
+              >
+                <option value="">{currency} · devise de la maison</option>
+                {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="mnd-field">
+              <span className="mnd-field__label">
+                Solde d’ouverture · en {boxForm.currency || currency}
+              </span>
               <input className="mnd-input" inputMode="numeric" value={boxForm.opening} onChange={(e) => setBoxForm((f) => ({ ...f, opening: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
             </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>

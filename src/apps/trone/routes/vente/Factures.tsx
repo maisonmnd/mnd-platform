@@ -179,7 +179,11 @@ export default function Factures() {
       subtotal: fmtMoney(Math.round(gross), currency),
       discount: disc > 0 ? `− ${fmtMoney(Math.round(disc), currency)}` : undefined,
       total: fmtMoney(net, currency),
-      payment: d.payment,
+      /* Le PDF porte la devise reçue et son taux — c'est la pièce que la cliente
+         garde ; elle doit y retrouver ce qu'elle a tendu. */
+      payment: d.fx
+        ? `${d.payment} · ${d.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${d.fx.code} (1 ${d.fx.code} = ${d.fx.rate} ${currency})`
+        : d.payment,
       status: d.status,
       note: d.note?.trim() || defaultNoteFor(d),
     };
@@ -623,6 +627,7 @@ export default function Factures() {
               ) : (
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--trv-success)', textAlign: 'center' }}>
                   Payée · {selected.payment}
+                  {selected.fx && ` · ${selected.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${selected.fx.code}`}
                 </div>
               )}
             </div>
@@ -702,6 +707,20 @@ export default function Factures() {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total · TVA exonérée</div>
                 <div className="trv-doc__total">{fmtMoney(totals.net, currency)}</div>
               </div>
+
+              {/* Réglé en devise — la cliente doit lire ce qu'elle a réellement
+                  tendu, et à quel taux. Sans cette ligne, le document affirme un
+                  montant en {currency} qui n'est jamais passé par ses mains. */}
+              {active.fx && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--hairline)' }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                    Réglé en {active.fx.code} · 1 {active.fx.code} = {active.fx.rate} {currency}
+                  </div>
+                  <div className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-copper)' }}>
+                    {active.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {active.fx.code}
+                  </div>
+                </div>
+              )}
 
               <div className="trv-doc__note">
                 <span className="q">“</span>

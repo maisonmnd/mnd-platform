@@ -37,16 +37,26 @@ export function toXof(amount: number, code: string): number {
   return amount * rate;
 }
 
-/** Format maison : `180 000 F` (XOF), `1 250 €`, `$2,080`. Espace fine insécable pour les milliers. */
-export function fmtMoney(amountXof: number, code = 'XOF'): string {
+/** Habillage d'un montant DÉJÀ exprimé dans `code` — symbole, séparateurs, décimales. */
+function dress(v: number, code: string): string {
   const cur = currencyByCode(code);
   const symbol = cur?.symbol ?? code;
-  const v = convertFromXof(amountXof, code);
   const decimals = ['XOF', 'XAF', 'NGN', 'GNF', 'RWF', 'UGX', 'JPY', 'KRW'].includes(code) || Math.abs(v) >= 1000 ? 0 : 2;
   const parts = v.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   if (code === 'USD' || code === 'CAD') return `${symbol}${v.toLocaleString('en-US', { maximumFractionDigits: decimals })}`;
-  return `${parts} ${symbol}`;
+  return `${parts} ${symbol}`;
 }
+
+/** Format maison. Part d'un montant en XOF et le CONVERTIT au taux du code. */
+export function fmtMoney(amountXof: number, code = 'XOF'): string {
+  return dress(convertFromXof(amountXof, code), code);
+}
+
+/** Formate un montant DÉJÀ dans `code` — aucune conversion.
+    Pour ce que la maison détient nativement : une caisse en devise compte ses
+    propres billets. Passer par `fmtMoney` reconvertirait au taux figé du code et
+    afficherait un solde que le tiroir ne contient pas. */
+export const fmtIn = (amount: number, code: string): string => dress(amount, code);
 
 /** Format compact pour les KPI : `14,2 M F`. */
 export function fmtMoneyCompact(amountXof: number, code = 'XOF'): string {

@@ -10,7 +10,7 @@ import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, type Invoice, type PaymentMethod } from '../../../../shared/finance';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -86,10 +86,16 @@ export default function Caisse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branch.id, cashboxes]);
 
-  const activeCashbox = branchCashboxes.some((c) => c.name === cashbox)
+  /* Une caisse ne peut recevoir que sa propre devise : payer en euros doit
+     créditer le tiroir en euros, jamais celui de la maison. On restreint donc le
+     choix — et s'il n'existe aucune caisse dans cette devise, l'encaissement est
+     bloqué plutôt que versé au mauvais tiroir. */
+  const payCurrency = fxOn ? fxCode : currency;
+  const eligibleBoxes = branchCashboxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  const activeCashbox = eligibleBoxes.some((c) => c.name === cashbox)
     ? cashbox
-    : branchCashboxes[0]?.name ?? '';
-  const hasCashbox = branchCashboxes.length > 0;
+    : eligibleBoxes[0]?.name ?? '';
+  const hasCashbox = eligibleBoxes.length > 0;
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
@@ -261,13 +267,15 @@ export default function Caisse() {
                 onChange={(e) => setCashbox(e.target.value)}
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
               >
-                {branchCashboxes.map((c) => (
+                {eligibleBoxes.map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>
             ) : (
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>
-                Aucune caisse — créez-en une dans Dépenses
+                {fxOn
+                  ? `Aucune caisse en ${payCurrency} — créez-en une dans Dépenses`
+                  : 'Aucune caisse — créez-en une dans Dépenses'}
               </span>
             )}
           </label>
@@ -456,7 +464,22 @@ export default function Caisse() {
                 </div>
               )}
 
-              <Button variant="copper" size="lg" style={{ marginTop: 16, width: '100%' }} disabled={lines.length === 0 || (fxOn && fxAmount <= 0)} onClick={() => void checkout()}>
+              {fxOn && !hasCashbox && (
+                <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--color-copper)' }}>
+                  Aucune caisse ne tient des {fxCode} — créez-la dans Dépenses (Devise détenue :
+                  {' '}{fxCode}) avant d’encaisser. Les billets étrangers ne peuvent pas rejoindre
+                  le tiroir de la maison.
+                </div>
+              )}
+              <Button
+                variant="copper"
+                size="lg"
+                style={{ marginTop: 16, width: '100%' }}
+                /* Sans caisse dans la devise reçue, on refuse : verser des euros au
+                   tiroir en francs fausserait les deux soldes d'un coup. */
+                disabled={lines.length === 0 || !hasCashbox || (fxOn && fxAmount <= 0)}
+                onClick={() => void checkout()}
+              >
                 Encaisser {fxOn && fxAmount > 0
                   ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
                   : fmtMoney(netXof, currency)}

@@ -82,15 +82,30 @@ export const expenseTotal = (e: Expense): number =>
 
 export type Budget = { id: string; branchId: string; category: string; monthlyXof: number };
 
-/** Caisse — chaque branche tient plusieurs caisses ; les montants restent en XOF. */
+/** Caisse — chaque branche tient plusieurs caisses. */
 export type Cashbox = {
   id: string;
   branchId: string;
   name: string;
   sub: string; // type / référence
   glyph: string;
-  openingXof: number; // solde d'ouverture du mois
+  /** Solde d'ouverture du mois, DANS LA DEVISE DE LA CAISSE (voir `currency`).
+      Le nom du champ est historique : avant les caisses en devise, tout était
+      en XOF. Renommer casserait les données déjà enregistrées. */
+  openingXof: number;
+  /** Devise physiquement détenue. Absente = la devise de la maison.
+      Une caisse en devise garde des billets étrangers : elle ne reçoit que des
+      règlements dans SA devise, et son solde se compte dans cette devise —
+      jamais reconverti, sinon le compte ne tomberait plus juste avec le tiroir. */
+  currency?: string;
 };
+
+/** Devise d'une caisse — XOF par défaut. */
+export const cashboxCurrency = (b: Cashbox): string => b.currency || 'XOF';
+
+/** Une caisse tient-elle une devise étrangère (≠ devise de la maison) ? */
+export const isFxCashbox = (b: Cashbox, houseCurrency: string): boolean =>
+  cashboxCurrency(b) !== houseCurrency;
 
 /** Nomenclature des dépenses — catégories & sous-catégories créables. */
 export type ExpenseCategory = { id: string; name: string; subs: string[] };
