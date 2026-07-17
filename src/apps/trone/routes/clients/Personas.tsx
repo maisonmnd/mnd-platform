@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Input, Textarea } from '../../../../ds/components';
-import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona } from '../../../../shared/clients';
+import { Button, Input, Select, Textarea } from '../../../../ds/components';
+import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
 import { uid } from '../../../../shared/store';
-import { useBranchClients } from './_shared';
+import { Avatar, useBranchClients } from './_shared';
 import './clients.css';
+
+/** Aplati pour la recherche : sans casse, sans accent. */
+const fold = (s?: string) => (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
 /* Personas — l'intelligence des profils. Chaque tête couronnée reçoit un archétype ;
    ici la maison façonne chaque persona (nom, essence), en crée, en réordonne et
@@ -20,6 +23,7 @@ export default function Personas() {
   const clients = useBranchClients();
   const [allClients] = useClients();
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [tab, setTab] = useState<'archetypes' | 'clientele'>('archetypes');
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -73,10 +77,18 @@ export default function Personas() {
       <PageHead
         eyebrow="CRM · Intelligence des profils"
         title="Les personas."
-        sub="La maison attribue un archétype à chaque cliente d’après ses signaux. Ici vous façonnez chaque persona — son nom, son essence — et vous en créez de nouveaux pour affiner l’accueil."
-        actions={<Button variant="copper" onClick={addPersona}>+ Nouveau persona</Button>}
+        sub="La maison attribue un archétype à chaque cliente d’après ses signaux. Ici vous façonnez chaque persona — son nom, son essence — et vous gérez qui le porte."
+        actions={tab === 'archetypes' ? <Button variant="copper" onClick={addPersona}>+ Nouveau persona</Button> : undefined}
       />
 
+      <div className="trc-tabs" style={{ marginBottom: 22 }}>
+        <button className={`trc-tab ${tab === 'archetypes' ? 'is-active' : ''}`} onClick={() => setTab('archetypes')}>Les archétypes</button>
+        <button className={`trc-tab ${tab === 'clientele' ? 'is-active' : ''}`} onClick={() => setTab('clientele')}>Clientèle par persona</button>
+      </div>
+
+      {tab === 'clientele' && <ClienteleTab personas={personas} clients={clients} />}
+
+      {tab === 'archetypes' && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {personas.map((p, i) => {
           const count = counts.get(p.id) ?? 0;
@@ -153,6 +165,76 @@ export default function Personas() {
             </div>
           );
         })}
+      </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Onglet · Clientèle par persona ----------
+   La liste, persona par persona : choisir un archétype montre qui le porte, et
+   chaque cliente peut basculer vers un autre persona d'un geste. « À classer »
+   regroupe les fiches dont le persona n'existe plus (imports, héritage). */
+function ClienteleTab({ personas, clients }: { personas: Persona[]; clients: Client[] }) {
+  const known = useMemo(() => new Set(personas.map((p) => p.id)), [personas]);
+  const orphanCount = clients.filter((c) => !known.has(c.persona)).length;
+  const [sel, setSel] = useState<string>(personas[0]?.id ?? '__none__');
+  const [q, setQ] = useState('');
+
+  const reassign = (clientId: string, personaId: string) =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, persona: personaId } : c)));
+
+  const countOf = (id: string) => (id === '__none__' ? orphanCount : clients.filter((c) => c.persona === id).length);
+  const inPersona = clients.filter((c) => (sel === '__none__' ? !known.has(c.persona) : c.persona === sel));
+  const shown = inPersona.filter((c) => { const n = fold(q); return !n || fold(c.name).includes(n); });
+  const selName = sel === '__none__' ? 'À classer' : personas.find((p) => p.id === sel)?.name ?? '';
+
+  return (
+    <div>
+      {/* Choix du persona à gérer */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {personas.map((p) => (
+          <button key={p.id} className={`trc-chip ${sel === p.id ? 'is-active' : ''}`} onClick={() => setSel(p.id)}>
+            {p.name} <span className="count">{countOf(p.id)}</span>
+          </button>
+        ))}
+        {orphanCount > 0 && (
+          <button className={`trc-chip ${sel === '__none__' ? 'is-active' : ''}`} onClick={() => setSel('__none__')}>
+            À classer <span className="count">{orphanCount}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Recherche dans le persona courant */}
+      <div className="trc-toolbar" style={{ marginBottom: 14 }}>
+        <div className="trc-searchwrap">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Rechercher dans « ${selName} »…`} aria-label="Rechercher une cliente" />
+        </div>
+      </div>
+
+      <div className="trc-sheet">
+        <div className="trc-sheet__group">{selName} · {inPersona.length} cliente{inPersona.length > 1 ? 's' : ''}</div>
+        {shown.length === 0 && (
+          <div className="trc-empty">{q ? `Aucune cliente ne répond à « ${q.trim()} ».` : 'Aucune cliente sur ce persona.'}</div>
+        )}
+        {shown.map((c) => (
+          <div key={c.id} className="trc-sheet__row" style={{ gridTemplateColumns: '1fr 220px', gap: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <Avatar client={c} size={34} />
+              <span style={{ minWidth: 0 }}>
+                <span className="trc-name" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span className="trc-sub">{c.city || '—'}</span>
+              </span>
+            </span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, justifySelf: 'end', width: '100%' }}>
+              <span className="trc-sub" style={{ flex: 'none' }}>Persona</span>
+              <Select value={known.has(c.persona) ? c.persona : ''} onChange={(e) => reassign(c.id, e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+                {!known.has(c.persona) && <option value="" disabled>À classer</option>}
+                {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+            </label>
+          </div>
+        ))}
       </div>
     </div>
   );

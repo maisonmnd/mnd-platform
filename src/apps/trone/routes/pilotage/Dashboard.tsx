@@ -271,7 +271,9 @@ export default function Dashboard() {
     const rows: DrillRow[] = [
       ...appts
         .filter((a) => a.date === iso && !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today)))
-        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptTotalXof(a, byId) })),
+        // Un rituel du carnet n'a pas (encore) de facture : la ligne ouvre son RDV,
+        // d'où l'on encaisse — plutôt que de mener à une facture qui n'existe pas.
+        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptTotalXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
       ...invoices
         .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
         .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),

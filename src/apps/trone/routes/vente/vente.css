@@ -404,21 +404,42 @@
   white-space: nowrap;
 }
 
-/* Sept colonnes ne tiennent pas sur un téléphone : la feuille se replie en
-   fiches — le nom et le montant d'abord, le reste en dessous. */
+/* Case à cocher — colonne de sélection (première cellule de chaque ligne). */
+.trv-pick { display: flex; align-items: center; justify-content: center; }
+.trv-pick input { width: 15px; height: 15px; accent-color: var(--color-copper); cursor: pointer; }
+.trv-sheet .trc-sheet__row.is-picked { background: var(--copper-50); box-shadow: inset 3px 0 0 var(--color-copper); }
+
+/* Barre de sélection — actions groupées quand des documents sont cochés. */
+.trv-selbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+}
+.trv-selbar__count { font-family: var(--font-sans); font-size: 12.5px; font-weight: var(--weight-medium); color: var(--copper-700); }
+.trv-selbar__link { background: none; border: none; cursor: pointer; font: inherit; font-size: 11.5px; color: var(--color-indigo); }
+.trv-selbar__link:hover { color: var(--color-copper); }
+
+/* Huit colonnes ne tiennent pas sur un téléphone : la feuille se replie en
+   fiches — la case et le nom d'abord, le reste en dessous. */
 @media (max-width: 860px) {
   .trv-sheet .trc-sheet__head { display: none; }
   .trv-sheet .trc-sheet__row {
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: auto 1fr auto !important;
     gap: 4px 10px;
     padding: 12px 14px;
   }
-  .trv-sheet .trc-sheet__row > span:nth-child(1) { grid-column: 1; order: 2; }
-  .trv-sheet .trc-sheet__row > span:nth-child(2) { grid-column: 2; order: 3; text-align: right; }
-  .trv-sheet .trc-sheet__row > span:nth-child(3) { grid-column: 1; order: 1; }
-  .trv-sheet .trc-sheet__row > span:nth-child(4) { grid-column: 1; order: 4; }
-  .trv-sheet .trc-sheet__row > span:nth-child(5) { grid-column: 2; order: 1; justify-self: end; }
-  .trv-sheet .trc-sheet__row > span:nth-child(6) { grid-column: 1 / -1; order: 5; justify-content: flex-start !important; margin-top: 4px; }
+  .trv-sheet .trc-sheet__row > span:nth-child(1) { grid-column: 1; grid-row: 1; order: 0; align-self: start; }        /* case */
+  .trv-sheet .trc-sheet__row > span:nth-child(2) { grid-column: 2; order: 2; }                                        /* date */
+  .trv-sheet .trc-sheet__row > span:nth-child(3) { grid-column: 3; order: 3; text-align: right; }                     /* numéro */
+  .trv-sheet .trc-sheet__row > span:nth-child(4) { grid-column: 2; order: 1; }                                        /* cliente */
+  .trv-sheet .trc-sheet__row > span:nth-child(5) { grid-column: 2; order: 4; }                                        /* règlement */
+  .trv-sheet .trc-sheet__row > span:nth-child(6) { grid-column: 3; order: 1; justify-self: end; }                     /* montant */
+  .trv-sheet .trc-sheet__row > span:nth-child(7) { grid-column: 2 / -1; order: 5; justify-content: flex-start !important; margin-top: 4px; }  /* statut */
 }
 
 .trv-doc-item {

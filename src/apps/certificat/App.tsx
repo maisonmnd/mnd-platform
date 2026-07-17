@@ -90,16 +90,28 @@ function dateLongue(iso: string): string {
 function initFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const annee = new Date().getFullYear();
+  const parcours = params.get('parcours')?.trim() || '';
+  const match = findFormation(parcours);
+  /* Parcours absent du catalogue (formation maison, intitulé libre venu de l'ERP) :
+     on forge une formation sur-mesure — sans quoi le certificat affichait un autre
+     parcours que celui délivré. */
+  const custom: Formation | null =
+    !match && parcours
+      ? { id: 'sur-mesure', titre: parcours, niveau: 'Parcours de la Maison', duree: 'sur dossier', competences: 'les gestes et le protocole de la Maison MND' }
+      : null;
   return {
     apprenant: params.get('apprenant')?.trim() || 'Vioutou Raimath Bonou',
-    formationId: findFormation(params.get('parcours'))?.id ?? FORMATIONS[1].id,
+    formationId: match?.id ?? custom?.id ?? FORMATIONS[1].id,
     dateIso: new Date().toISOString().slice(0, 10),
     certNo: `MND-AC-${annee}-0042`,
+    custom,
   };
 }
 
 export default function App() {
   const [init] = useState(initFromUrl);
+  /* Le catalogue affiché inclut, le cas échéant, la formation sur-mesure reçue par URL. */
+  const [formations] = useState<Formation[]>(() => (init.custom ? [init.custom, ...FORMATIONS] : FORMATIONS));
   const [apprenant, setApprenant] = useState(init.apprenant);
   const [formationId, setFormationId] = useState(init.formationId);
   const [dateIso, setDateIso] = useState(init.dateIso);
@@ -118,7 +130,7 @@ export default function App() {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  const formation = FORMATIONS.find((f) => f.id === formationId) ?? FORMATIONS[0];
+  const formation = formations.find((f) => f.id === formationId) ?? formations[0];
   const nom = apprenant.trim() || 'Nom de l’apprenant';
   const dateAffichee = dateLongue(dateIso);
 
@@ -163,7 +175,7 @@ export default function App() {
 
             <Field label="Parcours · formations de l’Académie">
               <Select value={formationId} onChange={(e) => setFormationId(e.target.value)}>
-                {FORMATIONS.map((f) => (
+                {formations.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.titre}
                   </option>

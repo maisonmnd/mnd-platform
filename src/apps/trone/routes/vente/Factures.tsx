@@ -66,8 +66,8 @@ const fmtDateFr = (iso: string) => {
 const fold = (s?: string) =>
   (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
-/** Colonnes de la feuille — mêmes proportions que le Carnet. */
-const GRID = '92px 1fr 1.2fr 1fr 0.9fr 128px';
+/** Colonnes de la feuille — une case à cocher, puis les proportions du Carnet. */
+const GRID = '34px 92px 1fr 1.2fr 1fr 0.9fr 128px';
 
 type EditState = { mode: 'new' | 'edit'; draft: Invoice };
 
@@ -92,6 +92,8 @@ export default function Factures() {
   const [freeAmount, setFreeAmount] = useState('');
   const [editing, setEditing] = useState<EditState | null>(null);
   const [waHint, setWaHint] = useState<string | null>(null);
+  /* Sélection multiple — cocher des documents pour les supprimer d'un geste. */
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
 
   const branchDocs = useMemo(
     () => invoices.filter((i) => i.branchId === branch.id).sort((a, b) => b.date.localeCompare(a.date)),
@@ -277,6 +279,31 @@ export default function Factures() {
     setInvoices((prev) => prev.filter((i) => i.id !== id));
     if (editing?.draft.id === id) setEditing(null);
     if (selectedId === id) setSelectedId(null);
+    setPicked((prev) => { const n = new Set(prev); n.delete(id); return n; });
+  };
+
+  /* ----- Sélection multiple ----- */
+  const togglePick = (id: string) =>
+    setPicked((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  /* Cocher / décocher tout ce qui est visible (le filtre courant). */
+  const allVisible = filtered.length > 0 && filtered.every((d) => picked.has(d.id));
+  const toggleAll = () =>
+    setPicked((prev) => {
+      const n = new Set(prev);
+      if (allVisible) filtered.forEach((d) => n.delete(d.id));
+      else filtered.forEach((d) => n.add(d.id));
+      return n;
+    });
+  const clearPicked = () => setPicked(new Set());
+  const deletePicked = () => {
+    const ids = [...picked];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Supprimer définitivement ${ids.length} document${ids.length > 1 ? 's' : ''} ? Cette action est irréversible.`)) return;
+    const gone = new Set(ids);
+    setInvoices((prev) => prev.filter((i) => !gone.has(i.id)));
+    if (editing && gone.has(editing.draft.id)) setEditing(null);
+    if (selectedId && gone.has(selectedId)) setSelectedId(null);
+    clearPicked();
   };
 
   /* ----- Lignes (agissent sur le brouillon en cours d’édition) ----- */
@@ -381,12 +408,21 @@ export default function Factures() {
     const isActive = (editing?.draft.id ?? selected?.id) === d.id;
     return (
       <div
-        className={`trc-sheet__row ${isActive ? 'is-active' : ''}`}
+        className={`trc-sheet__row ${isActive ? 'is-active' : ''} ${picked.has(d.id) ? 'is-picked' : ''}`}
         style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
         key={d.id}
         onClick={() => selectDoc(d)}
         title={`Ouvrir ${d.kind === 'devis' ? 'ce devis' : 'cette facture'}`}
       >
+        {/* La case ne doit pas ouvrir le document : on stoppe la propagation. */}
+        <span className="trv-pick" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            aria-label={`Sélectionner ${d.number}`}
+            checked={picked.has(d.id)}
+            onChange={() => togglePick(d.id)}
+          />
+        </span>
         <span className="trc-date">{frDay(d.date)}</span>
         <span className="trv-row__no">{d.number}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -459,9 +495,30 @@ export default function Factures() {
         </Select>
       </div>
 
+      {/* ===== Barre de sélection — n'apparaît qu'une fois des documents cochés ===== */}
+      {picked.size > 0 && (
+        <div className="trv-selbar">
+          <span className="trv-selbar__count">{picked.size} sélectionné{picked.size > 1 ? 's' : ''}</span>
+          <button className="trv-selbar__link" onClick={clearPicked}>Tout désélectionner</button>
+          <Button variant="ghost" size="sm" style={{ marginLeft: 'auto', color: 'var(--trv-error)' }} onClick={deletePicked}>
+            Supprimer la sélection
+          </Button>
+        </div>
+      )}
+
       {/* ===== La feuille — factures d'abord, devis en dessous ===== */}
       <div className="trc-sheet trv-sheet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
+          <span className="trv-pick">
+            <input
+              type="checkbox"
+              aria-label="Tout sélectionner"
+              title="Tout sélectionner"
+              checked={allVisible}
+              ref={(el) => { if (el) el.indeterminate = picked.size > 0 && !allVisible; }}
+              onChange={toggleAll}
+            />
+          </span>
           <span>Date</span>
           <span>Numéro</span>
           <span>Cliente</span>

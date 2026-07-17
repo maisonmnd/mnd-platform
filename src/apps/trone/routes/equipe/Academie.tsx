@@ -254,6 +254,11 @@ export default function Academie() {
 
   const detail = apDetail ? apprenants.find((a) => a.id === apDetail) : null;
 
+  /* Lien vers l'app Certificat, pré-remplie du nom et du parcours. L'app lit
+     `?apprenant=` et `?parcours=` — sans quoi « Voir » n'ouvrait rien. */
+  const certHref = (name: string, parcours: string) =>
+    `${asset('/certificat.html')}?apprenant=${encodeURIComponent(name)}&parcours=${encodeURIComponent(parcours)}`;
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -421,7 +426,15 @@ export default function Academie() {
                 <span className="mnd-muted" style={{ fontSize: 12 }}>{c.date}</span>
                 <Pill tone={c.statut === 'Délivrée' ? 'ok' : 'warn'}>{c.statut}</Pill>
                 <div style={{ display: 'flex', gap: 12, flex: 'none', alignItems: 'center' }}>
-                  <Button size="sm" onClick={() => setNote(`Certificat de ${c.name} — ouvrez l’app Certificat pour voir / envoyer (A4, sceau MND, WhatsApp / email).`)}>Voir / Envoyer</Button>
+                  <a
+                    href={certHref(c.name, c.parcours)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mnd-btn mnd-btn--indigo mnd-btn--sm"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    Voir / Envoyer
+                  </a>
                   <button className="tre-link-btn" onClick={() => openCeEdit(c)}>Modifier</button>
                   <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeCe(c.id)}>Retirer</button>
                 </div>
