@@ -15,6 +15,29 @@ type Formation = {
 };
 
 const FORMATIONS: Formation[] = [
+  /* Les trois paliers de la Maison — alignés sur « la logique de palier » du
+     référentiel (L'Initiation · L'Affirmation · L'Œuvre). */
+  {
+    id: 'fondation',
+    titre: 'Fondation',
+    niveau: 'Palier I · L’Initiation',
+    duree: 'quatre semaines · six séances',
+    competences: 'les gestes fondateurs de la Maison — purifier, nourrir, sceller et couronner la mèche',
+  },
+  {
+    id: 'affirmation',
+    titre: 'Affirmation',
+    niveau: 'Palier II · L’Affirmation',
+    duree: 'huit semaines · dix séances',
+    competences: 'la reprise de racines, le resserrage de précision et la conduite d’un rituel de soin complet',
+  },
+  {
+    id: 'oeuvre',
+    titre: 'L’Œuvre',
+    niveau: 'Palier III · L’Œuvre',
+    duree: 'trois mois · douze séances',
+    competences: 'la maîtrise d’œuvre du soin des locks, la conduite d’atelier et la transmission de la méthode',
+  },
   {
     id: 'initiation',
     titre: 'Initiation au soin des locks',
@@ -97,7 +120,14 @@ function initFromUrl() {
      parcours que celui délivré. */
   const custom: Formation | null =
     !match && parcours
-      ? { id: 'sur-mesure', titre: parcours, niveau: 'Parcours de la Maison', duree: 'sur dossier', competences: 'les gestes et le protocole de la Maison MND' }
+      ? {
+          id: 'sur-mesure',
+          titre: parcours,
+          // Niveau et durée réels transmis par l'ERP (sinon repli générique).
+          niveau: params.get('niveau')?.trim() || 'Parcours de la Maison',
+          duree: params.get('duree')?.trim() || 'sur dossier',
+          competences: 'les gestes et le protocole de la Maison MND',
+        }
       : null;
   return {
     apprenant: params.get('apprenant')?.trim() || 'Vioutou Raimath Bonou',

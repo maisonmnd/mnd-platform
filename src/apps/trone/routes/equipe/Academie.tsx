@@ -255,9 +255,18 @@ export default function Academie() {
   const detail = apDetail ? apprenants.find((a) => a.id === apDetail) : null;
 
   /* Lien vers l'app Certificat, pré-remplie du nom et du parcours. L'app lit
-     `?apprenant=` et `?parcours=` — sans quoi « Voir » n'ouvrait rien. */
-  const certHref = (name: string, parcours: string) =>
-    `${asset('/certificat.html')}?apprenant=${encodeURIComponent(name)}&parcours=${encodeURIComponent(parcours)}`;
+     `?apprenant=`, `?parcours=` — et, si la formation existe au catalogue de la
+     maison, son niveau et sa durée réels, pour que le certificat porte les vrais
+     chiffres plutôt qu'un générique. */
+  const certHref = (name: string, parcours: string) => {
+    const p = new URLSearchParams({ apprenant: name, parcours });
+    const fo = formations.find((f) => f.name === parcours);
+    if (fo) {
+      p.set('niveau', fo.niveau);
+      p.set('duree', `${fo.dureeSemaines} semaine${fo.dureeSemaines > 1 ? 's' : ''} · ${fo.sessions} séance${fo.sessions > 1 ? 's' : ''}`);
+    }
+    return `${asset('/certificat.html')}?${p.toString()}`;
+  };
 
   return (
     <div className="mnd-rise">
