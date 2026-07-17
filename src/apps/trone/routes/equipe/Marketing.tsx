@@ -5,15 +5,18 @@ import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients } from '../../../../shared/clients';
+import {
+  useClients, useSegments, addSegment, renameSegment, removeSegment,
+} from '../../../../shared/clients';
+import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import { pushBroadcastClients } from '../../../../shared/push';
 import {
   AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
-  automationsActiveStore, automationsStore, autoConfigStore, useAutomations,
+  automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers,
-  type Automation, type AutomationCanal, type InstantOffer,
+  type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import './equipe.css';
@@ -46,12 +49,59 @@ export default function Marketing() {
   const [campaigns] = useCampaigns();
   const [offers, setOffers] = useOffers();
   const [clients] = useClients();
+  const [invoices] = useInvoices(); // valeur moyenne réelle par segment
   const [services] = useServices();
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
   const [automations, setAutomations] = useAutomations();
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
   /* null = fermée ; objet = édition ; 'new' = création. */
   const [autoModal, setAutoModal] = useState<Automation | 'new' | null>(null);
+
+  /* ----- Audience : la liste des segments s'édite ici ----- */
+  const [segmentList] = useSegments();
+  const [segNotes, setSegNotes] = useStore(segmentNotesStore);
+  const [segEdit, setSegEdit] = useState<string | null>(null);
+  const [segEditVal, setSegEditVal] = useState('');
+  const [newSeg, setNewSeg] = useState('');
+
+  const addNewSeg = () => {
+    addSegment(newSeg);
+    setNewSeg('');
+  };
+
+  const commitSegRename = (from: string) => {
+    const to = segEditVal.trim();
+    /* Renomme la liste ET les fiches taguées — voir `renameSegment`. Les notes
+       suivent le nouveau nom, sinon la connaissance des maîtres serait perdue. */
+    if (to && to !== from) {
+      renameSegment(from, to);
+      setSegNotes((prev) => {
+        const note = prev[from];
+        if (!note) return prev;
+        const { [from]: _drop, ...rest } = prev;
+        return { ...rest, [to]: note };
+      });
+    }
+    setSegEdit(null);
+    setSegEditVal('');
+  };
+
+  const dropSegment = (name: string, size: number) => {
+    const msg = size > 0
+      ? `Retirer « ${name} » ? ${size} fiche${size > 1 ? 's' : ''} le porte${size > 1 ? 'nt' : ''} : le tag sera retiré de ces fiches.`
+      : `Retirer le segment « ${name} » ?`;
+    if (!window.confirm(msg)) return;
+    /* Ici on retire AUSSI des fiches : la table qu'on vient de lire montre
+       combien sont touchées, la maison décide en connaissance de cause. */
+    removeSegment(name, true);
+    setSegNotes((prev) => {
+      const { [name]: _drop, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const setNote = (seg: string, patch: SegmentNote) =>
+    setSegNotes((prev) => ({ ...prev, [seg]: { ...(prev[seg] ?? {}), ...patch } }));
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);
   const [offerForm, setOfferForm] = useState<OfferForm>(emptyOffer);
@@ -75,15 +125,39 @@ export default function Marketing() {
   const branchOffers = useMemo(() => offers.filter((o) => o.branchId === branch.id), [offers, branch.id]);
 
   /* — audience : segments réels des têtes couronnées de la branche — */
+  /* L'audience est pilotée par la LISTE gérable, pas seulement par les segments
+     déjà portés : un segment fraîchement créé doit apparaître (taille 0) pour
+     qu'on puisse le nommer et l'annoter avant la première cliente.
+     Un segment orphelin (porté par des fiches mais absent de la liste) est
+     montré quand même — le taire reviendrait à cacher des clientes. */
   const audienceRows = useMemo(() => {
-    const map = new Map<string, number>();
-    clients
-      .filter((c) => c.branchId === branch.id && !c.archived)
-      .forEach((c) => c.segments.forEach((s) => map.set(s, (map.get(s) ?? 0) + 1)));
-    return Array.from(map.entries())
-      .map(([seg, size]) => ({ seg, size }))
-      .sort((a, b) => b.size - a.size);
-  }, [clients, branch.id]);
+    const inBranch = clients.filter((c) => c.branchId === branch.id && !c.archived);
+    const size = new Map<string, number>();
+    const spend = new Map<string, number>();
+    inBranch.forEach((c) => {
+      const paid = invoices
+        .filter((i) => i.clientId === c.id && i.kind === 'facture' && i.status === 'payée')
+        .reduce((s, i) => s + invoiceTotal(i), 0);
+      c.segments.forEach((s) => {
+        size.set(s, (size.get(s) ?? 0) + 1);
+        spend.set(s, (spend.get(s) ?? 0) + paid);
+      });
+    });
+    const orphans = Array.from(size.keys()).filter((s) => !segmentList.includes(s));
+    return [...segmentList, ...orphans]
+      .map((seg) => {
+        const n = size.get(seg) ?? 0;
+        return {
+          seg,
+          size: n,
+          /* Valeur moyenne réelle : factures payées des clientes du segment.
+             « — » tant qu'aucune n'a payé — la maison n'invente pas un panier. */
+          value: n > 0 ? Math.round((spend.get(seg) ?? 0) / n) : 0,
+          orphan: !segmentList.includes(seg),
+        };
+      })
+      .sort((a, b) => b.size - a.size || a.seg.localeCompare(b.seg));
+  }, [clients, invoices, branch.id, segmentList]);
 
   const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');
 
@@ -362,37 +436,97 @@ export default function Marketing() {
 
       {tab === 'audience' && (
         <div>
-          {audienceRows.length === 0 ? (
-            <Card className="tre-empty">
-              <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
-              <div className="tre-empty__title">Aucun segment pour l’instant.</div>
-              <div className="tre-empty__sub">Les segments naîtront des têtes couronnées de la maison — inscrivez-les au CRM, l’audience se dessinera ici.</div>
-            </Card>
-          ) : (
-            <Card style={{ overflow: 'hidden' }}>
-              <div className="mnd-scroll-x">
-                <table className="tre-table">
-                  <thead>
-                    <tr><th>Segment</th><th>Taille</th><th>Valeur moy.</th><th>Propension à réserver</th><th>Moment idéal</th></tr>
-                  </thead>
-                  <tbody>
-                    {audienceRows.map((a) => (
+          <Card style={{ overflow: 'hidden' }}>
+            <div className="mnd-scroll-x">
+              <table className="tre-table">
+                <thead>
+                  <tr>
+                    <th>Segment</th><th>Taille</th><th>Valeur moy.</th>
+                    <th>Propension à réserver</th><th>Moment idéal</th><th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {audienceRows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 28 }}>
+                        Aucun segment — nommez le premier ci-dessous, l’audience se dessinera avec les têtes couronnées.
+                      </td>
+                    </tr>
+                  )}
+                  {audienceRows.map((a) => {
+                    const note = segNotes[a.seg] ?? {};
+                    return (
                       <tr key={a.seg}>
-                        <td><span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{a.seg}</span></td>
+                        <td>
+                          {segEdit === a.seg ? (
+                            <Input
+                              autoFocus
+                              value={segEditVal}
+                              onChange={(e) => setSegEditVal(e.target.value)}
+                              onBlur={() => commitSegRename(a.seg)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') commitSegRename(a.seg);
+                                if (e.key === 'Escape') setSegEdit(null);
+                              }}
+                              style={{ maxWidth: 190 }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className="tre-segname"
+                              title="Renommer — les fiches taguées suivent"
+                              onClick={() => { setSegEdit(a.seg); setSegEditVal(a.seg); }}
+                            >
+                              {a.seg}
+                              {a.orphan && <span className="tre-orphan" title="Porté par des fiches mais absent de la liste">hors liste</span>}
+                            </button>
+                          )}
+                        </td>
                         <td>{a.size}</td>
-                        <td className="num mnd-muted">—</td>
-                        <td className="mnd-muted">—</td>
-                        <td className="mnd-muted" style={{ fontSize: 12 }}>—</td>
+                        <td className={a.value > 0 ? 'num' : 'num mnd-muted'}>
+                          {a.value > 0 ? fmtMoney(a.value, currency) : '—'}
+                        </td>
+                        <td>
+                          <Input
+                            value={note.propension ?? ''}
+                            placeholder="—"
+                            onChange={(e) => setNote(a.seg, { propension: e.target.value })}
+                            style={{ maxWidth: 180 }}
+                          />
+                        </td>
+                        <td>
+                          <Input
+                            value={note.moment ?? ''}
+                            placeholder="—"
+                            onChange={(e) => setNote(a.seg, { moment: e.target.value })}
+                            style={{ maxWidth: 180 }}
+                          />
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button type="button" className="tre-segdel" title="Retirer ce segment" onClick={() => dropSegment(a.seg, a.size)}>
+                            ✕
+                          </button>
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11, padding: '10px 18px', borderTop: '1px solid var(--hairline)' }}>
-                Valeur, propension et moment idéal se calculeront avec le vécu — jamais d’invention.
-              </div>
-            </Card>
-          )}
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 18px', borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+              <Input
+                value={newSeg}
+                placeholder="Nommer un segment — ex. Diaspora Paris"
+                onChange={(e) => setNewSeg(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addNewSeg(); }}
+                style={{ maxWidth: 260 }}
+              />
+              <Button variant="ghost" onClick={addNewSeg}>+ Segment</Button>
+              <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
+                Taille et valeur viennent du vécu · propension et moment sont la parole des maîtres.
+              </span>
+            </div>
+          </Card>
         </div>
       )}
 

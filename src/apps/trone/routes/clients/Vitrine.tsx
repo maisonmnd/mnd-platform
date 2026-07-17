@@ -310,7 +310,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 18, alignItems: 'start' }}>
       {/* Colonne gauche · la cliente + réglages globaux */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: 'var(--color-obsidian)', borderRadius: 4, padding: '22px', color: 'var(--color-ivoire)' }}>
+        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '22px', color: 'var(--color-ivoire)' }}>
           <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>La cliente devant la régie</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14 }}>
             <Avatar client={client} size={52} />
@@ -375,7 +375,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         })}
 
         {/* Le tapis de cuivre */}
-        <div style={{ background: 'var(--grad-obsidian, linear-gradient(135deg,#1b1b23,#14141b))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
+        <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
           <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>Le tapis de cuivre · {client.name.split(' ')[0]}</div>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>Ce qu’elle foulera, dans cet ordre — rien d’autre.</div>
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>

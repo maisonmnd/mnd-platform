@@ -937,7 +937,7 @@ function OnlineSection() {
 
       {/* Carte live · dernier diagnostic reçu */}
       {live && (
-        <div style={{ background: 'var(--color-obsidian)', borderRadius: 6, padding: '20px 24px', color: 'var(--color-ivoire)', marginBottom: 22 }}>
+        <div style={{ background: 'var(--color-indigo)', borderRadius: 6, padding: '20px 24px', color: 'var(--color-ivoire)', marginBottom: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-copper)', flex: 'none' }} />

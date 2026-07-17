@@ -58,6 +58,46 @@ export type Persona = {
   builtin: boolean;
 };
 
+/* ---------- Gestion des segments — la liste ET les fiches taguées ----------
+   Un segment n'existe pas qu'en liste : il est recopié dans `client.segments`.
+   Toute opération sur la liste doit donc décider du sort des fiches, sinon on
+   laisse des libellés orphelins que plus rien ne sait retrouver. */
+
+/** Ajoute un segment (trim + dédoublonnage insensible à la casse). */
+export function addSegment(name: string): void {
+  const t = name.trim();
+  if (!t) return;
+  segmentsStore.set((prev) => (prev.some((s) => s.toLowerCase() === t.toLowerCase()) ? prev : [...prev, t]));
+}
+
+/** Renomme un segment PARTOUT : la liste et les fiches déjà taguées.
+    Sans la migration des fiches, un renommage laisserait chaque cliente porter
+    l'ancien libellé — absent de la liste, donc introuvable et infiltrable. */
+export function renameSegment(from: string, to: string): void {
+  const next = to.trim();
+  if (!next || next === from) return;
+  /* Le renommage peut faire tomber sur un segment existant : on dédoublonne
+     plutôt que de créer deux entrées identiques. */
+  segmentsStore.set((prev) => Array.from(new Set(prev.map((s) => (s === from ? next : s)))));
+  clientsStore.set((prev) =>
+    prev.map((c) =>
+      c.segments.includes(from)
+        ? { ...c, segments: Array.from(new Set(c.segments.map((s) => (s === from ? next : s)))) }
+        : c,
+    ),
+  );
+}
+
+/** Retire un segment de la liste. `alsoFromClients` le retire aussi des fiches
+    (sinon elles le gardent — c'est une trace, pas une erreur). */
+export function removeSegment(name: string, alsoFromClients = false): void {
+  segmentsStore.set((prev) => prev.filter((s) => s !== name));
+  if (!alsoFromClients) return;
+  clientsStore.set((prev) =>
+    prev.map((c) => (c.segments.includes(name) ? { ...c, segments: c.segments.filter((s) => s !== name) } : c)),
+  );
+}
+
 /** Persona d'accueil — toute nouvelle tête couronnée entre par là, avant que la
     maison ne la nomme autrement. `builtin` : fourni par la maison, pas né de l'usage. */
 export const INITIE_PERSONA: Persona = {

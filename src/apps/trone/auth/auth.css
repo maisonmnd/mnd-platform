@@ -7,7 +7,7 @@
   padding: 24px;
   background:
     radial-gradient(1200px 600px at 50% -10%, rgba(30, 33, 80, 0.55), transparent 60%),
-    var(--color-obsidian, #14141b);
+    var(--color-indigo-deep, #15173a);
 }
 
 .tra-card {

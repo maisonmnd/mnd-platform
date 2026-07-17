@@ -52,7 +52,7 @@
 
 /* ---------- Bandeau sombre ---------- */
 .trf-obsidian {
-  background: var(--grad-obsidian);
+  background: var(--grad-indigo);
   border-radius: var(--radius-md);
   padding: 18px 22px;
   color: var(--color-ivoire);
@@ -145,7 +145,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--copper-200);
-  background: var(--color-obsidian);
+  background: var(--color-indigo);
   border-radius: var(--radius-pill);
   padding: 5px 11px;
   white-space: nowrap;
@@ -365,7 +365,7 @@
   text-align: center;
   color: var(--color-ivoire);
 }
-.trf-mirror--off { background: var(--grad-obsidian); }
+.trf-mirror--off { background: var(--grad-indigo); }
 .trf-mirror__eyebrow { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper-200); }
 .trf-mirror__line { font-family: var(--font-serif); font-style: italic; font-size: 16px; color: rgba(244, 240, 232, 0.82); margin-top: 14px; line-height: 1.4; }
 .trf-mirror__price { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 46px; color: var(--color-ivoire); margin-top: 8px; line-height: 1; }

@@ -131,6 +131,12 @@ export const AUTOMATIONS_SEED: Automation[] = [
   { id: 'a6', trig: 'Stock bas · seuil', act: 'Bon de réassort fournisseur', canal: 'Système', runs: 0 },
 ];
 
+/** Ce que la maison SAIT d'un segment. Ni dérivé ni deviné : la connaissance des
+    maîtres, écrite à la main — la taille et la valeur, elles, viennent du vécu. */
+export type SegmentNote = { propension?: string; moment?: string };
+export const segmentNotesStore = createStore<Record<string, SegmentNote>>('mnd_segment_notes', {});
+export const useSegmentNotes = () => useStore(segmentNotesStore);
+
 /** Liste gérable des automatisations (Marketing), synchronisée Supabase. */
 export const automationsStore = createStore<Automation[]>('mnd_automations', AUTOMATIONS_SEED);
 export const useAutomations = () => useStore(automationsStore);
@@ -490,6 +496,7 @@ bindCollection(subscribersStore, 'subscribers');
 bindCollection(formationsStore, 'formations');
 bindCollection(apprenantsStore, 'apprenants');
 bindCollection(certifsStore, 'certifications');
+bindDocument(segmentNotesStore, 'mnd_segment_notes');
 bindDocument(automationsStore, 'mnd_automations');
 bindDocument(automationsActiveStore, 'mnd_automations_active');
 bindDocument(autoConfigStore, 'mnd_auto_config');

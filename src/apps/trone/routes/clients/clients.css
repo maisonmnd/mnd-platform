@@ -423,7 +423,7 @@
   position: relative;
   border-radius: var(--radius-lg, 8px);
   overflow: hidden;
-  background: radial-gradient(120% 80% at 78% 18%, rgba(185, 122, 74, 0.18), transparent 60%), var(--grad-obsidian);
+  background: radial-gradient(120% 80% at 78% 18%, rgba(185, 122, 74, 0.18), transparent 60%), var(--grad-indigo);
   min-height: 520px;
   display: flex;
   flex-direction: column;

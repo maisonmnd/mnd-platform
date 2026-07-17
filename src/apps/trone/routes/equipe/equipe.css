@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  background: var(--color-obsidian);
+  background: var(--color-indigo);
   border-radius: var(--radius-md);
   padding: 20px 22px;
   margin-bottom: var(--space-4);
@@ -234,7 +234,7 @@
 
 /* ---------- Formules d'abonnement ---------- */
 .tre-plan { position: relative; padding: 26px 24px 24px; display: flex; flex-direction: column; }
-.tre-plan--popular { background: var(--color-obsidian); border-color: var(--color-obsidian); color: var(--color-ivoire); }
+.tre-plan--popular { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
 .tre-plan__tagpop {
   position: absolute;
   top: -11px;
@@ -285,7 +285,7 @@
   flex: none;
 }
 .tre-quote {
-  background: var(--color-obsidian);
+  background: var(--color-indigo);
   border-radius: var(--radius-sm);
   padding: 16px 18px;
   font-family: var(--font-serif);
@@ -600,3 +600,45 @@
   color: var(--color-indigo);
   white-space: nowrap;
 }
+
+/* ---------- Audience · segments éditables ---------- */
+.tre-segname {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--color-indigo);
+  transition: background 0.15s ease;
+}
+.tre-segname:hover { background: var(--hover-veil); }
+/* Porté par des fiches mais absent de la liste : on le montre plutôt que de
+   cacher des clientes derrière un libellé oublié. */
+.tre-orphan {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+}
+.tre-segdel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.tre-segdel:hover { color: var(--color-copper); background: var(--hover-veil); }

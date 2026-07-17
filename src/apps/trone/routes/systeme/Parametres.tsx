@@ -6,7 +6,7 @@ import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
-import { useCrownStyles, useSegments } from '../../../../shared/clients';
+import { useCrownStyles, useSegments, renameSegment } from '../../../../shared/clients';
 import { useServices } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore } from '../../../../shared/finance';
 import { createStore, useStore } from '../../../../shared/store';
@@ -232,7 +232,10 @@ export default function Parametres() {
   };
   const commitSegRename = (idx: number) => {
     const t = segEditVal.trim();
-    if (t) setSegments((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
+    /* `renameSegment` et non un simple map : le segment est recopié dans chaque
+       fiche cliente. Renommer la seule liste laissait les fiches porter l'ancien
+       libellé — orphelin, absent de la liste, introuvable au filtre. */
+    if (t) renameSegment(segments[idx], t);
     setSegEditIdx(null);
     setSegEditVal('');
   };

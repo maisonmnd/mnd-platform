@@ -455,7 +455,7 @@ export default function Laboratoire() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ background: 'var(--color-obsidian)', borderRadius: 5, padding: '20px 22px' }}>
+            <div style={{ background: 'var(--color-indigo)', borderRadius: 5, padding: '20px 22px' }}>
               <div className="mnd-eyebrow" style={{ color: 'var(--copper-200)' }}>À réinventer · l’atelier ne dort jamais</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-ivoire)', marginTop: 7, lineHeight: 1.35 }}>Une grande formule cesse de l’être le jour où on la croit finie.</div>
             </div>

@@ -524,7 +524,7 @@ export default function Academie() {
               );
             })}
             {(() => { const mods = formationModules(detail.formationId); return mods.length > 0 && mods.every((_, i) => !!detail.modulesDone[i]); })() && (
-              <div style={{ marginTop: 12, background: 'var(--color-obsidian)', borderRadius: 4, padding: '18px 20px' }}>
+              <div style={{ marginTop: 12, background: 'var(--color-indigo)', borderRadius: 4, padding: '18px 20px' }}>
                 <div className="tre-deep__eyebrow">Parcours achevé · prêt à sceller</div>
                 <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-ivoire)', marginTop: 6 }}>La couronne peut être transmise.</div>
                 <Button variant="copper" style={{ marginTop: 16, width: '100%' }} onClick={() => sealCertificate(detail.name, formationName(detail.formationId))}>

@@ -17,7 +17,7 @@ body[data-surface='trone'] {
 
 /* ---------- Sidebar ---------- */
 .tr-side {
-  background: linear-gradient(175deg, var(--obsidian-800) 0%, var(--color-indigo-deep) 130%);
+  background: linear-gradient(175deg, var(--indigo-800) 0%, var(--color-indigo-deep) 130%);
   color: var(--color-ivoire);
   display: flex;
   flex-direction: column;
