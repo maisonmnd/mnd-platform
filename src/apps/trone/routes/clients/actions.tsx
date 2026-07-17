@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, rateToXof } from '../../../../shared/currency';
+import { CURRENCIES } from '../../../../shared/geo';
+import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { type Service } from '../../../../shared/catalog';
@@ -13,6 +15,8 @@ import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { addTip } from '../../../../shared/tips';
 import { useStaff } from '../equipe/data';
+import { Toggle } from '../equipe/ui';
+import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptDueXof, frShort, todayISO, useServicesById,
 } from './_shared';
@@ -73,6 +77,19 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   /* Le maître officiant, retrouvé dans le personnel par son nom — reçoit le pourboire. */
   const tipMaster = team.find((s) => s.name === appt.master);
   const remainingAfter = Math.max(0, due - amount);
+
+  /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
+  const [settings] = useSettings();
+  const [fxOn, setFxOn] = useState(false);
+  const [fxCode, setFxCode] = useState('EUR');
+  const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
+  const fxRateNum = Math.max(0, Number(fxRate) || 0);
+  /* Ce qui traverse VRAIMENT le comptoir : le règlement ET le pourboire. À la
+     Caisse c'était le net de la facture ; ici la cliente tend les deux d'un bloc,
+     et convertir le seul règlement lui ferait payer le pourboire en francs. */
+  const tenderXof = amount + tip;
+  const fxAmount = fxOn && fxRateNum > 0 ? Math.round((tenderXof / fxRateNum) * 100) / 100 : 0;
+
   const submitting = useRef(false); // garde-fou anti double-clic (double facture / double pourboire)
   const fullyPaid = remainingAfter === 0;
   const client = clients.find((c) => c.id === appt.clientId);
@@ -110,6 +127,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
            toujours hors chiffre d'affaires (invoiceTotal l'exclut). Seulement s'il est
            attribuable à un maître, pour que « à reverser aux maîtres » reste juste. */
         tipXof: tip > 0 && tipMaster ? tip : undefined,
+        /* Ce qui a été REÇU au comptoir — règlement + pourboire. Le rituel et la
+           facture restent chiffrés en devise de la maison. */
+        fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       };
       invoicesStore.set((prev) => [inv, ...prev]);
       if (fullyPaid) awarded = honorAppointment(appt, byId); // marque honoré + points Cercle
@@ -209,15 +229,67 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             « {appt.master || '—'} » n'est pas dans le personnel — le pourboire ne pourra pas être attribué.
           </div>
         )}
+
+        {/* Devise étrangère — le rituel reste chiffré en {currency} ; on ne note
+            ici que ce que la cliente tend au comptoir, et à quel taux. */}
+        {settings.fxEnabled && (
+          <div style={{ border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                Régler en devise étrangère
+              </span>
+              <Toggle on={fxOn} onToggle={() => setFxOn((v) => !v)} />
+            </div>
+            {fxOn && (
+              <>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <Select
+                    value={fxCode}
+                    onChange={(e) => { setFxCode(e.target.value); setFxRate(String(rateToXof(e.target.value) || '')); }}
+                    style={{ flex: '1 1 120px' }}
+                    aria-label="Devise reçue"
+                  >
+                    {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
+                      <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+                    ))}
+                  </Select>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={fxRate}
+                    onChange={(e) => setFxRate(e.target.value)}
+                    placeholder="Taux"
+                    style={{ width: 104, textAlign: 'right' }}
+                    aria-label={`Taux : 1 ${fxCode} en ${currency}`}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 8, lineHeight: 1.5 }}>
+                  1 {fxCode} = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} · taux du jour, à corriger si besoin
+                  {tip > 0 && ' · pourboire inclus'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--copper-300)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>À encaisser</span>
+                  <span className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-indigo)' }}>
+                    {fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}` : '—'}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={amount <= 0 && (tip <= 0 || !tipMaster)}
+          disabled={(amount <= 0 && (tip <= 0 || !tipMaster)) || (fxOn && fxAmount <= 0)}
           style={{ marginTop: 4 }}
         >
-          {amount <= 0 && tip > 0
-            ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-            : fullyPaid ? `Encaisser ${fmtMoney(amount, currency)} & honorer` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
+          {fxOn && fxAmount > 0
+            ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
+            : amount <= 0 && tip > 0
+              ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
+              : fullyPaid ? `Encaisser ${fmtMoney(amount, currency)} & honorer` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
         </Button>
       </div>
     </Modal>
