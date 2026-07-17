@@ -429,3 +429,42 @@
   .trp-pay__row { grid-template-columns: 1fr auto; gap: 6px 12px; }
   .trp-funnel__label { width: 92px; }
 }
+
+/* ---------- Chiffres cliquables — ce qu'il y a derrière l'indice ---------- */
+/* Un <button> hérite des styles du navigateur : on les défait pour que la carte
+   reste une carte, et l'on n'ajoute que l'affordance. */
+.trp-index--click,
+.trp-drill {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.trp-index--click {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.trp-index--click:hover {
+  border-color: var(--color-copper);
+  transform: translateY(-1px);
+}
+.trp-drill {
+  margin-bottom: 11px;
+  padding: 4px 6px;
+  margin-left: -6px;
+  margin-right: -6px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+.trp-drill:hover:not(:disabled) { background: var(--hover-veil); }
+.trp-drill--dark { margin-bottom: 0; }
+.trp-drill--dark:hover:not(:disabled) { background: rgba(246, 241, 231, 0.06); }
+/* Sans détail à montrer, la ligne reste une ligne — pas un bouton mort. */
+.trp-drill:disabled { cursor: default; }

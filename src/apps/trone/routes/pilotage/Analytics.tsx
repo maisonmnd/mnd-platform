@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Segs } from '../../../../ds/components';
+import { Modal, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
@@ -10,7 +10,10 @@ import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { useClientSessions, isOnline, type ClientSession } from '../../../../shared/activity';
-import { apptTotalXof, addDaysISO, todayISO, useServicesById } from '../clients/_shared';
+import {
+  apptLabel, apptNetXof, apptServices, apptDiscountFactor,
+  addDaysISO, frShort, todayISO, useServicesById,
+} from '../clients/_shared';
 import './pilotage.css';
 
 /* Analytics — lecture de tendance. Maison neuve : tout est dérivé des magasins
@@ -20,6 +23,10 @@ import './pilotage.css';
 type Period = 'm30' | 'trim' | 'annee';
 
 const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
+
+/** Une ligne du détail derrière un chiffre. `amount` absent = ligne non chiffrée. */
+type DrillRow = { date?: string; who: string; sub?: string; amount?: number };
+type Drill = { title: string; sub?: string; rows: DrillRow[]; total?: number };
 
 /** Durée cumulée en clair : « 42 s », « 12 min », « 1 h 05 ». */
 function fmtDuration(sec: number): string {
@@ -57,6 +64,9 @@ export default function Analytics() {
 
   const [period, setPeriod] = useState<Period>('trim');
   const [scope, setScope] = useState<string>(branch.id); // id de branche ou 'toutes'
+  /* Un indice ne vaut que si l'on peut ouvrir ce qu'il agrège : chaque chiffre
+     cliquable rend la liste des lignes qui le composent. */
+  const [drill, setDrill] = useState<Drill | null>(null);
 
   const scopedAppts = useMemo(
     () => appointments.filter((a) => (scope === 'toutes' ? true : a.branchId === scope)),
@@ -75,18 +85,21 @@ export default function Analytics() {
   const thisMonth = today.slice(0, 7);
   const periodStart = addDaysISO(today, -PERIOD_DAYS[period]);
 
-  /* — indices prospectifs : dérivés du vécu de la période, jamais inventés — */
+  /* — indices prospectifs : dérivés du vécu de la période, jamais inventés —
+     `apptNetXof` et non `apptTotalXof` : cette carte dit « Revenu ENCAISSÉ ».
+     Le total brut ignore les remises (le %, et la remise en CFA) — il annoncerait
+     un encaissement que la maison n'a jamais vu. */
   const life = useMemo(() => {
     const inWindow = scopedAppts.filter((a) => a.date >= periodStart && a.date <= today && a.status !== 'annulé');
     const honored = inWindow.filter((a) => a.status === 'honoré');
-    const honoredXof = honored.reduce((s, a) => s + apptTotalXof(a, byId), 0);
+    const honoredXof = honored.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const invXof = scopedPaidInvoices
       .filter((i) => i.date >= periodStart && i.date <= today)
       .reduce((s, i) => s + invoiceTotal(i), 0);
     const revenue = honoredXof + invXof;
     const heads = new Set(inWindow.map((a) => a.clientId)).size;
     const basket = honored.length > 0 ? Math.round(honoredXof / honored.length) : 0;
-    const maxTicket = honored.reduce((m, a) => Math.max(m, apptTotalXof(a, byId)), 0);
+    const maxTicket = honored.reduce((m, a) => Math.max(m, apptNetXof(a, byId)), 0);
     return {
       revenue, honoredXof, honoredCount: honored.length, apptCount: inWindow.length,
       heads, basket, maxTicket,
@@ -94,7 +107,84 @@ export default function Analytics() {
     };
   }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today]);
 
-  const indices = [
+  const nameOf = (id: string) => clientNameById.get(id) ?? 'Cliente';
+
+  /* ---------- Ce qu'il y a derrière chaque chiffre ----------
+     Les mêmes filtres que les agrégats ci-dessus, mais rendus ligne à ligne :
+     si le détail ne somme pas au chiffre affiché, c'est l'un des deux qui ment. */
+
+  /** Rituels honorés d'une fenêtre, du plus récent au plus ancien. */
+  const honoredRows = (from: string, to: string): DrillRow[] =>
+    scopedAppts
+      .filter((a) => a.status === 'honoré' && a.date >= from && a.date <= to)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((a) => ({
+        date: a.date,
+        who: nameOf(a.clientId),
+        sub: apptLabel(a, byId),
+        amount: apptNetXof(a, byId),
+      }));
+
+  /** Factures payées d'une fenêtre. */
+  const invoiceRows = (from: string, to: string): DrillRow[] =>
+    scopedPaidInvoices
+      .filter((i) => i.date >= from && i.date <= to)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((i) => ({
+        date: i.date,
+        who: i.clientName ?? nameOf(i.clientId),
+        sub: `Facture ${i.number}`,
+        amount: invoiceTotal(i),
+      }));
+
+  const openRevenue = (from: string, to: string, title: string, sub: string) => {
+    const rows = [...honoredRows(from, to), ...invoiceRows(from, to)].sort((a, b) =>
+      (a.date ?? '') < (b.date ?? '') ? 1 : -1,
+    );
+    setDrill({ title, sub, rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
+  };
+
+  const openHonored = () => {
+    const rows = honoredRows(periodStart, today);
+    setDrill({
+      title: 'Rituels honorés',
+      sub: `Du ${frShort(periodStart)} au ${frShort(today)}`,
+      rows,
+      total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+    });
+  };
+
+  /** Détail d'une catégorie du mix : les rituels qui la portent.
+      Le montant est la part de la catégorie DANS le rituel, remise répercutée
+      au prorata — sinon un rituel à deux catégories serait compté deux fois plein. */
+  const openMix = (catId: string, catName: string) => {
+    const rows: DrillRow[] = [];
+    scopedAppts
+      .filter((a) => a.status !== 'annulé')
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .forEach((a) => {
+        const part = apptServices(a, byId).filter((s) => s.categoryId === catId);
+        if (part.length === 0) return;
+        const gross = part.reduce((s, sv) => s + sv.priceXof, 0);
+        rows.push({
+          date: a.date,
+          who: nameOf(a.clientId),
+          sub: part.map((s) => s.name).join(' · '),
+          amount: Math.round(gross * apptDiscountFactor(a, byId)),
+        });
+      });
+    setDrill({
+      title: `Mix · ${catName}`,
+      sub: `${rows.length} rituel${rows.length > 1 ? 's' : ''} portent cette nomenclature`,
+      rows,
+      total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+    });
+  };
+
+  const indices: {
+    l: string; v: string; cap: string; up: boolean; a: string; pct: number;
+    open?: () => void;
+  }[] = [
     {
       l: 'Revenu encaissé · période',
       v: life.revenue > 0 ? fmtMoney(life.revenue, currency) : '—',
@@ -102,6 +192,9 @@ export default function Analytics() {
       up: life.revenue > 0,
       a: 'var(--color-copper)',
       pct: life.revenue > 0 ? Math.round((life.honoredXof / life.revenue) * 100) : 0,
+      open: life.revenue > 0
+        ? () => openRevenue(periodStart, today, 'Revenu encaissé · période', `Du ${frShort(periodStart)} au ${frShort(today)}`)
+        : undefined,
     },
     {
       l: 'Rituels honorés',
@@ -110,6 +203,7 @@ export default function Analytics() {
       up: false,
       a: 'var(--color-indigo)',
       pct: life.apptCount > 0 ? Math.round((life.honoredCount / life.apptCount) * 100) : 0,
+      open: life.honoredCount > 0 ? openHonored : undefined,
     },
     {
       l: 'Têtes actives',
@@ -134,7 +228,7 @@ export default function Analytics() {
     const realized = scopedAppts.filter(
       (a) => a.date.slice(0, 7) === thisMonth && a.date <= today && (a.status === 'honoré' || a.status === 'confirmé'),
     );
-    const soFar = realized.reduce((s, a) => s + apptTotalXof(a, byId), 0);
+    const soFar = realized.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const dayOfMonth = new Date().getDate();
     const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
     return Math.round((soFar / Math.max(1, dayOfMonth)) * daysInMonth);
@@ -158,6 +252,7 @@ export default function Analytics() {
         .slice()
         .sort((a, b) => a.order - b.order)
         .map((c, i) => ({
+          id: c.id,
           name: c.fon,
           pct: total > 0 ? Math.round(((perCat.get(c.id) ?? 0) / total) * 100) : 0,
           fill: ['var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--indigo-300)', 'var(--copper-300)', 'var(--color-argile)'][i % 6],
@@ -199,6 +294,41 @@ export default function Analytics() {
   const funnelMax = Math.max(...funnel.map((f) => f.n), 1);
   const hasTransmission = funnel.some((f) => f.n > 0);
 
+  /** Détail d'un palier du Cercle — qui se cache derrière le chiffre. */
+  const openFunnel = (label: string) => {
+    let rows: DrillRow[] = [];
+    if (label === 'Consultations') {
+      rows = [
+        ...queue.map((q) => ({
+          date: (q.createdAt ?? '').slice(0, 10),
+          who: q.client?.name ?? 'Consultation en ligne',
+          sub: 'Tunnel · en attente de suite',
+        })),
+        ...scopedAppts
+          .filter((a) => a.source === 'consultation')
+          .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: 'Consultation devenue rituel' })),
+      ];
+    } else if (label === 'Réservations') {
+      rows = scopedAppts
+        .filter((a) => a.source === 'consultation' && a.status !== 'annulé')
+        .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId) }));
+    } else {
+      /* Fidélisation : deux rituels ou plus — la même règle que le compteur. */
+      const perClient = new Map<string, number>();
+      scopedAppts.filter((a) => a.status !== 'annulé').forEach((a) => perClient.set(a.clientId, (perClient.get(a.clientId) ?? 0) + 1));
+      rows = scopedClients
+        .filter((c) => (perClient.get(c.id) ?? 0) >= 2)
+        .map((c) => ({ who: c.name, sub: `${perClient.get(c.id)} rituels au carnet` }));
+    }
+    rows.sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
+    setDrill({
+      title: `Le Cercle · ${label}`,
+      sub: `${rows.length} ligne${rows.length > 1 ? 's' : ''}`,
+      rows,
+      total: rows.some((r) => r.amount !== undefined) ? rows.reduce((s, r) => s + (r.amount ?? 0), 0) : undefined,
+    });
+  };
+
   /* — revenu encaissé · 12 mois, dérivé des rituels honorés et des factures payées — */
   const monthly = useMemo(() => {
     const now = new Date();
@@ -207,7 +337,7 @@ export default function Analytics() {
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const appt = scopedAppts
         .filter((a) => a.status === 'honoré' && a.date.slice(0, 7) === mk)
-        .reduce((s, a) => s + apptTotalXof(a, byId), 0);
+        .reduce((s, a) => s + apptNetXof(a, byId), 0);
       const inv = scopedPaidInvoices
         .filter((x) => x.date.slice(0, 7) === mk)
         .reduce((s, x) => s + invoiceTotal(x), 0);
@@ -242,8 +372,53 @@ export default function Analytics() {
     rows.sort((a, b) => Number(b.online) - Number(a.online) || (b.lastSeenAt > a.lastSeenAt ? 1 : b.lastSeenAt < a.lastSeenAt ? -1 : 0));
     const onlineNow = rows.filter((r) => r.online).length;
     const avgSec = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.totalSec, 0) / rows.length) : 0;
-    return { rows, onlineNow, avgSec };
+    return { rows, onlineNow, avgSec, scoped };
   }, [sessions, scope, clientNameById]);
+
+  /* — Activité des clientes · 7 derniers jours, en barres comme le revenu —
+     Une session est rangée au jour de sa DERNIÈRE trace (`lastSeenAt`) : c'est le
+     seul horodatage dont on soit sûr, `startedAt` n'existe pas sur le magasin. */
+  const weekly = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const iso = addDaysISO(today, -(6 - i));
+      const d = new Date(`${iso}T00:00:00`);
+      return {
+        iso,
+        label: d.toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase(),
+        visits: 0,
+        sec: 0,
+        heads: new Set<string>(),
+      };
+    });
+    const byIso = new Map(days.map((d) => [d.iso, d]));
+    activity.scoped.forEach((s: ClientSession) => {
+      const day = byIso.get((s.lastSeenAt ?? '').slice(0, 10));
+      if (!day) return;
+      day.visits += 1;
+      day.sec += s.durationSec;
+      day.heads.add(s.clientId);
+    });
+    const totalVisits = days.reduce((n, d) => n + d.visits, 0);
+    const totalSec = days.reduce((n, d) => n + d.sec, 0);
+    return { days, totalVisits, totalSec, max: Math.max(...days.map((d) => d.visits), 1) };
+  }, [activity.scoped, today]);
+
+  /** Détail d'un jour de présence — qui est passée, et combien de temps. */
+  const openDay = (iso: string) => {
+    const rows: DrillRow[] = activity.scoped
+      .filter((s: ClientSession) => (s.lastSeenAt ?? '').slice(0, 10) === iso)
+      .sort((a: ClientSession, b: ClientSession) => (a.lastSeenAt < b.lastSeenAt ? 1 : -1))
+      .map((s: ClientSession) => ({
+        date: iso,
+        who: s.clientName ?? clientNameById.get(s.clientId) ?? 'Cliente',
+        sub: `${fmtDuration(s.durationSec)} · ${s.screen ?? 'écran inconnu'}`,
+      }));
+    setDrill({
+      title: `Présence · ${frShort(iso)}`,
+      sub: rows.length > 0 ? `${rows.length} visite${rows.length > 1 ? 's' : ''}` : 'aucune visite ce jour-là',
+      rows,
+    });
+  };
 
   const scopeChips = [
     { id: 'toutes', label: 'Toutes les branches' },
@@ -286,18 +461,29 @@ export default function Analytics() {
 
       {/* Indices prospectifs, jauges fines — dérivés de la période */}
       <div className="tr-grid tr-grid--4" style={{ marginTop: 18 }}>
-        {indices.map((i) => (
-          <div className="trp-index" key={i.l}>
-            <span className="trp-kpi__bar" style={{ background: i.a }} />
-            <div className="trp-index__label">{i.l}</div>
-            <div className="trp-index__value">{i.v}</div>
-            <svg viewBox="0 0 100 8" style={{ width: '100%', height: 8, marginTop: 12, display: 'block' }} aria-hidden>
-              <line x1="0" y1="4" x2="100" y2="4" stroke="var(--hairline)" strokeWidth="2" />
-              <line x1="0" y1="4" x2={i.pct} y2="4" stroke={i.a} strokeWidth="4" strokeLinecap="round" />
-            </svg>
-            <div className={`trp-index__cap ${i.up ? 'trp-index__cap--up' : ''}`}>{i.cap}</div>
-          </div>
-        ))}
+        {indices.map((i) => {
+          const inner = (
+            <>
+              <span className="trp-kpi__bar" style={{ background: i.a }} />
+              <div className="trp-index__label">{i.l}</div>
+              <div className="trp-index__value">{i.v}</div>
+              <svg viewBox="0 0 100 8" style={{ width: '100%', height: 8, marginTop: 12, display: 'block' }} aria-hidden>
+                <line x1="0" y1="4" x2="100" y2="4" stroke="var(--hairline)" strokeWidth="2" />
+                <line x1="0" y1="4" x2={i.pct} y2="4" stroke={i.a} strokeWidth="4" strokeLinecap="round" />
+              </svg>
+              <div className={`trp-index__cap ${i.up ? 'trp-index__cap--up' : ''}`}>{i.cap}</div>
+            </>
+          );
+          /* Seuls les indices qui ont un détail à montrer deviennent cliquables :
+             un bouton qui ouvre une liste vide serait une promesse en l'air. */
+          return i.open ? (
+            <button type="button" key={i.l} className="trp-index trp-index--click" onClick={i.open} title="Voir le détail">
+              {inner}
+            </button>
+          ) : (
+            <div className="trp-index" key={i.l}>{inner}</div>
+          );
+        })}
       </div>
 
       {/* Revenu encaissé · 12 mois */}
@@ -315,12 +501,21 @@ export default function Analytics() {
             {monthly.map((m, i) => {
               const x = 10 + i * 39;
               const h = (m.total / chartMax) * 150;
+              const openMonth = () =>
+                openRevenue(`${m.mk}-01`, `${m.mk}-31`, `Revenu encaissé · ${m.mk}`, 'Rituels honorés et factures payées du mois');
               return (
-                <g key={m.mk}>
+                <g
+                  key={m.mk}
+                  onClick={m.total > 0 ? openMonth : undefined}
+                  style={{ cursor: m.total > 0 ? 'pointer' : 'default' }}
+                >
+                  {/* Cible de clic pleine hauteur : viser une barre de 1px serait cruel. */}
+                  <rect x={x - 6} y={10} width={38} height={158} fill="transparent" />
                   <rect x={x} y={168 - h} width={26} height={Math.max(1, h)} fill={m.total > 0 ? 'var(--color-copper)' : 'rgba(246,241,231,0.10)'} />
                   <text x={x + 13} y={184} textAnchor="middle" fontSize={9} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
                     {m.label}
                   </text>
+                  {m.total > 0 && <title>{`${m.mk} · ${fmtMoney(m.total, currency)}`}</title>}
                 </g>
               );
             })}
@@ -346,7 +541,14 @@ export default function Analytics() {
             </div>
           )}
           {mix.rows.map((x) => (
-            <div key={x.name} style={{ marginBottom: 11 }}>
+            <button
+              type="button"
+              key={x.name}
+              className="trp-drill"
+              disabled={!mix.hasData}
+              onClick={() => openMix(x.id, x.name)}
+              title={mix.hasData ? 'Voir les rituels de cette nomenclature' : undefined}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>{x.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{mix.hasData ? `${x.pct} %` : '—'}</span>
@@ -354,7 +556,7 @@ export default function Analytics() {
               <div className="trp-bar" style={{ marginTop: 5 }}>
                 <div style={{ width: `${x.pct}%`, background: x.fill }} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
         <div className="trp-panel">
@@ -411,13 +613,20 @@ export default function Analytics() {
           </div>
           <div style={{ marginTop: 16 }}>
             {funnel.map((f) => (
-              <div className="trp-funnel__row" key={f.label}>
+              <button
+                type="button"
+                className="trp-funnel__row trp-drill trp-drill--dark"
+                key={f.label}
+                disabled={f.n === 0}
+                onClick={() => openFunnel(f.label)}
+                title={f.n > 0 ? 'Voir le détail' : undefined}
+              >
                 <span className="trp-funnel__label" style={{ color: 'var(--indigo-100)' }}>{f.label}</span>
                 <div className="trp-bar" style={{ flex: 1, background: 'rgba(246,241,231,0.14)' }}>
                   <div style={{ width: `${Math.round((f.n / funnelMax) * 100)}%`, background: 'var(--color-copper)' }} />
                 </div>
                 <span className="trp-funnel__num" style={{ color: 'var(--copper-200)' }}>{f.n}</span>
-              </div>
+              </button>
             ))}
           </div>
           <div style={{ fontSize: 12.5, fontWeight: 300, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
@@ -425,6 +634,46 @@ export default function Analytics() {
               ? `${funnel[1].n} réservation${funnel[1].n > 1 ? 's' : ''} nées de la consultation · ${funnel[2].n} tête${funnel[2].n > 1 ? 's' : ''} fidélisée${funnel[2].n > 1 ? 's' : ''} — le coefficient de transmission se calculera avec la lignée.`
               : 'Le Cercle s’exprimera dès les premières introductions — l’intelligence a besoin de vécu.'}
           </div>
+        </div>
+      </div>
+
+      {/* Activité des clientes · 7 derniers jours — mêmes barres que le revenu */}
+      <div className="trp-rev" style={{ marginTop: 18, borderRadius: 4 }}>
+        <div>
+          <div className="trp-rev__eyebrow">Activité des clientes · 7 derniers jours</div>
+          <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>
+            Visites sur Ma Couronne, jour après jour — la présence se lit comme le revenu.
+          </div>
+        </div>
+        {weekly.totalVisits > 0 ? (
+          <svg viewBox="0 0 480 190" style={{ width: '100%', height: 190, marginTop: 18, display: 'block' }}>
+            {weekly.days.map((d, i) => {
+              const x = 20 + i * 66;
+              const h = (d.visits / weekly.max) * 150;
+              return (
+                <g key={d.iso} onClick={() => openDay(d.iso)} style={{ cursor: 'pointer' }}>
+                  <rect x={x - 8} y={10} width={60} height={158} fill="transparent" />
+                  <rect x={x} y={168 - h} width={44} height={Math.max(1, h)} fill={d.visits > 0 ? 'var(--color-copper)' : 'rgba(246,241,231,0.10)'} />
+                  <text x={x + 22} y={184} textAnchor="middle" fontSize={9} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
+                    {d.label}
+                  </text>
+                  <title>{`${frShort(d.iso)} · ${d.visits} visite${d.visits > 1 ? 's' : ''} · ${fmtDuration(d.sec)}`}</title>
+                </g>
+              );
+            })}
+          </svg>
+        ) : (
+          <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
+            Aucune visite cette semaine — la présence se dessinera dès la première cliente sur Ma Couronne.
+          </div>
+        )}
+        <div className="trp-rev__foot">
+          <span>
+            {weekly.totalVisits > 0
+              ? `${weekly.totalVisits} visite${weekly.totalVisits > 1 ? 's' : ''} · ${fmtDuration(weekly.totalSec)} au total`
+              : 'Périmètre · Ma Couronne'}
+          </span>
+          <span className="trp-rev__best">{activity.onlineNow > 0 ? `${activity.onlineNow} en ligne` : '—'}</span>
         </div>
       </div>
 
@@ -468,6 +717,45 @@ export default function Analytics() {
         )}
       </div>
 
+      {drill && (
+        <Modal title={drill.title} onClose={() => setDrill(null)} width={620}>
+          {drill.sub && <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{drill.sub}</div>}
+          {drill.rows.length === 0 ? (
+            <div className="trp-empty">Rien à montrer ici.</div>
+          ) : (
+            <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+              {drill.rows.map((r, i) => (
+                <div
+                  key={`${r.who}-${r.date ?? ''}-${i}`}
+                  style={{
+                    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                    gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{r.who}</div>
+                    {r.sub && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{r.sub}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right', flex: 'none' }}>
+                    {r.amount !== undefined && (
+                      <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>
+                        {fmtMoney(r.amount, currency)}
+                      </div>
+                    )}
+                    {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {drill.total !== undefined && drill.rows.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
+              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total</span>
+              <span className="mnd-serif" style={{ fontSize: 22, color: 'var(--color-indigo)' }}>{fmtMoney(drill.total, currency)}</span>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
