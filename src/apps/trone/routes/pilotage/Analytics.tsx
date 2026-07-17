@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Modal, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -25,7 +26,8 @@ type Period = 'm30' | 'trim' | 'annee';
 const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
 
 /** Une ligne du détail derrière un chiffre. `amount` absent = ligne non chiffrée. */
-type DrillRow = { date?: string; who: string; sub?: string; amount?: number };
+/** `invoiceId` : la ligne s'ouvre alors sur sa facture. Absent = rien à ouvrir. */
+type DrillRow = { date?: string; who: string; sub?: string; amount?: number; invoiceId?: string };
 type Drill = { title: string; sub?: string; rows: DrillRow[]; total?: number };
 
 /** Durée cumulée en clair : « 42 s », « 12 min », « 1 h 05 ». */
@@ -67,6 +69,7 @@ export default function Analytics() {
   /* Un indice ne vaut que si l'on peut ouvrir ce qu'il agrège : chaque chiffre
      cliquable rend la liste des lignes qui le composent. */
   const [drill, setDrill] = useState<Drill | null>(null);
+  const navigate = useNavigate();
 
   const scopedAppts = useMemo(
     () => appointments.filter((a) => (scope === 'toutes' ? true : a.branchId === scope)),
@@ -123,6 +126,9 @@ export default function Analytics() {
         who: nameOf(a.clientId),
         sub: apptLabel(a, byId),
         amount: apptNetXof(a, byId),
+        /* Le RDV mémorise la facture de son encaissement — un rituel honoré mais
+           jamais encaissé n'en a pas, la ligne reste alors muette. */
+        invoiceId: a.invoiceId,
       }));
 
   /** Factures payées d'une fenêtre. */
@@ -135,6 +141,7 @@ export default function Analytics() {
         who: i.clientName ?? nameOf(i.clientId),
         sub: `Facture ${i.number}`,
         amount: invoiceTotal(i),
+        invoiceId: i.id,
       }));
 
   const openRevenue = (from: string, to: string, title: string, sub: string) => {
@@ -311,7 +318,7 @@ export default function Analytics() {
     } else if (label === 'Réservations') {
       rows = scopedAppts
         .filter((a) => a.source === 'consultation' && a.status !== 'annulé')
-        .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId) }));
+        .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), invoiceId: a.invoiceId }));
     } else {
       /* Fidélisation : deux rituels ou plus — la même règle que le compteur. */
       const perClient = new Map<string, number>();
@@ -724,28 +731,48 @@ export default function Analytics() {
             <div className="trp-empty">Rien à montrer ici.</div>
           ) : (
             <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-              {drill.rows.map((r, i) => (
-                <div
-                  key={`${r.who}-${r.date ?? ''}-${i}`}
-                  style={{
-                    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                    gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)',
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{r.who}</div>
-                    {r.sub && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{r.sub}</div>}
-                  </div>
-                  <div style={{ textAlign: 'right', flex: 'none' }}>
-                    {r.amount !== undefined && (
-                      <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>
-                        {fmtMoney(r.amount, currency)}
-                      </div>
-                    )}
-                    {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
-                  </div>
-                </div>
-              ))}
+              {drill.rows.map((r, i) => {
+                const body = (
+                  <>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{r.who}</div>
+                      {r.sub && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{r.sub}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right', flex: 'none' }}>
+                      {r.amount !== undefined && (
+                        <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>
+                          {fmtMoney(r.amount, currency)}
+                        </div>
+                      )}
+                      {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
+                    </div>
+                  </>
+                );
+                /* `border: none` d'abord, puis la seule bordure qu'on garde :
+                   l'inverse annulerait le trait sur les lignes-boutons. */
+                const st = {
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                  gap: 12, padding: '9px 0',
+                  width: '100%', textAlign: 'left' as const, background: 'none',
+                  border: 'none', borderBottom: '1px solid var(--hairline)',
+                  font: 'inherit', color: 'inherit',
+                };
+                /* La ligne s'ouvre sur sa facture quand il y en a une. Une
+                   fidélisée ou un rituel jamais encaissé n'en a pas : elle reste
+                   une ligne plutôt qu'un bouton qui ne mène nulle part. */
+                return r.invoiceId ? (
+                  <button
+                    key={`${r.who}-${r.date ?? ''}-${i}`}
+                    style={{ ...st, cursor: 'pointer' }}
+                    title="Ouvrir la facture"
+                    onClick={() => { setDrill(null); navigate(`/factures?id=${r.invoiceId}`); }}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <div key={`${r.who}-${r.date ?? ''}-${i}`} style={st}>{body}</div>
+                );
+              })}
             </div>
           )}
           {drill.total !== undefined && drill.rows.length > 0 && (

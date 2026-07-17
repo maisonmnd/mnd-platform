@@ -4,6 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
+import { useNavigate } from 'react-router-dom';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
   cashboxCurrency,
@@ -57,6 +58,10 @@ export default function Depenses() {
   const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
   /** Nom de la caisse dont on lit les mouvements (null = fermé). */
   const [boxDrill, setBoxDrill] = useState<string | null>(null);
+  /** Le détail derrière un indice de dépense (null = fermé). */
+  const [expDrill, setExpDrill] = useState<{ title: string; sub: string; rows: Expense[] } | null>(null);
+  const openExp = (title: string, sub: string, rows: Expense[]) => setExpDrill({ title, sub, rows });
+  const navigate = useNavigate();
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
@@ -134,6 +139,7 @@ export default function Depenses() {
         label: i.clientName?.trim() || 'Cliente de passage',
         sub: i.fx ? `${i.number} · ${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : i.number,
         delta: foreign ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0) : invoiceTotal(i),
+        invoiceId: i.id, // la ligne s'ouvre sur la facture
       }));
 
     const out = live
@@ -143,6 +149,7 @@ export default function Depenses() {
         label: e.label,
         sub: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category,
         delta: -expenseTotal(e),
+        invoiceId: undefined as string | undefined, // une dépense n'a pas de facture
       }));
 
     const moves = [...inn, ...out].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -353,13 +360,25 @@ export default function Depenses() {
     downloadCsv(`depenses-${month}.csv`, rows);
   };
 
-  const kpiCard = (l: string, v: string, a: string, col: string, c: string, cCls = '') => (
-    <div className="trf-kpi" style={{ '--accent': a } as CSSProperties}>
-      <div className="l">{l}</div>
-      <div className="v" style={{ color: col }}>{v}</div>
-      <div className={`c ${cCls}`}>{c}</div>
-    </div>
-  );
+  /* Un chiffre s'ouvre sur les dépenses qui le composent. Toujours cliquable,
+     même à zéro : la modale dit alors POURQUOI c'est zéro, ce qu'une carte morte
+     ne ferait pas. */
+  const kpiCard = (l: string, v: string, a: string, col: string, c: string, cCls = '', open?: () => void) => {
+    const inner = (
+      <>
+        <div className="l">{l}</div>
+        <div className="v" style={{ color: col }}>{v}</div>
+        <div className={`c ${cCls}`}>{c}</div>
+      </>
+    );
+    return open ? (
+      <button className="trf-kpi trf-kpi--click" style={{ '--accent': a } as CSSProperties} onClick={open} title="Voir le détail">
+        {inner}
+      </button>
+    ) : (
+      <div className="trf-kpi" style={{ '--accent': a } as CSSProperties}>{inner}</div>
+    );
+  };
 
   const expRatio = revenue > 0 ? Math.round((engaged / revenue) * 100) : 0;
   const net = revenue - engaged;
@@ -429,10 +448,18 @@ export default function Depenses() {
           </div>
 
           <div className="tr-grid tr-grid--4">
-            {kpiCard(`Dépenses engagées · ${monthName}`, fmtMoney(engaged, currency), 'var(--color-indigo)', 'var(--color-indigo)', `${expRatio} % du revenu · cible < 35 %`)}
-            {kpiCard('Potentiel d’économie · IA', fmtMoney(potential, currency), 'var(--color-copper)', 'var(--copper-600)', `${live.filter((e) => e.flagged).length} à arbitrer`, 'up')}
-            {kpiCard('Économies réalisées', fmtMoney(savings, currency), 'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good')}
-            {kpiCard(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`, fmtMoney(forecast, currency), 'var(--indigo-400)', 'var(--color-indigo)', forecastNote)}
+            {kpiCard(`Dépenses engagées · ${monthName}`, fmtMoney(engaged, currency), 'var(--color-indigo)', 'var(--color-indigo)', `${expRatio} % du revenu · cible < 35 %`, '',
+              () => openExp(`Dépenses engagées · ${monthName}`, 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.', live))}
+            {kpiCard('Potentiel d’économie · IA', fmtMoney(potential, currency), 'var(--color-copper)', 'var(--copper-600)', `${live.filter((e) => e.flagged).length} à arbitrer`, 'up',
+              () => openExp('Potentiel d’économie', 'Les dépenses signalées, encore vivantes : les stopper les fait passer en économies.', live.filter((e) => e.flagged)))}
+            {kpiCard('Économies réalisées', fmtMoney(savings, currency), 'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good',
+              () => openExp('Économies réalisées', `Les dépenses stoppées en ${monthName} — capturées, donc jamais sorties de la caisse.`, monthExp.filter((e) => e.stopped)))}
+            {kpiCard(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`, fmtMoney(forecast, currency), 'var(--indigo-400)', 'var(--color-indigo)', forecastNote, '',
+              () => openExp(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`,
+                isCurrent
+                  ? 'Projection au rythme réel : ces dépenses, rapportées aux jours écoulés puis étendues au mois. Le total ci-dessous est le réel à date, pas la projection.'
+                  : 'Les dépenses vivantes du mois.',
+                live))}
           </div>
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
@@ -994,6 +1021,50 @@ export default function Depenses() {
         </Modal>
       )}
 
+      {expDrill && (
+        <Modal title={expDrill.title} onClose={() => setExpDrill(null)} width={620}>
+          <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{expDrill.sub}</div>
+          {expDrill.rows.length === 0 ? (
+            <div className="trf-empty">Aucune dépense ici en {monthName}.</div>
+          ) : (
+            <>
+              <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+                {expDrill.rows
+                  .slice()
+                  .sort((a, b) => (a.date < b.date ? 1 : -1))
+                  .map((e) => (
+                    <div
+                      key={e.id}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}
+                    >
+                      <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                        <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(e.date)}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{e.label}</div>
+                          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+                            {e.subcategory ? `${e.category} · ${e.subcategory}` : e.category} · {e.cashbox}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mnd-serif" style={{ fontSize: 15, flex: 'none', color: 'var(--color-indigo)' }}>
+                        {fmtMoney(expenseTotal(e), currency)}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
+                <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                  Total · {expDrill.rows.length} dépense{expDrill.rows.length > 1 ? 's' : ''}
+                </span>
+                <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>
+                  {fmtMoney(expDrill.rows.reduce((s, e) => s + expenseTotal(e), 0), currency)}
+                </span>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+
       {boxDrill && (() => {
         const { boxCur, opening, moves, balance } = boxMoves(boxDrill);
         return (
@@ -1019,26 +1090,48 @@ export default function Depenses() {
                 </div>
               )}
 
-              {moves.map((m, i) => (
-                <div
-                  key={`${m.date}-${m.label}-${i}`}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}
-                >
-                  <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                    <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(m.date)}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.label}</div>
-                      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{m.sub}</div>
+              {moves.map((m, i) => {
+                const body = (
+                  <>
+                    <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                      <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(m.date)}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.label}</div>
+                        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{m.sub}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className="mnd-serif"
-                    style={{ fontSize: 15, flex: 'none', color: m.delta >= 0 ? 'var(--trv-success, var(--color-indigo))' : 'var(--color-copper)' }}
+                    <div
+                      className="mnd-serif"
+                      style={{ fontSize: 15, flex: 'none', color: m.delta >= 0 ? 'var(--trv-success, var(--color-indigo))' : 'var(--color-copper)' }}
+                    >
+                      {m.delta >= 0 ? '+' : '−'} {fmtIn(Math.abs(m.delta), boxCur)}
+                    </div>
+                  </>
+                );
+                /* `border: none` d'abord, puis la seule bordure qu'on garde :
+                   l'inverse annulerait le trait sur les lignes-boutons. */
+                const rowStyle = {
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  gap: 12, padding: '9px 0',
+                  width: '100%', textAlign: 'left' as const, background: 'none',
+                  border: 'none', borderBottom: '1px solid var(--hairline)',
+                  font: 'inherit', color: 'inherit',
+                };
+                /* Un encaissement s'ouvre sur sa facture ; une dépense n'en a pas,
+                   elle reste une ligne — pas un bouton qui ne mène nulle part. */
+                return m.invoiceId ? (
+                  <button
+                    key={`${m.date}-${m.label}-${i}`}
+                    style={{ ...rowStyle, cursor: 'pointer' }}
+                    title="Ouvrir la facture"
+                    onClick={() => { setBoxDrill(null); navigate(`/factures?id=${m.invoiceId}`); }}
                   >
-                    {m.delta >= 0 ? '+' : '−'} {fmtIn(Math.abs(m.delta), boxCur)}
-                  </div>
-                </div>
-              ))}
+                    {body}
+                  </button>
+                ) : (
+                  <div key={`${m.date}-${m.label}-${i}`} style={rowStyle}>{body}</div>
+                );
+              })}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>

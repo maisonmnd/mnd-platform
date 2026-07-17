@@ -1,4 +1,5 @@
 import { asset } from '../../../../shared/asset';
+import { useSearchParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
@@ -72,7 +73,11 @@ export default function Factures() {
 
   const [kindTab, setKindTab] = useState<'all' | 'facture' | 'devis'>('all');
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* `?id=` ouvre une facture précise depuis ailleurs — Tableau de bord, Analytics,
+     mouvements d'une caisse. On ne lit le paramètre qu'UNE fois (état initial) :
+     le relire à chaque rendu reprendrait la main sur les clics de la liste. */
+  const [params] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get('id'));
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
