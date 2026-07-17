@@ -63,6 +63,12 @@ export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
    (partout : tableau de bord, carnet, synthèse, fidélité, impayés). */
 export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.seriesIndex && a.seriesIndex > 1) return 0;
+  /* Un prix figé l'emporte sur le catalogue : le rituel a été facturé À CE
+     PRIX-LÀ, et le catalogue a bougé depuis. Le relire au tarif du jour
+     réécrirait l'histoire — c'est ce que faisaient les RDV repris de l'ancien
+     ERP, à 3 M F près. La règle des séries reste au-dessus : une séance 2+ ne
+     vaut rien, prix figé ou non. */
+  if (typeof a.priceXof === 'number') return a.priceXof;
   return apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
 };
 
@@ -246,7 +252,13 @@ export function RdvModal({
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
+  /* La modale recompose TOUJOURS au catalogue du jour : c'est ce que le maître
+     voit et valide. Un RDV au prix figé (repris de l'ancien ERP) s'affiche donc
+     au tarif actuel, et l'enregistrer abandonne le prix figé — voir `save()`.
+     On le dit à l'écran plutôt que de laisser l'historique se réécrire en silence. */
+  const frozenXof = appt?.priceXof;
   const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  const frozenDiffers = typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossXof);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé. */
   const totalXof = Math.max(0, Math.round(grossXof * (1 - discountPct / 100)) - discountXof);
@@ -291,6 +303,10 @@ export function RdvModal({
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
                 discountPct: discountPct || undefined, discountXof: discountXof || undefined,
+                /* Le maître vient de valider un total calculé au catalogue : on
+                   abandonne le prix figé, sinon le RDV afficherait un montant que
+                   personne n'a approuvé. */
+                priceXof: undefined,
                 depositServiceIds, depositXof }
             : x,
         ),
@@ -472,6 +488,17 @@ export function RdvModal({
             aria-label={`Remise manuelle en ${currency}`}
           />
         </Field>
+
+        {/* Un RDV repris de l'ancien ERP porte le prix auquel il a VRAIMENT été
+            facturé. La modale, elle, recompose au catalogue du jour. On prévient
+            plutôt que de laisser l'enregistrement réécrire l'historique. */}
+        {frozenDiffers && (
+          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+            Ce rituel a été facturé <b>{fmtMoney(frozenXof!, currency)}</b> ; au catalogue d’aujourd’hui
+            il vaut {fmtMoney(grossXof, currency)}. Enregistrer adoptera le tarif actuel — et l’historique
+            de ce rituel changera.
+          </div>
+        )}
 
         <div className="trc-total">
           {(discountPct > 0 || discountXof > 0) && (

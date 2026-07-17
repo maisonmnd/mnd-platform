@@ -21,6 +21,12 @@ export type Appointment = {
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
       (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */
   discountXof?: number;
+  /** Prix du rituel FIGÉ au moment où il a été facturé, avant remise.
+      Le catalogue vit : ses tarifs changent. Sans ce champ, un rituel de mars se
+      relirait au tarif d'aujourd'hui et l'historique se réécrirait tout seul —
+      sur les RDV repris de l'ancien ERP, l'écart atteignait 3 M F.
+      Absent (le cas courant) → le total se calcule sur le catalogue, comme avant. */
+  priceXof?: number;
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */
