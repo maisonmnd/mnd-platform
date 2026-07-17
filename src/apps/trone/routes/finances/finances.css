@@ -546,3 +546,21 @@
 .trf-click:hover { background: var(--hover-veil, rgba(30, 33, 80, 0.045)); }
 .trf-kpi.trf-click:hover { box-shadow: 0 6px 20px rgba(20, 20, 27, 0.08); background: inherit; }
 .trf-click:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* Le solde d'une caisse s'ouvre sur ses mouvements — un <button> nu, pour que
+   la carte reste une carte et que seule l'affordance s'ajoute. */
+.trf-caisse__open {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.trf-caisse__open:hover { background: var(--hover-veil); }

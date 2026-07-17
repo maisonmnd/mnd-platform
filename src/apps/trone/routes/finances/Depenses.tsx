@@ -55,6 +55,8 @@ export default function Depenses() {
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
   const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
+  /** Nom de la caisse dont on lit les mouvements (null = fermé). */
+  const [boxDrill, setBoxDrill] = useState<string | null>(null);
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
@@ -115,6 +117,37 @@ export default function Depenses() {
   const treasury = branchBoxes
     .filter((b) => cashboxCurrency(b) === currency)
     .reduce((s, b) => s + boxBalance(b.name), 0);
+
+  /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes filtres que `boxBalance`,
+     au mot près : si la liste ne tombe pas sur le solde affiché, c'est l'un des
+     deux qui ment. Les mouvements sont dans la devise de la caisse. */
+  const boxMoves = (name: string) => {
+    const box = branchBoxes.find((b) => b.name === name);
+    const boxCur = box ? cashboxCurrency(box) : currency;
+    const foreign = boxCur !== currency;
+    const opening = box?.openingXof ?? 0;
+
+    const inn = invoices
+      .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === month)
+      .map((i) => ({
+        date: i.date,
+        label: i.clientName?.trim() || 'Cliente de passage',
+        sub: i.fx ? `${i.number} · ${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : i.number,
+        delta: foreign ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0) : invoiceTotal(i),
+      }));
+
+    const out = live
+      .filter((e) => e.cashbox === name)
+      .map((e) => ({
+        date: e.date,
+        label: e.label,
+        sub: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category,
+        delta: -expenseTotal(e),
+      }));
+
+    const moves = [...inn, ...out].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return { boxCur, opening, moves, balance: boxBalance(name) };
+  };
 
   // Flux par catégorie (filtres caisse / catégorie + recherche)
   const flow = useMemo(() => {
@@ -507,10 +540,14 @@ export default function Depenses() {
                       <button className="trf-iconbtn trf-iconbtn--danger" title="Supprimer la caisse" onClick={() => deleteBox(c)}>Supprimer</button>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde · {monthName}</div>
+                  {/* Le solde s'ouvre : un chiffre ne vaut que si l'on peut voir
+                      les mouvements qui l'ont fait. */}
+                  <button className="trf-caisse__open" onClick={() => setBoxDrill(c.name)} title="Voir les mouvements de cette caisse">
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                      Solde · {monthName}{boxCur !== currency ? ` · ${boxCur}` : ''}
+                    </div>
                     <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
-                  </div>
+                  </button>
                   <button className="trf-act" style={{ padding: 9 }} onClick={() => openFor(c.name)}>Dépenser d’ici</button>
                 </div>
               );
@@ -956,6 +993,61 @@ export default function Depenses() {
           </div>
         </Modal>
       )}
+
+      {boxDrill && (() => {
+        const { boxCur, opening, moves, balance } = boxMoves(boxDrill);
+        return (
+          <Modal title={`${boxDrill} · mouvements`} onClose={() => setBoxDrill(null)} width={620}>
+            <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>
+              {monthName}{boxCur !== currency ? ` · caisse en ${boxCur}` : ''} — encaissements crédités, dépenses vivantes.
+            </div>
+
+            <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+              {/* L'ouverture est le point de départ du solde : la taire rendrait
+                  la liste incapable de tomber sur le chiffre affiché. */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}>
+                <div>
+                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>Solde d’ouverture</div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>début du mois</div>
+                </div>
+                <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(opening, boxCur)}</div>
+              </div>
+
+              {moves.length === 0 && (
+                <div className="trf-empty" style={{ marginTop: 10 }}>
+                  Aucun mouvement en {monthName} — ni encaissement, ni dépense.
+                </div>
+              )}
+
+              {moves.map((m, i) => (
+                <div
+                  key={`${m.date}-${m.label}-${i}`}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}
+                >
+                  <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                    <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(m.date)}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.label}</div>
+                      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{m.sub}</div>
+                    </div>
+                  </div>
+                  <div
+                    className="mnd-serif"
+                    style={{ fontSize: 15, flex: 'none', color: m.delta >= 0 ? 'var(--trv-success, var(--color-indigo))' : 'var(--color-copper)' }}
+                  >
+                    {m.delta >= 0 ? '+' : '−'} {fmtIn(Math.abs(m.delta), boxCur)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
+              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde</span>
+              <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>{fmtIn(balance, boxCur)}</span>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
