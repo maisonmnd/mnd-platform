@@ -14,6 +14,7 @@ import { useClientSessions, isOnline, type ClientSession } from '../../../../sha
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor,
   addDaysISO, frShort, todayISO, useServicesById,
+  DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
 import './pilotage.css';
 
@@ -24,11 +25,6 @@ import './pilotage.css';
 type Period = 'm30' | 'trim' | 'annee';
 
 const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
-
-/** Une ligne du détail derrière un chiffre. `amount` absent = ligne non chiffrée. */
-/** `invoiceId` : la ligne s'ouvre alors sur sa facture. Absent = rien à ouvrir. */
-type DrillRow = { date?: string; who: string; sub?: string; amount?: number; invoiceId?: string };
-type Drill = { title: string; sub?: string; rows: DrillRow[]; total?: number };
 
 /** Durée cumulée en clair : « 42 s », « 12 min », « 1 h 05 ». */
 function fmtDuration(sec: number): string {
@@ -724,65 +720,7 @@ export default function Analytics() {
         )}
       </div>
 
-      {drill && (
-        <Modal title={drill.title} onClose={() => setDrill(null)} width={620}>
-          {drill.sub && <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{drill.sub}</div>}
-          {drill.rows.length === 0 ? (
-            <div className="trp-empty">Rien à montrer ici.</div>
-          ) : (
-            <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-              {drill.rows.map((r, i) => {
-                const body = (
-                  <>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{r.who}</div>
-                      {r.sub && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{r.sub}</div>}
-                    </div>
-                    <div style={{ textAlign: 'right', flex: 'none' }}>
-                      {r.amount !== undefined && (
-                        <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>
-                          {fmtMoney(r.amount, currency)}
-                        </div>
-                      )}
-                      {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
-                    </div>
-                  </>
-                );
-                /* `border: none` d'abord, puis la seule bordure qu'on garde :
-                   l'inverse annulerait le trait sur les lignes-boutons. */
-                const st = {
-                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                  gap: 12, padding: '9px 0',
-                  width: '100%', textAlign: 'left' as const, background: 'none',
-                  border: 'none', borderBottom: '1px solid var(--hairline)',
-                  font: 'inherit', color: 'inherit',
-                };
-                /* La ligne s'ouvre sur sa facture quand il y en a une. Une
-                   fidélisée ou un rituel jamais encaissé n'en a pas : elle reste
-                   une ligne plutôt qu'un bouton qui ne mène nulle part. */
-                return r.invoiceId ? (
-                  <button
-                    key={`${r.who}-${r.date ?? ''}-${i}`}
-                    style={{ ...st, cursor: 'pointer' }}
-                    title="Ouvrir la facture"
-                    onClick={() => { setDrill(null); navigate(`/factures?id=${r.invoiceId}`); }}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <div key={`${r.who}-${r.date ?? ''}-${i}`} style={st}>{body}</div>
-                );
-              })}
-            </div>
-          )}
-          {drill.total !== undefined && drill.rows.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
-              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total</span>
-              <span className="mnd-serif" style={{ fontSize: 22, color: 'var(--color-indigo)' }}>{fmtMoney(drill.total, currency)}</span>
-            </div>
-          )}
-        </Modal>
-      )}
+      {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
     </div>
   );
 }

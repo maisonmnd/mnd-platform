@@ -1,14 +1,14 @@
 import { asset } from '../../../../shared/asset';
 import { useSearchParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { MapPin, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
-import { ClientPicker } from '../clients/_shared';
+import { Avatar, ClientPicker, frDay } from '../clients/_shared';
 import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -62,6 +62,13 @@ const fmtDateFr = (iso: string) => {
   return s.replace(/^1 /, '1ᵉʳ ');
 };
 
+/** Aplati pour la recherche : sans casse, sans accent — « Aicha » doit trouver « Aïcha ». */
+const fold = (s?: string) =>
+  (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+
+/** Colonnes de la feuille — mêmes proportions que le Carnet. */
+const GRID = '92px 1fr 1.2fr 1fr 0.9fr 128px';
+
 type EditState = { mode: 'new' | 'edit'; draft: Invoice };
 
 export default function Factures() {
@@ -71,8 +78,10 @@ export default function Factures() {
   const [services] = useServices();
   const [methods] = usePaymentMethods();
 
-  const [kindTab, setKindTab] = useState<'all' | 'facture' | 'devis'>('all');
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
+  /* Recherche — une cliente, un numéro. La maison cherche « Aïcha » sans accent
+     ni majuscule : on compare des chaînes aplaties, sinon « Aicha » ne trouve rien. */
+  const [q, setQ] = useState('');
   /* `?id=` ouvre une facture précise depuis ailleurs — Tableau de bord, Analytics,
      mouvements d'une caisse. On ne lit le paramètre qu'UNE fois (état initial) :
      le relire à chaque rendu reprendrait la main sur les clics de la liste. */
@@ -89,8 +98,16 @@ export default function Factures() {
     [invoices, branch.id],
   );
   const filtered = branchDocs
-    .filter((d) => kindTab === 'all' || d.kind === kindTab)
-    .filter((d) => statusFilter === 'tous' || d.status === statusFilter);
+    .filter((d) => statusFilter === 'tous' || d.status === statusFilter)
+    .filter((d) => {
+      const needle = fold(q);
+      if (!needle) return true;
+      const c = clients.find((x) => x.id === d.clientId);
+      return [d.number, c?.name, d.clientName, c?.phone].some((v) => fold(v).includes(needle));
+    });
+  /* Les factures d'abord, les devis en dessous — deux registres, une seule feuille. */
+  const factures = filtered.filter((d) => d.kind === 'facture');
+  const devis = filtered.filter((d) => d.kind === 'devis');
 
   const selected = branchDocs.find((d) => d.id === selectedId) ?? filtered[0] ?? branchDocs[0] ?? null;
 
@@ -229,8 +246,8 @@ export default function Factures() {
   /* Ouvre l’éditeur — mode création (document neuf, non enregistré). */
   const openNew = (kind: Invoice['kind']) => {
     setEditing({ mode: 'new', draft: blankDraft(kind) });
-    setKindTab('all');
     setStatusFilter('tous');
+    setQ('');
   };
   /* Ouvre le MÊME éditeur pré-rempli avec un document existant — mode modification. */
   const openEdit = (d: Invoice) => {
@@ -329,13 +346,81 @@ export default function Factures() {
   const statusClass = (s: Invoice['status']) =>
     s === 'payée' ? 'trv-status--payee' : s === 'envoyée' ? 'trv-status--envoyee' : s === 'acceptée' ? 'trv-status--acceptee' : '';
 
-  const counts = {
-    all: branchDocs.length,
-    facture: branchDocs.filter((d) => d.kind === 'facture').length,
-    devis: branchDocs.filter((d) => d.kind === 'devis').length,
+  const draft = editing?.draft ?? null;
+
+  /* Le document choisi s'ouvre SOUS la feuille : sur un registre long, il tombe
+     hors de l'écran et le clic semble sans effet. On l'amène à l'œil — mais
+     seulement s'il n'y est pas déjà, sinon la page sautille à chaque clic. */
+  const detailRef = useRef<HTMLDivElement>(null);
+  const revealDetail = () => {
+    requestAnimationFrame(() => {
+      const el = detailRef.current;
+      if (!el) return;
+      const { top } = el.getBoundingClientRect();
+      if (top < 0 || top > window.innerHeight - 140) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
-  const draft = editing?.draft ?? null;
+  /* Arrivée par `?id=` (Tableau de bord, Analytics, mouvements d'une caisse) :
+     la facture demandée est déjà sélectionnée — on la montre sans faire chercher. */
+  /* Au montage seulement : une sélection faite à la main se gère déjà au clic. */
+  useEffect(() => {
+    if (params.get('id')) revealDetail();
+  }, []);
+
+  const selectDoc = (d: Invoice) => {
+    setSelectedId(d.id);
+    if (editing) setEditing(null);
+    revealDetail();
+  };
+
+  /* Une ligne de la feuille — le geste du Carnet : on clique, le document s'ouvre
+     en dessous ; « Modifier » entre directement dans l'éditeur. */
+  const renderRow = (d: Invoice) => {
+    const c = clientOf(d);
+    const isActive = (editing?.draft.id ?? selected?.id) === d.id;
+    return (
+      <div
+        className={`trc-sheet__row ${isActive ? 'is-active' : ''}`}
+        style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
+        key={d.id}
+        onClick={() => selectDoc(d)}
+        title={`Ouvrir ${d.kind === 'devis' ? 'ce devis' : 'cette facture'}`}
+      >
+        <span className="trc-date">{frDay(d.date)}</span>
+        <span className="trv-row__no">{d.number}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          {c && <Avatar client={c} size={30} />}
+          <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {clientNameOf(d)}
+          </span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+          {d.payment ? (
+            <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{d.payment}</span>
+          ) : (
+            <span style={{ fontSize: 12, color: 'var(--ink-soft)', opacity: 0.5 }}>—</span>
+          )}
+          {/* La devise reçue se lit dès la feuille : un euro encaissé ne doit pas
+              se cacher derrière un montant en francs. */}
+          {d.fx && (
+            <span className="trv-fx-chip">
+              {d.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {d.fx.code}
+            </span>
+          )}
+        </span>
+        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>
+          {fmtMoney(invoiceTotal(d), currency)}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+          <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
+          <button className="trv-minibtn" title="Modifier ce document" onClick={(e) => { e.stopPropagation(); openEdit(d); }}>
+            Modifier
+          </button>
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="mnd-rise">
@@ -350,56 +435,57 @@ export default function Factures() {
         }
       />
 
-      <div className="trv-fac-grid">
-        {/* ===== Colonne gauche — documents & éditeur ===== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <div className="trv-sec-label">Les documents</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              {([['all', 'Tous'], ['facture', 'Factures'], ['devis', 'Devis']] as const).map(([k, label]) => (
-                <button key={k} className={`trv-pill ${kindTab === k ? 'is-active' : ''}`} onClick={() => setKindTab(k)}>
-                  {label} <span style={{ opacity: 0.6 }}>{counts[k]}</span>
-                </button>
-              ))}
-            </div>
-            <div style={{ marginBottom: 11 }}>
-              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} style={{ width: '100%', fontSize: 12 }}>
-                <option value="tous">Tous les statuts</option>
-                <option value="brouillon">Brouillon</option>
-                <option value="envoyée">Envoyée</option>
-                <option value="payée">Payée</option>
-                <option value="acceptée">Acceptée</option>
-              </Select>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 320, overflowY: 'auto' }}>
-              {filtered.map((d) => {
-                const isActive = (editing?.draft.id ?? selected?.id) === d.id;
-                return (
-                  <div key={d.id} className={`trv-doc-item ${isActive ? 'is-active' : ''}`} style={{ cursor: 'pointer' }} onClick={() => { setSelectedId(d.id); if (editing) setEditing(null); }}>
-                    <span className="trv-doc-item__id">
-                      <span className="cl">{clientNameOf(d)}</span>
-                      <span className="no">{d.kind === 'devis' ? 'Devis' : 'Facture'} · {d.number}</span>
-                    </span>
-                    <span className="trv-doc-item__end">
-                      <span className="trv-doc-item__fig">
-                        <span className="amt">{fmtMoney(invoiceTotal(d), currency)}</span>
-                        <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
-                      </span>
-                      <button className="trv-minibtn" title="Modifier ce document" onClick={(e) => { e.stopPropagation(); openEdit(d); }}>
-                        Modifier
-                      </button>
-                    </span>
-                  </div>
-                );
-              })}
-              {filtered.length === 0 && (
-                <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)', padding: '8px 0' }}>
-                  Aucun document pour ce filtre.
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ===== Chercher une cliente ===== */}
+      <div className="trv-search">
+        <span className="trv-search__field">
+          <Search size={15} strokeWidth={1.75} aria-hidden />
+          <input
+            className="trv-search__input"
+            type="search"
+            placeholder="Chercher une cliente, un numéro de document…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          {q && (
+            <button className="trv-search__clear" title="Effacer la recherche" onClick={() => setQ('')}>✕</button>
+          )}
+        </span>
+        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} style={{ fontSize: 12, maxWidth: 200 }}>
+          <option value="tous">Tous les statuts</option>
+          <option value="brouillon">Brouillon</option>
+          <option value="envoyée">Envoyée</option>
+          <option value="payée">Payée</option>
+          <option value="acceptée">Acceptée</option>
+        </Select>
+      </div>
 
+      {/* ===== La feuille — factures d'abord, devis en dessous ===== */}
+      <div className="trc-sheet trv-sheet">
+        <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
+          <span>Date</span>
+          <span>Numéro</span>
+          <span>Cliente</span>
+          <span>Règlement</span>
+          <span>Montant</span>
+          <span style={{ textAlign: 'right' }}>Statut</span>
+        </div>
+
+        <div className="trc-sheet__group">Factures ({factures.length})</div>
+        {factures.length === 0 && (
+          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture — la maison attend son premier encaissement.'}</div>
+        )}
+        {factures.map(renderRow)}
+
+        <div className="trc-sheet__group">Devis ({devis.length})</div>
+        {devis.length === 0 && (
+          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente.'}</div>
+        )}
+        {devis.map(renderRow)}
+      </div>
+
+      <div className="trv-fac-grid" ref={detailRef}>
+        {/* ===== Colonne gauche — éditeur & actions ===== */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* ===== Éditeur (création & modification — même formulaire) ===== */}
           {draft ? (
             <>

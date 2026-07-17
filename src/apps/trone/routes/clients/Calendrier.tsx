@@ -313,7 +313,7 @@ export default function Calendrier() {
                       className={`trc-cal__appt trc-cal__appt--drag ${cls} ${dragId === a.id ? 'is-dragging' : ''}`}
                       key={a.id}
                       style={{ top, height: h }}
-                      title={`${apptLabel(a, byId)} — glisser pour déplacer, cliquer pour modifier`}
+                      title={`${clientName(a.clientId)} · ${apptLabel(a, byId)} — glisser pour déplacer, cliquer pour modifier`}
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
                       onDragEnd={onDragEnd}
@@ -322,12 +322,16 @@ export default function Calendrier() {
                       onTouchEnd={onTouchEndDrag}
                       onClick={() => clickAppt(a)}
                     >
+                      {/* La cliente d'abord : un rituel de 30 min ne fait que 30 px
+                          de haut, et `overflow: hidden` n'y laisse tenir qu'UNE
+                          ligne. C'est le nom qui doit survivre à la coupe, pas le
+                          rituel — on lit un carnet pour savoir qui vient. */}
                       <div className="trc-cal__appt-title">
-                        {a.time} · {apptLabel(a, byId)}
+                        {a.time} · {clientName(a.clientId)}
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       </div>
                       <div className="trc-cal__appt-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clientName(a.clientId)}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apptLabel(a, byId)}</span>
                         <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
                       </div>
                       {a.status !== 'honoré' && (
@@ -383,6 +387,9 @@ export default function Calendrier() {
                         onClick={() => clickAppt(a)}
                       >
                         <b>{a.time}</b>
+                        {/* Le nom sort de l'infobulle : sur une semaine on cherche
+                            une cliente, pas une heure. */}
+                        <i className="trc-week__who">{clientName(a.clientId)}</i>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
                           {serieMark(a) ? ` · ${serieMark(a)}` : ''}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -623,5 +624,85 @@ export function ClientPicker({
         </div>
       )}
     </div>
+  );
+}
+
+/* ---------- Ce qu'il y a derrière un chiffre ----------
+   Un indice du pilotage (un KPI, une barre, une part de camembert) n'est jamais
+   qu'une somme : cette modale montre les lignes qui la composent, et chaque ligne
+   qui porte une facture l'ouvre. Partagée par le Tableau de bord et Analytics —
+   deux écrans, un seul geste. */
+
+export type DrillRow = {
+  date?: string; who: string; sub?: string; amount?: number;
+  /** La ligne ouvre sa facture. */
+  invoiceId?: string;
+  /** …ou creuse d'un cran (une semaine s'ouvre sur un jour). Prime sur `invoiceId`. */
+  onOpen?: () => void;
+};
+export type Drill = { title: string; sub?: string; rows: DrillRow[]; total?: number };
+
+export function DrillModal({ drill, onClose }: { drill: Drill; onClose: () => void }) {
+  const navigate = useNavigate();
+  const { currency } = useBranch();
+  return (
+    <Modal title={drill.title} onClose={onClose} width={620}>
+      {drill.sub && <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{drill.sub}</div>}
+      {drill.rows.length === 0 ? (
+        <div className="trp-empty">Rien à montrer ici.</div>
+      ) : (
+        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+          {drill.rows.map((r, i) => {
+            const body = (
+              <>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{r.who}</div>
+                  {r.sub && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{r.sub}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flex: 'none' }}>
+                  {r.amount !== undefined && (
+                    <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)' }}>
+                      {fmtMoney(r.amount, currency)}
+                    </div>
+                  )}
+                  {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
+                </div>
+              </>
+            );
+            /* `border: none` d'abord, puis la seule bordure qu'on garde :
+               l'inverse annulerait le trait sur les lignes-boutons. */
+            const st = {
+              display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+              gap: 12, padding: '9px 0',
+              width: '100%', textAlign: 'left' as const, background: 'none',
+              border: 'none', borderBottom: '1px solid var(--hairline)',
+              font: 'inherit', color: 'inherit',
+            };
+            /* La ligne s'ouvre sur sa facture, ou creuse d'un cran. Une fidélisée
+               ou un rituel jamais encaissé n'a ni l'un ni l'autre : elle reste une
+               ligne plutôt qu'un bouton qui ne mène nulle part. */
+            const open = r.onOpen ?? (r.invoiceId ? () => { onClose(); navigate(`/factures?id=${r.invoiceId}`); } : null);
+            return open ? (
+              <button
+                key={`${r.who}-${r.date ?? ''}-${i}`}
+                style={{ ...st, cursor: 'pointer' }}
+                title={r.invoiceId && !r.onOpen ? 'Ouvrir la facture' : 'Voir le détail'}
+                onClick={open}
+              >
+                {body}
+              </button>
+            ) : (
+              <div key={`${r.who}-${r.date ?? ''}-${i}`} style={st}>{body}</div>
+            );
+          })}
+        </div>
+      )}
+      {drill.total !== undefined && drill.rows.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
+          <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total</span>
+          <span className="mnd-serif" style={{ fontSize: 22, color: 'var(--color-indigo)' }}>{fmtMoney(drill.total, currency)}</span>
+        </div>
+      )}
+    </Modal>
   );
 }

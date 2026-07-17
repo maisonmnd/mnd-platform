@@ -11,6 +11,7 @@ import { useApprenants } from '../equipe/data';
 import {
   Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const [apprenants] = useApprenants();
 
   const [breakOpen, setBreakOpen] = useState(false);
+  const [drill, setDrill] = useState<Drill | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
@@ -258,6 +260,70 @@ export default function Dashboard() {
     }
   };
 
+  /* ---------- Ce qu'il y a derrière un chiffre ----------
+     Même geste qu'Analytics : un indice s'ouvre sur les lignes qui le composent,
+     et une ligne qui a une facture ouvre sa facture. */
+  const nameOf = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente';
+
+  /** Le revenu d'un jour, ligne à ligne — LES TROIS composantes de `dayRev`, sans
+      quoi le détail annoncerait moins que la barre qu'on vient d'ouvrir. */
+  const openDay = (iso: string) => {
+    const rows: DrillRow[] = [
+      ...appts
+        .filter((a) => a.date === iso && !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today)))
+        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptTotalXof(a, byId) })),
+      ...invoices
+        .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
+        .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
+      // Scolarité de l'Académie — hors branche, mais bien du revenu de la Maison.
+      ...apprenants.flatMap((ap) =>
+        (ap.payments ?? [])
+          .filter((p) => payISO(p.date) === iso)
+          .map((p) => ({ who: ap.name, sub: 'Scolarité · Académie', amount: p.amountXof })),
+      ),
+    ];
+    setDrill({
+      title: `Revenu · ${frShort(iso)}`,
+      sub: rows.length ? 'Rituels du carnet, factures payées et scolarité de la journée.' : undefined,
+      rows,
+      total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+    });
+  };
+
+  /** Les 7 jours, ligne à ligne — le détail derrière le total de la semaine. */
+  const openWeek = () => {
+    const rows: DrillRow[] = [...rev7]
+      .reverse()
+      .map((d) => ({
+        who: frShort(d.iso),
+        sub: d.total > 0 ? 'Voir la journée' : 'Aucun mouvement',
+        amount: d.total,
+        onOpen: d.total > 0 ? () => openDay(d.iso) : undefined,
+      }));
+    setDrill({ title: 'Revenu · 7 jours', sub: 'Rituels du carnet, factures payées et scolarité.', rows, total: rev7Total });
+  };
+
+  /** Les factures d'un moyen de paiement — chacune ouvrable. */
+  const openPayMethod = (method: string) => {
+    const rows: DrillRow[] = invoices
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée'
+        && monthKey(i.date) === thisMonth && (i.payment ?? 'Autre') === method)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((i) => ({
+        who: i.clientName || nameOf(i.clientId),
+        sub: `${i.number}${i.fx ? ` · ${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : ''}`,
+        date: i.date,
+        amount: invoiceTotal(i),
+        invoiceId: i.id,
+      }));
+    setDrill({
+      title: `Encaissements · ${method}`,
+      sub: `${rows.length} facture${rows.length > 1 ? 's' : ''} ce mois-ci`,
+      rows,
+      total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+    });
+  };
+
   /* — revenu 7 jours, barres SVG — */
   const rev7Total = rev7.reduce((s, d) => s + d.total, 0);
   const rev7Max = Math.max(...rev7.map((d) => d.total), 1);
@@ -371,15 +437,21 @@ export default function Dashboard() {
         </div>
 
         <div className="trp-rev">
-          <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
-          <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
-          <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} aria-hidden>
+          <button className="trp-rev__open" onClick={openWeek} title="Voir le détail des 7 jours">
+            <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
+            <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
+          </button>
+          <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} role="group" aria-label="Revenu des 7 derniers jours">
             {rev7.map((d, i) => {
               const h = Math.max(4, Math.round((d.total / rev7Max) * 118));
               const x = 8 + i * 39;
               const isBest = d.iso === best.iso && d.total > 0;
               return (
-                <g key={d.iso}>
+                <g key={d.iso} role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => openDay(d.iso)}>
+                  <title>{`${frShort(d.iso)} · ${fmtMoney(d.total, currency)}`}</title>
+                  {/* Cible de clic sur toute la colonne : une journée creuse n'a
+                      qu'un trait de 4 px, impossible à viser au doigt. */}
+                  <rect x={x - 6} y={4} width={38} height={142} fill="transparent" />
                   <rect x={x} y={130 - h} width={26} height={h} rx={2} fill={isBest ? 'var(--color-copper)' : 'rgba(246,241,231,0.28)'} />
                   <text x={x + 13} y={146} textAnchor="middle" fontSize={9.5} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
                     {d.label}
@@ -388,10 +460,10 @@ export default function Dashboard() {
               );
             })}
           </svg>
-          <div className="trp-rev__foot">
+          <button className="trp-rev__foot trp-rev__foot--btn" onClick={() => openDay(best.iso)} title="Voir le meilleur jour">
             <span>Meilleur jour · {bestName}</span>
             <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -435,7 +507,7 @@ export default function Dashboard() {
                 <div className="trp-break__empty">Aucune facture payée ce mois-ci.</div>
               )}
               {breakdown.encaissements.map((e) => (
-                <button className="trp-break__row" key={e.id} onClick={() => { setBreakOpen(false); navigate('/factures'); }}>
+                <button className="trp-break__row" key={e.id} title="Voir les factures" onClick={() => { setBreakOpen(false); openPayMethod(e.id); }}>
                   <span className="trp-break__label">{e.label}</span>
                   <span className="trp-break__count">{e.count} facture{e.count > 1 ? 's' : ''}</span>
                   <span className="trp-break__num">{fmtMoney(e.total, currency)}</span>
@@ -462,6 +534,9 @@ export default function Dashboard() {
 
       {/* Encaissement d’un rendez-vous du carnet du jour */}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+
+      {/* Ce qu’il y a derrière un chiffre — chaque ligne ouvre sa facture */}
+      {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
     </div>
   );
 }

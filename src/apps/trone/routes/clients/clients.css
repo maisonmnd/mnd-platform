@@ -417,6 +417,16 @@
 .trc-week__chip--deep { background: var(--color-indigo); color: var(--color-ivoire); }
 .trc-week__chip b { display: block; font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 13px; line-height: 1; }
 .trc-week__chip i { display: block; font-style: normal; font-size: 10px; margin-top: 3px; opacity: 0.9; }
+/* Le nom de la cliente — sept colonnes étroites : il s'abrège plutôt que de
+   pousser la journée hors de sa case. */
+.trc-week__chip .trc-week__who {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  opacity: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- Vitrine (scène sombre) ---------- */
 .trc-stage {

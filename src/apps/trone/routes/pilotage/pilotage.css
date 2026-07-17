@@ -216,6 +216,33 @@
 }
 .trp-rev__best { font-family: var(--font-serif); font-size: 18px; color: var(--copper-200); }
 
+/* Le total et le meilleur jour s'ouvrent sur leur détail — boutons dénudés :
+   la carte indigo garde son dessin, seul le curseur trahit qu'on peut creuser. */
+.trp-rev__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.trp-rev__foot--btn {
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--hairline-invert);
+  font: inherit;
+  font-size: var(--text-micro);
+  color: var(--indigo-100);
+  cursor: pointer;
+}
+.trp-rev__open:hover .trp-rev__value,
+.trp-rev__foot--btn:hover { color: var(--color-ivoire); }
+.trp-rev svg g[role='button']:hover rect:nth-of-type(2) { fill: var(--copper-200); }
+
 /* ---------- Analytics ---------- */
 .trp-chip {
   cursor: pointer;
