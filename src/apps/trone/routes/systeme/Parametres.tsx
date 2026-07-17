@@ -87,15 +87,6 @@ const ROLE_DEFS: Role[] = [
   { k: 'accueil', label: 'Accueil', desc: 'Réception, caisse, clientes.', perms: ['clients', 'vente'] },
 ];
 
-/** Code d'accès stable, dérivé du rôle — même logique que le prototype. */
-function accessCode(seedStr: string): string {
-  const seed = (seedStr + '·mnd').split('').reduce((a, c) => a + c.charCodeAt(0) * 7, 0);
-  const A = 'ACDEFGHJKLMNPQRTUVWXY3479';
-  let n = seed, s = '';
-  for (let i = 0; i < 8; i++) { s += A[n % A.length]; n = Math.floor(n / 3) + (i + 1) * 131; }
-  return 'MND-' + s.slice(0, 4) + '-' + s.slice(4, 8);
-}
-
 function FieldRowView({ l, v }: FieldRow) {
   return (
     <div className="sys-row">
@@ -128,7 +119,6 @@ export default function Parametres() {
   const [segments, setSegments] = useSegments();
   const [payMethods] = usePaymentMethods();
   const [saved, setSaved] = useState(false);
-  const [sentRole, setSentRole] = useState<string | null>(null);
   const [newStyle, setNewStyle] = useState('');
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editVal, setEditVal] = useState('');
@@ -468,6 +458,19 @@ export default function Parametres() {
               </>
             )}
           </div>
+          {/* Exceptionnel, d'où une bascule : on l'ouvre le temps d'une facture,
+              on la referme après. Fermée, la Caisse n'encaisse qu'en {currency}. */}
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Paiement en devise étrangère</div>
+              <div className="sys-row__sub">
+                Ouvre à la Caisse le règlement dans une autre devise que le {currency} — la cliente
+                paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
+                taux sont consignés. À refermer une fois la facture réglée.
+              </div>
+            </div>
+            <Toggle on={!!settings.fxEnabled} onToggle={() => setSettings((s) => ({ ...s, fxEnabled: !s.fxEnabled }))} />
+          </div>
           <div className="sys-row">
             <div>
               <div className="sys-row__label">Frais de livraison à domicile</div>
@@ -728,44 +731,27 @@ export default function Parametres() {
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div className="sys-section__title">Accès ERP du personnel</div>
         <div className="sys-section__cap">
-          Chaque rôle ouvre certaines rubriques de domaine. Envoyez à un membre son code d’accès —
-          il rejoint le Trône avec exactement les droits de son rang, rien de plus.
+          Chaque rôle ouvre certaines rubriques de domaine. Un membre rejoint le Trône avec son
+          e-mail et son mot de passe, puis un souverain le rattache au personnel depuis
+          Accès &amp; personnel — il entre avec exactement les droits de son rang, rien de plus.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-          {ROLE_DEFS.map((role) => {
-            const code = accessCode(role.k);
-            return (
-              <div key={role.k} style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{role.label}</div>
-                    <div className="sys-row__sub">{role.desc}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="sys-code">{code}</span>
-                    <Button size="sm" variant="ghost" onClick={() => { setSentRole(role.k); window.setTimeout(() => setSentRole((c) => (c === role.k ? null : c)), 2400); }}>
-                      Envoyer le code
-                    </Button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                  {DOMAINS.map((dom) => {
-                    const on = role.perms.includes(dom.k);
-                    return (
-                      <span key={dom.k} className={`tre-chip ${on ? 'is-on' : ''}`} style={{ cursor: 'default', opacity: on ? 1 : 0.55 }}>
-                        {dom.l}
-                      </span>
-                    );
-                  })}
-                </div>
-                {sentRole === role.k && (
-                  <div className="sys-row__sub" style={{ color: 'var(--copper-700)', marginTop: 8 }}>
-                    Code {code} envoyé par WhatsApp au futur {role.label}.
-                  </div>
-                )}
+          {ROLE_DEFS.map((role) => (
+            <div key={role.k} style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{role.label}</div>
+              <div className="sys-row__sub">{role.desc}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                {DOMAINS.map((dom) => {
+                  const on = role.perms.includes(dom.k);
+                  return (
+                    <span key={dom.k} className={`tre-chip ${on ? 'is-on' : ''}`} style={{ cursor: 'default', opacity: on ? 1 : 0.55 }}>
+                      {dom.l}
+                    </span>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </Card>
 

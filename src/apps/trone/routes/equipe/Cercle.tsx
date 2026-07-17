@@ -100,7 +100,7 @@ export default function Cercle() {
         eyebrow="Le Cercle MND · transmission & lignée"
         title="Le Cercle."
         sub={`${branch.name} — les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
-        actions={<Button variant="ghost" onClick={openTierNew}>+ Nouveau palier</Button>}
+        actions={<Button variant="copper" onClick={openTierNew}>+ Nouveau palier</Button>}
       />
 
       <div className="tr-grid tr-grid--4" style={{ marginBottom: 22 }}>

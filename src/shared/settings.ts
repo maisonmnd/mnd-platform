@@ -30,6 +30,10 @@ export type Settings = {
   depositServiceIds?: string[];
   /** Frais de livraison à domicile (XOF). Lu par Ma Couronne · Gamme. */
   deliveryFeeXof: number;
+  /** Ouvre l'encaissement en devise étrangère à la Caisse. Exceptionnel : on
+      l'active le temps d'une facture, puis on le referme — d'où une bascule et
+      non un réglage permanent. */
+  fxEnabled?: boolean;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

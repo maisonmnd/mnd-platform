@@ -2,14 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, rateToXof } from '../../../../shared/currency';
+import { CURRENCIES } from '../../../../shared/geo';
+import { useSettings } from '../../../../shared/settings';
 import { useCategories, useServices, useProducts } from '../../../../shared/catalog';
 import { useFormations } from '../equipe/data';
+import { Toggle } from '../equipe/ui';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, type Invoice, type PaymentMethod } from '../../../../shared/finance';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
+import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
@@ -58,6 +62,11 @@ export default function Caisse() {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [globalDisc, setGlobalDisc] = useState(0);
   const [globalDiscXof, setGlobalDiscXof] = useState(0);
+  /* Devise étrangère — exceptionnel, ouvert depuis Paramètres. */
+  const [settings] = useSettings();
+  const [fxOn, setFxOn] = useState(false);
+  const [fxCode, setFxCode] = useState('EUR');
+  const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
   const [clientId, setClientId] = useState('');
   const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
@@ -139,6 +148,10 @@ export default function Caisse() {
   /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
      sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
+  /* Le montant en devise se DÉDUIT du net : c'est le XOF qui fait foi, jamais
+     l'inverse — la facture ne change pas parce qu'on la règle en euros. */
+  const fxRateNum = Math.max(0, Number(fxRate) || 0);
+  const fxAmount = fxOn && fxRateNum > 0 ? Math.round((netXof / fxRateNum) * 100) / 100 : 0;
 
   /* — encaissement — */
   const nextNumber = () => {
@@ -167,6 +180,7 @@ export default function Caisse() {
       lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.priceXof, discountPct: l.disc })),
       globalDiscountPct: globalDisc,
       globalDiscountXof: globalDiscXof || undefined,
+      fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       theme: 'Aube',
       status: 'payée',
       payment: pay,
@@ -193,7 +207,11 @@ export default function Caisse() {
         subtotal: fmtMoney(Math.round(grossXof), currency),
         discount: grossXof - netXof > 0 ? `− ${fmtMoney(Math.round(grossXof - netXof), currency)}` : undefined,
         total: fmtMoney(netXof, currency),
-        payment: inv.payment,
+        /* Le reçu doit dire ce que la cliente a réellement tendu, sinon elle lit
+           un montant en F qu'elle n'a jamais versé. */
+        payment: inv.fx
+          ? `${inv.payment} · ${inv.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${inv.fx.code} (1 ${inv.fx.code} = ${inv.fx.rate} ${currency})`
+          : inv.payment,
         status: 'payée',
       };
       await invoicePdf(receipt);
@@ -387,8 +405,61 @@ export default function Caisse() {
                   </button>
                 ))}
               </div>
-              <Button variant="copper" size="lg" style={{ marginTop: 16, width: '100%' }} disabled={lines.length === 0} onClick={() => void checkout()}>
-                Encaisser {fmtMoney(netXof, currency)}
+              {/* Devise étrangère — visible seulement quand la maison l'a ouvert
+                  (Paramètres). La facture reste en {currency} : on ne consigne ici
+                  que ce qui a été REÇU au comptoir, et à quel taux. */}
+              {settings.fxEnabled && (
+                <div style={{ marginTop: 14, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                      Régler en devise étrangère
+                    </span>
+                    <Toggle on={fxOn} onToggle={() => setFxOn((v) => !v)} />
+                  </div>
+                  {fxOn && (
+                    <>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                        <select
+                          className="mnd-select"
+                          value={fxCode}
+                          onChange={(e) => { setFxCode(e.target.value); setFxRate(String(rateToXof(e.target.value) || '')); }}
+                          style={{ flex: '1 1 120px' }}
+                          aria-label="Devise reçue"
+                        >
+                          {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
+                            <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          className="mnd-input"
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={fxRate}
+                          onChange={(e) => setFxRate(e.target.value)}
+                          placeholder="Taux"
+                          style={{ width: 110, textAlign: 'right' }}
+                          aria-label={`Taux : 1 ${fxCode} en ${currency}`}
+                        />
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 8, lineHeight: 1.5 }}>
+                        1 {fxCode} = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} · taux du jour, à corriger si besoin
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--copper-300)' }}>
+                        <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>À encaisser</span>
+                        <span className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-indigo)' }}>
+                          {fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}` : '—'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <Button variant="copper" size="lg" style={{ marginTop: 16, width: '100%' }} disabled={lines.length === 0 || (fxOn && fxAmount <= 0)} onClick={() => void checkout()}>
+                Encaisser {fxOn && fxAmount > 0
+                  ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
+                  : fmtMoney(netXof, currency)}
               </Button>
               {waHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{waHint}</div>}
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>

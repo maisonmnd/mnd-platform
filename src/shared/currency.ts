@@ -20,6 +20,12 @@ const RATES_TO_XOF: Record<string, number> = {
   AED: 164,
 };
 
+/** Taux INDICATIF : 1 unité de `code` = N XOF. 0 si la maison n'en a pas.
+    À ne jamais appliquer tel quel à un encaissement réel — ces taux sont figés
+    dans le code : ils servent à pré-remplir un champ, que le maître corrige au
+    taux du jour. Le change se négocie au comptoir, pas dans une constante. */
+export const rateToXof = (code: string): number => RATES_TO_XOF[code] ?? 0;
+
 export function convertFromXof(amountXof: number, code: string): number {
   const rate = RATES_TO_XOF[code];
   if (!rate) return amountXof;

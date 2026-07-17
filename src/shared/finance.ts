@@ -31,6 +31,10 @@ export type Invoice = {
   globalDiscountPct: number;
   /** Remise manuelle en CFA, retranchée APRÈS la remise globale en %. */
   globalDiscountXof?: number;
+  /** Encaissé en devise étrangère. Trace de ce qui a été REÇU au comptoir ; le
+      total de la facture reste en XOF, seule base de la maison.
+      `rate` = 1 unité de `code` en XOF, au taux du jour saisi par le maître. */
+  fx?: { code: string; rate: number; amount: number };
   theme: 'Rose' | 'Arbre' | 'Oiseau' | 'Voyage' | 'Aube' | 'Souffle';
   status: 'brouillon' | 'envoyée' | 'payée' | 'acceptée';
   payment?: PaymentMethod;
