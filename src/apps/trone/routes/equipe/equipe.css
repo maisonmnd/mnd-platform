@@ -738,3 +738,14 @@
   padding: 18px 20px;
 }
 .tre-livret-final__break { display: flex; flex-direction: column; gap: 4px; text-align: right; }
+
+/* Confirmation d'enregistrement dans le livret */
+.tre-flash {
+  margin-top: 12px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm, 3px);
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  color: var(--copper-700);
+  font-size: 12.5px;
+}

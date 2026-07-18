@@ -31,8 +31,8 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
 /* Parcours par défaut d'une nouvelle formation — « les quatre temps » du
    référentiel, désormais éditable : le défaut se lit donc au moment de la création
    (dans le composant), non plus à l'import de ce module. */
-type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; modules: string[] };
-const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6' };
+type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[] };
+const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40' };
 
 /* Inscription : identité + scolarité (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
@@ -121,17 +121,18 @@ export default function Academie() {
   const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: [...defaultModules] }); };
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules] });
+    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules] });
   };
   const saveFo = () => {
     if (!foForm || !foForm.name.trim()) return;
     const sessions = parseInt(foForm.sessions, 10) || 1;
     const priceXof = parseInt(foForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const dureeSemaines = parseInt(foForm.duree, 10) || 1;
+    const depositPct = Math.max(0, Math.min(100, parseInt(foForm.deposit.replace(/[^0-9]/g, ''), 10) || 0));
     const modules = foForm.modules.map((m) => m.trim()).filter(Boolean);
     if (foEditId) {
       const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
-      setFormations((prev) => prev.map((f) => (f.id === foEditId ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, modules } : f)));
+      setFormations((prev) => prev.map((f) => (f.id === foEditId ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules } : f)));
       /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
          retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
          repart de zéro pour ce module). */
@@ -144,7 +145,7 @@ export default function Academie() {
         }));
       }
     } else {
-      setFormations((prev) => [...prev, { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, archived: false, modules }]);
+      setFormations((prev) => [...prev, { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules }]);
     }
     setFoForm(null);
   };
@@ -586,6 +587,12 @@ export default function Academie() {
               <Field label="Prix (F CFA)">
                 <Input inputMode="numeric" value={foForm.price} onChange={(e) => setFoForm({ ...foForm, price: e.target.value })} placeholder="250 000" />
               </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Acompte à l’inscription (%)">
+                <Input inputMode="numeric" value={foForm.deposit} onChange={(e) => setFoForm({ ...foForm, deposit: e.target.value })} placeholder="40" />
+              </Field>
+              <div />
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Nombre de séances">

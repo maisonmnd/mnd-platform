@@ -2,14 +2,18 @@ import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
+import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
+import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import { ClientPicker } from '../clients/_shared';
-import { useFormations, type Formation } from './data';
+import { useFormations, type Formation, type Payment } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import {
   enrollmentsStore, useEnrollments, newEnrollment, setEnrollment,
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
   canPlanJury, canCertify, nextCertNumber,
+  enrollNet, enrollGross, enrollPaid, enrollDue, depositPctOf, depositAmount, depositMet,
   STATUS_LABEL, STATUS_NEXT,
   type Enrollment, type EnrollmentStatus, type Attendance, type SessionEntry,
   type ModuleEvaluation, type PracticeRecord, type JuryReview, type JuryRole,
@@ -188,11 +192,15 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
 }
 
 /* ---------- Livret F1→F6 ---------- */
-type LivretTab = 'f1' | 'f3' | 'f4' | 'f5' | 'f6' | 'cert';
+type LivretTab = 'f1' | 'scolarite' | 'f3' | 'f4' | 'f5' | 'f6' | 'cert';
 
 function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollment; formations: Formation[]; onClose: () => void }) {
   const { branch } = useBranch();
   const [tab, setTab] = useState<LivretTab>('f3');
+  const [flash, setFlash] = useState<string | null>(null);
+  /* Confirmation brève d'enregistrement — les saisies en place (candidature,
+     scolarité) ne changent rien à l'écran, sans ce mot elles semblent sans effet. */
+  const notify = (msg: string) => { setFlash(msg); window.setTimeout(() => setFlash((m) => (m === msg ? null : m)), 2400); };
   const e = enrollment; // toujours frais : le parent re-render depuis le store
   const formation = formations.find((f) => f.id === e.formationId);
   const modules = formation?.modules ?? [];
@@ -253,6 +261,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       <Tabs<LivretTab>
         tabs={[
           { k: 'f1', l: 'Candidature' },
+          { k: 'scolarite', l: 'Scolarité' },
           { k: 'f3', l: `Séances (${e.sessions.length})` },
           { k: 'f4', l: `Pratique (${e.practice.length})` },
           { k: 'f5', l: `Modules (${e.evaluations.length})` },
@@ -263,6 +272,8 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
         onChange={setTab}
       />
 
+      {flash && <div className="tre-flash">✓ {flash}</div>}
+
       {frozen && (
         <div className="tre-inline-note" style={{ marginTop: 14 }}>
           <span className="mark">!</span>
@@ -271,30 +282,33 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       )}
 
       <div style={{ marginTop: 16 }}>
-        {tab === 'f1' && <TabCandidature e={e} />}
+        {tab === 'f1' && <TabCandidature e={e} notify={notify} />}
+        {tab === 'scolarite' && <TabScolarite e={e} formation={formation} notify={notify} />}
         {tab === 'f3' && <TabSeances e={e} modules={modules} masters={masters} frozen={frozen} />}
         {tab === 'f4' && <TabPratique e={e} masters={masters} frozen={frozen} />}
         {tab === 'f5' && <TabModules e={e} modules={modules} masters={masters} frozen={frozen} />}
         {tab === 'f6' && <TabJury e={e} modules={modules} frozen={frozen} />}
-        {tab === 'cert' && <TabCertificat e={e} formation={formation} sc={sc} mention={mention} />}
+        {tab === 'cert' && <TabCertificat e={e} formation={formation} modules={modules} sc={sc} mention={mention} />}
       </div>
     </Modal>
   );
 }
 
 /* ---------- F1 · Candidature (compacte, portée dans le dossier) ---------- */
-function TabCandidature({ e }: { e: Enrollment }) {
+function TabCandidature({ e, notify }: { e: Enrollment; notify: (m: string) => void }) {
   const [notes, setNotes] = useState(e.interviewNotes ?? '');
   const [obs, setObs] = useState({
     geste: e.observation?.geste != null ? String(e.observation.geste) : '',
     hygiene: e.observation?.hygiene != null ? String(e.observation.hygiene) : '',
     posture: e.observation?.posture != null ? String(e.observation.posture) : '',
   });
-  const save = () =>
+  const save = () => {
     setEnrollment(e.id, {
       interviewNotes: notes.trim() || undefined,
       observation: { geste: numOpt(obs.geste), hygiene: numOpt(obs.hygiene), posture: numOpt(obs.posture) },
     });
+    notify('Candidature enregistrée.');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -318,6 +332,110 @@ function TabCandidature({ e }: { e: Enrollment }) {
 }
 const num = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) ? n : 0; };
 const numOpt = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) ? n : undefined; };
+const digits = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
+
+/* ---------- Scolarité · paiements de la formation (suivi manuel) ---------- */
+function TabScolarite({ e, formation, notify }: { e: Enrollment; formation?: Formation; notify: (m: string) => void }) {
+  const { currency } = useBranch();
+  const [methods] = usePaymentMethods();
+  // Montant affiché = BRUT (net convenu + remise). Enregistré en net + remise.
+  const [gross, setGross] = useState(String(enrollGross(e, formation) || (formation?.priceXof ?? '')));
+  const [remise, setRemise] = useState(e.remiseXof ? String(e.remiseXof) : '');
+
+  const saveAmount = () => {
+    const g = digits(gross);
+    const r = Math.min(g, digits(remise));
+    setEnrollment(e.id, { priceXof: Math.max(0, g - r), remiseXof: r || undefined });
+    notify('Montant de la scolarité enregistré.');
+  };
+
+  const net = enrollNet(e, formation);
+  const paid = enrollPaid(e);
+  const due = enrollDue(e, formation);
+  const pct = depositPctOf(formation);
+  const dep = depositAmount(e, formation);
+  const depOk = depositMet(e, formation);
+
+  const addPayment = (p: Payment) => {
+    const payments = [...(e.payments ?? []), p];
+    const totalPaid = payments.reduce((s, x) => s + x.amountXof, 0);
+    setEnrollment(e.id, { payments, depositPaid: net > 0 && totalPaid >= dep });
+    notify(`Règlement de ${fmtMoney(p.amountXof, currency)} enregistré.`);
+  };
+  const removePayment = (id: string) => {
+    const payments = (e.payments ?? []).filter((x) => x.id !== id);
+    const totalPaid = payments.reduce((s, x) => s + x.amountXof, 0);
+    setEnrollment(e.id, { payments, depositPaid: net > 0 && totalPaid >= dep });
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Montant & remise */}
+      <div>
+        <div className="tre-sec-label" style={{ marginBottom: 8 }}>Montant de la formation</div>
+        <div className="tr-grid tr-grid--2">
+          <Field label="Montant (F CFA)"><Input inputMode="numeric" value={gross} onChange={(ev) => setGross(ev.target.value)} placeholder={String(formation?.priceXof ?? '250 000')} /></Field>
+          <Field label="Remise accordée (F CFA)"><Input inputMode="numeric" value={remise} onChange={(ev) => setRemise(ev.target.value)} placeholder="0" /></Field>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button variant="indigo" size="sm" onClick={saveAmount}>Enregistrer le montant</Button>
+        </div>
+      </div>
+
+      {/* Récapitulatif */}
+      <div className="tre-pay-recap">
+        <div className="tre-pay-recap__line"><span className="mnd-muted">Net convenu</span><span>{fmtMoney(net, currency)}</span></div>
+        <div className="tre-pay-recap__line"><span className="mnd-muted">Acompte attendu · {pct} %</span><span>{fmtMoney(dep, currency)} {depOk ? '· couvert ✓' : ''}</span></div>
+        <div className="tre-pay-recap__line"><span className="mnd-muted">Réglé</span><span>{fmtMoney(paid, currency)}</span></div>
+        <div className="tre-pay-recap__line tre-pay-recap__reste"><span>Reste à payer</span><span>{fmtMoney(due, currency)}</span></div>
+      </div>
+
+      {/* Règlements */}
+      <div>
+        <div className="tre-sec-label" style={{ marginBottom: 8 }}>Règlements</div>
+        {(e.payments ?? []).length === 0 && <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Aucun règlement enregistré.</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {(e.payments ?? []).map((p) => (
+            <div key={p.id} className="tre-pay-summary__pay" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{p.date}{p.method ? ` · ${p.method}` : ''}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span>{fmtMoney(p.amountXof, currency)}</span>
+                <button className="tre-link-btn tre-link-btn--danger" onClick={() => removePayment(p.id)}>Retirer</button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <PaymentForm methods={methods} due={due} onAdd={addPayment} />
+      </div>
+    </div>
+  );
+}
+
+function PaymentForm({ methods, due, onAdd }: { methods: PaymentMethod[]; due: number; onAdd: (p: Payment) => void }) {
+  const { currency } = useBranch();
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(todayISO());
+  const [method, setMethod] = useState<PaymentMethod>(methods[0] ?? 'MTN MoMo');
+  const add = (fill?: number) => {
+    const amt = fill != null ? fill : digits(amount);
+    if (amt <= 0) return;
+    onAdd({ id: `pay-${uid()}`, amountXof: amt, date: frDate(date), method });
+    setAmount('');
+  };
+  return (
+    <div className="tre-fiche tre-fiche--form" style={{ marginTop: 10 }}>
+      <div className="tr-grid tr-grid--3">
+        <Field label="Montant (F CFA)"><Input inputMode="numeric" value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="Ex. 100 000" /></Field>
+        <Field label="Date"><Input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} /></Field>
+        <Field label="Moyen"><Select value={method} onChange={(ev) => setMethod(ev.target.value as PaymentMethod)}>{methods.map((m) => <option key={m} value={m}>{m}</option>)}</Select></Field>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+        {due > 0 && <Button variant="ghost" size="sm" onClick={() => add(due)}>Solder le reste ({fmtMoney(due, currency)})</Button>}
+        <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={() => add()}>Enregistrer le règlement</Button>
+      </div>
+    </div>
+  );
+}
 
 /* ---------- F3 · Séances ---------- */
 const ATTENDANCE: { k: Attendance; l: string }[] = [
@@ -711,9 +829,77 @@ function TabJury({ e, modules, frozen }: { e: Enrollment; modules: string[]; fro
 const clamp = (n: number, max: number) => Math.max(0, Math.min(max, n));
 
 /* ---------- Certificat ---------- */
-function TabCertificat({ e, formation, sc, mention }: { e: Enrollment; formation?: Formation; sc: ReturnType<typeof scoreEnrollment>; mention: ReturnType<typeof mentionFor> }) {
+function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; formation?: Formation; modules: string[]; sc: ReturnType<typeof scoreEnrollment>; mention: ReturnType<typeof mentionFor> }) {
   const [enrollments] = useEnrollments();
+  const { branch, currency } = useBranch();
   const eligible = canCertify(e);
+
+  /* Bilan de parcours — le document complet remis à l'apprenant avec le certificat.
+     Bâti sur summaryPdf, qui porte déjà le sceau MND, le mot-marque et les couleurs
+     de la Maison (respect du design system). */
+  const bilan = async () => {
+    const safe = e.learnerName.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'apprenant';
+    const bestEval = (i: number): ModuleEvaluation | null =>
+      e.evaluations.filter((ev) => ev.moduleIndex === i).sort((a, b) => b.score - a.score)[0] ?? null;
+    await summaryPdf({
+      eyebrow: 'Bilan de parcours',
+      title: e.learnerName,
+      houseName: `${branch.name} · Académie du Lock`,
+      meta: [
+        formation ? `${formation.name} · ${formation.niveau}` : '',
+        e.cohortLabel ? `Cohorte ${e.cohortLabel}` : '',
+        `Note finale ${sc.final}/100 — ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}`,
+      ].filter(Boolean),
+      sections: [
+        {
+          heading: 'Contrôle continu · séances',
+          rows: e.sessions.filter(sessionValidated).length
+            ? e.sessions.filter(sessionValidated).sort((a, b) => a.sessionNumber - b.sessionNumber).map((s) => ({
+                label: `Séance ${s.sessionNumber}${s.moduleIndex != null && modules[s.moduleIndex] ? ` · ${modules[s.moduleIndex]}` : ''}`,
+                value: s.technicalScore != null ? `${s.technicalScore}/20` : '—',
+              }))
+            : [{ label: 'Aucune séance validée.' }],
+        },
+        {
+          heading: 'Modules',
+          rows: modules.length
+            ? modules.map((m, i) => { const ev = bestEval(i); return { label: `${String(i + 1).padStart(2, '0')} · ${m}`, value: ev ? `${ev.score}/100 · ${evalPassed(ev) ? 'validé' : 'échoué'}` : 'non évalué' }; })
+            : [{ label: 'Aucun module défini.' }],
+        },
+        {
+          heading: 'Jury',
+          rows: e.jury
+            ? [
+                { label: 'Pratique', value: `${e.jury.practicalScore ?? 0}/40` },
+                { label: 'Oral', value: `${e.jury.oralScore ?? 0}/30` },
+                { label: 'Dossier', value: `${e.jury.dossierScore ?? 0}/30` },
+                { label: 'Total jury', value: `${juryTotal(e.jury)}/100` },
+                { label: 'Décision', value: e.jury.decision ? (e.jury.decision === 'excellence' ? 'Excellence' : e.jury.decision === 'certifie' ? 'Certifié' : 'Ajourné') : '—' },
+              ]
+            : [{ label: 'Jury non encore tenu.' }],
+        },
+        {
+          heading: 'Synthèse · barème 30 / 30 / 40',
+          rows: [
+            { label: 'Contrôle continu (30 %)', value: sc.continu != null ? `${sc.continu}/100` : '—' },
+            { label: 'Modules (30 %)', value: sc.modules != null ? `${sc.modules}/100` : '—' },
+            { label: 'Jury (40 %)', value: sc.jury != null ? `${sc.jury}/100` : '—' },
+            { label: 'NOTE FINALE', value: `${sc.final}/100 — ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}` },
+          ],
+        },
+        ...(e.priceXof != null ? [{
+          heading: 'Scolarité',
+          rows: [
+            { label: 'Net convenu', value: fmtMoney(enrollNet(e, formation), currency) },
+            { label: 'Réglé', value: fmtMoney(enrollPaid(e), currency) },
+            { label: 'Reste', value: fmtMoney(enrollDue(e, formation), currency) },
+          ],
+        }] : []),
+      ],
+      footer: `${branch.name} · Le cheveu est une couronne. La Maison veille.`,
+      filename: `Bilan-${safe}.pdf`,
+    });
+  };
 
   const deliver = () => {
     if (!eligible) return;
@@ -755,10 +941,13 @@ function TabCertificat({ e, formation, sc, mention }: { e: Enrollment; formation
             {MENTION_LABEL[cert.mention === 'excellence' ? 'excellence' : 'certifie']} · {cert.finalScore}/100 · le {frDate(cert.issuedAt)}
           </div>
         </div>
-        <a href={link(cert.number, cert.mention, cert.issuedAt)} target="_blank" rel="noreferrer" className="mnd-btn mnd-btn--copper" style={{ textDecoration: 'none' }}>
-          Ouvrir le certificat →
-        </a>
-        <div className="mnd-muted" style={{ fontSize: 11.5 }}>Le PV signé et le registre public /certifiés arrivent dans la phase suivante.</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <a href={link(cert.number, cert.mention, cert.issuedAt)} target="_blank" rel="noreferrer" className="mnd-btn mnd-btn--copper" style={{ textDecoration: 'none' }}>
+            Ouvrir le certificat →
+          </a>
+          <Button variant="ghost" onClick={() => void bilan()}>Télécharger le bilan (PDF)</Button>
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 11.5 }}>Le bilan complet accompagne le certificat, à remettre à l’apprenant. Le PV signé et le registre public /certifiés arrivent dans la phase suivante.</div>
       </div>
     );
   }
@@ -788,6 +977,10 @@ function TabCertificat({ e, formation, sc, mention }: { e: Enrollment; formation
       ) : (
         <Button variant="copper" onClick={deliver} style={{ alignSelf: 'flex-start' }}>Délivrer le certificat · sceau MND</Button>
       )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Un bilan complet du parcours, au sceau MND — utile même avant la certification.</span>
+        <Button variant="ghost" size="sm" style={{ marginLeft: 'auto' }} onClick={() => void bilan()}>Télécharger le bilan (PDF)</Button>
+      </div>
     </div>
   );
 }

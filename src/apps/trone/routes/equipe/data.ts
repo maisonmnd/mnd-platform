@@ -301,6 +301,8 @@ export type Formation = {
   dureeSemaines: number;
   archived: boolean;
   modules?: string[]; // les étapes du parcours — propres à chaque formation
+  /** Pourcentage d'acompte à l'inscription (défaut 40 %). */
+  depositPct?: number;
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */

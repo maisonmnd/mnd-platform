@@ -1,5 +1,6 @@
 import { createStore, useStore, uid } from '../../../../shared/store';
 import { bindCollection } from '../../../../shared/sync';
+import type { Formation, Payment } from './data';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Académie MND — Suivi & Certification de l'apprenant.
@@ -164,6 +165,10 @@ export type Enrollment = {
   /** F1 · candidature portée dans le dossier (staff-only) : entretien + test d'observation. */
   interviewNotes?: string;
   observation?: { geste?: number; hygiene?: number; posture?: number };
+  /** Scolarité (suivi manuel) : montant NET convenu (après remise), remise, règlements. */
+  priceXof?: number;
+  remiseXof?: number;
+  payments?: Payment[];
   sessions: SessionEntry[];       // F3
   practice: PracticeRecord[];     // F4
   evaluations: ModuleEvaluation[];// F5
@@ -262,3 +267,26 @@ export const newEnrollment = (init: Pick<Enrollment, 'learnerName' | 'formationI
   evaluations: [],
   ...init,
 });
+
+/* ---------- Scolarité (suivi manuel) ----------
+   `priceXof` = NET convenu (ce qui est dû). Repli sur le prix catalogue de la
+   formation tant que rien n'est saisi. */
+export const DEFAULT_DEPOSIT_PCT = 40;
+export const depositPctOf = (formation?: Formation): number => formation?.depositPct ?? DEFAULT_DEPOSIT_PCT;
+
+export const enrollNet = (e: Enrollment, formation?: Formation): number =>
+  e.priceXof != null ? e.priceXof : (formation?.priceXof ?? 0);
+export const enrollGross = (e: Enrollment, formation?: Formation): number =>
+  enrollNet(e, formation) + (e.remiseXof ?? 0);
+export const enrollPaid = (e: Enrollment): number =>
+  (e.payments ?? []).reduce((s, p) => s + p.amountXof, 0);
+export const enrollDue = (e: Enrollment, formation?: Formation): number =>
+  Math.max(0, enrollNet(e, formation) - enrollPaid(e));
+/** Montant d'acompte attendu = net × pourcentage de la formation. */
+export const depositAmount = (e: Enrollment, formation?: Formation): number =>
+  Math.round(enrollNet(e, formation) * depositPctOf(formation) / 100);
+/** L'acompte est-il couvert par les règlements enregistrés ? */
+export const depositMet = (e: Enrollment, formation?: Formation): boolean => {
+  const net = enrollNet(e, formation);
+  return net > 0 && enrollPaid(e) >= depositAmount(e, formation);
+};
