@@ -283,7 +283,10 @@ export default function Analytics() {
 
   /* — transmission : consultation → réservation → fidélisation — */
   const funnel = useMemo(() => {
-    const consultations = queue.length + scopedAppts.filter((a) => a.source === 'consultation').length;
+    /* Une consultation clôturée a quitté le tunnel : elle n'est plus « en attente
+       de suite » et ne doit plus peser dans le palier (ni dans son détail). */
+    const openQueue = queue.filter((q) => q.status !== 'fermée');
+    const consultations = openQueue.length + scopedAppts.filter((a) => a.source === 'consultation').length;
     const reservations = scopedAppts.filter((a) => a.source === 'consultation' && a.status !== 'annulé').length;
     const perClient = new Map<string, number>();
     scopedAppts.filter((a) => a.status !== 'annulé').forEach((a) => perClient.set(a.clientId, (perClient.get(a.clientId) ?? 0) + 1));
@@ -302,7 +305,7 @@ export default function Analytics() {
     let rows: DrillRow[] = [];
     if (label === 'Consultations') {
       rows = [
-        ...queue.map((q) => ({
+        ...queue.filter((q) => q.status !== 'fermée').map((q) => ({
           date: (q.createdAt ?? '').slice(0, 10),
           who: q.client?.name ?? 'Consultation en ligne',
           sub: 'Tunnel · en attente de suite',
