@@ -17,13 +17,14 @@ import {
 } from './data';
 import type { Store } from '../../../../shared/store';
 import { Bar, Pill, Tabs } from './ui';
+import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
    certificat lui-même vit dans l'app `certificat` — ici on le déclenche, on ne le rebâtit pas). */
 
-type Tab = 'formations' | 'apprenants' | 'certifications' | 'referentiel';
+type Tab = 'formations' | 'suivi' | 'apprenants' | 'certifications' | 'referentiel';
 
 const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jour' ? 'ok' : p === 'Échéance' ? 'warn' : 'error');
 
@@ -290,6 +291,7 @@ export default function Academie() {
       <Tabs<Tab>
         tabs={[
           { k: 'formations', l: 'Formations' },
+          { k: 'suivi', l: 'Suivi & certification' },
           { k: 'apprenants', l: 'Apprenants' },
           { k: 'certifications', l: 'Certifications' },
           { k: 'referentiel', l: 'Référentiel méthode' },
@@ -310,6 +312,9 @@ export default function Academie() {
         <Card filet="indigo" style={{ padding: 16 }}><div className="mnd-stat__label">Apprenants suivis</div><div className="mnd-stat__value" style={{ fontSize: 28 }}>{stats.apprenants}</div></Card>
         <Card filet="indigo" style={{ padding: 16 }}><div className="mnd-stat__label">Certificats délivrés</div><div className="mnd-stat__value" style={{ fontSize: 28 }}>{stats.certifs}</div></Card>
       </div>
+
+      {/* ===== SUIVI & CERTIFICATION ===== */}
+      {tab === 'suivi' && <AcademieSuivi />}
 
       {/* ===== FORMATIONS ===== */}
       {tab === 'formations' && (

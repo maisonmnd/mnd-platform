@@ -129,11 +129,18 @@ function initFromUrl() {
           competences: 'les gestes et le protocole de la Maison MND',
         }
       : null;
+  /* Numéro, date et mention transmis par l'ERP à la délivrance (F6 → certificat). */
+  const numero = params.get('numero')?.trim();
+  const dateParam = params.get('date')?.trim();
+  const validDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : '';
+  const mentionParam = params.get('mention')?.trim();
+  const mention = mentionParam && MENTIONS.includes(mentionParam) ? mentionParam : 'Excellence';
   return {
     apprenant: params.get('apprenant')?.trim() || 'Vioutou Raimath Bonou',
     formationId: match?.id ?? custom?.id ?? FORMATIONS[1].id,
-    dateIso: new Date().toISOString().slice(0, 10),
-    certNo: `MND-AC-${annee}-0042`,
+    dateIso: validDate || new Date().toISOString().slice(0, 10),
+    certNo: numero || `MND-AC-${annee}-0042`,
+    mention,
     custom,
   };
 }
@@ -146,7 +153,7 @@ export default function App() {
   const [formationId, setFormationId] = useState(init.formationId);
   const [dateIso, setDateIso] = useState(init.dateIso);
   const [certNo, setCertNo] = useState(init.certNo);
-  const [mention, setMention] = useState('Excellence');
+  const [mention, setMention] = useState(init.mention);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);

@@ -679,3 +679,62 @@
 .tre-ref-ctl:hover:not(:disabled) { border-color: var(--color-indigo); color: var(--color-indigo); }
 .tre-ref-ctl:disabled { opacity: 0.4; cursor: default; }
 .tre-ref-ctl--danger:hover:not(:disabled) { border-color: #8f3b30; color: #8f3b30; }
+
+/* ---------- Académie · Suivi & certification (livret) ---------- */
+.tre-addline {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px dashed var(--copper-300, var(--hairline));
+  border-radius: var(--radius-sm, 3px);
+  background: none;
+  color: var(--copper-700);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+.tre-addline:hover { background: var(--copper-50); border-color: var(--color-copper); }
+
+/* Une fiche (séance F3, pratique F4, évaluation F5) */
+.tre-fiche {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 6px);
+  background: var(--surface-card);
+  padding: 14px 16px;
+}
+.tre-fiche--form { background: var(--copper-50); border-color: var(--copper-300); }
+
+.tre-ok { color: var(--trv-success, #2f7d54); }
+.tre-warn { color: var(--copper-700); }
+
+/* En-tête du livret : formation/statut à gauche, note finale à droite */
+.tre-livret-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 8px;
+}
+.tre-livret-score { text-align: right; flex: none; }
+.tre-livret-score__val { font-family: var(--font-serif); font-size: 34px; line-height: 1; color: var(--color-indigo); }
+.tre-livret-score__val span { font-size: 16px; color: var(--ink-soft); }
+.tre-livret-score__mention { font-size: 12px; color: var(--color-copper); margin-top: 2px; }
+.tre-livret-score__break { display: flex; gap: 6px; justify-content: flex-end; font-size: 10.5px; color: var(--ink-soft); margin-top: 6px; flex-wrap: wrap; }
+.tre-livret-score__weights { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+
+/* Bloc note finale de l'onglet Certificat */
+.tre-livret-final {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 6px);
+  background: var(--surface-card);
+  padding: 18px 20px;
+}
+.tre-livret-final__break { display: flex; flex-direction: column; gap: 4px; text-align: right; }
