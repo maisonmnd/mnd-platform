@@ -119,11 +119,31 @@ type StaffForm = {
   since: string;
   salaire: string;
   auFauteuil: boolean;
+  /* — Dossier paie — */
+  matricule: string;
+  cnssNum: string;
+  ifu: string;
+  contractType: string;
+  atelier: string;
+  commissionPct: string;
+  paiement: string;
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
   name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true,
+  matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
 });
+
+const CONTRACT_TYPES = ['CDI', 'CDD', 'apprentissage', 'prestataire'] as const;
+
+/** Prochain matricule MND-EMP-NNN (max existant + 1, sur 3 chiffres). */
+const nextMatricule = (staff: StaffMember[]): string => {
+  const max = staff.reduce((m, s) => {
+    const n = parseInt(s.matricule?.match(/(\d+)\s*$/)?.[1] ?? '', 10);
+    return Number.isFinite(n) ? Math.max(m, n) : m;
+  }, 0);
+  return `MND-EMP-${String(max + 1).padStart(3, '0')}`;
+};
 
 export default function Personnel() {
   const { branch, branches, currency } = useBranch();
@@ -476,19 +496,34 @@ export default function Personnel() {
   const advancesTotal = team.reduce((a, m) => a + advancesTotalMonth(m.id, M), 0);
   const retenuesTotal = team.reduce((a, m) => a + retenueTotalMonth(m.id, M), 0);
 
-  const openNew = () => { setEditId(null); setForm(emptyForm(branch.id)); setModalOpen(true); };
+  const openNew = () => { setEditId(null); setForm({ ...emptyForm(branch.id), matricule: nextMatricule(staff), atelier: branch.city }); setModalOpen(true); };
   const openEdit = (m: StaffMember) => {
     setEditId(m.id);
-    setForm({ name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, since: m.since, salaire: String(m.salaireXof), auFauteuil: m.auFauteuil });
+    setForm({
+      name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, since: m.since,
+      salaire: String(m.salaireXof), auFauteuil: m.auFauteuil,
+      matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
+      contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
+    });
     setModalOpen(true);
   };
 
   const save = () => {
     if (!form.name.trim()) return;
     const salaireXof = Math.max(0, parseInt(form.salaire, 10) || 0);
+    /* Champs du dossier paie communs à la création et à la modification. */
+    const dossier = {
+      matricule: form.matricule.trim() || undefined,
+      cnssNum: form.cnssNum.trim() || undefined,
+      ifu: form.ifu.trim() || undefined,
+      contractType: (form.contractType || 'CDI') as StaffMember['contractType'],
+      atelier: form.atelier.trim() || undefined,
+      commissionPct: form.commissionPct.trim() === '' ? undefined : Math.max(0, Math.min(100, parseFloat(form.commissionPct) || 0)),
+      paiement: form.paiement.trim() || undefined,
+    };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
-        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil }
+        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, ...dossier }
         : m));
     } else {
       const nm: StaffMember = {
@@ -498,6 +533,7 @@ export default function Personnel() {
         satisfaction: 0, wellbeing: 80, charge: 0, risk: 'faible',
         riskDrivers: 'Nouvelle recrue — intégration en cours.', nextStep: 'Parcours d’intégration',
         recognition: '—', statut: 'Nouveau',
+        ...dossier,
       };
       setStaff((prev) => [...prev, nm]);
     }
@@ -877,6 +913,25 @@ export default function Personnel() {
                 </div>
               </Field>
             </div>
+
+            {/* Dossier paie — alimente les runs et le bulletin */}
+            <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Dossier paie</div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Matricule"><Input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} placeholder="MND-EMP-001" /></Field>
+              <Field label="Type de contrat">
+                <Select value={form.contractType} onChange={(e) => setForm({ ...form, contractType: e.target.value })}>
+                  {CONTRACT_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              </Field>
+              <Field label="N° CNSS"><Input value={form.cnssNum} onChange={(e) => setForm({ ...form, cnssNum: e.target.value })} placeholder="—" /></Field>
+              <Field label="IFU (identifiant fiscal)"><Input value={form.ifu} onChange={(e) => setForm({ ...form, ifu: e.target.value })} placeholder="—" /></Field>
+              <Field label="Atelier d’affectation"><Input value={form.atelier} onChange={(e) => setForm({ ...form, atelier: e.target.value })} placeholder="Cotonou" /></Field>
+              <Field label="Commission sur prestations (%)"><Input inputMode="decimal" value={form.commissionPct} onChange={(e) => setForm({ ...form, commissionPct: e.target.value })} placeholder="0" /></Field>
+            </div>
+            <Field label="Coordonnées de paiement (Mobile Money / banque)">
+              <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} placeholder="MTN MoMo · +229 …" />
+            </Field>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setModalOpen(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={!form.name.trim()}>

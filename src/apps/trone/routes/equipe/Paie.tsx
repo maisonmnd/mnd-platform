@@ -4,7 +4,8 @@ import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/compon
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { useStaff, type StaffMember } from './data';
+import { useStaff } from './data';
+import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
   payrollRunsStore, usePayrollRuns, useAdvances, usePayrollParameters, payrollParametersStore,
@@ -40,6 +41,8 @@ export function PaieRuns() {
   const [staff] = useStaff();
   const [advances] = useAdvances();
   const [params] = usePayrollParameters();
+  const appts = useBranchAppointments();
+  const byId = useServicesById();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -56,9 +59,19 @@ export function PaieRuns() {
       const avance = advances
         .filter((a) => a.employeeId === s.id && a.period === period)
         .reduce((x, a) => x + a.amountXof, 0);
+      /* Commission depuis les prestations RÉELLEMENT encaissées du mois (rituels
+         honorés, au maître = nom de l'employé) × taux du dossier. Sans taux, on
+         retombe sur les montants saisis à la main. Tout reste éditable en brouillon. */
+      const commission = s.commissionPct != null
+        ? Math.round(
+            appts
+              .filter((a) => a.status === 'honoré' && a.date.slice(0, 7) === period && a.master === s.name)
+              .reduce((sum, a) => sum + apptNetXof(a, byId), 0) * s.commissionPct / 100,
+          )
+        : (s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0);
       const gains: PayGains = {
         base: s.salaireXof, heuresSup: 0, prime: s.primeXof, pourboires: 0,
-        commission: (s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0), indemnites: 0,
+        commission, indemnites: 0,
       };
       const deductions: PayDeductions = { avance, autresRetenues: 0 };
       return {
