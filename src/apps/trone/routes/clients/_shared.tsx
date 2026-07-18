@@ -614,15 +614,14 @@ export function ClientPicker({
   const selected = clients.find((c) => c.id === value);
   const digits = (s: string) => s.replace(/\D/g, '');
   const q = query.trim().toLowerCase();
-  /* Le menu défile : on montre BEAUCOUP de fiches (le cap précédent à 8 masquait
-     tout le CRM). On borne à 60 pour ne pas peindre des milliers de lignes ; au-delà,
-     un pied invite à affiner. Une recherche filtre sur nom OU téléphone. */
-  const CAP = 60;
-  const { results, more } = useMemo(() => {
-    const all = q
+  /* TOUT le CRM, trié : le menu défile. Aucun plafond — la maison doit pouvoir
+     parcourir toutes ses clientes ; taper les premières lettres filtre (nom OU
+     téléphone) et permet de choisir. */
+  const results = useMemo(() => {
+    const base = q
       ? clients.filter((c) => c.name.toLowerCase().includes(q) || digits(c.phone).includes(digits(q)))
-      : [...clients].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    return { results: all.slice(0, CAP), more: Math.max(0, all.length - CAP) };
+      : clients;
+    return [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [clients, q]);
 
   useEffect(() => {
@@ -660,9 +659,6 @@ export function ClientPicker({
           ))}
           {results.length === 0 && (
             <div className="trc-clientpick__empty">Aucune cliente — {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
-          )}
-          {more > 0 && (
-            <div className="trc-clientpick__empty">+{more} autre{more > 1 ? 's' : ''} — affinez la recherche.</div>
           )}
         </div>
       )}
