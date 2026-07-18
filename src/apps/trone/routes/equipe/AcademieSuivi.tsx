@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
-import { ClientPicker } from '../clients/_shared';
+import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { useFormations, type Formation, type Payment } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import {
@@ -444,6 +444,7 @@ const ATTENDANCE: { k: Attendance; l: string }[] = [
 
 function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: string[]; masters: string[]; frozen: boolean }) {
   const [adding, setAdding] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const sign = (id: string, field: 'trainerSignedAt' | 'learnerAckAt') =>
     setEnrollment(e.id, { sessions: e.sessions.map((s) => (s.id === id ? { ...s, [field]: nowStamp() } : s)) });
   const remove = (id: string) =>
@@ -453,26 +454,31 @@ function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: s
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {e.sessions.length === 0 && <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Aucune séance saisie.</div>}
       {[...e.sessions].sort((a, b) => a.sessionNumber - b.sessionNumber).map((s) => (
-        <div key={s.id} className="tre-fiche">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-              Séance {s.sessionNumber}{s.moduleIndex != null && modules[s.moduleIndex] ? ` · ${modules[s.moduleIndex]}` : ''}
+        editId === s.id ? (
+          <SessionForm key={s.id} e={e} modules={modules} masters={masters} edit={s} onDone={() => setEditId(null)} />
+        ) : (
+          <div key={s.id} className="tre-fiche">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                Séance {s.sessionNumber}{s.moduleIndex != null && modules[s.moduleIndex] ? ` · ${modules[s.moduleIndex]}` : ''}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(s.scheduledAt)}</div>
             </div>
-            <div className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(s.scheduledAt)}</div>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
+              {s.attendance && <span>Présence : <b>{ATTENDANCE.find((a) => a.k === s.attendance)?.l}</b></span>}
+              {typeof s.technicalScore === 'number' && <span>Note : <b>{s.technicalScore}/20</b></span>}
+              <span className={sessionValidated(s) ? 'tre-ok' : 'mnd-muted'}>{sessionValidated(s) ? 'Fiche signée (formateur)' : 'Non signée'}</span>
+              {s.learnerAckAt && <span className="tre-ok">Visa apprenant</span>}
+            </div>
+            {s.trainerNotes && <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>{s.trainerNotes}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              {!sessionValidated(s) && !frozen && <button className="tre-link-btn" onClick={() => sign(s.id, 'trainerSignedAt')}>Signer (formateur)</button>}
+              {sessionValidated(s) && !s.learnerAckAt && !frozen && <button className="tre-link-btn" onClick={() => sign(s.id, 'learnerAckAt')}>Viser (apprenant)</button>}
+              {!frozen && <button className="tre-link-btn" onClick={() => { setAdding(false); setEditId(s.id); }}>Modifier</button>}
+              {!frozen && <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(s.id)}>Retirer</button>}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
-            {s.attendance && <span>Présence : <b>{ATTENDANCE.find((a) => a.k === s.attendance)?.l}</b></span>}
-            {typeof s.technicalScore === 'number' && <span>Note : <b>{s.technicalScore}/20</b></span>}
-            <span className={sessionValidated(s) ? 'tre-ok' : 'mnd-muted'}>{sessionValidated(s) ? 'Fiche signée (formateur)' : 'Non signée'}</span>
-            {s.learnerAckAt && <span className="tre-ok">Visa apprenant</span>}
-          </div>
-          {s.trainerNotes && <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>{s.trainerNotes}</div>}
-          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-            {!sessionValidated(s) && <button className="tre-link-btn" onClick={() => sign(s.id, 'trainerSignedAt')}>Signer (formateur)</button>}
-            {sessionValidated(s) && !s.learnerAckAt && <button className="tre-link-btn" onClick={() => sign(s.id, 'learnerAckAt')}>Viser (apprenant)</button>}
-            <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(s.id)}>Retirer</button>
-          </div>
-        </div>
+        )
       ))}
       {!frozen && (adding ? (
         <SessionForm e={e} modules={modules} masters={masters} onDone={() => setAdding(false)} />
@@ -483,39 +489,45 @@ function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: s
   );
 }
 
-function SessionForm({ e, modules, masters, onDone }: { e: Enrollment; modules: string[]; masters: string[]; onDone: () => void }) {
+function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; modules: string[]; masters: string[]; edit?: SessionEntry; onDone: () => void }) {
   const nextNo = (e.sessions.reduce((m, s) => Math.max(m, s.sessionNumber), 0)) + 1;
-  const [scheduledAt, setDate] = useState(todayISO());
-  const [moduleIndex, setModule] = useState<string>('');
-  const [trainer, setTrainer] = useState(masters[0] ?? '');
-  const [attendance, setAtt] = useState<Attendance>('present');
-  const [score, setScore] = useState('');
-  const [objectives, setObj] = useState('');
-  const [notes, setNotes] = useState('');
+  const [scheduledAt, setDate] = useState(edit?.scheduledAt.slice(0, 10) ?? todayISO());
+  const [moduleIndex, setModule] = useState<string>(edit?.moduleIndex != null ? String(edit.moduleIndex) : '');
+  const [trainer, setTrainer] = useState(edit?.trainer ?? masters[0] ?? '');
+  const [attendance, setAtt] = useState<Attendance>(edit?.attendance ?? 'present');
+  const [score, setScore] = useState(edit?.technicalScore != null ? String(edit.technicalScore) : '');
+  const [objectives, setObj] = useState(edit?.objectives ?? '');
+  const [notes, setNotes] = useState(edit?.trainerNotes ?? '');
 
   const save = (sign: boolean) => {
-    const s: SessionEntry = {
-      id: `ses-${uid()}`, sessionNumber: nextNo, scheduledAt,
+    const base: SessionEntry = {
+      id: edit?.id ?? `ses-${uid()}`,
+      sessionNumber: edit?.sessionNumber ?? nextNo,
+      scheduledAt,
       moduleIndex: moduleIndex === '' ? undefined : Number(moduleIndex),
       trainer: trainer || undefined, attendance,
       technicalScore: score === '' ? undefined : Math.max(0, Math.min(20, num(score))),
       objectives: objectives.trim() || undefined, trainerNotes: notes.trim() || undefined,
-      trainerSignedAt: sign ? nowStamp() : undefined,
+      // À l'édition on garde signatures/visa ; on ne resigne que si demandé.
+      trainerSignedAt: sign ? nowStamp() : edit?.trainerSignedAt,
+      learnerAckAt: edit?.learnerAckAt,
     };
-    const sessions = [...e.sessions, s];
-    // Garde-fou spec : 3 absences non justifiées → alerte d'assiduité.
+    const sessions = edit
+      ? e.sessions.map((s) => (s.id === edit.id ? base : s))
+      : [...e.sessions, base];
+    // Garde-fou spec : 3 absences non justifiées → alerte d'assiduité (recalculée).
     const unjustified = sessions.filter((x) => x.attendance === 'absent').length;
     setEnrollment(e.id, {
       sessions,
-      attendanceAlert: unjustified >= 3 ? true : e.attendanceAlert,
-      status: e.status === 'inscrit' ? 'en_formation' : e.status,
+      attendanceAlert: unjustified >= 3,
+      status: !edit && e.status === 'inscrit' ? 'en_formation' : e.status,
     });
     onDone();
   };
 
   return (
     <div className="tre-fiche tre-fiche--form">
-      <div className="tre-sec-label" style={{ marginBottom: 10 }}>Nouvelle séance · F3</div>
+      <div className="tre-sec-label" style={{ marginBottom: 10 }}>{edit ? `Modifier la séance ${edit.sessionNumber} · F3` : 'Nouvelle séance · F3'}</div>
       <div className="tr-grid tr-grid--2">
         <Field label="Date"><Input type="date" value={scheduledAt} onChange={(ev) => setDate(ev.target.value)} /></Field>
         <Field label="Module">
@@ -543,8 +555,10 @@ function SessionForm({ e, modules, masters, onDone }: { e: Enrollment; modules: 
       </Field>
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
         <Button variant="ghost" size="sm" onClick={onDone}>Annuler</Button>
-        <Button variant="ghost" size="sm" onClick={() => save(false)}>Enregistrer (brouillon)</Button>
-        <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={() => save(true)}>Enregistrer & signer</Button>
+        <Button variant="ghost" size="sm" onClick={() => save(false)}>Enregistrer{edit ? '' : ' (brouillon)'}</Button>
+        {(!edit || !edit.trainerSignedAt) && (
+          <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={() => save(true)}>Enregistrer & signer</Button>
+        )}
       </div>
     </div>
   );
@@ -556,62 +570,86 @@ const PRACTICE_ROLES: { k: PracticeRecord['role']; l: string }[] = [
 ];
 
 function TabPratique({ e, masters, frozen }: { e: Enrollment; masters: string[]; frozen: boolean }) {
+  const clients = useBranchClients();
   const [adding, setAdding] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const remove = (id: string) => setEnrollment(e.id, { practice: e.practice.filter((p) => p.id !== id) });
   const editDate = (id: string, iso: string) =>
     setEnrollment(e.id, { practice: e.practice.map((p) => (p.id === id ? { ...p, practicedAt: iso } : p)) });
+  /* Le nom de la cliente : celui figé sur la fiche, sinon résolu depuis le CRM par
+     son id (les anciennes fiches n'avaient pas mémorisé le nom) — plus jamais « Cliente ». */
+  const nameOf = (p: PracticeRecord) => p.clientName || clients.find((c) => c.id === p.clientId)?.name || 'Cliente';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Pratique sur cliente réelle du Carnet — supervisée, documentée pour la Maison.</div>
       {e.practice.length === 0 && <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Aucune pratique enregistrée.</div>}
       {e.practice.map((p) => (
-        <div key={p.id} className="tre-fiche">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{p.clientName || 'Cliente'} · {p.serviceCode}</div>
-            {frozen ? (
-              <span className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(p.practicedAt)}</span>
-            ) : (
-              <input
-                type="date"
-                className="mnd-input tre-date-inline"
-                value={p.practicedAt.slice(0, 10)}
-                max={todayISO()}
-                onChange={(ev) => ev.target.value && editDate(p.id, ev.target.value)}
-                title="Modifier la date de la pratique"
-              />
-            )}
+        editId === p.id ? (
+          <PracticeForm key={p.id} e={e} masters={masters} edit={p} onDone={() => setEditId(null)} />
+        ) : (
+          <div key={p.id} className="tre-fiche">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{nameOf(p)} · {p.serviceCode}</div>
+              {frozen ? (
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(p.practicedAt)}</span>
+              ) : (
+                <input
+                  type="date"
+                  className="mnd-input tre-date-inline"
+                  value={p.practicedAt.slice(0, 10)}
+                  max={todayISO()}
+                  onChange={(ev) => ev.target.value && editDate(p.id, ev.target.value)}
+                  title="Modifier la date de la pratique"
+                />
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
+              <span>{PRACTICE_ROLES.find((r) => r.k === p.role)?.l}</span>
+              {p.supervisor && <span className="mnd-muted">superviseur : {p.supervisor}</span>}
+              {p.supervisorValidation && <span className={p.supervisorValidation === 'acquise' ? 'tre-ok' : 'tre-warn'}>{p.supervisorValidation === 'acquise' ? 'Acquise' : 'À refaire'}</span>}
+              {p.clientRating != null && <span>Cliente : {p.clientRating}/5</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              {!frozen && <button className="tre-link-btn" onClick={() => { setAdding(false); setEditId(p.id); }}>Modifier</button>}
+              {!frozen && <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(p.id)}>Retirer</button>}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
-            <span>{PRACTICE_ROLES.find((r) => r.k === p.role)?.l}</span>
-            {p.supervisor && <span className="mnd-muted">superviseur : {p.supervisor}</span>}
-            {p.supervisorValidation && <span className={p.supervisorValidation === 'acquise' ? 'tre-ok' : 'tre-warn'}>{p.supervisorValidation === 'acquise' ? 'Acquise' : 'À refaire'}</span>}
-            {p.clientRating != null && <span>Cliente : {p.clientRating}/5</span>}
-          </div>
-          <div style={{ display: 'flex', marginTop: 8 }}>
-            <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(p.id)}>Retirer</button>
-          </div>
-        </div>
+        )
       ))}
       {!frozen && (adding ? <PracticeForm e={e} masters={masters} onDone={() => setAdding(false)} /> : <button className="tre-addline" onClick={() => setAdding(true)}>+ Ajouter une pratique (F4)</button>)}
     </div>
   );
 }
 
-function PracticeForm({ e, masters, onDone }: { e: Enrollment; masters: string[]; onDone: () => void }) {
-  const [clientId, setClientId] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [serviceCode, setService] = useState('VÈKPÈ™');
-  const [practicedAt, setPracticedAt] = useState(todayISO());
-  const [role, setRole] = useState<PracticeRecord['role']>('assiste');
-  const [supervisor, setSup] = useState(masters[0] ?? '');
-  const [rating, setRating] = useState('');
-  const [validation, setVal] = useState<PracticeRecord['supervisorValidation']>('acquise');
-  const [grid, setGrid] = useState({ preparation: '', geste: '', tension: '', finition: '', temps: '' });
+function PracticeForm({ e, masters, edit, onDone }: { e: Enrollment; masters: string[]; edit?: PracticeRecord; onDone: () => void }) {
+  const clients = useBranchClients();
+  const [clientId, setClientId] = useState(edit?.clientId ?? '');
+  const [clientName, setClientName] = useState(edit?.clientName ?? '');
+  const [serviceCode, setService] = useState(edit?.serviceCode ?? 'VÈKPÈ™');
+  const [practicedAt, setPracticedAt] = useState(edit?.practicedAt.slice(0, 10) ?? todayISO());
+  const [role, setRole] = useState<PracticeRecord['role']>(edit?.role ?? 'assiste');
+  const [supervisor, setSup] = useState(edit?.supervisor ?? masters[0] ?? '');
+  const [rating, setRating] = useState(edit?.clientRating != null ? String(edit.clientRating) : '');
+  const [validation, setVal] = useState<PracticeRecord['supervisorValidation']>(edit?.supervisorValidation ?? 'acquise');
+  const gs = (v?: number) => (v != null ? String(v) : '');
+  const [grid, setGrid] = useState({
+    preparation: gs(edit?.technicalGrid.preparation), geste: gs(edit?.technicalGrid.geste),
+    tension: gs(edit?.technicalGrid.tension), finition: gs(edit?.technicalGrid.finition), temps: gs(edit?.technicalGrid.temps),
+  });
+
+  /* Choisir une cliente du CRM fige son nom sur la fiche — sinon la pratique
+     afficherait « Cliente » faute de nom mémorisé. */
+  const pickClient = (id: string) => {
+    setClientId(id);
+    const c = clients.find((x) => x.id === id);
+    if (c) setClientName(c.name);
+  };
 
   const save = () => {
     const p: PracticeRecord = {
-      id: `pra-${uid()}`, clientId, clientName: clientName || undefined, serviceCode,
-      practicedAt: practicedAt || todayISO(), role, supervisor: supervisor || undefined,
+      id: edit?.id ?? `pra-${uid()}`, clientId,
+      clientName: (clientName || clients.find((c) => c.id === clientId)?.name) || undefined,
+      serviceCode, practicedAt: practicedAt || todayISO(), role, supervisor: supervisor || undefined,
       technicalGrid: {
         preparation: gnum(grid.preparation), geste: gnum(grid.geste), tension: gnum(grid.tension),
         finition: gnum(grid.finition), temps: gnum(grid.temps),
@@ -619,14 +657,14 @@ function PracticeForm({ e, masters, onDone }: { e: Enrollment; masters: string[]
       clientRating: rating === '' ? undefined : Math.max(1, Math.min(5, Math.round(num(rating)))),
       supervisorValidation: validation,
     };
-    setEnrollment(e.id, { practice: [...e.practice, p] });
+    setEnrollment(e.id, { practice: edit ? e.practice.map((x) => (x.id === edit.id ? p : x)) : [...e.practice, p] });
     onDone();
   };
   return (
     <div className="tre-fiche tre-fiche--form">
-      <div className="tre-sec-label" style={{ marginBottom: 10 }}>Nouvelle pratique · F4</div>
+      <div className="tre-sec-label" style={{ marginBottom: 10 }}>{edit ? 'Modifier la pratique · F4' : 'Nouvelle pratique · F4'}</div>
       <Field label="Cliente (CRM)">
-        <ClientPicker value={clientId} onChange={(id) => setClientId(id)} placeholder="Rechercher une cliente…" />
+        <ClientPicker value={clientId} onChange={pickClient} placeholder="Rechercher une cliente…" />
       </Field>
       <Field label="Nom affiché sur la fiche (si passage libre)">
         <Input value={clientName} onChange={(ev) => setClientName(ev.target.value)} placeholder="—" />
