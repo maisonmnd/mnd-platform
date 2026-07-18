@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { asset } from '../../../../shared/asset';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -588,6 +589,19 @@ function Customer360({
   /* ----- Fiche financière ----- */
   const honored = appts.filter((a) => a.status === 'honoré');
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
+
+  /* Bilan de séance — le Carnet de Suivi remis à la cliente. On pré-remplit depuis
+     la dernière séance honorée (service, date, praticien) quand elle existe. */
+  const bilanHref = useMemo(() => {
+    const p = new URLSearchParams({ client: client.name });
+    const last = [...honored].sort((a, b) => b.date.localeCompare(a.date))[0];
+    if (last) {
+      p.set('service', apptLabel(last, byId));
+      p.set('date', last.date);
+      if (last.master) p.set('praticien', last.master);
+    }
+    return `${asset('/bilan.html')}?${p.toString()}`;
+  }, [client.name, honored, byId]);
   const linkedIds = useMemo(() => {
     const set = new Set<string>();
     for (const a of appts) if (a.invoiceId) set.add(a.invoiceId);
@@ -675,8 +689,9 @@ function Customer360({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
-            {(client.phone || itineraireHref || client.photo) && (
+            {(
               <div className="trc-cover-acts">
+                <a className="trc-cover-act" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance</a>
                 {client.phone && <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>}
                 {client.phone && phoneDigits && (
                   <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
