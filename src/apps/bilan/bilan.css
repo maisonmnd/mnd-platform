@@ -66,7 +66,7 @@ body {
 
 /* En-tête maison */
 .maison { text-align: center; margin-bottom: 9mm; }
-.arch { width: 34px; height: 20px; margin: 0 auto 8px; border: 2px solid var(--indigo); border-bottom: none; border-radius: 34px 34px 0 0; }
+.mnd-logo { display: block; width: 46px; height: auto; margin: 0 auto 6px; }
 .wordmark { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 27px; letter-spacing: .55em; text-indent: .55em; color: var(--indigo); }
 .adresse { font-size: 9.5px; letter-spacing: .28em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
 .maison .rule { width: 52px; height: 1px; background: var(--cuivre); margin: 12px auto 10px; }

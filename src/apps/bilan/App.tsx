@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { asset } from '../../shared/asset';
 
 /* Bilan de Séance — Le Carnet de Suivi. Panneau de réglage (masqué à l'impression)
    + le papier A4. L'ERP pré-remplit par l'URL :
@@ -141,7 +142,7 @@ export default function App() {
             <div className="frame" aria-hidden="true" />
 
             <header className="maison">
-              <div className="arch" aria-hidden="true" />
+              <img className="mnd-logo" src={asset('/assets/monograms/mono-indigo.png')} alt="" aria-hidden="true" />
               <div className="wordmark">MND</div>
               <p className="adresse">Maison MND · Atelier du Lock · Cotonou · Bénin</p>
               <div className="rule" aria-hidden="true" />
