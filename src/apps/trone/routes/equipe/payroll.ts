@@ -136,6 +136,56 @@ export const advancesStore = createStore<SalaryAdvance[]>('mnd_salary_advances',
 export const useAdvances = () => useStore(advancesStore);
 bindCollection(advancesStore, 'salary_advances');
 
+/* ---------- Temps & absences ---------- */
+export type AttendanceStatus = 'present' | 'retard' | 'absent' | 'absent_justifie' | 'maladie';
+export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
+  present: 'Présent', retard: 'Retard', absent: 'Absent', absent_justifie: 'Absent justifié', maladie: 'Maladie',
+};
+export type Attendance = { id: string; employeeId: string; date: string; status: AttendanceStatus; note?: string; branchId?: string };
+export const attendanceStore = createStore<Attendance[]>('mnd_attendance', []);
+export const useAttendance = () => useStore(attendanceStore);
+bindCollection(attendanceStore, 'attendance');
+
+export type LeaveType = 'conge' | 'maladie';
+export type LeaveStatus = 'demande' | 'approuve' | 'refuse';
+export const LEAVE_STATUS_LABEL: Record<LeaveStatus, string> = { demande: 'En attente', approuve: 'Approuvé', refuse: 'Refusé' };
+export type LeaveRequest = {
+  id: string; employeeId: string; type: LeaveType;
+  startDate: string; endDate: string; days: number;
+  reason?: string; justificatif?: string; // note/pièce du justificatif (maladie)
+  status: LeaveStatus; decidedBy?: string; decidedAt?: string; branchId?: string;
+};
+export const leaveStore = createStore<LeaveRequest[]>('mnd_leave_requests', []);
+export const useLeave = () => useStore(leaveStore);
+bindCollection(leaveStore, 'leave_requests');
+
+/** Nombre de mois de service révolus entre `since` et aujourd'hui. */
+export function monthsOfService(since: string, until: string = new Date().toISOString().slice(0, 10)): number {
+  const s = since.slice(0, 10).split('-').map(Number);
+  const u = until.slice(0, 10).split('-').map(Number);
+  if (s.length < 3 || u.length < 3) return 0;
+  let months = (u[0] - s[0]) * 12 + (u[1] - s[1]);
+  if (u[2] < s[2]) months -= 1; // le jour du mois n'est pas encore atteint
+  return Math.max(0, months);
+}
+
+/** Jours calendaires inclus entre deux dates ISO (bornes comprises). */
+export function daysInclusive(start: string, end: string): number {
+  const a = new Date(`${start}T12:00:00`).getTime();
+  const b = new Date(`${end}T12:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) return 0;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+/** Solde de congés payés : acquis (mois de service × taux) − pris (congés approuvés). */
+export function congeBalance(since: string, leaves: LeaveRequest[], employeeId: string, joursParMois: number): { acquis: number; pris: number; solde: number } {
+  const acquis = monthsOfService(since) * joursParMois;
+  const pris = leaves
+    .filter((l) => l.employeeId === employeeId && l.type === 'conge' && l.status === 'approuve')
+    .reduce((s, l) => s + l.days, 0);
+  return { acquis, pris, solde: acquis - pris };
+}
+
 /* ---------- Runs de paie (un par mois × atelier) ---------- */
 export type RunStatus = 'brouillon' | 'valide' | 'paye' | 'cloture';
 export const RUN_STATUS_LABEL: Record<RunStatus, string> = {

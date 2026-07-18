@@ -15,12 +15,13 @@ import {
 } from './data';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres } from './Paie';
+import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import { useTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
-type Tab = 'equipe' | 'paie' | 'parametres' | 'retention';
+type Tab = 'equipe' | 'temps' | 'paie' | 'parametres' | 'retention';
 
 /* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
    (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
@@ -552,7 +553,7 @@ export default function Personnel() {
       />
 
       <Tabs<Tab>
-        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
+        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
         value={tab}
         onChange={setTab}
       />
@@ -817,6 +818,7 @@ export default function Personnel() {
         </div>
       )}
 
+      {tab === 'temps' && <TempsAbsences />}
       {tab === 'paie' && <PaieRuns />}
       {tab === 'parametres' && <PaieParametres />}
 
