@@ -261,7 +261,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       <Tabs<LivretTab>
         tabs={[
           { k: 'f1', l: 'Candidature' },
-          { k: 'scolarite', l: 'Scolarité' },
+          { k: 'scolarite', l: 'Montant Formation' },
           { k: 'f3', l: `Séances (${e.sessions.length})` },
           { k: 'f4', l: `Pratique (${e.practice.length})` },
           { k: 'f5', l: `Modules (${e.evaluations.length})` },
@@ -558,15 +558,28 @@ const PRACTICE_ROLES: { k: PracticeRecord['role']; l: string }[] = [
 function TabPratique({ e, masters, frozen }: { e: Enrollment; masters: string[]; frozen: boolean }) {
   const [adding, setAdding] = useState(false);
   const remove = (id: string) => setEnrollment(e.id, { practice: e.practice.filter((p) => p.id !== id) });
+  const editDate = (id: string, iso: string) =>
+    setEnrollment(e.id, { practice: e.practice.map((p) => (p.id === id ? { ...p, practicedAt: iso } : p)) });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Pratique sur cliente réelle du Carnet — supervisée, documentée pour la Maison.</div>
       {e.practice.length === 0 && <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Aucune pratique enregistrée.</div>}
       {e.practice.map((p) => (
         <div key={p.id} className="tre-fiche">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{p.clientName || 'Cliente'} · {p.serviceCode}</div>
-            <span className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(p.practicedAt)}</span>
+            {frozen ? (
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(p.practicedAt)}</span>
+            ) : (
+              <input
+                type="date"
+                className="mnd-input tre-date-inline"
+                value={p.practicedAt.slice(0, 10)}
+                max={todayISO()}
+                onChange={(ev) => ev.target.value && editDate(p.id, ev.target.value)}
+                title="Modifier la date de la pratique"
+              />
+            )}
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
             <span>{PRACTICE_ROLES.find((r) => r.k === p.role)?.l}</span>
@@ -588,6 +601,7 @@ function PracticeForm({ e, masters, onDone }: { e: Enrollment; masters: string[]
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
   const [serviceCode, setService] = useState('VÈKPÈ™');
+  const [practicedAt, setPracticedAt] = useState(todayISO());
   const [role, setRole] = useState<PracticeRecord['role']>('assiste');
   const [supervisor, setSup] = useState(masters[0] ?? '');
   const [rating, setRating] = useState('');
@@ -597,7 +611,7 @@ function PracticeForm({ e, masters, onDone }: { e: Enrollment; masters: string[]
   const save = () => {
     const p: PracticeRecord = {
       id: `pra-${uid()}`, clientId, clientName: clientName || undefined, serviceCode,
-      practicedAt: todayISO(), role, supervisor: supervisor || undefined,
+      practicedAt: practicedAt || todayISO(), role, supervisor: supervisor || undefined,
       technicalGrid: {
         preparation: gnum(grid.preparation), geste: gnum(grid.geste), tension: gnum(grid.tension),
         finition: gnum(grid.finition), temps: gnum(grid.temps),
@@ -618,6 +632,9 @@ function PracticeForm({ e, masters, onDone }: { e: Enrollment; masters: string[]
         <Input value={clientName} onChange={(ev) => setClientName(ev.target.value)} placeholder="—" />
       </Field>
       <div className="tr-grid tr-grid--2">
+        <Field label="Date de la pratique">
+          <Input type="date" value={practicedAt} max={todayISO()} onChange={(ev) => setPracticedAt(ev.target.value)} />
+        </Field>
         <Field label="Prestation">
           <Select value={serviceCode} onChange={(ev) => setService(ev.target.value)}>
             {['VÈKPÈ™', 'SÍNSIN™', 'FÍNFÍN™', 'GBÈZÀ™', 'ÀGBÓ™', 'DÒDÒ™'].map((s) => <option key={s} value={s}>{s}</option>)}
