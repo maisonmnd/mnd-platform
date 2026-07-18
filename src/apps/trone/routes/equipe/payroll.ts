@@ -53,14 +53,26 @@ export const payrollParametersStore = createStore<PayrollParameters[]>('mnd_payr
 export const usePayrollParameters = () => useStore(payrollParametersStore);
 bindDocument(payrollParametersStore, 'mnd_payroll_params');
 
+/** Normalise la valeur du magasin en TABLEAU de versions. Le magasin porte un
+    tableau, mais une ligne `documents` héritée d'une version antérieure du module
+    a pu y stocker un OBJET seul (non tableau) — et cette table survit aux
+    déploiements comme au reset localStorage. Sans cette normalisation, tout
+    lecteur qui fait `.filter`/`.length` casse (« x.filter is not a function »). */
+export function normalizeParams(v: unknown): PayrollParameters[] {
+  if (Array.isArray(v)) return v as PayrollParameters[];
+  if (v && typeof v === 'object' && 'cnssSalarialePct' in v) return [v as PayrollParameters];
+  return [PAYROLL_PARAMETERS_SEED];
+}
+
 /** La version applicable à un mois « AAAA-MM » : la plus récente dont la date
     d'effet précède ou égale le 1er du mois. Repli sur la graine si aucune. */
 export function parametersFor(period: string, versions: PayrollParameters[] = payrollParametersStore.get()): PayrollParameters {
+  const list = normalizeParams(versions);
   const firstOfMonth = `${period}-01`;
-  const applicable = versions
-    .filter((v) => v.effectiveFrom <= firstOfMonth)
+  const applicable = list
+    .filter((v) => v && typeof v.effectiveFrom === 'string' && v.effectiveFrom <= firstOfMonth)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
-  return applicable ?? versions[0] ?? PAYROLL_PARAMETERS_SEED;
+  return applicable ?? list[0] ?? PAYROLL_PARAMETERS_SEED;
 }
 
 /* ---------- Le calcul ---------- */

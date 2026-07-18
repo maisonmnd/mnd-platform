@@ -1,5 +1,5 @@
 import { asset } from '../../../../shared/asset';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -9,7 +9,7 @@ import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_
 import { Pill, Tabs } from './ui';
 import {
   payrollRunsStore, usePayrollRuns, useAdvances, usePayrollParameters, payrollParametersStore, useAttendance,
-  parametersFor, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
+  parametersFor, normalizeParams, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
@@ -71,6 +71,14 @@ export function PaieRuns() {
   const byId = useServicesById();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+
+  /* Auto-réparation : une ligne `documents` héritée d'une version antérieure du
+     module a pu stocker les barèmes en OBJET seul (non tableau). On réécrit la
+     forme tableau attendue — sinon chaque session recharge la forme cassée et le
+     run échoue (« x.filter is not a function »). Ne s'exécute que si c'est cassé. */
+  useEffect(() => {
+    if (!Array.isArray(params)) payrollParametersStore.set(normalizeParams(params));
+  }, [params]);
 
   const branchRuns = runs
     .filter((r) => !r.branchId || r.branchId === branch.id)
