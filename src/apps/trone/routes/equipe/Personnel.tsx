@@ -14,12 +14,13 @@ import {
   type StaffMember, type StaffRisk,
 } from './data';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
+import { PaieRuns, PaieParametres } from './Paie';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import { useTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
-type Tab = 'equipe' | 'paie' | 'retention';
+type Tab = 'equipe' | 'paie' | 'parametres' | 'retention';
 
 /* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
    (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
@@ -515,7 +516,7 @@ export default function Personnel() {
       />
 
       <Tabs<Tab>
-        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'paie', l: 'Paie & commissions' }, { k: 'retention', l: 'Rétention & bien-être' }]}
+        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
         value={tab}
         onChange={setTab}
       />
@@ -587,7 +588,9 @@ export default function Personnel() {
         </div>
       )}
 
-      {tab === 'paie' && (
+      {/* Ancien onglet « Paie & commissions » — remplacé par le module de runs
+          (PaieRuns). Conservé désactivé le temps de la reprise complète. */}
+      {false && tab === 'paie' && (
         <div>
           <DeepNote
             eyebrow={`Masse salariale · ${monthLabel()}`}
@@ -777,6 +780,9 @@ export default function Personnel() {
           </Card>
         </div>
       )}
+
+      {tab === 'paie' && <PaieRuns />}
+      {tab === 'parametres' && <PaieParametres />}
 
       {tab === 'retention' && (
         <div>

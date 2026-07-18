@@ -1,5 +1,5 @@
 import { createStore, useStore } from '../../../../shared/store';
-import { bindDocument } from '../../../../shared/sync';
+import { bindCollection, bindDocument } from '../../../../shared/sync';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Paie · moteur de calcul (règles béninoises) — LA SOURCE DE VÉRITÉ.
@@ -120,6 +120,73 @@ export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParame
 export function bulletinNumber(period: string, matricule: string): string {
   const nnn = (matricule.match(/(\d+)\s*$/)?.[1] ?? '').padStart(3, '0').slice(-3) || '000';
   return `MND-BP-${period}-${nnn}`;
+}
+
+/* ---------- Avances sur salaire (retenues au run suivant) ---------- */
+export type SalaryAdvance = {
+  id: string;
+  employeeId: string;
+  period: string;   // AAAA-MM auquel l'avance se rattache (déduite à ce run)
+  amountXof: number;
+  date: string;     // JJ/MM/AAAA
+  note?: string;
+  branchId?: string;
+};
+export const advancesStore = createStore<SalaryAdvance[]>('mnd_salary_advances', []);
+export const useAdvances = () => useStore(advancesStore);
+bindCollection(advancesStore, 'salary_advances');
+
+/* ---------- Runs de paie (un par mois × atelier) ---------- */
+export type RunStatus = 'brouillon' | 'valide' | 'paye' | 'cloture';
+export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
+  brouillon: 'Brouillon', valide: 'Validé', paye: 'Payé', cloture: 'Clôturé',
+};
+
+/** Une ligne de paie figée du run : entrées (gains/retenues) + résultat calculé.
+    Le résultat est STOCKÉ (non recalculé au rendu) pour qu'un run clôturé reste
+    immuable même si les barèmes changent ensuite. */
+export type PayrollLine = {
+  employeeId: string;
+  name: string;
+  poste?: string;
+  matricule?: string;
+  cnssNum?: string;
+  paiement?: string; // Mobile Money / banque
+  gains: PayGains;
+  deductions: PayDeductions;
+  result: PayResult;
+};
+export type PayrollRun = {
+  id: string;
+  period: string; // AAAA-MM
+  atelier?: string;
+  status: RunStatus;
+  lines: PayrollLine[];
+  createdAt: string;
+  validatedAt?: string;
+  paidAt?: string;
+  closedAt?: string;
+  branchId?: string;
+};
+export const payrollRunsStore = createStore<PayrollRun[]>('mnd_payroll_runs', []);
+export const usePayrollRuns = () => useStore(payrollRunsStore);
+bindCollection(payrollRunsStore, 'payroll_runs');
+
+/** Recalcule une ligne (brouillon uniquement) : rejoue computePay sur ses entrées. */
+export const recomputeLine = (line: PayrollLine, p: PayrollParameters): PayrollLine =>
+  ({ ...line, result: computePay(line.gains, line.deductions, p) });
+
+/** Totaux d'un run — masse salariale (brut), net, cotisations, coût employeur. */
+export type RunTotals = { brut: number; net: number; cnssSalariale: number; cnssPatronale: number; its: number; cout: number };
+export function runTotals(run: PayrollRun): RunTotals {
+  return run.lines.reduce<RunTotals>((t, l) => ({
+    brut: t.brut + l.result.brut,
+    net: t.net + l.result.net,
+    cnssSalariale: t.cnssSalariale + l.result.cnssSalariale,
+    cnssPatronale: t.cnssPatronale + l.result.cnssPatronale,
+    its: t.its + l.result.its,
+    cout: t.cout + l.result.coutEmployeur,
+  }), { brut: 0, net: 0, cnssSalariale: 0, cnssPatronale: 0, its: 0, cout: 0 });
 }
 
 /** Identité + montants d'un bulletin, pour pré-remplir bulletin.html. */

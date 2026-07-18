@@ -68,6 +68,14 @@ export type StaffMember = {
   nextStep: string;
   recognition: string;
   statut: string;
+  /* — Dossier paie (module RH) — optionnels, renseignés au fil de l'eau. */
+  matricule?: string;   // MND-EMP-NNN
+  cnssNum?: string;     // n° CNSS
+  ifu?: string;         // identifiant fiscal unique
+  contractType?: 'CDI' | 'CDD' | 'apprentissage' | 'prestataire';
+  atelier?: string;     // atelier d'affectation (Cotonou, Calavi…)
+  commissionPct?: number; // taux de commission sur prestations encaissées
+  paiement?: string;    // mode/coordonnées de règlement (Mobile Money / banque)
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
