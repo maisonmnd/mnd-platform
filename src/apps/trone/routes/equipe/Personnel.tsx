@@ -14,7 +14,7 @@ import {
   type StaffMember, type StaffRisk,
 } from './data';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
-import { PaieRuns, PaieParametres } from './Paie';
+import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
@@ -551,6 +551,8 @@ export default function Personnel() {
         sub={`${branch.name} — celles et ceux qui couronnent, et la maison qui veille sur eux.`}
         actions={<Button variant="copper" onClick={openNew}>+ Ajouter un membre</Button>}
       />
+
+      <RhDashboard />
 
       <Tabs<Tab>
         tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}

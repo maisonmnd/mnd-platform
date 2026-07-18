@@ -8,7 +8,7 @@ import { useStaff } from './data';
 import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
-  payrollRunsStore, usePayrollRuns, useAdvances, usePayrollParameters, payrollParametersStore,
+  payrollRunsStore, usePayrollRuns, useAdvances, usePayrollParameters, payrollParametersStore, useAttendance,
   parametersFor, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
@@ -33,6 +33,32 @@ const digits = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
 
 const runTone = (s: RunStatus): 'ok' | 'warn' | 'muted' | 'copper' =>
   s === 'cloture' ? 'ok' : s === 'paye' ? 'copper' : s === 'valide' ? 'warn' : 'muted';
+
+/* ═══════════════ Tableau de bord RH ═══════════════ */
+export function RhDashboard() {
+  const { branch, currency } = useBranch();
+  const [staff] = useStaff();
+  const [attendance] = useAttendance();
+  const [runs] = usePayrollRuns();
+  const team = staff.filter((m) => m.branchId === branch.id);
+  const today = new Date().toISOString().slice(0, 10);
+  const absents = team.filter((m) => {
+    const s = attendance.find((a) => a.employeeId === m.id && a.date === today)?.status;
+    return s === 'absent' || s === 'absent_justifie' || s === 'maladie';
+  }).length;
+  const lastRun = runs
+    .filter((r) => !r.branchId || r.branchId === branch.id)
+    .sort((a, b) => b.period.localeCompare(a.period) || b.createdAt.localeCompare(a.createdAt))[0];
+  const masse = lastRun ? runTotals(lastRun).brut : 0;
+
+  return (
+    <div className="tr-grid tr-grid--3" style={{ marginBottom: 18 }}>
+      <Card filet="indigo" style={{ padding: 16 }}><div className="mnd-stat__label">Effectif</div><div className="mnd-stat__value" style={{ fontSize: 28 }}>{team.length}</div></Card>
+      <Card filet="copper" style={{ padding: 16 }}><div className="mnd-stat__label">Absents aujourd’hui</div><div className="mnd-stat__value" style={{ fontSize: 28 }}>{absents}</div></Card>
+      <Card filet="indigo" style={{ padding: 16 }}><div className="mnd-stat__label">Masse salariale · {lastRun ? frPeriod(lastRun.period) : 'dernier run'}</div><div className="mnd-stat__value" style={{ fontSize: 24 }}>{fmtMoney(masse, currency)}</div></Card>
+    </div>
+  );
+}
 
 /* ═══════════════ Runs ═══════════════ */
 export function PaieRuns() {
