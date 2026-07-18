@@ -586,6 +586,14 @@ function Customer360({
       ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.city.trim())}`
       : null;
 
+  /* Amène un champ d'identité à l'œil et le met en saisie (Appeler/Itinéraire sans info). */
+  const focusField = (id: string) => {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => el.focus(), 250);
+  };
+
   /* ----- Fiche financière ----- */
   const honored = appts.filter((a) => a.status === 'honoré');
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
@@ -689,31 +697,43 @@ function Customer360({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
-            {(
-              <div className="trc-cover-acts">
-                <a className="trc-cover-act" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance</a>
-                {client.phone && <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>}
-                {client.phone && phoneDigits && (
-                  <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
-                )}
-                {itineraireHref && (
-                  <a
-                    className="trc-cover-act"
-                    href={itineraireHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={client.geo ? 'Position GPS précise partagée par la cliente' : 'Itinéraire vers la ville renseignée'}
-                  >
-                    Itinéraire
-                  </a>
-                )}
-                {client.photo && (
-                  <button type="button" className="trc-cover-act trc-cover-act--btn" onClick={() => patch({ photo: null })}>
-                    Retirer la photo
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="trc-cover-acts">
+              <a className="trc-cover-act" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance</a>
+
+              {/* Appeler · WhatsApp · Itinéraire sont TOUJOURS là. Quand l'info manque,
+                  le bouton mène au champ d'identité pour la renseigner d'un geste. */}
+              {client.phone ? (
+                <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>
+              ) : (
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => focusField('c360-phone')}>Appeler</button>
+              )}
+
+              {client.phone && phoneDigits ? (
+                <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
+              ) : (
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => focusField('c360-phone')}>WhatsApp</button>
+              )}
+
+              {itineraireHref ? (
+                <a
+                  className="trc-cover-act"
+                  href={itineraireHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={client.geo ? 'Position GPS précise partagée par la cliente' : 'Itinéraire vers la ville renseignée'}
+                >
+                  Itinéraire
+                </a>
+              ) : (
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez une ville dans l’identité" onClick={() => focusField('c360-city')}>Itinéraire</button>
+              )}
+
+              {client.photo && (
+                <button type="button" className="trc-cover-act trc-cover-act--btn" onClick={() => patch({ photo: null })}>
+                  Retirer la photo
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -828,13 +848,13 @@ function Customer360({
               <Input value={idName} onChange={(e) => setIdName(e.target.value)} placeholder="Nom et prénom" />
             </Field>
             <Field label="Téléphone">
-              <Input value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="—" />
+              <Input id="c360-phone" value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="—" />
             </Field>
             <Field label="Adresse e-mail">
               <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />
             </Field>
             <Field label="Ville">
-              <Input value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
+              <Input id="c360-city" value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
             </Field>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
