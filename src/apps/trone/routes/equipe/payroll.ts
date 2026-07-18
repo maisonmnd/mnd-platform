@@ -47,10 +47,23 @@ export const PAYROLL_PARAMETERS_SEED: PayrollParameters = {
   ],
 };
 
+/* Garde-fou transversal du module. Toute valeur de magasin lue ici est censée
+   être un TABLEAU, mais une clé localStorage héritée d'une forme antérieure, ou
+   une ligne distante abîmée, peut renvoyer autre chose (objet, null, nombre).
+   `.filter`/`.map`/`.reduce` casseraient alors la page (« v.filter is not a
+   function »). On retombe systématiquement sur un tableau plutôt que de casser.
+   Les hooks du module renvoient déjà des tableaux — mais on garde aussi les
+   fonctions pures (runTotals, congeBalance, parametersFor) défensives, car elles
+   reçoivent des valeurs de magasin directement. */
+export const asArray = <T,>(v: T[]): T[] => (Array.isArray(v) ? v : []);
+
 /* Le magasin porte l'historique des versions (au moins une). Doc singleton
    synchronisé — lecture/écriture réservées au personnel par la RLS `documents`. */
 export const payrollParametersStore = createStore<PayrollParameters[]>('mnd_payroll_params', [PAYROLL_PARAMETERS_SEED]);
-export const usePayrollParameters = () => useStore(payrollParametersStore);
+export const usePayrollParameters = (): [PayrollParameters[], typeof payrollParametersStore.set] => {
+  const [v, set] = useStore(payrollParametersStore);
+  return [normalizeParams(v), set];
+};
 bindDocument(payrollParametersStore, 'mnd_payroll_params');
 
 /** Normalise la valeur du magasin en TABLEAU de versions. Le magasin porte un
@@ -64,13 +77,23 @@ export function normalizeParams(v: unknown): PayrollParameters[] {
   return [PAYROLL_PARAMETERS_SEED];
 }
 
+/** Un barème RÉELLEMENT exploitable par le calcul : sans tranches `its` ni taux
+    numérique, `computePay` casserait (`p.its` non itérable). On l'exige avant de
+    retourner une version — sinon on retombe sur la graine. */
+const isPayrollParameters = (v: unknown): v is PayrollParameters =>
+  !!v && typeof v === 'object'
+  && typeof (v as PayrollParameters).cnssSalarialePct === 'number'
+  && Array.isArray((v as PayrollParameters).its)
+  && typeof (v as PayrollParameters).effectiveFrom === 'string';
+
 /** La version applicable à un mois « AAAA-MM » : la plus récente dont la date
-    d'effet précède ou égale le 1er du mois. Repli sur la graine si aucune. */
+    d'effet précède ou égale le 1er du mois. GARANTIT un barème valide (ou la
+    graine) — le calcul en aval ne peut donc jamais casser sur des barèmes abîmés. */
 export function parametersFor(period: string, versions: PayrollParameters[] = payrollParametersStore.get()): PayrollParameters {
-  const list = normalizeParams(versions);
+  const list = normalizeParams(versions).filter(isPayrollParameters);
   const firstOfMonth = `${period}-01`;
   const applicable = list
-    .filter((v) => v && typeof v.effectiveFrom === 'string' && v.effectiveFrom <= firstOfMonth)
+    .filter((v) => v.effectiveFrom <= firstOfMonth)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
   return applicable ?? list[0] ?? PAYROLL_PARAMETERS_SEED;
 }
@@ -145,7 +168,10 @@ export type SalaryAdvance = {
   branchId?: string;
 };
 export const advancesStore = createStore<SalaryAdvance[]>('mnd_salary_advances', []);
-export const useAdvances = () => useStore(advancesStore);
+export const useAdvances = (): [SalaryAdvance[], typeof advancesStore.set] => {
+  const [v, set] = useStore(advancesStore);
+  return [asArray<SalaryAdvance>(v), set];
+};
 bindCollection(advancesStore, 'salary_advances');
 
 /* ---------- Temps & absences ---------- */
@@ -155,7 +181,10 @@ export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
 };
 export type Attendance = { id: string; employeeId: string; date: string; status: AttendanceStatus; note?: string; branchId?: string };
 export const attendanceStore = createStore<Attendance[]>('mnd_attendance', []);
-export const useAttendance = () => useStore(attendanceStore);
+export const useAttendance = (): [Attendance[], typeof attendanceStore.set] => {
+  const [v, set] = useStore(attendanceStore);
+  return [asArray<Attendance>(v), set];
+};
 bindCollection(attendanceStore, 'attendance');
 
 export type LeaveType = 'conge' | 'maladie';
@@ -168,7 +197,10 @@ export type LeaveRequest = {
   status: LeaveStatus; decidedBy?: string; decidedAt?: string; branchId?: string;
 };
 export const leaveStore = createStore<LeaveRequest[]>('mnd_leave_requests', []);
-export const useLeave = () => useStore(leaveStore);
+export const useLeave = (): [LeaveRequest[], typeof leaveStore.set] => {
+  const [v, set] = useStore(leaveStore);
+  return [asArray<LeaveRequest>(v), set];
+};
 bindCollection(leaveStore, 'leave_requests');
 
 /** Nombre de mois de service révolus entre `since` et aujourd'hui. */
@@ -192,7 +224,7 @@ export function daysInclusive(start: string, end: string): number {
 /** Solde de congés payés : acquis (mois de service × taux) − pris (congés approuvés). */
 export function congeBalance(since: string, leaves: LeaveRequest[], employeeId: string, joursParMois: number): { acquis: number; pris: number; solde: number } {
   const acquis = monthsOfService(since) * joursParMois;
-  const pris = leaves
+  const pris = asArray<LeaveRequest>(leaves)
     .filter((l) => l.employeeId === employeeId && l.type === 'conge' && l.status === 'approuve')
     .reduce((s, l) => s + l.days, 0);
   return { acquis, pris, solde: acquis - pris };
@@ -231,8 +263,24 @@ export type PayrollRun = {
   branchId?: string;
 };
 export const payrollRunsStore = createStore<PayrollRun[]>('mnd_payroll_runs', []);
-export const usePayrollRuns = () => useStore(payrollRunsStore);
+export const usePayrollRuns = (): [PayrollRun[], typeof payrollRunsStore.set] => {
+  const [v, set] = useStore(payrollRunsStore);
+  return [asArray<PayrollRun>(v), set];
+};
 bindCollection(payrollRunsStore, 'payroll_runs');
+
+/** Répare DURABLEMENT les magasins de paie dont la valeur persistée n'est pas un
+    tableau — forme héritée d'une version antérieure du module (localStorage) ou
+    ligne `documents` des barèmes revenue en objet seul. À appeler une fois au
+    montage de l'écran Paie : réécrit la bonne forme (localStorage + Supabase via
+    la synchro), pour que la corruption ne revienne pas à la session suivante. */
+export function healPayrollStores(): void {
+  if (!Array.isArray(payrollParametersStore.get())) payrollParametersStore.set(normalizeParams(payrollParametersStore.get()));
+  if (!Array.isArray(advancesStore.get())) advancesStore.set([]);
+  if (!Array.isArray(payrollRunsStore.get())) payrollRunsStore.set([]);
+  if (!Array.isArray(attendanceStore.get())) attendanceStore.set([]);
+  if (!Array.isArray(leaveStore.get())) leaveStore.set([]);
+}
 
 /** Recalcule une ligne (brouillon uniquement) : rejoue computePay sur ses entrées. */
 export const recomputeLine = (line: PayrollLine, p: PayrollParameters): PayrollLine =>
@@ -241,13 +289,15 @@ export const recomputeLine = (line: PayrollLine, p: PayrollParameters): PayrollL
 /** Totaux d'un run — masse salariale (brut), net, cotisations, coût employeur. */
 export type RunTotals = { brut: number; net: number; cnssSalariale: number; cnssPatronale: number; its: number; cout: number };
 export function runTotals(run: PayrollRun): RunTotals {
-  return run.lines.reduce<RunTotals>((t, l) => ({
-    brut: t.brut + l.result.brut,
-    net: t.net + l.result.net,
-    cnssSalariale: t.cnssSalariale + l.result.cnssSalariale,
-    cnssPatronale: t.cnssPatronale + l.result.cnssPatronale,
-    its: t.its + l.result.its,
-    cout: t.cout + l.result.coutEmployeur,
+  // `?.` + `?? 0` sur chaque champ : une ligne malformée (donnée distante abîmée)
+  // ne fausse pas le total et ne casse pas le rendu.
+  return asArray<PayrollLine>(run.lines).reduce<RunTotals>((t, l) => ({
+    brut: t.brut + (l?.result?.brut ?? 0),
+    net: t.net + (l?.result?.net ?? 0),
+    cnssSalariale: t.cnssSalariale + (l?.result?.cnssSalariale ?? 0),
+    cnssPatronale: t.cnssPatronale + (l?.result?.cnssPatronale ?? 0),
+    its: t.its + (l?.result?.its ?? 0),
+    cout: t.cout + (l?.result?.coutEmployeur ?? 0),
   }), { brut: 0, net: 0, cnssSalariale: 0, cnssPatronale: 0, its: 0, cout: 0 });
 }
 

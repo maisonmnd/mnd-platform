@@ -8,8 +8,8 @@ import { useStaff } from './data';
 import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
-  payrollRunsStore, usePayrollRuns, useAdvances, usePayrollParameters, payrollParametersStore, useAttendance,
-  parametersFor, normalizeParams, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
+  payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance,
+  parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
@@ -72,13 +72,11 @@ export function PaieRuns() {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  /* Auto-réparation : une ligne `documents` héritée d'une version antérieure du
-     module a pu stocker les barèmes en OBJET seul (non tableau). On réécrit la
-     forme tableau attendue — sinon chaque session recharge la forme cassée et le
-     run échoue (« x.filter is not a function »). Ne s'exécute que si c'est cassé. */
-  useEffect(() => {
-    if (!Array.isArray(params)) payrollParametersStore.set(normalizeParams(params));
-  }, [params]);
+  /* Auto-réparation durable : tout magasin de paie dont la valeur persistée n'est
+     pas un tableau (forme héritée d'une version antérieure du module, ou ligne
+     `documents` des barèmes revenue en objet seul) est réécrit à la bonne forme
+     — sinon chaque session recharge la forme cassée et le run échoue. */
+  useEffect(() => { healPayrollStores(); }, []);
 
   const branchRuns = runs
     .filter((r) => !r.branchId || r.branchId === branch.id)
@@ -89,10 +87,10 @@ export function PaieRuns() {
   const createRun = (period: string, atelier: string) => {
    try {
     const p = parametersFor(period, params);
-    const team = staff.filter((m) => m.branchId === branch.id);
+    const team = asArray(staff).filter((m) => m && m.branchId === branch.id);
     const lines: PayrollLine[] = team.map((s) => {
-      const avance = advances
-        .filter((a) => a.employeeId === s.id && a.period === period)
+      const avance = asArray(advances)
+        .filter((a) => a && a.employeeId === s.id && a.period === period)
         .reduce((x, a) => x + (a.amountXof ?? 0), 0);
       /* Commission depuis les prestations RÉELLEMENT encaissées du mois (rituels
          honorés, au maître = nom de l'employé) × taux du dossier. Sans taux, on
@@ -100,8 +98,8 @@ export function PaieRuns() {
          sait lire le prix (prix figé OU services), pour ne jamais casser le run. */
       const commission = s.commissionPct != null
         ? Math.round(
-            appts
-              .filter((a) => a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && a.master === s.name
+            asArray(appts)
+              .filter((a) => a && a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && a.master === s.name
                 && (typeof a.priceXof === 'number' || Array.isArray(a.serviceIds)))
               .reduce((sum, a) => sum + apptNetXof(a, byId), 0) * s.commissionPct / 100,
           )
@@ -134,10 +132,10 @@ export function PaieRuns() {
     <div>
       <div className="tre-actions-row">
         <span className="mnd-muted" style={{ fontSize: 12 }}>Un run par mois et par atelier · cycle brouillon → validé → payé → clôturé.</span>
-        <Button variant="copper" onClick={() => setCreating(true)} disabled={staff.filter((m) => m.branchId === branch.id).length === 0}>+ Nouveau run</Button>
+        <Button variant="copper" onClick={() => setCreating(true)} disabled={asArray(staff).filter((m) => m.branchId === branch.id).length === 0}>+ Nouveau run</Button>
       </div>
 
-      {staff.filter((m) => m.branchId === branch.id).length === 0 && (
+      {asArray(staff).filter((m) => m.branchId === branch.id).length === 0 && (
         <Card className="tre-empty"><div className="tre-empty__title">Aucun employé sur cet atelier.</div><div className="tre-empty__sub">Ajoutez l’équipe dans l’onglet « Équipe » avant de lancer un run.</div></Card>
       )}
 
@@ -154,7 +152,7 @@ export function PaieRuns() {
                       <td><button className="tre-link-btn" onClick={() => setOpenId(r.id)} style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{frPeriod(r.period)}</button></td>
                       <td className="mnd-muted">{r.atelier ?? branch.city}</td>
                       <td><Pill tone={runTone(r.status)}>{RUN_STATUS_LABEL[r.status]}</Pill></td>
-                      <td className="mnd-muted">{r.lines.length}</td>
+                      <td className="mnd-muted">{asArray(r.lines).length}</td>
                       <td style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}>{fmtMoney(t.brut, currency)}</td>
                       <td className="mnd-muted">{fmtMoney(t.net, currency)}</td>
                       <td style={{ textAlign: 'right' }}><button className="tre-link-btn" onClick={() => setOpenId(r.id)}>Ouvrir</button></td>
@@ -199,13 +197,14 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
   const [params] = usePayrollParameters();
   const [editLine, setEditLine] = useState<number | null>(null);
   const editable = run.status === 'brouillon';
+  const lines = asArray<PayrollLine>(run.lines);
   const t = runTotals(run);
   const p = parametersFor(run.period, params);
 
   const setRun = (patch: Partial<PayrollRun>) => payrollRunsStore.set((prev) => prev.map((r) => (r.id === run.id ? { ...r, ...patch } : r)));
   const saveLine = (i: number, gains: PayGains, deductions: PayDeductions) => {
-    const line = recomputeLine({ ...run.lines[i], gains, deductions }, p);
-    setRun({ lines: run.lines.map((l, j) => (j === i ? line : l)) });
+    const line = recomputeLine({ ...lines[i], gains, deductions }, p);
+    setRun({ lines: lines.map((l, j) => (j === i ? line : l)) });
     setEditLine(null);
   };
 
@@ -227,7 +226,7 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
 
   const exportCsv = () => {
     const head = ['Matricule', 'Nom', 'Poste', 'Brut', 'CNSS salariale', 'ITS', 'Retenues', 'Net a payer', 'CNSS patronale', 'Cout employeur'];
-    const rows = run.lines.map((l) => [
+    const rows = lines.map((l) => [
       l.matricule ?? '', l.name, l.poste ?? '',
       l.result.brut, l.result.cnssSalariale, l.result.its, l.result.retenues, l.result.net, l.result.cnssPatronale, l.result.coutEmployeur,
     ]);
@@ -247,7 +246,7 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
       <div className="tre-livret-head" style={{ alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Pill tone={runTone(run.status)}>{RUN_STATUS_LABEL[run.status]}</Pill>
-          <span className="mnd-muted" style={{ fontSize: 12 }}>{run.atelier ?? branch.city} · {run.lines.length} employé{run.lines.length > 1 ? 's' : ''}</span>
+          <span className="mnd-muted" style={{ fontSize: 12 }}>{run.atelier ?? branch.city} · {lines.length} employé{lines.length > 1 ? 's' : ''}</span>
           {next && <Button size="sm" variant={next === 'cloture' ? 'ghost' : 'copper'} onClick={() => advance(next)}>{next === 'valide' ? 'Valider' : next === 'paye' ? 'Marquer payé' : 'Clôturer'}</Button>}
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -269,7 +268,7 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
         <table className="tre-table">
           <thead><tr><th>Employé</th><th>Brut</th><th>CNSS</th><th>ITS</th><th>Retenues</th><th>Net à payer</th><th></th></tr></thead>
           <tbody>
-            {run.lines.map((l, i) => (
+            {lines.map((l, i) => (
               <tr key={l.employeeId}>
                 <td><div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{l.name}</div><div className="mnd-muted" style={{ fontSize: 11 }}>{l.poste}{l.matricule ? ` · ${l.matricule}` : ''}</div></td>
                 <td className="mnd-muted">{fmtMoney(l.result.brut, currency)}</td>
@@ -294,7 +293,7 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
         </span>
       </div>
 
-      {editLine != null && <LineEditor line={run.lines[editLine]} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
+      {editLine != null && <LineEditor line={lines[editLine]} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
     </Modal>
   );
 }
