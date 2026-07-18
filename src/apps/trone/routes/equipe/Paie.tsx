@@ -79,24 +79,27 @@ export function PaieRuns() {
   const open = runs.find((r) => r.id === openId) ?? null;
 
   const createRun = (period: string, atelier: string) => {
+   try {
     const p = parametersFor(period, params);
     const team = staff.filter((m) => m.branchId === branch.id);
     const lines: PayrollLine[] = team.map((s) => {
       const avance = advances
         .filter((a) => a.employeeId === s.id && a.period === period)
-        .reduce((x, a) => x + a.amountXof, 0);
+        .reduce((x, a) => x + (a.amountXof ?? 0), 0);
       /* Commission depuis les prestations RÉELLEMENT encaissées du mois (rituels
          honorés, au maître = nom de l'employé) × taux du dossier. Sans taux, on
-         retombe sur les montants saisis à la main. Tout reste éditable en brouillon. */
+         retombe sur les montants saisis à la main. On ne somme que les RDV dont on
+         sait lire le prix (prix figé OU services), pour ne jamais casser le run. */
       const commission = s.commissionPct != null
         ? Math.round(
             appts
-              .filter((a) => a.status === 'honoré' && a.date.slice(0, 7) === period && a.master === s.name)
+              .filter((a) => a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && a.master === s.name
+                && (typeof a.priceXof === 'number' || Array.isArray(a.serviceIds)))
               .reduce((sum, a) => sum + apptNetXof(a, byId), 0) * s.commissionPct / 100,
           )
         : (s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0);
       const gains: PayGains = {
-        base: s.salaireXof, heuresSup: 0, prime: s.primeXof, pourboires: 0,
+        base: s.salaireXof ?? 0, heuresSup: 0, prime: s.primeXof ?? 0, pourboires: 0,
         commission, indemnites: 0,
       };
       const deductions: PayDeductions = { avance, autresRetenues: 0 };
@@ -113,6 +116,10 @@ export function PaieRuns() {
     payrollRunsStore.set((prev) => [run, ...prev]);
     setCreating(false);
     setOpenId(run.id);
+   } catch (err) {
+    // Un run ne doit jamais échouer en silence : on montre l'erreur plutôt que de « ne rien faire ».
+    window.alert(`Le run n'a pas pu être créé : ${err instanceof Error ? err.message : String(err)}`);
+   }
   };
 
   return (
