@@ -122,6 +122,36 @@ export function bulletinNumber(period: string, matricule: string): string {
   return `MND-BP-${period}-${nnn}`;
 }
 
+/** Identité + montants d'un bulletin, pour pré-remplir bulletin.html. */
+export type BulletinLink = {
+  nom: string; poste?: string; matricule?: string; cnssnum?: string;
+  periode: string; // AAAA-MM
+  base: number; hs?: number; prime?: number; pourboires?: number; commission?: number;
+  avance?: number; retenue?: number; paiement?: string;
+};
+
+/** Lien vers bulletin.html pré-rempli — noms de paramètres EXACTS attendus par la
+    page (nom, poste, matricule, cnssnum, periode, base, hs, prime, pourboires,
+    commission, avance, retenue, paiement). L'ERP passe les ENTRÉES ; la page
+    réaffiche le calcul, qui retombe sur le même net que computePay. */
+export function bulletinHref(base: string, b: BulletinLink): string {
+  const q = new URLSearchParams();
+  q.set('nom', b.nom);
+  if (b.poste) q.set('poste', b.poste);
+  if (b.matricule) q.set('matricule', b.matricule);
+  if (b.cnssnum) q.set('cnssnum', b.cnssnum);
+  q.set('periode', b.periode);
+  q.set('base', String(b.base));
+  if (b.hs) q.set('hs', String(b.hs));
+  if (b.prime) q.set('prime', String(b.prime));
+  if (b.pourboires) q.set('pourboires', String(b.pourboires));
+  if (b.commission) q.set('commission', String(b.commission));
+  if (b.avance) q.set('avance', String(b.avance));
+  if (b.retenue) q.set('retenue', String(b.retenue));
+  if (b.paiement) q.set('paiement', b.paiement);
+  return `${base}?${q.toString()}`;
+}
+
 /** Échéance de règlement : le 5 du mois suivant la période « AAAA-MM ». */
 export function echeanceReglement(period: string): string {
   const m = period.match(/^(\d{4})-(\d{2})$/);

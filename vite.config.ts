@@ -17,6 +17,7 @@ const ALL_INPUTS: Record<string, string> = {
   lokaa: resolve(__dirname, 'lokaa.html'),
   certificat: resolve(__dirname, 'certificat.html'),
   bilan: resolve(__dirname, 'bilan.html'),
+  bulletin: resolve(__dirname, 'bulletin.html'),
 };
 const apps = (process.env.VITE_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const input = apps.length
