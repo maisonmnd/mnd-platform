@@ -209,16 +209,21 @@ export function useVisibleCatalog(): VisibleCatalog {
       if (!c || !c.enabled) return false;
       return vitrine.visibleCategories.length === 0 || vitrine.visibleCategories.includes(id);
     };
+    const visServices = services
+      .filter((s) => catOk(s.categoryId) && !vitrine.hiddenServices.includes(s.id))
+      .slice()
+      .sort((a, b) => a.order - b.order);
+    const visProducts = products
+      .filter((p) => catOk(p.categoryId) && !vitrine.hiddenProducts.includes(p.id))
+      .slice()
+      .sort((a, b) => a.order - b.order);
+    /* Une catégorie VIDE ne s'affiche pas au front : inutile de montrer à la cliente
+       une catégorie sans aucune prestation ni produit visible. */
+    const nonEmpty = new Set<string>([...visServices.map((s) => s.categoryId), ...visProducts.map((p) => p.categoryId)]);
     return {
-      cats: cats.filter((c) => catOk(c.id)).slice().sort((a, b) => a.order - b.order),
-      services: services
-        .filter((s) => catOk(s.categoryId) && !vitrine.hiddenServices.includes(s.id))
-        .slice()
-        .sort((a, b) => a.order - b.order),
-      products: products
-        .filter((p) => catOk(p.categoryId) && !vitrine.hiddenProducts.includes(p.id))
-        .slice()
-        .sort((a, b) => a.order - b.order),
+      cats: cats.filter((c) => catOk(c.id) && nonEmpty.has(c.id)).slice().sort((a, b) => a.order - b.order),
+      services: visServices,
+      products: visProducts,
     };
   }, [cats, services, products, vitrine]);
 }

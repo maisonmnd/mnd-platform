@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
-  QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES, ensureConsultationCategory,
+  QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES, ensureConsultationCategory, ensureStarterServices,
   type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
@@ -48,12 +48,28 @@ export default function Catalogue() {
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
   const [catForm, setCatForm] = useState<CatForm | null>(null);
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
+  const [query, setQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
-  /* Garantit la catégorie Consultation (ÐÓTÓ™) sur les maisons antérieures. */
-  useEffect(() => { ensureConsultationCategory(); }, []);
+  /* Garantit la catégorie Consultation (ÐÓTÓ™) et les prestations signées de
+     départ sur les maisons antérieures à leur introduction. */
+  useEffect(() => {
+    ensureConsultationCategory();
+    ensureStarterServices(branch.masters[0] ?? '');
+  }, []);
 
   const masters = branch.masters;
   const cats = [...categories].sort((a, b) => a.order - b.order);
+
+  /* Recherche + repli — le catalogue peut être dense ; on aide à s'y retrouver.
+     Une recherche déplie tout et masque les catégories sans correspondance. */
+  const q = query.trim().toLowerCase();
+  const matchSvc = (s: Service) => !q || s.name.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q);
+  const matchProd = (p: Product) => !q || p.name.toLowerCase().includes(q);
+  const toggleCollapse = (id: string) =>
+    setCollapsed((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allCollapsed = cats.length > 0 && cats.every((c) => collapsed.has(c.id));
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(cats.map((c) => c.id)));
 
   /* — catégories — */
   const moveCat = (cat: CatalogCategory, dir: -1 | 1) => {
@@ -202,6 +218,20 @@ export default function Catalogue() {
         }
       />
 
+      {cats.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 16px', flexWrap: 'wrap' }}>
+          <input
+            className="mnd-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher une prestation, un produit…"
+            style={{ flex: '1 1 240px', maxWidth: 360 }}
+          />
+          {query && <button className="trv-minibtn" onClick={() => setQuery('')}>Effacer</button>}
+          <Button variant="ghost" onClick={toggleAll}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</Button>
+        </div>
+      )}
+
       {cats.length === 0 && (
         <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '28px 0', textAlign: 'center' }}>
           Le catalogue est vierge. Commencez par inscrire une catégorie ™ — elle accueillera vos prestations et vos produits Maison.
@@ -209,16 +239,35 @@ export default function Catalogue() {
       )}
 
       {cats.map((cat, ci) => {
-        const list = svcOf(cat.id);
-        const prods = prodsOf(cat.id);
+        const list = svcOf(cat.id).filter(matchSvc);
+        const prods = prodsOf(cat.id).filter(matchProd);
         const count = list.length + prods.length;
+        const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
+        /* En recherche : on masque les catégories sans aucune correspondance. */
+        if (q && count === 0 && !catMatches) return null;
+        /* Replié uniquement hors recherche — une recherche déplie tout. */
+        const open = !q && !collapsed.has(cat.id);
         return (
           <section key={cat.id} className="trv-catblock" style={{ opacity: cat.enabled ? 1 : 0.6 }}>
             <div className="trv-catblock__band">
-              <span className="trv-catblock__id">
+              {!q && (
+                <button
+                  className="trv-sq"
+                  title={open ? 'Replier' : 'Déplier'}
+                  onClick={() => toggleCollapse(cat.id)}
+                  style={{ marginRight: 8, flex: 'none' }}
+                >
+                  {open ? '▾' : '▸'}
+                </button>
+              )}
+              <button
+                className="trv-catblock__id"
+                onClick={() => !q && toggleCollapse(cat.id)}
+                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: q ? 'default' : 'pointer', font: 'inherit', color: 'inherit' }}
+              >
                 <span className="fon">{cat.fon}</span>
                 <span className="label">{cat.label}</span>
-              </span>
+              </button>
               <span className="trv-catblock__count">
                 {count} élément{count > 1 ? 's' : ''}
               </span>
@@ -243,6 +292,8 @@ export default function Catalogue() {
               </span>
             </div>
 
+            {open && (
+            <>
             <div className="trv-catblock__filet" />
 
             <div className="trv-catblock__body tr-grid tr-grid--2">
@@ -346,10 +397,12 @@ export default function Catalogue() {
 
               {list.length === 0 && prods.length === 0 && (
                 <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '8px 0' }}>
-                  Aucune prestation ni produit dans cette catégorie pour l’instant.
+                  {q ? 'Aucune correspondance dans cette catégorie.' : 'Aucune prestation ni produit dans cette catégorie pour l’instant.'}
                 </div>
               )}
             </div>
+            </>
+            )}
           </section>
         );
       })}
