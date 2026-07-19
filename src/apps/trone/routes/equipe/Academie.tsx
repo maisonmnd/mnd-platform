@@ -19,6 +19,7 @@ import type { Store } from '../../../../shared/store';
 import { Bar, Pill, Tabs } from './ui';
 import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
+import './equipe.css';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
@@ -335,31 +336,40 @@ export default function Academie() {
             </Card>
           )}
 
-          <div className="tr-grid tr-grid--2">
-            {activeFormations.map((f) => (
-              <Card key={f.id} style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div>
-                    <div className="mnd-eyebrow" style={{ color: 'var(--copper-700)' }}>{f.niveau}</div>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)', marginTop: 3 }}>{f.name}</div>
+          <div className="tr-grid tr-grid--3" style={{ alignItems: 'start' }}>
+            {activeFormations.map((f) => {
+              const mods = f.modules && f.modules.length ? f.modules : [];
+              return (
+                <Card key={f.id} className="tre-plan">
+                  <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{f.niveau}</div>
+                  <div className="tre-plan__name" style={{ marginTop: 8 }}>{f.name}</div>
+                  <div className="tre-plan__line">
+                    {f.sessions} séance{f.sessions > 1 ? 's' : ''} · {f.dureeSemaines} semaine{f.dureeSemaines > 1 ? 's' : ''} · {f.demarrage}
                   </div>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)', flex: 'none' }}>{fmtMoney(f.priceXof, currency)}</span>
-                </div>
-                <div className="mnd-muted" style={{ display: 'flex', gap: 10, marginTop: 12, fontSize: 11.5 }}>
-                  <span>{f.sessions} séances</span><span style={{ color: 'var(--color-argile)' }}>·</span>
-                  <span>{f.demarrage}</span><span style={{ color: 'var(--color-argile)' }}>·</span>
-                  <span>{f.dureeSemaines} sem.</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--hairline)' }}>
-                  <Pill tone={f.places === 'complet' ? 'muted' : 'copper'}>{f.places}</Pill>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <button className="tre-link-btn" onClick={() => openFoEdit(f)}>Modifier</button>
-                    <button className="tre-link-btn" style={{ color: 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
-                    <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeFo(f)}>Supprimer</button>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
+                    <span className="tre-plan__price">{fmtMoney(f.priceXof, currency)}</span>
                   </div>
-                </div>
-              </Card>
-            ))}
+                  <div style={{ minHeight: 16, marginTop: 2 }}>
+                    <Pill tone={f.places === 'complet' ? 'muted' : 'copper'}>{f.places}</Pill>
+                  </div>
+                  <div className="tre-plan__divider" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    {mods.length > 0
+                      ? mods.map((m) => (
+                          <div key={m} className="tre-plan__perk"><span className="mark">✦</span><span>{m}</span></div>
+                        ))
+                      : <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Parcours à détailler dans « Modifier ».</div>}
+                  </div>
+                  <div style={{ marginTop: 'auto', paddingTop: 20 }}>
+                    <Button size="sm" variant="ghost" style={{ width: '100%' }} onClick={() => openFoEdit(f)}>Modifier</Button>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10 }}>
+                      <button className="tre-link-btn" style={{ color: 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
+                      <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeFo(f)}>Supprimer</button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
