@@ -12,6 +12,14 @@ export type CatalogCategory = {
   order: number;
 };
 
+/** Comment le prix d'une prestation est annoncé :
+    · fixe     — un prix ferme, facturé tel quel ;
+    · variable — un prix DE DÉPART (« à partir de »), le montant réel se fixe au fauteuil ;
+    · devis    — aucun prix affiché (« sur devis »), donné au cas par cas.
+    `hidePrice` (ancien booléen) est conservé et reste synchronisé avec `devis`
+    pour ne rien casser du front / de la caisse ; `priceModeOf` fait le pont. */
+export type PriceMode = 'fixe' | 'variable' | 'devis';
+
 export type Service = {
   id: string;
   categoryId: string;
@@ -19,6 +27,7 @@ export type Service = {
   palier: 'Fondation' | 'Élévation' | 'Souveraineté';
   priceXof: number;
   hidePrice: boolean;
+  priceMode?: PriceMode; // défaut dérivé de hidePrice (voir priceModeOf)
   sessions: number; // nombre de séances
   master: string; // maître assigné
   durationMin: number;
@@ -27,6 +36,16 @@ export type Service = {
   /** Couverture des quatre temps : Purifier · Nourrir · Sceller · Couronner (1 = couvert). */
   temps?: number[];
 };
+
+export const PRICE_MODES: { k: PriceMode; label: string; hint: string }[] = [
+  { k: 'fixe', label: 'Fixe', hint: 'un prix ferme' },
+  { k: 'variable', label: 'Variable', hint: 'à partir de ce prix' },
+  { k: 'devis', label: 'Sur devis', hint: 'prix donné au cas par cas' },
+];
+
+/** Mode de prix effectif — dérive des anciennes données (hidePrice) si non renseigné. */
+export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): PriceMode =>
+  s.priceMode ?? (s.hidePrice ? 'devis' : 'fixe');
 
 export type Product = {
   id: string;
@@ -38,6 +57,7 @@ export type Product = {
 };
 
 export const CATEGORIES_SEED: CatalogCategory[] = [
+  { id: 'doto', fon: 'ÐÓTÓ™', label: 'Consultation & conseil', enabled: true, order: 0 },
   { id: 'vekpe', fon: 'VÈKPÈ™', label: 'Création de couronne', enabled: true, order: 1 },
   { id: 'sinsin', fon: 'SÍNSIN™', label: 'Entretien & resserrage', enabled: true, order: 2 },
   { id: 'finfin', fon: 'FÍNFÍN™', label: 'Soin profond & rituel', enabled: true, order: 3 },
@@ -64,6 +84,19 @@ bindCollection(productsStore, 'catalog_products');
 export const useCategories = () => useStore(categoriesStore);
 export const useServices = () => useStore(servicesStore);
 export const useProducts = () => useStore(productsStore);
+
+/** Idempotent : garantit la catégorie Consultation (ÐÓTÓ™) sur les maisons créées
+    avant son introduction (leur table `catalog_categories` est déjà peuplée, donc
+    la graine ne suffit pas). À appeler au montage du Catalogue. N'agit que si elle
+    est ABSENTE — un renommage (même id `doto`) est donc préservé. */
+export function ensureConsultationCategory(): void {
+  const cats = categoriesStore.get();
+  if (!Array.isArray(cats) || cats.some((c) => c.id === 'doto')) return;
+  categoriesStore.set((prev) => [
+    { id: 'doto', fon: 'ÐÓTÓ™', label: 'Consultation & conseil', enabled: true, order: 0 },
+    ...prev,
+  ]);
+}
 
 /** Les quatre temps de la méthode — chaque prestation les honore en tout ou partie. */
 export const QUATRE_TEMPS = ['Purifier', 'Nourrir', 'Sceller', 'Couronner'] as const;

@@ -5,6 +5,7 @@ import { fmtMoney } from '../../shared/currency';
 import { composeStore, type ComposePayload } from '../../shared/bridges';
 import { uid } from '../../shared/store';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
+import { priceModeOf } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
    Ponctuel −10 % · Abonnement −15 % (SÍNSIN/FÍNFÍN/GBÈZÀ, 3 prestations minimum).
@@ -181,7 +182,7 @@ export default function Compose({ onClose, toast }: Props) {
                     <div className="mc-cmitem__body">
                       <div className="mc-cmitem__name">{s.name}</div>
                       <div className="mc-cmitem__meta">
-                        {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · {fmtMoney(s.priceXof, currency)}
+                        {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(s.priceXof, currency)}
                       </div>
                     </div>
                     <div className="mc-cmitem__qty">

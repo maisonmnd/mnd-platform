@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { shortDate, usePlans, useSubscribers, type Plan, type Subscriber } from './data';
+import { shortDate, usePlans, useSubscribers, ensureStarterPlans, type Plan, type Subscriber } from './data';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -26,6 +26,9 @@ export default function Abonnements() {
   const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '' });
   const [subModal, setSubModal] = useState(false);
   const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '' });
+
+  /* Pose les 6 formules signées de départ si la Maison n'en a aucune. */
+  useEffect(() => { ensureStarterPlans(); }, []);
 
   const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
   const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);

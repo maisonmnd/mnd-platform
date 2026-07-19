@@ -8,7 +8,7 @@ import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '..
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { useAuth } from '../../shared/auth';
-import type { Service } from '../../shared/catalog';
+import { priceModeOf, type Service } from '../../shared/catalog';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -260,8 +260,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     toast('Fichier calendrier téléchargé — votre téléphone vous rappellera 2 h avant.');
   };
 
-  const priceLabel = (s: Service, pct = 0) =>
-    s.hidePrice ? 'Prix en salon' : fmtMoney(Math.round(s.priceXof * (1 - pct / 100)), currency);
+  const priceLabel = (s: Service, pct = 0) => {
+    const mode = priceModeOf(s);
+    if (mode === 'devis') return 'Prix en salon';
+    const amount = fmtMoney(Math.round(s.priceXof * (1 - pct / 100)), currency);
+    return mode === 'variable' ? `à partir de ${amount}` : amount;
+  };
 
   /* Total lisible : « Prix en salon » si tout est masqué, sinon montant (+ salon si mixte). */
   const totalLabel = allHidden ? 'Prix en salon' : fmtMoney(price, currency);

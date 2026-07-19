@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
-import { useServices, type Service } from '../../../../shared/catalog';
+import { useServices, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import './clients.css';
@@ -282,6 +282,8 @@ export function RdvModal({
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
   const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
+  /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
+  const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
 
@@ -293,10 +295,18 @@ export function RdvModal({
      On le dit à l'écran plutôt que de laisser l'historique se réécrire en silence. */
   const frozenXof = appt?.priceXof;
   const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
-  const frozenDiffers = typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossXof);
+  /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
+     montant convenu (saisi dans la modale) prime alors sur la somme du catalogue ;
+     à défaut, on retient le prix de départ (grossXof). */
+  const needsAmount = chosen.some((sv) => priceModeOf(sv) !== 'fixe');
+  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
+  const effGross = needsAmount ? (amountNum || grossXof) : grossXof;
+  /* L'avertissement « prix figé ≠ catalogue » ne vaut que pour les prix FIXES —
+     pour un rituel variable/devis, le montant saisi EST le prix voulu. */
+  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossXof);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé. */
-  const totalXof = Math.max(0, Math.round(grossXof * (1 - discountPct / 100)) - discountXof);
+  const totalXof = Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
   /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
      CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
   const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
@@ -338,10 +348,10 @@ export function RdvModal({
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
                 discountPct: discountPct || undefined, discountXof: discountXof || undefined,
-                /* Le maître vient de valider un total calculé au catalogue : on
-                   abandonne le prix figé, sinon le RDV afficherait un montant que
-                   personne n'a approuvé. */
-                priceXof: undefined,
+                /* Rituel FIXE : on abandonne le prix figé et on adopte le tarif du
+                   catalogue. Rituel VARIABLE/DEVIS : on GÈLE le montant convenu,
+                   qui devient le prix de ce rendez-vous. */
+                priceXof: needsAmount ? (amountNum || grossXof) : undefined,
                 depositServiceIds, depositXof }
             : x,
         ),
@@ -360,6 +370,8 @@ export function RdvModal({
         note: note.trim() || undefined,
         discountPct: discountPct || undefined,
         discountXof: discountXof || undefined,
+        /* Variable/devis : on gèle le montant convenu comme prix du rendez-vous. */
+        priceXof: needsAmount ? (amountNum || grossXof) : undefined,
         depositServiceIds,
         depositXof,
       };
@@ -400,7 +412,7 @@ export function RdvModal({
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-                  <span style={{ fontSize: 13 }}>{sv.hidePrice ? 'sur devis' : fmtMoney(sv.priceXof, currency)}</span>
+                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis' ? 'sur devis' : priceModeOf(sv) === 'variable' ? `dès ${fmtMoney(sv.priceXof, currency)}` : fmtMoney(sv.priceXof, currency)}</span>
                   <button
                     onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
                     aria-label="Retirer"
@@ -484,6 +496,25 @@ export function RdvModal({
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
         </Field>
 
+        {needsAmount && (
+          <Field label="Montant du rituel (F CFA)">
+            <input
+              className="mnd-input"
+              type="number"
+              min={0}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={grossXof > 0 ? String(grossXof) : '—'}
+              style={{ width: 180, textAlign: 'right' }}
+              aria-label="Montant convenu du rituel"
+            />
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+              Rituel à prix variable ou sur devis — saisissez le montant convenu.
+              {grossXof > 0 ? ` À défaut, ${fmtMoney(grossXof, currency)} (prix de départ) sera retenu.` : ''}
+            </div>
+          </Field>
+        )}
+
         {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier). */}
         <Field label="Remise sur le rituel (%)">
           <div style={{ display: 'flex', gap: 6 }}>
@@ -543,7 +574,7 @@ export function RdvModal({
                 {discountPct > 0 ? ` · remise −${discountPct}%` : ''}
                 {discountXof > 0 ? ` · remise −${fmtMoney(discountXof, currency)}` : ''}
               </span>
-              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{fmtMoney(grossXof, currency)}</s></span>
+              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{fmtMoney(effGross, currency)}</s></span>
             </div>
           )}
           <div className="trc-total__row">

@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
-  QUATRE_TEMPS, fmtDuration,
-  type CatalogCategory, type Service, type Product,
+  QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES, ensureConsultationCategory,
+  type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -23,6 +23,7 @@ type SvcForm = {
   name: string;
   description: string;
   price: string;
+  priceMode: PriceMode;
   palier: Service['palier'];
   durationMin: string;
   sessions: number;
@@ -30,7 +31,7 @@ type SvcForm = {
 };
 
 const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
-  id: null, categoryId, name: '', description: '', price: '', palier: 'Fondation', durationMin: '60', sessions: 1, master,
+  id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
 });
 
 type CatForm = { id: string | null; fon: string; label: string; enabled: boolean };
@@ -47,6 +48,9 @@ export default function Catalogue() {
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
   const [catForm, setCatForm] = useState<CatForm | null>(null);
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
+
+  /* Garantit la catégorie Consultation (ÐÓTÓ™) sur les maisons antérieures. */
+  useEffect(() => { ensureConsultationCategory(); }, []);
 
   const masters = branch.masters;
   const cats = [...categories].sort((a, b) => a.order - b.order);
@@ -104,20 +108,30 @@ export default function Catalogue() {
   const patchSvc = (id: string, patch: Partial<Service>) =>
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
+  /* Change vite le mode de prix depuis la carte : Fixe → Variable → Sur devis.
+     `hidePrice` suit le mode « devis » (front & caisse s'en servent). */
+  const cyclePriceMode = (svc: Service) => {
+    const order: PriceMode[] = ['fixe', 'variable', 'devis'];
+    const next = order[(order.indexOf(priceModeOf(svc)) + 1) % order.length];
+    patchSvc(svc.id, { priceMode: next, hidePrice: next === 'devis' });
+  };
+
   const openSvcEdit = (svc: Service) =>
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
-      price: String(svc.priceXof), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
+      price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
     });
 
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
     const price = parseInt(svcForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const dur = parseInt(svcForm.durationMin.replace(/[^0-9]/g, ''), 10) || 60;
+    // `hidePrice` reste synchronisé avec le mode « devis » (front & caisse s'en servent).
+    const hidePrice = svcForm.priceMode === 'devis';
     if (svcForm.id) {
       patchSvc(svcForm.id, {
         categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
-        priceXof: price, palier: svcForm.palier, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
+        priceXof: price, priceMode: svcForm.priceMode, hidePrice, palier: svcForm.palier, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
       });
     } else {
       const maxOrder = svcOf(svcForm.categoryId).reduce((m, s) => Math.max(m, s.order), 0);
@@ -125,7 +139,7 @@ export default function Catalogue() {
         ...prev,
         {
           id: uid(), categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
-          palier: svcForm.palier, priceXof: price, hidePrice: false, sessions: svcForm.sessions,
+          palier: svcForm.palier, priceXof: price, priceMode: svcForm.priceMode, hidePrice, sessions: svcForm.sessions,
           master: svcForm.master, durationMin: dur, order: maxOrder + 1, temps: [1, 1, 1, 1],
         },
       ]);
@@ -239,13 +253,20 @@ export default function Catalogue() {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flex: 'none' }}>
                       <button
                         className="trv-hideprice"
-                        title={svc.hidePrice ? 'Afficher le prix' : 'Masquer le prix'}
-                        onClick={() => patchSvc(svc.id, { hidePrice: !svc.hidePrice })}
+                        title="Mode de prix — cliquez pour changer : Fixe → Variable → Sur devis"
+                        onClick={() => cyclePriceMode(svc)}
                       >
-                        {svc.hidePrice ? 'Afficher le prix' : 'Masquer le prix'}
+                        {PRICE_MODES.find((m) => m.k === priceModeOf(svc))?.label}
                       </button>
                       <div className="trv-svc__price">
-                        {svc.hidePrice ? <em style={{ fontSize: 15, color: 'var(--ink-soft)' }}>prix voilé</em> : fmtMoney(svc.priceXof, currency)}
+                        {priceModeOf(svc) === 'devis'
+                          ? <em style={{ fontSize: 15, color: 'var(--ink-soft)' }}>sur devis</em>
+                          : (
+                            <span>
+                              {priceModeOf(svc) === 'variable' && <span style={{ fontSize: 11, color: 'var(--ink-soft)', marginRight: 4 }}>dès</span>}
+                              {fmtMoney(svc.priceXof, currency)}
+                            </span>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -354,10 +375,31 @@ export default function Catalogue() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Prix (F CFA)">
+              <Field label={svcForm.priceMode === 'variable' ? 'Prix de départ (F CFA)' : svcForm.priceMode === 'devis' ? 'Prix indicatif (facultatif)' : 'Prix (F CFA)'}>
                 <Input inputMode="numeric" value={svcForm.price} onChange={(e) => setSvcForm({ ...svcForm, price: e.target.value })} placeholder="45 000" />
               </Field>
             </div>
+            <Field label="Mode de prix">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PRICE_MODES.map((m) => (
+                  <button
+                    key={m.k}
+                    type="button"
+                    className={`trv-palier-chip ${svcForm.priceMode === m.k ? 'is-active' : ''}`}
+                    onClick={() => setSvcForm({ ...svcForm, priceMode: m.k })}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {svcForm.priceMode === 'fixe'
+                  ? 'Prix ferme — facturé tel quel.'
+                  : svcForm.priceMode === 'variable'
+                    ? 'Affiché « à partir de » ; le montant réel se fixe au fauteuil (à la prise de rendez-vous).'
+                    : 'Aucun prix affiché — « sur devis ». Le montant se saisit à la prise de rendez-vous.'}
+              </div>
+            </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Durée (minutes)">
                 <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />

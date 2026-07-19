@@ -199,8 +199,40 @@ export type Plan = {
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
 export const PLANS_SEED: Plan[] = [];
 
+/* Six formules signées de départ — la voix de la Maison, prix INDICATIFS (F CFA,
+   mensuels) à ajuster. Introduites à la demande ; posées une fois via
+   `ensureStarterPlans()` puis entièrement éditables (nom, prix, avantages). */
+export const STARTER_PLANS: Plan[] = [
+  { id: 'pl-essentielle', name: "L’Essentielle", tag: 'Le premier pas', priceXof: 10000,
+    line: 'Le rituel minimal pour garder une couronne nette.',
+    perks: ['1 resserrage express / mois', 'Rappel automatique', '−5 % Care & Store'], popular: false },
+  { id: 'pl-reguliere', name: 'La Régulière', tag: 'L’entretien', priceXof: 20000,
+    line: 'L’entretien mensuel, sans y penser.',
+    perks: ['1 soin + 1 resserrage / mois', 'Créneau réservé', '−10 % Care & Store'], popular: false },
+  { id: 'pl-regente', name: 'La Régente', tag: 'L’équilibre', priceXof: 35000,
+    line: 'Le juste milieu : soin, style et priorité.',
+    perks: ['2 rituels / mois', 'Créneau réservé prioritaire', '−15 % Care & Store', '1 coiffure événementielle / trimestre'], popular: true },
+  { id: 'pl-souveraine', name: 'La Souveraine', tag: 'Tout compris', priceXof: 60000,
+    line: 'La couronne sans limite, priorité absolue.',
+    perks: ['Rituels illimités', 'Priorité absolue au fauteuil', '−20 % Care & Store', 'Coiffure événementielle incluse'], popular: false },
+  { id: 'pl-confidente', name: 'La Confidente', tag: 'Soin & gamme', priceXof: 30000,
+    line: 'Pour celles qui prennent soin, à la maison aussi.',
+    perks: ['1 soin profond / mois', 'Box produits Care & Store', '−15 % Care & Store'], popular: false },
+  { id: 'pl-ceremonie', name: 'La Cérémonie', tag: 'L’événement', priceXof: 45000,
+    line: 'La tête haute à chaque grand rendez-vous.',
+    perks: ['1 coiffure événementielle / mois', 'Essai coiffure inclus', 'Créneau week-end réservé'], popular: false },
+];
+
 export const plansStore = createStore<Plan[]>('mnd_abo_plans', PLANS_SEED);
 export const usePlans = () => useStore(plansStore);
+
+/** Idempotent : dote une Maison SANS aucune formule des 6 formules de départ.
+    N'agit que si la liste est vide — ne réécrit jamais des formules déjà créées. */
+export function ensureStarterPlans(): void {
+  const cur = plansStore.get();
+  if (Array.isArray(cur) && cur.length > 0) return;
+  plansStore.set(STARTER_PLANS.map((p) => ({ ...p, perks: [...p.perks] })));
+}
 
 export type Subscriber = {
   id: string;
