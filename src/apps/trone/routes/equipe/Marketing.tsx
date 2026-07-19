@@ -15,7 +15,7 @@ import { pushBroadcastClients } from '../../../../shared/push';
 import {
   AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
-  useCampaigns, useOffers,
+  useCampaigns, useOffers, offerLiveNow,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
@@ -31,7 +31,8 @@ type OfferForm = {
 
 const emptyOffer: OfferForm = {
   title: '', tag: 'Offre éclair', deal: '', sub: '', audience: 'Tous',
-  days: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'], heureDebut: '09h', heureFin: '18h',
+  // Tous les jours par défaut (un salon travaille surtout le week-end) et large plage horaire.
+  days: [...OFFER_DAYS], heureDebut: '08h', heureFin: '20h',
   serviceId: '', discountPct: '',
 };
 
@@ -311,7 +312,12 @@ export default function Marketing() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span className="tre-pill tre-pill--copper">{o.tag}</span>
                       <span className="tre-offer__deal">{o.deal}</span>
-                      <Pill tone={o.active ? 'ok' : 'muted'}>{o.active ? 'En ligne' : 'Hors ligne'}</Pill>
+                      {/* Statut HONNÊTE : « En ligne » seulement si visible MAINTENANT côté
+                          cliente ; « Programmée » si active mais hors de sa fenêtre jour/heure
+                          (les jours/heures ci-dessous disent quand elle apparaîtra). */}
+                      <Pill tone={!o.active ? 'muted' : offerLiveNow(o) ? 'ok' : 'warn'}>
+                        {!o.active ? 'Hors ligne' : offerLiveNow(o) ? 'En ligne' : 'Programmée'}
+                      </Pill>
                     </div>
                     <div className="tre-offer__title">{o.title}</div>
                     <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 2 }}>{o.sub}</div>
@@ -577,6 +583,12 @@ export default function Marketing() {
             </Field>
             <Field label="Jours d’affichage">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <button
+                  className={`tre-chip ${offerForm.days.length === OFFER_DAYS.length ? 'is-on' : ''}`}
+                  onClick={() => setOfferForm((f) => ({ ...f, days: [...OFFER_DAYS] }))}
+                >
+                  Tous les jours
+                </button>
                 {OFFER_DAYS.map((d) => (
                   <button key={d} className={`tre-chip ${offerForm.days.includes(d) ? 'is-on' : ''}`} onClick={() => toggleDay(d)}>{d}</button>
                 ))}

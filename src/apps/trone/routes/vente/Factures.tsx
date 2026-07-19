@@ -415,7 +415,7 @@ export default function Factures() {
         title={`Ouvrir ${d.kind === 'devis' ? 'ce devis' : 'cette facture'}`}
       >
         {/* La case ne doit pas ouvrir le document : on stoppe la propagation. */}
-        <span className="trv-pick" onClick={(e) => e.stopPropagation()}>
+        <span className="trv-pickbox" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             aria-label={`Sélectionner ${d.number}`}
@@ -509,7 +509,7 @@ export default function Factures() {
       {/* ===== La feuille — factures d'abord, devis en dessous ===== */}
       <div className="trc-sheet trv-sheet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
-          <span className="trv-pick">
+          <span className="trv-pickbox">
             <input
               type="checkbox"
               aria-label="Tout sélectionner"

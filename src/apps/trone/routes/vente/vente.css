@@ -404,9 +404,11 @@
   white-space: nowrap;
 }
 
-/* Case à cocher — colonne de sélection (première cellule de chaque ligne). */
-.trv-pick { display: flex; align-items: center; justify-content: center; }
-.trv-pick input { width: 15px; height: 15px; accent-color: var(--color-copper); cursor: pointer; }
+/* Case à cocher — colonne de sélection (première cellule de chaque ligne).
+   Classe DISTINCTE de `.trv-pick` (la carte-produit de la caisse) : le même nom
+   écrasait la mise en page de la caisse (prix collé au nom). */
+.trv-pickbox { display: flex; align-items: center; justify-content: center; }
+.trv-pickbox input { width: 15px; height: 15px; accent-color: var(--color-copper); cursor: pointer; }
 .trv-sheet .trc-sheet__row.is-picked { background: var(--copper-50); box-shadow: inset 3px 0 0 var(--color-copper); }
 
 /* Barre de sélection — actions groupées quand des documents sont cochés. */

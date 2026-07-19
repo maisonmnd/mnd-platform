@@ -36,8 +36,19 @@ export default function Vitrine() {
   const [mode, setMode] = useState<'apercu' | 'regie'>('apercu');
   const clients = useBranchClients();
   const [cIdx, setCIdx] = useState(0);
+  const [query, setQuery] = useState('');
   const safeIdx = Math.min(cIdx, Math.max(0, clients.length - 1));
   const client = clients[safeIdx];
+  /* Recherche cliente — le CRM peut compter des centaines de têtes ; on filtre les
+     pastilles par nom ou téléphone. La sélection reste ancrée sur l'index dans la
+     liste COMPLÈTE (stable), pas dans la liste filtrée. */
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const qd = q.replace(/\D/g, '');
+    return q
+      ? clients.filter((c) => c.name.toLowerCase().includes(q) || (qd.length > 0 && (c.phone ?? '').replace(/\D/g, '').includes(qd)))
+      : clients;
+  }, [clients, query]);
 
   if (!client) {
     return (
@@ -62,19 +73,29 @@ export default function Vitrine() {
         }
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
-        <span className="trc-microlabel" style={{ margin: 0 }}>Qui est devant le miroir ?</span>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {clients.map((c, i) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <span className="trc-microlabel" style={{ margin: 0 }}>Qui est devant le miroir ?</span>
+          <input
+            className="mnd-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher une cliente (nom, téléphone)…"
+            style={{ flex: '1 1 220px', maxWidth: 320 }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 152, overflowY: 'auto', paddingRight: 4 }}>
+          {filtered.map((c) => (
             <button
               key={c.id}
               className="trc-chip"
-              style={i === safeIdx ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
-              onClick={() => setCIdx(i)}
+              style={c.id === client.id ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
+              onClick={() => setCIdx(clients.findIndex((x) => x.id === c.id))}
             >
               {c.name.split(' ')[0]}
             </button>
           ))}
+          {filtered.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune cliente ne correspond.</span>}
         </div>
       </div>
 

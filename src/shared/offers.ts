@@ -31,11 +31,12 @@ export type InstantOffer = {
 export const offersStore = createStore<InstantOffer[]>('mnd_offers', []);
 export const useOffers = () => useStore(offersStore);
 
-/** Une offre est visible maintenant : active + jour + fenêtre horaire. */
+/** Une offre est visible maintenant : active + jour retenu + fenêtre horaire.
+    Aucun jour coché = jamais visible (cohérent avec « Aucun jour » à l'écran). */
 export function offerLiveNow(o: InstantOffer, now = new Date()): boolean {
   if (!o.active) return false;
   const day = OFFER_DAYS[(now.getDay() + 6) % 7]; // getDay(): 0=dim → index 6
-  if (o.days.length > 0 && !o.days.includes(day)) return false;
+  if (!o.days.includes(day)) return false;
   const nowMin = now.getHours() * 60 + now.getMinutes();
   return nowMin >= hourToMin(o.heureDebut) && nowMin < hourToMin(o.heureFin);
 }

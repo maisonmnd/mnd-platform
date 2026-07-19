@@ -193,17 +193,22 @@ export default function Calendrier() {
     return out;
   }, []);
 
-  /* — vue jour : colonnes par Maître — */
-  const dayCols = useMemo(
-    () =>
-      branch.masters.map((m) => ({
-        name: m,
-        appts: appts
-          .filter((a) => a.date === anchor && a.master === m && a.status !== 'annulé')
-          .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
-      })),
-    [branch.masters, appts, anchor],
-  );
+  /* — vue jour : colonnes par Maître —
+     On part des maîtres de la branche, MAIS on ajoute une colonne pour tout maître
+     présent dans les RDV du jour et absent de la liste (y compris un maître vide,
+     regroupé sous « Non assigné »). Sans ça, un rendez-vous dont le maître ne
+     correspond à aucune colonne disparaissait purement du planning du jour. */
+  const dayCols = useMemo(() => {
+    const dayAppts = appts
+      .filter((a) => a.date === anchor && a.status !== 'annulé')
+      .sort((a, b) => timeToMin(a.time) - timeToMin(b.time));
+    const known = new Set(branch.masters);
+    const cols = branch.masters.map((m) => ({ name: m, appts: dayAppts.filter((a) => a.master === m) }));
+    for (const m of [...new Set(dayAppts.filter((a) => !known.has(a.master)).map((a) => a.master))]) {
+      cols.push({ name: m || 'Non assigné', appts: dayAppts.filter((a) => a.master === m) });
+    }
+    return cols;
+  }, [branch.masters, appts, anchor]);
 
   /* — vue semaine : du lundi au dimanche autour de l'ancre — */
   const week = useMemo(() => {
