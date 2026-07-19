@@ -33,6 +33,9 @@ export type Service = {
   durationMin: number;
   order: number;
   description?: string;
+  /** Marqueur de réécriture des descriptions signées (migration ponctuelle) —
+      une fois posé, la migration ne retouche plus la prestation. */
+  descRev?: number;
   /** Couverture des quatre temps : Purifier · Nourrir · Sceller · Couronner (1 = couvert). */
   temps?: number[];
 };
