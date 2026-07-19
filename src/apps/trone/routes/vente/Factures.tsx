@@ -340,12 +340,6 @@ export default function Factures() {
   const theme = active ? THEMES[active.theme] : THEMES.Aube;
   const defaultNote = active ? defaultNoteFor(active) : '';
 
-  const qrCells = useMemo(() => {
-    if (!active) return [];
-    const seed = (active.number + active.theme).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    return Array.from({ length: 25 }, (_, i) => ((seed * (i + 7)) % 5) > 1);
-  }, [active]);
-
   const printDoc = () => {
     document.body.classList.add('trv-print-doc');
     window.print();
@@ -818,9 +812,7 @@ export default function Factures() {
                     <div key={l.id} className="trv-doc__item">
                       <div>
                         <div className="lbl">{l.qty > 1 ? `${l.label} ×${l.qty}` : l.label}</div>
-                        <div className="temps">
-                          Purifier · Nourrir · Sceller · Couronner{l.discountPct > 0 ? ` · remise −${l.discountPct}%` : ''}
-                        </div>
+                        {l.discountPct > 0 && <div className="temps">remise −{l.discountPct}%</div>}
                       </div>
                       <div style={{ textAlign: 'right', flex: 'none' }}>
                         {l.discountPct > 0 && <div className="orig">{fmtMoney(l.qty * l.unitXof, currency)}</div>}
@@ -852,7 +844,7 @@ export default function Factures() {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14 }}>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total · TVA exonérée</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total</div>
                 <div className="trv-doc__total">{fmtMoney(totals.net, currency)}</div>
               </div>
 
@@ -875,17 +867,12 @@ export default function Factures() {
                 <div className="txt">{active.note?.trim() || defaultNote}</div>
               </div>
 
-              <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--ink-soft)' }}>
-                  Réglez d’un geste<br />
-                  <span style={{ color: 'var(--color-indigo)', fontWeight: 500, letterSpacing: '.04em' }}>MTN MoMo · Moov Money</span>
+              {active.status === 'payée' && active.payment && (
+                <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Réglé par</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{active.payment}</div>
                 </div>
-                <div className="trv-doc__qr">
-                  {qrCells.map((on, i) => (
-                    <span key={i} style={{ width: 4, height: 4, background: on ? 'var(--color-indigo)' : 'transparent' }} />
-                  ))}
-                </div>
-              </div>
+              )}
 
               <div className="trv-doc__foot">
                 <div className="trv-doc__fon">mi nyɔ́ ɖɛkpɛ</div>

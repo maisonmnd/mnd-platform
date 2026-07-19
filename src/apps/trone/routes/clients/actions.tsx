@@ -110,12 +110,27 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     submitting.current = true;
     let awarded = 0;
     if (amount > 0) {
-      /* Une ligne unique proportionnelle au montant encaissé (paiement partiel possible). */
-      const lines: InvoiceLine[] = [{
-        id: `il-${uid()}`,
-        label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
-        qty: 1, unitXof: amount, discountPct: 0,
-      }];
+      /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
+         (sans acompte ni règlement antérieur), pour que la cliente voie le détail.
+         Sinon (paiement partiel / acompte), une seule ligne « Règlement ». Les parts
+         sont réparties au prorata du prix catalogue et totalisent EXACTEMENT le net. */
+      const grossSum = services.reduce((s, sv) => s + sv.priceXof, 0);
+      const detailed = fullyPaid && alreadyPaid === 0 && deposit === 0 && services.length > 1 && grossSum > 0;
+      let lines: InvoiceLine[];
+      if (detailed) {
+        let acc = 0;
+        lines = services.map((sv, idx) => {
+          const share = idx === services.length - 1 ? amount - acc : Math.round((amount * sv.priceXof) / grossSum);
+          acc += share;
+          return { id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: share, discountPct: 0 };
+        });
+      } else {
+        lines = [{
+          id: `il-${uid()}`,
+          label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
+          qty: 1, unitXof: amount, discountPct: 0,
+        }];
+      }
       const inv: Invoice = {
         id: `inv-${uid()}`,
         branchId: branch.id,
@@ -218,8 +233,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         </Field>
         <Field label="Montant encaissé maintenant">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Input type="number" min={0} max={due} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right' }} />
-            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setAmountStr(String(due))}>Tout</button>
+            <Input type="number" min={0} max={due} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(due))}>Tout</button>
           </div>
         </Field>
         <Field label="Moyen de paiement">
