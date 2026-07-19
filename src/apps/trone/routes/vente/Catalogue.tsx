@@ -34,6 +34,30 @@ const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
 });
 
+/* Descriptions signées (voix de la Maison), posées UNE fois sur les prestations
+   de la maison qui n'en avaient pas — backfill idempotent (ne remplit que le vide,
+   n'écrase jamais). Clés = ids réels du catalogue. */
+const SERVICE_DESCRIPTIONS: Record<string, string> = {
+  'sv-rituel-mr6p76kx': 'Des twists montés sur mèches naturelles : une coiffure protectrice qui prolonge la couronne et la met en valeur, sans jamais contraindre la fibre.',
+  'sv-rituel-mpje8apm': 'Mains et pieds réunis en un seul soin — on prend soin de vous jusqu’au bout des doigts, pendant que la couronne se façonne.',
+  '47noorddot': 'Le sérum fortifiant à 5 % : un allié quotidien pour densifier la racine et soutenir la pousse, entre deux passages à la Maison. À appliquer selon le protocole remis au fauteuil.',
+  'sv-reprise-locks': 'On reprend une couronne fragilisée mèche par mèche : locks affaiblies, racines relâchées, pointes ouvertes — chacune est renforcée, refermée, remise droite. La réparation qui redonne de l’assise.',
+  'sv-style-conseil': 'Le lavage fondateur de la Maison : purifier le cuir chevelu, libérer chaque lock, préparer la fibre à recevoir le soin. Le premier des quatre temps.',
+  'sv-coiffure-event': 'Un lavage tout en douceur, pensé pour les cuirs chevelus sensibles : on nettoie sans agresser, on apaise et on rafraîchit. La propreté sans la sécheresse.',
+  'sv-bain-vapeur': 'Le soin qui rend la couronne souple et docile : on nourrit la fibre en profondeur pour dénouer les tensions et retrouver un mouvement naturel. Nourrir, le deuxième temps.',
+  'zebpkpg6ar': 'La grande purification : on débarrasse locks et cuir chevelu des résidus accumulés — produits, poussière, dépôts — pour repartir sur une base nette et légère.',
+  'sv-entretien-complet': 'L’entretien intégral de la couronne : resserrage des racines, lavage, soin et remise en forme. Le rendez-vous régulier qui garde vos locks impeccables — tout, en une séance.',
+  'sv-resserrage': 'On reprend la repousse à la racine, lock par lock : la couronne retrouve sa netteté et sa tenue. Le geste d’entretien essentiel, à intervalle régulier.',
+  'sv-rituel-mp2ln2i4': 'Le premier regard : on lit votre cheveu, votre cuir chevelu et vos attentes pour dessiner le projet de votre future couronne. Le point de départ de toute création.',
+  'hldnt5bhtq': 'Avant de créer : on évalue la densité, la longueur et la nature de votre cheveu, on choisit la méthode et on projette le rendu. La consultation qui fonde votre couronne sur mesure.',
+  'fff106cwgo': 'Pour une couronne déjà installée : on examine l’état des locks et on définit le plan — resserrage, réparation, densification — pour les mener au niveau supérieur.',
+  'sv-rituel-mr3szmso': 'L’examen d’une couronne fragilisée : on identifie ce qui doit être réparé ou renforcé et on trace le chemin de la remise en état, avant toute intervention.',
+  'sv-locks-moyennes': 'La grande création : jusqu’à 350 locks installées mèche après mèche pour une couronne dense et majestueuse. Une œuvre d’ampleur, pensée pour durer et porter haut.',
+  'sv-locks-fines': 'La couronne signée : jusqu’à 250 locks pour un équilibre parfait entre densité et finesse. Le grand classique de la Maison, monté avec patience.',
+  'mx8npm3zn9': 'La couronne d’exception, entièrement sur mesure : nombre, taille et rendu définis avec vous, sans aucune limite. Le tarif s’établit après la consultation, selon l’ampleur du projet.',
+  'sv-rituel-mq3ln93q': 'L’éclaircissement maîtrisé : on prépare la fibre et on décolore avec précaution pour révéler une nouvelle intensité, sans brutaliser la couronne. La base d’une couleur lumineuse.',
+};
+
 type CatForm = { id: string | null; fon: string; label: string; enabled: boolean };
 
 type ProdForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
@@ -57,6 +81,21 @@ export default function Catalogue() {
     ensureConsultationCategory();
     ensureStarterServices(branch.masters[0] ?? '');
   }, []);
+
+  /* Backfill des descriptions manquantes (voix de la Maison). Dépend de `services`
+     pour s'appliquer une fois le catalogue hydraté ; idempotent (ne remplit que le
+     vide, renvoie la même référence si rien à faire → pas de boucle). */
+  useEffect(() => {
+    setServices((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        const d = SERVICE_DESCRIPTIONS[s.id];
+        if (d && !(s.description && s.description.trim())) { changed = true; return { ...s, description: d }; }
+        return s;
+      });
+      return changed ? next : prev;
+    });
+  }, [services, setServices]);
 
   const masters = branch.masters;
   const cats = [...categories].sort((a, b) => a.order - b.order);
