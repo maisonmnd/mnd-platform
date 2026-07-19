@@ -75,6 +75,7 @@ export default function Caisse() {
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
   const [waHint, setWaHint] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -135,6 +136,12 @@ export default function Caisse() {
     groups.forEach((g) => g.items.forEach((it) => { map[it.key] = it; }));
     return map;
   }, [groups]);
+
+  /* Repli des catégories — la liste des prestations peut être longue. */
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.key));
+  const toggleAllGroups = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.key)));
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const add = (key: string) =>
     setCart((c) => ({ ...c, [key]: { qty: (c[key]?.qty ?? 0) + 1, disc: c[key]?.disc ?? 0 } }));
@@ -198,7 +205,7 @@ export default function Caisse() {
       theme: 'Aube',
       status: 'payée',
       payment: pay,
-      cashbox: activeCashbox,
+      cashbox: activeCashbox || undefined,
     };
     setInvoices((prev) => [inv, ...prev]);
     if (pay === 'Lien WhatsApp') {
@@ -299,24 +306,33 @@ export default function Caisse() {
         <div className="trv-pos-grid">
           {/* — l'offre — */}
           <div>
-            <div className="trv-sec-label trv-sec-label--copper">Services & produits</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div className="trv-sec-label trv-sec-label--copper" style={{ margin: 0 }}>Services & produits</div>
+              {groups.length > 0 && (
+                <button className="trv-minibtn" onClick={toggleAllGroups}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</button>
+              )}
+            </div>
             {groups.map((g, gi) => {
               const [fon, ...rest] = g.label.split(' · ');
+              const open = !collapsed.has(g.key);
               return (
                 <div key={g.key} className="trv-catgroup" style={gi > 0 ? { borderTop: '1px solid var(--hairline)', marginTop: 18, paddingTop: 16 } : undefined}>
-                  <div className="trv-catgroup__head">
+                  <div className="trv-catgroup__head" onClick={() => toggleGroup(g.key)} style={{ cursor: 'pointer' }} role="button" title={open ? 'Replier' : 'Déplier'}>
+                    <span style={{ marginRight: 8, color: 'var(--ink-soft)', fontSize: 12, flex: 'none' }}>{open ? '▾' : '▸'}</span>
                     <span className="trv-catgroup__fon">{fon}</span>
                     {rest.length > 0 && <span className="trv-catgroup__label">{rest.join(' · ')}</span>}
                     <span className="trv-catgroup__count">{g.items.length}</span>
                   </div>
-                  <div className="tr-grid tr-grid--2">
-                    {g.items.map((it) => (
-                      <button key={it.key} className="trv-pick" onClick={() => add(it.key)}>
-                        <div className="n">{it.n}</div>
-                        <div className="p">{fmtMoney(it.priceXof, currency)}</div>
-                      </button>
-                    ))}
-                  </div>
+                  {open && (
+                    <div className="tr-grid tr-grid--2">
+                      {g.items.map((it) => (
+                        <button key={it.key} className="trv-pick" onClick={() => add(it.key)}>
+                          <div className="n">{it.n}</div>
+                          <div className="p">{fmtMoney(it.priceXof, currency)}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -326,7 +342,7 @@ export default function Caisse() {
           <div className="trv-ticket">
             <div className="trv-ticket__head">
               <span className="t">Ticket</span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{activeCashbox}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{activeCashbox || 'Caisse principale'}</span>
             </div>
             <div style={{ padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottom: '1px solid var(--hairline)' }}>
@@ -483,9 +499,11 @@ export default function Caisse() {
                 variant="copper"
                 size="lg"
                 style={{ marginTop: 16, width: '100%' }}
-                /* Sans caisse dans la devise reçue, on refuse : verser des euros au
-                   tiroir en francs fausserait les deux soldes d'un coup. */
-                disabled={lines.length === 0 || !hasCashbox || (fxOn && fxAmount <= 0)}
+                /* On encaisse même sans caisse configurée (la vente est tracée par
+                   la facture, tiroir « Caisse principale » par défaut). On EXIGE une
+                   caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
+                   en francs fausserait les deux soldes. */
+                disabled={lines.length === 0 || (fxOn && (!hasCashbox || fxAmount <= 0))}
                 onClick={() => void checkout()}
               >
                 Encaisser {fxOn && fxAmount > 0
