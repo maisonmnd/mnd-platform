@@ -110,6 +110,18 @@ export default function Catalogue() {
   const allCollapsed = cats.length > 0 && cats.every((c) => collapsed.has(c.id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(cats.map((c) => c.id)));
 
+  /* Filet de secours : toute prestation/produit dont la catégorie n'existe pas
+     (plus) dans la liste apparaît quand même, sous « À reclasser » — sinon elle
+     serait invisible au Catalogue alors qu'elle sort bien en caisse. On peut la
+     Modifier pour la ranger dans une vraie catégorie. */
+  const ORPHAN_ID = '__orphans__';
+  const knownCatIds = new Set(cats.map((c) => c.id));
+  const orphanSvcs = services.filter((s) => !knownCatIds.has(s.categoryId)).sort((a, b) => a.order - b.order);
+  const orphanProds = products.filter((p) => !knownCatIds.has(p.categoryId)).sort((a, b) => a.order - b.order);
+  const renderCats: CatalogCategory[] = orphanSvcs.length || orphanProds.length
+    ? [...cats, { id: ORPHAN_ID, fon: 'À RECLASSER', label: 'Sans catégorie — à ranger', enabled: true, order: Number.MAX_SAFE_INTEGER }]
+    : cats;
+
   /* — catégories — */
   const moveCat = (cat: CatalogCategory, dir: -1 | 1) => {
     const idx = cats.findIndex((c) => c.id === cat.id);
@@ -282,9 +294,10 @@ export default function Catalogue() {
         </div>
       )}
 
-      {cats.map((cat, ci) => {
-        const list = svcOf(cat.id).filter(matchSvc);
-        const prods = prodsOf(cat.id).filter(matchProd);
+      {renderCats.map((cat, ci) => {
+        const isOrphan = cat.id === ORPHAN_ID;
+        const list = (isOrphan ? orphanSvcs : svcOf(cat.id)).filter(matchSvc);
+        const prods = (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
         const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
         /* En recherche : on masque les catégories sans aucune correspondance. */
@@ -316,24 +329,28 @@ export default function Catalogue() {
                 {count} élément{count > 1 ? 's' : ''}
               </span>
               <span className="trv-catblock__spacer" />
-              <button
-                className="trv-minibtn"
-                style={{ color: cat.enabled ? 'var(--copper-600)' : 'var(--ink-soft)' }}
-                title="Afficher / masquer cette catégorie aux clientes"
-                onClick={() => toggleCat(cat)}
-              >
-                {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
-              </button>
-              <span className="trv-catblock__tools">
-                <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled })}>
-                  Modifier
-                </button>
-                <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
-                  Supprimer
-                </button>
-                <button className="trv-sq" title="Monter" disabled={ci === 0} onClick={() => moveCat(cat, -1)}>↑</button>
-                <button className="trv-sq" title="Descendre" disabled={ci === cats.length - 1} onClick={() => moveCat(cat, 1)}>↓</button>
-              </span>
+              {!isOrphan && (
+                <>
+                  <button
+                    className="trv-minibtn"
+                    style={{ color: cat.enabled ? 'var(--copper-600)' : 'var(--ink-soft)' }}
+                    title="Afficher / masquer cette catégorie aux clientes"
+                    onClick={() => toggleCat(cat)}
+                  >
+                    {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
+                  </button>
+                  <span className="trv-catblock__tools">
+                    <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled })}>
+                      Modifier
+                    </button>
+                    <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
+                      Supprimer
+                    </button>
+                    <button className="trv-sq" title="Monter" disabled={ci === 0} onClick={() => moveCat(cat, -1)}>↑</button>
+                    <button className="trv-sq" title="Descendre" disabled={ci === renderCats.length - 1} onClick={() => moveCat(cat, 1)}>↓</button>
+                  </span>
+                </>
+              )}
             </div>
 
             {open && (
