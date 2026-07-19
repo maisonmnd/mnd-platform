@@ -655,16 +655,21 @@ export function ClientPicker({
 
   const selected = clients.find((c) => c.id === value);
   const digits = (s: string) => s.replace(/\D/g, '');
-  const q = query.trim().toLowerCase();
-  /* TOUT le CRM, trié : le menu défile. Aucun plafond — la maison doit pouvoir
-     parcourir toutes ses clientes ; taper les premières lettres filtre (nom OU
-     téléphone) et permet de choisir. */
+  const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const q = query.trim();
+  const qn = norm(q);
+  const qd = digits(q);
+  /* TOUT le CRM, trié : le menu défile. Aucun plafond — taper les premières lettres
+     filtre par nom (insensible aux accents : « agnes » trouve « Agnès ») OU par
+     téléphone. Le filtre téléphone ne s'applique QUE si la recherche contient des
+     chiffres — sinon `digits(c.phone).includes('')` renvoie vrai pour TOUTES les
+     clientes et le filtre par nom ne servait à rien (le bug « rien ne se filtre »). */
   const results = useMemo(() => {
     const base = q
-      ? clients.filter((c) => c.name.toLowerCase().includes(q) || digits(c.phone).includes(digits(q)))
+      ? clients.filter((c) => norm(c.name).includes(qn) || (qd !== '' && digits(c.phone).includes(qd)))
       : clients;
     return [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [clients, q]);
+  }, [clients, q, qn, qd]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {

@@ -102,7 +102,9 @@ export default function Caisse() {
   /* — l'offre, groupée par catégorie ™ — */
   const groups = useMemo(() => {
     const cats = [...categories].sort((a, b) => a.order - b.order);
+    const knownCats = new Set(cats.map((c) => c.id));
     type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation' };
+    const toItem = (s: typeof services[number]): CaisseItem => ({ key: `s:${s.id}`, n: s.name, priceXof: s.priceXof, kind: 'service' as const });
     const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({
         key: cat.id,
@@ -110,9 +112,13 @@ export default function Caisse() {
         items: services
           .filter((s) => s.categoryId === cat.id)
           .sort((a, b) => a.order - b.order)
-          .map((s) => ({ key: `s:${s.id}`, n: s.name, priceXof: s.priceXof, kind: 'service' as const })),
+          .map(toItem),
       }))
       .filter((g) => g.items.length > 0);
+    /* Prestation dont la catégorie est absente ou pas encore chargée : elle
+       apparaît quand même en caisse (« Autres prestations ») — jamais perdue. */
+    const orphans = services.filter((s) => !knownCats.has(s.categoryId)).sort((a, b) => a.order - b.order).map(toItem);
+    if (orphans.length) gs.push({ key: 'autres', label: 'Autres prestations', items: orphans });
     const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const }));
     if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', items: prods });
     const forms = formations
