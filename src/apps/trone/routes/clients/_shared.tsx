@@ -8,6 +8,7 @@ import { appointmentsStore, useAppointments, type Appointment } from '../../../.
 import { useServices, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
+import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -286,6 +287,11 @@ export function RdvModal({
   const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
+  const [subs] = useSubscribers();
+  const [plans] = usePlans();
+  /* Abonnement actif de la cliente — pour la distinguer à la prise de rendez-vous. */
+  const membership = clientId ? activeSubscriberOf(subs, clientId) : undefined;
+  const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
@@ -392,6 +398,11 @@ export function RdvModal({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Tête couronnée">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente (nom, téléphone)…" />
+          {membership && (
+            <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
+              ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle === 'annuel' ? ' · annuel' : ''}
+            </div>
+          )}
         </Field>
 
         <div>

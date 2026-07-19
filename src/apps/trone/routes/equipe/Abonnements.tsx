@@ -4,7 +4,12 @@ import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '..
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { shortDate, usePlans, useSubscribers, ensureStarterPlans, type Plan, type Subscriber } from './data';
+import { usePaymentMethods } from '../../../../shared/finance';
+import {
+  shortDate, usePlans, useSubscribers, ensureStarterPlans,
+  subCycleAmountXof, subMonthlyXof, subPaid, annualPriceXof,
+  type Plan, type Subscriber, type Payment,
+} from './data';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -12,7 +17,10 @@ import './equipe.css';
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string };
-type SubForm = { clientId: string; planId: string; slot: string };
+type SubForm = { clientId: string; planId: string; slot: string; cycle: 'mensuel' | 'annuel' };
+type PayForm = { amount: string; date: string; method: string };
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const addDaysISO = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 
 export default function Abonnements() {
   const { branch, currency } = useBranch();
@@ -25,7 +33,10 @@ export default function Abonnements() {
   const [planEditId, setPlanEditId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '' });
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' });
+  const [methods] = usePaymentMethods();
+  const [payFor, setPayFor] = useState<Subscriber | null>(null);
+  const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
 
   /* Pose les 6 formules signées de départ si la Maison n'en a aucune. */
   useEffect(() => { ensureStarterPlans(); }, []);
@@ -69,15 +80,36 @@ export default function Abonnements() {
     const plan = planOf(subForm.planId);
     const client = clients.find((c) => c.id === subForm.clientId);
     if (!client || !plan) return;
+    const cycle = subForm.cycle;
     const nm: Subscriber = {
-      id: `ab-${uid()}`, branchId: branch.id, name: client.name, planId: plan.id,
+      id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
+      cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
-      nextIso: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-      since: 'ce mois', status: 'new', mrrXof: plan.priceXof,
+      nextIso: addDaysISO(cycle === 'annuel' ? 365 : 30),
+      since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' });
+  };
+
+  /* Règlement d'un abonnement : paiement daté, échéance avancée, abonnée réactivée. */
+  const openPay = (m: Subscriber) => {
+    const plan = planOf(m.planId);
+    const due = plan ? subCycleAmountXof(plan.priceXof, m.cycle ?? 'mensuel') : 0;
+    setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
+    setPayFor(m);
+  };
+  const savePay = () => {
+    if (!payFor) return;
+    const amount = parseInt(payForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
+    if (amount <= 0) return;
+    const pmt: Payment = { id: `pay-${uid()}`, amountXof: amount, date: payForm.date || todayISO(), method: payForm.method || undefined };
+    const cycle = payFor.cycle ?? 'mensuel';
+    setSubs((prev) => prev.map((s) => (s.id === payFor.id
+      ? { ...s, payments: [...(s.payments ?? []), pmt], status: s.status === 'churn' ? s.status : 'active', nextIso: addDaysISO(cycle === 'annuel' ? 365 : 30) }
+      : s)));
+    setPayFor(null);
   };
 
   const statusDot = (s: Subscriber['status']) =>
@@ -270,17 +302,20 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
               <table className="tre-table tre-table--cards">
                 <thead>
-                  <tr><th>Tête couronnée</th><th>Formule</th><th>Son créneau · rien qu’à elle</th><th>Prochain prélèvement</th><th style={{ textAlign: 'right' }}>MRR</th><th></th></tr>
+                  <tr><th>Tête couronnée</th><th>Formule · cycle</th><th>Son créneau · rien qu’à elle</th><th>Prochaine échéance</th><th style={{ textAlign: 'right' }}>MRR</th><th></th></tr>
                 </thead>
                 <tbody>
-                  {members.map((m) => (
+                  {members.map((m) => {
+                    const plan = planOf(m.planId);
+                    const paid = subPaid(m);
+                    return (
                     <tr key={m.id}>
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -291,23 +326,30 @@ export default function Abonnements() {
                           </span>
                         </span>
                       </td>
-                      <td data-label="Formule"><Pill tone={planOf(m.planId)?.popular ? 'copper' : 'muted'}>{planOf(m.planId)?.name ?? '—'}</Pill></td>
+                      <td data-label="Formule">
+                        <Pill tone={plan?.popular ? 'copper' : 'muted'}>{plan?.name ?? '—'}</Pill>
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>{m.cycle === 'annuel' ? 'Annuel' : 'Mensuel'}</div>
+                      </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
-                      <td data-label="Prochain prélèvement">
+                      <td data-label="Prochaine échéance">
                         <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{shortDate(m.nextIso)}</span>
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 2 }}>réglé {fmtMoney(paid, currency)}</div>
                         {m.note && <div style={{ fontSize: 10.5, color: '#8f3b30', marginTop: 2 }}>{m.note}</div>}
                       </td>
                       <td className="num" data-label="MRR" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="tre-link-btn" onClick={() => openPay(m)}>Régler</button>
                         <button
                           className="tre-link-btn tre-link-btn--danger"
+                          style={{ marginLeft: 10 }}
                           onClick={() => setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'churn' } : x)))}
                         >
                           Résilier
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {members.length === 0 && (
                     <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun abonné dans cette branche — le moteur attend sa première lune.</td></tr>
                   )}
@@ -359,12 +401,81 @@ export default function Abonnements() {
                 {plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {fmtMoney(p.priceXof, currency)}/mois</option>)}
               </Select>
             </Field>
+            <Field label="Cycle de facturation">
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['mensuel', 'annuel'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`tre-chip ${subForm.cycle === c ? 'is-on' : ''}`}
+                    onClick={() => setSubForm({ ...subForm, cycle: c })}
+                  >
+                    {c === 'mensuel' ? 'Mensuel' : 'Annuel · 2 mois offerts'}
+                  </button>
+                ))}
+              </div>
+              {planOf(subForm.planId) && (
+                <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  {subForm.cycle === 'annuel'
+                    ? `${fmtMoney(annualPriceXof(planOf(subForm.planId)!.priceXof), currency)} / an — soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, 'annuel'), currency)} / mois`
+                    : `${fmtMoney(planOf(subForm.planId)!.priceXof, currency)} / mois`}
+                </div>
+              )}
+            </Field>
             <Field label="Son créneau réservé">
               <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setSubModal(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveSub} disabled={!subForm.clientId}>Inscrire l’abonné</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {payFor && (
+        <Modal title={`Règlement · ${payFor.name}`} onClose={() => setPayFor(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              {planOf(payFor.planId)?.name ?? '—'} · {payFor.cycle === 'annuel' ? 'annuel' : 'mensuel'}
+              {planOf(payFor.planId) ? ` · échéance ${fmtMoney(subCycleAmountXof(planOf(payFor.planId)!.priceXof, payFor.cycle ?? 'mensuel'), currency)}` : ''}
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label={`Montant (${currency})`}>
+                <Input inputMode="numeric" value={payForm.amount} onChange={(e) => setPayForm({ ...payForm, amount: e.target.value.replace(/[^0-9]/g, '') })} placeholder="0" />
+              </Field>
+              <Field label="Date du règlement">
+                <Input type="date" value={payForm.date} onChange={(e) => setPayForm({ ...payForm, date: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Moyen de paiement">
+              <Select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}>
+                {methods.length === 0 && <option value="">—</option>}
+                {methods.map((mth) => <option key={mth} value={mth}>{mth}</option>)}
+              </Select>
+            </Field>
+
+            {(payFor.payments ?? []).length > 0 && (
+              <div>
+                <div className="tre-sec-label" style={{ marginBottom: 8 }}>Règlements enregistrés</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 170, overflowY: 'auto' }}>
+                  {[...(payFor.payments ?? [])].sort((a, b) => b.date.localeCompare(a.date)).map((p) => (
+                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, borderBottom: '1px solid var(--hairline)', paddingBottom: 5 }}>
+                      <span className="mnd-muted">{shortDate(p.date)}{p.method ? ` · ${p.method}` : ''}</span>
+                      <span>{fmtMoney(p.amountXof, currency)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 13 }}>
+                  <span className="mnd-muted">Total réglé</span>
+                  <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(subPaid(payFor), currency)}</b>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button variant="ghost" onClick={() => setPayFor(null)}>Fermer</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={savePay} disabled={!(parseInt(payForm.amount, 10) > 0)}>Enregistrer le règlement</Button>
             </div>
           </div>
         </Modal>

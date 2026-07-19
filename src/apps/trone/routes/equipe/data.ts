@@ -237,13 +237,16 @@ export function ensureStarterPlans(): void {
 export type Subscriber = {
   id: string;
   branchId: string;
+  clientId?: string; // lien vers la fiche cliente — pour distinguer l'abonnée partout
   name: string;
   planId: string;
+  cycle?: 'mensuel' | 'annuel'; // défaut mensuel ; l'annuel facture 10 mois (2 offerts)
   slot: string; // « Jeu · 14h00 · Yéman »
-  nextIso: string; // prochain prélèvement
+  nextIso: string; // prochaine échéance
   since: string; // « 8 mois »
   status: 'active' | 'new' | 'risk' | 'churn';
-  mrrXof: number;
+  mrrXof: number; // NORMALISÉ mensuel (annuel = montant annuel / 12) — alimente le MRR
+  payments?: Payment[]; // règlements enregistrés, avec dates
   note?: string;
 };
 
@@ -252,6 +255,20 @@ export const SUBSCRIBERS_SEED: Subscriber[] = [];
 
 export const subscribersStore = createStore<Subscriber[]>('mnd_abo_members', SUBSCRIBERS_SEED);
 export const useSubscribers = () => useStore(subscribersStore);
+
+/** Prix annuel d'une formule : 10 mois payés, 2 mois offerts (règle Maison). */
+export const annualPriceXof = (monthlyXof: number) => monthlyXof * 10;
+/** Montant réellement facturé pour un cycle donné. */
+export const subCycleAmountXof = (monthlyXof: number, cycle: 'mensuel' | 'annuel') =>
+  cycle === 'annuel' ? annualPriceXof(monthlyXof) : monthlyXof;
+/** Contribution NORMALISÉE (mensuelle) au MRR selon le cycle. */
+export const subMonthlyXof = (monthlyXof: number, cycle: 'mensuel' | 'annuel') =>
+  cycle === 'annuel' ? Math.round(annualPriceXof(monthlyXof) / 12) : monthlyXof;
+/** L'abonnement actif d'une cliente (le 1er non résilié), ou undefined. */
+export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscriber | undefined =>
+  subs.find((s) => s.clientId === clientId && s.status !== 'churn');
+/** Somme réglée par l'abonnée (tous règlements confondus). */
+export const subPaid = (s: Subscriber) => (s.payments ?? []).reduce((a, p) => a + p.amountXof, 0);
 
 /* ============================================================
    5 · Recommandations IA — état des décisions

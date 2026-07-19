@@ -132,6 +132,11 @@ export default function Catalogue() {
     patchSvc(svc.id, { priceMode: next, hidePrice: next === 'devis' });
   };
 
+  const deleteSvc = (svc: Service) => {
+    if (!window.confirm(`Supprimer la prestation « ${svc.name} » ? Cette action est définitive.`)) return;
+    setServices((prev) => prev.filter((s) => s.id !== svc.id));
+  };
+
   const openSvcEdit = (svc: Service) =>
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
@@ -360,6 +365,7 @@ export default function Catalogue() {
                       <button className="trv-sq" title="Monter la prestation" disabled={si === 0} onClick={() => moveSvc(svc, -1)}>▲</button>
                       <button className="trv-sq" title="Descendre la prestation" disabled={si === list.length - 1} onClick={() => moveSvc(svc, 1)}>▼</button>
                       <button className="trv-minibtn" onClick={() => openSvcEdit(svc)}>Modifier</button>
+                      <button className="trv-minibtn" title="Supprimer la prestation" onClick={() => deleteSvc(svc)}>Supprimer</button>
                     </span>
                   </div>
                 </article>

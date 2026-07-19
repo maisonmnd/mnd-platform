@@ -14,6 +14,7 @@ import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid } from '../../../../shared/store';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
+import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
 import { useNavigate } from 'react-router-dom';
 import {
   Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
@@ -433,6 +434,11 @@ function Customer360({
   const [invoices] = useInvoices();
   const [pointsHistory] = usePointsHistory();
   const [sessions] = useClientSessions();
+  const [subs] = useSubscribers();
+  const [plans] = usePlans();
+  /* Abonnement actif de la cliente — distingué sur la fiche. */
+  const membership = activeSubscriberOf(subs, client.id);
+  const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
   const [bookOpen, setBookOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [adjust, setAdjust] = useState<RdvInitial | null>(null);
@@ -697,6 +703,11 @@ function Customer360({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
+            {membership && (
+              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
+                ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle === 'annuel' ? 'annuel' : 'mensuel'}
+              </div>
+            )}
             <div className="trc-cover-acts">
               <a className="trc-cover-act" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance</a>
 
