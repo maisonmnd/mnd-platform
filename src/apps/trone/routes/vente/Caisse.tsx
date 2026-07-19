@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -48,6 +49,7 @@ const fmtDateFr = (iso: string) => {
 };
 
 export default function Caisse() {
+  const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const [categories] = useCategories();
   const [services] = useServices();
@@ -548,7 +550,14 @@ export default function Caisse() {
               <span className="trv-th" style={{ textAlign: 'right' }}>Montant</span>
             </div>
             {journal.map((i) => (
-              <div key={i.id} className="trv-journal-row">
+              <div
+                key={i.id}
+                className="trv-journal-row"
+                onClick={() => navigate(`/factures?id=${i.id}`)}
+                style={{ cursor: 'pointer' }}
+                title="Ouvrir la facture"
+                role="button"
+              >
                 <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
                 <span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(i.date)}</span>

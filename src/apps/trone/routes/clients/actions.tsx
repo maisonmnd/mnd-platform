@@ -70,6 +70,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
 
   const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
   const [cashbox, setCashbox] = useState(branchBoxes[0]?.name ?? '');
+  /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
+     jour où l'on encaisse — modifiable au besoin. */
+  const [invDate, setInvDate] = useState(appt.date || todayISO());
   const [amountStr, setAmountStr] = useState(String(due));
   const amount = Math.max(0, Math.min(due, Math.round(Number(amountStr) || 0)));
   const [tipStr, setTipStr] = useState('0');
@@ -119,7 +122,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         kind: 'facture',
         number: `F-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
         clientId: appt.clientId,
-        date: todayISO(),
+        date: invDate,
         lines,
         globalDiscountPct: 0,
         theme: 'Rose',
@@ -151,7 +154,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         kind: 'facture',
         number: `F-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
         clientId: appt.clientId,
-        date: todayISO(),
+        date: invDate,
         lines: [{ id: `il-${uid()}`, label: `Pourboire · ${appt.master}`, qty: 1, unitXof: 0, discountPct: 0 }],
         globalDiscountPct: 0,
         theme: 'Rose',
@@ -171,7 +174,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
        facture ni le chiffre d'affaires). Possible même si le rituel est déjà soldé,
        à condition que le maître soit bien dans le personnel. */
     const tipRecorded = tip > 0 && !!tipMaster;
-    if (tip > 0 && tipMaster) addTip(tipMaster.id, tip, todayISO());
+    if (tip > 0 && tipMaster) addTip(tipMaster.id, tip, invDate);
 
     onClose();
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
@@ -210,6 +213,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18 }}>
           <span>Reste à encaisser</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
+        <Field label="Date de la facture (jour du rituel)">
+          <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
+        </Field>
         <Field label="Montant encaissé maintenant">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <Input type="number" min={0} max={due} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right' }} />
