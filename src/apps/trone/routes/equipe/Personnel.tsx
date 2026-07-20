@@ -18,7 +18,7 @@ import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
-import { useTips, type Tip } from '../../../../shared/tips';
+import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
 type Tab = 'equipe' | 'temps' | 'paie' | 'parametres' | 'retention';
@@ -164,6 +164,9 @@ export default function Personnel() {
   const [primes, setPrimes] = usePrimes();
   const [tips, setTips] = useTips();
   const [retenues, setRetenues] = useRetenues();
+  /* Reprise de l'ancien magasin de pourboires (document unique) : idempotent par
+     id, re-tourne après l'hydratation pour rattraper d'éventuelles lignes locales. */
+  useEffect(() => { importLegacyTips(); }, [tips]);
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [services] = useServices();
@@ -229,7 +232,7 @@ export default function Personnel() {
   const primesForMonth = (id: string, month: string) => (primes[id] ?? []).filter((p) => p.date.slice(0, 7) === month);
   const primeTotalMonth = (id: string, month: string) => primesForMonth(id, month).reduce((a, p) => a + p.amountXof, 0);
   /* Pourboires d'un maître pour un mois. */
-  const tipsForMonth = (id: string, month: string) => (tips[id] ?? []).filter((t) => t.date.slice(0, 7) === month);
+  const tipsForMonth = (id: string, month: string) => tips.filter((t) => t.staffId === id && t.date.slice(0, 7) === month);
   const tipTotalMonth = (id: string, month: string) => tipsForMonth(id, month).reduce((a, t) => a + t.amountXof, 0);
   /* Retenues d'un maître pour un mois. */
   const retenuesForMonth = (id: string, month: string) => (retenues[id] ?? []).filter((r) => r.date.slice(0, 7) === month);
@@ -294,13 +297,12 @@ export default function Personnel() {
     if (!tipFor) return;
     const amountXof = parseXof(tipForm.amount);
     if (amountXof <= 0) return;
-    const t: Tip = { id: `tp-${uid()}`, amountXof, date: tipForm.date, note: tipForm.note.trim() || undefined };
-    const sid = tipFor.id;
-    setTips((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), t] }));
+    const t: Tip = { id: `tp-${uid()}`, staffId: tipFor.id, amountXof, date: tipForm.date, note: tipForm.note.trim() || undefined };
+    setTips((prev) => [...prev, t]);
     setTipFor(null);
   };
-  const removeTip = (staffId: string, tipId: string) =>
-    setTips((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((t) => t.id !== tipId) }));
+  const removeTip = (_staffId: string, tipId: string) =>
+    setTips((prev) => prev.filter((t) => t.id !== tipId));
 
   /* Retenues — ajout (montant direct ou au prorata des jours) et retrait. */
   const openRetenue = (m: StaffMember) => {
