@@ -777,7 +777,10 @@ export default function Factures() {
                 )}
               </div>
 
-              {(totals.lineDisc > 0 || totals.globalDisc > 0) && (
+              {/* La remise manuelle SEULE doit aussi montrer le bloc : sans lui, le
+                  document affichait une ligne à 25 000 F et un total à 22 500 F sans
+                  la moindre explication — litige assuré. */}
+              {(totals.lineDisc > 0 || totals.globalDisc > 0 || totals.manualDisc > 0) && (
                 <>
                   <div className="trv-doc__totline"><span>Sous-total</span><span>{fmtMoney(Math.round(totals.gross), currency)}</span></div>
                   {totals.lineDisc > 0 && (
