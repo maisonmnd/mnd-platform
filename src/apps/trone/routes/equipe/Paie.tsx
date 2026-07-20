@@ -1,5 +1,6 @@
 import { asset } from '../../../../shared/asset';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { normName, sameName } from '../../../../shared/text';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -84,6 +85,28 @@ export function PaieRuns() {
     .sort((a, b) => b.period.localeCompare(a.period) || b.createdAt.localeCompare(a.createdAt));
   const open = runs.find((r) => r.id === openId) ?? null;
 
+  /* Maîtres présents dans les rituels honorés de la période du run ouvert mais
+     SANS dossier correspondant dans l'équipe : leurs rituels n'alimentent aucune
+     commission. C'est le symptôme d'un renommage (ou d'une orthographe divergente
+     que la normalisation ne rattrape pas) — on l'AFFICHE au lieu de laisser la
+     commission tomber à zéro en silence. */
+  const orphanMasters = useMemo(() => {
+    if (!open) return [];
+    const names = asArray(staff).filter((m) => m && m.branchId === branch.id).map((m) => m.name);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const a of asArray(appts)) {
+      if (!a || a.status !== 'honoré' || (a.date ?? '').slice(0, 7) !== open.period) continue;
+      const m = (a.master ?? '').trim();
+      if (!m || names.some((n) => sameName(n, m))) continue;
+      const k = normName(m);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(m);
+    }
+    return out;
+  }, [open, staff, appts, branch.id]);
+
   const createRun = (period: string, atelier: string) => {
    try {
     const p = parametersFor(period, params);
@@ -99,7 +122,7 @@ export function PaieRuns() {
       const commission = s.commissionPct != null
         ? Math.round(
             asArray(appts)
-              .filter((a) => a && a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && a.master === s.name
+              .filter((a) => a && a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && sameName(a.master, s.name)
                 && (typeof a.priceXof === 'number' || Array.isArray(a.serviceIds)))
               .reduce((sum, a) => sum + apptNetXof(a, byId), 0) * s.commissionPct / 100,
           )
@@ -166,7 +189,7 @@ export function PaieRuns() {
       )}
 
       {creating && <NewRunModal onClose={() => setCreating(false)} onCreate={createRun} defaultAtelier={branch.city} />}
-      {open && <RunDetail key={open.id} run={open} onClose={() => setOpenId(null)} />}
+      {open && <RunDetail key={open.id} run={open} orphanMasters={orphanMasters} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
@@ -192,7 +215,7 @@ function NewRunModal({ onClose, onCreate, defaultAtelier }: { onClose: () => voi
 }
 
 /* ═══════════════ Détail d'un run ═══════════════ */
-function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
+function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orphanMasters?: string[]; onClose: () => void }) {
   const { branch, currency } = useBranch();
   const [params] = usePayrollParameters();
   const [editLine, setEditLine] = useState<number | null>(null);
@@ -261,6 +284,20 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
 
       {!editable && (
         <div className="tre-inline-note" style={{ marginTop: 12 }}><span className="mark">!</span><span>Run {RUN_STATUS_LABEL[run.status].toLowerCase()} — les lignes sont figées. {run.status === 'cloture' ? 'Toute correction passe par un run de régularisation.' : ''}</span></div>
+      )}
+
+      {/* Un rituel honoré dont le maître ne correspond à aucun dossier n'alimente
+          AUCUNE commission — on le dit, au lieu d'un zéro silencieux. */}
+      {orphanMasters.length > 0 && (
+        <div className="tre-inline-note" style={{ marginTop: 12 }}>
+          <span className="mark">!</span>
+          <span>
+            Maître{orphanMasters.length > 1 ? 's' : ''} au planning sans dossier dans l’équipe :{' '}
+            <b>{orphanMasters.join(' · ')}</b> — leurs rituels honorés du mois ne comptent dans aucune
+            commission. Nom renommé ou orthographe différente ? Alignez le dossier (Équipe) puis recréez
+            le run en brouillon.
+          </span>
+        </div>
       )}
 
       {/* Lignes */}

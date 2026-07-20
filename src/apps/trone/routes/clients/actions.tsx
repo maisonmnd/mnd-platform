@@ -13,6 +13,7 @@ import {
 } from '../../../../shared/finance';
 import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
+import { sameName } from '../../../../shared/text';
 import { addTip } from '../../../../shared/tips';
 import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
@@ -91,8 +92,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     });
   const [tipStr, setTipStr] = useState('0');
   const tip = Math.max(0, Math.round(Number(tipStr) || 0));
-  /* Le maître officiant, retrouvé dans le personnel par son nom — reçoit le pourboire. */
-  const tipMaster = team.find((s) => s.name === appt.master);
+  /* Le maître officiant, retrouvé dans le personnel par son nom — reçoit le
+     pourboire. Comparaison NORMALISÉE (accents, casse, espaces) : une majuscule
+     de différence privait le maître de son pourboire. */
+  const tipMaster = team.find((s) => sameName(s.name, appt.master));
   const remainingAfter = Math.max(0, due - amount);
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
