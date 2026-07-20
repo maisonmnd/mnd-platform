@@ -187,7 +187,7 @@ export default function Onboarding() {
     return (
       <div className="mc-onb">
         <div className="mc-onb__hero" key={slide}>
-          <img src={s.photo} alt="" style={{ objectPosition: s.pos }} />
+          <img className="mc-onb__photo" src={s.photo} alt="" style={{ objectPosition: s.pos }} />
           <div className="mc-onb__veil" />
           <img className="mc-onb__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
           <div className="mc-onb__hero-text">

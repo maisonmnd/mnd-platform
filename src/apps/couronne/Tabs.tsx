@@ -14,10 +14,7 @@ import { useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
-  GOLD_AT,
   MONTHS,
-  TIER_GOLD,
-  TIER_SILVER,
   dayLabelIso,
   daysSince,
   firstName,
@@ -35,6 +32,11 @@ import {
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
 type OpenBooking = (prefill?: BookingPrefill) => void;
+
+/* Chiffre du sceau d'un palier — même convention que le Trône (Cercle) : le
+   rang dans l'échelle triée, le champ g des anciens paliers restant prioritaire. */
+const ROMANS = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ'];
+const tierGlyph = (t: { g: string }, idx: number) => t.g || ROMANS[idx] || '✦';
 
 /* ---------- rituels de la cliente — lus dans l'agenda partagé ---------- */
 
@@ -165,7 +167,12 @@ export function HomeTab({
 
   const notifCount = useNotifCount();
   const points = client?.loyaltyPoints ?? 0;
-  const goldPct = Math.min(100, Math.round((points / GOLD_AT) * 100));
+  /* Paliers RÉELS du Cercle (définis au Trône) — jamais de seuils inventés. */
+  const [tiers] = useTiers();
+  const ladder = useMemo(() => tiers.slice().sort((a, b) => a.pts - b.pts), [tiers]);
+  const nextTier = ladder.find((t) => points < t.pts);
+  const attained = ladder.filter((t) => t.pts <= points);
+  const tierPct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
   const crownDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
 
   const reco = products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
@@ -199,7 +206,7 @@ export function HomeTab({
     <div className="mc-fade">
       {/* hero photographique + voile obsidienne */}
       <div className="mc-homehero">
-        <img src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
+        <img className="mc-homehero__photo" src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
         <div className="mc-homehero__veil" />
         <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
         <button className="mc-bell" aria-label="Notifications" onClick={onOpenNotif}>
@@ -237,12 +244,20 @@ export function HomeTab({
               <span className="mc-crownstatus__style">{client?.crownStyle ?? 'Votre couronne'}</span>
               <span className="mc-crownstatus__day">Jour {crownDays}</span>
             </div>
-            <span className="mc-pillseal">{TIER_SILVER}</span>
+            {attained.length > 0 && (
+              <span className="mc-pillseal">Palier {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
+            )}
           </div>
-          <div className="mc-crownstatus__progress">
-            <div className="mc-bar"><div style={{ width: `${goldPct}%` }} /></div>
-            <span>{TIER_GOLD} · {Math.max(0, GOLD_AT - points)} points</span>
-          </div>
+          {ladder.length > 0 && (
+            <div className="mc-crownstatus__progress">
+              <div className="mc-bar"><div style={{ width: `${tierPct}%` }} /></div>
+              <span>
+                {nextTier
+                  ? `Palier ${tierGlyph(nextTier, ladder.indexOf(nextTier))} · encore ${(nextTier.pts - points).toLocaleString('fr-FR')} points`
+                  : 'Tous les paliers sont honorés'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* offres instantanées — créées au Trône (Marketing), fenêtre jour/heure vivante */}
@@ -874,12 +889,12 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
       {/* paliers de reconnaissance — définis au Trône */}
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>
       <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
-        {ladder.map((t) => {
+        {ladder.map((t, i) => {
           const svc = services.find((s) => s.id === t.serviceId);
           const on = points >= t.pts;
           return (
             <div key={t.id} className="mc-rewardrow">
-              <span className="mc-rewardrow__glyph">{t.g}</span>
+              <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
               <div className="mc-rewardrow__body">
                 <div className="mc-rewardrow__t">{svc?.name ?? 'Prestation de la maison'}</div>
                 <div className="mc-rewardrow__s">{t.desc} · à {t.pts.toLocaleString('fr-FR')} points</div>

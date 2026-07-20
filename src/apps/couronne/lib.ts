@@ -401,12 +401,6 @@ export const PRODUCT_META: Record<string, { tag: string; line: string }> = {
 
 export const productMeta = (id: string) => PRODUCT_META[id] ?? { tag: 'Rituel', line: 'Formule naturelle de la maison' };
 
-/* ---------- Fidélité ---------- */
-
-export const TIER_SILVER = 'Couronne d’argent';
-export const TIER_GOLD = 'Couronne d’or';
-export const GOLD_AT = 2000;
-
 /* ---------- Réservation — pré-remplissage (offres, re-réservation) ---------- */
 
 export type BookingPrefill = {

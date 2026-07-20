@@ -283,7 +283,9 @@
 
 .mc-onb { display: flex; flex-direction: column; height: 100%; }
 .mc-onb__hero { position: relative; height: 56%; min-height: clamp(240px, 46vh, 320px); overflow: hidden; flex: 0 0 auto; animation: mc-fade 0.5s var(--ease-soft); }
-.mc-onb__hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Classe dédiée à la photo : un sélecteur `img` nu happait aussi le sceau
+   monogramme (spécificité supérieure à sa classe) et l'étirait plein cadre. */
+.mc-onb__photo { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mc-onb__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 6%, rgba(20, 20, 27, 0.12) 58%); }
 .mc-onb__seal { position: absolute; top: calc(22px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 30px; opacity: 0.95; }
 .mc-onb__hero-text { position: absolute; left: 28px; right: 28px; bottom: 26px; }
@@ -448,7 +450,7 @@
    ============================================================ */
 
 .mc-homehero { position: relative; height: clamp(240px, 36vh, 330px); overflow: hidden; }
-.mc-homehero img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+.mc-homehero__photo { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
 .mc-homehero__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 2%, rgba(20, 20, 27, 0.1) 56%); }
 .mc-homehero__seal { position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 22px; width: 28px; opacity: 0.92; height: auto; }
 .mc-homehero__text { position: absolute; left: 22px; right: 22px; bottom: 20px; }
