@@ -65,7 +65,11 @@ export default function Dashboard() {
   const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
        On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
-    const realized = (a: Appointment) => !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today));
+    /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
+       daté d'aujourd'hui ou avant = réalisé » comptait les RDV du jour dès le matin
+       (avant que la cliente n'arrive) et les no-shows confirmés pour toujours —
+       des revenus « réels » qui n'avaient jamais eu lieu. */
+    const realized = (a: Appointment) => !a.invoiceId && a.status === 'honoré';
     const realizedAppts = appts.filter(realized);
     const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée');
 
@@ -110,7 +114,11 @@ export default function Dashboard() {
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
     // Même règle que le revenu : un rituel encaissé (invoiceId) est compté par sa facture, pas ici.
-    const realized = (a: Appointment) => !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today));
+    /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
+       daté d'aujourd'hui ou avant = réalisé » comptait les RDV du jour dès le matin
+       (avant que la cliente n'arrive) et les no-shows confirmés pour toujours —
+       des revenus « réels » qui n'avaient jamais eu lieu. */
+    const realized = (a: Appointment) => !a.invoiceId && a.status === 'honoré';
 
     const rit = new Map<string, { count: number; total: number }>();
     for (const a of appts) {

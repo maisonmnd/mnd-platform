@@ -229,7 +229,9 @@ export default function Analytics() {
   /* — prévision : rythme du mois × jours restants — */
   const forecast = useMemo(() => {
     const realized = scopedAppts.filter(
-      (a) => a.date.slice(0, 7) === thisMonth && a.date <= today && (a.status === 'honoré' || a.status === 'confirmé'),
+      /* La prévision extrapole le RYTHME RÉEL — la bâtir sur des RDV confirmés
+         non honorés gonflait le rythme avec de l'argent jamais entré. */
+      (a) => a.date.slice(0, 7) === thisMonth && a.date <= today && a.status === 'honoré',
     );
     const soFar = realized.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const dayOfMonth = new Date().getDate();
