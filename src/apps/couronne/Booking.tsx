@@ -268,7 +268,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   };
 
   /* Total lisible : « Prix en salon » si tout est masqué, sinon montant (+ salon si mixte). */
-  const totalLabel = allHidden ? 'Prix en salon' : fmtMoney(price, currency);
+  /* Un rituel à prix VARIABLE ne peut pas annoncer un total ferme : chaque ligne
+     dit « à partir de », le total doit le dire aussi. */
+  const anyVariable = selected.some((s) => priceModeOf(s) === 'variable');
+  const totalLabel = allHidden ? 'Prix en salon' : `${anyVariable ? 'à partir de ' : ''}${fmtMoney(price, currency)}`;
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';
 
@@ -302,7 +305,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <button
                   key={c.id}
                   className="mc-rowcard"
-                  onClick={() => { setCatId(c.id); setPalier(null); setSelectedIds([]); setStep(1); }}
+                  onClick={() => {
+                    /* Un seul palier peuplé → on saute l'étape : « Fondation/Élévation/
+                       Souveraineté » est notre taxonomie, pas un choix que la cliente
+                       doit deviner quand il n'y a rien à choisir. */
+                    const paliers = [...new Set(services.filter((s) => s.categoryId === c.id).map((s) => s.palier))];
+                    setCatId(c.id); setSelectedIds([]);
+                    if (paliers.length === 1) { setPalier(paliers[0]); setStep(2); }
+                    else { setPalier(null); setStep(1); }
+                  }}
                 >
                   <div>
                     <div className="mc-rowcard__fon">{c.fon}</div>

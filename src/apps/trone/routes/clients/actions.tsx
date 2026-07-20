@@ -75,7 +75,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const depositJustConfirmed = depositReceived && !appt.depositConfirmed;
   const due = Math.max(0, net - alreadyPaid - (depositReceived ? deposit : 0));
 
-  const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
+  const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
   const [cashbox, setCashbox] = useState(branchBoxes[0]?.name ?? '');
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */

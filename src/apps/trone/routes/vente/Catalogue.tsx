@@ -78,6 +78,21 @@ export default function Catalogue() {
       });
       return changed ? next : prev;
     });
+    /* Micro-corrections de données, idempotentes : la faute « Perfectionement »
+       (visible cliente ET comptoir) et le sur-mesure resté « fixe · 0 F » alors
+       qu'il est sur devis — la caisse l'affichait 0 F, encaissable tel quel. */
+    setServices((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        if (s.name.includes('Perfectionement')) { changed = true; return { ...s, name: s.name.replace(/Perfectionement/g, 'Perfectionnement') }; }
+        if (s.id === 'mx8npm3zn9' && priceModeOf(s) !== 'devis' && (s.priceXof ?? 0) === 0) {
+          changed = true;
+          return { ...s, priceMode: 'devis' as const, hidePrice: true };
+        }
+        return s;
+      });
+      return changed ? next : prev;
+    });
   }, [services, setServices]);
 
   const masters = branch.masters;

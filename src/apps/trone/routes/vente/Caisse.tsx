@@ -73,7 +73,9 @@ export default function Caisse() {
   const [fxCode, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
   const [clientId, setClientId] = useState('');
-  const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
+  /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
+     en dur devenait un Select vide si la maison renommait le moyen. */
+  const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
