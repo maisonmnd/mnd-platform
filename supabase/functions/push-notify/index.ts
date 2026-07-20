@@ -27,6 +27,33 @@ const CORS: Record<string, string> = {
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
+/* ---- Limite de débit du tunnel public — UNE limite, partagée ----
+   Couvre les deux portes ouvertes sans authentification : l'alerte du personnel
+   (mode 'staff') et le dépôt d'une consultation (mode 'tunnel-submit').
+   Compteur par IP sur fenêtre glissante, journalisé dans `edge_rate_limits`
+   (migration 0007). Si la table n'existe pas encore, on laisse passer plutôt
+   que de casser le tunnel — la limite s'active dès la migration jouée. */
+const RATE_BUCKET = 'tunnel';
+const RATE_MAX = 6;          // 6 appels…
+const RATE_WINDOW_MIN = 10;  // …par 10 minutes et par IP
+
+const ipOf = (req: Request): string =>
+  (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
+
+async function allowRate(ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - RATE_WINDOW_MIN * 60_000).toISOString();
+  const { count, error } = await admin
+    .from('edge_rate_limits')
+    .select('*', { count: 'exact', head: true })
+    .eq('bucket', RATE_BUCKET).eq('ip', ip).gte('at', since);
+  if (error) return true; // table absente (migration pas encore jouée) — ne pas bloquer
+  if ((count ?? 0) >= RATE_MAX) return false;
+  await admin.from('edge_rate_limits').insert({ bucket: RATE_BUCKET, ip });
+  // Ménage : on ne garde qu'un jour d'historique.
+  await admin.from('edge_rate_limits').delete().lt('at', new Date(Date.now() - 86_400_000).toISOString());
+  return true;
+}
+
 type Payload = { title: string; body: string; url?: string; tag?: string };
 
 async function sendToClient(clientId: string, payload: Payload): Promise<number> {
@@ -224,9 +251,36 @@ Deno.serve(async (req) => {
     return json({ sent });
   }
 
+  // Mode tunnel — dépôt d'une consultation du tunnel PUBLIC + alerte du personnel,
+  // en UN appel, sous la limite de débit par IP. L'INSERT anonyme direct sur
+  // consultations_queue est fermé (migration 0007) : ce chemin devient le seul.
+  if (body.mode === 'tunnel-submit') {
+    if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
+    const c = body.consultation as { id?: unknown; data?: Record<string, unknown> } | undefined;
+    const id = typeof c?.id === 'string' ? c.id : '';
+    if (!id || !c?.data || typeof c.data !== 'object') return json({ error: 'bad request' }, 400);
+    if (JSON.stringify(c.data).length > 20_000) return json({ error: 'too large' }, 400); // anti-abus
+    const { error } = await admin.from('consultations_queue').upsert({
+      id,
+      branch_id: (c.data.branchId as string | undefined) ?? null,
+      data: c.data,
+    });
+    if (error) return json({ error: 'insert failed' }, 500);
+    const sent = await sendToStaff({
+      title: (body.title as string) || 'Nouvelle consultation en ligne',
+      body: (body.body as string) ?? '',
+      url: (body.url as string) ?? '/trone/#/consultations',
+      tag: 'mnd-staff',
+    });
+    return json({ ok: true, sent });
+  }
+
   // Mode personnel — notifie tout le personnel (consultation reçue, réservation, inscription…).
   // Appelable par le tunnel public de consultation et par les clientes ; charge utile figée.
+  // MÊME limite de débit par IP que le tunnel : sans elle, la clé publishable
+  // (publique par nature) suffisait à faire vibrer tous les téléphones en boucle.
   if (body.mode === 'staff') {
+    if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
     const title = (body.title as string) || 'Maison MND';
     return json({ sent: await sendToStaff({
       title,

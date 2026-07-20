@@ -5,6 +5,7 @@ import { fmtMoney } from '../../shared/currency';
 import { COUNTRIES, currencyByCode } from '../../shared/geo';
 import { consultationsQueueStore, type OnlineConsultation } from '../../shared/bridges';
 import { pushNotifyStaff } from '../../shared/push';
+import { supabase } from '../../shared/supabase';
 import { appointmentsStore, type Appointment } from '../../shared/agenda';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
@@ -357,12 +358,37 @@ export default function App() {
       status: 'nouvelle',
     };
     consultationsQueueStore.set((q) => [consultation, ...q]);
-    /* Alerte le personnel (Web Push), même Le Trône fermé. */
-    void pushNotifyStaff(
-      'Nouvelle consultation en ligne',
-      `${consultation.client.name} · ${pathLabel}`,
-      '/trone/#/consultations',
-    );
+    /* Dépôt côté serveur + alerte du personnel en UN appel, LIMITÉ EN DÉBIT par IP
+       (fonction Edge, mode tunnel-submit) — l'INSERT anonyme direct est fermé.
+       Le magasin local reste écrit (pont même-navigateur vers Le Trône) ; si la
+       fonction échoue (hors-ligne, pas encore déployée), on retombe sur l'ancienne
+       alerte directe, la ligne locale suivant alors la synchronisation. */
+    void (async () => {
+      let ok = false;
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.functions.invoke('push-notify', {
+            body: {
+              mode: 'tunnel-submit',
+              consultation: { id: consultation.id, data: consultation },
+              title: 'Nouvelle consultation en ligne',
+              body: `${consultation.client.name} · ${pathLabel}`,
+              url: '/trone/#/consultations',
+            },
+          });
+          ok = !error && (data as { ok?: boolean } | null)?.ok === true;
+        } catch {
+          ok = false;
+        }
+      }
+      if (!ok) {
+        void pushNotifyStaff(
+          'Nouvelle consultation en ligne',
+          `${consultation.client.name} · ${pathLabel}`,
+          '/trone/#/consultations',
+        );
+      }
+    })();
 
     if (mode === 'salon') {
       const appt: Appointment = {
