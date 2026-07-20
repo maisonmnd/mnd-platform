@@ -18,6 +18,42 @@ import { supabase } from './supabase';
 
 const PUSH_DEBOUNCE_MS = 250;
 
+/* ---------- État de synchronisation (affiché en topbar) ----------
+   Sans indicateur, un échec de push partait en console.warn : la caissière ne
+   savait jamais qu'une facture n'existait que sur son poste. On suit les tables
+   « en attente » (écriture locale pas encore poussée) et « en échec », plus
+   l'état réseau — le Shell affiche une pastille d'un mot. */
+export type SyncState = { enabled: boolean; online: boolean; pending: number; failed: number; lastOkAt: number | null };
+const syncListeners = new Set<() => void>();
+const dirtyTables = new Set<string>();
+const failedTables = new Set<string>();
+let lastOkAt: number | null = null;
+let syncSnapshot: SyncState = {
+  enabled: !!supabase,
+  online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  pending: 0,
+  failed: 0,
+  lastOkAt: null,
+};
+function bumpSync(): void {
+  syncSnapshot = { enabled: !!supabase, online: navigator.onLine, pending: dirtyTables.size, failed: failedTables.size, lastOkAt };
+  syncListeners.forEach((f) => f());
+}
+export function subscribeSync(fn: () => void): () => void {
+  syncListeners.add(fn);
+  return () => { syncListeners.delete(fn); };
+}
+export function getSyncState(): SyncState { return syncSnapshot; }
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', bumpSync);
+  window.addEventListener('offline', bumpSync);
+}
+const syncMark = {
+  dirty(t: string) { dirtyTables.add(t); bumpSync(); },
+  ok(t: string) { dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now(); bumpSync(); },
+  fail(t: string) { dirtyTables.delete(t); failedTables.add(t); bumpSync(); },
+};
+
 type WithId = { id: string; branchId?: string };
 
 /** Lie un magasin de collection (tableau d'objets à `id`) à une table distante. */
@@ -41,14 +77,16 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     const deletes: string[] = [];
     for (const id of prev.keys()) if (!next.has(id)) deletes.push(id);
 
+    let ok = true;
     if (upserts.length) {
       const { error } = await sb.from(table).upsert(upserts);
-      if (error) console.warn(`[mnd-sync] ${table} upsert:`, error.message);
+      if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
       const { error } = await sb.from(table).delete().in('id', deletes);
-      if (error) console.warn(`[mnd-sync] ${table} delete:`, error.message);
+      if (error) { ok = false; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
     }
+    if (ok) syncMark.ok(table); else syncMark.fail(table);
   };
 
   // 1. Hydratation (ou amorçage de la semence).
@@ -108,6 +146,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   let timer: ReturnType<typeof setTimeout> | undefined;
   store.subscribe(() => {
     if (applyingRemote) return;
+    syncMark.dirty(table);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       const items = store.get();
@@ -185,14 +224,16 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   store.subscribe(() => {
     if (applyingRemote) return;
+    syncMark.dirty(`doc:${key}`);
     if (timer) clearTimeout(timer);
     timer = setTimeout(async () => {
       const val = store.get();
       const j = JSON.stringify(val);
-      if (j === lastPushed) return;
+      if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
       lastPushed = j;
       const { error } = await upsert(val);
-      if (error) console.warn(`[mnd-sync] doc ${key} upsert:`, error.message);
+      if (error) { syncMark.fail(`doc:${key}`); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); }
+      else syncMark.ok(`doc:${key}`);
     }, PUSH_DEBOUNCE_MS);
   });
 

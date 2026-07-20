@@ -381,3 +381,18 @@ body[data-surface='trone'] {
 @media (max-width: 520px) {
   .tr-top .mnd-btn { padding: 8px 12px; font-size: 11px; }
 }
+
+/* Pastille de synchronisation — un mot, une couleur (vert = tout est au serveur,
+   cuivre = envoi en cours, rouge = hors ligne / en échec). */
+.tr-top__sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.tr-top__sync-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (max-width: 900px) { .tr-top__sync { display: none; } }

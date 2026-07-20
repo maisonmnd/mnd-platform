@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
 import { NAV } from '../routes/index';
@@ -7,6 +7,29 @@ import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
+import { subscribeSync, getSyncState } from '../../../shared/sync';
+
+/* Pastille de synchronisation — l'angle mort du comptoir : sans elle, un échec
+   de poussée restait en console et une facture pouvait n'exister que sur ce
+   poste sans que personne ne le sache. Un mot, une couleur, la vérité. */
+function SyncDot() {
+  const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
+  if (!s.enabled) return null;
+  const mode = !s.online ? 'off' : s.failed > 0 ? 'err' : s.pending > 0 ? 'wait' : 'ok';
+  const label = mode === 'off' ? 'Hors ligne' : mode === 'err' ? 'Synchro en échec' : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
+  const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
+  const title =
+    mode === 'off' ? 'Hors ligne — les écritures restent sur ce poste et partiront au retour du réseau.'
+    : mode === 'err' ? 'Des écritures n’ont pas pu être poussées au serveur — vérifiez la connexion, puis refaites une modification pour relancer.'
+    : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
+    : 'Toutes les écritures sont sur le serveur.';
+  return (
+    <span className="tr-top__sync" title={title} role="status">
+      <span className="tr-top__sync-dot" style={{ background: color }} />
+      {label}
+    </span>
+  );
+}
 
 const fmtDate = (d: Date) =>
   d
@@ -78,6 +101,7 @@ export default function Shell() {
           <div className="tr-top__trail">
             Le Trône · {branch.city} · {fmtDate(today)}
           </div>
+          <SyncDot />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>
