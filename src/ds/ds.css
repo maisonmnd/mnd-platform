@@ -259,3 +259,26 @@
   [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
   [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* Toast — confirmation non bloquante (voix indigo, jamais un dialogue système). */
+.mnd-toast {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: calc(var(--z-modal, 100) + 10);
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  padding: 12px 20px;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(20, 20, 27, 0.28);
+  max-width: min(560px, calc(100vw - 32px));
+  animation: mnd-toast-in 0.25s ease;
+}
+.mnd-toast.is-out { opacity: 0; transition: opacity 0.35s ease; }
+@keyframes mnd-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .mnd-toast { animation: none; } }

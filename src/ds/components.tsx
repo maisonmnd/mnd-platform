@@ -1,5 +1,5 @@
 import { asset } from '../shared/asset';
-import { type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 /* MND — primitives React partagées. Styles dans ds.css. */
 
@@ -153,12 +153,22 @@ export function Modal({
   children: ReactNode;
   width?: number;
 }) {
+  /* Échap ferme (intention explicite). Le clic sur le voile NE ferme PLUS : au
+     comptoir, un clic à 5 px de la modale effaçait sans confirmation un
+     encaissement en cours de saisie (montant, pourboire, acompte coché). La
+     fermeture passe par ✕ ou Échap — jamais par accident. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   return (
-    <div className="mnd-overlay" onClick={onClose}>
+    <div className="mnd-overlay">
       <div
         className="mnd-modal"
+        role="dialog"
+        aria-modal="true"
         style={width ? { width: `min(${width}px, 100%)` } : undefined}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="mnd-modal__head">
           <div className="mnd-modal__title">{title}</div>
@@ -198,4 +208,20 @@ export function Segs<T extends string>({
       ))}
     </div>
   );
+}
+
+/** Toast non bloquant — pour les confirmations de succès. Un `window.alert`
+    ajoute un clic « OK » à l'action la plus fréquente du comptoir et casse la
+    marque ; le toast informe sans rien interrompre. Réserver l'alert aux
+    erreurs qui DOIVENT être vues (ex. pourboire non attribuable). */
+export function toast(message: string, ms = 3800): void {
+  const el = document.createElement('div');
+  el.className = 'mnd-toast';
+  el.setAttribute('role', 'status');
+  el.textContent = message;
+  document.body.appendChild(el);
+  window.setTimeout(() => {
+    el.classList.add('is-out');
+    window.setTimeout(() => el.remove(), 400);
+  }, ms);
 }

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -231,7 +231,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (maître « ${appt.master || '—'} » introuvable dans le personnel)`;
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
     const msg = (depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim() || 'Enregistré.';
-    window.setTimeout(() => window.alert(msg), 30);
+    /* Succès → toast (zéro clic, la caissière enchaîne). Un pourboire NON
+       attribuable, lui, doit être VU : il reste en alerte bloquante. */
+    if (tip > 0 && !tipRecorded) window.setTimeout(() => window.alert(msg), 30);
+    else toast(msg);
   };
 
   return (
