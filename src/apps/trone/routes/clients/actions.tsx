@@ -52,6 +52,76 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
   return awarded;
 }
 
+/* ---------- Annulation d'encaissement ----------
+   Deux registres vivent côte à côte : la FACTURE (pièce comptable) et le RDV
+   (paidXof, statut, points). Supprimer une facture ne rembobinait pas le RDV —
+   il restait « payé » à jamais. Ces fonctions font l'annulation COMPLÈTE. */
+
+/** Reprend les points Cercle attribués à l'honneur du RDV, si on retrouve
+    l'attribution exacte dans l'historique. Renvoie les points repris (0 sinon). */
+function reverseHonorPoints(appt: Appointment): number {
+  if (!appt.pointsAwarded || !appt.clientId) return 0;
+  const label = `Rituel honoré · ${frShort(appt.date)}`;
+  const entry = pointsHistoryStore.get().find((e) => e.clientId === appt.clientId && e.label === label && e.pts > 0);
+  if (!entry) return 0;
+  clientsStore.set((prev) =>
+    prev.map((c) => (c.id === appt.clientId ? { ...c, loyaltyPoints: Math.max(0, (c.loyaltyPoints ?? 0) - entry.pts) } : c)),
+  );
+  pointsHistoryStore.set((prev) => [
+    { id: `pt-${uid()}`, clientId: appt.clientId, clientName: entry.clientName, label: `Encaissement annulé · ${frShort(appt.date)}`, pts: -entry.pts, at: new Date().toISOString() },
+    ...prev,
+  ]);
+  return entry.pts;
+}
+
+/** Annule l'encaissement d'un rituel : le RDV redevient impayé (honoré →
+    confirmé), sa facture liée repasse « envoyée » (émise, impayée), et les
+    points de l'honneur sont repris quand on retrouve leur attribution. */
+export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: boolean; pointsReversed: number } {
+  let invoiceUpdated = false;
+  if (appt.invoiceId) {
+    invoicesStore.set((prev) => prev.map((i) => {
+      if (i.id !== appt.invoiceId || i.status !== 'payée') return i;
+      invoiceUpdated = true;
+      return { ...i, status: 'envoyée' as const };
+    }));
+  }
+  const pointsReversed = reverseHonorPoints(appt);
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+    ? {
+        ...a,
+        paidXof: undefined,
+        invoiceId: undefined,
+        status: a.status === 'honoré' ? 'confirmé' : a.status,
+        /* Points repris → une future ré-attribution redevient légitime. Pas
+           retrouvés → on garde le verrou pour ne jamais les doubler. */
+        ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
+      }
+    : a)));
+  return { invoiceUpdated, pointsReversed };
+}
+
+/** À la SUPPRESSION d'une facture : rembobine le rituel qu'elle réglait
+    (déduit le montant ; à zéro, dés-honore et reprend les points). Renvoie le
+    RDV touché, ou null si la facture ne réglait aucun rituel. */
+export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: number): Appointment | null {
+  const appt = appointmentsStore.get().find((a) => a.invoiceId === invoiceId);
+  if (!appt) return null;
+  const newPaid = Math.max(0, (appt.paidXof ?? 0) - Math.max(0, amountXof));
+  const fully = newPaid === 0;
+  const pointsReversed = fully ? reverseHonorPoints(appt) : 0;
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+    ? {
+        ...a,
+        paidXof: newPaid > 0 ? newPaid : undefined,
+        invoiceId: undefined,
+        status: fully && a.status === 'honoré' ? 'confirmé' : a.status,
+        ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
+      }
+    : a)));
+  return appt;
+}
+
 /* ---------- Encaisser un RDV — Tableau de bord / Calendrier / Carnet ---------- */
 
 export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
@@ -272,6 +342,29 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18 }}>
           <span>Reste à encaisser</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
+        {alreadyPaid > 0 && (
+          <button
+            type="button"
+            className="tre-link-btn tre-link-btn--danger"
+            style={{ alignSelf: 'flex-start', marginTop: -4 }}
+            onClick={() => {
+              if (!window.confirm(
+                `Annuler l'encaissement de ${fmtMoney(alreadyPaid, currency)} ?\n\n` +
+                `Le rituel redevient impayé (honoré → confirmé), sa facture liée repasse ` +
+                `« envoyée » (impayée), et les points Cercle attribués sont repris quand ` +
+                `on retrouve leur attribution. Cette action se voit dans l'historique.`,
+              )) return;
+              const r = cancelAppointmentPayment(appt);
+              toast(
+                `Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoiceUpdated ? ' · facture repassée en impayée' : ''}` +
+                `${r.pointsReversed > 0 ? ` · ${r.pointsReversed} points repris` : ''}`,
+              );
+              onClose();
+            }}
+          >
+            Annuler l’encaissement ({fmtMoney(alreadyPaid, currency)})
+          </button>
+        )}
         <Field label="Date de la facture (jour du rituel)">
           <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
         </Field>

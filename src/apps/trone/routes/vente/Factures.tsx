@@ -9,6 +9,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, frDay } from '../clients/_shared';
+import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -278,7 +279,16 @@ export default function Factures() {
   };
 
   const deleteDoc = (id: string, label: string) => {
-    if (!window.confirm(`Supprimer définitivement ${label} ? Cette action est irréversible.`)) return;
+    /* Une facture qui règle un RITUEL porte deux registres : la pièce comptable
+       (elle) et l'état du RDV (paidXof, honoré, points). Supprimer l'une sans
+       rembobiner l'autre laissait le rituel « payé » à jamais — on rembobine. */
+    const doc = invoices.find((i) => i.id === id);
+    const linked = doc ? appointmentsStore.get().find((a) => a.invoiceId === id) : undefined;
+    const warn = linked
+      ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement — le rituel redevient impayé et les points Cercle attribués sont repris.`
+      : '';
+    if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
+    if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
     setInvoices((prev) => prev.filter((i) => i.id !== id));
     if (editing?.draft.id === id) setEditing(null);
     if (selectedId === id) setSelectedId(null);
