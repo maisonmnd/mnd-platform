@@ -9,6 +9,7 @@ import { Seal, Button } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
+import { useAppointments, appointmentsStore } from '../../../shared/agenda';
 import { pointsHistoryStore } from '../../../shared/offers';
 import { houseSettingsStore } from '../routes/equipe/data';
 
@@ -61,6 +62,32 @@ export default function Shell() {
     if (pointsHistoryStore.get().length > 0) pointsHistoryStore.set(() => []);
     houseSettingsStore.set((prev) => ({ ...prev, points_reset_2026_07: true }));
   }, [allClients]);
+
+  const [allAppts] = useAppointments();
+
+  /* Réajustement PONCTUEL des rituels déjà SOLDÉS sans prix d'origine : on fige
+     leur prix sur ce qui a RÉELLEMENT été encaissé (règlements + acompte
+     vérifié), remises effacées (déjà reflétées dans l'encaissé) — sinon ces
+     rituels se relisaient au catalogue du jour et l'histoire dérivait à chaque
+     changement de tarif. Une fois, marqueur synchronisé, après hydratation. */
+  useEffect(() => {
+    if (houseSettingsStore.get()['bills_refreeze_2026_07']) return;
+    const list = appointmentsStore.get();
+    if (list.length === 0) return; // pas encore hydraté — on repassera
+    const needs = (a: (typeof list)[number]) =>
+      a.priceXof == null
+      && a.status === 'honoré'
+      && !(a.seriesIndex && a.seriesIndex > 1)
+      && ((a.paidXof ?? 0) + (a.depositConfirmed ? a.depositXof ?? 0 : 0)) > 0;
+    if (list.some(needs)) {
+      appointmentsStore.set((prev) => prev.map((a) => {
+        if (!needs(a)) return a;
+        const charged = (a.paidXof ?? 0) + (a.depositConfirmed ? a.depositXof ?? 0 : 0);
+        return { ...a, priceXof: charged, discountPct: undefined, discountXof: undefined };
+      }));
+    }
+    houseSettingsStore.set((prev) => ({ ...prev, bills_refreeze_2026_07: true }));
+  }, [allAppts]);
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();
   const today = new Date();

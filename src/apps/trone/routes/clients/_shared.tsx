@@ -303,21 +303,24 @@ export function RdvModal({
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
-  /* La modale recompose TOUJOURS au catalogue du jour : c'est ce que le maître
-     voit et valide. Un RDV au prix figé (repris de l'ancien ERP) s'affiche donc
-     au tarif actuel, et l'enregistrer abandonne le prix figé — voir `save()`.
-     On le dit à l'écran plutôt que de laisser l'historique se réécrire en silence. */
+  /* LE PRIX D'ORIGINE FAIT FOI. Un rituel au prix figé (facturé à CE prix-là —
+     ancien ERP ou encaissement passé) GARDE son prix quand on le modifie : le
+     catalogue vit, l'histoire non. Le prix ne se recalcule au catalogue du jour
+     QUE si l'on change les prestations elles-mêmes — l'ancien prix ne décrit
+     alors plus le même rituel. */
   const frozenXof = appt?.priceXof;
-  const grossXof = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  const grossCatalogue = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
      montant convenu (saisi dans la modale) prime alors sur la somme du catalogue ;
-     à défaut, on retient le prix de départ (grossXof). */
+     à défaut, on retient le prix de départ. */
   const needsAmount = chosen.some((sv) => priceModeOf(sv) !== 'fixe');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
-  const effGross = needsAmount ? (amountNum || grossXof) : grossXof;
-  /* L'avertissement « prix figé ≠ catalogue » ne vaut que pour les prix FIXES —
-     pour un rituel variable/devis, le montant saisi EST le prix voulu. */
-  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossXof);
+  const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged;
+  const grossXof = keepFrozen ? (frozenXof as number) : grossCatalogue;
+  const effGross = needsAmount ? (amountNum || grossCatalogue) : grossXof;
+  /* Information « prix d'origine ≠ catalogue » — ne vaut que pour les prix FIXES. */
+  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossCatalogue);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé. */
   const totalXof = Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
@@ -362,10 +365,11 @@ export function RdvModal({
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
                 discountPct: discountPct || undefined, discountXof: discountXof || undefined,
-                /* Rituel FIXE : on abandonne le prix figé et on adopte le tarif du
-                   catalogue. Rituel VARIABLE/DEVIS : on GÈLE le montant convenu,
-                   qui devient le prix de ce rendez-vous. */
-                priceXof: needsAmount ? (amountNum || grossXof) : undefined,
+                /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
+                   Prestations modifiées → recalcul au catalogue du jour (l'ancien
+                   prix ne décrit plus ce rituel). Variable/devis : on GÈLE le
+                   montant convenu. */
+                priceXof: needsAmount ? (amountNum || grossCatalogue) : keepFrozen ? frozenXof : undefined,
                 depositServiceIds, depositXof }
             : x,
         ),
@@ -385,7 +389,7 @@ export function RdvModal({
         discountPct: discountPct || undefined,
         discountXof: discountXof || undefined,
         /* Variable/devis : on gèle le montant convenu comme prix du rendez-vous. */
-        priceXof: needsAmount ? (amountNum || grossXof) : undefined,
+        priceXof: needsAmount ? (amountNum || grossCatalogue) : undefined,
         depositServiceIds,
         depositXof,
       };
@@ -536,13 +540,13 @@ export function RdvModal({
               min={0}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={grossXof > 0 ? String(grossXof) : '—'}
+              placeholder={grossCatalogue > 0 ? String(grossCatalogue) : '—'}
               style={{ width: 180, textAlign: 'right' }}
               aria-label="Montant convenu du rituel"
             />
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
               Rituel à prix variable ou sur devis — saisissez le montant convenu.
-              {grossXof > 0 ? ` À défaut, ${fmtMoney(grossXof, currency)} (prix de départ) sera retenu.` : ''}
+              {grossCatalogue > 0 ? ` À défaut, ${fmtMoney(grossCatalogue, currency)} (prix de départ) sera retenu.` : ''}
             </div>
           </Field>
         )}
@@ -587,14 +591,20 @@ export function RdvModal({
           />
         </Field>
 
-        {/* Un RDV repris de l'ancien ERP porte le prix auquel il a VRAIMENT été
-            facturé. La modale, elle, recompose au catalogue du jour. On prévient
-            plutôt que de laisser l'enregistrement réécrire l'historique. */}
-        {frozenDiffers && (
+        {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
+            le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
+            prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
+        {frozenDiffers && !servicesChanged && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Ce rituel a été facturé <b>{fmtMoney(frozenXof!, currency)}</b> ; au catalogue d’aujourd’hui
-            il vaut {fmtMoney(grossXof, currency)}. Enregistrer adoptera le tarif actuel — et l’historique
-            de ce rituel changera.
+            Prix d’origine conservé : <b>{fmtMoney(frozenXof!, currency)}</b> (au catalogue d’aujourd’hui,
+            ces prestations vaudraient {fmtMoney(grossCatalogue, currency)}). Il ne changera que si vous
+            modifiez les prestations du rituel.
+          </div>
+        )}
+        {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
+          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+            Vous avez modifié les prestations : enregistrer recalculera ce rituel au catalogue du jour
+            ({fmtMoney(grossCatalogue, currency)}) — l’ancien prix de {fmtMoney(frozenXof, currency)} sera abandonné.
           </div>
         )}
 

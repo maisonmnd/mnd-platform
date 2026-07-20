@@ -19,7 +19,7 @@ import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptTotalXof, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -249,9 +249,12 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       invoicesStore.set((prev) => [inv, ...prev]);
       /* ENCAISSER ≠ HONORER : l'argent entre ici, mais le rituel n'est « honoré »
          que par le geste dédié (Carnet / Tableau de bord → Marquer honoré) — on
-         peut encaisser d'avance un rituel qui n'a pas encore eu lieu. */
+         peut encaisser d'avance un rituel qui n'a pas encore eu lieu.
+         Un rituel SOLDÉ fige son prix (priceXof) au tarif du jour de la vente :
+         le catalogue bougera, l'histoire non. */
+      const freeze = fullyPaid && appt.priceXof == null ? { priceXof: apptTotalXof(appt, byId) } : {};
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
-        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount, ...(depositReceived ? { depositConfirmed: true } : {}) }
+        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount, ...(depositReceived ? { depositConfirmed: true } : {}), ...freeze }
         : a)));
     } else if (tip > 0 && tipMaster) {
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
