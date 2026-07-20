@@ -75,7 +75,6 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [sessionDates, setSessionDates] = useState<{ iso: string; time: string }[]>([]);
   const [pay, setPay] = useState<PayKey | null>(null);
   const [paying, setPaying] = useState(false);
-  const payTimer = useRef<number | undefined>(undefined);
 
   const discountPct = prefill?.discountPct ?? 0;
   const offerLabel = prefill?.offerLabel;
@@ -178,12 +177,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   /* ---- Paiement simulé (si acompte) + écriture dans l'agenda partagé ---- */
   const settle = () => {
-    if (hasDeposit && !pay) { toast('Choisissez votre moyen de paiement.'); return; }
+    if (hasDeposit && !pay) { toast('Choisissez votre moyen d’envoi.'); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
     const finalize = () => {
       const baseNotes: string[] = [];
       if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
       if (masterVaries) baseNotes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
+      /* Le comptoir doit savoir COMMENT la cliente annonce avoir envoyé l'acompte —
+         il le vérifiera avant de le créditer (depositConfirmed). */
+      if (hasDeposit) baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} annoncé · ${payMethodName}`);
       /* Garantit la fiche cliente sur LA MÊME branche que le RDV, sous la session
          authentifiée (l'écriture Supabase passe alors le RLS et remonte au Trône). */
       ensureClient(clientId, session?.user?.email, branch.id);
@@ -234,13 +236,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       });
     };
 
-    if (hasDeposit) {
-      setPaying(true);
-      window.clearTimeout(payTimer.current);
-      payTimer.current = window.setTimeout(finalize, 1700);
-    } else {
-      finalize();
-    }
+    /* AUCUN théâtre de paiement : rien n'est débité ici (pas de rails de paiement
+       encore). On enregistre la réservation, l'acompte reste « annoncé » jusqu'à
+       vérification au salon. */
+    setPaying(true);
+    finalize();
   };
 
   /* ---- Rappel fiable : le calendrier natif du téléphone (un événement par séance) ---- */
@@ -575,19 +575,37 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           </div>
         )}
 
-        {/* -------- 6 · acompte (taux de la Maison) -------- */}
+        {/* -------- 6 · acompte (taux de la Maison) --------
+            DIRE VRAI : aucun paiement n'est exécuté ici (pas encore de rails de
+            paiement). La cliente ENVOIE elle-même le Mobile Money au numéro de la
+            Maison, puis annonce l'envoi — le salon vérifie la réception avant de
+            créditer l'acompte. L'ancien écran simulait un paiement (« paiement
+            sécurisé », fausse demande poussée au téléphone) : trahison de
+            confiance assurée au premier passage en salon. */}
         {step === 5 && selected.length > 0 && (
           <div className="mc-fade">
             <div className="mc-depositcard">
-              <div className="mc-depositcard__label">Acompte à régler</div>
+              <div className="mc-depositcard__label">{depositPct !== null && depositPct >= 100 ? 'Prestation à régler d’avance' : 'Acompte à envoyer'}</div>
               <div className="mc-depositcard__amount">{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</div>
               <div className="mc-depositcard__sub">
                 {allHidden
                   ? 'Acompte réglé au salon'
-                  : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
+                  : depositPct !== null && depositPct >= 100
+                    ? 'Montant intégral de la prestation'
+                    : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
               </div>
             </div>
-            <div className="mc-sectionlabel">Mobile Money</div>
+            {!allHidden && (
+              <>
+                <div className="mc-sectionlabel">Comment faire</div>
+                <div className="mc-recapcard" style={{ textAlign: 'left' }}>
+                  <div className="mc-recapcard__line"><span>1 · Envoyez</span><span>{fmtMoney(deposit, currency)}</span></div>
+                  <div className="mc-recapcard__line"><span>2 · Au numéro de la Maison</span><span>{branch.phone || 'communiqué sur WhatsApp'}</span></div>
+                  <div className="mc-recapcard__line"><span>3 · Puis annoncez l’envoi</span><span>bouton ci-dessous</span></div>
+                </div>
+              </>
+            )}
+            <div className="mc-sectionlabel">Envoyé par</div>
             <div className="mc-stack">
               {PAY_METHODS.map((pm) => (
                 <button
@@ -601,20 +619,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               ))}
             </div>
             <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={settle} disabled={paying}>
-              {allHidden ? 'Confirmer la réservation' : `Régler ${fmtMoney(deposit, currency)}`}
+              {allHidden ? 'Confirmer la réservation' : `J’ai envoyé l’acompte · ${fmtMoney(deposit, currency)}`}
             </button>
-            <div className="mc-footnote">Reçu envoyé sur WhatsApp.</div>
-
-            {paying && (
-              <div className="mc-paysheet mc-fade">
-                <div className="mc-paysheet__card mc-rise">
-                  <div className="mc-micro-eyebrow">{payMethodName} · paiement sécurisé</div>
-                  <div className="mc-paysheet__amount">{allHidden ? 'Confirmation' : fmtMoney(deposit, currency)}</div>
-                  <div className="mc-paysheet__hint">Confirmez sur votre téléphone — une demande vient de vous être envoyée.</div>
-                  <div className="mc-paysheet__pulse"><span /><span /><span /></div>
-                </div>
-              </div>
-            )}
+            <div className="mc-footnote">La Maison vérifie la réception avant votre passage.</div>
           </div>
         )}
 
@@ -624,7 +631,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <h2>Votre rituel est scellé.</h2>
             <p>
-              Confirmation envoyée sur WhatsApp. Ajoutez le rituel à votre calendrier :
+              La Maison confirme votre créneau très vite. Ajoutez le rituel à votre calendrier :
               c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.
             </p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
@@ -640,7 +647,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
                   </div>
                 ))}
-              <div className="mc-recapcard__line"><span>Acompte</span><span>{hasDeposit ? fmtMoney(deposit, currency) : 'Au salon'}</span></div>
+              <div className="mc-recapcard__line"><span>Acompte</span><span>{hasDeposit ? `${fmtMoney(deposit, currency)} · à vérifier par la Maison` : 'Au salon'}</span></div>
               <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
