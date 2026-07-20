@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useCategories, useServices, useProducts } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, priceModeOf, type PriceMode } from '../../../../shared/catalog';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients } from '../../../../shared/clients';
@@ -20,7 +20,10 @@ import './vente.css';
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
 
-type CartLine = { qty: number; disc: number };
+/* `unitXof` : montant saisi au ticket pour une prestation SUR DEVIS — son prix
+   catalogue est 0 par définition, et vendre à 0 F par inattention est exactement
+   l'erreur qu'une caisse doit rendre impossible. */
+type CartLine = { qty: number; disc: number; unitXof?: number };
 
 /* Sous-titres indicatifs des moyens connus ; la liste réelle est gérable
    (usePaymentMethods) — un moyen personnalisé retombe sur « Paiement ». */
@@ -106,8 +109,8 @@ export default function Caisse() {
   const groups = useMemo(() => {
     const cats = [...categories].sort((a, b) => a.order - b.order);
     const knownCats = new Set(cats.map((c) => c.id));
-    type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation' };
-    const toItem = (s: typeof services[number]): CaisseItem => ({ key: `s:${s.id}`, n: s.name, priceXof: s.priceXof, kind: 'service' as const });
+    type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode };
+    const toItem = (s: typeof services[number]): CaisseItem => ({ key: `s:${s.id}`, n: s.name, priceXof: s.priceXof, kind: 'service' as const, mode: priceModeOf(s) });
     const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({
         key: cat.id,
@@ -122,17 +125,17 @@ export default function Caisse() {
        apparaît quand même en caisse (« Autres prestations ») — jamais perdue. */
     const orphans = services.filter((s) => !knownCats.has(s.categoryId)).sort((a, b) => a.order - b.order).map(toItem);
     if (orphans.length) gs.push({ key: 'autres', label: 'Autres prestations', items: orphans });
-    const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const }));
+    const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const, mode: 'fixe' as const }));
     if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', items: prods });
     const forms = formations
       .filter((f) => !f.archived && f.priceXof > 0)
-      .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const }));
+      .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
     if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
     return gs;
   }, [categories, services, products, formations]);
 
   const flat = useMemo(() => {
-    const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation' }> = {};
+    const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode }> = {};
     groups.forEach((g) => g.items.forEach((it) => { map[it.key] = it; }));
     return map;
   }, [groups]);
@@ -162,10 +165,16 @@ export default function Caisse() {
     .filter(([k]) => flat[k])
     .map(([k, v]) => {
       const it = flat[k];
-      const netXof = it.priceXof * v.qty * (1 - v.disc / 100);
-      return { key: k, ...it, ...v, netXof };
+      /* Prix effectif de la ligne : le montant SAISI pour un sur-devis (0 tant
+         qu'il n'est pas renseigné), le prix catalogue sinon. */
+      const unit = it.mode === 'devis' ? (v.unitXof ?? 0) : it.priceXof;
+      const netXof = unit * v.qty * (1 - v.disc / 100);
+      return { key: k, ...it, ...v, unit, netXof };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
+  /* Un sur-devis sans montant bloque l'encaissement : mieux vaut un blocage
+     explicite qu'une création microlocks vendue 0 F par inattention. */
+  const devisMissing = lines.filter((l) => l.mode === 'devis' && l.unit <= 0);
   /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
      sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
@@ -177,10 +186,10 @@ export default function Caisse() {
   /* — encaissement — */
 
   const checkout = async () => {
-    if (lines.length === 0) return;
+    if (lines.length === 0 || devisMissing.length > 0) return;
     const client = branchClients.find((c) => c.id === clientId);
     const now = new Date();
-    const grossXof = lines.reduce((s, l) => s + l.priceXof * l.qty, 0);
+    const grossXof = lines.reduce((s, l) => s + l.unit * l.qty, 0);
     const inv: Invoice = {
       id: uid(),
       branchId: branch.id,
@@ -190,7 +199,7 @@ export default function Caisse() {
       clientName: client ? undefined : 'Walk-in',
       date: todayIso(),
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.priceXof, discountPct: l.disc })),
+      lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.unit, discountPct: l.disc })),
       globalDiscountPct: globalDisc,
       globalDiscountXof: globalDiscXof || undefined,
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
@@ -320,7 +329,13 @@ export default function Caisse() {
                       {g.items.map((it) => (
                         <button key={it.key} className="trv-pick" onClick={() => add(it.key)}>
                           <div className="n">{it.n}</div>
-                          <div className="p">{fmtMoney(it.priceXof, currency)}</div>
+                          <div className="p">
+                            {it.mode === 'devis'
+                              ? 'sur devis — montant à saisir au ticket'
+                              : it.mode === 'variable'
+                                ? `dès ${fmtMoney(it.priceXof, currency)}`
+                                : fmtMoney(it.priceXof, currency)}
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -355,9 +370,29 @@ export default function Caisse() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--ink)' }}>{l.n}</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
-                        {fmtMoney(l.priceXof, currency)} · {l.kind === 'product' ? 'produit' : l.kind === 'formation' ? 'formation' : 'service'}
-                      </div>
+                      {l.mode === 'devis' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Devis</span>
+                          <input
+                            className="mnd-input"
+                            type="number"
+                            min={0}
+                            value={l.unitXof ?? ''}
+                            onChange={(e) => {
+                              const val = Math.max(0, Math.round(Number(e.target.value) || 0));
+                              setCart((c) => (c[l.key] ? { ...c, [l.key]: { ...c[l.key], unitXof: val } } : c));
+                            }}
+                            placeholder="Montant convenu"
+                            aria-label={`Montant convenu · ${l.n}`}
+                            style={{ width: 140, textAlign: 'right', padding: '4px 8px', fontSize: 13 }}
+                          />
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
+                        </div>
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                          {fmtMoney(l.unit, currency)} · {l.kind === 'product' ? 'produit' : l.kind === 'formation' ? 'formation' : 'service'}
+                        </div>
+                      )}
                     </div>
                     <span className="trv-qty">
                       <button onClick={() => dec(l.key)}>−</button>
@@ -494,14 +529,20 @@ export default function Caisse() {
                 /* On encaisse même sans caisse configurée (la vente est tracée par
                    la facture, tiroir « Caisse principale » par défaut). On EXIGE une
                    caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
-                   en francs fausserait les deux soldes. */
-                disabled={lines.length === 0 || (fxOn && (!hasCashbox || fxAmount <= 0))}
+                   en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
+                   montant : une œuvre vendue 0 F par inattention. */
+                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && (!hasCashbox || fxAmount <= 0))}
                 onClick={() => void checkout()}
               >
                 Encaisser {fxOn && fxAmount > 0
                   ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
                   : fmtMoney(netXof, currency)}
               </Button>
+              {devisMissing.length > 0 && (
+                <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--copper-700)' }}>
+                  Saisissez le montant convenu de « {devisMissing[0].n} » sur sa ligne du ticket avant d’encaisser.
+                </div>
+              )}
               {waHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{waHint}</div>}
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
                 Reçu WhatsApp · réconciliation MoMo automatique.
