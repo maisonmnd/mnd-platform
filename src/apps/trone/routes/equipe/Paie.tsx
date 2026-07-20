@@ -293,12 +293,12 @@ function RunDetail({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
         </span>
       </div>
 
-      {editLine != null && <LineEditor line={lines[editLine]} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
+      {editLine != null && <LineEditor line={lines[editLine]} bareme={p} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
     </Modal>
   );
 }
 
-function LineEditor({ line, onClose, onSave }: { line: PayrollLine; onClose: () => void; onSave: (g: PayGains, d: PayDeductions) => void }) {
+function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bareme: PayrollParameters; onClose: () => void; onSave: (g: PayGains, d: PayDeductions) => void }) {
   const { currency } = useBranch();
   const [g, setG] = useState({
     base: String(line.gains.base), heuresSup: String(line.gains.heuresSup), prime: String(line.gains.prime),
@@ -307,7 +307,10 @@ function LineEditor({ line, onClose, onSave }: { line: PayrollLine; onClose: () 
   const [d, setD] = useState({ avance: String(line.deductions.avance), autresRetenues: String(line.deductions.autresRetenues) });
   const gains: PayGains = { base: digits(g.base), heuresSup: digits(g.heuresSup), prime: digits(g.prime), pourboires: digits(g.pourboires), commission: digits(g.commission), indemnites: digits(g.indemnites) };
   const deductions: PayDeductions = { avance: digits(d.avance), autresRetenues: digits(d.autresRetenues) };
-  const preview = computePay(gains, deductions, PAYROLL_PARAMETERS_SEED); // aperçu au barème courant (indicatif)
+  /* L'aperçu calcule avec les MÊMES barèmes que l'enregistrement (ceux en vigueur
+     pour la période du run) — avec la graine, il mentait dès que le comptable
+     ajustait un taux : l'écran annonçait un net différent de celui sauvegardé. */
+  const preview = computePay(gains, deductions, bareme);
 
   const F = (label: string, key: keyof typeof g) => (
     <Field label={label}><Input inputMode="numeric" value={g[key]} onChange={(e) => setG({ ...g, [key]: e.target.value })} /></Field>
