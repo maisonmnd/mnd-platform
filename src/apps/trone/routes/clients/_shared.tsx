@@ -401,6 +401,19 @@ export function RdvModal({
     onClose();
   };
 
+  /* Annuler ≠ supprimer : le RDV annulé sort du calendrier et de tout chiffre,
+     mais reste visible (barré) au Carnet — l'histoire n'est pas effacée. */
+  const cancelRdv = () => {
+    if (!appt) return;
+    const paid = appt.paidXof ?? 0;
+    const msg = paid > 0
+      ? `Annuler ce rendez-vous ? Il porte déjà ${fmtMoney(paid, currency)} encaissés — l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
+      : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre — il restera visible, barré, au Carnet.';
+    if (!window.confirm(msg)) return;
+    appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
+    onClose();
+  };
+
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -624,6 +637,11 @@ export function RdvModal({
             {onEncaisser && (
               <Button variant="ghost" onClick={() => onEncaisser(appt)}>
                 Encaisser
+              </Button>
+            )}
+            {appt.status !== 'annulé' && (
+              <Button variant="ghost" onClick={cancelRdv}>
+                Annuler le rendez-vous
               </Button>
             )}
             <Button variant="ghost" onClick={remove} style={{ color: 'var(--copper-700)' }}>
