@@ -178,7 +178,7 @@ export const useAutoConfig = () => useStore(autoConfigStore);
 /* Paliers & points : déplacés vers `shared/offers.ts` (lus par Ma Couronne). */
 export {
   TIERS_SEED, tiersStore, useTiers,
-  pointsRateStore, pointsHistoryStore, usePointsHistory,
+  pointsRateStore, pointsHistoryStore, usePointsHistory, pointsEnabledStore,
   type RewardTier, type PointsEvent,
 } from '../../../../shared/offers';
 

@@ -60,6 +60,11 @@ export const useTiers = () => useStore(tiersStore);
 /** 1 point / N F dépensés. */
 export const pointsRateStore = createStore<number>('mnd_points_rate', 100);
 
+/** Attribution des points Cercle — COUPÉE tant que la maison ne l'active pas
+    (Cercle MND) : aucune écriture de points à l'encaissement/honneur avant que
+    le programme ne soit officiellement lancé. */
+export const pointsEnabledStore = createStore<boolean>('mnd_points_enabled', false);
+
 export type PointsEvent = {
   id: string;
   clientId: string;
@@ -75,4 +80,5 @@ export const usePointsHistory = () => useStore(pointsHistoryStore);
 bindDocument(offersStore, 'mnd_offers');
 bindDocument(tiersStore, 'mnd_cercle_tiers');
 bindDocument(pointsRateStore, 'mnd_points_rate');
+bindDocument(pointsEnabledStore, 'mnd_points_enabled');
 bindDocument(pointsHistoryStore, 'mnd_points_history');

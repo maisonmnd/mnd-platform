@@ -8,10 +8,10 @@ import { useClients, clientsStore, type Client } from '../../../../shared/client
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import {
-  pointsHistoryStore, pointsRateStore, useTiers,
+  pointsHistoryStore, pointsRateStore, pointsEnabledStore, useTiers,
   type PointsEvent, type RewardTier,
 } from './data';
-import { Bar, Pill, Tabs } from './ui';
+import { Bar, Pill, Tabs, Toggle } from './ui';
 import './equipe.css';
 
 type Tab = 'points' | 'membres' | 'offrandes';
@@ -26,6 +26,7 @@ export default function Cercle() {
   const [services] = useServices();
   const [tiers, setTiers] = useTiers();
   const [rate, setRate] = useStore(pointsRateStore);
+  const [pointsOn, setPointsOn] = useStore(pointsEnabledStore);
   const [history, setHistory] = useStore(pointsHistoryStore);
   const [tab, setTab] = useState<Tab>('points');
   const [tierModal, setTierModal] = useState(false);
@@ -102,6 +103,22 @@ export default function Cercle() {
         sub={`${branch.name} — les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
         actions={<Button variant="copper" onClick={openTierNew}>+ Nouveau palier</Button>}
       />
+
+      {/* Le programme n'attribue RIEN tant que la maison ne l'a pas lancé — pas de
+          points accumulés en coulisses avant le jour officiel. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--surface-card)', padding: '13px 16px', marginBottom: 22 }}>
+        <Toggle on={pointsOn} onToggle={() => setPointsOn(!pointsOn)} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>
+            Attribution des points : <b>{pointsOn ? 'active' : 'coupée'}</b>
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+            {pointsOn
+              ? 'Chaque rituel honoré attribue ses points (1 point / ' + rate + ' F).'
+              : 'Aucun point n’est attribué aux encaissements ni aux rituels honorés — activez le jour du lancement du programme.'}
+          </div>
+        </div>
+      </div>
 
       <div className="tr-grid tr-grid--4" style={{ marginBottom: 22 }}>
         <Card filet="copper" style={{ padding: 18 }}>

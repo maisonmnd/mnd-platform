@@ -1,4 +1,4 @@
-import { Suspense, useState, useSyncExternalStore } from 'react';
+import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
 import { NAV } from '../routes/index';
@@ -8,6 +8,9 @@ import { useBranch } from '../../../shared/branches';
 import { Seal, Button } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
+import { useClients, clientsStore } from '../../../shared/clients';
+import { pointsHistoryStore } from '../../../shared/offers';
+import { houseSettingsStore } from '../routes/equipe/data';
 
 /* Pastille de synchronisation — l'angle mort du comptoir : sans elle, un échec
    de poussée restait en console et une facture pouvait n'exister que sur ce
@@ -41,6 +44,23 @@ export default function Shell() {
   const { session } = useAuth();
   const staff = useStaff();
   const navigate = useNavigate();
+  const [allClients] = useClients();
+
+  /* Remise à zéro PONCTUELLE des points Cercle (décision maison, juil. 2026) :
+     compteurs à 0 + historique vidé, UNE fois — marqueur synchronisé pour ne
+     jamais rejouer. On attend l'hydratation (liste non vide) avant de poser le
+     marqueur, sinon un passage à vide « consommerait » la remise à zéro.
+     L'attribution reste coupée tant que Cercle MND ne l'active pas. */
+  useEffect(() => {
+    if (houseSettingsStore.get()['points_reset_2026_07']) return;
+    const list = clientsStore.get();
+    if (list.length === 0) return; // pas encore hydraté — on repassera
+    if (list.some((c) => (c.loyaltyPoints ?? 0) > 0)) {
+      clientsStore.set((prev) => prev.map((c) => ((c.loyaltyPoints ?? 0) > 0 ? { ...c, loyaltyPoints: 0 } : c)));
+    }
+    if (pointsHistoryStore.get().length > 0) pointsHistoryStore.set(() => []);
+    houseSettingsStore.set((prev) => ({ ...prev, points_reset_2026_07: true }));
+  }, [allClients]);
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();
   const today = new Date();
