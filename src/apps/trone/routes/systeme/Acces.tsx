@@ -113,6 +113,17 @@ export default function Acces() {
         sub="Autorisez les comptes à entrer dans Le Trône et définissez leur rôle. Réservé au souverain."
       />
 
+      {/* Dire VRAI sur la portée : les rôles/rubriques guident l'interface, ils ne
+          sont pas une barrière serveur. Sans cette note, on croirait la matrice
+          étanche — et on donnerait un accès en pensant cloisonner les finances. */}
+      <div style={{ fontSize: 12.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '11px 14px', lineHeight: 1.55, marginBottom: 18 }}>
+        <b>Portée réelle des rôles.</b> Côté serveur, seule la <b>paie</b> (runs, avances, pointages,
+        congés) est réservée au souverain. Le reste des données de la Maison — clientes, rendez-vous,
+        factures, dépenses — est accessible à <b>tout compte autorisé ici</b>, quel que soit son rôle :
+        n'autorisez que des personnes de confiance. Les rôles et rubriques organisent l'interface,
+        ils ne cloisonnent pas les données.
+      </div>
+
       {!supabase ? (
         <Card className="sys-section"><div className="sys-section__cap">Aucun backend configuré — l'accès est géré en local.</div></Card>
       ) : !isSouverain ? (
