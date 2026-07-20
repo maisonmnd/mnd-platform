@@ -243,7 +243,11 @@ export type Subscriber = {
   cycle?: 'mensuel' | 'annuel'; // défaut mensuel ; l'annuel facture 10 mois (2 offerts)
   slot: string; // « Jeu · 14h00 · Yéman »
   nextIso: string; // prochaine échéance
-  since: string; // « 8 mois »
+  /** Date d'inscription (ISO) — l'ancienneté S'AFFICHE calculée depuis cette date.
+      L'ancien champ `since` était une chaîne figée (« ce mois ») qui ne vieillissait
+      jamais ; il reste porté par les abonnées d'avant, en repli d'affichage. */
+  sinceIso?: string;
+  since: string; // hérité — « 8 mois » figé (repli si sinceIso absent)
   status: 'active' | 'new' | 'risk' | 'churn';
   mrrXof: number; // NORMALISÉ mensuel (annuel = montant annuel / 12) — alimente le MRR
   payments?: Payment[]; // règlements enregistrés, avec dates

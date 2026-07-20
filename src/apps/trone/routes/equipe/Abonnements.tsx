@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { usePaymentMethods } from '../../../../shared/finance';
 import {
-  shortDate, usePlans, useSubscribers, ensureStarterPlans,
+  shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans,
   subCycleAmountXof, subMonthlyXof, subPaid, annualPriceXof,
   type Plan, type Subscriber, type Payment,
 } from './data';
@@ -21,6 +21,9 @@ type SubForm = { clientId: string; planId: string; slot: string; cycle: 'mensuel
 type PayForm = { amount: string; date: string; method: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const addDaysISO = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+/** J+`days` depuis une date ISO donnée (midi local — insensible aux fuseaux). */
+const addDaysFromISO = (iso: string, days: number) =>
+  new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86400000).toISOString().slice(0, 10);
 
 export default function Abonnements() {
   const { branch, currency } = useBranch();
@@ -86,7 +89,7 @@ export default function Abonnements() {
       cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
       nextIso: addDaysISO(cycle === 'annuel' ? 365 : 30),
-      since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
+      sinceIso: todayISO(), since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
@@ -106,8 +109,16 @@ export default function Abonnements() {
     if (amount <= 0) return;
     const pmt: Payment = { id: `pay-${uid()}`, amountXof: amount, date: payForm.date || todayISO(), method: payForm.method || undefined };
     const cycle = payFor.cycle ?? 'mensuel';
+    /* Échéance d'ANNIVERSAIRE : on avance depuis l'échéance précédente — payer en
+       avance ne raccourcit plus le cycle, payer un peu en retard ne le décale plus.
+       Très en retard (la nouvelle échéance serait déjà passée) : on repart
+       d'aujourd'hui plutôt que de créer une échéance déjà échue. */
+    const days = cycle === 'annuel' ? 365 : 30;
+    const base = /^\d{4}-\d{2}-\d{2}$/.test(payFor.nextIso) ? payFor.nextIso : todayISO();
+    let next = addDaysFromISO(base, days);
+    if (next <= todayISO()) next = addDaysISO(days);
     setSubs((prev) => prev.map((s) => (s.id === payFor.id
-      ? { ...s, payments: [...(s.payments ?? []), pmt], status: s.status === 'churn' ? s.status : 'active', nextIso: addDaysISO(cycle === 'annuel' ? 365 : 30) }
+      ? { ...s, payments: [...(s.payments ?? []), pmt], status: s.status === 'churn' ? s.status : 'active', nextIso: next }
       : s)));
     setPayFor(null);
   };
@@ -322,7 +333,7 @@ export default function Abonnements() {
                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot(m.status), flex: 'none' }} />
                           <span>
                             <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
-                            <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5 }}>abonnée depuis {m.since}</span>
+                            <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5 }}>abonnée depuis {m.sinceIso ? anciennete(m.sinceIso) : m.since}</span>
                           </span>
                         </span>
                       </td>
