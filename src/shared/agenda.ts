@@ -15,7 +15,13 @@ export type Appointment = {
   time: string; // HH:mm
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
-  depositXof?: number; // acompte Mobile Money (Ma Couronne)
+  /** Acompte Mobile Money DEMANDÉ (montant). Tant que `depositConfirmed` n'est
+      pas vrai, il n'est PAS déduit du dû : une réservation en ligne le pose au
+      clic, sans preuve de paiement — le comptoir doit le vérifier puis le
+      confirmer avant qu'il ne compte comme reçu. */
+  depositXof?: number;
+  /** L'acompte a été VÉRIFIÉ reçu (MoMo contrôlé au comptoir) — lui seul se déduit. */
+  depositConfirmed?: boolean;
   paidXof?: number; // total encaissé au salon (hors acompte) — suit les paiements partiels
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir

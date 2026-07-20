@@ -18,7 +18,7 @@ import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, apptDueXof, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -66,7 +66,13 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const net = apptNetXof(appt, byId);
   const deposit = appt.depositXof ?? 0;
   const alreadyPaid = appt.paidXof ?? 0;
-  const due = apptDueXof(appt, byId);
+
+  /* Acompte : DEMANDÉ tant qu'il n'est pas VÉRIFIÉ reçu. Une réservation en ligne
+     le pose au clic, sans preuve de paiement — il ne se déduit du dû qu'une fois
+     la case « acompte reçu » cochée (et persistée à l'enregistrement). */
+  const [depositReceived, setDepositReceived] = useState(!!appt.depositConfirmed);
+  const depositJustConfirmed = depositReceived && !appt.depositConfirmed;
+  const due = Math.max(0, net - alreadyPaid - (depositReceived ? deposit : 0));
 
   const [pay, setPay] = useState<PaymentMethod>('MTN MoMo');
   const [cashbox, setCashbox] = useState(branchBoxes[0]?.name ?? '');
@@ -75,6 +81,14 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const [invDate, setInvDate] = useState(appt.date || todayISO());
   const [amountStr, setAmountStr] = useState(String(due));
   const amount = Math.max(0, Math.min(due, Math.round(Number(amountStr) || 0)));
+
+  /* Cocher/décocher l'acompte recale le montant proposé sur le nouveau dû. */
+  const toggleDepositReceived = () =>
+    setDepositReceived((v) => {
+      const next = !v;
+      setAmountStr(String(Math.max(0, net - alreadyPaid - (next ? deposit : 0))));
+      return next;
+    });
   const [tipStr, setTipStr] = useState('0');
   const tip = Math.max(0, Math.round(Number(tipStr) || 0));
   /* Le maître officiant, retrouvé dans le personnel par son nom — reçoit le pourboire. */
@@ -106,16 +120,18 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
 
   const confirm = () => {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
-    if (amount <= 0 && tip <= 0) return;
+    if (amount <= 0 && tip <= 0 && !depositJustConfirmed) return;
     submitting.current = true;
     let awarded = 0;
     if (amount > 0) {
       /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
-         (sans acompte ni règlement antérieur), pour que la cliente voie le détail.
-         Sinon (paiement partiel / acompte), une seule ligne « Règlement ». Les parts
-         sont réparties au prorata du prix catalogue et totalisent EXACTEMENT le net. */
+         (sans acompte CRÉDITÉ ni règlement antérieur), pour que la cliente voie le
+         détail. Sinon (paiement partiel / acompte), une seule ligne « Règlement ».
+         Les parts sont réparties au prorata du prix catalogue et totalisent
+         EXACTEMENT le net. */
       const grossSum = services.reduce((s, sv) => s + sv.priceXof, 0);
-      const detailed = fullyPaid && alreadyPaid === 0 && deposit === 0 && services.length > 1 && grossSum > 0;
+      const depositCredit = depositReceived ? deposit : 0;
+      const detailed = fullyPaid && alreadyPaid === 0 && depositCredit === 0 && services.length > 1 && grossSum > 0;
       let lines: InvoiceLine[];
       if (detailed) {
         let acc = 0;
@@ -158,7 +174,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       };
       invoicesStore.set((prev) => [inv, ...prev]);
       if (fullyPaid) awarded = honorAppointment(appt, byId); // marque honoré + points Cercle
-      appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount } : a)));
+      appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount, ...(depositReceived ? { depositConfirmed: true } : {}) }
+        : a)));
     } else if (tip > 0 && tipMaster) {
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
          (invoiceTotal=0 → aucun chiffre d'affaires) portant le pourboire, pour qu'il
@@ -191,6 +209,13 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     const tipRecorded = tip > 0 && !!tipMaster;
     if (tip > 0 && tipMaster) addTip(tipMaster.id, tip, invDate);
 
+    /* Confirmation d'acompte SANS encaissement : on la persiste quand même —
+       et si le rituel s'en trouve soldé, il est honoré (points Cercle compris). */
+    if (depositJustConfirmed && amount <= 0) {
+      appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, depositConfirmed: true } : x)));
+      if (due === 0) awarded = honorAppointment(appt, byId);
+    }
+
     onClose();
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
     const payMsg = amount > 0
@@ -201,7 +226,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     const tipMsg = tip <= 0 ? ''
       : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} pour ${appt.master}`
       : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (maître « ${appt.master || '—'} » introuvable dans le personnel)`;
-    const msg = (payMsg + tipMsg).replace(/^ · /, '').trim() || 'Enregistré.';
+    const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
+    const msg = (depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim() || 'Enregistré.';
     window.setTimeout(() => window.alert(msg), 30);
   };
 
@@ -215,10 +241,22 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           <span className="mnd-muted">Total{appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}</span>
           <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
         </div>
-        {deposit > 0 && (
+        {deposit > 0 && depositReceived && (
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="mnd-muted">Acompte réglé</span><span>−{fmtMoney(deposit, currency)}</span>
+            <span className="mnd-muted">Acompte reçu{appt.depositConfirmed ? ' · vérifié' : ''}</span><span>−{fmtMoney(deposit, currency)}</span>
           </div>
+        )}
+        {deposit > 0 && !depositReceived && (
+          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+            Acompte de <b>{fmtMoney(deposit, currency)}</b> demandé · <b>non vérifié</b> — il n’est PAS déduit
+            tant que sa réception n’est pas confirmée ci-dessous.
+          </div>
+        )}
+        {deposit > 0 && !appt.depositConfirmed && (
+          <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', lineHeight: 1.45 }}>
+            <input type="checkbox" checked={depositReceived} onChange={toggleDepositReceived} style={{ marginTop: 2 }} />
+            <span>Acompte reçu et vérifié (MoMo contrôlé) — le déduire du reste à encaisser</span>
+          </label>
         )}
         {alreadyPaid > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -310,14 +348,16 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={(amount <= 0 && (tip <= 0 || !tipMaster)) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(amount <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
           {fxOn && fxAmount > 0
             ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
             : amount <= 0 && tip > 0
               ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-              : fullyPaid ? `Encaisser ${fmtMoney(amount, currency)} & honorer` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
+              : amount <= 0 && depositJustConfirmed
+                ? (due === 0 ? 'Confirmer l’acompte & honorer' : 'Confirmer l’acompte reçu')
+                : fullyPaid ? `Encaisser ${fmtMoney(amount, currency)} & honorer` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
         </Button>
       </div>
     </Modal>

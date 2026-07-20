@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptTotalXof, apptDueXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import { honorAppointment, PayAppointmentModal } from './actions';
 
@@ -78,7 +78,7 @@ export default function Carnet() {
     const canCancel = a.status === 'confirmé' || a.status === 'en attente';
     const isSeriesIncluded = !!(a.seriesIndex && a.seriesIndex > 1); // séance 2..N : valeur 0, non encaissable seule
     const dueX = apptDueXof(a, byId);
-    const partlyPaid = (a.paidXof ?? 0) > 0 || (a.depositXof ?? 0) > 0;
+    const partlyPaid = (a.paidXof ?? 0) > 0 || apptDepositCreditXof(a) > 0;
     // Impayé à signaler : solde restant dû sur un RDV déjà réglé en partie, ou passé/du jour.
     const showReste = !isSeriesIncluded && dueX > 0 && (partlyPaid || a.date <= today);
     const canEncaisser = a.status !== 'annulé' && !isSeriesIncluded;

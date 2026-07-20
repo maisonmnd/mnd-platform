@@ -90,9 +90,15 @@ export const apptDiscountFactor = (a: Appointment, byId: Map<string, Service>): 
   return apptNetXof(a, byId) / gross;
 };
 
-/** Reste à encaisser : net − acompte − déjà encaissé (jamais négatif). */
+/** Acompte CRÉDITABLE : seul un acompte VÉRIFIÉ reçu (depositConfirmed) compte.
+    Un acompte simplement demandé (réservation en ligne, RDV pris au comptoir)
+    n'a aucune preuve de paiement — le déduire ferait sous-encaisser le salon. */
+export const apptDepositCreditXof = (a: Appointment) =>
+  (a.depositConfirmed ? a.depositXof ?? 0 : 0);
+
+/** Reste à encaisser : net − acompte VÉRIFIÉ − déjà encaissé (jamais négatif). */
 export const apptDueXof = (a: Appointment, byId: Map<string, Service>) =>
-  Math.max(0, apptNetXof(a, byId) - (a.depositXof ?? 0) - (a.paidXof ?? 0));
+  Math.max(0, apptNetXof(a, byId) - apptDepositCreditXof(a) - (a.paidXof ?? 0));
 
 /** État de règlement d'un RDV — support de la pastille payé/partiel/impayé/gratuit. */
 export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé' | 'partiel' | 'impayé' | 'gratuit' {
@@ -100,7 +106,7 @@ export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé
   if (net <= 0) return 'gratuit';
   const due = apptDueXof(a, byId);
   if (due <= 0) return 'payé';
-  const paid = (a.paidXof ?? 0) + (a.depositXof ?? 0);
+  const paid = (a.paidXof ?? 0) + apptDepositCreditXof(a);
   return paid > 0 ? 'partiel' : 'impayé';
 }
 
@@ -595,8 +601,9 @@ export function RdvModal({
           {hasDeposit && (
             <div className="trc-total__row">
               <span>
-                Acompte Mobile Money{depositPct !== null ? ` · ${depositPct} %` : ' · taux variables'}
+                Acompte demandé{depositPct !== null ? ` · ${depositPct} %` : ' · taux variables'}
                 {depositServiceIds.length < chosen.length ? ' (partiel)' : ''}
+                {' · à vérifier à l’encaissement'}
               </span>
               <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
             </div>

@@ -271,7 +271,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                     <div className="mc-rdvcard__chips">
                       {a.seriesTotal && <span className="mc-pillseal">Séance {a.seriesIndex}/{a.seriesTotal}</span>}
                       {a.depositXof != null && (
-                        <span className="mc-pillseal">Acompte réglé · {fmtMoney(a.depositXof, currency)}</span>
+                        <span className="mc-pillseal">{a.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(a.depositXof, currency)}</span>
                       )}
                     </div>
                   )}

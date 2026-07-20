@@ -284,7 +284,7 @@ export function HomeTab({
                 </span>
               )}
               {next.depositXof != null && (
-                <span className="mc-nextrdv__seal">Acompte réglé · {fmtMoney(next.depositXof, currency)}</span>
+                <span className="mc-nextrdv__seal">{next.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(next.depositXof, currency)}</span>
               )}
             </>
           ) : (
