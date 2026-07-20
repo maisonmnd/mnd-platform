@@ -366,7 +366,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
       {/* Colonne droite · la curation */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
-          <div className="trc-microlabel" style={{ color: 'var(--color-copper)' }}>La régie de la vitrine</div>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>La régie de la vitrine</div>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, color: 'var(--color-indigo)', margin: '2px 0 0' }}>Compose son tapis de cuivre.</h2>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--ink-soft)', marginTop: 5 }}>
             Choisis ce que {client.name.split(' ')[0]} verra — et ce qu’elle ne verra pas.

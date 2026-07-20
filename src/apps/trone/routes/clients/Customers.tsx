@@ -284,7 +284,7 @@ export default function Customers() {
       <div className="trc-kpis">
         <div className="trc-kpi"><b>{clients.length}</b><span>Têtes couronnées</span></div>
         <div className="trc-kpi"><b>{newThisMonth}</b><span>Nouvelles ce mois</span></div>
-        <div className="trc-kpi"><b>{bdaySoonCount}</b><span>Anniversaires sous 30 j</span></div>
+        <div className="trc-kpi"><b>{bdaySoonCount}</b><span>{'Anniversaires sous 30 j'}</span></div>
         <div className={`trc-kpi ${onlineCount > 0 ? 'trc-kpi--live' : ''}`}>
           <b>{onlineCount}</b><span>En ligne · Ma Couronne</span>
         </div>

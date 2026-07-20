@@ -146,13 +146,15 @@ export function StatusPill({ status }: { status: Appointment['status'] }) {
 export function PayStatusPill({ a, byId }: { a: Appointment; byId: Map<string, Service> }) {
   const state = apptPayState(a, byId);
   if (state === 'gratuit') return null;
-  const color = state === 'payé' ? 'var(--trf-success)' : state === 'partiel' ? 'var(--color-copper)' : '#8f3b30';
+  /* copper-700, pas le cuivre brut : à cette taille sur fond clair, le cuivre
+     brut tombe à 3,1:1 — sous le seuil AA (4,5:1). */
+  const color = state === 'payé' ? 'var(--trf-success)' : state === 'partiel' ? 'var(--copper-700)' : '#8f3b30';
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 600,
         letterSpacing: '0.09em',
         textTransform: 'uppercase',

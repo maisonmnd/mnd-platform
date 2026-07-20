@@ -605,9 +605,11 @@ export default function Caisse() {
                 key={i.id}
                 className="trv-journal-row"
                 onClick={() => navigate(`/factures?id=${i.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures?id=${i.id}`); } }}
                 style={{ cursor: 'pointer' }}
                 title="Ouvrir la facture"
                 role="button"
+                tabIndex={0}
               >
                 <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
                 <span>

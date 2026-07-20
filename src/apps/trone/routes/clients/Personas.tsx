@@ -113,7 +113,7 @@ export default function Personas() {
                     <span>clientes</span>
                   </div>
                   <div className="trc-persona__stat">
-                    <b style={{ color: 'var(--color-copper)' }}>{share}%</b>
+                    <b style={{ color: 'var(--copper-700)' }}>{share}%</b>
                     <span>du portefeuille</span>
                   </div>
                 </div>

@@ -372,9 +372,9 @@ export default function Catalogue() {
                     <span>{fmtDuration(svc.durationMin)}</span>
                     <span style={{ color: 'var(--color-argile)' }}>·</span>
                     <span className="trv-stepper">
-                      <button className="trv-sq" style={{ width: 20, height: 20 }} title="Retirer une séance" onClick={() => patchSvc(svc.id, { sessions: Math.max(1, svc.sessions - 1) })}>−</button>
+                      <button className="trv-sq" style={{ width: 24, height: 24 }} title="Retirer une séance" onClick={() => patchSvc(svc.id, { sessions: Math.max(1, svc.sessions - 1) })}>−</button>
                       <span className="val">{svc.sessions}</span>
-                      <button className="trv-sq" style={{ width: 20, height: 20 }} title="Ajouter une séance" onClick={() => patchSvc(svc.id, { sessions: svc.sessions + 1 })}>+</button>
+                      <button className="trv-sq" style={{ width: 24, height: 24 }} title="Ajouter une séance" onClick={() => patchSvc(svc.id, { sessions: svc.sessions + 1 })}>+</button>
                       <span>séance{svc.sessions > 1 ? 's' : ''}</span>
                     </span>
                   </div>

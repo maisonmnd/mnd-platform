@@ -845,3 +845,12 @@
   border-radius: 3px;
   padding: 7px 10px;
 }
+
+/* Focus clavier — les mini-boutons et lignes cliquables du domaine Vente
+   n'avaient aucun style de focus défini : invisibles à la navigation clavier. */
+.trv-minibtn:focus-visible, .trv-sq:focus-visible, .trv-pick:focus-visible,
+.trv-pill:focus-visible, .trv-hideprice:focus-visible, .trv-journal-row:focus-visible,
+.trv-tab:focus-visible {
+  outline: 2px solid var(--copper-600);
+  outline-offset: 2px;
+}

@@ -678,7 +678,7 @@ function AutomationModal({
           </Select>
         </Field>
 
-        {error && <div className="mnd-muted" style={{ fontSize: 12, color: 'var(--color-copper)' }}>{error}</div>}
+        {error && <div className="mnd-muted" style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>}
 
         <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: 0 }}>
           La maison consigne l’automatisation et son interrupteur. L’envoi lui-même n’est pas

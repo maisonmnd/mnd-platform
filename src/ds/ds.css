@@ -36,7 +36,7 @@
 .mnd-btn--obsidian { background: var(--color-obsidian); color: var(--color-ivoire); }
 .mnd-btn--sm { padding: 7px 14px; font-size: var(--text-micro); letter-spacing: 0.2em; }
 .mnd-btn--lg { padding: 16px 32px; }
-.mnd-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; filter: none; }
+.mnd-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; filter: saturate(0.25); /* désature : un bouton mort ne doit pas ressembler à un bouton cuivre */ }
 
 /* ---------- Filets ---------- */
 .mnd-filet-copper { border: none; border-top: var(--filet-copper); margin: 0; }

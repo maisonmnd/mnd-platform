@@ -627,11 +627,11 @@
 /* ---------- Divers ---------- */
 .trc-microlabel {
   display: block;
-  font-size: 9.5px;
+  font-size: 10px; /* 9.5px cuivre brut : sous le lisible — copper-700 passe AA (6,4:1) */
   font-weight: var(--weight-medium);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-copper);
+  color: var(--copper-700);
   margin-bottom: 7px;
 }
 .trc-addline {
@@ -798,7 +798,9 @@
   background: var(--color-copper);
   color: var(--color-ivoire);
   border: 1px solid transparent;
-  opacity: 0;
+  /* TOUJOURS visible : une action d'argent révélée au survol n'existe pas au
+     toucher (tablette au salon) et se découvre mal même à la souris. */
+  opacity: 0.88;
   transition: opacity 0.12s ease;
 }
 .trc-cal__appt:hover .trc-cal__encaisser,
@@ -940,14 +942,14 @@
 .trc-summary-send__lead { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.45; }
 .trc-summary-send__row { display: flex; flex-wrap: wrap; gap: 10px; }
 .trc-summary-send__note {
-  margin: 0; font-size: 11.5px; color: var(--color-copper);
+  margin: 0; font-size: 11.5px; color: var(--copper-700); /* cuivre brut = 3,1:1 sur ivoire — illisible en petit corps */
   border-left: 2px solid var(--color-copper); padding-left: 10px;
 }
 .trc-consult-card__summary {
   margin-left: auto; background: none; border: 1px solid var(--hairline);
   border-radius: 3px; padding: 3px 10px; cursor: pointer;
   font-family: var(--font-sans); font-size: 10px; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--color-copper);
+  text-transform: uppercase; color: var(--copper-700);
   transition: var(--transition-base);
 }
 .trc-consult-card__summary:hover { background: var(--hover-veil); border-color: var(--color-copper); }
@@ -1458,4 +1460,10 @@
   font-family: var(--font-sans);
   font-size: 11px;
   padding: 4px 6px;
+}
+
+/* Focus clavier — puces du domaine Clients. */
+.trc-chip:focus-visible, .trc-tab:focus-visible, .trc-cover-act:focus-visible {
+  outline: 2px solid var(--copper-600);
+  outline-offset: 2px;
 }
