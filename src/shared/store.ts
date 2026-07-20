@@ -78,3 +78,13 @@ export function useStore<T>(store: Store<T>): [T, Store<T>['set']] {
 
 /** Identifiant court, stable, sans dépendance. */
 export const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+
+/** Purge ciblée du cache local (déconnexion) : retire les clés données et notifie
+    leurs magasins (retour à la valeur initiale). Les données re-hydratent depuis
+    Supabase à la prochaine connexion — rien n'est perdu côté serveur. */
+export function purgeLocalKeys(keys: string[]): void {
+  for (const k of keys) {
+    try { localStorage.removeItem(k); } catch { /* stockage indisponible — tant pis */ }
+    window.dispatchEvent(new CustomEvent(EVT, { detail: k }));
+  }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isRemote } from './supabase';
+import { purgeLocalKeys } from './store';
 
 /* Authentification — couche mince au-dessus de Supabase Auth.
 
@@ -76,8 +77,21 @@ export async function signUpEmail(
   return { needsConfirmation: !data.session };
 }
 
+/* Clés RH & paie purgées du cache local à la déconnexion : salaires, avances,
+   pointages, congés, dossiers du personnel, pourboires, primes/retenues/taux et
+   codes d'accès. Sur un poste partagé, fermer l'onglet sans se déconnecter les
+   laisserait lisibles (DevTools) — la déconnexion, elle, efface le disque. Les
+   données re-hydratent depuis Supabase (sous RLS) à la prochaine connexion. */
+const SENSITIVE_KEYS = [
+  'mnd_payroll_runs', 'mnd_salary_advances', 'mnd_attendance', 'mnd_leave_requests',
+  'mnd_staff', 'mnd_tips_v2', 'mnd_tips',
+  'mnd_primes', 'mnd_retenues', 'mnd_commission_rates', 'mnd_paie_overrides', 'mnd_paie_confirm',
+  'mnd_access_codes',
+];
+
 export async function signOut(): Promise<void> {
   await supabase?.auth.signOut();
+  purgeLocalKeys(SENSITIVE_KEYS);
 }
 
 /** Amorce le fondateur si le personnel est vide (idempotent, côté serveur). */
