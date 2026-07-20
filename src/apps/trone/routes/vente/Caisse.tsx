@@ -11,7 +11,7 @@ import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, type Invoice, type PaymentMethod } from '../../../../shared/finance';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -175,14 +175,6 @@ export default function Caisse() {
   const fxAmount = fxOn && fxRateNum > 0 ? Math.round((netXof / fxRateNum) * 100) / 100 : 0;
 
   /* — encaissement — */
-  const nextNumber = () => {
-    const year = new Date().getFullYear();
-    const max = invoices.reduce((m, i) => {
-      const n = parseInt(i.number.replace(/\D/g, '').slice(-4), 10);
-      return Number.isFinite(n) ? Math.max(m, n) : m;
-    }, 1042);
-    return `MND-${year}-${String(max + 1).padStart(4, '0')}`;
-  };
 
   const checkout = async () => {
     if (lines.length === 0) return;
@@ -193,7 +185,7 @@ export default function Caisse() {
       id: uid(),
       branchId: branch.id,
       kind: 'facture',
-      number: nextNumber(),
+      number: nextInvoiceNumber(invoices, 'MND'),
       clientId: client?.id ?? '',
       clientName: client ? undefined : 'Walk-in',
       date: todayIso(),

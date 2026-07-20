@@ -120,6 +120,36 @@ export const invoiceTotal = (inv: Invoice): number => {
 
 export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Souffle'] as const;
 
+/** Prochain numéro d'une SÉRIE de documents (préfixe + année) : compteur monotone
+    par série et par an, PLUS vérification d'unicité avant écriture. Les anciens
+    tirages (4 derniers chiffres de l'horodatage — qui se répètent toutes les 10 s
+    et d'un jour à l'autre — ou max des 4 derniers chiffres toutes séries
+    confondues) finissaient par produire des numéros DUPLIQUÉS sur des documents
+    client : cauchemar de rapprochement comptable. On ne lit que les numéros de la
+    même série (`PREFIX-ANNÉE-N`) — les numéros repris de l'ancien ERP
+    (MND-V-…) n'inflatent plus le compteur. Le suffixe grandit au-delà de 4
+    chiffres sans troncature. Résiduel accepté : deux appareils HORS LIGNE peuvent
+    encore tirer le même numéro dans la même fenêtre de synchronisation. */
+export function nextInvoiceNumber(invoices: Invoice[], prefix: 'MND' | 'F'): string {
+  const year = new Date().getFullYear();
+  const re = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+  const used = new Set<string>();
+  let max = 0;
+  for (const i of invoices) {
+    if (!i?.number) continue;
+    used.add(i.number);
+    const m = re.exec(i.number);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  let n = max + 1;
+  let num = `${prefix}-${year}-${String(n).padStart(4, '0')}`;
+  while (used.has(num)) {
+    n += 1;
+    num = `${prefix}-${year}-${String(n).padStart(4, '0')}`;
+  }
+  return num;
+}
+
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const INVOICES_SEED: Invoice[] = [];
 

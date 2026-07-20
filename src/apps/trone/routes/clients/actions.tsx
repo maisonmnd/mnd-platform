@@ -8,7 +8,7 @@ import { useClients, clientsStore } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { type Service } from '../../../../shared/catalog';
 import {
-  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency,
+  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
   type Invoice, type InvoiceLine, type PaymentMethod,
 } from '../../../../shared/finance';
 import { pointsRateStore, pointsHistoryStore } from '../../../../shared/offers';
@@ -151,7 +151,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         id: `inv-${uid()}`,
         branchId: branch.id,
         kind: 'facture',
-        number: `F-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+        number: nextInvoiceNumber(invoicesStore.get(), 'F'),
         clientId: appt.clientId,
         date: invDate,
         lines,
@@ -185,7 +185,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         id: `inv-${uid()}`,
         branchId: branch.id,
         kind: 'facture',
-        number: `F-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+        number: nextInvoiceNumber(invoicesStore.get(), 'F'),
         clientId: appt.clientId,
         date: invDate,
         lines: [{ id: `il-${uid()}`, label: `Pourboire · ${appt.master}`, qty: 1, unitXof: 0, discountPct: 0 }],
