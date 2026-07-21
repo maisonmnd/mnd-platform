@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button } from '../../../../ds/components';
+import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { normName } from '../../../../shared/text';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, type RdvInitial,
@@ -24,6 +25,7 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
   useEffect(() => {
@@ -33,17 +35,23 @@ export default function Carnet() {
     return () => window.removeEventListener('click', close);
   }, [menuFor]);
 
+  const clientOf = (id: string) => clients.find((c) => c.id === id);
+
   const { upcoming, past } = useMemo(() => {
+    /* Recherche par nom de cliente — taper les premières lettres suffit
+       (insensible aux accents : « agnes » trouve « Agnès ») ; le nom porté par
+       le RDV sert de repli pour les têtes de passage sans fiche. */
+    const qn = normName(query);
+    const nameOf = (a: Appointment) => clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? '';
+    const match = (a: Appointment) => qn === '' || normName(nameOf(a)).includes(qn);
     const upcoming = appts
-      .filter((a) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé')
+      .filter((a) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé' && match(a))
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
     const past = appts
-      .filter((a) => !upcoming.includes(a))
+      .filter((a) => !(a.date >= today && a.status !== 'honoré' && a.status !== 'annulé') && match(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past };
-  }, [appts, today]);
-
-  const clientOf = (id: string) => clients.find((c) => c.id === id);
+  }, [appts, today, query, clients]);
 
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
@@ -185,6 +193,17 @@ export default function Carnet() {
         }
       />
 
+      <div className="trc-toolbar">
+        <div className="trc-searchwrap">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un rendez-vous par cliente…"
+            aria-label="Rechercher un rendez-vous par cliente"
+          />
+        </div>
+      </div>
+
       <div className="trc-sheet trc-carnet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
           <span>Date</span>
@@ -196,11 +215,19 @@ export default function Carnet() {
         </div>
 
         <div className="trc-sheet__group">Rendez-vous à venir ({upcoming.length})</div>
-        {upcoming.length === 0 && <div className="trc-empty">Le carnet est libre — la maison respire.</div>}
+        {upcoming.length === 0 && (
+          <div className="trc-empty">
+            {query.trim() ? `Aucun rendez-vous à venir pour « ${query.trim()} ».` : 'Le carnet est libre — la maison respire.'}
+          </div>
+        )}
         {upcoming.map(renderRow)}
 
         <div className="trc-sheet__group">Rendez-vous passés ({past.length})</div>
-        {past.length === 0 && <div className="trc-empty">Aucun rendez-vous passé sur cette branche.</div>}
+        {past.length === 0 && (
+          <div className="trc-empty">
+            {query.trim() ? `Aucun rendez-vous passé pour « ${query.trim()} ».` : 'Aucun rendez-vous passé sur cette branche.'}
+          </div>
+        )}
         {past.map(renderRow)}
       </div>
 

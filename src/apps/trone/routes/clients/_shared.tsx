@@ -247,10 +247,14 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   );
 }
 
-/* ---------- Créneaux 08:00 → 18:00 ---------- */
+/* ---------- Créneaux 07:00 → 21:30 ----------
+   Toute l'amplitude d'ouverture possible (le samedi ferme à 20h, certains
+   soirs plus tard) : la liste s'arrêtait à 17:30, d'où l'impossibilité de
+   poser un rendez-vous en soirée. La modale accepte de toute façon une heure
+   hors liste (option injectée), mais le menu doit couvrir les heures réelles. */
 export const TIME_SLOTS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 8; h < 18; h++) {
+  for (let h = 7; h < 22; h++) {
     out.push(`${pad2(h)}:00`, `${pad2(h)}:30`);
   }
   return out;
