@@ -114,16 +114,28 @@ export default function Synthese() {
         .map(([name, { value, count }]) => ({ name, value, count }))
         .sort((a, b) => b.value - a.value);
 
-    // Revenus par caisse créditée — factures + rituels honorés (pseudo-caisse)
+    // Revenus par caisse créditée — factures + rituels honorés (pseudo-caisse).
+    // La part réglée par AVOIR (avoirXof) est du revenu mais PAS de l'argent
+    // physique : elle va au poste « Avoir (crédit) », jamais dans une caisse.
     const caisseMap = new Map<string, { value: number; count: number }>();
-    invM.forEach((i) => bump(caisseMap, i.cashbox ?? 'Autres', invoiceTotal(i)));
+    invM.forEach((i) => {
+      const av = i.avoirXof ?? 0;
+      const cash = invoiceTotal(i) - av;
+      if (cash > 0) bump(caisseMap, i.cashbox ?? 'Autres', cash);
+      if (av > 0) bump(caisseMap, 'Avoir (crédit)', av);
+    });
     ritM.forEach((a) => bump(caisseMap, 'Rituels honorés', apptNetXof(a, byId)));
     payM.forEach((p) => bump(caisseMap, 'Académie · formations', p.amount));
     const byCashbox = spread(caisseMap);
 
-    // Revenus par mode de paiement
+    // Revenus par mode de paiement (l'avoir a son propre poste, pas une caisse).
     const methodMap = new Map<string, { value: number; count: number }>();
-    invM.forEach((i) => bump(methodMap, i.payment ?? 'Non précisé', invoiceTotal(i)));
+    invM.forEach((i) => {
+      const av = i.avoirXof ?? 0;
+      const cash = invoiceTotal(i) - av;
+      if (cash > 0) bump(methodMap, i.payment ?? 'Non précisé', cash);
+      if (av > 0) bump(methodMap, 'Avoir (crédit)', av);
+    });
     ritM.forEach((a) => bump(methodMap, 'Rituel · carnet', apptNetXof(a, byId)));
     payM.forEach((p) => bump(methodMap, 'Académie · scolarité', p.amount));
     const byMethod = spread(methodMap);

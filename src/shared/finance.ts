@@ -53,6 +53,13 @@ export type Invoice = {
   /** Pourboire encaissé dans la caisse (traçabilité POS) — HORS chiffre d'affaires,
       reversé au maître. Ne compte jamais dans invoiceTotal. */
   tipXof?: number;
+  /** Part de la facture réglée par AVOIR (crédit prépayé du compte). C'est du
+      revenu (compte dans invoiceTotal / le CA) mais PAS de l'argent physique :
+      la Synthèse la route vers le poste « Avoir (crédit) », jamais une caisse. */
+  avoirXof?: number;
+  /** Cliente réellement SOIGNÉE quand le payeur (clientId) est le parent d'un
+      compte famille — mentionnée sur la facture. */
+  forClientId?: string;
 };
 
 /** Ligne d'une dépense — plusieurs articles peuvent être imputés à un même achat. */
@@ -213,6 +220,35 @@ export const coffreBalance = (moves: CoffreMovement[]): number => Math.max(0, mo
 export const coffreStore = createStore<CoffreMovement[]>('mnd_coffre', []);
 export const useCoffre = () => useStore(coffreStore);
 
+/* ---------- Avoirs — crédit prépayé par COMPTE (famille ou cliente solo) ----------
+   Un avoir est de l'argent versé d'avance sur un COMPTE, utilisable pour solder
+   des prestations. Le porteur est soit un compte FAMILLE (porte-monnaie du parent
+   payeur, utilisable pour tous les membres), soit une cliente sans famille.
+   Money = collection (une ligne par mouvement, jamais un document LWW). */
+export type CreditHolder = { type: 'family' | 'client'; id: string };
+export type CreditMovement = {
+  id: string;
+  branchId: string;
+  holderType: 'family' | 'client'; // qui porte l'avoir
+  holderId: string; // family.id ou client.id
+  kind: 'depot' | 'usage' | 'remboursement'; // dépôt (+) · règlement d'une presta (−) · remboursement (−)
+  amountXof: number; // toujours positif ; le sens vient de `kind`
+  date: string; // ISO
+  forClientId?: string; // usage : la cliente réellement soignée (membre du compte)
+  invoiceId?: string; // usage : facture réglée
+  note?: string;
+};
+/** + pour un dépôt, − pour un usage ou un remboursement. */
+export const creditSignedXof = (m: CreditMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);
+/** Solde d'avoir d'un porteur (compte famille ou cliente). Jamais négatif. */
+export const creditBalanceOf = (moves: CreditMovement[], holder: CreditHolder): number =>
+  Math.max(0, moves
+    .filter((m) => m.holderType === holder.type && m.holderId === holder.id)
+    .reduce((s, m) => s + creditSignedXof(m), 0));
+
+export const creditMovementsStore = createStore<CreditMovement[]>('mnd_credits', []);
+export const useCredits = () => useStore(creditMovementsStore);
+
 import { bindCollection, bindDocument } from './sync';
 bindCollection(invoicesStore, 'invoices');
 bindCollection(expensesStore, 'expenses');
@@ -220,4 +256,5 @@ bindCollection(budgetsStore, 'budgets');
 bindCollection(cashboxesStore, 'cashboxes');
 bindCollection(expenseCategoriesStore, 'expense_categories');
 bindCollection(coffreStore, 'coffre_movements');
+bindCollection(creditMovementsStore, 'credit_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');

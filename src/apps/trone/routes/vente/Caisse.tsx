@@ -9,9 +9,10 @@ import { useSettings } from '../../../../shared/settings';
 import { useCategories, useServices, useProducts, priceModeOf, type PriceMode } from '../../../../shared/catalog';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
-import { useClients } from '../../../../shared/clients';
+import { useClients, useFamilies } from '../../../../shared/clients';
 import { ClientPicker } from '../clients/_shared';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, type Invoice, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
+import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -59,6 +60,8 @@ export default function Caisse() {
   const [products] = useProducts();
   const [formations] = useFormations();
   const [clients] = useClients();
+  const [families] = useFamilies();
+  const [credits] = useCredits();
   const [invoices, setInvoices] = useInvoices();
   const [cashboxes] = useCashboxes();
   const [methods] = usePaymentMethods();
@@ -73,6 +76,7 @@ export default function Caisse() {
   const [fxCode, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
   const [clientId, setClientId] = useState('');
+  const [avoirStr, setAvoirStr] = useState('0');
   /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
      en dur devenait un Select vide si la maison renommait le moyen. */
   const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
@@ -180,6 +184,16 @@ export default function Caisse() {
   /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
      sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
+  /* Avoir : porté par le compte de la cliente choisie (famille du parent payeur,
+     ou solo). Applicable jusqu'au net ; le comptant couvre le reste. La part avoir
+     est du revenu mais hors caisse (avoirXof — routée par la Synthèse). */
+  const posClient = branchClients.find((c) => c.id === clientId);
+  const posAccount: CreditHolder | null = posClient ? holderOf(posClient, families) : null;
+  const posAvoirBal = posAccount ? creditBalanceOf(credits, posAccount) : 0;
+  const posAvoir = Math.max(0, Math.min(Math.min(posAvoirBal, netXof), Math.round(Number(avoirStr) || 0)));
+  const posPayerId = posClient ? payerClientIdOf(posClient, families) : '';
+  const posPayer = branchClients.find((c) => c.id === posPayerId);
+  const posCashDue = Math.max(0, netXof - posAvoir);
   /* Le montant en devise se DÉDUIT du net : c'est le XOF qui fait foi, jamais
      l'inverse — la facture ne change pas parce qu'on la règle en euros. */
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
@@ -197,8 +211,10 @@ export default function Caisse() {
       branchId: branch.id,
       kind: 'facture',
       number: nextInvoiceNumber(invoices, 'MND'),
-      clientId: client?.id ?? '',
+      /* Compte famille : facture au nom du PARENT PAYEUR, cliente soignée en mention. */
+      clientId: posPayerId || client?.id || '',
       clientName: client ? undefined : 'Walk-in',
+      forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
       date: todayIso(),
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.unit, discountPct: l.disc })),
@@ -207,10 +223,18 @@ export default function Caisse() {
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       theme: 'Aube',
       status: 'payée',
-      payment: pay,
+      payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
+      avoirXof: posAvoir > 0 ? posAvoir : undefined,
     };
     setInvoices((prev) => [inv, ...prev]);
+    /* Avoir consommé : écriture d'usage sur le compte porteur. */
+    if (posAvoir > 0 && posAccount) {
+      creditMovementsStore.set((prev) => [...prev, {
+        id: uid(), branchId: branch.id, holderType: posAccount.type, holderId: posAccount.id,
+        kind: 'usage', amountXof: posAvoir, date: todayIso(), forClientId: clientId || undefined, invoiceId: inv.id,
+      }]);
+    }
     if (pay === 'Lien WhatsApp') {
       /* Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai
          reçu PDF, puis on ouvre le chat pré-rempli en signalant la pièce jointe. */
@@ -253,6 +277,7 @@ export default function Caisse() {
     setCart({});
     setGlobalDisc(0);
     setGlobalDiscXof(0);
+    setAvoirStr('0');
   };
 
   /* — journal du jour — */
@@ -454,6 +479,25 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
                 <span className="trv-net">{fmtMoney(netXof, currency)}</span>
               </div>
+
+              {posAvoirBal > 0 && netXof > 0 && (
+                <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Régler par l’avoir</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--copper-700)' }}>dispo {fmtMoney(posAvoirBal, currency)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
+                    <input className="mnd-input" type="number" min={0} max={Math.min(posAvoirBal, netXof)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ flex: 1, minWidth: 0, textAlign: 'right' }} aria-label="Montant réglé par avoir" />
+                    <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAvoirStr(String(Math.min(posAvoirBal, netXof)))}>Max</button>
+                  </div>
+                  {posAvoir > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 7 }}>
+                      Avoir −{fmtMoney(posAvoir, currency)} · comptant {fmtMoney(posCashDue, currency)}
+                      {posPayerId && posPayerId !== clientId ? ` · compte ${posPayer?.name ?? 'famille'}` : ''}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{ padding: '8px 22px 22px' }}>

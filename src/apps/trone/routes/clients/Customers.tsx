@@ -4,7 +4,9 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, ensureInitiePersona, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, type Client } from '../../../../shared/clients';
+import { useCredits, creditBalanceOf } from '../../../../shared/finance';
+import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts } from '../../../../shared/catalog';
@@ -449,6 +451,14 @@ function Customer360({
   /* Abonnement actif de la cliente — distingué sur la fiche. */
   const membership = activeSubscriberOf(subs, client.id);
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
+  /* Compte & avoir — porté par le compte famille (parent payeur) ou la cliente. */
+  const [families] = useFamilies();
+  const [credits] = useCredits();
+  const clientFamily = client.familyId ? families.find((f) => f.id === client.familyId) : undefined;
+  const avoirBal = creditBalanceOf(credits, holderOf(client, families));
+  const clientPayerName = clientFamily
+    ? clientsStore.get().find((c) => c.id === payerClientIdOf(client, families))?.name ?? 'le parent'
+    : client.name;
   /* Navigation par onglets — la fiche 360 était un seul long défilement chargé de
      boutons ; on la range en quatre panneaux focalisés, faciles à parcourir. */
   const [tab, setTab] = useState<C360Tab>('apercu');
@@ -844,6 +854,19 @@ function Customer360({
                 <span className="trc-due__amount">{fmtMoney(due, currency)}</span>
               </div>
               <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+            </div>
+          )}
+          {(clientFamily || avoirBal > 0) && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--color-indigo)' }}>
+                  {clientFamily ? `Compte ${clientFamily.name}` : 'Avoir de la cliente'}
+                </span>
+                <span className="trc-sub" style={{ fontSize: 11 }}>
+                  {clientFamily ? `Réglé par ${clientPayerName}` : 'crédit prépayé'} · avoir disponible
+                </span>
+              </span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: avoirBal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{fmtMoney(avoirBal, currency)}</span>
             </div>
           )}
         </div>

@@ -28,6 +28,19 @@ export type Client = {
   birthday?: string; // ISO — anniversaire de la cliente
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
+  /** Compte famille auquel la cliente est rattachée (ex. Famille Adamon). Le
+      porte-monnaie d'avoir et le paiement des factures vivent alors sur le compte
+      famille — c'est le parent payeur qui règle. Absent = compte individuel. */
+  familyId?: string;
+};
+
+/** Compte famille — regroupe plusieurs clientes sous un même compte payeur. */
+export type Family = {
+  id: string;
+  branchId: string;
+  name: string; // « Famille Adamon »
+  payerClientId?: string; // le parent payeur (une des clientes rattachées, ou une fiche dédiée)
+  note?: string;
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
@@ -136,12 +149,16 @@ export const CLIENTS_SEED: Client[] = [];
 
 export const clientsStore = createStore<Client[]>('mnd_clients', CLIENTS_SEED);
 export const personasStore = createStore<Persona[]>('mnd_personas', PERSONAS_SEED);
+/* Maison neuve — aucun compte famille au départ ; ils naissent de l'usage. */
+export const familiesStore = createStore<Family[]>('mnd_families', []);
 
 export const useClients = () => useStore(clientsStore);
 export const usePersonas = () => useStore(personasStore);
+export const useFamilies = () => useStore(familiesStore);
 
 import { bindCollection, bindDocument } from './sync';
 bindCollection(clientsStore, 'clients');
 bindCollection(personasStore, 'personas');
+bindCollection(familiesStore, 'families');
 bindDocument(crownStylesStore, 'mnd_crown_styles');
 bindDocument(segmentsStore, 'mnd_segments');

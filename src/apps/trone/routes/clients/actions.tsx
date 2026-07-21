@@ -4,13 +4,15 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useClients, clientsStore } from '../../../../shared/clients';
+import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
-  type Invoice, type InvoiceLine, type PaymentMethod,
+  useCredits, creditMovementsStore, creditBalanceOf,
+  type Invoice, type InvoiceLine, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
+import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
@@ -133,7 +135,17 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const [cashboxes] = useCashboxes();
   const [team] = useStaff();
   const [methods] = usePaymentMethods();
+  const [families] = useFamilies();
+  const [credits] = useCredits();
   const branchBoxes = cashboxes.filter((c) => c.branchId === branch.id);
+  const client = clients.find((c) => c.id === appt.clientId);
+  /* Avoir : porté par le COMPTE (famille du parent payeur, ou cliente solo). Le
+     payeur de la facture est le parent quand la cliente est rattachée à une famille. */
+  const account: CreditHolder = client ? holderOf(client, families) : { type: 'client', id: appt.clientId };
+  const avoirBal = creditBalanceOf(credits, account);
+  const payerId = client ? payerClientIdOf(client, families) : appt.clientId;
+  const payerClient = clients.find((c) => c.id === payerId);
+  const isFamilyPayer = payerId !== appt.clientId;
 
   const services = apptServices(appt, byId);
   const net = apptNetXof(appt, byId);
@@ -152,8 +164,14 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */
   const [invDate, setInvDate] = useState(appt.date || todayISO());
+  /* Avoir appliqué à ce règlement — plafonné au solde ET au reste dû. Le comptant
+     ne couvre alors que ce qui reste après l'avoir. */
+  const [avoirStr, setAvoirStr] = useState('0');
+  const avoirApplied = Math.max(0, Math.min(Math.min(avoirBal, due), Math.round(Number(avoirStr) || 0)));
+  const cashMax = Math.max(0, due - avoirApplied);
   const [amountStr, setAmountStr] = useState(String(due));
-  const amount = Math.max(0, Math.min(due, Math.round(Number(amountStr) || 0)));
+  const amount = Math.max(0, Math.min(cashMax, Math.round(Number(amountStr) || 0)));
+  const settleTotal = amount + avoirApplied; // ce qui solde le rituel ce coup-ci (comptant + avoir)
 
   /* Cocher/décocher l'acompte recale le montant proposé sur le nouveau dû. */
   const toggleDepositReceived = () =>
@@ -168,7 +186,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      pourboire. Comparaison NORMALISÉE (accents, casse, espaces) : une majuscule
      de différence privait le maître de son pourboire. */
   const tipMaster = team.find((s) => sameName(s.name, appt.master));
-  const remainingAfter = Math.max(0, due - amount);
+  const remainingAfter = Math.max(0, due - settleTotal);
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
   const [settings] = useSettings();
@@ -191,13 +209,12 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
 
   const submitting = useRef(false); // garde-fou anti double-clic (double facture / double pourboire)
   const fullyPaid = remainingAfter === 0;
-  const client = clients.find((c) => c.id === appt.clientId);
 
   const confirm = () => {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
-    if (amount <= 0 && tip <= 0 && !depositJustConfirmed) return;
+    if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed) return;
     submitting.current = true;
-    if (amount > 0) {
+    if (settleTotal > 0) {
       /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
          (sans acompte CRÉDITÉ ni règlement antérieur), pour que la cliente voie le
          détail. Sinon (paiement partiel / acompte), une seule ligne « Règlement ».
@@ -205,12 +222,15 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          EXACTEMENT le net. */
       const grossSum = services.reduce((s, sv) => s + sv.priceXof, 0);
       const depositCredit = depositReceived ? deposit : 0;
+      /* Le montant facturé ce coup-ci = comptant + avoir appliqué. L'avoir est du
+         REVENU (il compte au CA) mais pas de l'argent physique : on le porte à part
+         (avoirXof), la Synthèse le route hors caisse. */
       const detailed = fullyPaid && alreadyPaid === 0 && depositCredit === 0 && services.length > 1 && grossSum > 0;
       let lines: InvoiceLine[];
       if (detailed) {
         let acc = 0;
         lines = services.map((sv, idx) => {
-          const share = idx === services.length - 1 ? amount - acc : Math.round((amount * sv.priceXof) / grossSum);
+          const share = idx === services.length - 1 ? settleTotal - acc : Math.round((settleTotal * sv.priceXof) / grossSum);
           acc += share;
           return { id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: share, discountPct: 0 };
         });
@@ -218,35 +238,49 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         lines = [{
           id: `il-${uid()}`,
           label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
-          qty: 1, unitXof: amount, discountPct: 0,
+          qty: 1, unitXof: settleTotal, discountPct: 0,
         }];
       }
+      /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
+         en mention (forClientId). */
+      const avoirNote = avoirApplied > 0 ? `Réglé par avoir : ${fmtMoney(avoirApplied, currency)}${amount > 0 ? ` · comptant ${fmtMoney(amount, currency)}` : ''}` : '';
+      const partialNote = fullyPaid ? '' : `Paiement partiel — reste ${fmtMoney(remainingAfter, currency)}`;
       const inv: Invoice = {
         id: `inv-${uid()}`,
         branchId: branch.id,
         kind: 'facture',
         number: nextInvoiceNumber(invoicesStore.get(), 'F'),
-        clientId: appt.clientId,
+        clientId: payerId,
         date: invDate,
         lines,
         globalDiscountPct: 0,
         theme: 'Rose',
         status: 'payée',
-        payment: pay,
+        payment: amount > 0 ? pay : 'Avoir',
         cashbox: activeBox,
         time: new Date().toTimeString().slice(0, 5),
-        clientName: client?.name,
+        clientName: payerClient?.name ?? client?.name,
+        forClientId: isFamilyPayer ? appt.clientId : undefined,
         master: appt.master,
-        note: fullyPaid ? undefined : `Paiement partiel — reste ${fmtMoney(remainingAfter, currency)}`,
+        note: [avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
         /* Le pourboire rejoint la MÊME caisse que le paiement — traçable, mais
            toujours hors chiffre d'affaires (invoiceTotal l'exclut). Seulement s'il est
            attribuable à un maître, pour que « à reverser aux maîtres » reste juste. */
         tipXof: tip > 0 && tipMaster ? tip : undefined,
-        /* Ce qui a été REÇU au comptoir — règlement + pourboire. Le rituel et la
-           facture restent chiffrés en devise de la maison. */
+        /* Part réglée par avoir (crédit du compte) — hors caisse physique. */
+        avoirXof: avoirApplied > 0 ? avoirApplied : undefined,
+        /* Ce qui a été REÇU au comptoir — règlement COMPTANT + pourboire (l'avoir
+           n'est pas une devise étrangère). Le rituel reste chiffré en {currency}. */
         fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       };
       invoicesStore.set((prev) => [inv, ...prev]);
+      /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
+      if (avoirApplied > 0) {
+        creditMovementsStore.set((prev) => [...prev, {
+          id: uid(), branchId: branch.id, holderType: account.type, holderId: account.id,
+          kind: 'usage', amountXof: avoirApplied, date: invDate, forClientId: appt.clientId, invoiceId: inv.id,
+        }]);
+      }
       /* ENCAISSER ≠ HONORER : l'argent entre ici, mais le rituel n'est « honoré »
          que par le geste dédié (Carnet / Tableau de bord → Marquer honoré) — on
          peut encaisser d'avance un rituel qui n'a pas encore eu lieu.
@@ -254,7 +288,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          le catalogue bougera, l'histoire non. */
       const freeze = fullyPaid && appt.priceXof == null ? { priceXof: apptTotalXof(appt, byId) } : {};
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
-        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + amount, ...(depositReceived ? { depositConfirmed: true } : {}), ...freeze }
+        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + settleTotal, ...(depositReceived ? { depositConfirmed: true } : {}), ...freeze }
         : a)));
     } else if (tip > 0 && tipMaster) {
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
@@ -290,16 +324,17 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
 
     /* Confirmation d'acompte SANS encaissement : on la persiste quand même.
        (L'honneur du rituel reste un geste séparé — Marquer honoré.) */
-    if (depositJustConfirmed && amount <= 0) {
+    if (depositJustConfirmed && settleTotal <= 0) {
       appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, depositConfirmed: true } : x)));
     }
 
     onClose();
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
-    const payMsg = amount > 0
+    const avoirMsg = avoirApplied > 0 ? ` (dont ${fmtMoney(avoirApplied, currency)} par avoir)` : '';
+    const payMsg = settleTotal > 0
       ? (fullyPaid
-          ? `Réglé en totalité · ${fmtMoney(amount, currency)}. Marquez le rituel « honoré » quand il a eu lieu.`
-          : `Paiement partiel enregistré · ${fmtMoney(amount, currency)} · reste ${fmtMoney(remainingAfter, currency)}.`)
+          ? `Réglé en totalité · ${fmtMoney(settleTotal, currency)}${avoirMsg}. Marquez le rituel « honoré » quand il a eu lieu.`
+          : `Paiement partiel enregistré · ${fmtMoney(settleTotal, currency)}${avoirMsg} · reste ${fmtMoney(remainingAfter, currency)}.`)
       : '';
     const tipMsg = tip <= 0 ? ''
       : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} pour ${appt.master}`
@@ -318,6 +353,11 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <div className="mnd-muted" style={{ fontSize: 13 }}>
           {client?.name ?? 'Cliente'} · {apptLabel(appt, byId)}
         </div>
+        {isFamilyPayer && (
+          <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '4px 11px', alignSelf: 'flex-start' }}>
+            Compte famille — facturé à {payerClient?.name ?? 'au parent payeur'}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span className="mnd-muted">Total{appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}</span>
           <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
@@ -373,10 +413,21 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <Field label="Date de la facture (jour du rituel)">
           <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
         </Field>
-        <Field label="Montant encaissé maintenant">
+        {avoirBal > 0 && (
+          <Field label={`Régler par l'avoir · disponible ${fmtMoney(avoirBal, currency)}`}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <Input type="number" min={0} max={Math.min(avoirBal, due)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
+              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => { const v = Math.min(avoirBal, due); setAvoirStr(String(v)); setAmountStr(String(Math.max(0, due - v))); }}>Max</button>
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''} — déduit sans passer par la caisse.
+            </div>
+          </Field>
+        )}
+        <Field label="Montant encaissé maintenant (comptant)">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Input type="number" min={0} max={due} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
-            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(due))}>Tout</button>
+            <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Tout</button>
           </div>
         </Field>
         <Field label="Moyen de paiement">
@@ -452,16 +503,16 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={(amount <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(settleTotal <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
           {fxOn && fxAmount > 0
             ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
-            : amount <= 0 && tip > 0
+            : settleTotal <= 0 && tip > 0
               ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-              : amount <= 0 && depositJustConfirmed
+              : settleTotal <= 0 && depositJustConfirmed
                 ? 'Confirmer l’acompte reçu'
-                : fullyPaid ? `Encaisser ${fmtMoney(amount, currency)}` : `Encaisser ${fmtMoney(amount, currency)} (partiel)`}
+                : fullyPaid ? `Encaisser ${fmtMoney(settleTotal, currency)}` : `Encaisser ${fmtMoney(settleTotal, currency)} (partiel)`}
         </Button>
       </div>
     </Modal>
