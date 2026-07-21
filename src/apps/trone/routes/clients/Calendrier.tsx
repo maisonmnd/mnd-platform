@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -16,6 +16,18 @@ import { PayAppointmentModal } from './actions';
 const HOUR_PX = 56;
 const SLOT_MIN = 30; // pas de la grille — calage identique au carnet
 
+/* Vrai sur téléphone (≤ 640 px) — bascule la vue en agenda vertical / pile de jours. */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+
 export default function Calendrier() {
   const { branch } = useBranch();
   const appts = useBranchAppointments();
@@ -23,6 +35,7 @@ export default function Calendrier() {
   const byId = useServicesById();
   const today = todayISO();
 
+  const isPhone = useIsPhone();
   const [view, setView] = useState<'jour' | 'semaine'>('jour');
   const [anchor, setAnchor] = useState(today);
   /* Prise de RDV : pré-remplissage du nouveau rendez-vous (jour touché, et en vue
@@ -234,6 +247,16 @@ export default function Calendrier() {
     return cols;
   }, [branch.masters, appts, anchor]);
 
+  /* — vue jour sur TÉLÉPHONE : agenda vertical (tous maîtres confondus, par heure) —
+     la grille multi-colonnes est illisible sur un petit écran ; on la remplace par
+     une liste claire, chaque rituel touchable pour l'ouvrir. */
+  const dayList = useMemo(
+    () => appts
+      .filter((a) => a.date === anchor && a.status !== 'annulé')
+      .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
+    [appts, anchor],
+  );
+
   /* — vue semaine : du lundi au dimanche autour de l'ancre — */
   const week = useMemo(() => {
     const d = fromISO(anchor);
@@ -293,7 +316,47 @@ export default function Calendrier() {
         }
       />
 
-      {view === 'jour' && (
+      {/* Vue JOUR · téléphone — agenda vertical, tous maîtres confondus */}
+      {view === 'jour' && isPhone && (
+        <div className="trc-agenda">
+          {dayList.length === 0 ? (
+            <div className="trc-agenda__empty">
+              Aucun rituel ce jour — touchez « + » pour en prendre un.
+            </div>
+          ) : (
+            dayList.map((a) => {
+              const startMin = timeToMin(a.time);
+              const dur = apptDurationMin(a, byId);
+              const live = anchor === today && nowMin >= startMin && nowMin < startMin + dur && a.status !== 'honoré';
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`trc-agenda__row ${live ? 'is-live' : ''} ${a.status === 'honoré' ? 'is-muted' : ''}`}
+                  onClick={() => setEditAppt(a)}
+                >
+                  <span className="trc-agenda__time">{a.time}</span>
+                  <span className="trc-agenda__main">
+                    <span className="trc-agenda__client">
+                      {clientName(a.clientId)}
+                      {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                    </span>
+                    <span className="trc-agenda__svc">{apptLabel(a, byId)} · {a.master}</span>
+                  </span>
+                  <span className="trc-agenda__side" onClick={(e) => e.stopPropagation()}>
+                    <PayStatusPill a={a} byId={byId} />
+                    {a.status !== 'honoré' && (
+                      <button type="button" className="trc-agenda__pay" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}>Encaisser</button>
+                    )}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {view === 'jour' && !isPhone && (
         <div className="trc-cal" style={{ marginTop: 0 }}>
           <div className="trc-cal__masters">
             <div style={{ width: 64, flex: 'none' }} />
@@ -384,7 +447,52 @@ export default function Calendrier() {
         </div>
       )}
 
-      {view === 'semaine' && (
+      {/* Vue SEMAINE · téléphone — pile de jours, pleine largeur */}
+      {view === 'semaine' && isPhone && (
+        <div className="trc-weekstack">
+          {week.map((d) => (
+            <div
+              key={d.iso}
+              className={`trc-weekstack__day ${d.isToday ? 'is-today' : ''}`}
+              onClick={(e) => clickWeekDay(e, d.iso)}
+            >
+              <div className="trc-weekstack__head">
+                <span className="trc-weekstack__dow">{d.dow} {d.num}</span>
+                <span className="trc-weekstack__count">{d.appts.length} rituel{d.appts.length > 1 ? 's' : ''}</span>
+              </div>
+              {d.appts.length === 0 ? (
+                <div className="trc-weekstack__empty">Libre — touchez pour prendre un rendez-vous.</div>
+              ) : (
+                d.appts.map((a) => {
+                  const first = byId.get(a.serviceIds[0]);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="trc-agenda__row"
+                      onClick={(e) => { e.stopPropagation(); setEditAppt(a); }}
+                    >
+                      <span className="trc-agenda__time">{a.time}</span>
+                      <span className="trc-agenda__main">
+                        <span className="trc-agenda__client">
+                          {clientName(a.clientId)}
+                          {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                        </span>
+                        <span className="trc-agenda__svc">{first?.name ?? 'Rituel'} · {a.master}</span>
+                      </span>
+                      <span className="trc-agenda__side" style={{ pointerEvents: 'none' }}>
+                        <PayStatusPill a={a} byId={byId} />
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === 'semaine' && !isPhone && (
         <div className="trc-cal" style={{ marginTop: 0 }}>
           <div className="trc-week">
             {week.map((d) => (

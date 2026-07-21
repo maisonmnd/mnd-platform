@@ -1490,6 +1490,98 @@
 .trc-cal__appt--drag,
 .trc-week__chip--drag { touch-action: none; }
 
+/* ---------- Calendrier sur TÉLÉPHONE — agenda vertical & pile de semaine ----------
+   Sur petit écran, la grille multi-colonnes devient illisible : on la remplace par
+   une liste pleine largeur, chaque rituel touchable, sans défilement horizontal. */
+.trc-agenda {
+  margin-top: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.trc-agenda__empty { padding: 26px 18px; text-align: center; font-size: 12.5px; color: var(--ink-soft); }
+.trc-agenda__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  border-left: 3px solid var(--color-indigo);
+  background: var(--surface-card);
+  text-align: left;
+  cursor: pointer;
+}
+.trc-agenda__row:last-child { border-bottom: none; }
+.trc-agenda__row.is-live { background: var(--color-indigo); border-left-color: var(--color-copper); }
+.trc-agenda__row.is-live .trc-agenda__time,
+.trc-agenda__row.is-live .trc-agenda__client { color: var(--color-ivoire); }
+.trc-agenda__row.is-live .trc-agenda__svc { color: var(--indigo-100); }
+.trc-agenda__row.is-muted { opacity: 0.6; }
+.trc-agenda__time {
+  flex: none;
+  width: 44px;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+}
+.trc-agenda__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trc-agenda__client {
+  font-size: 14px;
+  color: var(--color-indigo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trc-agenda__svc {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trc-agenda__side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.trc-agenda__pay {
+  background: none;
+  border: 1px solid var(--copper-300);
+  color: var(--copper-700);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.trc-agenda__pay:active { background: var(--copper-50); }
+
+.trc-weekstack { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.trc-weekstack__day {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: copy;
+}
+.trc-weekstack__day.is-today { border-color: var(--color-copper); }
+.trc-weekstack__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--hover-veil);
+}
+.trc-weekstack__day.is-today .trc-weekstack__head { background: var(--color-sable); }
+.trc-weekstack__dow {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-indigo);
+  text-transform: capitalize;
+}
+.trc-weekstack__count { font-size: 10.5px; color: var(--ink-soft); letter-spacing: 0.04em; }
+.trc-weekstack__empty { padding: 16px 15px; font-size: 12px; color: var(--ink-soft); font-style: italic; }
+
 /* ---------- Les quatre temps — suivi du protocole sur la fiche ---------- */
 .trc-temps {
   display: grid;
