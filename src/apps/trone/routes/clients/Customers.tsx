@@ -419,6 +419,14 @@ export default function Customers() {
 }
 
 /* ---------- Fiche 360 ---------- */
+type C360Tab = 'apercu' | 'profil' | 'parcours' | 'docs';
+const C360_TABS: { k: C360Tab; l: string }[] = [
+  { k: 'apercu', l: 'Aperçu' },
+  { k: 'profil', l: 'Profil' },
+  { k: 'parcours', l: 'Parcours' },
+  { k: 'docs', l: 'Documents' },
+];
+
 function Customer360({
   client, personaName, onClose, appts, byId, predicted,
 }: {
@@ -441,6 +449,9 @@ function Customer360({
   /* Abonnement actif de la cliente — distingué sur la fiche. */
   const membership = activeSubscriberOf(subs, client.id);
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
+  /* Navigation par onglets — la fiche 360 était un seul long défilement chargé de
+     boutons ; on la range en quatre panneaux focalisés, faciles à parcourir. */
+  const [tab, setTab] = useState<C360Tab>('apercu');
   const [bookOpen, setBookOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [adjust, setAdjust] = useState<RdvInitial | null>(null);
@@ -710,21 +721,20 @@ function Customer360({
                 ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle ?? 'mensuel'}
               </div>
             )}
+            {/* En-tête : contact rapide seulement. Le reste des actions vit dans
+                les onglets, pour une carte nette. Info manquante → le bouton mène
+                au champ d'identité (onglet Profil) pour la renseigner d'un geste. */}
             <div className="trc-cover-acts">
-              <a className="trc-cover-act" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance</a>
-
-              {/* Appeler · WhatsApp · Itinéraire sont TOUJOURS là. Quand l'info manque,
-                  le bouton mène au champ d'identité pour la renseigner d'un geste. */}
               {client.phone ? (
                 <a className="trc-cover-act" href={telHref(client.phone)}>Appeler</a>
               ) : (
-                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => focusField('c360-phone')}>Appeler</button>
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => { setTab('profil'); focusField('c360-phone'); }}>Appeler</button>
               )}
 
               {client.phone && phoneDigits ? (
                 <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
               ) : (
-                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => focusField('c360-phone')}>WhatsApp</button>
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => { setTab('profil'); focusField('c360-phone'); }}>WhatsApp</button>
               )}
 
               {itineraireHref ? (
@@ -738,20 +748,31 @@ function Customer360({
                   Itinéraire
                 </a>
               ) : (
-                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez une ville dans l’identité" onClick={() => focusField('c360-city')}>Itinéraire</button>
-              )}
-
-              {client.photo && (
-                <button type="button" className="trc-cover-act trc-cover-act--btn" onClick={() => patch({ photo: null })}>
-                  Retirer la photo
-                </button>
+                <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez une ville dans l’identité" onClick={() => { setTab('profil'); focusField('c360-city'); }}>Itinéraire</button>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div className="trc-c360-tabs" role="tablist">
+        {C360_TABS.map((t) => (
+          <button
+            key={t.k}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.k}
+            className={`trc-c360-tab ${tab === t.k ? 'is-on' : ''}`}
+            onClick={() => setTab(t.k)}
+          >
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      <div className="trc-c360-panel">
+        {tab === 'apercu' && (
+        <>
         {/* Prochain RDV — réel, ou prédit avec confirmation en un geste */}
         <div className="trc-next">
           <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
@@ -825,17 +846,6 @@ function Customer360({
               <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
             </div>
           )}
-          {myPoints.length > 0 && (
-            <div className="trc-ptlog">
-              {myPoints.map((e) => (
-                <div className="trc-ptlog__row" key={e.id}>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>
-                  <span className="trc-sub" style={{ flex: 'none' }}>{frDay(e.at.slice(0, 10))}</span>
-                  <span className="trc-ptlog__pts">{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Présence Ma Couronne — ligne discrète */}
@@ -853,6 +863,14 @@ function Customer360({
           </div>
         </div>
 
+        <div className="trc-c360-actions">
+          <a className="trc-c360-linkbtn" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance à remettre →</a>
+        </div>
+        </>
+        )}
+
+        {tab === 'profil' && (
+        <>
         {/* Identité — éditable */}
         <div>
           <span className="trc-microlabel">Identité</span>
@@ -871,7 +889,12 @@ function Customer360({
             </Field>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
-            <span className="trc-sub">Cliente depuis {client.since ? frLong(client.since) : '—'}</span>
+            <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              Cliente depuis {client.since ? frLong(client.since) : '—'}
+              {client.photo && (
+                <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => patch({ photo: null })}>Retirer la photo</button>
+              )}
+            </span>
             <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>Enregistrer l’identité</Button>
           </div>
           <div className="trc-bday">
@@ -950,7 +973,11 @@ function Customer360({
             </div>
           </div>
         </div>
+        </>
+        )}
 
+        {tab === 'parcours' && (
+        <>
         {/* Les quatre temps — où en est sa couronne dans le protocole. */}
         <div>
           <span className="trc-microlabel">
@@ -990,7 +1017,11 @@ function Customer360({
             })}
           </div>
         </div>
+        </>
+        )}
 
+        {tab === 'profil' && (
+        <>
         {/* Persona & segments — deux colonnes sur le panneau élargi */}
         <div className="tr-grid tr-grid--2">
           <div>
@@ -1031,7 +1062,11 @@ function Customer360({
             </div>
           </div>
         </div>
+        </>
+        )}
 
+        {tab === 'docs' && (
+        <>
         {/* Factures & devis — tous ses documents, chacun ouvrable */}
         <div>
           <span className="trc-microlabel">Factures & devis · {documents.length}</span>
@@ -1054,6 +1089,27 @@ function Customer360({
           )}
         </div>
 
+        <div>
+          <span className="trc-microlabel">Points cercle · {client.loyaltyPoints ?? 0}</span>
+          {myPoints.length > 0 ? (
+            <div className="trc-ptlog">
+              {myPoints.map((e) => (
+                <div className="trc-ptlog__row" key={e.id}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>
+                  <span className="trc-sub" style={{ flex: 'none' }}>{frDay(e.at.slice(0, 10))}</span>
+                  <span className="trc-ptlog__pts">{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun mouvement de points.</div>
+          )}
+        </div>
+        </>
+        )}
+
+        {tab === 'parcours' && (
+        <>
         {/* Historique — chaque passage s'ouvre : le RDV dans sa modale, et s'il a
             été encaissé, sa facture d'un second geste. */}
         <div>
@@ -1106,7 +1162,11 @@ function Customer360({
             {consultOpen && <ConsultCards blocks={parsedNotes.blocks} onEdit={(i) => setEditIdx(i)} />}
           </div>
         )}
+        </>
+        )}
 
+        {tab === 'profil' && (
+        <>
         {/* Note de la maison — texte libre éditable */}
         <div>
           <span className="trc-microlabel">Note de la maison</span>
@@ -1137,6 +1197,8 @@ function Customer360({
             L’archivage la retire des listes sans l’effacer. La suppression est définitive.
           </p>
         </div>
+        </>
+        )}
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}

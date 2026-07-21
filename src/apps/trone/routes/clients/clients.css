@@ -201,6 +201,74 @@
   object-fit: cover;
 }
 
+/* Fiche 360 — navigation par onglets : la fiche était un long défilement chargé
+   de boutons ; les quatre panneaux focalisés la rendent claire et parcourable.
+   La barre se colle sous l'en-tête quand on fait défiler un panneau. */
+.trc-c360-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+}
+.trc-c360-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  padding: 14px 4px;
+  margin-right: 18px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: color var(--dur-fast, 0.12s) var(--ease-soft), border-color var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-c360-tab:hover { color: var(--color-indigo); }
+.trc-c360-tab.is-on {
+  color: var(--color-indigo);
+  border-bottom-color: var(--color-copper);
+  font-weight: var(--weight-medium);
+}
+.trc-c360-panel {
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: mnd-rise var(--dur-base) var(--ease-soft);
+}
+.trc-c360-actions { display: flex; justify-content: flex-end; }
+.trc-c360-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-pill);
+  padding: 7px 14px;
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-c360-linkbtn:hover { background: rgba(185, 122, 74, 0.14); }
+.trc-c360-linkbtn--muted {
+  background: none;
+  border-color: var(--hairline);
+  color: var(--ink-soft);
+  padding: 4px 10px;
+}
+.trc-c360-linkbtn--muted:hover { background: var(--hover-veil); color: var(--color-indigo); }
+
 .trc-next {
   background: var(--color-indigo);
   border-radius: var(--radius-md);
