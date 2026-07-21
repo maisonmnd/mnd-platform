@@ -429,7 +429,7 @@ export function RdvModal({
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente (nom, téléphone)…" />
           {membership && (
             <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-              ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle === 'annuel' ? ' · annuel' : ''}
+              ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
             </div>
           )}
         </Field>

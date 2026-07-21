@@ -7,8 +7,8 @@ import { uid } from '../../../../shared/store';
 import { usePaymentMethods } from '../../../../shared/finance';
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans,
-  subCycleAmountXof, subMonthlyXof, subPaid, annualPriceXof,
-  type Plan, type Subscriber, type Payment,
+  subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
+  type Plan, type Subscriber, type Payment, type SubCycle,
 } from './data';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
@@ -17,7 +17,8 @@ import './equipe.css';
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string };
-type SubForm = { clientId: string; planId: string; slot: string; cycle: 'mensuel' | 'annuel' };
+type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle };
+const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const addDaysISO = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
@@ -31,7 +32,7 @@ export default function Abonnements() {
   const [subs, setSubs] = useSubscribers();
   const clients = useBranchClients();
   const [tab, setTab] = useState<Tab>('moteur');
-  const [cycle, setCycle] = useState<'mensuel' | 'annuel'>('mensuel');
+  const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '' });
@@ -88,7 +89,7 @@ export default function Abonnements() {
       id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
       cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
-      nextIso: addDaysISO(cycle === 'annuel' ? 365 : 30),
+      nextIso: addDaysISO(cycleDays(cycle)),
       sinceIso: todayISO(), since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
     };
     setSubs((prev) => [...prev, nm]);
@@ -113,7 +114,7 @@ export default function Abonnements() {
        avance ne raccourcit plus le cycle, payer un peu en retard ne le décale plus.
        Très en retard (la nouvelle échéance serait déjà passée) : on repart
        d'aujourd'hui plutôt que de créer une échéance déjà échue. */
-    const days = cycle === 'annuel' ? 365 : 30;
+    const days = cycleDays(cycle);
     const base = /^\d{4}-\d{2}-\d{2}$/.test(payFor.nextIso) ? payFor.nextIso : todayISO();
     let next = addDaysFromISO(base, days);
     if (next <= todayISO()) next = addDaysISO(days);
@@ -247,7 +248,7 @@ export default function Abonnements() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Button size="sm" onClick={openPlanNew}>+ Nouvelle formule</Button>
               <div style={{ display: 'flex', background: 'var(--hover-veil)', borderRadius: 999, padding: 3 }}>
-                {(['mensuel', 'annuel'] as const).map((c) => (
+                {CYCLES.map((c) => (
                   <button
                     key={c}
                     className="tre-chip"
@@ -258,7 +259,7 @@ export default function Abonnements() {
                     }}
                     onClick={() => setCycle(c)}
                   >
-                    {c === 'mensuel' ? 'Mensuel' : 'Annuel · 2 mois offerts'}
+                    {cycleLabel(c)}
                   </button>
                 ))}
               </div>
@@ -267,8 +268,9 @@ export default function Abonnements() {
 
           <div className="tr-grid tr-grid--3" style={{ alignItems: 'start', marginTop: 8 }}>
             {plans.map((p) => {
-              const annual = cycle === 'annuel';
-              const price = annual ? p.priceXof * 10 : p.priceXof;
+              const price = subCycleAmountXof(p.priceXof, cycle);
+              const period = cycle === 'annuel' ? '/an' : cycle === 'semestriel' ? '/6 mois' : '/mois';
+              const offered = cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '';
               return (
                 <Card key={p.id} className={`tre-plan ${p.popular ? 'tre-plan--popular' : ''}`}>
                   {p.popular
@@ -278,10 +280,10 @@ export default function Abonnements() {
                   <div className="tre-plan__line">{p.line}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
                     <span className="tre-plan__price">{fmtMoney(price, currency)}</span>
-                    <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{annual ? '/an' : '/mois'}</span>
+                    <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{period}</span>
                   </div>
                   <div style={{ fontSize: 11, minHeight: 16, color: p.popular ? 'var(--copper-300)' : 'var(--copper-700)' }}>
-                    {annual ? `soit ${fmtMoney(Math.round((p.priceXof * 10) / 12), currency)}/mois · 2 mois offerts` : ''}
+                    {offered ? `soit ${fmtMoney(subMonthlyXof(p.priceXof, cycle), currency)}/mois · ${offered}` : ''}
                   </div>
                   <div className="tre-plan__divider" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -339,7 +341,7 @@ export default function Abonnements() {
                       </td>
                       <td data-label="Formule">
                         <Pill tone={plan?.popular ? 'copper' : 'muted'}>{plan?.name ?? '—'}</Pill>
-                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>{m.cycle === 'annuel' ? 'Annuel' : 'Mensuel'}</div>
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>{cycleLabel(m.cycle ?? 'mensuel').split(' · ')[0]}</div>
                       </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
                       <td data-label="Prochaine échéance">
@@ -413,23 +415,23 @@ export default function Abonnements() {
               </Select>
             </Field>
             <Field label="Cycle de facturation">
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(['mensuel', 'annuel'] as const).map((c) => (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {CYCLES.map((c) => (
                   <button
                     key={c}
                     type="button"
                     className={`tre-chip ${subForm.cycle === c ? 'is-on' : ''}`}
                     onClick={() => setSubForm({ ...subForm, cycle: c })}
                   >
-                    {c === 'mensuel' ? 'Mensuel' : 'Annuel · 2 mois offerts'}
+                    {cycleLabel(c)}
                   </button>
                 ))}
               </div>
               {planOf(subForm.planId) && (
                 <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
-                  {subForm.cycle === 'annuel'
-                    ? `${fmtMoney(annualPriceXof(planOf(subForm.planId)!.priceXof), currency)} / an — soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, 'annuel'), currency)} / mois`
-                    : `${fmtMoney(planOf(subForm.planId)!.priceXof, currency)} / mois`}
+                  {subForm.cycle === 'mensuel'
+                    ? `${fmtMoney(planOf(subForm.planId)!.priceXof, currency)} / mois`
+                    : `${fmtMoney(subCycleAmountXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / ${subForm.cycle === 'annuel' ? 'an' : '6 mois'} — soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / mois`}
                 </div>
               )}
             </Field>
@@ -448,7 +450,7 @@ export default function Abonnements() {
         <Modal title={`Règlement · ${payFor.name}`} onClose={() => setPayFor(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-              {planOf(payFor.planId)?.name ?? '—'} · {payFor.cycle === 'annuel' ? 'annuel' : 'mensuel'}
+              {planOf(payFor.planId)?.name ?? '—'} · {cycleLabel(payFor.cycle ?? 'mensuel').split(' · ')[0].toLowerCase()}
               {planOf(payFor.planId) ? ` · échéance ${fmtMoney(subCycleAmountXof(planOf(payFor.planId)!.priceXof, payFor.cycle ?? 'mensuel'), currency)}` : ''}
             </div>
             <div className="tr-grid tr-grid--2">

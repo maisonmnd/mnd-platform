@@ -240,7 +240,7 @@ export type Subscriber = {
   clientId?: string; // lien vers la fiche cliente — pour distinguer l'abonnée partout
   name: string;
   planId: string;
-  cycle?: 'mensuel' | 'annuel'; // défaut mensuel ; l'annuel facture 10 mois (2 offerts)
+  cycle?: SubCycle; // défaut mensuel ; semestriel facture 5 mois (1 offert), annuel 10 mois (2 offerts)
   slot: string; // « Jeu · 14h00 · Yéman »
   nextIso: string; // prochaine échéance
   /** Date d'inscription (ISO) — l'ancienneté S'AFFICHE calculée depuis cette date.
@@ -260,14 +260,30 @@ export const SUBSCRIBERS_SEED: Subscriber[] = [];
 export const subscribersStore = createStore<Subscriber[]>('mnd_abo_members', SUBSCRIBERS_SEED);
 export const useSubscribers = () => useStore(subscribersStore);
 
+/** Cycles de facturation d'un abonnement (règles Maison ci-dessous). */
+export type SubCycle = 'mensuel' | 'semestriel' | 'annuel';
+
+/** Nombre de MOIS facturés pour un cycle (le reste est offert) :
+    mensuel = 1 · semestriel = 5 payés sur 6 (1 offert) · annuel = 10 sur 12 (2 offerts). */
+const CYCLE_MONTHS_PAID: Record<SubCycle, number> = { mensuel: 1, semestriel: 5, annuel: 10 };
+/** Durée d'un cycle en mois — sert au MRR normalisé. */
+const CYCLE_MONTHS_SPAN: Record<SubCycle, number> = { mensuel: 1, semestriel: 6, annuel: 12 };
+/** Durée d'un cycle en jours — sert aux échéances. */
+export const cycleDays = (cycle: SubCycle): number => (cycle === 'annuel' ? 365 : cycle === 'semestriel' ? 180 : 30);
+/** Libellé lisible d'un cycle, mois offerts compris. */
+export const cycleLabel = (cycle: SubCycle): string =>
+  cycle === 'annuel' ? 'Annuel · 2 mois offerts' : cycle === 'semestriel' ? 'Semestriel · 1 mois offert' : 'Mensuel';
+
 /** Prix annuel d'une formule : 10 mois payés, 2 mois offerts (règle Maison). */
-export const annualPriceXof = (monthlyXof: number) => monthlyXof * 10;
+export const annualPriceXof = (monthlyXof: number) => monthlyXof * CYCLE_MONTHS_PAID.annuel;
+/** Prix semestriel : 5 mois payés, 1 mois offert (règle Maison). */
+export const semestrielPriceXof = (monthlyXof: number) => monthlyXof * CYCLE_MONTHS_PAID.semestriel;
 /** Montant réellement facturé pour un cycle donné. */
-export const subCycleAmountXof = (monthlyXof: number, cycle: 'mensuel' | 'annuel') =>
-  cycle === 'annuel' ? annualPriceXof(monthlyXof) : monthlyXof;
+export const subCycleAmountXof = (monthlyXof: number, cycle: SubCycle) =>
+  monthlyXof * CYCLE_MONTHS_PAID[cycle];
 /** Contribution NORMALISÉE (mensuelle) au MRR selon le cycle. */
-export const subMonthlyXof = (monthlyXof: number, cycle: 'mensuel' | 'annuel') =>
-  cycle === 'annuel' ? Math.round(annualPriceXof(monthlyXof) / 12) : monthlyXof;
+export const subMonthlyXof = (monthlyXof: number, cycle: SubCycle) =>
+  cycle === 'mensuel' ? monthlyXof : Math.round((monthlyXof * CYCLE_MONTHS_PAID[cycle]) / CYCLE_MONTHS_SPAN[cycle]);
 /** L'abonnement actif d'une cliente (le 1er non résilié), ou undefined. */
 export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscriber | undefined =>
   subs.find((s) => s.clientId === clientId && s.status !== 'churn');

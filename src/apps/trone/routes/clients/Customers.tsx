@@ -707,7 +707,7 @@ function Customer360({
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
             {membership && (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-                ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle === 'annuel' ? 'annuel' : 'mensuel'}
+                ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle ?? 'mensuel'}
               </div>
             )}
             <div className="trc-cover-acts">
