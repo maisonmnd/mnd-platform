@@ -9,6 +9,17 @@
 -- virement bancaire, matérialisé par un mouvement kind='virement'.
 -- ═══════════════════════════════════════════════════════════════════
 
+-- 0) Fonction de déclencheur — créée ici pour rendre le script AUTONOME. Si elle
+--    manquait, le `create trigger` plus bas échouait et TOUTE la transaction (y
+--    compris la création de table) était annulée. `create or replace` est sûr si
+--    elle existe déjà (même corps).
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end $$;
+
 -- 1) Table collection standard (même contrat que tips / salary_advances).
 create table if not exists public.coffre_movements (
   id text primary key,
