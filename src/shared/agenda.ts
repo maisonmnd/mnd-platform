@@ -45,6 +45,10 @@ export type Appointment = {
   pointsAwarded?: boolean;
   /** Numéro de la facture émise à l'encaissement du RDV. */
   invoiceId?: string;
+  /** Rituel COUVERT par l'abonnement de la cliente : rien à facturer (prix 0) et
+      décompté de son allocation du cycle (voir `subServiceUsage`, equipe/data.ts).
+      Ne jamais compter un RDV couvert dans le chiffre d'affaires. */
+  coveredBySub?: boolean;
 };
 
 /** Date ISO à J+offset (calculée au chargement — le carnet suit le présent). */

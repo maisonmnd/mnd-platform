@@ -8,7 +8,7 @@ import { appointmentsStore, useAppointments, type Appointment } from '../../../.
 import { useServices, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
-import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
+import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -304,9 +304,23 @@ export function RdvModal({
   /* Abonnement actif de la cliente — pour la distinguer à la prise de rendez-vous. */
   const membership = clientId ? activeSubscriberOf(subs, clientId) : undefined;
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
+  /* Couverture par l'abonnement : rituel « inclus » (prix 0, décompté du quota). */
+  const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
+
+  /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
+     allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
+     `remaining === null` = illimité. La couverture n'est proposée que s'il reste au
+     moins une allocation (ou si ce RDV était déjà couvert). */
+  const coverageRows = (membership && membershipPlan)
+    ? chosen
+        .filter((sv) => membershipPlan.included?.some((i) => i.serviceId === sv.id))
+        .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, branchAppts, appt?.id) }))
+    : [];
+  const canCover = coverageRows.length > 0 && (coverageRows.some((r) => r.remaining === null || (r.remaining ?? 0) > 0) || !!appt?.coveredBySub);
+  const effCovered = covered && canCover;
   /* LE PRIX D'ORIGINE FAIT FOI. Un rituel au prix figé (facturé à CE prix-là —
      ancien ERP ou encaissement passé) GARDE son prix quand on le modifie : le
      catalogue vit, l'histoire non. Le prix ne se recalcule au catalogue du jour
@@ -326,8 +340,9 @@ export function RdvModal({
   /* Information « prix d'origine ≠ catalogue » — ne vaut que pour les prix FIXES. */
   const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossCatalogue);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
-     `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé. */
-  const totalXof = Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
+     `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé.
+     Rituel couvert par l'abonnement → rien à facturer (0). */
+  const totalXof = effCovered ? 0 : Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
   /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
      CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
   const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
@@ -368,13 +383,18 @@ export function RdvModal({
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
-                discountPct: discountPct || undefined, discountXof: discountXof || undefined,
+                /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
+                   remise ni acompte, décompté du quota du cycle. */
+                coveredBySub: effCovered ? true : undefined,
+                discountPct: effCovered ? undefined : (discountPct || undefined),
+                discountXof: effCovered ? undefined : (discountXof || undefined),
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au catalogue du jour (l'ancien
                    prix ne décrit plus ce rituel). Variable/devis : on GÈLE le
                    montant convenu. */
-                priceXof: needsAmount ? (amountNum || grossCatalogue) : keepFrozen ? frozenXof : undefined,
-                depositServiceIds, depositXof }
+                priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossCatalogue) : keepFrozen ? frozenXof : undefined,
+                depositServiceIds: effCovered ? [] : depositServiceIds,
+                depositXof: effCovered ? 0 : depositXof }
             : x,
         ),
       );
@@ -390,12 +410,13 @@ export function RdvModal({
         status: chosenStatus,
         source: 'trone',
         note: note.trim() || undefined,
-        discountPct: discountPct || undefined,
-        discountXof: discountXof || undefined,
-        /* Variable/devis : on gèle le montant convenu comme prix du rendez-vous. */
-        priceXof: needsAmount ? (amountNum || grossCatalogue) : undefined,
-        depositServiceIds,
-        depositXof,
+        coveredBySub: effCovered || undefined,
+        discountPct: effCovered ? undefined : (discountPct || undefined),
+        discountXof: effCovered ? undefined : (discountXof || undefined),
+        /* Couvert par l'abonnement → prix 0 ; sinon variable/devis gèle le montant convenu. */
+        priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossCatalogue) : undefined,
+        depositServiceIds: effCovered ? [] : depositServiceIds,
+        depositXof: effCovered ? 0 : depositXof,
       };
       appointmentsStore.set((prev) => [...prev, created]);
     }
@@ -484,6 +505,40 @@ export function RdvModal({
           </div>
         </div>
 
+        {coverageRows.length > 0 && (
+          <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: canCover ? 'pointer' : 'default' }}>
+              <input
+                type="checkbox"
+                checked={effCovered}
+                disabled={!canCover}
+                onChange={(e) => setCovered(e.target.checked)}
+                style={{ marginTop: 2, flex: 'none' }}
+              />
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)' }}>
+                  Inclus dans l’abonnement — ne rien facturer
+                </span>
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
+                  {coverageRows.map((r) => {
+                    const label = r.remaining === null
+                      ? 'illimité'
+                      : (r.remaining ?? 0) > 0
+                        ? `reste ${r.remaining} ce cycle`
+                        : 'allocation épuisée';
+                    return `${r.sv.name} · ${label}`;
+                  }).join(' — ')}
+                </span>
+                {!canCover && (
+                  <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
+                    Plus d’allocation sur le cycle en cours — le rituel sera facturé normalement.
+                  </span>
+                )}
+              </span>
+            </label>
+          </div>
+        )}
+
         <div className="tr-grid tr-grid--2">
           <Field label="Date">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -536,7 +591,7 @@ export function RdvModal({
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
         </Field>
 
-        {needsAmount && (
+        {needsAmount && !effCovered && (
           <Field label="Montant du rituel (F CFA)">
             <input
               className="mnd-input"
@@ -555,7 +610,10 @@ export function RdvModal({
           </Field>
         )}
 
-        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier). */}
+        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
+            Masquée quand le rituel est couvert par l'abonnement (rien à facturer). */}
+        {!effCovered && (
+        <>
         <Field label="Remise sur le rituel (%)">
           <div style={{ display: 'flex', gap: 6 }}>
             {[0, 5, 10, 15, 20].map((p) => (
@@ -594,6 +652,8 @@ export function RdvModal({
             aria-label={`Remise manuelle en ${currency}`}
           />
         </Field>
+        </>
+        )}
 
         {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
             le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
@@ -613,6 +673,13 @@ export function RdvModal({
         )}
 
         <div className="trc-total">
+          {effCovered ? (
+            <div className="trc-total__row">
+              <span>Inclus dans l’abonnement</span>
+              <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>Rien à facturer</span>
+            </div>
+          ) : (
+          <>
           {(discountPct > 0 || discountXof > 0) && (
             <div className="trc-total__row">
               <span>
@@ -627,6 +694,8 @@ export function RdvModal({
             <span>Total prestations</span>
             <span className="trc-total__num">{fmtMoney(totalXof, currency)}</span>
           </div>
+          </>
+          )}
           {hasDeposit && (
             <div className="trc-total__row">
               <span>

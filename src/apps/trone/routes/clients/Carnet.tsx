@@ -112,7 +112,15 @@ export default function Carnet() {
           <SourceBadge source={a.source} />
         </span>
         <span className="trc-carnet__amount" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {a.seriesIndex && a.seriesIndex > 1 ? (
+          {a.coveredBySub ? (
+            <span
+              className="trc-serie-chip"
+              style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+              title="Rituel couvert par l’abonnement — rien à facturer, décompté du quota du cycle"
+            >
+              ★ Inclus · abonnement
+            </span>
+          ) : a.seriesIndex && a.seriesIndex > 1 ? (
             <span className="trc-serie-incluse">
               Séance {a.seriesIndex}/{a.seriesTotal ?? a.seriesIndex} · incluse
             </span>

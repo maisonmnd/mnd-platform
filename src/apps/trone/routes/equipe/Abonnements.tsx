@@ -8,15 +8,18 @@ import { usePaymentMethods } from '../../../../shared/finance';
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  type Plan, type Subscriber, type Payment, type SubCycle,
+  subServiceUsage, cycleWindow,
+  type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded,
 } from './data';
+import { useServices } from '../../../../shared/catalog';
+import { useAppointments } from '../../../../shared/agenda';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-type PlanForm = { name: string; tag: string; price: string; line: string; perks: string };
+type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[] };
 type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
@@ -35,7 +38,11 @@ export default function Abonnements() {
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '' });
+  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [] });
+  const [services] = useServices();
+  const [allAppts] = useAppointments();
+  const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
+  const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
   const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' });
   const [methods] = usePaymentMethods();
@@ -60,25 +67,36 @@ export default function Abonnements() {
 
   const openPlanNew = () => {
     setPlanEditId(null);
-    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '' });
+    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [] });
     setPlanModal(true);
   };
   const openPlanEdit = (p: Plan) => {
     setPlanEditId(p.id);
-    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · ') });
+    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [] });
     setPlanModal(true);
   };
   const savePlan = () => {
     const priceXof = parseInt(planForm.price, 10) || 0;
     if (!planForm.name.trim() || priceXof <= 0) return;
     const perks = planForm.perks.split('·').map((s) => s.trim()).filter(Boolean);
+    const included = planForm.included.filter((i) => i.serviceId);
     if (planEditId) {
-      setPlans((prev) => prev.map((p) => (p.id === planEditId ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks } : p)));
+      setPlans((prev) => prev.map((p) => (p.id === planEditId ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included } : p)));
     } else {
-      setPlans((prev) => [...prev, { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: false }]);
+      setPlans((prev) => [...prev, { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: false, included }]);
     }
     setPlanModal(false);
   };
+
+  /* Prestations incluses — édition dans le formulaire de formule. */
+  const addIncluded = (serviceId: string) => {
+    if (!serviceId || planForm.included.some((i) => i.serviceId === serviceId)) return;
+    setPlanForm((f) => ({ ...f, included: [...f.included, { serviceId, qty: 1 }] }));
+  };
+  const setIncludedQty = (serviceId: string, qty: number | null) =>
+    setPlanForm((f) => ({ ...f, included: f.included.map((i) => (i.serviceId === serviceId ? { ...i, qty } : i)) }));
+  const removeIncluded = (serviceId: string) =>
+    setPlanForm((f) => ({ ...f, included: f.included.filter((i) => i.serviceId !== serviceId) }));
 
   const saveSub = () => {
     const plan = planOf(subForm.planId);
@@ -341,7 +359,10 @@ export default function Abonnements() {
                       </td>
                       <td data-label="Formule">
                         <Pill tone={plan?.popular ? 'copper' : 'muted'}>{plan?.name ?? '—'}</Pill>
-                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>{cycleLabel(m.cycle ?? 'mensuel').split(' · ')[0]}</div>
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>
+                          {cycleLabel(m.cycle ?? 'mensuel').split(' · ')[0]}
+                          {(plan?.included?.length ?? 0) > 0 ? ` · ${plan!.included!.length} prestation${plan!.included!.length > 1 ? 's' : ''} incluse${plan!.included!.length > 1 ? 's' : ''}` : ''}
+                        </div>
                       </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
                       <td data-label="Prochaine échéance">
@@ -351,6 +372,9 @@ export default function Abonnements() {
                       </td>
                       <td className="num" data-label="MRR" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {(plan?.included?.length ?? 0) > 0 && (
+                          <button className="tre-link-btn" style={{ marginRight: 10 }} onClick={() => setSuiviFor(m)}>Suivi</button>
+                        )}
                         <button className="tre-link-btn" onClick={() => openPay(m)}>Régler</button>
                         <button
                           className="tre-link-btn tre-link-btn--danger"
@@ -393,6 +417,57 @@ export default function Abonnements() {
             <Field label="Avantages · séparés par ·">
               <Textarea rows={3} value={planForm.perks} placeholder="1 resserrage / mois · Créneau réservé · −10 % Care & Store" onChange={(e) => setPlanForm({ ...planForm, perks: e.target.value })} />
             </Field>
+
+            <Field label="Prestations incluses · suivi de consommation">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {planForm.included.length === 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+                    Aucune prestation liée. Ajoutez-en pour que l’abonnée puisse la consommer sans payer, avec un suivi par cycle.
+                  </div>
+                )}
+                {planForm.included.map((i) => {
+                  const unlimited = i.qty === null;
+                  return (
+                    <div key={i.serviceId} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 10px', background: 'var(--surface-card)' }}>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{serviceName(i.serviceId)}</span>
+                      <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>par {cycleLabel(cycle).split(' · ')[0].toLowerCase()}</span>
+                      <Input
+                        inputMode="numeric"
+                        value={unlimited ? '' : String(i.qty)}
+                        placeholder="∞"
+                        disabled={unlimited}
+                        onChange={(e) => setIncludedQty(i.serviceId, Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1))}
+                        style={{ width: 64, textAlign: 'center', flex: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        className={`tre-chip ${unlimited ? 'is-on' : ''}`}
+                        onClick={() => setIncludedQty(i.serviceId, unlimited ? 1 : null)}
+                        title="Illimité sur le cycle"
+                        style={{ flex: 'none' }}
+                      >
+                        ∞ illimité
+                      </button>
+                      <button onClick={() => removeIncluded(i.serviceId)} aria-label="Retirer" style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13, flex: 'none' }}>✕</button>
+                    </div>
+                  );
+                })}
+                <Select
+                  value=""
+                  onChange={(e) => { addIncluded(e.target.value); e.currentTarget.value = ''; }}
+                  style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
+                >
+                  <option value="" disabled>+ Ajouter une prestation du catalogue…</option>
+                  {services
+                    .filter((s) => !planForm.included.some((i) => i.serviceId === s.id))
+                    .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </Select>
+                <div className="mnd-muted" style={{ fontSize: 10.5 }}>
+                  Le compteur de consommation se lit sur le cycle en cours et se remet à zéro à chaque échéance.
+                </div>
+              </div>
+            </Field>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPlanModal(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={savePlan} disabled={!planForm.name.trim() || !planForm.price}>
@@ -402,6 +477,52 @@ export default function Abonnements() {
           </div>
         </Modal>
       )}
+
+      {suiviFor && (() => {
+        const plan = planOf(suiviFor.planId);
+        const usage = subServiceUsage(suiviFor, plan, allAppts);
+        const { start, end } = cycleWindow(suiviFor);
+        return (
+          <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={520}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+                {plan?.name ?? '—'} · cycle en cours du {shortDate(start)} au {shortDate(end)} — le compteur repart à l’échéance.
+              </div>
+              {usage.length === 0 && (
+                <div className="mnd-muted" style={{ fontSize: 12.5 }}>Cette formule n’inclut aucune prestation à suivre.</div>
+              )}
+              {usage.map((u) => {
+                const unlimited = u.qty === null;
+                const pct = unlimited ? 0 : Math.min(100, Math.round((u.used / Math.max(1, u.qty!)) * 100));
+                const exhausted = !unlimited && (u.remaining ?? 0) <= 0;
+                return (
+                  <div key={u.serviceId} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px', background: 'var(--surface-card)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontSize: 14, color: 'var(--color-indigo)' }}>{serviceName(u.serviceId)}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: exhausted ? '#8f3b30' : 'var(--copper-700)' }}>
+                        {unlimited ? `${u.used} · illimité` : `${u.used} / ${u.qty} utilisée${u.qty! > 1 ? 's' : ''}`}
+                      </span>
+                    </div>
+                    {!unlimited && (
+                      <>
+                        <div className="tre-bar" style={{ marginTop: 8, height: 6, background: 'var(--hover-veil)', borderRadius: 999, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: exhausted ? '#8f3b30' : 'var(--color-copper)' }} />
+                        </div>
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                          {exhausted ? 'Allocation épuisée pour ce cycle' : `Reste ${u.remaining} sur ce cycle`}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ display: 'flex', marginTop: 4 }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setSuiviFor(null)}>Fermer</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {subModal && (
         <Modal title="Nouvel abonné." onClose={() => setSubModal(false)} width={520}>

@@ -1,5 +1,6 @@
 import { createStore, useStore } from '../../../../shared/store';
 import type { PaymentMethod } from '../../../../shared/finance';
+import type { Appointment } from '../../../../shared/agenda';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -186,6 +187,10 @@ export {
    4 · Abonnements
    ============================================================ */
 
+/** Une prestation du catalogue INCLUSE dans une formule, avec son quota par cycle.
+    `qty === null` = illimité (« Rituels illimités »). */
+export type PlanIncluded = { serviceId: string; qty: number | null };
+
 export type Plan = {
   id: string;
   name: string;
@@ -194,6 +199,9 @@ export type Plan = {
   line: string; // la promesse
   perks: string[];
   popular: boolean;
+  /** Prestations du catalogue incluses dans la formule (sélection + quota/cycle).
+      Le suivi de consommation se calcule depuis les RDV couverts (coveredBySub). */
+  included?: PlanIncluded[];
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
@@ -289,6 +297,58 @@ export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscr
   subs.find((s) => s.clientId === clientId && s.status !== 'churn');
 /** Somme réglée par l'abonnée (tous règlements confondus). */
 export const subPaid = (s: Subscriber) => (s.payments ?? []).reduce((a, p) => a + p.amountXof, 0);
+
+/* ---------- Prestations incluses — sélection & SUIVI de consommation ---------- */
+
+const isoRe = /^\d{4}-\d{2}-\d{2}$/;
+const todayIsoLocal = () => new Date().toISOString().slice(0, 10);
+/** J±`days` depuis une date ISO (midi local — insensible aux fuseaux). */
+export const addDaysFromISO = (iso: string, days: number) =>
+  new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86400000).toISOString().slice(0, 10);
+
+/** Fenêtre [début, fin) du cycle EN COURS d'un abonné : la fenêtre se termine à
+    l'échéance à venir (`nextIso`) et remonte d'une durée de cycle. Le suivi de
+    consommation se lit dans cette fenêtre — il se remet donc à zéro à chaque
+    nouveau cycle, sans écriture ni compteur à synchroniser. */
+export const cycleWindow = (sub: Subscriber): { start: string; end: string } => {
+  const cycle = sub.cycle ?? 'mensuel';
+  const end = isoRe.test(sub.nextIso) ? sub.nextIso : addDaysFromISO(todayIsoLocal(), cycleDays(cycle));
+  return { start: addDaysFromISO(end, -cycleDays(cycle)), end };
+};
+
+/** Consommation d'une prestation incluse : une ligne par prestation de la formule.
+    « Utilisée » = RDV COUVERT (coveredBySub), non annulé, daté dans la fenêtre du
+    cycle en cours et portant cette prestation. `remaining === null` = illimité. */
+export type IncludedUsage = { serviceId: string; qty: number | null; used: number; remaining: number | null };
+export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] => {
+  const inc = plan?.included ?? [];
+  if (inc.length === 0) return [];
+  const { start, end } = cycleWindow(sub);
+  const mine = appts.filter(
+    (a) => a.clientId === sub.clientId && a.coveredBySub && a.status !== 'annulé' && a.date >= start && a.date < end,
+  );
+  return inc.map((i) => {
+    const used = mine.filter((a) => a.serviceIds.includes(i.serviceId)).length;
+    return { serviceId: i.serviceId, qty: i.qty, used, remaining: i.qty === null ? null : Math.max(0, i.qty - used) };
+  });
+};
+
+/** Allocation RESTANTE pour couvrir CE service sur le cycle en cours :
+    `undefined` = pas inclus dans la formule · `null` = illimité · nombre = reste.
+    `excludeApptId` exclut le RDV en cours d'édition de son propre décompte. */
+export const coveredRemaining = (
+  sub: Subscriber, plan: Plan | undefined, serviceId: string, appts: Appointment[], excludeApptId?: string,
+): number | null | undefined => {
+  const i = plan?.included?.find((x) => x.serviceId === serviceId);
+  if (!i) return undefined;
+  if (i.qty === null) return null;
+  const { start, end } = cycleWindow(sub);
+  const used = appts.filter(
+    (a) => a.id !== excludeApptId && a.clientId === sub.clientId && a.coveredBySub && a.status !== 'annulé'
+      && a.serviceIds.includes(serviceId) && a.date >= start && a.date < end,
+  ).length;
+  return Math.max(0, i.qty - used);
+};
 
 /* ============================================================
    5 · Recommandations IA — état des décisions
