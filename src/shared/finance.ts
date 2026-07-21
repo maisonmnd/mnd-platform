@@ -188,10 +188,36 @@ export const useCashboxes = () => useStore(cashboxesStore);
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
 export const usePaymentMethods = () => useStore(paymentMethodsStore);
 
+/* ---------- Coffre-fort — épargne verrouillée ----------
+   Registre d'épargne SÉPARÉ : on y met de côté une part du chiffre DÉJÀ gagné.
+   Il n'entre PAS dans le chiffre d'affaires ni dans les dépenses (aucun écran de
+   finances ne le compte). Aucune dépense possible depuis le coffre : la SEULE
+   sortie autorisée est un virement vers la banque. Money = collection (une ligne
+   par mouvement, jamais un document LWW) pour ne jamais perdre un dépôt. */
+export type CoffreMovement = {
+  id: string;
+  branchId: string;
+  kind: 'depot' | 'virement'; // dépôt (entrée) · virement bancaire (SEULE sortie)
+  amountXof: number; // toujours positif ; le sens vient de `kind`
+  date: string; // ISO AAAA-MM-JJ
+  clientId?: string; // dépôt attribué à une cliente (source du revenu mis de côté)
+  clientName?: string;
+  bank?: string; // virement : banque / compte destinataire
+  note?: string;
+};
+/** Montant signé d'un mouvement : + pour un dépôt, − pour un virement sortant. */
+export const coffreSignedXof = (m: CoffreMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);
+/** Solde courant du coffre = somme des dépôts − somme des virements. Jamais négatif. */
+export const coffreBalance = (moves: CoffreMovement[]): number => Math.max(0, moves.reduce((s, m) => s + coffreSignedXof(m), 0));
+
+export const coffreStore = createStore<CoffreMovement[]>('mnd_coffre', []);
+export const useCoffre = () => useStore(coffreStore);
+
 import { bindCollection, bindDocument } from './sync';
 bindCollection(invoicesStore, 'invoices');
 bindCollection(expensesStore, 'expenses');
 bindCollection(budgetsStore, 'budgets');
 bindCollection(cashboxesStore, 'cashboxes');
 bindCollection(expenseCategoriesStore, 'expense_categories');
+bindCollection(coffreStore, 'coffre_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');

@@ -577,3 +577,129 @@
   border-color: var(--color-copper);
   transform: translateY(-1px);
 }
+
+/* ---------- Coffre-fort ---------- */
+.trf-coffre-hero {
+  background: var(--grad-indigo, var(--color-indigo));
+  color: var(--color-ivoire);
+  border: none;
+}
+.trf-coffre-hero__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--indigo-100, rgba(246, 241, 231, 0.7));
+}
+.trf-coffre-hero__value {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: clamp(38px, 6vw, 56px);
+  line-height: 1.05;
+  color: var(--copper-300);
+  margin: 6px 0 10px;
+}
+.trf-coffre-hero__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: rgba(246, 241, 231, 0.72);
+  border: 1px solid rgba(246, 241, 231, 0.18);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+}
+.trf-coffre-hero__lockdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-copper);
+  flex: none;
+}
+
+.trf-coffre-chart { margin-top: 18px; }
+.trf-coffre-chart svg { width: 100%; height: 170px; display: block; }
+.trf-coffre-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(246, 241, 231, 0.55);
+  margin-top: 4px;
+}
+.trf-coffre-chart--empty {
+  margin-top: 18px;
+  padding: 26px 18px;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(246, 241, 231, 0.6);
+  border: 1px dashed rgba(246, 241, 231, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.trf-coffre-ledger__head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trf-coffre-ledger { display: flex; flex-direction: column; }
+.trf-coffre-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.trf-coffre-row:last-child { border-bottom: none; }
+.trf-coffre-row__icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.trf-coffre-row__icon--depot { background: var(--copper-50); color: var(--copper-700); }
+.trf-coffre-row__icon--virement { background: rgba(30, 33, 80, 0.08); color: var(--color-indigo); }
+.trf-coffre-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trf-coffre-row__title {
+  font-size: 13.5px;
+  color: var(--color-indigo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trf-coffre-row__meta { font-size: 11px; color: var(--ink-soft); }
+.trf-coffre-row__amount { font-family: var(--font-serif); font-size: 16px; flex: none; }
+.trf-coffre-row__amount--depot { color: var(--copper-700); }
+.trf-coffre-row__amount--virement { color: var(--ink-soft); }
+.trf-coffre-row__del {
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.trf-coffre-row__del:hover { opacity: 1; color: #8f3b30; }
+
+.trf-coffre-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--copper-300);
+  border-left: 3px solid var(--color-copper);
+  border-radius: var(--radius-md);
+  background: var(--copper-50);
+  padding: 12px 14px;
+}
+.trf-coffre-suggest__rev { font-size: 12.5px; color: var(--color-indigo); }
+.trf-coffre-suggest__chips { display: flex; flex-wrap: wrap; gap: 7px; }
