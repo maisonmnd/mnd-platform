@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
@@ -7,7 +7,7 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useNavigate } from 'react-router-dom';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
-  cashboxCurrency,
+  cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
@@ -62,6 +62,18 @@ export default function Depenses() {
   const [expDrill, setExpDrill] = useState<{ title: string; sub: string; rows: Expense[] } | null>(null);
   const openExp = (title: string, sub: string, rows: Expense[]) => setExpDrill({ title, sub, rows });
   const navigate = useNavigate();
+
+  /* Nomenclature de secours : liste des catégories VIDE (table serveur vidée ou
+     hydratée à vide) → on repose les 8 catégories par défaut. Sans elles, ni
+     dépense ni enveloppe budgétaire ne peuvent être qualifiées — la modale
+     Budget s'ouvrait sur un choix vide et son bouton ne pouvait rien créer.
+     Seed-if-empty : des lignes serveur arrivées plus tard reprennent la main. */
+  useEffect(() => {
+    if (categories.length === 0) {
+      setCategories(EXPENSE_CATEGORIES_SEED.map((c) => ({ ...c, subs: [...c.subs] })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.length]);
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
@@ -275,9 +287,13 @@ export default function Depenses() {
   };
 
   // — Catégories : ajouter / renommer / supprimer, avec réétiquetage des dépenses —
-  const addCategory = () => {
+  const addCategory = (): string | null => {
     const name = window.prompt('Nom de la nouvelle catégorie de dépense');
-    if (name && name.trim() && !catNames.includes(name.trim())) setCategories((prev) => [...prev, { id: uid(), name: name.trim(), subs: [] }]);
+    if (name && name.trim() && !catNames.includes(name.trim())) {
+      setCategories((prev) => [...prev, { id: uid(), name: name.trim(), subs: [] }]);
+      return name.trim();
+    }
+    return null;
   };
   const renameCategory = (c: ExpenseCategory) => {
     const name = window.prompt('Renommer la catégorie', c.name);
@@ -1139,11 +1155,25 @@ export default function Depenses() {
       )}
 
       {/* ============ MODALE · BUDGET (enveloppe mensuelle par catégorie) ============ */}
-      {budgetOpen && (
+      {budgetOpen && (() => {
+        const budgetAmountNum = parseInt(budgetForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
+        const canSaveBudget = !!budgetForm.category && budgetAmountNum > 0;
+        return (
         <Modal title={budgetEditingId ? 'Modifier l’enveloppe' : 'Nouvelle enveloppe budgétaire'} onClose={() => setBudgetOpen(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie de dépense</div>
+              {catNames.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune catégorie de dépense — créez-en une d’abord.</span>
+                  <button
+                    className="trf-act"
+                    onClick={() => { const n = addCategory(); if (n) setBudgetForm((f) => ({ ...f, category: n })); }}
+                  >
+                    + Nouvelle catégorie
+                  </button>
+                </div>
+              ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {catNames.map((c) => {
                   const taken = branchBudgets.some((b) => b.category === c && b.id !== budgetEditingId);
@@ -1160,6 +1190,7 @@ export default function Depenses() {
                   );
                 })}
               </div>
+              )}
             </div>
             <label className="mnd-field">
               <span className="mnd-field__label">Enveloppe mensuelle · {currency}</span>
@@ -1180,12 +1211,22 @@ export default function Depenses() {
                 : <span />}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button className="mnd-btn mnd-btn--ghost" onClick={() => setBudgetOpen(false)}>Annuler</button>
-                <button className="mnd-btn" onClick={saveBudget}>{budgetEditingId ? 'Enregistrer' : 'Créer l’enveloppe'}</button>
+                {/* Jamais un bouton muet : désactivé tant qu'il manque la catégorie
+                    ou le montant, avec la raison en infobulle. */}
+                <button
+                  className="mnd-btn"
+                  disabled={!canSaveBudget}
+                  title={canSaveBudget ? undefined : !budgetForm.category ? 'Choisissez une catégorie de dépense' : 'Saisissez un montant supérieur à zéro'}
+                  onClick={saveBudget}
+                >
+                  {budgetEditingId ? 'Enregistrer' : 'Créer l’enveloppe'}
+                </button>
               </div>
             </div>
           </div>
         </Modal>
-      )}
+        );
+      })()}
 
       {expDrill && (
         <Modal title={expDrill.title} onClose={() => setExpDrill(null)} width={620}>
