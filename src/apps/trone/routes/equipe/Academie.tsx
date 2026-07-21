@@ -32,8 +32,8 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
 /* Parcours par défaut d'une nouvelle formation — « les quatre temps » du
    référentiel, désormais éditable : le défaut se lit donc au moment de la création
    (dans le composant), non plus à l'import de ce module. */
-type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[] };
-const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40' };
+type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[]; featured: boolean };
+const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40', featured: false };
 
 /* Inscription : identité + scolarité (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
@@ -122,7 +122,7 @@ export default function Academie() {
   const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: [...defaultModules] }); };
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules] });
+    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules], featured: !!f.featured });
   };
   const saveFo = () => {
     if (!foForm || !foForm.name.trim()) return;
@@ -131,9 +131,13 @@ export default function Academie() {
     const dureeSemaines = parseInt(foForm.duree, 10) || 1;
     const depositPct = Math.max(0, Math.min(100, parseInt(foForm.deposit.replace(/[^0-9]/g, ''), 10) || 0));
     const modules = foForm.modules.map((m) => m.trim()).filter(Boolean);
+    const featured = foForm.featured;
     if (foEditId) {
       const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
-      setFormations((prev) => prev.map((f) => (f.id === foEditId ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules } : f)));
+      /* Une SEULE formation vedette à la fois — l'activer retire la vedette des autres. */
+      setFormations((prev) => prev.map((f) => (f.id === foEditId
+        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured }
+        : (featured ? { ...f, featured: false } : f))));
       /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
          retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
          repart de zéro pour ce module). */
@@ -146,7 +150,10 @@ export default function Academie() {
         }));
       }
     } else {
-      setFormations((prev) => [...prev, { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules }]);
+      setFormations((prev) => [
+        ...(featured ? prev.map((f) => ({ ...f, featured: false })) : prev),
+        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured },
+      ]);
     }
     setFoForm(null);
   };
@@ -340,9 +347,11 @@ export default function Academie() {
             {activeFormations.map((f) => {
               const mods = f.modules && f.modules.length ? f.modules : [];
               return (
-                <Card key={f.id} className="tre-plan">
-                  <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{f.niveau}</div>
-                  <div className="tre-plan__name" style={{ marginTop: 8 }}>{f.name}</div>
+                <Card key={f.id} className={`tre-plan ${f.featured ? 'tre-plan--popular' : ''}`}>
+                  {f.featured
+                    ? <span className="tre-plan__tagpop">{f.niveau}</span>
+                    : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{f.niveau}</div>}
+                  <div className="tre-plan__name" style={{ marginTop: f.featured ? 6 : 8 }}>{f.name}</div>
                   <div className="tre-plan__line">
                     {f.sessions} séance{f.sessions > 1 ? 's' : ''} · {f.dureeSemaines} semaine{f.dureeSemaines > 1 ? 's' : ''} · {f.demarrage}
                   </div>
@@ -361,9 +370,9 @@ export default function Academie() {
                       : <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Parcours à détailler dans « Modifier ».</div>}
                   </div>
                   <div style={{ marginTop: 'auto', paddingTop: 20 }}>
-                    <Button size="sm" variant="ghost" style={{ width: '100%' }} onClick={() => openFoEdit(f)}>Modifier</Button>
+                    <Button size="sm" variant={f.featured ? 'copper' : 'ghost'} style={{ width: '100%' }} onClick={() => openFoEdit(f)}>Modifier</Button>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10 }}>
-                      <button className="tre-link-btn" style={{ color: 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
+                      <button className="tre-link-btn" style={{ color: f.featured ? 'var(--copper-300)' : 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
                       <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeFo(f)}>Supprimer</button>
                     </div>
                   </div>
@@ -652,6 +661,18 @@ export default function Academie() {
                 <span className="mnd-muted" style={{ fontSize: 11, fontStyle: 'italic' }}>
                   Chaque formation a ses propres étapes — l'avancement des apprenant·e·s s'y aligne.
                 </span>
+              </div>
+            </Field>
+            <Field label="Mise en avant">
+              <button
+                type="button"
+                className={`tre-chip ${foForm.featured ? 'is-on' : ''}`}
+                onClick={() => setFoForm((prev) => (prev ? { ...prev, featured: !prev.featured } : prev))}
+              >
+                {foForm.featured ? '★ Formation vedette' : '☆ Mettre en vedette'}
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                La formation vedette s’affiche sur une carte indigo mise en avant. Une seule à la fois : l’activer retire la mise en avant des autres.
               </div>
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

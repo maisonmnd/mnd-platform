@@ -472,6 +472,8 @@ export type Formation = {
   modules?: string[]; // les étapes du parcours — propres à chaque formation
   /** Pourcentage d'acompte à l'inscription (défaut 40 %). */
   depositPct?: number;
+  /** Formation VEDETTE : carte indigo mise en avant (comme la formule vedette). */
+  featured?: boolean;
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */

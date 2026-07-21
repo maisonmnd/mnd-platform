@@ -19,7 +19,7 @@ import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[] };
+type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean };
 type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
@@ -38,7 +38,7 @@ export default function Abonnements() {
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [] });
+  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false });
   const [services] = useServices();
   const [allAppts] = useAppointments();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
@@ -70,12 +70,12 @@ export default function Abonnements() {
 
   const openPlanNew = () => {
     setPlanEditId(null);
-    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [] });
+    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false });
     setPlanModal(true);
   };
   const openPlanEdit = (p: Plan) => {
     setPlanEditId(p.id);
-    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [] });
+    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular });
     setPlanModal(true);
   };
   const savePlan = () => {
@@ -83,10 +83,19 @@ export default function Abonnements() {
     if (!planForm.name.trim() || priceXof <= 0) return;
     const perks = planForm.perks.split('·').map((s) => s.trim()).filter(Boolean);
     const included = planForm.included.filter((i) => i.serviceId);
+    const featured = planForm.popular;
+    /* Une SEULE formule vedette à la fois : l'activer retire la mise en avant des
+       autres (la carte indigo perd son sens s'il y en a plusieurs). */
     if (planEditId) {
-      setPlans((prev) => prev.map((p) => (p.id === planEditId ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included } : p)));
+      setPlans((prev) => prev.map((p) =>
+        p.id === planEditId
+          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured }
+          : (featured ? { ...p, popular: false } : p)));
     } else {
-      setPlans((prev) => [...prev, { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: false, included }]);
+      setPlans((prev) => [
+        ...(featured ? prev.map((p) => ({ ...p, popular: false })) : prev),
+        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included },
+      ]);
     }
     setPlanModal(false);
   };
@@ -468,6 +477,19 @@ export default function Abonnements() {
                 <div className="mnd-muted" style={{ fontSize: 10.5 }}>
                   Le compteur de consommation se lit sur le cycle en cours et se remet à zéro à chaque échéance.
                 </div>
+              </div>
+            </Field>
+
+            <Field label="Mise en avant">
+              <button
+                type="button"
+                className={`tre-chip ${planForm.popular ? 'is-on' : ''}`}
+                onClick={() => setPlanForm({ ...planForm, popular: !planForm.popular })}
+              >
+                {planForm.popular ? '★ Formule vedette' : '☆ Mettre en vedette'}
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                La formule vedette s’affiche sur une carte indigo mise en avant. Une seule à la fois : l’activer retire la mise en avant des autres.
               </div>
             </Field>
 
