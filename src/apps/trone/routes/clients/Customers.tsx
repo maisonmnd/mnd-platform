@@ -7,6 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, ensureInitiePersona, type Client } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
+import { useProducts } from '../../../../shared/catalog';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
@@ -431,6 +432,7 @@ function Customer360({
   const { branch, currency } = useBranch();
   const navigate = useNavigate();
   const [personas] = usePersonas();
+  const [products] = useProducts();
   const [invoices] = useInvoices();
   const [pointsHistory] = usePointsHistory();
   const [sessions] = useClientSessions();
@@ -935,6 +937,14 @@ function Customer360({
                 <Select value={client.preferredMaster ?? ''} onChange={(e) => patch({ preferredMaster: e.target.value || undefined })}>
                   <option value="">—</option>
                   {branch.masters.map((m) => <option key={m} value={m}>{m}</option>)}
+                </Select>
+              </Field>
+              <Field label="Produit recommandé · son Carnet de Suivi">
+                <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>
+                  <option value="">— aucun —</option>
+                  {products.slice().sort((a, b) => a.order - b.order).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} · {fmtMoney(p.priceXof, currency)}</option>
+                  ))}
                 </Select>
               </Field>
             </div>

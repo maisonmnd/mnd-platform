@@ -173,9 +173,11 @@ export function HomeTab({
   const nextTier = ladder.find((t) => points < t.pts);
   const attained = ladder.filter((t) => t.pts <= points);
   const tierPct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
-  const crownDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
 
-  const reco = products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
+  /* Recommandation : le produit choisi par la maison sur la fiche (Carnet de
+     Suivi personnalisé) prime ; sinon repli sur la suggestion générique. */
+  const chosenReco = products.find((p) => p.id === client?.recoProductId);
+  const reco = chosenReco ?? products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
 
   /* Rituel sous 48 h : bannière discrète + une notification locale, une seule fois. */
   const soon = useMemo(() => {
@@ -242,7 +244,6 @@ export function HomeTab({
           <div className="mc-crownstatus__top">
             <div className="mc-crownstatus__id">
               <span className="mc-crownstatus__style">{client?.crownStyle ?? 'Votre couronne'}</span>
-              <span className="mc-crownstatus__day">Jour {crownDays}</span>
             </div>
             {attained.length > 0 && (
               <span className="mc-pillseal">Palier {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
@@ -331,7 +332,9 @@ export function HomeTab({
                   {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
                 </div>
                 <div className="mc-recocard__name">{reco.name}</div>
-                <div className="mc-recocard__line">Pour densifier d’ici le resserrage · {fmtMoney(reco.priceXof, currency)}</div>
+                <div className="mc-recocard__line">
+                  {chosenReco ? productMeta(chosenReco.id).line : 'Pour densifier d’ici le resserrage'} · {fmtMoney(reco.priceXof, currency)}
+                </div>
               </div>
               <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
             </div>
@@ -345,11 +348,17 @@ export function HomeTab({
 
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders }: { onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void }) {
+export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void; goGamme: () => void }) {
   const [services] = useServices();
   const client = useClient();
+  const { currency } = useBranch();
+  const { products } = useVisibleCatalog();
   const clientAppts = useClientAppointments();
   const next = useNextAppointment();
+
+  /* Le produit prescrit par la maison sur la fiche cliente — affiché seulement
+     s'il est choisi ET visible au front (catégorie active, non masqué). */
+  const reco = client?.recoProductId ? products.find((p) => p.id === client.recoProductId) : undefined;
 
   const honored = clientAppts.filter((a) => a.status === 'honoré');
   const lockDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
@@ -407,6 +416,24 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders }: { onOpenBoo
         <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">Jours de locks</div></div>
         <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">Rituels honorés</div></div>
       </div>
+
+      {/* prescription de la maison — produit choisi sur la fiche, au Trône */}
+      {reco && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>
+          <div className="mc-recocard">
+            <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
+            <div className="mc-recocard__body">
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                {client?.preferredMaster ? `Conseillé par ${client.preferredMaster}` : 'Choisi pour votre couronne'}
+              </div>
+              <div className="mc-recocard__name">{reco.name}</div>
+              <div className="mc-recocard__line">{productMeta(reco.id).line} · {fmtMoney(reco.priceXof, currency)}</div>
+            </div>
+            <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
+          </div>
+        </>
+      )}
 
       {/* timeline mèche-après-mèche */}
       <div className="mc-sectionlabel" style={{ margin: '24px 0 12px' }}>L’histoire de votre couronne</div>

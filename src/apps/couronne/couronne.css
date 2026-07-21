@@ -449,10 +449,12 @@
    ACCUEIL
    ============================================================ */
 
-.mc-homehero { position: relative; height: clamp(240px, 36vh, 330px); overflow: hidden; }
+.mc-homehero { position: relative; height: clamp(300px, 40vh, 360px); overflow: hidden; }
 .mc-homehero__photo { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
 .mc-homehero__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 2%, rgba(20, 20, 27, 0.1) 56%); }
-.mc-homehero__seal { position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 22px; width: 44px; opacity: 0.95; height: auto; }
+/* Grand sceau centré — couronne le portrait sans jamais toucher le prénom,
+   qui vit en bas à gauche sous le voile. */
+.mc-homehero__seal { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 160px; opacity: 0.9; height: auto; }
 .mc-homehero__text { position: absolute; left: 22px; right: 22px; bottom: 20px; }
 .mc-homehero__greet {
   font-family: var(--font-serif);
@@ -1697,8 +1699,8 @@
   .mc-pagepad--top { padding: 40px 40px 32px; }
 
   /* Hero d'accueil plus ample. */
-  .mc-homehero { height: clamp(300px, 30vh, 380px); }
-  .mc-homehero__seal { width: 54px; }
+  .mc-homehero { height: clamp(320px, 34vh, 400px); }
+  .mc-homehero__seal { width: 190px; }
 
   /* Offres : rangée fluide au lieu du carrousel. */
   .mc-offersrail {

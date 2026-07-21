@@ -24,6 +24,7 @@ export type Client = {
   lockCount?: number; // nombre de locks
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
+  recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   birthday?: string; // ISO — anniversaire de la cliente
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
