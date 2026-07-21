@@ -235,6 +235,33 @@
 /* ---------- Formules d'abonnement ---------- */
 .tre-plan { position: relative; padding: 26px 24px 24px; display: flex; flex-direction: column; }
 .tre-plan--popular { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+
+/* Réordonnancement — flèches discrètes au coin de chaque carte (formules & formations). */
+.tre-reorder { position: absolute; top: 10px; right: 10px; display: flex; gap: 3px; z-index: 1; }
+.tre-reorder__btn {
+  appearance: none;
+  width: 24px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--ink-soft);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1;
+  transition: color var(--dur-fast, 0.12s) var(--ease-soft), border-color var(--dur-fast, 0.12s) var(--ease-soft), background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.tre-reorder__btn:hover:not(:disabled) { color: var(--color-indigo); border-color: var(--color-argile); }
+.tre-reorder__btn:disabled { opacity: 0.3; cursor: default; }
+.tre-plan--popular .tre-reorder__btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(246, 241, 231, 0.28);
+  color: rgba(246, 241, 231, 0.75);
+}
+.tre-plan--popular .tre-reorder__btn:hover:not(:disabled) { color: var(--color-ivoire); border-color: var(--copper-300); }
 .tre-plan__tagpop {
   position: absolute;
   top: -11px;

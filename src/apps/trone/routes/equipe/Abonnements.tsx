@@ -110,6 +110,19 @@ export default function Abonnements() {
   const removeIncluded = (serviceId: string) =>
     setPlanForm((f) => ({ ...f, included: f.included.filter((i) => i.serviceId !== serviceId) }));
 
+  /* Réordonner les formules — l'ordre du tableau EST l'ordre d'affichage. On
+     échange une formule avec sa voisine pour la lire dans l'ordre voulu. */
+  const movePlan = (id: string, dir: -1 | 1) => {
+    setPlans((prev) => {
+      const i = prev.findIndex((p) => p.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
   const saveSub = () => {
     const plan = planOf(subForm.planId);
     const client = clients.find((c) => c.id === subForm.clientId);
@@ -297,12 +310,16 @@ export default function Abonnements() {
           </div>
 
           <div className="tr-grid tr-grid--3" style={{ alignItems: 'start', marginTop: 8 }}>
-            {plans.map((p) => {
+            {plans.map((p, idx) => {
               const price = subCycleAmountXof(p.priceXof, cycle);
               const period = cycle === 'annuel' ? '/an' : cycle === 'semestriel' ? '/6 mois' : '/mois';
               const offered = cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '';
               return (
                 <Card key={p.id} className={`tre-plan ${p.popular ? 'tre-plan--popular' : ''}`}>
+                  <div className="tre-reorder" role="group" aria-label="Réordonner la formule">
+                    <button type="button" className="tre-reorder__btn" disabled={idx === 0} onClick={() => movePlan(p.id, -1)} title="Remonter" aria-label="Remonter la formule">▲</button>
+                    <button type="button" className="tre-reorder__btn" disabled={idx === plans.length - 1} onClick={() => movePlan(p.id, 1)} title="Descendre" aria-label="Descendre la formule">▼</button>
+                  </div>
                   {p.popular
                     ? <span className="tre-plan__tagpop">{p.tag}</span>
                     : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{p.tag}</div>}

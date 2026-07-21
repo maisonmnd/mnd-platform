@@ -158,6 +158,24 @@ export default function Academie() {
     setFoForm(null);
   };
   const toggleArchive = (f: Formation) => setFormations((prev) => prev.map((x) => (x.id === f.id ? { ...x, archived: !x.archived } : x)));
+
+  /* Réordonner les formations — on échange avec la voisine VISIBLE (même filtre
+     actives/archivées), quels que soient les éléments archivés intercalés dans
+     le tableau complet, pour les lire dans l'ordre voulu. */
+  const moveFo = (id: string, dir: -1 | 1) => {
+    const vi = activeFormations.findIndex((f) => f.id === id);
+    const vj = vi + dir;
+    if (vi < 0 || vj < 0 || vj >= activeFormations.length) return;
+    const otherId = activeFormations[vj].id;
+    setFormations((prev) => {
+      const i = prev.findIndex((f) => f.id === id);
+      const j = prev.findIndex((f) => f.id === otherId);
+      if (i < 0 || j < 0) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
   const removeFo = (f: Formation) => {
     const enrolled = apprenants.filter((a) => a.formationId === f.id).length;
     const warn = enrolled > 0
@@ -344,10 +362,14 @@ export default function Academie() {
           )}
 
           <div className="tr-grid tr-grid--3" style={{ alignItems: 'start' }}>
-            {activeFormations.map((f) => {
+            {activeFormations.map((f, idx) => {
               const mods = f.modules && f.modules.length ? f.modules : [];
               return (
                 <Card key={f.id} className={`tre-plan ${f.featured ? 'tre-plan--popular' : ''}`}>
+                  <div className="tre-reorder" role="group" aria-label="Réordonner la formation">
+                    <button type="button" className="tre-reorder__btn" disabled={idx === 0} onClick={() => moveFo(f.id, -1)} title="Remonter" aria-label="Remonter la formation">▲</button>
+                    <button type="button" className="tre-reorder__btn" disabled={idx === activeFormations.length - 1} onClick={() => moveFo(f.id, 1)} title="Descendre" aria-label="Descendre la formation">▼</button>
+                  </div>
                   {f.featured
                     ? <span className="tre-plan__tagpop">{f.niveau}</span>
                     : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{f.niveau}</div>}
