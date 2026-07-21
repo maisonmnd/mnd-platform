@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { usePaymentMethods } from '../../../../shared/finance';
 import {
-  shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans,
+  shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, cycleWindow,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded,
@@ -49,8 +49,11 @@ export default function Abonnements() {
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
 
-  /* Pose les 6 formules signées de départ si la Maison n'en a aucune. */
-  useEffect(() => { ensureStarterPlans(); }, []);
+  /* Pose les 6 formules signées de départ si la Maison n'en a aucune, puis dote
+     ces formules de leurs prestations incluses (une fois, sans écraser les
+     choix faits à l'écran). L'hydratation peut arriver après le 1er rendu :
+     on repasse quand les formules changent tant que le marqueur n'est pas posé. */
+  useEffect(() => { ensureStarterPlans(); ensureStarterPlanIncluded(); }, [plans]);
 
   const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
   const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);

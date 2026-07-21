@@ -242,6 +242,38 @@ export function ensureStarterPlans(): void {
   plansStore.set(STARTER_PLANS.map((p) => ({ ...p, perks: [...p.perks] })));
 }
 
+/* Pré-remplissage des PRESTATIONS INCLUSES des 6 formules signées, à partir de
+   leurs avantages, avec de VRAIES prestations du catalogue en ligne (ids réels
+   relevés le 2026-07-21). Traduit « 1 resserrage / mois » en prestation
+   décomptée. Les avantages non décomptables (remises Care & Store, priorité,
+   créneau, coiffure trimestrielle) restent du texte. `null` = illimité. */
+const STARTER_PLAN_INCLUDED: Record<string, PlanIncluded[]> = {
+  'pl-essentielle': [{ serviceId: 'sv-resserrage', qty: 1 }],
+  'pl-reguliere': [{ serviceId: 'sv-gbigbi-essentiel', qty: 1 }, { serviceId: 'sv-resserrage', qty: 1 }],
+  'pl-regente': [{ serviceId: 'sv-resserrage', qty: 1 }, { serviceId: 'sv-entretien-complet', qty: 1 }],
+  'pl-souveraine': [{ serviceId: 'sv-resserrage', qty: null }, { serviceId: 'sv-entretien-complet', qty: null }, { serviceId: 'sv-gbigbi-essentiel', qty: null }],
+  'pl-confidente': [{ serviceId: 'sv-gbigbi-profond', qty: 1 }],
+  'pl-ceremonie': [{ serviceId: 'sv-rituel-mpdj8t99', qty: 1 }],
+};
+
+/** UNE FOIS : dote les 6 formules de départ de leurs prestations incluses, mais
+    UNIQUEMENT celles qui n'en ont encore aucune — ne piétine jamais un choix fait
+    à l'écran. Marqueur synchronisé + garde d'hydratation (liste non vide), même
+    prudence que les autres migrations. À appeler au montage des Abonnements. */
+export function ensureStarterPlanIncluded(): void {
+  if (houseSettingsStore.get()['plans_included_seed_2026_07']) return;
+  const list = plansStore.get();
+  if (!Array.isArray(list) || list.length === 0) return; // pas encore hydraté — on repassera
+  let changed = false;
+  const next = list.map((p) => {
+    const seed = STARTER_PLAN_INCLUDED[p.id];
+    if (seed && (!p.included || p.included.length === 0)) { changed = true; return { ...p, included: seed.map((i) => ({ ...i })) }; }
+    return p;
+  });
+  if (changed) plansStore.set(() => next);
+  houseSettingsStore.set((prev) => ({ ...prev, plans_included_seed_2026_07: true }));
+}
+
 export type Subscriber = {
   id: string;
   branchId: string;
