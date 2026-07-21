@@ -578,6 +578,32 @@
   transform: translateY(-1px);
 }
 
+/* ---------- Lignes cliquables — un chiffre s'ouvre toujours sur son détail ---------- */
+.trf-linerow--click {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.trf-linerow--click:hover .trf-linerow__cat { color: var(--copper-700); }
+.trf-rowbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.trf-rowbtn:hover { color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; }
+.trf-tagbox--btn { cursor: pointer; font: inherit; }
+.trf-tagbox--btn:hover { border-color: var(--color-copper); color: var(--copper-700); }
+
 /* ---------- Coffre-fort ---------- */
 .trf-coffre-hero {
   background: var(--grad-indigo, var(--color-indigo));

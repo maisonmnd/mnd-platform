@@ -194,10 +194,11 @@ export default function Caisse() {
   const posPayerId = posClient ? payerClientIdOf(posClient, families) : '';
   const posPayer = branchClients.find((c) => c.id === posPayerId);
   const posCashDue = Math.max(0, netXof - posAvoir);
-  /* Le montant en devise se DÉDUIT du net : c'est le XOF qui fait foi, jamais
-     l'inverse — la facture ne change pas parce qu'on la règle en euros. */
+  /* Le montant en devise se DÉDUIT du COMPTANT dû (net − avoir) : c'est le XOF
+     qui fait foi, jamais l'inverse — et la part réglée par avoir ne traverse
+     pas le comptoir, elle n'a pas à être convertie en billets. */
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
-  const fxAmount = fxOn && fxRateNum > 0 ? Math.round((netXof / fxRateNum) * 100) / 100 : 0;
+  const fxAmount = fxOn && fxRateNum > 0 ? Math.round((posCashDue / fxRateNum) * 100) / 100 : 0;
 
   /* — encaissement — */
 
@@ -577,12 +578,14 @@ export default function Caisse() {
                    caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
                    en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
                    montant : une œuvre vendue 0 F par inattention. */
-                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && (!hasCashbox || fxAmount <= 0))}
+                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && posCashDue > 0 && (!hasCashbox || fxAmount <= 0))}
                 onClick={() => void checkout()}
               >
-                Encaisser {fxOn && fxAmount > 0
-                  ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
-                  : fmtMoney(netXof, currency)}
+                {posCashDue === 0 && posAvoir > 0
+                  ? `Encaisser par avoir · ${fmtMoney(posAvoir, currency)}`
+                  : <>Encaisser {fxOn && fxAmount > 0
+                      ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
+                      : fmtMoney(posCashDue, currency)}</>}
               </Button>
               {devisMissing.length > 0 && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--copper-700)' }}>

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
   cashboxCurrency,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory,
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
@@ -100,21 +100,51 @@ export default function Depenses() {
   const forecast = isCurrent ? paceForecast(engaged, now.getDate(), daysInMonth) : engaged;
   const forecastNote = isCurrent ? 'au rythme réel du mois' : month < thisMonth ? 'mois clos · total constaté' : 'mois à venir · engagé à date';
 
-  /* Solde par caisse : ouverture − dépenses vivantes + encaissements du mois.
-     TOUT se compte dans la devise de la caisse. Pour une caisse en devise, on
-     crédite `fx.amount` — les euros réellement reçus — et surtout PAS le total
-     de la facture reconverti : le taux du jour n'est pas celui figé dans le
-     code, et le tiroir doit tomber juste au billet près. */
-  const boxBalance = (name: string) => {
-    const box = branchBoxes.find((b) => b.name === name);
-    const opening = box?.openingXof ?? 0;
+  /* ---------- LE MODÈLE DES CAISSES — le flux, défini une fois pour toutes ----------
+     Ce qui CRÉDITE physiquement une caisse (le tiroir) :
+       + les encaissements qui la citent. Caisse de la maison : total facturé
+         − part réglée par AVOIR (crédit prépayé — aucun billet ce jour-là)
+         + POURBOIRE (il entre dans le tiroir, même hors chiffre d'affaires).
+         Caisse en devise : les billets étrangers réellement reçus (fx.amount,
+         qui inclut déjà le pourboire) — jamais un total reconverti.
+     Ce qui la DÉBITE :
+       − les dépenses vivantes qui la citent (une dépense suspendue n'est
+         jamais sortie du tiroir — c'est une économie, pas un flux).
+     Le SOLDE est CUMULÉ depuis l'ouverture : ouverture + TOUS les flux jusqu'à
+     la fin du mois affiché. L'ancien calcul ne comptait que le mois affiché et
+     oubliait l'historique — le solde ne voulait plus rien dire dès le 2e mois. */
+  const boxCredit = (i: Invoice, boxCur: string, foreign: boolean): number =>
+    foreign
+      ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0)
+      : invoiceTotal(i) - (i.avoirXof ?? 0) + (i.tipXof ?? 0);
+
+  const boxOf = (name: string) => branchBoxes.find((b) => b.name === name);
+  const boxInvoices = (name: string) =>
+    invoices.filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name);
+  const boxExpenses = (name: string) =>
+    expenses.filter((e) => e.branchId === branch.id && !e.stopped && e.cashbox === name);
+
+  /** Solde cumulé d'une caisse — ouverture + tous les flux dont le mois passe `keep`. */
+  const boxBalanceWhere = (name: string, keep: (mk: string) => boolean) => {
+    const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
-    const out = live.filter((e) => e.cashbox === name).reduce((s, e) => s + expenseTotal(e), 0);
-    const inn = invoices
-      .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === month)
-      .reduce((s, i) => s + (foreign ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0) : invoiceTotal(i)), 0);
-    return opening - out + inn;
+    const inn = boxInvoices(name).filter((i) => keep(monthKey(i.date))).reduce((s, i) => s + boxCredit(i, boxCur, foreign), 0);
+    const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
+    return (box?.openingXof ?? 0) + inn - out;
+  };
+  /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
+  const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
+  /** Solde au DÉBUT du mois affiché — le point de départ du relevé. */
+  const boxBalanceStart = (name: string) => boxBalanceWhere(name, (mk) => mk < month);
+  /** Entrées / sorties du SEUL mois affiché — le flux du mois, par caisse. */
+  const boxMonthFlux = (name: string) => {
+    const box = boxOf(name);
+    const boxCur = box ? cashboxCurrency(box) : currency;
+    const foreign = boxCur !== currency;
+    const inn = boxInvoices(name).filter((i) => monthKey(i.date) === month).reduce((s, i) => s + boxCredit(i, boxCur, foreign), 0);
+    const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0);
+    return { inn, out };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
      à des francs donnerait un nombre qui ne veut rien dire. Les caisses en
@@ -123,27 +153,31 @@ export default function Depenses() {
     .filter((b) => cashboxCurrency(b) === currency)
     .reduce((s, b) => s + boxBalance(b.name), 0);
 
-  /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes filtres que `boxBalance`,
-     au mot près : si la liste ne tombe pas sur le solde affiché, c'est l'un des
-     deux qui ment. Les mouvements sont dans la devise de la caisse. */
+  /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes règles que `boxBalance`,
+     au mot près : solde au début du mois + mouvements du mois = solde affiché.
+     Si la liste ne tombe pas sur le chiffre, c'est l'un des deux qui ment. */
   const boxMoves = (name: string) => {
-    const box = branchBoxes.find((b) => b.name === name);
+    const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
-    const opening = box?.openingXof ?? 0;
 
-    const inn = invoices
-      .filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name && monthKey(i.date) === month)
+    const inn = boxInvoices(name)
+      .filter((i) => monthKey(i.date) === month)
       .map((i) => ({
         date: i.date,
         label: i.clientName?.trim() || 'Cliente de passage',
-        sub: i.fx ? `${i.number} · ${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : i.number,
-        delta: foreign ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0) : invoiceTotal(i),
+        sub: [
+          i.number,
+          i.fx ? `${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : null,
+          !foreign && (i.avoirXof ?? 0) > 0 ? `avoir −${fmtIn(i.avoirXof!, boxCur)}` : null,
+          !foreign && (i.tipXof ?? 0) > 0 ? `pourboire +${fmtIn(i.tipXof!, boxCur)}` : null,
+        ].filter(Boolean).join(' · '),
+        delta: boxCredit(i, boxCur, foreign),
         invoiceId: i.id, // la ligne s'ouvre sur la facture
       }));
 
-    const out = live
-      .filter((e) => e.cashbox === name)
+    const out = boxExpenses(name)
+      .filter((e) => monthKey(e.date) === month)
       .map((e) => ({
         date: e.date,
         label: e.label,
@@ -153,7 +187,7 @@ export default function Depenses() {
       }));
 
     const moves = [...inn, ...out].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-    return { boxCur, opening, moves, balance: boxBalance(name) };
+    return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
 
   // Flux par catégorie (filtres caisse / catégorie + recherche)
@@ -325,15 +359,47 @@ export default function Depenses() {
     setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
     if (filterCaisse === c.name) setFilterCaisse('all');
   };
-  const addBudget = () => {
-    const cat = window.prompt(`Catégorie du budget (${catNames.join(', ')})`);
-    if (!cat) return;
-    const amt = window.prompt(`Enveloppe mensuelle pour « ${cat.trim()} » (en ${currency})`);
-    const n = parseInt((amt ?? '').replace(/[^0-9]/g, ''), 10);
-    if (n) setBudgets((prev) => [...prev, { id: uid(), branchId: branch.id, category: cat.trim(), monthlyXof: n }]);
-  };
-
+  /* — Budgets : créer / modifier / supprimer via une vraie modale (les
+     window.prompt laissaient passer des catégories inexistantes et rendaient
+     toute enveloppe immuable une fois créée). Une enveloppe par catégorie. */
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetEditingId, setBudgetEditingId] = useState<string | null>(null);
+  const [budgetForm, setBudgetForm] = useState<{ category: string; amount: string }>({ category: '', amount: '' });
   const branchBudgets = budgets.filter((b) => b.branchId === branch.id);
+  const openNewBudget = () => {
+    setBudgetEditingId(null);
+    const free = catNames.find((n) => !branchBudgets.some((b) => b.category === n)) ?? '';
+    setBudgetForm({ category: free, amount: '' });
+    setBudgetOpen(true);
+  };
+  const openEditBudget = (id: string) => {
+    const b = branchBudgets.find((x) => x.id === id);
+    if (!b) return;
+    setBudgetEditingId(id);
+    setBudgetForm({ category: b.category, amount: String(b.monthlyXof) });
+    setBudgetOpen(true);
+  };
+  const saveBudget = () => {
+    const n = parseInt(budgetForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
+    if (!budgetForm.category || n <= 0) return;
+    if (budgetEditingId) {
+      setBudgets((prev) => prev.map((b) => (b.id === budgetEditingId ? { ...b, category: budgetForm.category, monthlyXof: n } : b)));
+    } else {
+      /* Une enveloppe existe déjà pour cette catégorie → on la met à jour plutôt
+         que d'en créer une deuxième qui rendrait le « reste » illisible. */
+      const existing = branchBudgets.find((b) => b.category === budgetForm.category);
+      if (existing) setBudgets((prev) => prev.map((b) => (b.id === existing.id ? { ...b, monthlyXof: n } : b)));
+      else setBudgets((prev) => [...prev, { id: uid(), branchId: branch.id, category: budgetForm.category, monthlyXof: n }]);
+    }
+    setBudgetOpen(false);
+  };
+  const deleteBudget = () => {
+    if (!budgetEditingId) return;
+    const b = branchBudgets.find((x) => x.id === budgetEditingId);
+    if (!b || !window.confirm(`Retirer l'enveloppe « ${b.category} » (${fmtMoney(b.monthlyXof, currency)}/mois) ? Les dépenses ne bougent pas.`)) return;
+    setBudgets((prev) => prev.filter((x) => x.id !== budgetEditingId));
+    setBudgetOpen(false);
+  };
   const spentOfCat = (cat: string) => live.filter((e) => e.category === cat).reduce((s, e) => s + expenseTotal(e), 0);
   // Historique d'une enveloppe : dépensé (vivant) sur les 3 derniers mois, mois choisi inclus.
   const historyOfCat = (cat: string) =>
@@ -498,7 +564,16 @@ export default function Depenses() {
                 </div>
               )}
               {flow.rows.map((b, i) => (
-                <div className="trf-linerow" key={b.cat}>
+                <button
+                  className="trf-linerow trf-linerow--click"
+                  key={b.cat}
+                  title="Voir les dépenses de cette catégorie"
+                  onClick={() => openExp(
+                    `${b.cat} · ${monthName}`,
+                    filterCaisse !== 'all' ? `Les dépenses vivantes de cette catégorie, caisse « ${filterCaisse} ».` : 'Les dépenses vivantes de cette catégorie.',
+                    live.filter((e) => e.category === b.cat && (filterCaisse === 'all' || e.cashbox === filterCaisse) && matches(e)),
+                  )}
+                >
                   <div className="trf-linerow__top">
                     <span className="trf-linerow__cat">{b.cat}</span>
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
@@ -509,7 +584,7 @@ export default function Depenses() {
                   <div className="trf-bar trf-bar--tall" style={{ marginTop: 5 }}>
                     <div style={{ width: `${Math.round((b.n / flow.max) * 100)}%`, background: FLOW_FILLS[i % FLOW_FILLS.length] }} />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -522,10 +597,19 @@ export default function Depenses() {
               </div>
             </div>
             <div style={{ marginTop: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', marginBottom: 5 }}><span>Revenu</span><span>{fmtMoney(revenue, currency)}</span></div>
-              <div className="trf-bar" style={{ height: 14 }}><div style={{ width: '100%', background: 'var(--color-indigo)' }} /></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', margin: '12px 0 5px' }}><span>Dépenses</span><span>{fmtMoney(engaged, currency)}</span></div>
-              <div className="trf-bar" style={{ height: 14 }}><div style={{ width: `${Math.min(100, revenue ? Math.round((engaged / revenue) * 100) : 100)}%`, background: 'var(--color-copper)' }} /></div>
+              <button className="trf-linerow--click" title="Ouvrir la Synthèse — le détail du revenu" onClick={() => navigate('/synthese')}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', marginBottom: 5 }}><span>Revenu</span><span>{fmtMoney(revenue, currency)}</span></div>
+                <div className="trf-bar" style={{ height: 14 }}><div style={{ width: '100%', background: 'var(--color-indigo)' }} /></div>
+              </button>
+              <button
+                className="trf-linerow--click"
+                title="Voir les dépenses du mois"
+                style={{ marginTop: 12 }}
+                onClick={() => openExp(`Dépenses engagées · ${monthName}`, 'Toutes les dépenses vivantes du mois.', live)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', marginBottom: 5 }}><span>Dépenses</span><span>{fmtMoney(engaged, currency)}</span></div>
+                <div className="trf-bar" style={{ height: 14 }}><div style={{ width: `${Math.min(100, revenue ? Math.round((engaged / revenue) * 100) : 100)}%`, background: 'var(--color-copper)' }} /></div>
+              </button>
             </div>
           </div>
         </div>
@@ -536,7 +620,7 @@ export default function Depenses() {
         <div>
           <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
             <div>
-              <div className="trf-obsidian__eyebrow">Trésorerie disponible · toutes caisses · {monthName}</div>
+              <div className="trf-obsidian__eyebrow">Trésorerie disponible · toutes caisses · {isCurrent ? 'à ce jour' : `fin ${monthName}`}</div>
               <div className="trf-obsidian__value">{fmtMoney(treasury, currency)}</div>
             </div>
             <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
@@ -571,9 +655,19 @@ export default function Depenses() {
                       les mouvements qui l'ont fait. */}
                   <button className="trf-caisse__open" onClick={() => setBoxDrill(c.name)} title="Voir les mouvements de cette caisse">
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                      Solde · {monthName}{boxCur !== currency ? ` · ${boxCur}` : ''}
+                      Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}{boxCur !== currency ? ` · ${boxCur}` : ''}
                     </div>
                     <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
+                    {(() => {
+                      const { inn, out } = boxMonthFlux(c.name);
+                      return (
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: 'var(--trf-success)' }}>+ {fmtIn(inn, boxCur)}</span>
+                          <span style={{ color: 'var(--color-copper)' }}>− {fmtIn(out, boxCur)}</span>
+                          <span style={{ color: 'var(--ink-soft)' }}>en {monthName}</span>
+                        </div>
+                      );
+                    })()}
                   </button>
                   <button className="trf-act" style={{ padding: 9 }} onClick={() => openFor(c.name)}>Dépenser d’ici</button>
                 </div>
@@ -608,7 +702,7 @@ export default function Depenses() {
                       ) : null}
                     </div>
                   </div>
-                  <span className="trf-tagbox">{e.cashbox}</span>
+                  <button className="trf-tagbox trf-tagbox--btn" title="Voir les mouvements de cette caisse" onClick={() => setBoxDrill(e.cashbox)}>{e.cashbox}</button>
                   <span className="trf-exprow__amt">{fmtMoney(expenseTotal(e), currency)}</span>
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
@@ -685,7 +779,7 @@ export default function Depenses() {
                     <div className="trf-exprow__meta">{e.category} · {e.recurring}</div>
                   </div>
                   <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
-                  <span className="trf-tagbox">{e.cashbox}</span>
+                  <button className="trf-tagbox trf-tagbox--btn" title="Voir les mouvements de cette caisse" onClick={() => setBoxDrill(e.cashbox)}>{e.cashbox}</button>
                   <span className="trf-exprow__amt" style={{ fontSize: 18 }}>{fmtMoney(expenseTotal(e), currency)}</span>
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     <button className="trf-act trf-act--ghost" onClick={() => togglePause(e)}>{e.paused ? 'Reprendre' : 'Pause'}</button>
@@ -753,7 +847,7 @@ export default function Depenses() {
           <div className="trf-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Budget souverain · alloué vs engagé · {monthName}</div>
-              <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={addBudget}>+ Budget</button>
+              <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={openNewBudget}>+ Budget</button>
             </div>
             {branchBudgets.length === 0 && <div className="trf-empty">Aucun budget défini. « + Budget » ouvre une enveloppe mensuelle par catégorie.</div>}
             {branchBudgets.map((b) => {
@@ -767,9 +861,17 @@ export default function Depenses() {
               return (
                 <div key={b.id} style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink)' }}>{b.category}</span>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--trf-error)' : 'var(--trf-success)', marginLeft: 9 }}>{over ? 'Dépassé' : 'Maîtrisé'}</span>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+                      <button
+                        className="trf-rowbtn"
+                        style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink)' }}
+                        title="Voir les dépenses de cette catégorie"
+                        onClick={() => openExp(`${b.category} · ${monthName}`, 'Les dépenses vivantes de cette enveloppe.', live.filter((e) => e.category === b.category))}
+                      >
+                        {b.category}
+                      </button>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--trf-error)' : 'var(--trf-success)' }}>{over ? 'Dépassé' : 'Maîtrisé'}</span>
+                      <button className="trf-iconbtn" onClick={() => openEditBudget(b.id)}>Modifier</button>
                     </div>
                     <div className="trf-spark" title="Dépensé sur les 3 derniers mois" aria-label="Historique des 3 derniers mois">
                       {hist.map((h) => (
@@ -820,7 +922,12 @@ export default function Depenses() {
                 const max = Math.max(...rows.map((r) => r.n), 1);
                 if (rows.length === 0) return <div className="trf-empty">Rien à analyser en {monthName}.</div>;
                 return rows.map((r, i) => (
-                  <div className="trf-linerow" key={r.cat}>
+                  <button
+                    className="trf-linerow trf-linerow--click"
+                    key={r.cat}
+                    title="Voir les dépenses de cette catégorie"
+                    onClick={() => openExp(`${r.cat} · ${monthName}`, 'Les dépenses vivantes de cette catégorie.', live.filter((e) => e.category === r.cat))}
+                  >
                     <div className="trf-linerow__top">
                       <span className="trf-linerow__cat">{r.cat}</span>
                       <span className="trf-linerow__val">{fmtMoney(r.n, currency)}</span>
@@ -828,7 +935,7 @@ export default function Depenses() {
                     <div className="trf-bar" style={{ marginTop: 5 }}>
                       <div style={{ width: `${Math.round((r.n / max) * 100)}%`, background: FLOW_FILLS[i % FLOW_FILLS.length] }} />
                     </div>
-                  </div>
+                  </button>
                 ));
               })()}
             </div>
@@ -846,7 +953,17 @@ export default function Depenses() {
             </label>
             <div style={{ display: 'flex', gap: 14 }}>
               <label className="mnd-field" style={{ flex: 1 }}>
-                <span className="mnd-field__label">Montant · {fmtMoney(formTotal, currency)}{cleanItems.length ? ' · somme des articles' : ''}</span>
+                {/* Le montant se compte dans la devise de la caisse choisie : une
+                    dépense depuis la caisse en euros sort des euros du tiroir. */}
+                {(() => {
+                  const fb = branchBoxes.find((b) => b.name === form.cashbox);
+                  const fCur = fb ? cashboxCurrency(fb) : currency;
+                  return (
+                    <span className="mnd-field__label">
+                      Montant · {fmtIn(formTotal, fCur)}{cleanItems.length ? ' · somme des articles' : ''}{fCur !== currency ? ` · caisse en ${fCur}` : ''}
+                    </span>
+                  );
+                })()}
                 {cleanItems.length ? (
                   <input className="mnd-input" value={fmtMoney(formTotal, currency)} readOnly disabled style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
                 ) : (
@@ -1021,6 +1138,55 @@ export default function Depenses() {
         </Modal>
       )}
 
+      {/* ============ MODALE · BUDGET (enveloppe mensuelle par catégorie) ============ */}
+      {budgetOpen && (
+        <Modal title={budgetEditingId ? 'Modifier l’enveloppe' : 'Nouvelle enveloppe budgétaire'} onClose={() => setBudgetOpen(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie de dépense</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {catNames.map((c) => {
+                  const taken = branchBudgets.some((b) => b.category === c && b.id !== budgetEditingId);
+                  return (
+                    <button
+                      key={c}
+                      className={`trf-chip ${budgetForm.category === c ? 'is-active' : ''}`}
+                      style={taken ? { opacity: 0.45 } : undefined}
+                      title={taken ? 'Une enveloppe existe déjà — la choisir la mettra à jour' : undefined}
+                      onClick={() => setBudgetForm((f) => ({ ...f, category: c }))}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Enveloppe mensuelle · {currency}</span>
+              <input
+                className="mnd-input" inputMode="numeric" value={budgetForm.amount} placeholder="0"
+                onChange={(e) => setBudgetForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </label>
+            {budgetForm.category && (
+              <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+                Engagé en {monthName} sur « {budgetForm.category} » : <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(spentOfCat(budgetForm.category), currency)}</b>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4 }}>
+              {budgetEditingId
+                ? <button className="mnd-btn mnd-btn--ghost" style={{ color: 'var(--trf-error)' }} onClick={deleteBudget}>Retirer l’enveloppe</button>
+                : <span />}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => setBudgetOpen(false)}>Annuler</button>
+                <button className="mnd-btn" onClick={saveBudget}>{budgetEditingId ? 'Enregistrer' : 'Créer l’enveloppe'}</button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {expDrill && (
         <Modal title={expDrill.title} onClose={() => setExpDrill(null)} width={620}>
           <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{expDrill.sub}</div>
@@ -1066,22 +1232,23 @@ export default function Depenses() {
       )}
 
       {boxDrill && (() => {
-        const { boxCur, opening, moves, balance } = boxMoves(boxDrill);
+        const { boxCur, startBalance, moves, balance } = boxMoves(boxDrill);
         return (
           <Modal title={`${boxDrill} · mouvements`} onClose={() => setBoxDrill(null)} width={620}>
             <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>
-              {monthName}{boxCur !== currency ? ` · caisse en ${boxCur}` : ''} — encaissements crédités, dépenses vivantes.
+              {monthName}{boxCur !== currency ? ` · caisse en ${boxCur}` : ''} — encaissements crédités (avoir déduit, pourboire inclus), dépenses vivantes débitées.
             </div>
 
             <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-              {/* L'ouverture est le point de départ du solde : la taire rendrait
-                  la liste incapable de tomber sur le chiffre affiché. */}
+              {/* Le point de départ du relevé : l'ouverture + TOUT l'historique
+                  d'avant le mois. Sans lui, la liste ne peut pas tomber sur le
+                  solde affiché en bas. */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}>
                 <div>
-                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>Solde d’ouverture</div>
-                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>début du mois</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>Solde au début de {monthName}</div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>ouverture + tout l’historique antérieur</div>
                 </div>
-                <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(opening, boxCur)}</div>
+                <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(startBalance, boxCur)}</div>
               </div>
 
               {moves.length === 0 && (
@@ -1135,7 +1302,9 @@ export default function Depenses() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
-              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Solde</span>
+              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}
+              </span>
               <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>{fmtIn(balance, boxCur)}</span>
             </div>
           </Modal>
