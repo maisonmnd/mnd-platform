@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { OPEN_HOUR, CLOSE_HOUR, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   PayStatusPill, RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
-  useBranchAppointments, useBranchClients, useServicesById,
+  useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
 
@@ -25,7 +25,9 @@ export default function Calendrier() {
 
   const [view, setView] = useState<'jour' | 'semaine'>('jour');
   const [anchor, setAnchor] = useState(today);
-  const [modalOpen, setModalOpen] = useState(false);
+  /* Prise de RDV : pré-remplissage du nouveau rendez-vous (jour touché, et en vue
+     jour l'heure + le maître de la colonne). null = pas de création en cours. */
+  const [createInit, setCreateInit] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
@@ -187,6 +189,28 @@ export default function Calendrier() {
     setEditAppt(a);
   };
 
+  /* Toucher un créneau VIDE d'une colonne-maître (vue jour) ouvre la prise de RDV,
+     pré-remplie du jour, de l'heure calée sur la grille et du maître de la colonne.
+     On ignore les touchers sur un rituel ou un bouton (leurs propres gestes), et le
+     clic parasite qui suit un glisser. « Non assigné » → aucun maître imposé. */
+  const clickDaySlot = (e: React.MouseEvent, master: string) => {
+    if (didDrag.current) { didDrag.current = false; return; }
+    const el = e.target as HTMLElement;
+    if (el.closest('.trc-cal__appt') || el.closest('button')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const time = yToTime(e.clientY - rect.top);
+    const known = branch.masters.includes(master);
+    setCreateInit(known ? { date: anchor, time, master } : { date: anchor, time });
+  };
+
+  /* Toucher un jour VIDE (vue semaine) ouvre la prise de RDV pré-remplie de ce jour. */
+  const clickWeekDay = (e: React.MouseEvent, iso: string) => {
+    if (didDrag.current) { didDrag.current = false; return; }
+    const el = e.target as HTMLElement;
+    if (el.closest('.trc-week__chip') || el.closest('button')) return;
+    setCreateInit({ date: iso });
+  };
+
   const hours = useMemo(() => {
     const out: string[] = [];
     for (let h = OPEN_HOUR; h <= CLOSE_HOUR; h++) out.push(`${pad2(h)}:00`);
@@ -264,7 +288,7 @@ export default function Calendrier() {
               value={view}
               onChange={setView}
             />
-            <Button variant="copper" onClick={() => setModalOpen(true)}>+ Nouveau RDV</Button>
+            <Button variant="copper" onClick={() => setCreateInit({ date: anchor })}>+ Nouveau RDV</Button>
           </>
         }
       />
@@ -301,10 +325,12 @@ export default function Calendrier() {
                 className={`trc-cal__col ${dropKey === `d:${m.name}` ? 'is-drop' : ''}`}
                 key={m.name}
                 data-daycol={m.name}
-                style={{ height: hours.length * HOUR_PX }}
+                style={{ height: hours.length * HOUR_PX, cursor: 'copy' }}
+                title="Touchez un créneau libre pour prendre un rendez-vous"
                 onDragOver={(e) => { if (dragId) { e.preventDefault(); setDropKey(`d:${m.name}`); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropKey((k) => (k === `d:${m.name}` ? null : k)); }}
                 onDrop={(e) => onDropDay(e, m.name)}
+                onClick={(e) => clickDaySlot(e, m.name)}
               >
                 {m.appts.map((a) => {
                   const startMin = timeToMin(a.time);
@@ -366,9 +392,12 @@ export default function Calendrier() {
                 className={`trc-week__day ${dropKey === `w:${d.iso}` ? 'is-drop' : ''}`}
                 key={d.iso}
                 data-weekday={d.iso}
+                style={{ cursor: 'copy' }}
+                title="Touchez un jour pour prendre un rendez-vous"
                 onDragOver={(e) => { if (dragId) { e.preventDefault(); setDropKey(`w:${d.iso}`); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropKey((k) => (k === `w:${d.iso}` ? null : k)); }}
                 onDrop={(e) => onDropWeek(e, d.iso)}
+                onClick={(e) => clickWeekDay(e, d.iso)}
               >
                 <div className="trc-week__head" style={d.isToday ? { background: 'var(--color-sable)' } : undefined}>
                   <div className="trc-week__dow">{d.dow}</div>
@@ -414,7 +443,17 @@ export default function Calendrier() {
 
       {hint && <div className="trc-cal__toast" role="status">{hint}</div>}
 
-      {modalOpen && <RdvModal onClose={() => setModalOpen(false)} initial={{ date: anchor }} />}
+      {/* Bouton flottant — prise de RDV au pouce, toujours à portée sur mobile. */}
+      <button
+        className="trc-cal__fab"
+        aria-label="Prendre un rendez-vous"
+        title="Prendre un rendez-vous"
+        onClick={() => setCreateInit({ date: anchor })}
+      >
+        +
+      </button>
+
+      {createInit && <RdvModal onClose={() => setCreateInit(null)} initial={createInit} />}
       {editAppt && (
         <RdvModal
           onClose={() => setEditAppt(null)}

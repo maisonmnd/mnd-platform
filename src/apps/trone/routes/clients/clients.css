@@ -765,6 +765,31 @@
   animation: mnd-rise var(--dur-base) var(--ease-soft);
 }
 
+/* Bouton flottant de prise de RDV — cible tactile généreuse, toujours à portée.
+   Sous le voile de la modale (z-modal) pour disparaître quand elle s'ouvre. */
+.trc-cal__fab {
+  position: fixed;
+  right: calc(22px + env(safe-area-inset-right));
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: calc(var(--z-modal, 90) - 1);
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--dur-fast, 0.12s) var(--ease-soft), filter var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-cal__fab:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.trc-cal__fab:active { transform: scale(0.94); }
+
 /* Sélecteur de cliente recherchable (RDV, devis, POS, abonnements) */
 .trc-clientpick { position: relative; }
 .trc-clientpick__menu {
