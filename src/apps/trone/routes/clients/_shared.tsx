@@ -9,6 +9,7 @@ import { useServices, priceModeOf, type Service } from '../../../../shared/catal
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
+import { useModelBands, pricingOf, personalPriceXof, isPersonalized, bandLabel } from '../../../../shared/pricing';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -301,6 +302,7 @@ export function RdvModal({
   const [settings] = useSettings();
   const [subs] = useSubscribers();
   const [plans] = usePlans();
+  const [bands] = useModelBands();
   /* Abonnement actif de la cliente — pour la distinguer à la prise de rendez-vous. */
   const membership = clientId ? activeSubscriberOf(subs, clientId) : undefined;
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
@@ -328,17 +330,24 @@ export function RdvModal({
      alors plus le même rituel. */
   const frozenXof = appt?.priceXof;
   const grossCatalogue = chosen.reduce((s, sv) => s + sv.priceXof, 0);
+  /* SON prix : le modèle de la cliente (nombre de locks → tranche du barème) et
+     son Juste Prix personnalisent le tarif de référence. Quand il n'y a rien à
+     personnaliser, la référence reste le catalogue — comportement inchangé. */
+  const rdvClient = clients.find((c) => c.id === clientId);
+  const pricing = pricingOf(rdvClient, bands);
+  const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
+  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing), 0) : grossCatalogue;
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
-     montant convenu (saisi dans la modale) prime alors sur la somme du catalogue ;
+     montant convenu (saisi dans la modale) prime alors sur la somme de référence ;
      à défaut, on retient le prix de départ. */
   const needsAmount = chosen.some((sv) => priceModeOf(sv) !== 'fixe');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
   const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged;
-  const grossXof = keepFrozen ? (frozenXof as number) : grossCatalogue;
-  const effGross = needsAmount ? (amountNum || grossCatalogue) : grossXof;
-  /* Information « prix d'origine ≠ catalogue » — ne vaut que pour les prix FIXES. */
-  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossCatalogue);
+  const grossXof = keepFrozen ? (frozenXof as number) : grossBase;
+  const effGross = needsAmount ? (amountNum || grossBase) : grossXof;
+  /* Information « prix d'origine ≠ tarif du jour » — ne vaut que pour les prix FIXES. */
+  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé.
      Rituel couvert par l'abonnement → rien à facturer (0). */
@@ -389,10 +398,10 @@ export function RdvModal({
                 discountPct: effCovered ? undefined : (discountPct || undefined),
                 discountXof: effCovered ? undefined : (discountXof || undefined),
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
-                   Prestations modifiées → recalcul au catalogue du jour (l'ancien
-                   prix ne décrit plus ce rituel). Variable/devis : on GÈLE le
-                   montant convenu. */
-                priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossCatalogue) : keepFrozen ? frozenXof : undefined,
+                   Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
+                   (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
+                   devis : on GÈLE le montant convenu. */
+                priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossBase) : keepFrozen ? frozenXof : rdvPersonalized ? grossBase : undefined,
                 depositServiceIds: effCovered ? [] : depositServiceIds,
                 depositXof: effCovered ? 0 : depositXof }
             : x,
@@ -413,8 +422,9 @@ export function RdvModal({
         coveredBySub: effCovered || undefined,
         discountPct: effCovered ? undefined : (discountPct || undefined),
         discountXof: effCovered ? undefined : (discountXof || undefined),
-        /* Couvert par l'abonnement → prix 0 ; sinon variable/devis gèle le montant convenu. */
-        priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossCatalogue) : undefined,
+        /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
+           convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
+        priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossBase) : rdvPersonalized ? grossBase : undefined,
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
@@ -599,13 +609,13 @@ export function RdvModal({
               min={0}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={grossCatalogue > 0 ? String(grossCatalogue) : '—'}
+              placeholder={grossBase > 0 ? String(grossBase) : '—'}
               style={{ width: 180, textAlign: 'right' }}
               aria-label="Montant convenu du rituel"
             />
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
               Rituel à prix variable ou sur devis — saisissez le montant convenu.
-              {grossCatalogue > 0 ? ` À défaut, ${fmtMoney(grossCatalogue, currency)} (prix de départ) sera retenu.` : ''}
+              {grossBase > 0 ? ` À défaut, ${fmtMoney(grossBase, currency)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
             </div>
           </Field>
         )}
@@ -660,15 +670,26 @@ export function RdvModal({
             prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
         {frozenDiffers && !servicesChanged && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Prix d’origine conservé : <b>{fmtMoney(frozenXof!, currency)}</b> (au catalogue d’aujourd’hui,
-            ces prestations vaudraient {fmtMoney(grossCatalogue, currency)}). Il ne changera que si vous
+            Prix d’origine conservé : <b>{fmtMoney(frozenXof!, currency)}</b> (au tarif d’aujourd’hui,
+            ces prestations vaudraient {fmtMoney(grossBase, currency)}). Il ne changera que si vous
             modifiez les prestations du rituel.
           </div>
         )}
         {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Vous avez modifié les prestations : enregistrer recalculera ce rituel au catalogue du jour
-            ({fmtMoney(grossCatalogue, currency)}) — l’ancien prix de {fmtMoney(frozenXof, currency)} sera abandonné.
+            Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
+            ({fmtMoney(grossBase, currency)}) — l’ancien prix de {fmtMoney(frozenXof, currency)} sera abandonné.
+          </div>
+        )}
+        {/* Prix PERSONNALISÉ — modèle (tranche de locks) × Juste Prix : annoncé
+            avant d'enregistrer, puis figé sur le rendez-vous. */}
+        {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
+          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+            Prix personnalisé : <b>{fmtMoney(grossBase, currency)}</b>
+            {pricing.band ? <> — modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
+            {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
+            {grossBase !== grossCatalogue ? <> · catalogue {fmtMoney(grossCatalogue, currency)}</> : null}.
+            Il sera figé sur ce rendez-vous à l’enregistrement.
           </div>
         )}
 

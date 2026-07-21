@@ -4,6 +4,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { useServices, type Service } from '../../../../shared/catalog';
+import { useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, MODEL_BANDS_SEED } from '../../../../shared/pricing';
+import { uid } from '../../../../shared/store';
 import './finances.css';
 
 /* Le Juste Prix — tarification souveraine. Sept leviers lisent les signaux d'une
@@ -136,6 +138,9 @@ export default function JustePrix() {
           </div>
         </div>
       </div>
+
+      {/* ===== BARÈME DES MODÈLES — tranches de locks → coefficient de prix & de durée ===== */}
+      <BaremeModeles currency={currency} />
 
       <div className="trf-jp-grid">
         {/* LES COMMANDES */}
@@ -293,6 +298,123 @@ export default function JustePrix() {
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Barème des modèles — l'intelligence des prix par nombre de locks =====
+   Une tranche de locks → un coefficient de PRIX et un coefficient de DURÉE.
+   prix personnalisé = catalogue × coef du modèle × Juste Prix de la cliente,
+   figé sur le RDV dès la réservation. Le barème est synchronisé (mnd_model_bands)
+   et lu par Ma Couronne pour montrer à chaque cliente SON prix. */
+function BaremeModeles({ currency }: { currency: string }) {
+  const [bands] = useModelBands();
+  const sorted = sortedBands(bands);
+  const example = 25000; // prestation-témoin pour lire l'effet du barème
+
+  const patchBand = (id: string, p: Partial<(typeof bands)[number]>) =>
+    modelBandsStore.set((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
+  const removeBand = (id: string) => {
+    if (bands.length <= 1) return;
+    if (!window.confirm('Retirer cette tranche du barème ?')) return;
+    modelBandsStore.set((prev) => prev.filter((b) => b.id !== id));
+  };
+  const addBand = () => {
+    const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
+    modelBandsStore.set((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
+  };
+  const resetBands = () => {
+    if (!window.confirm('Rétablir le barème recommandé (6 tranches) ? Vos tranches actuelles seront remplacées.')) return;
+    modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
+  };
+
+  return (
+    <div className="trf-panel" style={{ margin: '0 0 22px', padding: '22px 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
+        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Barème des modèles · tranches de locks</div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+          <button className="trf-act" onClick={addBand}>+ Tranche</button>
+          <button
+            onClick={resetBands}
+            style={{ cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            rétablir la recommandation
+          </button>
+        </div>
+      </div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', margin: '8px 0 14px', maxWidth: 720 }}>
+        Le modèle de la cliente (son nombre de locks, sur sa fiche) choisit sa tranche : le prix ET la durée des
+        prestations qui « suivent le modèle » (interrupteur ◈ au Catalogue) sont multipliés par ses coefficients,
+        puis par son Juste Prix. La colonne témoin montre l’effet sur une prestation à {fmtMoney(example, currency)}.
+      </div>
+
+      <div className="mnd-scroll-x">
+        <table className="tre-table" style={{ minWidth: 560 }}>
+          <thead>
+            <tr>
+              <th>Tranche</th>
+              <th>Jusqu’à (locks)</th>
+              <th>Coef prix</th>
+              <th>Coef durée</th>
+              <th style={{ textAlign: 'right' }}>Témoin {fmtMoney(example, currency)}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((b) => (
+              <tr key={b.id}>
+                <td style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', whiteSpace: 'nowrap' }}>{bandLabel(b, bands)}</td>
+                <td>
+                  <input
+                    className="mnd-input"
+                    inputMode="numeric"
+                    value={b.maxLocks == null ? '' : String(b.maxLocks)}
+                    placeholder="∞"
+                    title="Vide = sans plafond (dernière tranche)"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9]/g, '');
+                      patchBand(b.id, { maxLocks: v === '' ? null : Math.max(1, parseInt(v, 10)) });
+                    }}
+                    style={{ width: 92, textAlign: 'right' }}
+                  />
+                </td>
+                <td>
+                  <input
+                    className="mnd-input"
+                    inputMode="decimal"
+                    value={String(b.coef)}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value.replace(',', '.'));
+                      if (Number.isFinite(v) && v > 0) patchBand(b.id, { coef: Math.round(v * 100) / 100 });
+                    }}
+                    style={{ width: 76, textAlign: 'right' }}
+                    aria-label="Coefficient de prix"
+                  />
+                </td>
+                <td>
+                  <input
+                    className="mnd-input"
+                    inputMode="decimal"
+                    value={String(b.durCoef)}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value.replace(',', '.'));
+                      if (Number.isFinite(v) && v > 0) patchBand(b.id, { durCoef: Math.round(v * 100) / 100 });
+                    }}
+                    style={{ width: 76, textAlign: 'right' }}
+                    aria-label="Coefficient de durée"
+                  />
+                </td>
+                <td style={{ textAlign: 'right', fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>
+                  {fmtMoney(roundPrice(example * b.coef), currency)}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeBand(b.id)} disabled={bands.length <= 1} title="Retirer la tranche">×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

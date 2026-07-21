@@ -9,6 +9,7 @@ import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { useAuth } from '../../shared/auth';
 import { priceModeOf, type Service } from '../../shared/catalog';
+import { useModelBands, pricingOf, personalPriceXof, personalDurationMin, isPersonalized } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -84,10 +85,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     () => services.filter((s) => selectedIds.includes(s.id)),
     [services, selectedIds]
   );
-  const totalDuration = selected.reduce((n, s) => n + s.durationMin, 0);
+  /* SON prix, SA durée : le modèle de la cliente (nombre de locks, barème par
+     tranches) et son Juste Prix personnalisent le tarif ET le créneau. */
+  const [bands] = useModelBands();
+  const pricing = pricingOf(client ?? undefined, bands);
+  const personalized = isPersonalized(pricing);
+  const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricing), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
   const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
-  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + s.priceXof, 0);
+  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + personalPriceXof(s, pricing), 0);
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
@@ -101,7 +107,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Acompte UNIQUEMENT sur les prestations qui l'exigent, CHACUNE à son propre
      taux (Paramètres du Trône). Aucune → pas d'étape acompte, réservation directe. */
   const priced = selected.filter((s) => !s.hidePrice);
-  const deposit = depositForServices(priced, discountPct);
+  /* L'acompte se calcule sur les prix PERSONNALISÉS — le pourcentage de la
+     maison s'applique à ce que la cliente paiera vraiment. */
+  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: personalPriceXof(s, pricing) })), discountPct);
   const hasDeposit = deposit > 0;
   /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
      pourcentage que s'il est unique — sinon le montant parle seul. */
@@ -109,7 +117,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
   /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
   const depositBase = Math.round(
-    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + s.priceXof, 0) * (1 - discountPct / 100),
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + personalPriceXof(s, pricing), 0) * (1 - discountPct / 100),
   );
 
   /* Catégories réservables : au moins une prestation visible. */
@@ -210,6 +218,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           status: 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
           depositXof: i === 0 && hasDeposit ? deposit : undefined,
+          /* PRIX PERSONNALISÉ FIGÉ dès la réservation (modèle + Juste Prix) : le
+             comptoir facturera EXACTEMENT ce que la cliente a vu — le barème
+             pourra bouger, pas son prix. Porté par la séance 1 (les suivantes
+             valent 0, règle des séries) ; jamais figé si un prix est masqué ou
+             variable (le montant se fixe au fauteuil). L'offre éventuelle est
+             portée par discountPct — le net retombe sur le total annoncé. */
+          ...(i === 0 && personalized && !anyHidden && !anyVariable
+            ? { priceXof: knownTotal, ...(discountPct > 0 ? { discountPct } : {}) }
+            : {}),
           source: 'couronne',
           note: notes.length ? notes.join(' · ') : undefined,
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
@@ -263,7 +280,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const priceLabel = (s: Service, pct = 0) => {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';
-    const amount = fmtMoney(Math.round(s.priceXof * (1 - pct / 100)), currency);
+    /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
+    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing) * (1 - pct / 100)), currency);
     return mode === 'variable' ? `à partir de ${amount}` : amount;
   };
 
@@ -551,6 +569,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-recapcard__meta">
                 {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}
               </div>
+              {personalized && pricing.band && client?.lockCount ? (
+                <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
+                  Vos prix — établis pour votre couronne de {client.lockCount} locks.
+                </div>
+              ) : null}
               {anyHidden && !allHidden && (
                 <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
               )}

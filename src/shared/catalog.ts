@@ -36,6 +36,9 @@ export type Service = {
   /** Marqueur de réécriture des descriptions signées (migration ponctuelle) —
       une fois posé, la migration ne retouche plus la prestation. */
   descRev?: number;
+  /** La prestation suit-elle le MODÈLE de la cliente (barème par tranches de
+      locks — voir shared/pricing.ts) ? Absent = défaut dérivé (entretien/soins). */
+  scalesWithModel?: boolean;
   /** Couverture des quatre temps : Purifier · Nourrir · Sceller · Couronner (1 = couvert). */
   temps?: number[];
 };

@@ -9,6 +9,7 @@ import {
   type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
+import { scalesWithModel } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
 
@@ -361,6 +362,18 @@ export default function Catalogue() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                     <div className="trv-svc__name">{svc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flex: 'none' }}>
+                      {/* Suit le MODÈLE : le prix (et la durée) s'ajustent au nombre de
+                          locks de la cliente via le barème du Juste Prix. */}
+                      <button
+                        className="trv-hideprice"
+                        style={scalesWithModel(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
+                        title={scalesWithModel(svc)
+                          ? 'Suit le modèle de la cliente (barème par tranches de locks) — cliquer pour désactiver'
+                          : 'Prix identique quel que soit le modèle — cliquer pour suivre le barème par tranches de locks'}
+                        onClick={() => patchSvc(svc.id, { scalesWithModel: !scalesWithModel(svc) })}
+                      >
+                        {scalesWithModel(svc) ? '◈ Modèle' : 'Modèle —'}
+                      </button>
                       <button
                         className="trv-hideprice"
                         title="Mode de prix — cliquez pour changer : Fixe → Variable → Sur devis"
