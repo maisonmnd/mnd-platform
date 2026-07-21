@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -303,6 +303,63 @@ export default function JustePrix() {
   );
 }
 
+/* Cellule numérique à VALIDATION AU BLUR — le tableau se trie sur la valeur
+   ENREGISTRÉE : enregistrer à chaque frappe re-triait les lignes en pleine
+   saisie (taper « 250 » commence par « 2 », la tranche sautait en tête du
+   tableau et la suite de la frappe atterrissait dans une autre case). Ici le
+   brouillon reste local tant que la case a le focus ; Entrée ou sortie de case
+   enregistre, Échap annule, une saisie invalide revient à l'enregistré. */
+function NumCell({
+  value, onCommit, allowEmpty, decimal, width, placeholder, title, ariaLabel,
+}: {
+  value: number | null;
+  onCommit: (v: number | null) => void;
+  allowEmpty?: boolean; // vide autorisé (∞ — dernière tranche)
+  decimal?: boolean;
+  width: number;
+  placeholder?: string;
+  title?: string;
+  ariaLabel?: string;
+}) {
+  const asText = (v: number | null) => (v == null ? '' : String(v));
+  const [draft, setDraft] = useState(asText(value));
+  const [focused, setFocused] = useState(false);
+  const cancelled = useRef(false);
+  /* Une modification venue d'ailleurs (synchro, reset) rafraîchit la case — mais
+     jamais pendant que l'on y tape. */
+  useEffect(() => {
+    if (!focused) setDraft(asText(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, focused]);
+  const commit = () => {
+    setFocused(false);
+    if (cancelled.current) { cancelled.current = false; setDraft(asText(value)); return; }
+    const raw = draft.trim().replace(',', '.');
+    if (raw === '' && allowEmpty) { onCommit(null); return; }
+    const v = decimal ? parseFloat(raw) : parseInt(raw.replace(/[^0-9]/g, ''), 10);
+    if (Number.isFinite(v) && v > 0) onCommit(decimal ? Math.round(v * 100) / 100 : Math.round(v));
+    else setDraft(asText(value));
+  };
+  return (
+    <input
+      className="mnd-input"
+      inputMode={decimal ? 'decimal' : 'numeric'}
+      value={draft}
+      placeholder={placeholder}
+      title={title}
+      aria-label={ariaLabel}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { cancelled.current = true; (e.target as HTMLInputElement).blur(); }
+      }}
+      style={{ width, textAlign: 'right' }}
+    />
+  );
+}
+
 /* ===== Barème des modèles — l'intelligence des prix par nombre de locks =====
    Une tranche de locks → un coefficient de PRIX et un coefficient de DURÉE.
    prix personnalisé = catalogue × coef du modèle × Juste Prix de la cliente,
@@ -366,43 +423,32 @@ function BaremeModeles({ currency }: { currency: string }) {
               <tr key={b.id}>
                 <td style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', whiteSpace: 'nowrap' }}>{bandLabel(b, bands)}</td>
                 <td>
-                  <input
-                    className="mnd-input"
-                    inputMode="numeric"
-                    value={b.maxLocks == null ? '' : String(b.maxLocks)}
+                  <NumCell
+                    value={b.maxLocks}
+                    allowEmpty
+                    width={92}
                     placeholder="∞"
-                    title="Vide = sans plafond (dernière tranche)"
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^0-9]/g, '');
-                      patchBand(b.id, { maxLocks: v === '' ? null : Math.max(1, parseInt(v, 10)) });
-                    }}
-                    style={{ width: 92, textAlign: 'right' }}
+                    title="Vide = sans plafond (dernière tranche) — la tranche se range après validation"
+                    ariaLabel="Plafond de la tranche (locks)"
+                    onCommit={(v) => patchBand(b.id, { maxLocks: v })}
                   />
                 </td>
                 <td>
-                  <input
-                    className="mnd-input"
-                    inputMode="decimal"
-                    value={String(b.coef)}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value.replace(',', '.'));
-                      if (Number.isFinite(v) && v > 0) patchBand(b.id, { coef: Math.round(v * 100) / 100 });
-                    }}
-                    style={{ width: 76, textAlign: 'right' }}
-                    aria-label="Coefficient de prix"
+                  <NumCell
+                    value={b.coef}
+                    decimal
+                    width={76}
+                    ariaLabel="Coefficient de prix"
+                    onCommit={(v) => { if (v != null) patchBand(b.id, { coef: v }); }}
                   />
                 </td>
                 <td>
-                  <input
-                    className="mnd-input"
-                    inputMode="decimal"
-                    value={String(b.durCoef)}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value.replace(',', '.'));
-                      if (Number.isFinite(v) && v > 0) patchBand(b.id, { durCoef: Math.round(v * 100) / 100 });
-                    }}
-                    style={{ width: 76, textAlign: 'right' }}
-                    aria-label="Coefficient de durée"
+                  <NumCell
+                    value={b.durCoef}
+                    decimal
+                    width={76}
+                    ariaLabel="Coefficient de durée"
+                    onCommit={(v) => { if (v != null) patchBand(b.id, { durCoef: v }); }}
                   />
                 </td>
                 <td style={{ textAlign: 'right', fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>
