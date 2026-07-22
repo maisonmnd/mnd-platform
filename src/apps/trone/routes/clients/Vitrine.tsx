@@ -3,11 +3,13 @@ import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { usePersonas } from '../../../../shared/clients';
-import { useCategories, useProducts, useServices } from '../../../../shared/catalog';
+import { usePersonas, clientsStore } from '../../../../shared/clients';
+import { useCategories, useProducts, useServices, priceModeOf } from '../../../../shared/catalog';
+import { useTiers } from '../../../../shared/offers';
+import { useModelBands, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
 import { vitrineConfigStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
-import { Avatar, apptLabel, frLong, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
 import './clients.css';
 
 /* Vitrine client — le miroir personnalisé auto-joué pendant le rituel, et la régie
@@ -33,7 +35,7 @@ const RECO: Record<string, { title: string; base: number; line: string }> = {
 const Q2MULT: Record<string, number> = { garder: 1.0, oser: 1.18, surprise: 1.08 };
 
 export default function Vitrine() {
-  const [mode, setMode] = useState<'apercu' | 'regie'>('apercu');
+  const [mode, setMode] = useState<'apercu' | 'couronne' | 'regie'>('apercu');
   const clients = useBranchClients();
   const [cIdx, setCIdx] = useState(0);
   const [query, setQuery] = useState('');
@@ -65,8 +67,12 @@ export default function Vitrine() {
         eyebrow="Vitrine · L’écran de la cliente"
         title="La Vitrine."
         actions={
-          <Segs<'apercu' | 'regie'>
-            options={[{ value: 'apercu', label: 'Aperçu' }, { value: 'regie', label: 'Régie' }]}
+          <Segs<'apercu' | 'couronne' | 'regie'>
+            options={[
+              { value: 'apercu', label: 'Aperçu' },
+              { value: 'couronne', label: 'Ma Couronne' },
+              { value: 'regie', label: 'Régie' },
+            ]}
             value={mode}
             onChange={setMode}
           />
@@ -99,7 +105,9 @@ export default function Vitrine() {
         </div>
       </div>
 
-      {mode === 'apercu' ? <Apercu client={client} /> : <Regie client={client} />}
+      {mode === 'apercu' && <Apercu client={client} />}
+      {mode === 'couronne' && <CouronnePreview client={client} />}
+      {mode === 'regie' && <Regie client={client} />}
     </div>
   );
 }
@@ -432,6 +440,318 @@ function SwitchRow({ label, sub, on, onToggle }: { label: string; sub: string; o
         <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{sub}</div>
       </div>
       <button className={`trc-switch ${on ? 'is-on' : ''}`} onClick={() => onToggle(!on)} aria-label={label} />
+    </div>
+  );
+}
+
+/* ---------- Ma Couronne · l'aperçu de l'app cliente + les modules par cliente ----
+   Ce que VERRA cette cliente dans Ma Couronne, calculé sur les MÊMES données que
+   l'app (catalogue visible, barème des modèles, Juste Prix, paliers, RDV, reco) —
+   pour tester chaque écran AVANT de lancer les réservations. Et, par cliente, des
+   modules à couper : Réserver · Composer · Suivi · Gamme · Cercle · Offres
+   (fiche.hiddenModules, lus par l'app). */
+
+const COURONNE_MODULES: { k: string; label: string; sub: string }[] = [
+  { k: 'reserver', label: 'Réserver', sub: 'La prise de rendez-vous en ligne (tunnel en sept temps).' },
+  { k: 'compose', label: 'Composer', sub: 'Le rituel sur-mesure (composeur).' },
+  { k: 'suivi', label: 'Carnet de Suivi', sub: 'Onglet Suivi — parcours, photos, recommandation.' },
+  { k: 'gamme', label: 'La Gamme', sub: 'Onglet boutique — produits maison, commandes.' },
+  { k: 'cercle', label: 'Le Cercle', sub: 'Onglet fidélité — points et paliers.' },
+  { k: 'offres', label: 'Offres instantanées', sub: 'Les offres du Marketing sur son accueil.' },
+];
+
+const fmtDur = (min: number): string =>
+  min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}` : `${min} min`;
+
+function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
+  const { currency } = useBranch();
+  const [categories] = useCategories();
+  const [services] = useServices();
+  const [products] = useProducts();
+  const [tiers] = useTiers();
+  const [bands] = useModelBands();
+  const [cfg] = useStore(vitrineConfigStore);
+  const appts = useBranchAppointments();
+  const byId = useServicesById();
+  const today = todayISO();
+
+  const [screen, setScreen] = useState<'accueil' | 'reserver' | 'suivi' | 'cercle'>('accueil');
+
+  const hidden = client.hiddenModules ?? [];
+  const isOff = (k: string) => hidden.includes(k);
+  const toggleModule = (k: string) =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+      ? { ...c, hiddenModules: (c.hiddenModules ?? []).includes(k) ? (c.hiddenModules ?? []).filter((x) => x !== k) : [...(c.hiddenModules ?? []), k] }
+      : c)));
+
+  /* Le catalogue VISIBLE côté cliente — mêmes règles que useVisibleCatalog. */
+  const catOk = (id: string) => {
+    const c = categories.find((x) => x.id === id);
+    if (!c || !c.enabled) return false;
+    return cfg.visibleCategories.length === 0 || cfg.visibleCategories.includes(id);
+  };
+  const visServices = useMemo(
+    () => services.filter((s) => catOk(s.categoryId) && !cfg.hiddenServices.includes(s.id)).slice().sort((a, b) => a.order - b.order),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [services, categories, cfg],
+  );
+
+  /* SES prix, SA durée — le même moteur que l'app et le comptoir. */
+  const pricing = pricingOf(client, bands);
+  const priceLabel = (s: (typeof services)[number]) => {
+    const mode = priceModeOf(s);
+    if (mode === 'devis') return 'Prix en salon';
+    const p = fmtMoney(personalPriceXof(s, pricing), currency);
+    return mode === 'variable' ? `à partir de ${p}` : p;
+  };
+
+  /* Paliers du Cercle — la même échelle que l'app. */
+  const points = client.loyaltyPoints ?? 0;
+  const ladder = useMemo(() => [...tiers].sort((a, b) => a.pts - b.pts), [tiers]);
+  const nextTier = ladder.find((t) => points < t.pts);
+  const attained = ladder.filter((t) => t.pts <= points);
+
+  const nextAppt = appts
+    .filter((a) => a.clientId === client.id && a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const honoredCount = appts.filter((a) => a.clientId === client.id && a.status === 'honoré').length;
+  const lastVisit = appts
+    .filter((a) => a.clientId === client.id && a.status === 'honoré')
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const reco = products.find((p) => p.id === client.recoProductId);
+  const first = client.name.split(' ')[0];
+
+  const screenOff = (k: 'suivi' | 'cercle') => (isOff(k) ? (
+    <div style={{ margin: '30px 14px', padding: '18px 16px', textAlign: 'center', border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 12.5, lineHeight: 1.5 }}>
+      Module coupé pour {first} — cet onglet n'existe pas dans son application.
+    </div>
+  ) : null);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 360px) 1fr', gap: 18, alignItems: 'start' }}>
+      {/* ----- Colonne gauche : les modules de la cliente ----- */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: 22, color: 'var(--color-ivoire)' }}>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>Son application Ma Couronne</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14 }}>
+            <Avatar client={client} size={52} />
+            <div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, lineHeight: 1 }}>{first}</div>
+              <div style={{ fontSize: 11, color: 'var(--copper-200)', marginTop: 5 }}>
+                {client.lockCount ? `Modèle · ${client.lockCount} locks` : 'Modèle à renseigner (Clientes · colonne Locks)'}
+              </div>
+            </div>
+          </div>
+          {pricing.band && (
+            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
+              Tranche {bandLabel(pricing.band, bands)} · prix ×{pricing.band.coef} · durée ×{pricing.band.durCoef}
+              {pricing.clientCoef !== 1 ? ` · coefficient personnel ×${pricing.clientCoef}` : ''}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Modules · rien que pour elle</div>
+            <span className="mnd-muted" style={{ fontSize: 10.5 }}>{COURONNE_MODULES.length - hidden.length}/{COURONNE_MODULES.length} ouverts</span>
+          </div>
+          {COURONNE_MODULES.map((m) => (
+            <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: isOff(m.k) ? 'var(--ink-soft)' : 'var(--ink)' }}>{m.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{m.sub}</div>
+              </div>
+              <button className={`trc-switch ${!isOff(m.k) ? 'is-on' : ''}`} onClick={() => toggleModule(m.k)} aria-label={`Module ${m.label}`} title={isOff(m.k) ? 'Module coupé — cliquer pour l’ouvrir' : 'Module ouvert — cliquer pour le couper'} />
+            </div>
+          ))}
+          <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5 }}>
+            Coupé = l'onglet disparaît de SON application (et les gestes associés se ferment avec un mot honnête).
+            L'Accueil et le Profil restent toujours ouverts. Réglage synchronisé — effet immédiat sur son téléphone.
+          </div>
+        </div>
+
+        <a
+          className="mnd-btn mnd-btn--ghost"
+          style={{ textAlign: 'center', textDecoration: 'none' }}
+          href="https://yemanb.github.io/couronne/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Ouvrir Ma Couronne →
+        </a>
+      </div>
+
+      {/* ----- Colonne droite : le téléphone ----- */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {([['accueil', 'Accueil'], ['reserver', 'Réserver'], ['suivi', 'Suivi'], ['cercle', 'Cercle']] as const).map(([k, l]) => (
+            <button key={k} className="trc-chip" style={screen === k ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined} onClick={() => setScreen(k)}>
+              {l}{((k === 'reserver' && isOff('reserver')) || (k === 'suivi' && isOff('suivi')) || (k === 'cercle' && isOff('cercle'))) ? ' · coupé' : ''}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ width: 384, maxWidth: '100%', background: 'var(--color-ivoire)', border: '10px solid var(--color-indigo)', borderRadius: 26, overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
+          <div style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', textAlign: 'center', fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', padding: '7px 0 9px' }}>
+            Ma Couronne · {first}
+          </div>
+          <div style={{ minHeight: 470, maxHeight: 560, overflowY: 'auto' }}>
+            {/* ======= ACCUEIL ======= */}
+            {screen === 'accueil' && (
+              <div style={{ padding: 14 }}>
+                <div style={{ background: 'var(--grad-indigo, var(--color-indigo))', borderRadius: 6, padding: '20px 16px', color: 'var(--color-ivoire)' }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Votre couronne</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, marginTop: 4 }}>Bonjour, {first}.</div>
+                </div>
+                <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, background: 'var(--surface-card)', padding: '12px 14px', marginTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{client.crownStyle ?? 'Votre couronne'}</span>
+                    {attained.length > 0 && <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 999, padding: '2px 9px' }}>Palier {attained.length}</span>}
+                  </div>
+                  {ladder.length > 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                      {nextTier ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — elle en a ${points}.` : 'Tous les paliers sont honorés.'}
+                    </div>
+                  )}
+                </div>
+                <div style={{ background: 'var(--color-indigo)', borderRadius: 6, padding: '14px 16px', color: 'var(--color-ivoire)', marginTop: 12 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Prochain rituel</div>
+                  {nextAppt ? (
+                    <>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, marginTop: 5 }}>{frLong(nextAppt.date)} · {nextAppt.time}</div>
+                      <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 3 }}>{apptLabel(nextAppt, byId)} · {nextAppt.master}</div>
+                    </>
+                  ) : (
+                    <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 17, marginTop: 5 }}>Aucun rituel à venir</div>
+                  )}
+                </div>
+                {!isOff('reserver') && (
+                  <div style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', textAlign: 'center', borderRadius: 3, padding: '12px 10px', fontSize: 11.5, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 12 }}>Réserver un rituel</div>
+                )}
+                {!isOff('compose') && (
+                  <div style={{ border: '1px solid var(--color-indigo)', color: 'var(--color-indigo)', textAlign: 'center', borderRadius: 3, padding: '11px 10px', fontSize: 11.5, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 8 }}>✦ Composez votre rituel sur-mesure</div>
+                )}
+                {isOff('reserver') && (
+                  <div className="mnd-muted" style={{ fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>Réservation coupée — le bouton n'existe pas chez elle.</div>
+                )}
+                {reco && (
+                  <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '11px 13px', marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Du Carnet de Suivi</div>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', marginTop: 3 }}>{reco.name}</div>
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--copper-700)', flex: 'none' }}>{fmtMoney(reco.priceXof, currency)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ======= RÉSERVER · SES prix ======= */}
+            {screen === 'reserver' && (
+              <div style={{ padding: 14 }}>
+                {isOff('reserver') && (
+                  <div style={{ margin: '0 0 12px', padding: '12px 14px', border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 12, lineHeight: 1.5 }}>
+                    Module Réserver coupé — elle ne peut PAS ouvrir ce tunnel. Aperçu de ses tarifs quand même :
+                  </div>
+                )}
+                <div style={{ fontSize: 10.5, color: 'var(--copper-700)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+                  {pricing.band
+                    ? `Ses prix — modèle ${client.lockCount} locks · ${bandLabel(pricing.band, bands)}`
+                    : 'Modèle non renseigné — elle voit les prix catalogue'}
+                </div>
+                {categories.filter((c) => catOk(c.id) && visServices.some((s) => s.categoryId === c.id)).map((cat) => (
+                  <div key={cat.id} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>{cat.fon} · {cat.label}</div>
+                    {visServices.filter((s) => s.categoryId === cat.id).map((s) => (
+                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--hairline)' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                          <div className="mnd-muted" style={{ fontSize: 10 }}>
+                            {fmtDur(personalDurationMin(s, pricing))}
+                            {scalesWithModel(s) && pricing.band ? ' · suit son modèle' : ''}
+                          </div>
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13.5, color: 'var(--copper-700)', flex: 'none', whiteSpace: 'nowrap' }}>{priceLabel(s)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {visServices.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucune prestation visible — vérifiez la Régie et le Catalogue.</div>}
+              </div>
+            )}
+
+            {/* ======= SUIVI ======= */}
+            {screen === 'suivi' && (screenOff('suivi') ?? (
+              <div style={{ padding: 14 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[[client.lockCount ?? '—', 'Locks'], [honoredCount, 'Rituels honorés'], [lastVisit ? frShort(lastVisit.date) : '—', 'Dernière visite']].map(([v, l]) => (
+                    <div key={String(l)} style={{ flex: 1, border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '10px 8px', textAlign: 'center' }}>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{v}</div>
+                      <div className="mnd-muted" style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 3 }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                {reco ? (
+                  <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, background: 'var(--copper-50)', padding: '12px 14px', marginTop: 12 }}>
+                    <div style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>La maison vous recommande</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginTop: 5 }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{reco.name}</span>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13.5, color: 'var(--copper-700)' }}>{fmtMoney(reco.priceXof, currency)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, fontStyle: 'italic' }}>
+                    Aucun produit recommandé — choisissez-le sur sa fiche (La couronne · Produit recommandé).
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* ======= CERCLE ======= */}
+            {screen === 'cercle' && (screenOff('cercle') ?? (
+              <div style={{ padding: 14 }}>
+                <div style={{ background: 'var(--color-indigo)', borderRadius: 6, padding: '16px', color: 'var(--color-ivoire)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Reconnaissance de la maison</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, marginTop: 4 }}>{points.toLocaleString('fr-FR')}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--indigo-100)' }}>points de reconnaissance</div>
+                </div>
+                {ladder.length === 0 && <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, fontStyle: 'italic' }}>Aucun palier défini (Cercle MND).</div>}
+                {ladder.map((t, i) => {
+                  const svc = services.find((s) => s.id === t.serviceId);
+                  const on = points >= t.pts;
+                  return (
+                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '9px 2px', borderBottom: '1px solid var(--hairline)' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{svc?.name ?? 'Prestation de la maison'}</div>
+                        <div className="mnd-muted" style={{ fontSize: 10 }}>palier {i + 1} · {t.pts.toLocaleString('fr-FR')} points</div>
+                      </div>
+                      <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: on ? 'var(--trf-success, #4c7a4c)' : 'var(--ink-soft)', flex: 'none' }}>{on ? 'Obtenu' : `${points}/${t.pts}`}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Barre d'onglets du téléphone — les modules coupés n'y figurent pas. */}
+          <div style={{ display: 'flex', justifyContent: 'space-around', borderTop: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: '9px 4px 11px' }}>
+            {([['accueil', '♛', 'Accueil'], ['suivi', '◷', 'Suivi'], ['gamme', '⬡', 'Gamme'], ['cercle', '✦', 'Cercle'], ['profil', '◈', 'Profil']] as const).map(([k, g, l]) => {
+              const off = (k === 'suivi' || k === 'gamme' || k === 'cercle') && isOff(k);
+              if (off) return null;
+              return (
+                <div key={k} style={{ textAlign: 'center', color: k === screen ? 'var(--color-copper)' : 'var(--ink-soft)' }}>
+                  <div style={{ fontSize: 13 }}>{g}</div>
+                  <div style={{ fontSize: 8.5, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 1 }}>{l}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 11, textAlign: 'center', maxWidth: 420, lineHeight: 1.5 }}>
+          Aperçu calculé sur les mêmes données que son application : catalogue visible, barème des modèles,
+          paliers du Cercle, rendez-vous et recommandation. Ce qu'elle verra, sans se connecter à sa place.
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   MONTHS,
+  moduleHidden,
   dayLabelIso,
   daysSince,
   firstName,
@@ -262,7 +263,7 @@ export function HomeTab({
         </div>
 
         {/* offres instantanées — créées au Trône (Marketing), fenêtre jour/heure vivante */}
-        {offers.length > 0 && (
+        {offers.length > 0 && !moduleHidden(client, 'offres') && (
           <>
         <div className="mc-offershead">
           <span className="mc-offershead__label">Offres instantanées</span>
@@ -314,12 +315,18 @@ export function HomeTab({
           </button>
         </div>
 
-        <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
-          Réserver un rituel
-        </button>
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onOpenCompose}>
-          ✦ Composez votre rituel sur-mesure
-        </button>
+        {/* Modules coupés par la Maison : les gestes fermés disparaissent (les
+            gardes d'App.tsx couvrent de toute façon tous les autres chemins). */}
+        {!moduleHidden(client, 'reserver') && (
+          <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
+            Réserver un rituel
+          </button>
+        )}
+        {!moduleHidden(client, 'compose') && (
+          <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onOpenCompose}>
+            ✦ Composez votre rituel sur-mesure
+          </button>
+        )}
 
         {/* recommandation du moment — seulement si la gamme existe */}
         {reco && (

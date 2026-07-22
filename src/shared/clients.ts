@@ -32,6 +32,10 @@ export type Client = {
       porte-monnaie d'avoir et le paiement des factures vivent alors sur le compte
       famille — c'est le parent payeur qui règle. Absent = compte individuel. */
   familyId?: string;
+  /** Modules de Ma Couronne DÉSACTIVÉS pour cette cliente (réglés à la Vitrine du
+      Trône) : 'reserver' · 'compose' · 'suivi' · 'gamme' · 'cercle' · 'offres'.
+      Absent/vide = tout est ouvert. Accueil et Profil ne se coupent jamais. */
+  hiddenModules?: string[];
 };
 
 /** Compte famille — regroupe plusieurs clientes sous un même compte payeur. */

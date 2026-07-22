@@ -401,6 +401,16 @@ export const PRODUCT_META: Record<string, { tag: string; line: string }> = {
 
 export const productMeta = (id: string) => PRODUCT_META[id] ?? { tag: 'Rituel', line: 'Formule naturelle de la maison' };
 
+/* ---------- Modules de l'app — coupés par cliente depuis la Vitrine du Trône ---------- */
+
+export type CouronneModule = 'reserver' | 'compose' | 'suivi' | 'gamme' | 'cercle' | 'offres';
+
+/** Le module est-il DÉSACTIVÉ pour cette cliente ? (fiche.hiddenModules) */
+export const moduleHidden = (
+  client: { hiddenModules?: string[] } | null | undefined,
+  m: CouronneModule,
+): boolean => !!client?.hiddenModules?.includes(m);
+
 /* ---------- Réservation — pré-remplissage (offres, re-réservation) ---------- */
 
 export type BookingPrefill = {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
-import { useEnsureClient, useActivityTracker, useClientId, type BookingPrefill } from './lib';
+import { useEnsureClient, useActivityTracker, useClientId, useClient, moduleHidden, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
@@ -53,6 +53,16 @@ function Shell() {
 
   const [tab, setTab] = useState<TabId>('accueil');
 
+  /* Modules coupés par la Maison (Vitrine du Trône) : les onglets désactivés
+     disparaissent ; si l'onglet courant se ferme, on revient à l'Accueil. */
+  const me = useClient();
+  const visibleTabs = TABS.filter((t) =>
+    t.id === 'accueil' || t.id === 'profil' || !moduleHidden(me, t.id as 'suivi' | 'gamme' | 'cercle'));
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === tab)) setTab('accueil');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.hiddenModules?.join('|')]);
+
   /* Suivi de présence : une session par visite, temps cumulé écrit pour le Trône. */
   useActivityTracker(tab);
 
@@ -70,11 +80,25 @@ function Shell() {
     toastTimer.current = window.setTimeout(() => setToastMsg(null), 2600);
   }, []);
 
+  /* Garde GLOBALE : réservation coupée pour cette cliente → aucun chemin
+     (bouton, offre, re-réservation) n'ouvre le tunnel — un mot honnête à la place. */
   const openBooking = useCallback((prefill?: BookingPrefill) => {
+    if (moduleHidden(me, 'reserver')) {
+      toast('Les réservations en ligne sont fermées pour votre compte — contactez la maison.');
+      return;
+    }
     setNotifOpen(false);
     setRdvOpen(false);
     setBooking({ prefill });
-  }, []);
+  }, [me, toast]);
+
+  const openCompose = useCallback(() => {
+    if (moduleHidden(me, 'compose')) {
+      toast('Le rituel sur-mesure est fermé pour votre compte — contactez la maison.');
+      return;
+    }
+    setComposeOpen(true);
+  }, [me, toast]);
 
   const openRdv = useCallback(() => {
     setNotifOpen(false);
@@ -94,7 +118,7 @@ function Shell() {
         {tab === 'accueil' && (
           <HomeTab
             onOpenBooking={openBooking}
-            onOpenCompose={() => setComposeOpen(true)}
+            onOpenCompose={openCompose}
             onOpenNotif={() => setNotifOpen(true)}
             onOpenRdv={openRdv}
             goGamme={() => setTab('gamme')}
@@ -109,7 +133,7 @@ function Shell() {
 
       <nav className="mc-tabbar">
         <img className="mc-nav__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             className={`mc-tab ${tab === t.id ? 'is-on' : ''}`}
