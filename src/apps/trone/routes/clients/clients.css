@@ -1218,9 +1218,9 @@
 .trc-rowact.is-off { opacity: 0.3; pointer-events: none; }
 
 /* Le CRM enrichi demande un peu plus de largeur avant de défiler. */
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .trc-crm-sheet .trc-sheet__head,
-  .trc-crm-sheet .trc-sheet__row { min-width: 860px; }
+  .trc-crm-sheet .trc-sheet__row { min-width: 920px; }
 }
 
 /* ============================================================

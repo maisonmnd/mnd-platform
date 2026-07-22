@@ -31,7 +31,7 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
    rendez-vous à venir, fidélité, historique) et ajout d'une cliente. */
 
-const GRID = '2.1fr 1fr 0.95fr 0.95fr 0.55fr 132px';
+const GRID = '2.1fr 1fr 0.95fr 0.9fr 0.5fr 96px 84px';
 
 type SortKey = 'nom' | 'visite' | 'depense' | 'points';
 
@@ -104,6 +104,44 @@ function bdayInfo(iso: string): { age: number; daysUntil: number; soon: boolean 
 }
 
 /* Consultations (parsing / sérialisation / rendu / édition) : module partagé ./consultNotes */
+
+/** Cellule « nombre de locks » (modèle) éditable À MÊME LA LISTE — c'est ce qui
+    pilote le prix personnalisé (barème par tranches). Validation au blur / Entrée
+    (le brouillon reste local pendant la frappe) ; clic capté pour ne pas ouvrir la
+    fiche ; une valeur venue d'ailleurs (synchro) rafraîchit la case hors focus. */
+function LocksCell({ client }: { client: Client }) {
+  const asText = (n?: number) => (n != null ? String(n) : '');
+  const [draft, setDraft] = useState(asText(client.lockCount));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setDraft(asText(client.lockCount));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.lockCount, focused]);
+  const commit = () => {
+    setFocused(false);
+    const raw = draft.replace(/[^0-9]/g, '');
+    const v = raw === '' ? undefined : Math.max(0, parseInt(raw, 10));
+    if (v !== client.lockCount) {
+      clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, lockCount: v } : c)));
+    }
+  };
+  return (
+    <input
+      className="mnd-input"
+      inputMode="numeric"
+      value={draft}
+      placeholder="—"
+      title="Nombre de locks (modèle) — pilote le prix personnalisé"
+      aria-label={`Nombre de locks de ${client.name}`}
+      onClick={(e) => e.stopPropagation()}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      style={{ width: '100%', maxWidth: 84, textAlign: 'center', padding: '5px 6px', fontSize: 13 }}
+    />
+  );
+}
 
 /** Champ « Style de couronne » — liste éditable (crownStylesStore) + ajout inline. */
 function CrownStyleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -326,6 +364,7 @@ export default function Customers() {
           <span>Dernière visite</span>
           <span>Dépensé</span>
           <span>Points</span>
+          <span style={{ textAlign: 'center' }}>Locks</span>
           <span />
         </div>
         {filtered.length === 0 && (
@@ -342,7 +381,6 @@ export default function Customers() {
           const st = stats.get(c.id);
           const online = onlineIds.has(c.id);
           const bd = c.birthday ? bdayInfo(c.birthday) : null;
-          const phoneDigits = digitsOf(c.phone);
           return (
             <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} key={c.id} onClick={() => setSelId(c.id)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -371,17 +409,11 @@ export default function Customers() {
               <span className="trc-sub">{st?.lastISO ? relDays(st.lastISO) : 'jamais venue'}</span>
               <span className="trc-money">{st && st.spend > 0 ? fmtMoney(st.spend, currency) : '—'}</span>
               <span className="trc-sub">{c.loyaltyPoints ?? 0}</span>
+              {/* Nombre de locks (modèle) — renseigné directement dans la liste. */}
+              <span style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
+                <LocksCell client={c} />
+              </span>
               <span className="trc-rowacts">
-                {c.phone ? (
-                  <a className="trc-rowact" href={telHref(c.phone)} onClick={(e) => e.stopPropagation()} title={`Appeler ${c.name}`}>Tél</a>
-                ) : (
-                  <span className="trc-rowact is-off" aria-hidden>Tél</span>
-                )}
-                {phoneDigits ? (
-                  <a className="trc-rowact" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`WhatsApp ${c.name}`}>WA</a>
-                ) : (
-                  <span className="trc-rowact is-off" aria-hidden>WA</span>
-                )}
                 <button
                   type="button"
                   className="trc-rowact trc-rowact--rdv"
