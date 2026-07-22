@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
 import { useServices, type Service } from '../../../../shared/catalog';
-import { useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, MODEL_BANDS_SEED } from '../../../../shared/pricing';
+import { useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, pricingOf, scalesWithModel, MODEL_BANDS_SEED } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
 import './finances.css';
 
@@ -63,6 +63,7 @@ export default function JustePrix() {
   const [clients, setClients] = useClients();
   const [services] = useServices();
 
+  const [bands] = useModelBands();
   const branchClients = useMemo(() => clients.filter((c) => c.branchId === branch.id && !c.archived), [clients, branch.id]);
   const svcList = useMemo(() => services.filter((s) => !s.hidePrice).slice(0, 5), [services]);
 
@@ -93,19 +94,33 @@ export default function JustePrix() {
 
   const engine = useMemo(() => {
     if (!client || !service) return null;
+    /* Le moteur part du PRIX DU MODÈLE — catalogue × coef de la tranche de locks
+       (si la prestation suit le modèle) — PUIS les leviers l'ajustent. Sans ce
+       socle, l'écran affichait le tarif catalogue et ignorait le modèle : Kèmi à
+       331 locks apparaissait à 23 000 F au lieu de son vrai tarif. */
+    const pr = pricingOf(client, bands);
+    const modelCoef = scalesWithModel(service) && pr.band ? pr.band.coef : 1;
+    const modelBase = service.priceXof * modelCoef; // prix pour SON modèle, avant leviers
     const lat = latitude / 100;
     const signals = signalsFor(client, service, branch.city);
     const contribs = LEVERS.map((lv) => {
       const frac = (weights[lv.k] / 100) * lv.swing * signals[lv.k] * lat;
-      return { k: lv.k, name: lv.name, reads: lv.reads, frac, deltaF: service.priceXof * frac, weight: weights[lv.k] };
+      return { k: lv.k, name: lv.name, reads: lv.reads, frac, deltaF: modelBase * frac, weight: weights[lv.k] };
     });
     let mult = 1 + contribs.reduce((a, x) => a + x.frac, 0);
     const clamped = mult < FLOOR || mult > CEIL;
     mult = clamp(mult, FLOOR, CEIL);
-    const finalP = Math.round((service.priceXof * mult) / 500) * 500;
+    /* Prix final = SON prix : modèle × leviers, arrondi au 500 F. Identique au
+       prix figé à la réservation (personalPriceXof) — l'écran ne ment plus. */
+    const finalP = roundPrice(modelBase * mult);
     const maxAbs = Math.max(...contribs.map((x) => Math.abs(x.deltaF)), 1);
-    return { contribs, mult, clamped, finalP, maxAbs, floor: Math.round((service.priceXof * FLOOR) / 500) * 500, ceil: Math.round((service.priceXof * CEIL) / 500) * 500 };
-  }, [client, service, weights, latitude, branch.city]);
+    const modelBaseShown = modelCoef !== 1 ? roundPrice(modelBase) : service.priceXof;
+    return {
+      contribs, mult, clamped, finalP, maxAbs,
+      modelCoef, modelBase: modelBaseShown, band: pr.band, lockCount: client.lockCount,
+      floor: roundPrice(modelBase * FLOOR), ceil: roundPrice(modelBase * CEIL),
+    };
+  }, [client, service, weights, latitude, branch.city, bands]);
 
   const rankOf = (c: Client) => c.segments[0] ?? 'Cliente';
   const fmtSigned = (v: number) => `${v >= 0 ? '+' : '−'} ${fmtMoney(Math.round(Math.abs(v) / 100) * 100, currency)}`;
@@ -264,11 +279,22 @@ export default function JustePrix() {
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Ce que vous voyez</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>le moteur, à nu</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 12, marginBottom: 4 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Base</span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 20, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{fmtMoney(service.priceXof, currency)}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingBottom: engine.modelCoef !== 1 ? 6 : 12, borderBottom: engine.modelCoef !== 1 ? 'none' : '1px solid var(--hairline)', marginBottom: engine.modelCoef !== 1 ? 0 : 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Catalogue</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: engine.modelCoef !== 1 ? 16 : 20, color: engine.modelCoef !== 1 ? 'var(--ink-soft)' : 'var(--ink)', whiteSpace: 'nowrap' }}>{fmtMoney(service.priceXof, currency)}</span>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginLeft: 'auto' }}>{service.name}</span>
             </div>
+            {/* Le socle réel : le prix du MODÈLE (tranche de locks). Sans modèle
+                connu ou prestation hors périmètre, il est égal au catalogue. */}
+            {engine.modelCoef !== 1 && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 12, marginBottom: 4 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>Base modèle</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 20, color: 'var(--color-indigo)', whiteSpace: 'nowrap' }}>{fmtMoney(engine.modelBase, currency)}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-700)', marginLeft: 'auto' }}>
+                  {engine.lockCount} locks{engine.band ? ` · ${bandLabel(engine.band, bands)} (×${engine.band.coef})` : ''}
+                </span>
+              </div>
+            )}
             {intel && engine.contribs.map((x) => {
               const w = (Math.abs(x.deltaF) / engine.maxAbs) * 48;
               return (
@@ -292,7 +318,9 @@ export default function JustePrix() {
                 </div>
               </div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, lineHeight: 1, color: 'var(--trf-success)' }}>
-                {fmtMoney(intel ? engine.finalP : service.priceXof, currency)}
+                {/* Intelligence en veille → le prix de son MODÈLE (pas le catalogue) :
+                    le barème par tranches s'applique toujours à la réservation. */}
+                {fmtMoney(intel ? engine.finalP : engine.modelBase, currency)}
               </div>
             </div>
             <button className="trf-act" style={{ width: '100%', marginTop: 14, padding: 11 }} onClick={applyCoef} disabled={!intel}>
@@ -311,8 +339,12 @@ export default function JustePrix() {
               </>
             ) : (
               <>
-                <div className="trf-mirror__price" style={{ marginTop: 14 }}>{fmtMoney(service.priceXof, currency)}</div>
-                <div className="trf-mirror__foot">Intelligence en veille — chaque couronne paie le même prix.</div>
+                <div className="trf-mirror__price" style={{ marginTop: 14 }}>{fmtMoney(engine.modelBase, currency)}</div>
+                <div className="trf-mirror__foot">
+                  {engine.modelCoef !== 1
+                    ? <>Intelligence en veille — <span style={{ color: 'var(--copper-200)' }}>tarif de son modèle ({engine.lockCount} locks)</span>, sans ajustement personnel.</>
+                    : 'Intelligence en veille — chaque couronne paie le même prix.'}
+                </div>
               </>
             )}
           </div>
