@@ -67,6 +67,7 @@ export default function JustePrix() {
   const svcList = useMemo(() => services.filter((s) => !s.hidePrice).slice(0, 5), [services]);
 
   const [clientId, setClientId] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [weights, setWeights] = useState<Record<LeverKey, number>>(DEFAULT_WEIGHTS);
   const [latitude, setLatitude] = useState(100);
@@ -74,6 +75,21 @@ export default function JustePrix() {
 
   const client = branchClients.find((c) => c.id === clientId) ?? branchClients[0];
   const service = svcList.find((s) => s.id === serviceId) ?? svcList[0];
+
+  /* Recherche cliente — accents/casse insensibles ; le filtre téléphone ne
+     s'applique QUE si la saisie contient des chiffres (sinon `''.includes('')`
+     serait vrai pour toutes et le filtre par nom ne servirait à rien). */
+  const cnorm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const cdigits = (s: string) => s.replace(/\D/g, '');
+  const cq = clientQuery.trim();
+  const cqn = cnorm(cq);
+  const cqd = cdigits(cq);
+  const shownClients = useMemo(
+    () => (cq
+      ? branchClients.filter((c) => cnorm(c.name).includes(cqn) || (cqd !== '' && cdigits(c.phone).includes(cqd)))
+      : branchClients),
+    [branchClients, cq, cqn, cqd],
+  );
 
   const engine = useMemo(() => {
     if (!client || !service) return null;
@@ -200,9 +216,25 @@ export default function JustePrix() {
         {/* LA DÉMONSTRATION */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="trf-panel" style={{ padding: '18px 20px' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>La couronne</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>La couronne</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                {cq ? `${shownClients.length} / ${branchClients.length}` : `${branchClients.length}`} cliente{branchClients.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <input
+              className="mnd-input"
+              value={clientQuery}
+              onChange={(e) => setClientQuery(e.target.value)}
+              placeholder="Rechercher une cliente (nom, téléphone)…"
+              aria-label="Rechercher une cliente"
+              style={{ width: '100%', marginBottom: 12 }}
+            />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-              {branchClients.map((c) => {
+              {shownClients.length === 0 && (
+                <div className="trf-empty" style={{ width: '100%' }}>Aucune cliente ne répond à « {cq} ».</div>
+              )}
+              {shownClients.map((c) => {
                 const on = c.id === client.id;
                 return (
                   <button key={c.id} className={`trf-pick ${on ? 'is-active' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setClientId(c.id)}>
