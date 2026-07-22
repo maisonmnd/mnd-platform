@@ -278,7 +278,9 @@ export default function Dashboard() {
   const openDay = (iso: string) => {
     const rows: DrillRow[] = [
       ...appts
-        .filter((a) => a.date === iso && !a.invoiceId && (a.status === 'honoré' || (a.status === 'confirmé' && a.date <= today)))
+        // INVARIANT CA : seuls les rituels HONORÉS comptent — un « confirmé daté
+        // d'hier » n'est pas du revenu, le détail doit tomber sur la barre.
+        .filter((a) => a.date === iso && !a.invoiceId && a.status === 'honoré')
         // Un rituel du carnet n'a pas (encore) de facture : la ligne ouvre son RDV,
         // d'où l'on encaisse — plutôt que de mener à une facture qui n'existe pas.
         .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptTotalXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
@@ -286,10 +288,11 @@ export default function Dashboard() {
         .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
         .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
       // Scolarité de l'Académie — hors branche, mais bien du revenu de la Maison.
+      // La ligne s'ouvre sur l'Académie, où vit le dossier de l'apprenant·e.
       ...apprenants.flatMap((ap) =>
         (ap.payments ?? [])
           .filter((p) => payISO(p.date) === iso)
-          .map((p) => ({ who: ap.name, sub: 'Scolarité · Académie', amount: p.amountXof })),
+          .map((p) => ({ who: ap.name, sub: 'Scolarité · Académie', amount: p.amountXof, onOpen: () => { setDrill(null); navigate('/academie'); } })),
       ),
     ];
     setDrill({

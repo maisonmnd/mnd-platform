@@ -8,10 +8,13 @@ import {
   useClients, clientsStore, useFamilies, familiesStore, type Client, type Family,
 } from '../../../../shared/clients';
 import {
-  useCredits, creditMovementsStore, creditBalanceOf, type CreditHolder, type CreditMovement,
+  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal,
+  type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
+import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel } from '../../../../shared/accounts';
-import { ClientPicker } from '../clients/_shared';
+import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
+import { PayAppointmentModal } from '../clients/actions';
 import { todayISO } from './_shared';
 import './finances.css';
 
@@ -52,6 +55,50 @@ export default function Comptes() {
   const [famModal, setFamModal] = useState<Family | 'new' | null>(null);
   const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement' } | null>(null);
   const [ledgerHolder, setLedgerHolder] = useState<CreditHolder | null>(null);
+  /* Impayés d'un compte (RDV dus + factures envoyées de ses membres) — pour les
+     solder directement par l'avoir. */
+  const [unpaidFor, setUnpaidFor] = useState<CreditHolder | null>(null);
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  const [appts] = useAppointments();
+  const [invoices] = useInvoices();
+  const byId = useServicesById();
+
+  /** Les membres d'un compte : les clientes de la famille, ou la cliente seule. */
+  const membersOfHolder = (holder: CreditHolder): Client[] =>
+    holder.type === 'family'
+      ? branchClients.filter((c) => c.familyId === holder.id)
+      : branchClients.filter((c) => c.id === holder.id);
+
+  /** Impayés d'un compte : rituels avec un reste dû + factures « envoyées ». */
+  const unpaidOfHolder = (holder: CreditHolder) => {
+    const ids = new Set(membersOfHolder(holder).map((c) => c.id));
+    const dueAppts = appts
+      .filter((a) => a.branchId === branch.id && ids.has(a.clientId) && a.status !== 'annulé' && apptDueXof(a, byId) > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const linked = new Set(appts.filter((a) => a.invoiceId).map((a) => a.invoiceId));
+    const dueInvoices = invoices
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'envoyée'
+        && (ids.has(i.clientId) || (i.forClientId ? ids.has(i.forClientId) : false)))
+      .map((i) => ({ inv: i, linkedToAppt: linked.has(i.id) }));
+    return { dueAppts, dueInvoices };
+  };
+
+  /* Solder une facture « envoyée » PAR L'AVOIR : la facture passe payée (paiement
+     « Avoir », avoirXof = total → jamais créditée à une caisse physique) et une
+     écriture d'usage débite le compte. Réservé aux factures NON liées à un rituel
+     (celles-là se soldent par « Encaisser le rituel » — invariant deux-registres). */
+  const settleInvoiceByAvoir = (inv: Invoice, holder: CreditHolder) => {
+    const total = invoiceTotal(inv);
+    const bal = creditBalanceOf(credits, holder);
+    if (total <= 0 || bal < total) return;
+    if (!window.confirm(`Solder la facture ${inv.number} (${fmtMoney(total, currency)}) par l'avoir du compte ? Le solde d'avoir passera à ${fmtMoney(bal - total, currency)}.`)) return;
+    invoicesStore.set((prev) => prev.map((x) => (x.id === inv.id ? { ...x, status: 'payée', payment: 'Avoir', avoirXof: total } : x)));
+    creditMovementsStore.set((prev) => [...prev, {
+      id: uid(), branchId: branch.id, holderType: holder.type, holderId: holder.id,
+      kind: 'usage', amountXof: total, date: todayISO(),
+      forClientId: inv.forClientId ?? inv.clientId ?? undefined, invoiceId: inv.id,
+    }]);
+  };
 
   return (
     <div className="mnd-rise">
@@ -122,6 +169,7 @@ export default function Comptes() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   <Button size="sm" variant="copper" onClick={() => setDeposit({ holder: { type: 'family', id: f.id }, kind: 'depot' })}>Verser un avoir</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setUnpaidFor({ type: 'family', id: f.id })}>Impayés</Button>
                   <Button size="sm" variant="ghost" onClick={() => setLedgerHolder({ type: 'family', id: f.id })}>Mouvements</Button>
                   <Button size="sm" variant="ghost" onClick={() => setFamModal(f)}>Modifier</Button>
                 </div>
@@ -144,6 +192,7 @@ export default function Comptes() {
                   <span className="trf-coffre-row__meta">avoir individuel</span>
                 </span>
                 <span className="trf-coffre-row__amount trf-coffre-row__amount--depot">{fmtMoney(bal, currency)}</span>
+                <button className="trf-coffre-row__del" style={{ opacity: 0.8, fontSize: 11 }} title="Impayés du compte" onClick={() => setUnpaidFor({ type: 'client', id: client.id })}>impayés</button>
                 <button className="trf-coffre-row__del" style={{ opacity: 0.8, fontSize: 11 }} title="Mouvements" onClick={() => setLedgerHolder({ type: 'client', id: client.id })}>voir</button>
               </div>
             ))}
@@ -156,6 +205,8 @@ export default function Comptes() {
           family={famModal === 'new' ? null : famModal}
           branchId={branch.id}
           clients={branchClients}
+          credits={credits}
+          currency={currency}
           onClose={() => setFamModal(null)}
         />
       )}
@@ -182,21 +233,111 @@ export default function Comptes() {
           onClose={() => setLedgerHolder(null)}
         />
       )}
+
+      {/* ===== IMPAYÉS DU COMPTE — solder par l'avoir ===== */}
+      {unpaidFor && (() => {
+        const holder = unpaidFor;
+        const bal = balOf(holder);
+        const { dueAppts, dueInvoices } = unpaidOfHolder(holder);
+        const nm = (id: string) => branchClients.find((c) => c.id === id)?.name ?? 'Cliente';
+        return (
+          <Modal title={`Impayés · ${holderLabel(holder, branchClients, branchFamilies)}`} onClose={() => setUnpaidFor(null)} width={560}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="trf-coffre-suggest" style={{ background: 'var(--surface-card)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="mnd-muted" style={{ fontSize: 12 }}>Avoir disponible pour solder</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: bal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>{fmtMoney(bal, currency)}</span>
+              </div>
+
+              {dueAppts.length === 0 && dueInvoices.length === 0 && (
+                <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun impayé sur ce compte — tout est réglé.</div>
+              )}
+
+              {dueAppts.length > 0 && (
+                <div>
+                  <div className="trc-microlabel" style={{ marginBottom: 8 }}>Rituels avec un reste dû · {dueAppts.length}</div>
+                  {dueAppts.map((a) => (
+                    <div key={a.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                      <span className="trf-coffre-row__main">
+                        <span className="trf-coffre-row__title">{nm(a.clientId)} · {apptLabel(a, byId)}</span>
+                        <span className="trf-coffre-row__meta">{a.date} · {a.time} · {a.master}</span>
+                      </span>
+                      <span className="trf-coffre-row__amount trf-coffre-row__amount--virement">reste {fmtMoney(apptDueXof(a, byId), currency)}</span>
+                      {/* Encaisser ouvre la modale habituelle — le champ « Régler par
+                          l'avoir » y est, la facture sort au parent payeur. */}
+                      <Button size="sm" variant="copper" onClick={() => { setUnpaidFor(null); setPayAppt(a); }}>Encaisser</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {dueInvoices.length > 0 && (
+                <div>
+                  <div className="trc-microlabel" style={{ marginBottom: 8 }}>Factures impayées · {dueInvoices.length}</div>
+                  {dueInvoices.map(({ inv, linkedToAppt }) => {
+                    const total = invoiceTotal(inv);
+                    const canSettle = !linkedToAppt && total > 0 && bal >= total;
+                    return (
+                      <div key={inv.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                        <span className="trf-coffre-row__main">
+                          <span className="trf-coffre-row__title">{inv.number} · {inv.clientName ?? nm(inv.clientId)}</span>
+                          <span className="trf-coffre-row__meta">{inv.date}{linkedToAppt ? ' · liée à un rituel — encaissez le rituel ci-dessus' : ''}</span>
+                        </span>
+                        <span className="trf-coffre-row__amount trf-coffre-row__amount--virement">{fmtMoney(total, currency)}</span>
+                        {!linkedToAppt && (
+                          <Button
+                            size="sm"
+                            variant="copper"
+                            disabled={!canSettle}
+                            title={canSettle ? undefined : bal < total ? 'Avoir insuffisant — versez d’abord' : undefined}
+                            onClick={() => { settleInvoiceByAvoir(inv, holder); }}
+                          >
+                            Solder par l’avoir
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }
 
 /* ---------- Créer / modifier un compte famille ---------- */
 function FamilyModal({
-  family, branchId, clients, onClose,
+  family, branchId, clients, credits, currency, onClose,
 }: {
   family: Family | null;
   branchId: string;
   clients: Client[];
+  credits: CreditMovement[];
+  currency: string;
   onClose: () => void;
 }) {
   const [name, setName] = useState(family?.name ?? '');
   const [note, setNote] = useState(family?.note ?? '');
+  /* L'avoir du compte, visible et AJUSTABLE ici même : saisir le solde voulu écrit
+     une écriture de correction (dépôt ou remboursement de la différence) — jamais
+     de mutation silencieuse du registre. */
+  const famBalance = family ? creditBalanceOf(credits, { type: 'family', id: family.id }) : 0;
+  const [balDraft, setBalDraft] = useState('');
+  const balTarget = parseInt(balDraft.replace(/[^0-9]/g, ''), 10);
+  const balDiff = Number.isFinite(balTarget) ? balTarget - famBalance : 0;
+  const adjustBalance = () => {
+    if (!family || !Number.isFinite(balTarget) || balTarget < 0 || balDiff === 0) return;
+    creditMovementsStore.set((prev) => [...prev, {
+      id: uid(), branchId, holderType: 'family', holderId: family.id,
+      kind: balDiff > 0 ? 'depot' : 'remboursement', amountXof: Math.abs(balDiff),
+      date: todayISO(), note: 'Ajustement manuel du solde',
+    }]);
+    setBalDraft('');
+  };
   const initMembers = family ? clients.filter((c) => c.familyId === family.id).map((c) => c.id) : [];
   const [memberIds, setMemberIds] = useState<string[]>(initMembers);
   const [payerId, setPayerId] = useState(family?.payerClientId ?? '');
@@ -259,6 +400,38 @@ function FamilyModal({
             <div className="mnd-muted" style={{ fontSize: 10.5 }}>Le parent payeur (★) est celui qui règle les factures du compte.</div>
           </div>
         </Field>
+        {family && (
+          <Field label="Avoir du compte">
+            <div className="trf-coffre-suggest" style={{ background: 'var(--surface-card)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                <span className="mnd-muted" style={{ fontSize: 12 }}>Solde disponible</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: famBalance > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>{fmtMoney(famBalance, currency)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Input
+                  inputMode="numeric"
+                  value={balDraft}
+                  placeholder={String(famBalance)}
+                  onChange={(e) => setBalDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                  style={{ width: 130, textAlign: 'right' }}
+                  aria-label="Nouveau solde d'avoir"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!Number.isFinite(balTarget) || balDiff === 0}
+                  onClick={adjustBalance}
+                  title={balDiff !== 0 && Number.isFinite(balTarget) ? `${balDiff > 0 ? 'Dépôt' : 'Remboursement'} de ${fmtMoney(Math.abs(balDiff), currency)} (ajustement)` : undefined}
+                >
+                  Ajuster le solde
+                </Button>
+                <span className="mnd-muted" style={{ fontSize: 10.5 }}>
+                  saisir le solde voulu — l’écart s’écrit comme {balDiff >= 0 ? 'un dépôt' : 'un remboursement'} d’ajustement, tracé au registre.
+                </span>
+              </div>
+            </div>
+          </Field>
+        )}
         <Field label="Note · facultatif">
           <Textarea rows={2} value={note} placeholder="Ex. mère + 2 filles, règle en une fois chaque mois…" onChange={(e) => setNote(e.target.value)} />
         </Field>
