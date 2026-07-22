@@ -245,20 +245,37 @@ export default function JustePrix() {
               aria-label="Rechercher une cliente"
               style={{ width: '100%', marginBottom: 12 }}
             />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-              {shownClients.length === 0 && (
-                <div className="trf-empty" style={{ width: '100%' }}>Aucune cliente ne répond à « {cq} ».</div>
-              )}
-              {shownClients.map((c) => {
-                const on = c.id === client.id;
-                return (
-                  <button key={c.id} className={`trf-pick ${on ? 'is-active' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setClientId(c.id)}>
-                    <div className="trf-pick__name">{c.name.split(' ')[0]}</div>
-                    <div className="trf-pick__sub">{rankOf(c)}</div>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Hors recherche, on ne DÉROULE PAS les 181 clientes : on montre juste
+                la cliente sélectionnée. Les cartes n'apparaissent qu'en tapant. */}
+            {cq ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                {shownClients.length === 0 && (
+                  <div className="trf-empty" style={{ width: '100%' }}>Aucune cliente ne répond à « {cq} ».</div>
+                )}
+                {shownClients.slice(0, 12).map((c) => {
+                  const on = c.id === client.id;
+                  return (
+                    <button key={c.id} className={`trf-pick ${on ? 'is-active' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => { setClientId(c.id); setClientQuery(''); }}>
+                      <div className="trf-pick__name">{c.name.split(' ')[0]}</div>
+                      <div className="trf-pick__sub">{rankOf(c)}</div>
+                    </button>
+                  );
+                })}
+                {shownClients.length > 12 && (
+                  <div className="trf-empty" style={{ width: '100%', padding: '8px 0' }}>… {shownClients.length - 12} autres — affinez la recherche.</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <button className="trf-pick is-active" style={{ flex: 'none', minWidth: 150 }} title="Cliente sélectionnée">
+                  <div className="trf-pick__name">{client.name.split(' ')[0]}</div>
+                  <div className="trf-pick__sub">{rankOf(client)}{client.lockCount ? ` · ${client.lockCount} locks` : ''}</div>
+                </button>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+                  cliente en cours — cherchez un nom ci-dessus pour en choisir une autre.
+                </span>
+              </div>
+            )}
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>La prestation</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {svcList.map((s) => {
