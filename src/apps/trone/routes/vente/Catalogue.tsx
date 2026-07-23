@@ -9,6 +9,7 @@ import {
   type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
+import { appointmentsStore } from '../../../../shared/agenda';
 import { scalesWithModel } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
@@ -183,7 +184,14 @@ export default function Catalogue() {
   };
 
   const deleteSvc = (svc: Service) => {
-    if (!window.confirm(`Supprimer la prestation « ${svc.name} » ? Cette action est définitive.`)) return;
+    /* Garde-fou : des RDV référencent peut-être cette prestation — la supprimer
+       leur ferait perdre libellé et prix d'affichage (incident du 23 juil. 2026).
+       On compte, on prévient, on nomme la conséquence. */
+    const refs = appointmentsStore.get().filter((a) => a.serviceIds.includes(svc.id) && a.status !== 'annulé').length;
+    const warn = refs > 0
+      ? `\n\n⚠ ${refs} rendez-vous du carnet porte${refs > 1 ? 'nt' : ''} cette prestation : ils perdront son libellé et son prix d'affichage (les montants déjà encaissés/figés ne bougent pas). Préférez la MASQUER de la vitrine si vous voulez seulement cesser de la vendre.`
+      : '';
+    if (!window.confirm(`Supprimer la prestation « ${svc.name} » ? Cette action est définitive.${warn}`)) return;
     setServices((prev) => prev.filter((s) => s.id !== svc.id));
   };
 

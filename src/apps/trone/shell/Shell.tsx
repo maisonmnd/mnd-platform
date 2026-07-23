@@ -5,7 +5,9 @@ import { NAV } from '../routes/index';
 import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
-import { Seal, Button } from '../../../ds/components';
+import { Seal, Button, toast } from '../../../ds/components';
+import { useServices } from '../../../shared/catalog';
+import { ensureRescuedServices } from '../rescueServices';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
@@ -88,6 +90,16 @@ export default function Shell() {
     }
     houseSettingsStore.set((prev) => ({ ...prev, bills_refreeze_2026_07: true }));
   }, [allAppts]);
+  /* SAUVETAGE du 23 juil. 2026 : re-crée les prestations supprimées du Catalogue
+     (photographie du 21 juil.) — les RDV retrouvent leurs libellés et leurs prix.
+     Une fois, après hydratation ; n'écrase jamais l'existant. */
+  const [allServices] = useServices();
+  useEffect(() => {
+    const n = ensureRescuedServices();
+    if (n > 0) toast(`${n} prestation${n > 1 ? 's' : ''} du catalogue restaurée${n > 1 ? 's' : ''} — vos rendez-vous ont retrouvé leurs prestations.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allServices]);
+
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();
   const today = new Date();

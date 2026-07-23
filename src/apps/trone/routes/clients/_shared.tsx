@@ -483,7 +483,8 @@ export function RdvModal({
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis' ? 'sur devis' : priceModeOf(sv) === 'variable' ? `dès ${fmtMoney(sv.priceXof, currency)}` : fmtMoney(sv.priceXof, currency)}</span>
+                  {/* SON prix — recalculé dès qu'on change de cliente (modèle × Juste Prix). */}
+                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis' ? 'sur devis' : priceModeOf(sv) === 'variable' ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}` : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
                   <button
                     onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
                     aria-label="Retirer"
@@ -508,7 +509,7 @@ export function RdvModal({
               </option>
               {remaining.map((sv) => (
                 <option key={sv.id} value={sv.id}>
-                  {sv.name} · {fmtMoney(sv.priceXof, currency)}
+                  {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
                 </option>
               ))}
             </Select>
