@@ -83,8 +83,20 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
-      const { error } = await sb.from(table).delete().in('id', deletes);
-      if (error) { ok = false; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
+      /* GARDE-FOU suppression de MASSE (incident du 23-07 : 28 prestations
+         effacées du serveur d'un geste local). Les suppressions légitimes se
+         font une à une à l'écran ; un diff qui veut effacer ≥ 10 lignes ET
+         ≥ 25 % de la table est presque sûrement un état local corrompu ou
+         vidé (cache purgé, hydratation ratée) — on REFUSE de le propager, on
+         le dit en console, et la pastille de synchro passe en échec. */
+      const massive = deletes.length >= 10 && deletes.length * 4 >= prev.size;
+      if (massive) {
+        ok = false;
+        console.warn(`[mnd-sync] ${table} : suppression de masse BLOQUÉE (${deletes.length}/${prev.size} lignes) — état local suspect, rien n'a été effacé du serveur.`);
+      } else {
+        const { error } = await sb.from(table).delete().in('id', deletes);
+        if (error) { ok = false; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
+      }
     }
     if (ok) syncMark.ok(table); else syncMark.fail(table);
   };
