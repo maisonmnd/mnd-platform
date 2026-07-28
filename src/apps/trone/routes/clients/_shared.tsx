@@ -125,10 +125,21 @@ export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
    « soon » = demain (rappel J-1), '' = plus lointain. */
 const digitsOf = (p?: string) => (p ?? '').replace(/\D/g, '');
 
+/** Signature de la Maison au bas d'un message — le picto de la branche puis la
+    devise en fon, celle du Portail, du Certificat et du Bilan de séance :
+    « mi nyɔ́ ɖɛkpɛ » (nous sommes beaux, et nous le savons).
+    ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut
+    pas voyager dans le message. Le picto typographique de la branche en tient
+    lieu ; le vrai logo se pose une fois pour toutes en photo de profil du compte
+    WhatsApp de la Maison, où il signe alors CHAQUE message. */
+export const houseSignature = (picto?: string) =>
+  `${picto ?? '◈'} Maison MND · mi nyɔ́ ɖɛkpɛ`;
+
 export function apptReminder(
   a: Appointment,
   client: Client | undefined,
   byId: Map<string, Service>,
+  picto?: string,
 ): { href: string | null; due: 'now' | 'soon' | ''; when: string } {
   const t = todayISO();
   const tomorrow = addDaysISO(t, 1);
@@ -151,7 +162,8 @@ export function apptReminder(
   const msg =
     `Bonjour ${first},\n` +
     `Petit rappel de la Maison MND : votre rendez-vous est prévu ${when}${svc && svc !== '—' ? ` (${svc})` : ''}.\n` +
-    `Merci de nous prévenir en cas d'empêchement. À très vite.`;
+    `Merci de nous prévenir en cas d'empêchement. À très vite.\n\n` +
+    houseSignature(picto);
   return { href: `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, due, when };
 }
 
@@ -168,9 +180,10 @@ export function ReminderBell({
   appt, client, byId, className, size = 15,
 }: { appt: Appointment; client?: Client; byId: Map<string, Service>; className?: string; size?: number }) {
   const [sentKeys] = useRemindersSent();
+  const { branch } = useBranch(); // le picto de la branche signe le message
   const upcoming =
     (appt.status === 'confirmé' || appt.status === 'en attente') && appt.date >= todayISO();
-  const { href, due, when } = apptReminder(appt, client, byId);
+  const { href, due, when } = apptReminder(appt, client, byId, branch.pictogram ?? undefined);
   if (!upcoming || !href) return null;
   const kind: ReminderKind = due === 'now' ? 'h1' : 'j1';
   const sent = sentKeys.includes(reminderKey(appt.id, appt.date, kind));
