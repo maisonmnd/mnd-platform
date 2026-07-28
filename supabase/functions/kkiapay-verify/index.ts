@@ -64,7 +64,13 @@ async function fetchTransaction(transactionId: string): Promise<KkiaTransaction>
     },
     body: JSON.stringify({ transactionId }),
   });
-  if (!res.ok) throw new Error(res.status === 404 ? 'not_found' : `upstream_${res.status}`);
+  if (!res.ok) {
+    /* On emporte le motif de KkiaPay : « INVALID_KEY » et « transaction
+       introuvable » se soignent très différemment, et sans ce détail on cherche
+       à l'aveugle. */
+    const detail = await res.text().catch(() => '');
+    throw new Error(res.status === 404 ? 'not_found' : `upstream_${res.status} ${detail.slice(0, 160)}`);
+  }
   return (await res.json()) as KkiaTransaction;
 }
 
@@ -169,6 +175,19 @@ Deno.serve(async (req) => {
     return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return json({ error: msg }, msg === 'not_found' ? 404 : 500);
+    /* Diagnostic d'installation : QUELS secrets sont posés (jamais leur valeur)
+       et à QUELLE adresse on a parlé. Un 401 vient presque toujours de l'un des
+       deux — clés absentes, ou clés de bac à sable envoyées à la production
+       parce que KKIAPAY_API_BASE manque. */
+    return json({
+      error: msg,
+      base: KKIA_BASE,
+      secrets: {
+        public: !!Deno.env.get('KKIAPAY_PUBLIC_KEY'),
+        private: !!Deno.env.get('KKIAPAY_PRIVATE_KEY'),
+        secret: !!Deno.env.get('KKIAPAY_SECRET_KEY'),
+        service: !!SERVICE_KEY,
+      },
+    }, msg === 'not_found' ? 404 : 500);
   }
 });
