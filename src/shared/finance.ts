@@ -277,7 +277,14 @@ export const paymentOfAppointment = (payments: Payment[], apptId: string): Payme
   payments.find((p) => p.partnerId === apptId && p.status === 'success');
 
 import { bindCollection, bindDocument } from './sync';
-bindCollection(paymentsStore, 'payments');
+/* Liaison CONDITIONNELLE : sans clé publique KkiaPay, la maison n'encaisse pas
+   en ligne et la table `payments` n'existe peut-être pas encore côté serveur —
+   s'y lier ferait échouer l'hydratation et virer la pastille de synchro au
+   rouge sur un salon en activité, pour rien. Poser la clé au build (après avoir
+   joué la migration 0012) suffit à réveiller le registre. */
+if ((import.meta.env.VITE_KKIAPAY_PUBLIC_KEY as string | undefined)?.trim()) {
+  bindCollection(paymentsStore, 'payments');
+}
 bindCollection(invoicesStore, 'invoices');
 bindCollection(expensesStore, 'expenses');
 bindCollection(budgetsStore, 'budgets');
