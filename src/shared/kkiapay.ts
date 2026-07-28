@@ -116,9 +116,14 @@ function wireListeners(): void {
   wired = true;
 }
 
+/* Codes relevés sur le banc d'essai (le motif arrive dans `reason.message`) —
+   traduits pour la cliente, qui n'a pas à lire de l'anglais technique. */
 function failureMessage(r: unknown): string {
   const raw = JSON.stringify(r ?? '').toLowerCase();
+  if (raw.includes('invalid_number')) return 'Ce numéro Mobile Money n’est pas valide — vérifiez le pays et le numéro.';
   if (raw.includes('insufficient')) return 'Solde insuffisant sur le compte débité.';
+  if (raw.includes('declined')) return 'Paiement refusé par l’opérateur.';
+  if (raw.includes('fraud')) return 'Paiement bloqué par l’opérateur.';
   if (raw.includes('cancel')) return 'Paiement annulé.';
   return 'Le paiement n’a pas abouti — réessayez ou envoyez l’acompte vous-même.';
 }

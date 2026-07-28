@@ -27,6 +27,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+/* Route et en-têtes VÉRIFIÉS contre l'API le 28-07-2026 (non publiés par la
+   documentation) : POST /api/v1/transactions/status, triplet
+   x-api-key / x-private-key / x-secret-key. Bac à sable et production ont deux
+   adresses distinctes — d'où KKIAPAY_API_BASE. */
 const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
 const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 

@@ -34,9 +34,12 @@ const json = (body: unknown, status = 200) =>
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-/* ⚠ À CONFIRMER sur votre tableau de bord KkiaPay : l'URL de vérification et le
-   nom des trois en-têtes. Ils sont isolés ici pour qu'un changement chez
-   KkiaPay ne demande qu'une retouche d'une ligne. */
+/* Route et en-têtes VÉRIFIÉS contre l'API le 28-07-2026 (la documentation
+   publique ne les publie pas) : `POST /api/v1/transactions/status` répond 401
+   INVALID_KEY sans clés — donc la route existe — et accepte le triplet
+   x-api-key / x-private-key / x-secret-key. Bac à sable et production vivent à
+   deux adresses distinctes (api-sandbox / api), d'où KKIAPAY_API_BASE.
+   Isolés ici pour qu'un changement chez KkiaPay ne coûte qu'une ligne. */
 const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
 const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 
