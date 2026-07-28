@@ -147,7 +147,17 @@ export default function Branches() {
 
   const remove = (id: string) => {
     if (branches.length <= 1) return;
-    branchesStore.set((prev) => prev.filter((b) => b.id !== id));
+    const target = branches.find((b) => b.id === id);
+    if (!window.confirm(`Retirer la branche « ${target?.name ?? ''} » ? Elle disparaît du Trône. Les fiches ou rendez-vous éventuellement rattachés à cette branche ne sont pas supprimés — ils cessent simplement d'apparaître ici.`)) return;
+    branchesStore.set((prev) => {
+      const next = prev.filter((b) => b.id !== id);
+      /* Retirer la Maison Mère : on promeut la première branche restante pour
+         qu'il reste toujours un siège. */
+      if (target?.flagship && next.length > 0 && !next.some((b) => b.flagship)) {
+        next[0] = { ...next[0], flagship: true };
+      }
+      return next;
+    });
     if (branch.id === id) {
       const next = branches.find((b) => b.id !== id);
       if (next) setBranch(next.id);
@@ -229,7 +239,7 @@ export default function Branches() {
 
               <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button className="tre-link-btn" onClick={(e) => { e.stopPropagation(); openEdit(b); }}>Modifier</button>
-                {!b.flagship && branches.length > 1 && (
+                {branches.length > 1 && (
                   <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 6 }} onClick={(e) => { e.stopPropagation(); remove(b.id); }}>Retirer</button>
                 )}
               </div>

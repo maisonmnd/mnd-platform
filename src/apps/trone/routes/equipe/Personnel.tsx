@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { PageHead } from '../_ui';
-import { Badge, Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
-import { useBranch } from '../../../../shared/branches';
+import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { useBranch, branchesStore } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
@@ -191,6 +192,43 @@ export default function Personnel() {
   const M = payMonth();
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
+
+  /* ----- Attribution des RDV à l'équipe -----
+     Un RDV n'apparaît « sous Team » que si son maître (`a.master`) porte le nom
+     d'un membre de l'équipe. Les RDV repris de l'ancien carnet — et ceux créés
+     quand la branche n'avait encore aucun maître listé — portent un maître vide
+     ou inconnu : ils ne remontent alors sous personne. On les attribue en masse
+     à UN maître choisi (règle retenue par la maison), sans toucher ceux déjà
+     rattachés à un membre. */
+  const teamNames = useMemo(() => new Set(team.map((m) => m.name)), [team]);
+  const orphanAppts = useMemo(
+    () => appts.filter((a) => a.branchId === branch.id && a.status !== 'annulé' && !teamNames.has(a.master)),
+    [appts, branch.id, teamNames],
+  );
+  const [assignTo, setAssignTo] = useState('');
+  useEffect(() => {
+    if (team.length && !team.some((m) => m.name === assignTo)) setAssignTo(team[0].name);
+  }, [team, assignTo]);
+
+  const assignOrphansToTeam = () => {
+    if (!assignTo || orphanAppts.length === 0) return;
+    const ids = new Set(orphanAppts.map((a) => a.id));
+    if (!window.confirm(
+      `Attribuer ${ids.size} rendez-vous sans maître valide à ${assignTo} ?\n\n`
+      + 'Ils remonteront dans sa paie et ses commissions (rituels honorés). Les rendez-vous déjà attribués à un membre de l’équipe ne changent pas. Une sauvegarde permet de revenir en arrière si besoin.',
+    )) return;
+    appointmentsStore.set((prev) => prev.map((a) => (ids.has(a.id) ? { ...a, master: assignTo } : a)));
+    /* Le maître choisi doit exister dans la liste de la branche — sinon le menu
+       de la fiche RDV ne le proposerait pas et les futurs RDV repartiraient sans
+       maître. On y verse tous les membres de l'équipe, une fois pour toutes. */
+    branchesStore.set((prev) => prev.map((b) => {
+      if (b.id !== branch.id) return b;
+      const names = new Set(b.masters);
+      for (const m of team) names.add(m.name);
+      return { ...b, masters: [...names] };
+    }));
+    toast(`${ids.size} rendez-vous attribués à ${assignTo} — ils apparaissent désormais sous l’équipe.`);
+  };
 
   const advancesFor = (id: string) => advances[id] ?? [];
   const totalAdvances = (id: string) => advancesFor(id).reduce((a, x) => a + x.amountXof, 0);
@@ -599,7 +637,12 @@ export default function Personnel() {
                 </thead>
                 <tbody>
                   {team.map((m) => (
-                    <tr key={m.id}>
+                    <tr
+                      key={m.id}
+                      className="tre-row--edit"
+                      onClick={() => openEdit(m)}
+                      title={`Modifier la fiche de ${m.name}`}
+                    >
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                           <span className="tre-avatar">{m.name.slice(0, 1)}</span>
@@ -613,9 +656,15 @@ export default function Personnel() {
                       <td className="num">{fmtMoney(m.salaireXof, currency)}</td>
                       <td><Pill tone={m.statut === 'Présent' ? 'ok' : 'muted'}>{m.statut}</Pill></td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                        <button className="tre-link-btn" onClick={() => openAvance(m)}>Avance sur salaire</button>
-                        <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={() => openEdit(m)}>Modifier</button>
-                        <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={() => remove(m.id)}>Retirer</button>
+                        <button
+                          className="tre-editbtn"
+                          onClick={(e) => { e.stopPropagation(); openEdit(m); }}
+                          title={`Modifier ${m.name}`}
+                        >
+                          <Pencil size={13} /> Modifier
+                        </button>
+                        <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); openAvance(m); }}>Avance sur salaire</button>
+                        <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); remove(m.id); }}>Retirer</button>
                       </td>
                     </tr>
                   ))}
@@ -624,6 +673,43 @@ export default function Personnel() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </Card>
+
+          {/* Attribution des rendez-vous à l'équipe — remonte « sous Team » les RDV
+              au maître vide ou inconnu (souvent ceux repris de l'ancien carnet). */}
+          <Card style={{ marginTop: 18, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ maxWidth: 560 }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}>
+                  Attribuer les rendez-vous à l’équipe
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                  {team.length === 0
+                    ? 'Ajoutez d’abord un membre à l’équipe : c’est à lui que les rendez-vous seront attribués.'
+                    : orphanAppts.length > 0
+                      ? `${orphanAppts.length} rendez-vous ne sont sous aucun membre de l’équipe (maître vide ou inconnu) — souvent ceux repris de l’ancien carnet. Choisissez un maître : ils lui seront tous attribués et remonteront dans sa paie et ses commissions. Les rendez-vous déjà bien attribués ne bougent pas.`
+                      : 'Tous les rendez-vous de cette branche sont déjà attribués à un membre de l’équipe.'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 'none' }}>
+                <Select
+                  value={assignTo}
+                  onChange={(e) => setAssignTo(e.target.value)}
+                  style={{ minWidth: 180 }}
+                  disabled={team.length === 0}
+                  aria-label="Maître à qui attribuer les rendez-vous"
+                >
+                  {team.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+                </Select>
+                <Button
+                  variant="copper"
+                  onClick={assignOrphansToTeam}
+                  disabled={team.length === 0 || orphanAppts.length === 0}
+                >
+                  {orphanAppts.length > 0 ? `Attribuer ${orphanAppts.length} RDV` : 'Attribuer les RDV'}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

@@ -1,4 +1,5 @@
-import { servicesStore, type Service } from '../../shared/catalog';
+import { servicesStore, removedServiceIds, type Service } from '../../shared/catalog';
+import { HOUSE_BLANK } from '../../shared/store';
 import { houseSettingsStore } from './routes/equipe/data';
 import { REWRITE_DESCRIPTIONS, FILL_DESCRIPTIONS, DESC_REV } from './routes/vente/serviceDescriptions';
 
@@ -105,11 +106,13 @@ const SNAPSHOT_2026_07_21: Snap[] = [
     N'écrase JAMAIS une prestation existante (renommages/reprix conservés).
     Retourne le nombre restauré (pour le mot au personnel). */
 export function ensureRescuedServices(): number {
+  if (HOUSE_BLANK) return 0; // Maison à blanc — pas de restauration de catalogue
   if (houseSettingsStore.get()['services_rescue_2026_07_23']) return 0;
   const list = servicesStore.get();
   if (list.length === 0) return 0; // pas encore hydraté — on repassera
   const have = new Set(list.map((s) => s.id));
-  const missing = SNAPSHOT_2026_07_21.filter((s) => !have.has(s.id));
+  const removed = removedServiceIds(); // suppression volontaire = jamais re-créée
+  const missing = SNAPSHOT_2026_07_21.filter((s) => !have.has(s.id) && !removed.has(s.id));
   if (missing.length > 0) {
     /* Durée/maître/palier ne sont pas dans la photographie : valeurs sûres, à
        ajuster au Catalogue. Le maître reprend celui le plus courant du catalogue

@@ -6,14 +6,14 @@ import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, type RdvInitial,
+  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import { honorAppointment, PayAppointmentModal } from './actions';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
-const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 190px';
+const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 232px';
 
 export default function Carnet() {
   const { currency } = useBranch();
@@ -145,6 +145,7 @@ export default function Carnet() {
         <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <PayStatusPill a={a} byId={byId} />
           <StatusPill status={a.status} />
+          <ReminderBell appt={a} client={c} byId={byId} />
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button
               className="trc-dots"

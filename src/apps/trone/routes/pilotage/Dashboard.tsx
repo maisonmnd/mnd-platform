@@ -9,7 +9,7 @@ import { useCategories, useProducts } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal } from '../../../../shared/finance';
 import { useApprenants } from '../equipe/data';
 import {
-  Avatar, PayStatusPill, RdvModal, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
+  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
@@ -237,7 +237,12 @@ export default function Dashboard() {
       ) : (
         <div className="trp-pay">
           {group.rows.map(({ a, net: rowNet, due }) => (
-            <div className="trp-pay__row" key={a.id}>
+            <div
+              className="trp-pay__row trp-pay__row--click"
+              key={a.id}
+              onClick={() => setEditAppt(a)}
+              title="Ouvrir ce rendez-vous"
+            >
               <div style={{ minWidth: 0 }}>
                 <div className="trp-act__name">{clientOf(a.clientId)?.name ?? 'Cliente'}</div>
                 <div className="trp-act__meta">{apptLabel(a, byId)}</div>
@@ -248,7 +253,7 @@ export default function Dashboard() {
               <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
               <button
                 className="trp-pay__cta"
-                onClick={() => setPayAppt(a)}
+                onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
                 title="Encaisser — paiement partiel ou total"
               >
                 Encaisser
@@ -419,6 +424,7 @@ export default function Dashboard() {
                 <SourceBadge source={a.source} />
                 <PayStatusPill a={a} byId={byId} />
                 <StatusPill status={a.status} />
+                <ReminderBell appt={a} client={c} byId={byId} />
                 <button
                   onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
                   title="Encaisser ce rituel"

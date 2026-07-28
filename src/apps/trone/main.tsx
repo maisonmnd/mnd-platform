@@ -6,6 +6,11 @@ import './trone.css';
 import Shell from './shell/Shell';
 import { NAV } from './routes/index';
 import { AuthGate } from './auth/AuthGate';
+import { applyPendingReplace } from './backup';
+
+// « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
+// attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).
+applyPendingReplace();
 
 const router = createHashRouter([
   {

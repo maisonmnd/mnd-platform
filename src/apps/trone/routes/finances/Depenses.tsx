@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
-import { uid } from '../../../../shared/store';
+import { uid, HOUSE_BLANK } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -69,6 +69,7 @@ export default function Depenses() {
      Budget s'ouvrait sur un choix vide et son bouton ne pouvait rien créer.
      Seed-if-empty : des lignes serveur arrivées plus tard reprennent la main. */
   useEffect(() => {
+    if (HOUSE_BLANK) return; // Maison à blanc — pas de semence de catégories
     if (categories.length === 0) {
       setCategories(EXPENSE_CATEGORIES_SEED.map((c) => ({ ...c, subs: [...c.subs] })));
     }

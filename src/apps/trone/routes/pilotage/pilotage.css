@@ -390,6 +390,52 @@
   line-height: 1;
 }
 
+/* ---------- Carnet des rendez-vous intégré au Bilan ---------- */
+.trp-carnet { margin-top: 6px; }
+.trp-carnet__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 6px;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: background var(--dur-fast, .12s) ease;
+}
+.trp-carnet__row:last-child { border-bottom: none; }
+.trp-carnet__row:hover { background: var(--hover-veil, rgba(20, 20, 27, 0.035)); }
+.trp-carnet__date {
+  flex: none;
+  width: 92px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.trp-carnet__date b { font-family: var(--font-serif); font-weight: var(--weight-regular); font-size: 14px; color: var(--color-indigo); }
+.trp-carnet__date span { font-size: 10.5px; color: var(--ink-soft); }
+.trp-carnet__main { flex: 1; min-width: 0; }
+.trp-carnet__who { display: block; font-size: 13.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trp-carnet__svc { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trp-carnet__side { flex: none; display: flex; align-items: center; gap: 10px; }
+.trp-carnet__pay {
+  cursor: pointer;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  border: none;
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+.trp-carnet__pay:hover { background: var(--copper-700); }
+.trp-carnet__pay:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .trp-carnet__date { width: 68px; }
+  .trp-carnet__row { gap: 10px; padding: 10px 4px; }
+  .trp-carnet__pay { padding: 6px 9px; }
+}
+
 /* — Rendez-vous impayés — */
 .trp-pay__row {
   display: grid;
@@ -400,6 +446,8 @@
   border-bottom: 1px solid var(--hairline);
 }
 .trp-pay__row:last-child { border-bottom: none; }
+.trp-pay__row--click { cursor: pointer; border-radius: 6px; transition: background var(--dur-fast) var(--ease-soft); }
+.trp-pay__row--click:hover { background: var(--hover-veil); }
 .trp-pay__date { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .trp-pay__cta {
   flex: none;

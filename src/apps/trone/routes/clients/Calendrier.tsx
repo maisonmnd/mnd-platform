@@ -4,7 +4,7 @@ import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { OPEN_HOUR, CLOSE_HOUR, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  PayStatusPill, RdvModal, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
+  PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
@@ -15,6 +15,7 @@ import { PayAppointmentModal } from './actions';
 
 const HOUR_PX = 56;
 const SLOT_MIN = 30; // pas de la grille — calage identique au carnet
+const WEEKDAYS = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']; // en-tête de la vue mois
 
 /* Vrai sur téléphone (≤ 640 px) — bascule la vue en agenda vertical / pile de jours. */
 function useIsPhone(): boolean {
@@ -36,7 +37,7 @@ export default function Calendrier() {
   const today = todayISO();
 
   const isPhone = useIsPhone();
-  const [view, setView] = useState<'jour' | 'semaine'>('jour');
+  const [view, setView] = useState<'jour' | 'semaine' | 'mois'>('jour');
   const [anchor, setAnchor] = useState(today);
   /* Prise de RDV : pré-remplissage du nouveau rendez-vous (jour touché, et en vue
      jour l'heure + le maître de la colonne). null = pas de création en cours. */
@@ -59,7 +60,8 @@ export default function Calendrier() {
     hintTimer.current = setTimeout(() => setHint(null), 2600);
   };
 
-  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage';
+  const clientOf = (id: string) => clients.find((c) => c.id === id);
+  const clientName = (id: string) => clientOf(id)?.name ?? 'Cliente de passage';
 
   /* Marque « k/N » d'une séance appartenant à une série multi-séances. */
   const serieMark = (a: Appointment): string | null =>
@@ -182,7 +184,7 @@ export default function Calendrier() {
           const y = t.clientY - rect.top - grabOffsetY.current;
           applyMove(a, { date: anchor, time: yToTime(y), master });
         }
-      } else if (view === 'semaine') {
+      } else if (view === 'semaine' || view === 'mois') {
         const weekDay = el.closest('[data-weekday]');
         const iso = weekDay?.getAttribute('data-weekday');
         if (weekDay && iso) applyMove(a, { date: iso, time: a.time, master: a.master });
@@ -221,6 +223,20 @@ export default function Calendrier() {
     if (didDrag.current) { didDrag.current = false; return; }
     const el = e.target as HTMLElement;
     if (el.closest('.trc-week__chip') || el.closest('button')) return;
+    setCreateInit({ date: iso });
+  };
+
+  /* Ouvre la journée dans la vue Jour (depuis un numéro de case du mois). */
+  const openDay = (iso: string) => { setAnchor(iso); setView('jour'); };
+
+  /* Case du mois : un chip ouvre le rituel ; sur téléphone toute la case ouvre la
+     journée (les cases sont trop petites pour manipuler des rituels) ; sur grand
+     écran, le vide prend un rendez-vous ce jour-là. */
+  const clickMonthCell = (e: React.MouseEvent, iso: string) => {
+    if (didDrag.current) { didDrag.current = false; return; }
+    const el = e.target as HTMLElement;
+    if (el.closest('.trc-month__chip') || el.closest('button')) return;
+    if (isPhone) { openDay(iso); return; }
     setCreateInit({ date: iso });
   };
 
@@ -276,12 +292,47 @@ export default function Calendrier() {
     });
   }, [anchor, appts, today]);
 
-  const shift = (dir: 1 | -1) => setAnchor((cur) => addDaysISO(cur, view === 'jour' ? dir : dir * 7));
+  /* — vue mois : grille de semaines (lundi → dimanche) couvrant le mois de l'ancre —
+     On part du lundi de la semaine du 1er, jusqu'au dimanche de la semaine du dernier
+     jour : 5 ou 6 rangées selon le mois. Les jours hors-mois restent affichés (estompés)
+     pour une grille pleine, cliquables comme les autres. */
+  const monthCells = useMemo(() => {
+    const d = fromISO(anchor);
+    const year = d.getFullYear();
+    const mon = d.getMonth();
+    const firstDow = (new Date(year, mon, 1).getDay() + 6) % 7; // lundi = 0
+    const startIso = addDaysISO(toISO(new Date(year, mon, 1)), -firstDow);
+    const daysInMonth = new Date(year, mon + 1, 0).getDate();
+    const rows = Math.ceil((firstDow + daysInMonth) / 7);
+    return Array.from({ length: rows * 7 }, (_, i) => {
+      const iso = addDaysISO(startIso, i);
+      const dd = fromISO(iso);
+      return {
+        iso,
+        num: dd.getDate(),
+        inMonth: dd.getMonth() === mon,
+        isToday: iso === today,
+        appts: appts
+          .filter((a) => a.date === iso && a.status !== 'annulé')
+          .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
+      };
+    });
+  }, [anchor, appts, today]);
+
+  const shift = (dir: 1 | -1) => setAnchor((cur) => {
+    if (view === 'mois') {
+      const d = fromISO(cur);
+      return toISO(new Date(d.getFullYear(), d.getMonth() + dir, 1)); // 1er du mois voisin
+    }
+    return addDaysISO(cur, view === 'jour' ? dir : dir * 7);
+  });
 
   const navLabel =
     view === 'jour'
       ? frShort(anchor)
-      : `${frShort(week[0].iso)} → ${frShort(week[6].iso)}`;
+      : view === 'semaine'
+        ? `${frShort(week[0].iso)} → ${frShort(week[6].iso)}`
+        : fromISO(anchor).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
 
@@ -303,10 +354,11 @@ export default function Calendrier() {
               </button>
               <button onClick={() => shift(1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13 }} aria-label="Suivant">›</button>
             </div>
-            <Segs<'jour' | 'semaine'>
+            <Segs<'jour' | 'semaine' | 'mois'>
               options={[
                 { value: 'jour', label: 'Jour' },
                 { value: 'semaine', label: 'Semaine' },
+                { value: 'mois', label: 'Mois' },
               ]}
               value={view}
               onChange={setView}
@@ -345,6 +397,7 @@ export default function Calendrier() {
                   </span>
                   <span className="trc-agenda__side" onClick={(e) => e.stopPropagation()}>
                     <PayStatusPill a={a} byId={byId} />
+                    <ReminderBell appt={a} client={clientOf(a.clientId)} byId={byId} className="trc-remind--sm" size={13} />
                     {a.status !== 'honoré' && (
                       <button type="button" className="trc-agenda__pay" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}>Encaisser</button>
                     )}
@@ -416,6 +469,9 @@ export default function Calendrier() {
                       onTouchEnd={onTouchEndDrag}
                       onClick={() => clickAppt(a)}
                     >
+                      {/* Rappel WhatsApp — épinglé au coin haut-droit, à l'écart du
+                          bouton Encaisser ; invisible sur un rituel passé ou honoré. */}
+                      <ReminderBell appt={a} client={clientOf(a.clientId)} byId={byId} className="trc-remind--cal" size={12} />
                       {/* La cliente d'abord : un rituel de 30 min ne fait que 30 px
                           de haut, et `overflow: hidden` n'y laisse tenir qu'UNE
                           ligne. C'est le nom qui doit survivre à la coupe, pas le
@@ -480,8 +536,9 @@ export default function Calendrier() {
                         </span>
                         <span className="trc-agenda__svc">{first?.name ?? 'Rituel'} · {a.master}</span>
                       </span>
-                      <span className="trc-agenda__side" style={{ pointerEvents: 'none' }}>
-                        <PayStatusPill a={a} byId={byId} />
+                      <span className="trc-agenda__side">
+                        <span style={{ pointerEvents: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
+                        <ReminderBell appt={a} client={clientOf(a.clientId)} byId={byId} className="trc-remind--sm" size={13} />
                       </span>
                     </button>
                   );
@@ -536,13 +593,85 @@ export default function Calendrier() {
                           {a.master[0]} · {first?.name ?? 'Rituel'}
                           {serieMark(a) ? ` · ${serieMark(a)}` : ''}
                         </i>
-                        <span style={{ pointerEvents: 'none', display: 'inline-flex', marginTop: 2 }}>
-                          <PayStatusPill a={a} byId={byId} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                          <span style={{ pointerEvents: 'none', display: 'inline-flex' }}>
+                            <PayStatusPill a={a} byId={byId} />
+                          </span>
+                          <ReminderBell appt={a} client={clientOf(a.clientId)} byId={byId} className="trc-remind--chip" size={12} />
                         </span>
                       </div>
                     );
                   })}
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Vue MOIS — grille de semaines. Le numéro ouvre la journée, un chip ouvre le
+          rituel, un jour vide prend un rendez-vous ; glisser un chip le déplace. */}
+      {view === 'mois' && (
+        <div className="trc-month">
+          <div className="trc-month__head">
+            {WEEKDAYS.map((w) => (
+              <div className="trc-month__dow" key={w}>{w}</div>
+            ))}
+          </div>
+          <div className="trc-month__grid">
+            {monthCells.map((c) => (
+              <div
+                key={c.iso}
+                className={`trc-month__cell ${c.inMonth ? '' : 'is-out'} ${c.isToday ? 'is-today' : ''} ${dropKey === `w:${c.iso}` ? 'is-drop' : ''}`}
+                data-weekday={c.iso}
+                style={{ cursor: 'copy' }}
+                title={isPhone ? 'Toucher pour ouvrir la journée' : 'Cliquer un jour vide pour prendre un rendez-vous'}
+                onDragOver={(e) => { if (dragId) { e.preventDefault(); setDropKey(`w:${c.iso}`); } }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropKey((k) => (k === `w:${c.iso}` ? null : k)); }}
+                onDrop={(e) => onDropWeek(e, c.iso)}
+                onClick={(e) => clickMonthCell(e, c.iso)}
+              >
+                <div className="trc-month__daynum">
+                  <button
+                    type="button"
+                    className={`trc-month__numbtn ${c.isToday ? 'is-today' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); openDay(c.iso); }}
+                    title="Ouvrir la journée"
+                  >
+                    {c.num}
+                  </button>
+                  {c.appts.length > 0 && <span className="trc-month__count">{c.appts.length}</span>}
+                </div>
+                {/* Chips détaillés — grand écran seulement (les cases mobiles n'ont pas la place). */}
+                {!isPhone && c.appts.length > 0 && (
+                  <div className="trc-month__list">
+                    {c.appts.slice(0, 3).map((a) => (
+                      <div
+                        key={a.id}
+                        className={`trc-month__chip trc-month__chip--drag ${a.status === 'honoré' ? 'is-muted' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
+                        title={`${a.time} · ${clientName(a.clientId)} · ${apptLabel(a, byId)} — glisser vers un autre jour, cliquer pour modifier`}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, a)}
+                        onDragEnd={onDragEnd}
+                        onTouchStart={(e) => onTouchStartAppt(e, a)}
+                        onTouchMove={onTouchMoveDrag}
+                        onTouchEnd={onTouchEndDrag}
+                        onClick={(e) => { e.stopPropagation(); clickAppt(a); }}
+                      >
+                        <b>{a.time}</b> <span className="trc-month__who">{clientName(a.clientId)}</span>
+                      </div>
+                    ))}
+                    {c.appts.length > 3 && (
+                      <button
+                        type="button"
+                        className="trc-month__more"
+                        onClick={(e) => { e.stopPropagation(); openDay(c.iso); }}
+                      >
+                        +{c.appts.length - 3} autres
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

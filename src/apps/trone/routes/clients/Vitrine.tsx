@@ -573,7 +573,9 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
         <a
           className="mnd-btn mnd-btn--ghost"
           style={{ textAlign: 'center', textDecoration: 'none' }}
-          href="https://yemanb.github.io/couronne/"
+          /* Chemin relatif à l'origine (même compte GitHub que Le Trône) : marche
+             sur yemanb.github.io comme sur maisonmnd.github.io, sans domaine figé. */
+          href="/couronne/"
           target="_blank"
           rel="noreferrer"
         >

@@ -65,8 +65,57 @@ export const APPOINTMENTS_SEED: Appointment[] = [];
 export const appointmentsStore = createStore<Appointment[]>('mnd_appointments', APPOINTMENTS_SEED);
 export const useAppointments = () => useStore(appointmentsStore);
 
-import { bindCollection } from './sync';
+import { bindCollection, bindDocument } from './sync';
+import { supabase } from './supabase';
 bindCollection(appointmentsStore, 'appointments');
+
+/* EFFACEMENT VOLONTAIRE de TOUS les rendez-vous d'une branche — chemin dédié qui
+   SUPPRIME directement côté serveur (l'app est connectée en staff, la RLS
+   l'autorise), CONTOURNANT à dessein le garde-fou anti-suppression-de-masse de la
+   synchro (fait pour bloquer les vidages ACCIDENTELS, pas les volontaires). On ne
+   touche PAS au magasin local ici : l'appelant recharge la page, ce qui ré-hydrate
+   depuis le serveur (vide) sans déclencher de push local. La table de sauvegarde
+   froide `import_appointments` n'est PAS concernée. ⚠ Irréversible sans sauvegarde. */
+export async function wipeAppointments(branchId: string): Promise<number> {
+  const count = appointmentsStore.get().filter((a) => a.branchId === branchId).length;
+  if (supabase) {
+    const { error } = await supabase.from('appointments').delete().eq('branch_id', branchId);
+    if (error) throw new Error(error.message);
+  } else {
+    // Mode local (sans backend) : on vide directement le magasin.
+    appointmentsStore.set((prev) => prev.filter((a) => a.branchId !== branchId));
+  }
+  return count;
+}
+
+/* ----- Rappels WhatsApp déjà envoyés -----
+   Une trace SYNCHRONISÉE (le comptoir et le téléphone du maître doivent voir le
+   même carnet de rappels : sans ça, la cliente en reçoit deux, ou aucun).
+   Clé = `<id du RDV>:<date du RDV>:<j1|h1>` — la DATE est dans la clé à dessein :
+   un rendez-vous déplacé redevient « à rappeler », son ancien rappel ne vaut plus.
+   Les clés de plus d'une semaine sont élaguées à chaque écriture (le document
+   reste petit sans jamais qu'on ait à le purger à la main).
+   ⚠ Document (LWW) et non collection : deux appareils qui marquent un rappel à la
+   même seconde peuvent en perdre un — le pire des cas est un rappel envoyé deux
+   fois, jamais une perte d'argent. */
+export type ReminderKind = 'j1' | 'h1';
+
+export const remindersSentStore = createStore<string[]>('mnd_reminders_sent', []);
+bindDocument(remindersSentStore, 'mnd_reminders_sent');
+export const useRemindersSent = () => useStore(remindersSentStore);
+
+export const reminderKey = (apptId: string, date: string, kind: ReminderKind): string =>
+  `${apptId}:${date}:${kind}`;
+
+/** Date (AAAA-MM-JJ) portée par une clé de rappel — '' si la clé est d'un autre âge. */
+const keyDate = (k: string): string => k.split(':')[1] ?? '';
+
+export function markReminderSent(apptId: string, date: string, kind: ReminderKind): void {
+  const key = reminderKey(apptId, date, kind);
+  const floor = dOff(-8); // au-delà d'une semaine, un rappel n'apprend plus rien
+  remindersSentStore.set((prev) =>
+    prev.includes(key) ? prev : [...prev.filter((k) => keyDate(k) >= floor), key]);
+}
 
 export const OPEN_HOUR = 8;
 export const CLOSE_HOUR = 18;

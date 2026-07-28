@@ -13,6 +13,7 @@ import {
   type Invoice, type InvoiceLine, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
+import { useModelBands, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
@@ -126,6 +127,42 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
   return appt;
 }
 
+/** REMISE À ZÉRO des encaissements : SUPPRIME toutes les factures PAYÉES d'une
+    branche et rembobine leurs rituels (impayés, honoré → confirmé, points repris),
+    pour re-passer chaque paiement à la main avec des factures neuves. Les usages
+    d'avoir liés sont annulés (le solde du compte est restauré). Ne touche NI les
+    devis, NI les factures non payées (brouillon/envoyée). Renvoie le décompte.
+    ⚠ Destructif : à faire APRÈS une sauvegarde. Les pourboires déjà saisis
+    (magasin séparé) ne sont pas repris — à vérifier à la main. */
+export function resetAllPaidInvoices(branchId: string): { invoices: number; appts: number; avoirsRestored: number } {
+  const paid = invoicesStore.get().filter((i) => i.branchId === branchId && i.kind === 'facture' && i.status === 'payée');
+  if (paid.length === 0) return { invoices: 0, appts: 0, avoirsRestored: 0 };
+  const paidIds = new Set(paid.map((i) => i.id));
+
+  /* Rituels réglés par ces factures (lien invoiceId) → rembobinés d'un bloc. */
+  const linked = appointmentsStore.get().filter((a) => a.invoiceId && paidIds.has(a.invoiceId));
+  for (const a of linked) reverseHonorPoints(a); // reprise best-effort avant de couper le lien
+  if (linked.length) {
+    const linkedIds = new Set(linked.map((a) => a.id));
+    appointmentsStore.set((prev) => prev.map((a) => (linkedIds.has(a.id)
+      ? { ...a, paidXof: undefined, invoiceId: undefined, status: a.status === 'honoré' ? 'confirmé' : a.status, pointsAwarded: false }
+      : a)));
+  }
+
+  /* Avoirs consommés par ces factures : on retire l'écriture d'usage → le solde
+     du compte remonte, comme si l'encaissement n'avait jamais eu lieu. */
+  const usages = creditMovementsStore.get().filter((m) => m.kind === 'usage' && m.invoiceId && paidIds.has(m.invoiceId));
+  if (usages.length) {
+    const usageIds = new Set(usages.map((m) => m.id));
+    creditMovementsStore.set((prev) => prev.filter((m) => !usageIds.has(m.id)));
+  }
+
+  /* Suppression des factures payées (les numéros repartiront de zéro). */
+  invoicesStore.set((prev) => prev.filter((i) => !paidIds.has(i.id)));
+
+  return { invoices: paid.length, appts: linked.length, avoirsRestored: usages.length };
+}
+
 /* ---------- Encaisser un RDV — Tableau de bord / Calendrier / Carnet ---------- */
 
 export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
@@ -148,6 +185,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const isFamilyPayer = payerId !== appt.clientId;
 
   const services = apptServices(appt, byId);
+  /* Contexte tarifaire de la cliente — la facture ventile chaque prestation selon
+     SON prix personnalisé (le même qu'au rendez-vous), jamais le prix catalogue. */
+  const [bands] = useModelBands();
+  const pricing = pricingOf(client, bands);
   const net = apptNetXof(appt, byId);
   const deposit = appt.depositXof ?? 0;
   const alreadyPaid = appt.paidXof ?? 0;
@@ -207,33 +248,54 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
 
+  /* Reprogrammation automatique : au moment d'encaisser, poser d'un geste le
+     prochain RDV (résserrage/soin de suite), même cliente / prestations / maître. */
+  const addDaysISO = (iso: string, days: number) => {
+    const d = new Date(`${iso || todayISO()}T00:00:00`);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const [reschedule, setReschedule] = useState(false);
+  const [nextDate, setNextDate] = useState(() => {
+    const d = addDaysISO(appt.date, 28); // 4 semaines par défaut
+    return d > todayISO() ? d : addDaysISO(todayISO(), 28);
+  });
+  const [nextTime, setNextTime] = useState(appt.time || '09:00');
+  const setNextIn = (days: number) => {
+    const d = addDaysISO(appt.date, days);
+    setNextDate(d > todayISO() ? d : addDaysISO(todayISO(), days));
+  };
+
   const submitting = useRef(false); // garde-fou anti double-clic (double facture / double pourboire)
   const fullyPaid = remainingAfter === 0;
 
   const confirm = () => {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
-    if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed) return;
+    if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     submitting.current = true;
     if (settleTotal > 0) {
       /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
          (sans acompte CRÉDITÉ ni règlement antérieur), pour que la cliente voie le
          détail. Sinon (paiement partiel / acompte), une seule ligne « Règlement ».
-         Les parts sont réparties au prorata du prix catalogue et totalisent
-         EXACTEMENT le net. */
-      const grossSum = services.reduce((s, sv) => s + sv.priceXof, 0);
+         Chaque prestation est facturée à son PRIX PERSONNALISÉ PLEIN (le même qu'au
+         rendez-vous). Quand le net encaissé est INFÉRIEUR à la somme des prix pleins
+         (prix d'origine conservé, geste commercial…), l'écart devient une REMISE
+         VISIBLE (globalDiscountXof) — lisible à tout moment, plutôt que de raboter
+         chaque ligne. Cas inverse rare (net > prix pleins) : on répartit pour coller. */
+      const svcWeights = services.map((sv) => personalPriceXof(sv, pricing));
+      const grossSum = svcWeights.reduce((s, w) => s + w, 0);
       const depositCredit = depositReceived ? deposit : 0;
       /* Le montant facturé ce coup-ci = comptant + avoir appliqué. L'avoir est du
          REVENU (il compte au CA) mais pas de l'argent physique : on le porte à part
          (avoirXof), la Synthèse le route hors caisse. */
       const detailed = fullyPaid && alreadyPaid === 0 && depositCredit === 0 && services.length > 1 && grossSum > 0;
+      const detailRemise = detailed && grossSum > settleTotal ? grossSum - settleTotal : 0;
       let lines: InvoiceLine[];
-      if (detailed) {
-        let acc = 0;
-        lines = services.map((sv, idx) => {
-          const share = idx === services.length - 1 ? settleTotal - acc : Math.round((settleTotal * sv.priceXof) / grossSum);
-          acc += share;
-          return { id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: share, discountPct: 0 };
-        });
+      if (detailed && grossSum >= settleTotal) {
+        lines = services.map((sv, idx) => ({ id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: svcWeights[idx], discountPct: 0 }));
+      } else if (detailed) {
+        const shares = splitByWeights(settleTotal, svcWeights);
+        lines = services.map((sv, idx) => ({ id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: shares[idx], discountPct: 0 }));
       } else {
         lines = [{
           id: `il-${uid()}`,
@@ -254,6 +316,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         date: invDate,
         lines,
         globalDiscountPct: 0,
+        /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé. */
+        globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
         theme: 'Rose',
         status: 'payée',
         payment: amount > 0 ? pay : 'Avoir',
@@ -328,6 +392,32 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, depositConfirmed: true } : x)));
     }
 
+    /* Reprogrammation automatique : nouveau RDV « confirmé » À L'IDENTIQUE — même
+       cliente, mêmes prestations, même maître, MÊME PRIX et MÊME REMISE. On fige le
+       prix (avant remise) et on reporte la remise (% et CFA) pour que le prochain RDV
+       porte exactement le même net. Impayé, à honorer et encaisser le moment venu. */
+    let rescheduled = false;
+    if (reschedule && nextDate) {
+      const newAppt: Appointment = {
+        id: `appt-${uid()}`,
+        branchId: appt.branchId,
+        clientId: appt.clientId,
+        clientName: appt.clientName ?? client?.name,
+        serviceIds: appt.serviceIds,
+        date: nextDate,
+        time: nextTime || appt.time || '09:00',
+        master: appt.master,
+        status: 'confirmé',
+        source: 'trone',
+        priceXof: appt.priceXof ?? apptTotalXof(appt, byId), // prix figé, à l'identique
+        ...(appt.discountXof != null ? { discountXof: appt.discountXof } : {}),
+        ...(appt.discountPct != null ? { discountPct: appt.discountPct } : {}),
+        note: 'Reprogrammé depuis l’encaissement',
+      };
+      appointmentsStore.set((prev) => [...prev, newAppt]);
+      rescheduled = true;
+    }
+
     onClose();
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
     const avoirMsg = avoirApplied > 0 ? ` (dont ${fmtMoney(avoirApplied, currency)} par avoir)` : '';
@@ -340,7 +430,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} pour ${appt.master}`
       : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (maître « ${appt.master || '—'} » introuvable dans le personnel)`;
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
-    const msg = (depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim() || 'Enregistré.';
+    const reschedMsg = rescheduled
+      ? `Prochain RDV reprogrammé le ${new Date(`${nextDate}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${nextTime}.`
+      : '';
+    const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), reschedMsg].filter(Boolean).join(' · ') || 'Enregistré.';
     /* Succès → toast (zéro clic, la caissière enchaîne). Un pourboire NON
        attribuable, lui, doit être VU : il reste en alerte bloquante. */
     if (tip > 0 && !tipRecorded) window.setTimeout(() => window.alert(msg), 30);
@@ -500,10 +593,36 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           </div>
         )}
 
+        {/* Reprogrammation automatique du prochain rendez-vous. */}
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '11px 13px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
+              Reprogrammer le prochain rendez-vous
+            </span>
+            <Toggle on={reschedule} onToggle={() => setReschedule((v) => !v)} />
+          </div>
+          {reschedule && (
+            <>
+              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                {[{ l: '4 sem.', d: 28 }, { l: '6 sem.', d: 42 }, { l: '8 sem.', d: 56 }].map(({ l, d }) => (
+                  <button key={d} type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setNextIn(d)}>{l}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <Input type="date" value={nextDate} min={todayISO()} onChange={(e) => setNextDate(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+                Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'} — mêmes prestations, même prix (remise comprise), même maître — à honorer et encaisser le jour venu.
+              </div>
+            </>
+          )}
+        </div>
+
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={(settleTotal <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(settleTotal <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
           {fxOn && fxAmount > 0
@@ -512,7 +631,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
               ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
               : settleTotal <= 0 && depositJustConfirmed
                 ? 'Confirmer l’acompte reçu'
-                : fullyPaid ? `Encaisser ${fmtMoney(settleTotal, currency)}` : `Encaisser ${fmtMoney(settleTotal, currency)} (partiel)`}
+                : settleTotal <= 0 && reschedule
+                  ? 'Reprogrammer le rendez-vous'
+                  : fullyPaid ? `Encaisser ${fmtMoney(settleTotal, currency)}` : `Encaisser ${fmtMoney(settleTotal, currency)} (partiel)`}
         </Button>
       </div>
     </Modal>

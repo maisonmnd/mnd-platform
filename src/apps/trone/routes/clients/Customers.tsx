@@ -62,8 +62,22 @@ const cadenceLabel = (days: number): string => {
 
 /** Chiffres seulement — pour wa.me et la recherche téléphone. */
 const digitsOf = (s: string) => s.replace(/\D/g, '');
+
+/* ----- Registre Diaspora — la liste à part du CRM (clientes vivant à l'étranger).
+   Porté par le segment « Diaspora » (une seule vérité : la fiche), mais servi
+   comme un registre de premier rang : bascule La Maison / Diaspora au-dessus
+   de la liste, ajout par recherche, retrait d'un geste sur la ligne. */
+const DIASPORA = 'Diaspora';
+const isDiaspora = (c: Client) => c.segments.some((s) => s.trim().toLowerCase() === 'diaspora');
 /** Href téléphone — garde le + international. */
 const telHref = (s: string) => `tel:${s.replace(/[^+\d]/g, '')}`;
+
+/** Logo WhatsApp (monochrome, prend la couleur du texte). */
+const WaGlyph = () => (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+    <path d="M17.5 14.4c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.29-.76.96-.93 1.16-.17.2-.34.22-.63.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.18-.24-.57-.48-.5-.66-.5l-.56-.01c-.2 0-.51.07-.78.36-.27.29-1.02 1-1.02 2.42s1.05 2.8 1.19 3c.15.2 2.06 3.14 4.99 4.4.7.3 1.24.48 1.66.62.7.22 1.34.19 1.84.11.56-.08 1.75-.71 1.99-1.4.25-.69.25-1.28.17-1.4-.07-.12-.26-.19-.55-.34zM12.03 21.3a9.2 9.2 0 0 1-4.68-1.28l-.34-.2-3.48.91.93-3.39-.22-.35a9.15 9.15 0 0 1-1.4-4.87 9.19 9.19 0 0 1 9.2-9.17 9.14 9.14 0 0 1 9.17 9.19 9.19 9.19 0 0 1-9.18 9.16zm7.82-16.99A11.1 11.1 0 0 0 12.02.99C5.94.99 1 5.93.99 12a11 11 0 0 0 1.47 5.5L.9 23.2l5.84-1.53a11.1 11.1 0 0 0 5.28 1.35h.01c6.07 0 11.02-4.94 11.02-11.01a10.94 10.94 0 0 0-3.2-7.7z" />
+  </svg>
+);
 
 /** Durée éditoriale : « 45 min », « 3 h 20 min ». */
 const fmtDur = (sec: number): string => {
@@ -194,6 +208,39 @@ export default function Customers() {
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
 
+  /* ----- Registre Diaspora ----- */
+  const [view, setView] = useState<'maison' | 'diaspora'>('maison');
+  const [diaQ, setDiaQ] = useState('');
+
+  /* Le segment « Diaspora » doit exister dans la liste proposée aux fiches et à la
+     nouvelle cliente — garanti au premier GESTE (ouverture du registre, ajout),
+     jamais au montage, pour ne pas écraser une hydratation en cours. */
+  const ensureDiasporaSegment = () =>
+    segmentsStore.set((prev) => (prev.some((s) => s.trim().toLowerCase() === 'diaspora') ? prev : [...prev, DIASPORA]));
+  const openDiaspora = () => { ensureDiasporaSegment(); setView('diaspora'); };
+  const addToDiaspora = (c: Client) => {
+    ensureDiasporaSegment();
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id && !isDiaspora(x) ? { ...x, segments: [...x.segments, DIASPORA] } : x)));
+  };
+  const removeFromDiaspora = (c: Client) =>
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, segments: x.segments.filter((s) => s.trim().toLowerCase() !== 'diaspora') } : x)));
+
+  /* Les deux registres sont DISJOINTS : une cliente Diaspora quitte entièrement
+     la liste de La Maison (nom compris) — elle ne vit que dans son registre. */
+  const maisonClients = useMemo(() => clients.filter((c) => !isDiaspora(c)), [clients]);
+  const diasporaCount = clients.length - maisonClients.length;
+
+  /* Candidates à l'ajout : clientes de la maison PAS encore dans la liste. */
+  const diaCandidates = useMemo(() => {
+    const t = diaQ.trim().toLowerCase();
+    if (!t) return [];
+    const td = digitsOf(t);
+    return clients
+      .filter((c) => !isDiaspora(c))
+      .filter((c) => c.name.toLowerCase().includes(t) || (td !== '' && digitsOf(c.phone).includes(td)))
+      .slice(0, 8);
+  }, [clients, diaQ]);
+
   /* Recherche vivante — légèrement différée pour rester fluide sur les grandes maisons. */
   useEffect(() => {
     const t = window.setTimeout(() => setQ(query.trim().toLowerCase()), 180);
@@ -288,14 +335,16 @@ export default function Customers() {
   const bdaySoonCount = clients.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30).length;
   const onlineCount = clients.filter((c) => onlineIds.has(c.id)).length;
 
+  /* Chips de segments de La Maison : comptées HORS Diaspora (registres disjoints). */
   const segments = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const c of clients) for (const s of c.segments) counts.set(s, (counts.get(s) ?? 0) + 1);
-    return [{ label: 'Tous', count: clients.length }, ...[...counts].map(([label, count]) => ({ label, count }))];
-  }, [clients]);
+    for (const c of maisonClients) for (const s of c.segments) counts.set(s, (counts.get(s) ?? 0) + 1);
+    return [{ label: 'Tous', count: maisonClients.length }, ...[...counts].map(([label, count]) => ({ label, count }))];
+  }, [maisonClients]);
 
   const filtered = useMemo(() => {
-    let list = seg === 'Tous' ? clients : clients.filter((c) => c.segments.includes(seg));
+    const base = view === 'diaspora' ? clients.filter(isDiaspora) : maisonClients;
+    let list = view === 'maison' && seg !== 'Tous' ? base.filter((c) => c.segments.includes(seg)) : base;
     if (q) {
       const qd = digitsOf(q);
       list = list.filter((c) =>
@@ -309,7 +358,7 @@ export default function Customers() {
     else if (sort === 'depense') arr.sort((a, b) => (st(b.id)?.spend ?? 0) - (st(a.id)?.spend ?? 0));
     else if (sort === 'points') arr.sort((a, b) => (b.loyaltyPoints ?? 0) - (a.loyaltyPoints ?? 0));
     return arr;
-  }, [clients, seg, q, sort, stats]);
+  }, [clients, maisonClients, seg, q, sort, stats, view]);
 
   const selected = clients.find((c) => c.id === selId) ?? null;
 
@@ -331,6 +380,24 @@ export default function Customers() {
         </div>
       </div>
 
+      {/* Registres — la Maison entière, et la liste à part de la Diaspora. */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <button
+          className={`trc-chip ${view === 'maison' ? 'is-active' : ''}`}
+          onClick={() => setView('maison')}
+          style={{ fontSize: 12, padding: '9px 18px' }}
+        >
+          La Maison <span className="count">{maisonClients.length}</span>
+        </button>
+        <button
+          className={`trc-chip ${view === 'diaspora' ? 'is-active' : ''}`}
+          onClick={openDiaspora}
+          style={{ fontSize: 12, padding: '9px 18px' }}
+        >
+          Diaspora <span className="count">{diasporaCount}</span>
+        </button>
+      </div>
+
       {/* Recherche & tri */}
       <div className="trc-toolbar">
         <div className="trc-searchwrap">
@@ -349,13 +416,48 @@ export default function Customers() {
         </Select>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-        {segments.map((s) => (
-          <button key={s.label} className={`trc-chip ${seg === s.label ? 'is-active' : ''}`} onClick={() => setSeg(s.label)}>
-            {s.label} <span className="count">{s.count}</span>
-          </button>
-        ))}
-      </div>
+      {view === 'maison' && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+          {segments.map((s) => (
+            <button key={s.label} className={`trc-chip ${seg === s.label ? 'is-active' : ''}`} onClick={() => setSeg(s.label)}>
+              {s.label} <span className="count">{s.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Registre Diaspora : constituer la liste par recherche, sans ouvrir les fiches. */}
+      {view === 'diaspora' && (
+        <div style={{ marginBottom: 18 }}>
+          <div className="trc-searchwrap" style={{ maxWidth: 480 }}>
+            <Input
+              value={diaQ}
+              onChange={(e) => setDiaQ(e.target.value)}
+              placeholder="Ajouter une cliente à la liste Diaspora (nom, téléphone)…"
+              aria-label="Ajouter une cliente à la liste Diaspora"
+            />
+          </div>
+          {diaCandidates.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {diaCandidates.map((c) => (
+                <button
+                  key={c.id}
+                  className="trc-chip"
+                  onClick={() => addToDiaspora(c)}
+                  title={`Ajouter ${c.name} à la liste Diaspora`}
+                >
+                  + {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {diaQ.trim() !== '' && diaCandidates.length === 0 && (
+            <div className="trc-sub" style={{ marginTop: 10 }}>
+              Aucune cliente hors Diaspora ne répond à cette recherche.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="trc-sheet trc-crm-sheet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
@@ -369,11 +471,15 @@ export default function Customers() {
         </div>
         {filtered.length === 0 && (
           <div className="trc-empty">
-            {clients.length === 0
-              ? 'Aucune tête couronnée — ajoutez la première.'
-              : q
-                ? `Aucune cliente ne répond à « ${query.trim()} ».`
-                : 'Aucune tête couronnée sur ce segment.'}
+            {view === 'diaspora'
+              ? q
+                ? `Aucune cliente Diaspora ne répond à « ${query.trim()} ».`
+                : 'La liste Diaspora est vide — cherchez une cliente ci-dessus et ajoutez-la d’un geste.'
+              : clients.length === 0
+                ? 'Aucune tête couronnée — ajoutez la première.'
+                : q
+                  ? `Aucune cliente ne répond à « ${query.trim()} ».`
+                  : 'Aucune tête couronnée sur ce segment.'}
           </div>
         )}
         {filtered.map((c) => {
@@ -399,7 +505,21 @@ export default function Customers() {
                     <span style={{ flex: 'none', borderRadius: 999, padding: '2px 9px', background: 'var(--indigo-50)', fontSize: 10, letterSpacing: '.02em', color: 'var(--indigo-600)' }}>
                       {personaName(c.persona)}
                     </span>
-                    <span className="trc-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.phone || '—'}</span>
+                    {c.phone && digitsOf(c.phone) ? (
+                      <a
+                        className="trc-wa"
+                        href={`https://wa.me/${digitsOf(c.phone)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Écrire à ${c.name.split(' ')[0]} sur WhatsApp`}
+                      >
+                        <WaGlyph />
+                        <span className="trc-wa__num">{c.phone}</span>
+                      </a>
+                    ) : (
+                      <span className="trc-sub">—</span>
+                    )}
                   </span>
                 </span>
               </span>
@@ -413,7 +533,7 @@ export default function Customers() {
               <span style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
                 <LocksCell client={c} />
               </span>
-              <span className="trc-rowacts">
+              <span className="trc-rowacts" style={view === 'diaspora' ? { flexDirection: 'column', alignItems: 'flex-end', gap: 4 } : undefined}>
                 <button
                   type="button"
                   className="trc-rowact trc-rowact--rdv"
@@ -422,6 +542,16 @@ export default function Customers() {
                 >
                   + RDV
                 </button>
+                {view === 'diaspora' && (
+                  <button
+                    type="button"
+                    className="trc-rowact"
+                    onClick={(e) => { e.stopPropagation(); removeFromDiaspora(c); }}
+                    title={`Retirer ${c.name} de la liste Diaspora (la fiche est conservée)`}
+                  >
+                    Retirer
+                  </button>
+                )}
               </span>
             </div>
           );

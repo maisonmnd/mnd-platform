@@ -358,6 +358,30 @@
 .tre-link-btn:hover { color: var(--copper-700); }
 .tre-link-btn--danger { color: #8f3b30; }
 
+/* Toute la ligne d'un membre est cliquable pour ouvrir sa fiche — le lien
+   « Modifier » discret se perdait, surtout quand le tableau défile. */
+.tre-row--edit { cursor: pointer; transition: background var(--dur-fast, .12s) ease; }
+.tre-row--edit:hover { background: var(--hover-veil, rgba(20,20,27,.035)); }
+
+/* Bouton « Modifier » explicite (icône + libellé) — l'action principale de la ligne. */
+.tre-editbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid var(--copper-300, #dcc3b0);
+  border-radius: 3px;
+  background: var(--copper-50, #f7efe8);
+  color: var(--copper-700);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.tre-editbtn:hover { background: var(--color-copper); color: var(--color-ivoire); border-color: var(--color-copper); }
+.tre-editbtn:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
+
 /* ---------- Libellé de section (Académie · Référentiel) ---------- */
 .tre-sec-label {
   font-family: var(--font-sans);

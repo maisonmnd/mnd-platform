@@ -1,4 +1,4 @@
-import { createStore, useStore } from './store';
+import { createStore, useStore, HOUSE_BLANK } from './store';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -142,6 +142,7 @@ export const initiePersonaId = (): string => personasStore.get().find(isInitie)?
 /** Garantit le persona d'accueil et renvoie son id (idempotent).
     ÉCRIT si absent → réservé au Trône (personnel). */
 export function ensureInitiePersona(): string {
+  if (HOUSE_BLANK) return ''; // Maison à blanc — aucune semence
   const existing = initiePersonaId();
   if (existing) return existing;
   personasStore.set((prev) => [...prev, INITIE_PERSONA]);

@@ -1,15 +1,19 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Input, Textarea } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Input, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
-import { useCrownStyles, useSegments, renameSegment } from '../../../../shared/clients';
-import { useServices } from '../../../../shared/catalog';
-import { usePaymentMethods, paymentMethodsStore } from '../../../../shared/finance';
+import { useCrownStyles, useSegments, renameSegment, clientsStore } from '../../../../shared/clients';
+import { useServices, servicesStore } from '../../../../shared/catalog';
+import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
+import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
 import { createStore, useStore } from '../../../../shared/store';
+import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } from '../../backup';
+import { resetAllPaidInvoices } from '../clients/actions';
+import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import './systeme.css';
 
@@ -106,6 +110,310 @@ function EditRow({ l, sub, children }: { l: string; sub?: string; children: Reac
       </div>
       {children}
     </div>
+  );
+}
+
+/* ---------- Sauvegarde de la Maison — exporter tout d'un geste, restaurer sans risque ----------
+   Née de l'incident du 24 juil. 2026 (RDV et factures effacés du serveur). L'export
+   photographie toutes les clés `mnd_*` ; la restauration n'AJOUTE que ce qui manque. */
+function SauvegardeCard() {
+  const [clients] = useStore(clientsStore);
+  const [appts] = useStore(appointmentsStore);
+  const [invoices] = useStore(invoicesStore);
+  const [svcs] = useStore(servicesStore);
+  const [lastAt, setLastAt] = useState<string | null>(() => localStorage.getItem(LAST_BACKUP_KEY));
+  const [report, setReport] = useState<RestoreReport | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const modeRef = useRef<'add' | 'update' | 'replace'>('add');
+
+  const openPicker = (mode: 'add' | 'update' | 'replace') => {
+    modeRef.current = mode;
+    fileRef.current?.click();
+  };
+
+  const fmtLast = lastAt
+    ? new Date(lastAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+  const staleDays = lastAt ? Math.floor((Date.now() - new Date(lastAt).getTime()) / 86_400_000) : null;
+  const stale = staleDays !== null && staleDays >= 7;
+
+  const doExport = () => {
+    const { fileName } = downloadBackup();
+    setLastAt(localStorage.getItem(LAST_BACKUP_KEY));
+    setReport(null);
+    toast(`Sauvegarde téléchargée — ${fileName}. Rangez-la en lieu sûr (Drive, clé USB…).`);
+  };
+
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // permet de re-choisir le même fichier
+    if (!f) return;
+    const mode = modeRef.current;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await f.text());
+    } catch {
+      toast('Fichier illisible — ce n’est pas un JSON valide.');
+      return;
+    }
+    if (mode === 'replace') {
+      if (!window.confirm(
+        'REMPLACER toute la Maison par ce fichier ?\n\n' +
+        'Tout est vidé (serveur + ce poste), puis la Maison est reconstruite À L’IDENTIQUE ' +
+        'du fichier — ajouts, mises à jour ET suppressions. Ce que contient la Maison ' +
+        'aujourd’hui mais PAS le fichier sera perdu. (Idéal pour appliquer une migration.)',
+      )) return;
+      try {
+        setReport(null);
+        toast('Remplacement en cours — vidage puis rechargement…');
+        await replaceHouseFromFile(parsed);
+      } catch (err) {
+        toast(`Remplacement impossible : ${err instanceof Error ? err.message : 'erreur.'}`);
+      }
+      return;
+    }
+    try {
+      const rep = restoreBackup(parsed, { overwrite: mode === 'update' });
+      setReport(rep);
+      toast(
+        mode === 'update'
+          ? `${rep.totalAdded} fiche${rep.totalAdded > 1 ? 's' : ''} appliquée${rep.totalAdded > 1 ? 's' : ''} — les fiches existantes ont été mises à jour.`
+          : rep.totalAdded > 0
+            ? `${rep.totalAdded} enregistrement${rep.totalAdded > 1 ? 's' : ''} restauré${rep.totalAdded > 1 ? 's' : ''} — rien d'existant n'a été touché.`
+            : 'Rien à restaurer — tout ce que contient ce fichier est déjà dans la Maison.',
+      );
+    } catch (err) {
+      setReport(null);
+      toast(`Restauration impossible : ${err instanceof Error ? err.message : 'fichier illisible.'}`);
+    }
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4, gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div className="sys-section__title">Sauvegarde de la Maison</div>
+          <div className="sys-section__cap" style={{ maxWidth: 640 }}>
+            Un geste, un fichier : clientes, rendez-vous, factures, catalogue, finances et réglages —
+            toute la Maison dans un JSON à ranger en lieu sûr (Drive, clé USB, e-mail à soi-même).
+            Faites-le chaque semaine. « Restaurer » n’ajoute que ce qui manque (sans rien écraser) ;
+            « Mettre à jour » remplace en plus les fiches déjà présentes (même identifiant) ; « Remplacer »
+            reconstruit toute la Maison À L’IDENTIQUE du fichier — avec suppressions — pour appliquer une migration.
+          </div>
+        </div>
+        <span className="sys-badge-count">
+          {clients.length} clientes · {appts.length} RDV · {invoices.length} factures · {svcs.length} prestations
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+        <Button variant="copper" onClick={doExport}>Exporter toute la Maison (JSON)</Button>
+        <Button variant="ghost" onClick={() => openPicker('add')}>Restaurer depuis un fichier…</Button>
+        <Button variant="ghost" onClick={() => openPicker('update')}>Mettre à jour depuis un fichier (écrase l’existant)…</Button>
+        <Button variant="ghost" onClick={() => openPicker('replace')}>Remplacer toute la Maison par un fichier…</Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={(e) => void onFile(e)}
+          aria-label="Fichier de sauvegarde à restaurer"
+        />
+        <span className="sys-row__sub" style={stale ? { color: 'var(--copper-700)' } : undefined}>
+          {fmtLast
+            ? `Dernière sauvegarde sur ce poste : ${fmtLast}${stale ? ' — pensez à en refaire une.' : '.'}`
+            : 'Aucune sauvegarde encore téléchargée sur ce poste.'}
+        </span>
+      </div>
+
+      {report && (
+        <div className="tre-inline-note" style={{ marginTop: 14 }}>
+          <span className="mark">✦</span>
+          <span>
+            {report.totalAdded > 0 ? (
+              <>
+                Restauré depuis la sauvegarde
+                {report.exportedAt ? ` du ${new Date(report.exportedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''} :{' '}
+                {report.added.map((a) => `${a.n} ${a.label}`).join(' · ')}. Rien d’existant n’a été modifié.
+              </>
+            ) : (
+              <>Ce fichier ne contient rien qui manque à la Maison — aucune écriture n’a été faite.</>
+            )}
+          </span>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ---------- Zone sensible — annuler tous les encaissements (repartir à zéro) ----------
+   Supprime les factures PAYÉES de la branche et rembobine leurs rituels (impayés).
+   Geste rare, explicite, à deux temps ; sauvegarde recommandée avant. */
+function ResetEncaissementsCard() {
+  const { branch } = useBranch();
+  const [invoices] = useStore(invoicesStore);
+  const [armed, setArmed] = useState(false);
+  const paidCount = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée').length;
+
+  const doReset = () => {
+    const r = resetAllPaidInvoices(branch.id);
+    setArmed(false);
+    toast(
+      r.invoices > 0
+        ? `${r.invoices} facture${r.invoices > 1 ? 's' : ''} payée${r.invoices > 1 ? 's' : ''} supprimée${r.invoices > 1 ? 's' : ''} · ${r.appts} rituel${r.appts > 1 ? 's' : ''} remis à impayé${r.avoirsRestored ? ` · ${r.avoirsRestored} avoir${r.avoirsRestored > 1 ? 's' : ''} restauré${r.avoirsRestored > 1 ? 's' : ''}` : ''}. Ré-encaissez-les un à un.`
+        : 'Aucune facture payée à annuler.',
+    );
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18, borderColor: 'var(--copper-300)' }}>
+      <div className="sys-section__title" style={{ color: 'var(--copper-700)' }}>Zone sensible · annuler les encaissements</div>
+      <div className="sys-section__cap" style={{ maxWidth: 660 }}>
+        Supprime <b>toutes les factures payées</b> de {branch.name} et remet leurs rituels à <b>impayé</b> — pour
+        repasser chaque paiement à la main. Les numéros de facture repartiront de zéro ; les avoirs consommés
+        sont restaurés. <b>Exportez d’abord une sauvegarde</b> (carte ci-dessus) : sans elle, c’est irréversible.
+        Les pourboires déjà saisis ne sont pas repris — vérifiez-les après.
+      </div>
+      <div style={{ marginTop: 14 }}>
+        {!armed ? (
+          <Button
+            variant="ghost"
+            style={{ color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+            disabled={paidCount === 0}
+            onClick={() => setArmed(true)}
+          >
+            {paidCount > 0 ? `Annuler ${paidCount} facture${paidCount > 1 ? 's' : ''} payée${paidCount > 1 ? 's' : ''}…` : 'Aucune facture payée à annuler'}
+          </Button>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
+              Supprimer {paidCount} facture{paidCount > 1 ? 's' : ''} payée{paidCount > 1 ? 's' : ''} et remettre leurs rituels à impayé ?
+            </span>
+            <Button variant="copper" onClick={doReset}>Oui, tout remettre à impayé</Button>
+            <Button variant="ghost" onClick={() => setArmed(false)}>Annuler</Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* ---------- Zone sensible — VIDER tous les rendez-vous (repartir à zéro) ----------
+   Effacement volontaire côté serveur (contourne le garde-fou anti-masse), puis
+   rechargement pour ré-hydrater d'un serveur vide. Sauvegarde impérative avant. */
+function ViderRdvCard() {
+  const { branch } = useBranch();
+  const [appts] = useStore(appointmentsStore);
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const count = appts.filter((a) => a.branchId === branch.id).length;
+
+  const doWipe = async () => {
+    setBusy(true);
+    try {
+      const n = await wipeAppointments(branch.id);
+      toast(`${n} rendez-vous supprimé${n > 1 ? 's' : ''}. La page se recharge sur un carnet vide…`);
+      window.setTimeout(() => window.location.reload(), 1100);
+    } catch (e) {
+      setBusy(false);
+      setArmed(false);
+      toast(`Échec de la suppression : ${e instanceof Error ? e.message : 'serveur injoignable'}. Rien n’a été effacé.`);
+    }
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18, borderColor: 'var(--copper-300)' }}>
+      <div className="sys-section__title" style={{ color: 'var(--copper-700)' }}>Zone sensible · vider tous les rendez-vous</div>
+      <div className="sys-section__cap" style={{ maxWidth: 660 }}>
+        Supprime <b>tous les rendez-vous</b> de {branch.name} — définitivement, côté serveur — pour repartir
+        d’un carnet vide avant un nouvel import. <b>Exportez d’abord une sauvegarde</b> (carte plus haut) :
+        sans elle, c’est irréversible. Les factures, clientes et le catalogue ne sont pas touchés.
+      </div>
+      <div style={{ marginTop: 14 }}>
+        {!armed ? (
+          <Button
+            variant="ghost"
+            style={{ color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+            disabled={count === 0}
+            onClick={() => setArmed(true)}
+          >
+            {count > 0 ? `Vider ${count} rendez-vous…` : 'Aucun rendez-vous à vider'}
+          </Button>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
+              Supprimer définitivement {count} rendez-vous de {branch.name} ? (Avez-vous exporté la sauvegarde ?)
+            </span>
+            <Button variant="copper" onClick={() => void doWipe()} disabled={busy}>{busy ? 'Suppression…' : 'Oui, tout vider'}</Button>
+            <Button variant="ghost" onClick={() => setArmed(false)} disabled={busy}>Annuler</Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* ---------- Zone sensible — RÉINITIALISER TOUTE LA MAISON (repartir à zéro) ----------
+   Vide le serveur (tout sauf branches + accès) et pose le mode « Maison à blanc »
+   pour ne pas repeupler. Double confirmation, sauvegarde impérative. */
+function FactoryResetCard() {
+  const [step, setStep] = useState(0); // 0 repos · 1 armé · 2 confirmation finale
+  const [busy, setBusy] = useState(false);
+
+  const doReset = async () => {
+    setBusy(true);
+    try {
+      const failed = await factoryResetServer();
+      if (failed.length) {
+        setBusy(false);
+        setStep(0);
+        toast(`Réinitialisation incomplète — ${failed.length} table(s) en échec, rien n’a été touché en local. Réessayez. (${failed[0]})`);
+        return;
+      }
+      toast('Maison réinitialisée. Rechargement sur une Maison vierge…');
+      window.setTimeout(() => activateBlankAndReload(), 1200);
+    } catch (e) {
+      setBusy(false);
+      setStep(0);
+      toast(`Échec : ${e instanceof Error ? e.message : 'serveur injoignable'}. Rien n’a été effacé.`);
+    }
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18, borderColor: '#8f3b30' }}>
+      <div className="sys-section__title" style={{ color: '#8f3b30' }}>Zone critique · réinitialiser toute la Maison</div>
+      <div className="sys-section__cap" style={{ maxWidth: 680 }}>
+        Efface <b>toutes les données</b> — clientes, rendez-vous, factures, finances, catalogue, équipe,
+        réglages — pour repartir d’une Maison vierge avant un nouvel import. On conserve seulement vos
+        <b> branches</b> et votre <b>compte d’accès</b>. <b>Exportez d’abord une sauvegarde</b> (tout en haut) :
+        sans elle, c’est définitif. La sauvegarde froide de l’ancien ERP n’est pas touchée.
+      </div>
+      <div style={{ marginTop: 14 }}>
+        {step === 0 && (
+          <Button variant="ghost" style={{ color: '#8f3b30', borderColor: '#8f3b30' }} onClick={() => setStep(1)}>
+            Tout réinitialiser…
+          </Button>
+        )}
+        {step === 1 && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: '#8f3b30' }}>
+              Avez-vous <b>exporté la sauvegarde</b> ? Ceci efface tout, définitivement.
+            </span>
+            <Button variant="ghost" style={{ color: '#8f3b30', borderColor: '#8f3b30' }} onClick={() => setStep(2)}>J’ai ma sauvegarde — continuer</Button>
+            <Button variant="ghost" onClick={() => setStep(0)}>Annuler</Button>
+          </div>
+        )}
+        {step === 2 && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: '#8f3b30', fontWeight: 600 }}>
+              Dernière étape — effacer TOUTE la Maison maintenant ?
+            </span>
+            <Button variant="copper" onClick={() => void doReset()} disabled={busy}>{busy ? 'Effacement…' : 'Oui, tout effacer et repartir à zéro'}</Button>
+            <Button variant="ghost" onClick={() => setStep(0)} disabled={busy}>Annuler</Button>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -506,6 +814,18 @@ export default function Parametres() {
           <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
         </Card>
       </div>
+
+      {/* ---------- Sauvegarde de la Maison ---------- */}
+      <SauvegardeCard />
+
+      {/* ---------- Zone sensible — annuler les encaissements ---------- */}
+      <ResetEncaissementsCard />
+
+      {/* ---------- Zone sensible — vider tous les rendez-vous ---------- */}
+      <ViderRdvCard />
+
+      {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
+      <FactoryResetCard />
 
       {/* ---------- Jours & heures d'ouverture ---------- */}
       <Card className="sys-section" style={{ marginTop: 18 }}>

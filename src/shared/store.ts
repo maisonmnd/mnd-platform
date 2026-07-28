@@ -27,20 +27,30 @@ export type Store<T> = {
   subscribe: (fn: Listener) => () => void;
 };
 
+/* Maison À BLANC — posé par la réinitialisation totale (Système · Paramètres) :
+   après un reset, les semences de COLLECTION ne doivent PAS repeupler le serveur
+   (sinon le catalogue, les personas, les caisses… reviendraient). Les branches
+   sont la seule exception : l'app a besoin d'au moins une branche pour tourner.
+   Les documents-objets (réglages, marque) gardent leurs valeurs par défaut :
+   ce sont des réglages, pas des données. */
+export const HOUSE_BLANK = localStorage.getItem('mnd_house_blank') === '1';
+const BLANK_KEEP = new Set(['mnd_branches', 'mnd_current_branch']);
+
 export function createStore<T>(key: string, initial: T): Store<T> {
+  const seed: T = HOUSE_BLANK && Array.isArray(initial) && !BLANK_KEEP.has(key) ? ([] as unknown as T) : initial;
   let cache: T | undefined;
   let cachedRaw: string | null = null;
 
   const read = (): T => {
     const raw = localStorage.getItem(key);
-    if (raw === null) return initial;
+    if (raw === null) return seed;
     if (raw === cachedRaw && cache !== undefined) return cache;
     try {
       cache = JSON.parse(raw) as T;
       cachedRaw = raw;
       return cache;
     } catch {
-      return initial;
+      return seed;
     }
   };
 

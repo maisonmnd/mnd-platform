@@ -1,4 +1,4 @@
-import { createStore, useStore } from './store';
+import { createStore, useStore, HOUSE_BLANK } from './store';
 
 /* Catalogue — double nomenclature fon™ de la maison.
    Chaque catégorie porte un nom fon (marque déposée) + un descripteur français.
@@ -82,10 +82,22 @@ export const categoriesStore = createStore<CatalogCategory[]>('mnd_catalog_categ
 export const servicesStore = createStore<Service[]>('mnd_catalog_services', SERVICES_SEED);
 export const productsStore = createStore<Product[]>('mnd_catalog_products', PRODUCTS_SEED);
 
-import { bindCollection } from './sync';
+import { bindCollection, bindDocument } from './sync';
 bindCollection(categoriesStore, 'catalog_categories');
 bindCollection(servicesStore, 'catalog_services');
 bindCollection(productsStore, 'catalog_products');
+
+/* ----- Suppressions VOLONTAIRES de prestations — pierres tombales synchronisées.
+   Sans elles, les mécanismes de restauration (prestations signées de départ
+   ci-dessous, sauvetage du 23-07) re-créaient toute prestation manquante :
+   « je supprime, ça revient ». Toute suppression au Catalogue s'inscrit ici,
+   et tout ensure* qui AJOUTE des prestations doit ignorer ces ids. Jamais purgé
+   (une création manuelle prend un id neuf — jamais bloquée par une tombale). */
+export const removedServicesStore = createStore<string[]>('mnd_removed_services', []);
+bindDocument(removedServicesStore, 'mnd_removed_services');
+export const markServiceRemoved = (id: string): void =>
+  removedServicesStore.set((prev) => (prev.includes(id) ? prev : [...prev, id]));
+export const removedServiceIds = (): Set<string> => new Set(removedServicesStore.get());
 
 export const useCategories = () => useStore(categoriesStore);
 export const useServices = () => useStore(servicesStore);
@@ -96,6 +108,7 @@ export const useProducts = () => useStore(productsStore);
     la graine ne suffit pas). À appeler au montage du Catalogue. N'agit que si elle
     est ABSENTE — un renommage (même id `doto`) est donc préservé. */
 export function ensureConsultationCategory(): void {
+  if (HOUSE_BLANK) return; // Maison à blanc — aucune semence
   const cats = categoriesStore.get();
   if (!Array.isArray(cats) || cats.some((c) => c.id === 'doto')) return;
   categoriesStore.set((prev) => [
@@ -142,10 +155,12 @@ export const STARTER_VEKPE_SERVICES: Service[] = [
     Add-if-missing-by-id : ne duplique jamais, respecte les suppressions et les
     renommages. `defaultMaster` renseigne le maître si le seed le laisse vide. */
 export function ensureStarterServices(defaultMaster: string): void {
+  if (HOUSE_BLANK) return; // Maison à blanc — aucune semence
   const cur = servicesStore.get();
   if (!Array.isArray(cur)) return;
   const have = new Set(cur.map((s) => s.id));
-  const toAdd = [...STARTER_DOTO_SERVICES, ...STARTER_VEKPE_SERVICES].filter((s) => !have.has(s.id));
+  const removed = removedServiceIds(); // suppression volontaire = jamais re-créée
+  const toAdd = [...STARTER_DOTO_SERVICES, ...STARTER_VEKPE_SERVICES].filter((s) => !have.has(s.id) && !removed.has(s.id));
   if (toAdd.length === 0) return;
   const counters: Record<string, number> = {};
   const prepared = toAdd.map((s) => {

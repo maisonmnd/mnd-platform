@@ -12,6 +12,7 @@ import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
+import { useInvoices, invoicesStore } from '../../../shared/finance';
 import { pointsHistoryStore } from '../../../shared/offers';
 import { houseSettingsStore } from '../routes/equipe/data';
 
@@ -90,6 +91,44 @@ export default function Shell() {
     }
     houseSettingsStore.set((prev) => ({ ...prev, bills_refreeze_2026_07: true }));
   }, [allAppts]);
+
+  const [allInvoices] = useInvoices();
+  /* Correction PONCTUELLE (28 juil. 2026) : (1) un RDV À VENIR ne peut pas être
+     « honoré » (quirk de l'ancien import) → remis en « confirmé » ; (2) une facture
+     ne doit exister QUE si le RDV est TERMINÉ (payé, ou honoré et déjà passé) → on
+     retire les factures prématurées des RDV non terminés, en libérant leur invoiceId.
+     Une fois, marqueur synchronisé, après hydratation (RDV + factures) — sinon un
+     passage à vide « consommerait » la correction. */
+  useEffect(() => {
+    if (houseSettingsStore.get()['fix_future_rdv_invoices_2026_07']) return;
+    const appts = appointmentsStore.get();
+    const invs = invoicesStore.get();
+    if (appts.length === 0 || invs.length === 0) return; // pas encore hydraté — on repassera
+    const today = new Date().toISOString().slice(0, 10);
+    // 1. RDV à venir marqués « honoré » → « confirmé »
+    if (appts.some((a) => a.status === 'honoré' && a.date > today)) {
+      appointmentsStore.set((prev) => prev.map((a) =>
+        (a.status === 'honoré' && a.date > today ? { ...a, status: 'confirmé' } : a)));
+    }
+    // 2. Factures prématurées (RDV non terminé, non payées) → retirées + invoiceId libéré
+    const cur = appointmentsStore.get();
+    const invById = new Map(invs.map((i) => [i.id, i] as const));
+    const drop = new Set<string>();
+    const freed = new Set<string>();
+    for (const a of cur) {
+      if (!a.invoiceId) continue;
+      const inv = invById.get(a.invoiceId);
+      if (!inv) continue;
+      const keep = inv.status === 'payée' || (a.status === 'honoré' && a.date <= today);
+      if (!keep) { drop.add(a.invoiceId); freed.add(a.id); }
+    }
+    if (drop.size > 0) {
+      invoicesStore.set((prev) => prev.filter((i) => !drop.has(i.id)));
+      appointmentsStore.set((prev) => prev.map((a) => (freed.has(a.id) ? { ...a, invoiceId: undefined } : a)));
+    }
+    houseSettingsStore.set((prev) => ({ ...prev, fix_future_rdv_invoices_2026_07: true }));
+  }, [allAppts, allInvoices]);
+
   /* SAUVETAGE du 23 juil. 2026 : re-crée les prestations supprimées du Catalogue
      (photographie du 21 juil.) — les RDV retrouvent leurs libellés et leurs prix.
      Une fois, après hydratation ; n'écrase jamais l'existant. */

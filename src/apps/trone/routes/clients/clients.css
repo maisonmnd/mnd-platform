@@ -51,6 +51,76 @@
 .trc-name { font-size: 13px; color: var(--ink); }
 .trc-sub { font-size: 11.5px; font-weight: var(--weight-light); color: var(--ink-soft); }
 
+/* Bouton WhatsApp de la ligne cliente — remplace le numéro brut, ouvre wa.me. */
+.trc-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 9px 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: var(--weight-light);
+  color: #0f8a3c;
+  background: rgba(37, 197, 94, 0.10);
+  border: 1px solid rgba(37, 197, 94, 0.34);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.trc-wa:hover { background: rgba(37, 197, 94, 0.20); border-color: rgba(37, 197, 94, 0.58); }
+.trc-wa svg { flex: none; }
+.trc-wa__num { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Cloche de rappel WhatsApp sur un RDV à venir (clic -> WhatsApp, message prêt). */
+.trc-remind {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 30px; height: 30px; border-radius: 999px;
+  color: var(--ink-soft); background: transparent; border: 1px solid var(--hairline);
+  cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.trc-remind:hover { color: #0f8a3c; border-color: rgba(37, 197, 94, 0.5); background: rgba(37, 197, 94, 0.1); }
+/* J-1 (RDV demain) — rappel conseillé : cuivre. */
+.trc-remind[data-due="soon"] { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+/* H-1 (RDV dans l'heure) — rappel urgent : cuivre plein + pulsation douce. */
+.trc-remind[data-due="now"] {
+  color: #fff; background: var(--color-copper); border-color: var(--color-copper);
+  animation: trc-remind-pulse 2s ease-in-out infinite;
+}
+@keyframes trc-remind-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 122, 74, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(185, 122, 74, 0); }
+}
+/* Rappel déjà envoyé — la cloche se met en retrait (vert discret, pas de
+   pulsation) sans jamais se verrouiller : un clic renvoie le message. Déclaré
+   APRÈS les états d'urgence pour les emporter à égalité de spécificité. */
+.trc-remind[data-sent="1"] {
+  color: #0f8a3c; border-color: rgba(37, 197, 94, 0.4); background: rgba(37, 197, 94, 0.08);
+  animation: none; box-shadow: none;
+}
+/* Variante compacte — listes agenda du téléphone et chips de la semaine. */
+.trc-remind--sm { width: 24px; height: 24px; }
+/* Variante « coin » — épinglée en haut à droite d'un bloc du planning-jour, à
+   l'écart du bouton Encaisser (bas-droite). Fond posé pour rester lisible sur
+   les blocs indigo pleins. */
+.trc-remind--cal {
+  position: absolute; top: 5px; right: 6px; width: 22px; height: 22px;
+  background: rgba(255, 255, 255, 0.9); border-color: transparent;
+}
+.trc-remind--cal:hover { background: #fff; }
+/* Variante « chip » — dans un bloc de la semaine, dont le fond passe à l'indigo
+   plein sur un RDV confirmé : le fond clair garde la cloche lisible. */
+.trc-remind--chip {
+  width: 20px; height: 20px;
+  background: rgba(255, 255, 255, 0.9); border-color: transparent;
+}
+.trc-remind--chip:hover { background: #fff; }
+/* Sur fond indigo, l'état « envoyé » garde le fond clair : le vert translucide
+   de la règle générique s'y noierait. Déclaré après elle, à spécificité égale. */
+.trc-remind--cal[data-sent="1"],
+.trc-remind--chip[data-sent="1"] { background: rgba(255, 255, 255, 0.9); }
+
 /* ---------- Pastilles statut & source ---------- */
 .trc-pill {
   display: inline-flex;
@@ -784,6 +854,109 @@
 }
 .trc-cal__col.is-drop { background-color: var(--copper-50); }
 .trc-week__day.is-drop { background-color: var(--copper-50); }
+
+/* ---------- Vue MOIS — grille de semaines (lundi → dimanche) ---------- */
+.trc-month {
+  margin-top: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 4px);
+  overflow: hidden;
+  background: var(--surface-card);
+}
+.trc-month__head { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--hairline); }
+.trc-month__dow {
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trc-month__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.trc-month__cell {
+  min-height: 108px;
+  border-left: 1px solid var(--hairline);
+  border-top: 1px solid var(--hairline);
+  padding: 6px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.trc-month__cell:nth-child(7n + 1) { border-left: none; }
+.trc-month__cell.is-out { background: var(--hover-veil, rgba(20, 20, 27, 0.02)); }
+.trc-month__cell.is-out .trc-month__numbtn { opacity: 0.5; }
+.trc-month__cell.is-today { background: var(--color-sable); }
+.trc-month__cell.is-drop { background-color: var(--copper-50); }
+.trc-month__daynum { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.trc-month__numbtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+  padding: 0 2px;
+  line-height: 1.4;
+}
+.trc-month__numbtn:hover { text-decoration: underline; }
+.trc-month__numbtn.is-today {
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border-radius: 999px;
+  min-width: 22px;
+  height: 22px;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.trc-month__numbtn.is-today:hover { text-decoration: none; }
+.trc-month__count {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  color: var(--copper-700);
+  background: var(--copper-50);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.trc-month__list { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trc-month__chip {
+  border-radius: var(--radius-sm, 3px);
+  padding: 3px 6px;
+  background: var(--color-sable);
+  color: var(--color-indigo);
+  font-size: 10.5px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trc-month__chip b { font-family: var(--font-serif); font-weight: var(--weight-light); }
+.trc-month__chip.is-muted { opacity: 0.55; }
+.trc-month__chip--drag { cursor: grab; touch-action: none; }
+.trc-month__chip--drag:active { cursor: grabbing; }
+.trc-month__chip.is-dragging { opacity: 0.45; box-shadow: var(--shadow-lg); }
+.trc-month__more {
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 10px;
+  color: var(--copper-700);
+  padding: 1px 4px;
+}
+.trc-month__more:hover { text-decoration: underline; }
+
+/* Téléphone : cases compactes, numéro et compteur empilés (pas de chips). */
+@media (max-width: 640px) {
+  .trc-month__cell { min-height: 60px; padding: 4px; gap: 3px; }
+  .trc-month__dow { padding: 8px 2px; font-size: 8.5px; letter-spacing: 0.08em; }
+  .trc-month__daynum { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .trc-month__numbtn { font-size: 13px; }
+  .trc-month__count { padding: 0 6px; }
+}
 
 /* ---------- Dossier client (Consultations) ---------- */
 .trc-dossier-row { transition: var(--transition-base); }

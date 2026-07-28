@@ -9,16 +9,22 @@ import path from 'node:path';
      couronne      → Ma Couronne
      lokaa         → LOKAA
 
-   Toutes les surfaces restent sur la même origine (yemanb.github.io), donc les
-   ponts localStorage et la synchronisation Supabase continuent de fonctionner
+   Toutes les surfaces restent sur la MÊME origine (le compte GitHub Pages), donc
+   les ponts localStorage et la synchronisation Supabase continuent de fonctionner
    entre elles. Sorties dans dist-sites/<nom>/.
+
+   Les liens entre sœurs sont des CHEMINS relatifs à l'origine (`/trone/`,
+   `/couronne/`…) : ils ne contiennent AUCUN nom de domaine, donc changer de
+   compte GitHub (yemanb.github.io → maisonmnd.github.io…) ne casse rien et ne
+   demande aucune modification de code — juste un redéploiement vers les nouveaux
+   dépôts. Ne jamais réintroduire un domaine en dur ici.
 
    Usage : node scripts/build-sites.mjs
    Requiert : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans l'environnement
    (ou .env.local, lu par Vite). */
 
 const root = path.resolve(import.meta.dirname, '..');
-const HOST = 'https://yemanb.github.io';
+const HOST = ''; // chemins relatifs à l'origine — indépendants du nom de domaine
 
 const SITES = [
   {

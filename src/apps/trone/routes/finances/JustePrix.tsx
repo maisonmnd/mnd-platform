@@ -6,7 +6,7 @@ import { useClients, clientsStore, type Client } from '../../../../shared/client
 import { useServices, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
-  MODEL_BANDS_SEED, type ModelBand,
+  pricingOf, personalPriceXof, isFixedPrice, MODEL_BANDS_SEED, type ModelBand,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
 import './finances.css';
@@ -216,14 +216,25 @@ export default function JustePrix() {
   const [bands] = useModelBands();
 
   const branchClients = useMemo(() => clients.filter((c) => c.branchId === branch.id && !c.archived), [clients, branch.id]);
-  const svcList = useMemo(() => services.filter((s) => !s.hidePrice).slice(0, 6), [services]);
+  /* Services témoins = les prestations qui « suivent le modèle » (leur prix change
+     selon la cliente), FÍNFÍN™ Éveil exclu. Ce sont elles qu'on montre dans
+     l'aperçu, avec le prix propre à la cliente. À défaut (aucune ne suit le
+     modèle), on retombe sur les premières prestations à prix affiché. */
+  const temoins = useMemo(() => {
+    const t = services.filter((s) => !s.hidePrice && scalesWithModel(s));
+    return (t.length ? t : services.filter((s) => !s.hidePrice && !isFixedPrice(s))).slice(0, 8);
+  }, [services]);
 
   const [clientId, setClientId] = useState('');
   const [clientQuery, setClientQuery] = useState('');
   const [serviceId, setServiceId] = useState('');
 
   const client = branchClients.find((c) => c.id === clientId) ?? branchClients[0];
-  const service = svcList.find((s) => s.id === serviceId) ?? svcList[0];
+  const service = temoins.find((s) => s.id === serviceId) ?? temoins[0];
+
+  /* Contexte tarifaire de la cliente — sert à afficher le prix témoin de CHAQUE
+     prestation pour elle (les montants de la liste se modifient selon la cliente). */
+  const pricing = useMemo(() => pricingOf(client, bands), [client, bands]);
 
   /* Recherche cliente — accents/casse insensibles ; filtre téléphone seulement si
      la saisie contient des chiffres. */
@@ -346,14 +357,27 @@ export default function JustePrix() {
           </div>
         )}
 
-        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>La prestation</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Services témoins</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+            prix pour {client.name.split(' ')[0]}
+            {pricing.band ? ` · ${client.lockCount} locks` : ' · modèle à renseigner'}
+          </span>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-          {svcList.map((s) => (
-            <button key={s.id} className={`trf-pick ${s.id === service.id ? 'is-active--sable' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setServiceId(s.id)}>
-              <div className="trf-pick__name">{s.name}</div>
-              <div className="trf-pick__sub">{fmtMoney(s.priceXof, currency)}</div>
-            </button>
-          ))}
+          {temoins.map((s) => {
+            const pp = personalPriceXof(s, pricing);
+            const changed = pp !== s.priceXof;
+            return (
+              <button key={s.id} className={`trf-pick ${s.id === service.id ? 'is-active--sable' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setServiceId(s.id)}>
+                <div className="trf-pick__name">{s.name}</div>
+                <div className="trf-pick__sub">
+                  <span style={{ color: changed ? 'var(--color-indigo)' : undefined, fontWeight: changed ? 600 : undefined }}>{fmtMoney(pp, currency)}</span>
+                  {changed && <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.55 }}>{fmtMoney(s.priceXof, currency)}</span>}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Le détail du prix de cette cliente pour cette prestation. */}

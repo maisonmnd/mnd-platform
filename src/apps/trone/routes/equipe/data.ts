@@ -1,4 +1,4 @@
-import { createStore, useStore } from '../../../../shared/store';
+import { createStore, useStore, HOUSE_BLANK } from '../../../../shared/store';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
 
@@ -237,6 +237,7 @@ export const usePlans = () => useStore(plansStore);
 /** Idempotent : dote une Maison SANS aucune formule des 6 formules de départ.
     N'agit que si la liste est vide — ne réécrit jamais des formules déjà créées. */
 export function ensureStarterPlans(): void {
+  if (HOUSE_BLANK) return; // Maison à blanc — aucune semence
   const cur = plansStore.get();
   if (Array.isArray(cur) && cur.length > 0) return;
   plansStore.set(STARTER_PLANS.map((p) => ({ ...p, perks: [...p.perks] })));
@@ -261,6 +262,7 @@ const STARTER_PLAN_INCLUDED: Record<string, PlanIncluded[]> = {
     à l'écran. Marqueur synchronisé + garde d'hydratation (liste non vide), même
     prudence que les autres migrations. À appeler au montage des Abonnements. */
 export function ensureStarterPlanIncluded(): void {
+  if (HOUSE_BLANK) return; // Maison à blanc — aucune semence
   if (houseSettingsStore.get()['plans_included_seed_2026_07']) return;
   const list = plansStore.get();
   if (!Array.isArray(list) || list.length === 0) return; // pas encore hydraté — on repassera

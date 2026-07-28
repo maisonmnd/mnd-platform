@@ -59,9 +59,22 @@ export const bandOf = (lockCount: number | undefined, bands: ModelBand[]): Model
   return sorted.find((b) => lockCount <= (b.maxLocks ?? Infinity)) ?? sorted[sorted.length - 1];
 };
 
-/** Une prestation suit-elle le modèle ? Explicite si l'interrupteur est posé au
-    Catalogue ; sinon dérivé : entretien / resserrage / soins profonds. */
-export const scalesWithModel = (s: Pick<Service, 'name' | 'categoryId'> & { scalesWithModel?: boolean }): boolean => {
+/* Prestations HORS Juste Prix (décision maison) — prix catalogue FERME : jamais
+   modulé par le modèle NI par le coefficient personnel, sur toutes les surfaces.
+   Par identifiant (stable) — un renommage ne le casse pas. Cette exemption prime
+   sur l'interrupteur ◈ du Catalogue : pour ces trois-là, le prix ne bouge pas. */
+export const FIXED_PRICE_SERVICE_IDS = new Set<string>([
+  'sv-gbigbi-essentiel', // FÍNFÍN™ Éveil
+  'sv-rituel-mq6wbusw',  // SÍNSIN™ La Reprise Frontal
+  'sv-rituel-mq6zu12s',  // SÍNSIN™ La Reprise Réveil Frontal +
+  'sv-rituel-mp2qnjwa',  // FÍNFÍN™ Sublimation
+]);
+export const isFixedPrice = (sv: { id?: string }): boolean => !!sv.id && FIXED_PRICE_SERVICE_IDS.has(sv.id);
+
+/** Une prestation suit-elle le modèle ? Hors Juste Prix → non. Sinon explicite si
+    l'interrupteur est posé au Catalogue, puis dérivé : entretien / resserrage / soins. */
+export const scalesWithModel = (s: Pick<Service, 'name' | 'categoryId'> & { id?: string; scalesWithModel?: boolean }): boolean => {
+  if (isFixedPrice(s)) return false;
   if (typeof s.scalesWithModel === 'boolean') return s.scalesWithModel;
   if (['sinsin', 'finfin', 'cat-finfin'].includes(s.categoryId)) return true;
   return /s[íi]nsin|resserrage|entretien/i.test(s.name);
@@ -87,12 +100,32 @@ export const isPersonalized = (p: PersonalPricing): boolean => !!p.band || p.cli
 /** Prix personnalisé d'une prestation. Le coef de modèle ne s'applique qu'aux
     prestations qui suivent le modèle ; le Juste Prix s'applique à tout. */
 export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
+  if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
   const modelCoef = scalesWithModel(sv) && p.band ? p.band.coef : 1;
   return roundPrice(sv.priceXof * modelCoef * p.clientCoef);
 };
 
 /** Durée personnalisée d'une prestation — calée au quart d'heure, jamais nulle. */
 export const personalDurationMin = (sv: Service, p: PersonalPricing): number => {
+  if (isFixedPrice(sv)) return sv.durationMin; // hors Juste Prix — durée catalogue
   const c = scalesWithModel(sv) && p.band ? p.band.durCoef : 1;
   return Math.max(15, Math.round((sv.durationMin * c) / 15) * 15);
+};
+
+/** Répartit un TOTAL en parts entières proportionnelles à des poids — la dernière
+    part absorbe l'arrondi pour que la somme égale EXACTEMENT le total. Sert à
+    ventiler un prix (figé ou net) par prestation de façon IDENTIQUE au rendez-vous
+    et à la facture : chacune pèse selon son prix personnalisé, jamais le catalogue.
+    Poids nuls/absents → parts égales. */
+export const splitByWeights = (total: number, weights: number[]): number[] => {
+  const n = weights.length;
+  if (n === 0) return [];
+  const sum = weights.reduce((s, w) => s + Math.max(0, w), 0);
+  let acc = 0;
+  return weights.map((w, i) => {
+    if (i === n - 1) return total - acc; // la dernière solde le reste (somme exacte)
+    const share = sum > 0 ? Math.round((total * Math.max(0, w)) / sum) : Math.round(total / n);
+    acc += share;
+    return share;
+  });
 };

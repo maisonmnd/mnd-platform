@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -6,10 +6,12 @@ import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES, ensureConsultationCategory, ensureStarterServices,
+  markServiceRemoved,
   type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
-import { appointmentsStore } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
+import { apptNetXof, useServicesById } from '../clients/_shared';
 import { scalesWithModel } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
@@ -54,6 +56,39 @@ export default function Catalogue() {
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+
+  /* ----- Le point d'usage : ce que chaque prestation a réellement servi -----
+     Par prestation : rituels honorés, RDV à venir, et part du chiffre encaissé
+     (net du RDV ventilé au prorata des prix catalogue quand un rituel combine
+     plusieurs prestations — la somme des parts égale toujours le net). Toutes
+     branches confondues : le catalogue est celui de la maison entière. */
+  const [allAppts] = useAppointments();
+  const svcById = useServicesById();
+  const usage = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const m = new Map<string, { done: number; upcoming: number; rev: number }>();
+    const at = (id: string) => {
+      let u = m.get(id);
+      if (!u) { u = { done: 0, upcoming: 0, rev: 0 }; m.set(id, u); }
+      return u;
+    };
+    for (const a of allAppts) {
+      if (a.status === 'annulé' || a.serviceIds.length === 0) continue;
+      if (a.status === 'honoré') {
+        const net = apptNetXof(a, svcById);
+        const prices = a.serviceIds.map((id) => svcById.get(id)?.priceXof ?? 0);
+        const totalP = prices.reduce((s, x) => s + x, 0);
+        a.serviceIds.forEach((id, i) => {
+          const u = at(id);
+          u.done += 1;
+          u.rev += totalP > 0 ? (net * prices[i]) / totalP : net / a.serviceIds.length;
+        });
+      } else if (a.date >= today) {
+        for (const id of a.serviceIds) at(id).upcoming += 1;
+      }
+    }
+    return m;
+  }, [allAppts, svcById]);
 
   /* Garantit la catégorie Consultation (ÐÓTÓ™) et les prestations signées de
      départ sur les maisons antérieures à leur introduction. */
@@ -192,6 +227,9 @@ export default function Catalogue() {
       ? `\n\n⚠ ${refs} rendez-vous du carnet porte${refs > 1 ? 'nt' : ''} cette prestation : ils perdront son libellé et son prix d'affichage (les montants déjà encaissés/figés ne bougent pas). Préférez la MASQUER de la vitrine si vous voulez seulement cesser de la vendre.`
       : '';
     if (!window.confirm(`Supprimer la prestation « ${svc.name} » ? Cette action est définitive.${warn}`)) return;
+    /* Pierre tombale AVANT la suppression : les mécanismes de restauration
+       (prestations de départ, sauvetage) ne la re-créeront plus jamais. */
+    markServiceRemoved(svc.id);
     setServices((prev) => prev.filter((s) => s.id !== svc.id));
   };
 
@@ -414,6 +452,37 @@ export default function Catalogue() {
                       <span>séance{svc.sessions > 1 ? 's' : ''}</span>
                     </span>
                   </div>
+
+                  {/* Le point d'usage — ce que cette prestation a réellement servi. */}
+                  {(() => {
+                    const u = usage.get(svc.id);
+                    return (
+                      <div className="trv-svc__meta" style={{ marginTop: 2 }}>
+                        {u && (u.done > 0 || u.upcoming > 0) ? (
+                          <>
+                            <span title="Rituels honorés portant cette prestation (toutes branches)">
+                              ◈ {u.done} honoré{u.done > 1 ? 's' : ''}
+                            </span>
+                            <span style={{ color: 'var(--color-argile)' }}>·</span>
+                            <span title="Rendez-vous à venir portant cette prestation">{u.upcoming} à venir</span>
+                            {u.rev > 0 && (
+                              <>
+                                <span style={{ color: 'var(--color-argile)' }}>·</span>
+                                <span
+                                  title="Part du chiffre encaissé attribuée à cette prestation (ventilée au prorata quand un rituel en combine plusieurs)"
+                                  style={{ color: 'var(--copper-700)' }}
+                                >
+                                  {fmtMoney(Math.round(u.rev), currency)} générés
+                                </span>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontStyle: 'italic' }}>◈ Jamais réservée — masquable ou supprimable sans risque</span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="trv-temps">
                     {QUATRE_TEMPS.map((t, i) => (

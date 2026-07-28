@@ -1,6 +1,6 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
-  LayoutDashboard, LineChart, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
+  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
   Megaphone, Crown, Repeat, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, type LucideIcon,
 } from 'lucide-react';
@@ -22,6 +22,7 @@ export const NAV: TroneGroup[] = [
     group: 'Pilotage',
     items: [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
+      { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
     ],
   },

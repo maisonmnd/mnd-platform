@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
-import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
+import {
+  appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
+  type Appointment, type ReminderKind,
+} from '../../../../shared/agenda';
 import { useServices, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
@@ -113,6 +117,81 @@ export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé
 
 export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).map((s) => s.name).join(' + ') || '—';
+
+/* ---------- Rappel WhatsApp (cloche sur un RDV à venir) ----------
+   Un seul endroit pour le message ET la fenêtre du rappel, partagé par
+   Le Carnet, le Calendrier et le Tableau de bord — le libellé reste identique
+   partout. `due` code l'urgence : « now » = dans l'heure (rappel H-1),
+   « soon » = demain (rappel J-1), '' = plus lointain. */
+const digitsOf = (p?: string) => (p ?? '').replace(/\D/g, '');
+
+export function apptReminder(
+  a: Appointment,
+  client: Client | undefined,
+  byId: Map<string, Service>,
+): { href: string | null; due: 'now' | 'soon' | ''; when: string } {
+  const t = todayISO();
+  const tomorrow = addDaysISO(t, 1);
+  const when =
+    a.date === t ? `aujourd'hui à ${a.time}`
+    : a.date === tomorrow ? `demain à ${a.time}`
+    : `${frDay(a.date)} à ${a.time}`;
+  let due: 'now' | 'soon' | '' = '';
+  if (a.date === t) {
+    const now = new Date();
+    const mins = timeToMin(a.time) - (now.getHours() * 60 + now.getMinutes());
+    due = mins >= -15 && mins <= 90 ? 'now' : 'soon';
+  } else if (a.date === tomorrow) {
+    due = 'soon';
+  }
+  const digits = digitsOf(client?.phone);
+  if (!digits) return { href: null, due, when };
+  const first = (client?.name ?? '').split(' ')[0] || 'Madame';
+  const svc = apptLabel(a, byId);
+  const msg =
+    `Bonjour ${first},\n` +
+    `Petit rappel de la Maison MND : votre rendez-vous est prévu ${when}${svc && svc !== '—' ? ` (${svc})` : ''}.\n` +
+    `Merci de nous prévenir en cas d'empêchement. À très vite.`;
+  return { href: `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, due, when };
+}
+
+/** Cloche de rappel WhatsApp : n'apparaît que sur un RDV À VENIR (confirmé ou en
+    attente, date ≥ aujourd'hui) d'une cliente avec numéro. Un clic ouvre WhatsApp
+    avec le message prêt à envoyer ET consigne le rappel. Réutilisée par Le Carnet,
+    le Calendrier et le Tableau de bord.
+    Deux rappels distincts par rendez-vous : « j1 » (la veille) et « h1 » (dans
+    l'heure). Une fois le J-1 consigné la cloche se met en retrait ; elle se
+    RALLUME d'elle-même à l'entrée dans la dernière heure, car le H-1 reste à
+    envoyer. Un rappel consigné se renvoie quand même d'un clic — on ne verrouille
+    rien, on se souvient seulement. */
+export function ReminderBell({
+  appt, client, byId, className, size = 15,
+}: { appt: Appointment; client?: Client; byId: Map<string, Service>; className?: string; size?: number }) {
+  const [sentKeys] = useRemindersSent();
+  const upcoming =
+    (appt.status === 'confirmé' || appt.status === 'en attente') && appt.date >= todayISO();
+  const { href, due, when } = apptReminder(appt, client, byId);
+  if (!upcoming || !href) return null;
+  const kind: ReminderKind = due === 'now' ? 'h1' : 'j1';
+  const sent = sentKeys.includes(reminderKey(appt.id, appt.date, kind));
+  const label = kind === 'h1' ? 'dernier rappel (dans l’heure)' : 'rappel de la veille';
+  return (
+    <a
+      className={`trc-remind${className ? ` ${className}` : ''}`}
+      data-due={due}
+      data-sent={sent ? '1' : undefined}
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      draggable={false}
+      onClick={(e) => { e.stopPropagation(); markReminderSent(appt.id, appt.date, kind); }}
+      title={sent ? `Rappel déjà envoyé — RDV ${when}. Cliquez pour renvoyer.` : `Rappel WhatsApp — ${label}, RDV ${when}`}
+      aria-label={sent ? 'Rappel WhatsApp déjà envoyé — renvoyer' : 'Envoyer un rappel WhatsApp'}
+    >
+      {sent ? <Check size={size} /> : <Bell size={size} />}
+    </a>
+  );
+}
 
 export function useServicesById(): Map<string, Service> {
   const [services] = useServices();
@@ -298,6 +377,10 @@ export function RdvModal({
   const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
   /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
   const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
+  /* Ré-tarifer un rituel au tarif du jour (geste EXPLICITE) : un prix figé sous
+     un ancien barème peut être actualisé au prix personnalisé courant. Jamais
+     automatique — le prix d'origine fait foi tant que la maison ne le demande pas. */
+  const [refreshPrice, setRefreshPrice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
   const [subs] = useSubscribers();
@@ -343,9 +426,15 @@ export function RdvModal({
      à défaut, on retient le prix de départ. */
   const needsAmount = chosen.some((sv) => priceModeOf(sv) !== 'fixe');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
-  const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged;
+  const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged && !refreshPrice;
   const grossXof = keepFrozen ? (frozenXof as number) : grossBase;
   const effGross = needsAmount ? (amountNum || grossBase) : grossXof;
+  /* REMISE VISIBLE « prix d'origine conservé » : chaque prestation reste affichée à
+     son prix PLEIN (personalPriceXof, somme = grossBase) ; quand le total effectif
+     figé est INFÉRIEUR au prix du jour, l'écart est une remise explicite — le RDV
+     et la facture montrent les mêmes prix pleins + la même remise. Ne vaut que pour
+     les rituels tout-en-prix-fixe (variable/devis : montant saisi au fauteuil). */
+  const frozenRemiseXof = !needsAmount && keepFrozen && grossBase > effGross ? grossBase - effGross : 0;
   /* Information « prix d'origine ≠ tarif du jour » — ne vaut que pour les prix FIXES. */
   const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
@@ -483,7 +572,7 @@ export function RdvModal({
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-                  {/* SON prix — recalculé dès qu'on change de cliente (modèle × Juste Prix). */}
+                  {/* SON prix PLEIN — la remise éventuelle est une ligne à part (comme la facture). */}
                   <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis' ? 'sur devis' : priceModeOf(sv) === 'variable' ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}` : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
                   <button
                     onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
@@ -669,11 +758,36 @@ export function RdvModal({
         {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
             le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
             prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
-        {frozenDiffers && !servicesChanged && (
+        {frozenDiffers && !servicesChanged && !refreshPrice && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Prix d’origine conservé : <b>{fmtMoney(frozenXof!, currency)}</b> (au tarif d’aujourd’hui,
             ces prestations vaudraient {fmtMoney(grossBase, currency)}). Il ne changera que si vous
-            modifiez les prestations du rituel.
+            modifiez les prestations — ou si vous l’actualisez :
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => setRefreshPrice(true)}
+                style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+              >
+                Actualiser au tarif du jour ({fmtMoney(grossBase, currency)})
+              </button>
+            </div>
+          </div>
+        )}
+        {frozenDiffers && !servicesChanged && refreshPrice && (
+          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+            Ré-tarifé au tarif du jour : <b>{fmtMoney(grossBase, currency)}</b> (ancien prix
+            {' '}{fmtMoney(frozenXof!, currency)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
+            ensuite pour que la facture porte les mêmes montants.
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => setRefreshPrice(false)}
+                style={{ cursor: 'pointer', background: 'none', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5 }}
+              >
+                Garder le prix d’origine
+              </button>
+            </div>
           </div>
         )}
         {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
@@ -702,6 +816,20 @@ export function RdvModal({
             </div>
           ) : (
           <>
+          {/* Remise « prix d'origine conservé » : prix du jour plein, puis l'écart
+              figé retranché — la remise reste LISIBLE (comme sur la facture). */}
+          {frozenRemiseXof > 0 && (
+            <>
+              <div className="trc-total__row">
+                <span>Prix du jour</span>
+                <span className="trc-total__num">{fmtMoney(grossBase, currency)}</span>
+              </div>
+              <div className="trc-total__row">
+                <span>Remise · prix d’origine conservé</span>
+                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>−{fmtMoney(frozenRemiseXof, currency)}</span>
+              </div>
+            </>
+          )}
           {(discountPct > 0 || discountXof > 0) && (
             <div className="trc-total__row">
               <span>

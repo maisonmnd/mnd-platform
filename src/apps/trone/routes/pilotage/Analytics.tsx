@@ -22,9 +22,11 @@ import './pilotage.css';
    réels (carnet, factures, clientes, consultations) — aucun indice fabriqué.
    « L'intelligence a besoin de vécu — les indices apparaîtront avec l'activité. » */
 
-type Period = 'm30' | 'trim' | 'annee';
+type Period = 'mois' | 'trim' | 'annee';
 
-const PERIOD_DAYS: Record<Period, number> = { m30: 30, trim: 91, annee: 365 };
+/* « Mois » = le mois calendaire en cours (du 1er à aujourd'hui) ; trimestre et
+   année restent des fenêtres glissantes. */
+const PERIOD_DAYS: Record<'trim' | 'annee', number> = { trim: 91, annee: 365 };
 
 /** Durée cumulée en clair : « 42 s », « 12 min », « 1 h 05 ». */
 function fmtDuration(sec: number): string {
@@ -82,7 +84,7 @@ export default function Analytics() {
 
   const today = todayISO();
   const thisMonth = today.slice(0, 7);
-  const periodStart = addDaysISO(today, -PERIOD_DAYS[period]);
+  const periodStart = period === 'mois' ? `${thisMonth}-01` : addDaysISO(today, -PERIOD_DAYS[period]);
 
   /* — indices prospectifs : dérivés du vécu de la période, jamais inventés —
      `apptNetXof` et non `apptTotalXof` : cette carte dit « Revenu ENCAISSÉ ».
@@ -441,7 +443,7 @@ export default function Analytics() {
         actions={
           <Segs<Period>
             options={[
-              { value: 'm30', label: '30 jours' },
+              { value: 'mois', label: 'Mois' },
               { value: 'trim', label: 'Trimestre' },
               { value: 'annee', label: 'Année' },
             ]}
