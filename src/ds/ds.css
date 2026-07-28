@@ -247,18 +247,13 @@
   .mnd-modal__body .mnd-btn { white-space: normal; min-width: 0; }
 }
 
-/* Grilles génériques posées en style inline (sans classe dédiée) :
-   on les empile sur mobile pour éviter tout débordement horizontal.
-   Le préfixe de propriété évite d'attraper les grilles à 5 colonnes. */
-@media (max-width: 900px) {
-  [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
-  [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
-}
-@media (max-width: 620px) {
-  [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
-  [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
-  [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
-}
+/* Les grilles de mise en page passent par `.tr-cols` (trone.css) : le gabarit
+   large est déclaré au point d'usage (`--cols`), les paliers vivent dans la
+   feuille. On rattrapait auparavant les `gridTemplateColumns` inline par des
+   sélecteurs [style*="…"] — retirés : ils dépendaient du texte exact du gabarit,
+   se taisaient au moindre changement, et `[style*="1fr 1fr"]` attrapait par
+   sous-chaîne des tableaux qu'il ne devait pas toucher (la liste Clientes,
+   « 2.1fr 1fr 0.95fr », s'effondrait sur une colonne à 620px). */
 
 /* Toast — confirmation non bloquante (voix indigo, jamais un dialogue système). */
 .mnd-toast {

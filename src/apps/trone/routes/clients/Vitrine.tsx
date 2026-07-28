@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -336,7 +336,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 18, alignItems: 'start' }}>
+    <div className="tr-cols" style={{ '--cols': '340px 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
       {/* Colonne gauche · la cliente + réglages globaux */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '22px', color: 'var(--color-ivoire)' }}>
@@ -528,7 +528,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   ) : null);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 360px) 1fr', gap: 18, alignItems: 'start' }}>
+    <div className="tr-cols" style={{ '--cols': 'minmax(300px, 360px) 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
       {/* ----- Colonne gauche : les modules de la cliente ----- */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: 22, color: 'var(--color-ivoire)' }}>

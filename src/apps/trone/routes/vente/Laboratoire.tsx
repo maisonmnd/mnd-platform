@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -183,7 +183,7 @@ export default function Laboratoire() {
           {mode === 'besoin' && (
             <div>
               <div className="trv-sec-label">Quel est le besoin de la cliente ?</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 24 }}>
+              <div className="tr-cols" style={{ '--cols': 'repeat(6, 1fr)', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 } as CSSProperties}>
                 {LAB_CONCERNS.map((c) => (
                   <button key={c.k} className={`trv-concern ${concern === c.k ? 'is-active' : ''}`} onClick={() => setConcern(c.k)}>
                     <div className="g">{c.glyph}</div>
@@ -201,7 +201,7 @@ export default function Laboratoire() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: 18, alignItems: 'start' }}>
+              <div className="tr-cols" style={{ '--cols': '1.05fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
                 {/* gauche — identité + origines */}
                 <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, overflow: 'hidden' }}>
                   <div className="trv-formula-band" style={{ background: f.band.bg }}>
@@ -275,7 +275,7 @@ export default function Laboratoire() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="tr-cols" style={{ '--cols': '1fr 1fr', '--cols-md': '1fr 1fr', '--cols-sm': '1fr', gap: 12 } as CSSProperties}>
                     <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '15px 17px' }}>
                       <div className="mnd-eyebrow">Coût matière / unité</div>
                       <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--ink)', marginTop: 7 }}>{fmtMoney(f.coutMatN, currency)}</div>
@@ -302,7 +302,7 @@ export default function Laboratoire() {
 
           {/* ===== PAR INGRÉDIENTS DISPONIBLES ===== */}
           {mode === 'ingredients' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+            <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 20, alignItems: 'start' } as CSSProperties}>
               <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, padding: '20px 22px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                   <div className="trv-sec-label" style={{ marginBottom: 0 }}>Ce que le laboratoire a en réserve</div>
@@ -359,7 +359,7 @@ export default function Laboratoire() {
             <Button onClick={() => setProdForm(emptyProduct(dodoId))}>+ Ajouter un produit</Button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
+          <div className="tr-cols" style={{ '--cols': 'repeat(4, 1fr)', '--cols-md': 'repeat(2, minmax(0,1fr))', gap: 14, marginBottom: 18 } as CSSProperties}>
             <div className="trv-kpi"><div className="l">Produits en gamme</div><div className="v">{gammeRows.length}</div><div className="c">catalogue DÒDÒ™</div></div>
             <div className="trv-kpi"><div className="l">Unités en réserve</div><div className="v">{totalUnits > 0 ? totalUnits : '—'}</div><div className="c">tous produits confondus</div></div>
             <div className="trv-kpi trv-kpi--copper"><div className="l">Alertes réassort</div><div className="v" style={{ color: lowCount > 0 ? 'var(--trv-warning)' : undefined }}>{lowCount}</div><div className="c">niveaux sous le seuil</div></div>
@@ -423,7 +423,7 @@ export default function Laboratoire() {
 
       {/* ===== PERFORMANCE ===== */}
       {tab === 'perf' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18, alignItems: 'start' }}>
+        <div className="tr-cols" style={{ '--cols': '1.4fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '20px 22px' }}>
             <div className="trv-sec-label" style={{ marginBottom: 4 }}>Le palmarès des formules</div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Rachat, résultats consignés au Carnet, satisfaction et vitesse de vente — combinés en un Indice de mérite.</div>

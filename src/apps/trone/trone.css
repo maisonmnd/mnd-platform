@@ -303,6 +303,27 @@ body[data-surface='trone'] {
 }
 .tr-page-head .sub { color: var(--ink-soft); margin-top: var(--space-2); max-width: 640px; }
 
+/* Colonnes déclarées au point d'usage — le gabarit large vit dans le JSX
+   (`--cols`), les paliers vivent ici. RAISON D'ÊTRE : un `gridTemplateColumns`
+   écrit en style inline est INATTEIGNABLE par une media query (l'attribut style
+   gagne toujours) — c'était la cause des écrans écrasés sur téléphone. Toute
+   nouvelle grille de mise en page passe par cette classe, jamais par un
+   gridTemplateColumns inline seul.
+     <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', '--cols-md': '1fr' } as CSSProperties}>
+   `--cols-md` (≤900px) vaut 1fr par défaut ; `--cols-sm` (≤620px) reprend
+   `--cols-md` s'il n'est pas donné. Le gap reste inline : il ne dépend pas du
+   point de rupture. */
+.tr-cols {
+  display: grid;
+  grid-template-columns: var(--cols, 1fr);
+  min-width: 0;
+}
+/* Un enfant de grille refuse de rétrécir sous la taille de son contenu (min-width
+   auto) : sans ça, un long nom ou un tableau élargit la page entière. */
+.tr-cols > * { min-width: 0; }
+@media (max-width: 900px) { .tr-cols { grid-template-columns: var(--cols-md, 1fr); } }
+@media (max-width: 620px) { .tr-cols { grid-template-columns: var(--cols-sm, var(--cols-md, 1fr)); } }
+
 /* Grilles utilitaires */
 .tr-grid { display: grid; gap: var(--space-4); }
 .tr-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

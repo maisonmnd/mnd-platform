@@ -483,11 +483,8 @@
    Responsive (contenu Pilotage)
    ============================================================ */
 
-/* Grilles inline (Dashboard, Analytics) empilées. */
-@media (max-width: 900px) {
-  [style*="grid-template-columns: 1.55fr 1fr"],
-  [style*="grid-template-columns: 1.2fr 1fr"] { grid-template-columns: 1fr !important; }
-}
+/* Les deux colonnes du Tableau de bord et d'Analytics s'empilent via `.tr-cols`
+   (le gabarit large est déclaré dans le JSX, les paliers dans trone.css). */
 
 @media (max-width: 620px) {
   /* Grands chiffres bornés. */

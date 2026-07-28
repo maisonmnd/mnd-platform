@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useSearchParams } from 'react-router-dom';
 import { MapPin, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -612,7 +612,7 @@ export default function Factures() {
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
                 <div className="trv-sec-label trv-sec-label--copper">L’âme du document</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginBottom: 7 }}>Le motif & le vers</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+                <div className="tr-cols" style={{ '--cols': 'repeat(3,1fr)', '--cols-md': 'repeat(3,1fr)', gap: 7 } as CSSProperties}>
                   {(Object.keys(THEMES) as ThemeKey[]).map((k) => (
                     <button key={k} title={THEMES[k].amb} className={`trv-theme-btn ${draft.theme === k ? 'is-active' : ''}`} onClick={() => patchDraft({ theme: k })}>
                       <span style={{ height: 34, display: 'flex', alignItems: 'center' }}>

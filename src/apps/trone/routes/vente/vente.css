@@ -775,19 +775,13 @@
 /* ============================================================
    Responsive (contenu Vente)
    ============================================================ */
-@media (max-width: 900px) {
-  /* Grilles inline du Laboratoire / POS empilées. */
-  [style*="grid-template-columns: 1.05fr 1fr"],
-  [style*="grid-template-columns: 1.4fr 1fr"] { grid-template-columns: 1fr !important; }
-}
+/* Les grilles du Laboratoire, de la Caisse et des Factures s'empilent via
+   `.tr-cols` — gabarit large dans le JSX, paliers dans trone.css. */
 
 @media (max-width: 620px) {
   /* Journal de caisse : plus de grille figée, chaque écriture s'empile. */
   .trv-journal-head { display: none; }
   .trv-journal-row { grid-template-columns: 1fr; gap: 4px; padding: 14px 16px; }
-
-  /* Bandeau KPI de caisse (5 colonnes inline) → 2 colonnes. */
-  [style*="grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
 
   /* Chiffres d'affichage : on borne pour éviter le débordement. */
   .trv-net { font-size: clamp(24px, 8vw, 32px); }

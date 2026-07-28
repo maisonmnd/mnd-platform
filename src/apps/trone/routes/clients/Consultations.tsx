@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
@@ -905,7 +905,7 @@ function EditOnlineModal({
         {/* Séance + montant */}
         <div>
           <span className="trc-microlabel">Séance souhaitée (vide = à convenir)</span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 4 }}>
+          <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', '--cols-md': '1fr 1fr 1fr', '--cols-sm': '1fr', gap: 10, marginTop: 4 } as CSSProperties}>
             <Select value={mode} onChange={(e) => setMode(e.target.value as 'salon' | 'visio')}>
               <option value="salon">Salon</option>
               <option value="visio">Visio</option>
@@ -981,7 +981,7 @@ function OnlineSection() {
             </span>
             <span style={{ fontSize: 11, color: 'var(--indigo-100)' }}>{whenAgo(live.createdAt)}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr auto', gap: 18, alignItems: 'center', marginTop: 16 }}>
+          <div className="tr-cols" style={{ '--cols': '1.4fr 1fr 1fr auto', gap: 18, alignItems: 'center', marginTop: 16 } as CSSProperties}>
             <div>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, lineHeight: 1 }}>{live.client.name}</div>
               <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>{live.client.city} · {live.parcours === 'sos' ? 'SOS Locks' : 'Création'}</div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Seal, Textarea } from '../../../../ds/components';
 import { DEFAULT_ACCENT, DEFAULT_VERBE, useBrand } from '../../../../shared/settings';
@@ -77,7 +77,7 @@ export default function Marque() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 360px', gap: 22, alignItems: 'start' }}>
+      <div className="tr-cols" style={{ '--cols': 'minmax(0,1fr) 360px', gap: 22, alignItems: 'start' } as CSSProperties}>
         {/* LEFT · contrôles */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Card className="sys-section">
@@ -123,7 +123,7 @@ export default function Marque() {
 
           <div className="tre-deep" style={{ display: 'block' }}>
             <div className="tre-deep__eyebrow">Souveraineté de la marque</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginTop: 14 }}>
+            <div className="tr-cols" style={{ '--cols': '1fr 1fr', '--cols-md': '1fr 1fr', '--cols-sm': '1fr', gap: 22, marginTop: 14 } as CSSProperties}>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8bab7f', marginBottom: 11 }}>Configurable</div>
                 {CONFIGURABLE.map((c) => (

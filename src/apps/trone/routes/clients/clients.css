@@ -1232,9 +1232,12 @@
   .trc-sheet__row,
   .trc-sheet__group { min-width: 680px; }
 
-  /* Grilles inline propres à Clients (vitrine, consultations). */
-  [style*="grid-template-columns: 340px 1fr"],
-  [style*="grid-template-columns: 1.4fr 1fr 1fr auto"] { grid-template-columns: 1fr !important; }
+  /* Feuille SANS colonnes figées (personas : nom + actions) : ses lignes
+     s'empilent via `.tr-cols` au lieu de défiler — imposer 680px de large à une
+     ligne d'une seule colonne ne ferait qu'ajouter du vide à faire glisser. */
+  .trc-sheet--fluid .trc-sheet__head,
+  .trc-sheet--fluid .trc-sheet__row,
+  .trc-sheet--fluid .trc-sheet__group { min-width: 0; }
 }
 
 /* Le Carnet en cartes empilées sur téléphone — plus de défilement latéral :

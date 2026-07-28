@@ -197,10 +197,7 @@
    Responsive (contenu Système)
    ============================================================ */
 
-/* Aperçu marque : grille inline (minmax 0 1fr / 360px) empilée. */
-@media (max-width: 900px) {
-  [style*="1fr) 360px"] { grid-template-columns: 1fr !important; }
-}
+/* Aperçu marque : les colonnes s'empilent via `.tr-cols` (voir trone.css). */
 
 @media (max-width: 620px) {
   /* Lignes de réglage : label puis contrôle passent à la ligne. */

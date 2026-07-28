@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -395,7 +395,7 @@ export default function Dashboard() {
       </div>
 
       {/* Carnet du jour + revenu 7 jours */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' }}>
+      <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
         <div className="trp-day">
           <div className="trp-day__head">
             <span className="trp-day__title">Le carnet du jour</span>

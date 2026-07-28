@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Input, Select, Textarea } from '../../../../ds/components';
 import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
@@ -212,13 +212,13 @@ function ClienteleTab({ personas, clients }: { personas: Persona[]; clients: Cli
         </div>
       </div>
 
-      <div className="trc-sheet">
+      <div className="trc-sheet trc-sheet--fluid">
         <div className="trc-sheet__group">{selName} · {inPersona.length} cliente{inPersona.length > 1 ? 's' : ''}</div>
         {shown.length === 0 && (
           <div className="trc-empty">{q ? `Aucune cliente ne répond à « ${q.trim()} ».` : 'Aucune cliente sur ce persona.'}</div>
         )}
         {shown.map((c) => (
-          <div key={c.id} className="trc-sheet__row" style={{ gridTemplateColumns: '1fr 220px', gap: 12 }}>
+          <div key={c.id} className="trc-sheet__row tr-cols" style={{ '--cols': '1fr 220px', gap: 12 } as CSSProperties}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
               <Avatar client={c} size={34} />
               <span style={{ minWidth: 0 }}>

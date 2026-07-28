@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
@@ -618,7 +618,7 @@ export default function Caisse() {
             <Button variant="ghost" onClick={() => setTab('encaisser')}>Clôturer la caisse</Button>
           </div>
 
-          <div className="tr-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr 1fr 1fr', marginBottom: 24 }}>
+          <div className="tr-grid tr-cols" style={{ '--cols': '1.3fr 1fr 1fr 1fr 1fr', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', marginBottom: 24 } as CSSProperties}>
             <div className="trv-kpi trv-kpi--copper">
               <div className="l">Total encaissé · jour</div>
               <div className="v">{fmtMoney(journalTotal, currency)}</div>

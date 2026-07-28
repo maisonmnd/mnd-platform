@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Modal, Segs } from '../../../../ds/components';
@@ -592,7 +592,7 @@ export default function Analytics() {
       </div>
 
       {/* Prévision + transmission */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 18, marginTop: 18, alignItems: 'stretch' }}>
+      <div className="tr-cols" style={{ '--cols': '1.2fr 1fr', gap: 18, marginTop: 18, alignItems: 'stretch' } as CSSProperties}>
         <div className="trp-panel" style={{ position: 'relative', overflow: 'hidden' }}>
           <span className="trp-kpi__bar" style={{ background: 'var(--indigo-400)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
