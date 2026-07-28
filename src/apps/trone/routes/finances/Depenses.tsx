@@ -4,6 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
+import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import {
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
@@ -75,6 +76,16 @@ export default function Depenses() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories.length]);
+
+  /* Caisse KkiaPay — l'argent encaissé en ligne n'est pas dans le tiroir : il
+     dort sur le compte KkiaPay jusqu'au versement, et sa commission en sort.
+     Sans caisse dédiée, la Synthèse annoncerait des billets incomptables.
+     Idempotent, sans effet si les rails de paiement sont éteints. */
+  useEffect(() => {
+    if (HOUSE_BLANK) return;
+    ensureKkiapayCashbox(branch.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branch.id, cashboxes.length]);
 
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);

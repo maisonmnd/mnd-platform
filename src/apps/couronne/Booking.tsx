@@ -7,6 +7,7 @@ import { appointmentsStore, useAppointments, type Appointment } from '../../shar
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
+import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { priceModeOf, type Service } from '../../shared/catalog';
 import { useModelBands, pricingOf, personalPriceXof, personalDurationMin, isPersonalized } from '../../shared/pricing';
@@ -76,6 +77,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [sessionDates, setSessionDates] = useState<{ iso: string; time: string }[]>([]);
   const [pay, setPay] = useState<PayKey | null>(null);
   const [paying, setPaying] = useState(false);
+  /* Voie choisie à l'écran d'acompte : régler en ligne (défaut quand les rails
+     KkiaPay sont branchés) ou envoyer soi-même le Mobile Money. */
+  const [manualDeposit, setManualDeposit] = useState(false);
+  /* Identifiant de la séance 1 réservé avant le paiement (voir payOnline). */
+  const onlineApptId = useRef<string | null>(null);
 
   const discountPct = prefill?.discountPct ?? 0;
   const offerLabel = prefill?.offerLabel;
@@ -183,9 +189,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     setStep(step - 1);
   };
 
-  /* ---- Paiement simulé (si acompte) + écriture dans l'agenda partagé ---- */
-  const settle = () => {
-    if (hasDeposit && !pay) { toast('Choisissez votre moyen d’envoi.'); return; }
+  /* ---- Écriture dans l'agenda partagé ----
+     `online` n'est renseigné que si l'acompte vient d'être RÉGLÉ par KkiaPay et
+     VÉRIFIÉ par le serveur : `confirmed` est alors le reflet d'un verdict
+     serveur, jamais une décision de cet écran. La preuve, elle, vit dans la
+     table `payments` (écrite par la fonction Edge) — c'est elle que le comptoir
+     doit croire en cas de doute. */
+  const settle = (online?: { apptId: string; transactionId: string; confirmed: boolean }) => {
+    if (hasDeposit && !online && !pay) { toast('Choisissez votre moyen d’envoi.'); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
     const finalize = () => {
       const baseNotes: string[] = [];
@@ -193,7 +204,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       if (masterVaries) baseNotes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
       /* Le comptoir doit savoir COMMENT la cliente annonce avoir envoyé l'acompte —
          il le vérifiera avant de le créditer (depositConfirmed). */
-      if (hasDeposit) baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} annoncé · ${payMethodName}`);
+      if (hasDeposit && online) {
+        baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} réglé en ligne · KkiaPay · réf. ${online.transactionId}`);
+      } else if (hasDeposit) {
+        baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} annoncé · ${payMethodName}`);
+      }
       /* Garantit la fiche cliente sur LA MÊME branche que le RDV, sous la session
          authentifiée (l'écriture Supabase passe alors le RLS et remonte au Trône). */
       ensureClient(clientId, session?.user?.email, branch.id);
@@ -207,7 +222,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
         return {
-          id: uid(),
+          /* La séance 1 porte l'identifiant RÉSERVÉ avant l'ouverture du widget :
+             c'est lui qui a voyagé chez KkiaPay en `partnerId`, et par lui que le
+             serveur relie le paiement à cette réservation. */
+          id: i === 0 && online ? online.apptId : uid(),
           branchId: branch.id,
           clientId,
           clientName,
@@ -218,6 +236,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           status: 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
           depositXof: i === 0 && hasDeposit ? deposit : undefined,
+          /* Un acompte n'est « reçu » que sur verdict serveur — sinon il reste
+             annoncé, et le comptoir le vérifie comme aujourd'hui. */
+          ...(i === 0 && online?.confirmed ? { depositConfirmed: true } : {}),
           /* PRIX PERSONNALISÉ FIGÉ dès la réservation (modèle + Juste Prix) : le
              comptoir facturera EXACTEMENT ce que la cliente a vu — le barème
              pourra bouger, pas son prix. Porté par la séance 1 (les suivantes
@@ -253,11 +274,53 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       });
     };
 
-    /* AUCUN théâtre de paiement : rien n'est débité ici (pas de rails de paiement
-       encore). On enregistre la réservation, l'acompte reste « annoncé » jusqu'à
-       vérification au salon. */
+    /* Voie MANUELLE : rien n'est débité ici. La cliente envoie elle-même son
+       Mobile Money et l'annonce ; l'acompte reste « annoncé » jusqu'à
+       vérification au salon. Aucun théâtre de paiement — jamais. */
     setPaying(true);
     finalize();
+  };
+
+  /* ---- Acompte réglé EN LIGNE (KkiaPay) ----
+     Trois temps, dans cet ordre précis : on paie, le serveur vérifie, PUIS la
+     réservation s'écrit. Vérifier avant d'écrire garantit qu'un paiement abouti
+     est déjà au registre (avec sa référence) même si la cliente ferme l'app à
+     la seconde suivante — la Maison peut alors le rapprocher, plutôt que de
+     découvrir un virement sans réservation. */
+  const payOnline = async () => {
+    if (paying) return;
+    if (!selected.length || sessionDates.length < totalSessions) return;
+    /* Identifiant réservé AVANT l'ouverture du widget : il part chez KkiaPay en
+       `partnerId` et deviendra celui de la séance 1. Conservé d'une tentative à
+       l'autre pour qu'un second essai retombe sur la même réservation. */
+    const apptId = onlineApptId.current ?? uid();
+    onlineApptId.current = apptId;
+    setPaying(true);
+    try {
+      const { transactionId } = await payWithKkiapay({
+        amountXof: deposit,
+        partnerId: apptId,
+        branchId: branch.id,
+        clientId,
+        phone: client?.phone,
+        name: client?.name,
+        email: session?.user?.email ?? undefined,
+      });
+      let confirmed = false;
+      try {
+        const v = await verifyDeposit({ transactionId, apptId, expectedXof: deposit, branchId: branch.id, clientId });
+        confirmed = v.ok;
+      } catch (e) {
+        /* Le paiement a eu lieu ; seule la vérification a échoué. On réserve
+           quand même, acompte « annoncé » — on ne perd ni la cliente ni sa
+           référence. */
+        toast(e instanceof Error ? e.message : 'Vérification impossible — la Maison vérifiera.');
+      }
+      settle({ apptId, transactionId, confirmed });
+    } catch (e) {
+      setPaying(false);
+      toast(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+    }
   };
 
   /* ---- Rappel fiable : le calendrier natif du téléphone (un événement par séance) ---- */
@@ -610,12 +673,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 6 · acompte (taux de la Maison) --------
-            DIRE VRAI : aucun paiement n'est exécuté ici (pas encore de rails de
-            paiement). La cliente ENVOIE elle-même le Mobile Money au numéro de la
-            Maison, puis annonce l'envoi — le salon vérifie la réception avant de
-            créditer l'acompte. L'ancien écran simulait un paiement (« paiement
+            DIRE VRAI, dans les deux voies. Rails KkiaPay branchés : la cliente
+            paie POUR DE BON, et l'acompte n'est réputé reçu qu'après vérification
+            serveur. Rails éteints (pas de clé publique au build) : elle envoie
+            elle-même son Mobile Money et l'annonce, le salon vérifie avant de
+            créditer. L'écran d'origine, lui, SIMULAIT un paiement (« paiement
             sécurisé », fausse demande poussée au téléphone) : trahison de
-            confiance assurée au premier passage en salon. */}
+            confiance assurée au premier passage en salon. Ne jamais le remettre —
+            un écran de paiement ne s'affiche que s'il débite vraiment. */}
         {step === 5 && selected.length > 0 && (
           <div className="mc-fade">
             <div className="mc-depositcard">
@@ -629,33 +694,65 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
               </div>
             </div>
-            {!allHidden && (
+            {/* VOIE EN LIGNE — n'apparaît que si les rails KkiaPay sont branchés
+                (clé publique au build). Sans eux, l'écran reste exactement celui
+                d'avant : le mode d'emploi Mobile Money, honnête. */}
+            {!allHidden && kkiapayEnabled() && !manualDeposit ? (
               <>
-                <div className="mc-sectionlabel">Comment faire</div>
+                <div className="mc-sectionlabel">Régler maintenant</div>
                 <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-                  <div className="mc-recapcard__line"><span>1 · Envoyez</span><span>{fmtMoney(deposit, currency)}</span></div>
-                  <div className="mc-recapcard__line"><span>2 · Au numéro de la Maison</span><span>{branch.phone || 'communiqué sur WhatsApp'}</span></div>
-                  <div className="mc-recapcard__line"><span>3 · Puis annoncez l’envoi</span><span>bouton ci-dessous</span></div>
+                  <div className="mc-recapcard__line"><span>Mobile Money · carte</span><span>{fmtMoney(deposit, currency)}</span></div>
+                  <div className="mc-recapcard__line"><span>Reste au salon</span><span>{anyHidden ? 'à convenir' : fmtMoney(Math.max(0, knownTotal - deposit), currency)}</span></div>
                 </div>
+                <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={payOnline} disabled={paying}>
+                  {paying ? 'Paiement en cours…' : `Payer l’acompte · ${fmtMoney(deposit, currency)}`}
+                </button>
+                <button
+                  className="mc-textbtn"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setManualDeposit(true)}
+                  disabled={paying}
+                >
+                  J’enverrai l’acompte moi-même
+                </button>
+                <div className="mc-footnote">Votre acompte est crédité dès la confirmation du paiement.</div>
+              </>
+            ) : (
+              <>
+                {!allHidden && (
+                  <>
+                    <div className="mc-sectionlabel">Comment faire</div>
+                    <div className="mc-recapcard" style={{ textAlign: 'left' }}>
+                      <div className="mc-recapcard__line"><span>1 · Envoyez</span><span>{fmtMoney(deposit, currency)}</span></div>
+                      <div className="mc-recapcard__line"><span>2 · Au numéro de la Maison</span><span>{branch.phone || 'communiqué sur WhatsApp'}</span></div>
+                      <div className="mc-recapcard__line"><span>3 · Puis annoncez l’envoi</span><span>bouton ci-dessous</span></div>
+                    </div>
+                  </>
+                )}
+                <div className="mc-sectionlabel">Envoyé par</div>
+                <div className="mc-stack">
+                  {PAY_METHODS.map((pm) => (
+                    <button
+                      key={pm.k}
+                      className={`mc-paycard ${pay === pm.k ? 'is-on' : ''}`}
+                      onClick={() => setPay(pm.k)}
+                    >
+                      <span>{pm.n}</span>
+                      <span className="mc-paycard__dot" />
+                    </button>
+                  ))}
+                </div>
+                <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={() => settle()} disabled={paying}>
+                  {allHidden ? 'Confirmer la réservation' : `J’ai envoyé l’acompte · ${fmtMoney(deposit, currency)}`}
+                </button>
+                {!allHidden && kkiapayEnabled() && (
+                  <button className="mc-textbtn" style={{ marginTop: 12 }} onClick={() => setManualDeposit(false)} disabled={paying}>
+                    ← Régler en ligne plutôt
+                  </button>
+                )}
+                <div className="mc-footnote">La Maison vérifie la réception avant votre passage.</div>
               </>
             )}
-            <div className="mc-sectionlabel">Envoyé par</div>
-            <div className="mc-stack">
-              {PAY_METHODS.map((pm) => (
-                <button
-                  key={pm.k}
-                  className={`mc-paycard ${pay === pm.k ? 'is-on' : ''}`}
-                  onClick={() => setPay(pm.k)}
-                >
-                  <span>{pm.n}</span>
-                  <span className="mc-paycard__dot" />
-                </button>
-              ))}
-            </div>
-            <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={settle} disabled={paying}>
-              {allHidden ? 'Confirmer la réservation' : `J’ai envoyé l’acompte · ${fmtMoney(deposit, currency)}`}
-            </button>
-            <div className="mc-footnote">La Maison vérifie la réception avant votre passage.</div>
           </div>
         )}
 

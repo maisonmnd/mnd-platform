@@ -249,7 +249,35 @@ export const creditBalanceOf = (moves: CreditMovement[], holder: CreditHolder): 
 export const creditMovementsStore = createStore<CreditMovement[]>('mnd_credits', []);
 export const useCredits = () => useStore(creditMovementsStore);
 
+/* ---------- Paiements en ligne (KkiaPay) ----------
+   Registre des transactions encaissées hors comptoir. ÉCRIT PAR LE SERVEUR
+   UNIQUEMENT (fonctions Edge `kkiapay-verify` / `kkiapay-webhook`, clé de
+   service) : une cliente ne déclare jamais elle-même qu'elle a payé. Le magasin
+   ci-dessous n'est là que pour LIRE au Trône — l'hydratation échoue en silence
+   côté Ma Couronne, qui n'est pas du personnel (même cas que `mnd_segments`).
+   `amountXof` est le BRUT débité à la cliente, `feesXof` la commission KkiaPay
+   (à la charge de la Maison : le chiffre d'affaires reste brut, la commission
+   part en dépense de la caisse KkiaPay). */
+export type Payment = {
+  id: string; // identifiant de transaction KkiaPay — clé d'idempotence
+  branchId: string;
+  provider: 'kkiapay';
+  amountXof: number;
+  feesXof: number;
+  method?: string; // MOBILE_MONEY · CARD · WALLET
+  partnerId?: string; // notre référence : id du rendez-vous
+  clientId?: string;
+  status: 'success' | 'failed';
+  at: string; // ISO
+};
+export const paymentsStore = createStore<Payment[]>('mnd_payments', []);
+export const usePayments = () => useStore(paymentsStore);
+/** Le paiement en ligne rattaché à un rendez-vous, s'il existe. */
+export const paymentOfAppointment = (payments: Payment[], apptId: string): Payment | undefined =>
+  payments.find((p) => p.partnerId === apptId && p.status === 'success');
+
 import { bindCollection, bindDocument } from './sync';
+bindCollection(paymentsStore, 'payments');
 bindCollection(invoicesStore, 'invoices');
 bindCollection(expensesStore, 'expenses');
 bindCollection(budgetsStore, 'budgets');
