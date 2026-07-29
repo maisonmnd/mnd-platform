@@ -193,6 +193,121 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   return filename;
 }
 
+export type ReceiptPdfData = {
+  /** Numéro du reçu — dérivé de l'encaissement, donc reproductible. */
+  number: string;
+  houseName: string;
+  houseSub?: string;
+  date: string;
+  clientName: string;
+  /** Ce qui a été réglé, en clair. */
+  label: string;
+  /** Nature : Facture, Acompte, Scolarité… */
+  kind: string;
+  amount: string;
+  method: string;
+  cashbox?: string;
+  /** Preuve d'origine : n° de facture, référence de transaction. */
+  ref?: string;
+  note?: string;
+};
+
+/** Reçu d'encaissement — la preuve que la Maison a reçu cette somme, ce jour-là.
+    Format A5 paysage : un reçu n'est pas une facture, il tient sur une demi-page
+    et se glisse dans un carnet. Télécharge le fichier, renvoie son nom. */
+export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'landscape' });
+  normalizeSpaces(doc);
+  const W = 210;
+  const M = 16;
+  let y = 20;
+
+  const seal = await loadSeal();
+  if (seal) {
+    try { doc.addImage(seal, 'PNG', M, 12, 11, 11); } catch { /* image indisponible */ }
+  }
+  const nameX = seal ? M + 14 : M;
+  doc.setFont('times', 'normal');
+  doc.setTextColor(INDIGO);
+  doc.setFontSize(18);
+  doc.text(d.houseName, nameX, y);
+  if (d.houseSub) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(SOFT);
+    doc.text(d.houseSub, nameX, y + 4.5);
+  }
+  doc.setFont('times', 'normal');
+  doc.setTextColor(COPPER);
+  doc.setFontSize(13);
+  doc.text('REÇU', W - M, y, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text(d.number, W - M, y + 5, { align: 'right' });
+  doc.text(d.date, W - M, y + 9, { align: 'right' });
+
+  y += 14;
+  doc.setDrawColor(COPPER);
+  doc.setLineWidth(0.5);
+  doc.line(M, y, W - M, y);
+  y += 9;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SOFT);
+  doc.text('REÇU DE', M, y);
+  doc.setFont('times', 'normal');
+  doc.setFontSize(14);
+  doc.setTextColor(INK);
+  doc.text(d.clientName, M, y + 6);
+
+  /* Le montant en grand : c'est la seule chose qu'on cherche des yeux sur un reçu. */
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SOFT);
+  doc.text('LA SOMME DE', W - M, y, { align: 'right' });
+  doc.setFont('times', 'normal');
+  doc.setFontSize(24);
+  doc.setTextColor(INDIGO);
+  doc.text(d.amount, W - M, y + 9, { align: 'right' });
+
+  y += 20;
+  const row = (label: string, value?: string) => {
+    if (!value) return;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SOFT);
+    doc.text(label, M, y);
+    doc.setFontSize(9.5);
+    doc.setTextColor(INK);
+    doc.text(value, M + 34, y);
+    y += 6;
+  };
+  row('Objet', d.label);
+  row('Nature', d.kind);
+  row('Moyen', d.method);
+  row('Caisse', d.cashbox);
+  row('Référence', d.ref);
+  if (d.note) row('Note', d.note);
+
+  doc.setDrawColor('#e3dacb');
+  doc.setLineWidth(0.3);
+  doc.line(M, 122, W - M, 122);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SOFT);
+  /* ⚠ Pas de devise en fon ici : les polices standard du PDF (WinAnsi) n'ont ni
+     « ɔ » ni « ɖ » ni « ɛ » — jsPDF tracerait des glyphes parasites. La devise
+     vit dans les messages et à l'écran, pas dans les documents imprimés. */
+  doc.text('Reçu émis par Le Trône · Maison MND', W / 2, 128, { align: 'center' });
+
+  const filename = `Recu-${d.number}.pdf`;
+  doc.save(filename);
+  return filename;
+}
+
 export type SummarySection = { heading: string; rows: { label: string; value?: string }[] };
 
 /** PDF générique — résumé de consultation, etc. Télécharge le fichier. */

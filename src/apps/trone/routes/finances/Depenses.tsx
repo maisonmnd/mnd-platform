@@ -137,10 +137,15 @@ export default function Depenses() {
      Le SOLDE est CUMULÉ depuis l'ouverture : ouverture + TOUS les flux jusqu'à
      la fin du mois affiché. L'ancien calcul ne comptait que le mois affiché et
      oubliait l'historique — le solde ne voulait plus rien dire dès le 2e mois. */
+  /* Ce qu'une facture fait ENTRER dans une caisse le jour du solde. On retire
+     deux parts qui ne sont pas des billets posés ce jour-là : l'avoir (crédit du
+     compte, jamais des espèces) et l'acompte déjà reçu (entré un autre jour,
+     souvent dans une AUTRE caisse — en ligne chez KkiaPay, par exemple). Sans
+     cette seconde soustraction, l'acompte est compté deux fois. */
   const boxCredit = (i: Invoice, boxCur: string, foreign: boolean): number =>
     foreign
       ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0)
-      : invoiceTotal(i) - (i.avoirXof ?? 0) + (i.tipXof ?? 0);
+      : invoiceTotal(i) - (i.avoirXof ?? 0) - (i.depositCreditXof ?? 0) + (i.tipXof ?? 0);
 
   const boxOf = (name: string) => branchBoxes.find((b) => b.name === name);
   const boxInvoices = (name: string) =>

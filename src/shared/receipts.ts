@@ -1,0 +1,204 @@
+import { invoiceTotal, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
+import type { Appointment } from './agenda';
+
+/* Le registre des encaissements — TOUT ce que la Maison reçoit, d'où que ça vienne.
+ *
+ * DÉRIVÉ, jamais écrit. Aucun magasin ne le stocke : il se recalcule à partir des
+ * six portes par lesquelles l'argent entre. Un compteur écrit dériverait de la
+ * réalité au premier écran oublié — même règle que le suivi des abonnements.
+ *
+ * LA RÈGLE QUI ÉVITE DE COMPTER DEUX FOIS : chaque ligne représente un MOMENT où
+ * de l'argent est entré, jamais une créance ni un chiffre d'affaires. Un acompte
+ * entre le jour où il est reçu ; la facture qui le solde n'encaisse alors que le
+ * RESTE (`invoiceTotal − avoir − acompte déjà reçu + pourboire`). Les deux lignes
+ * se complètent sans se recouvrir, et leur somme est ce qui est réellement rentré.
+ *
+ * Ce que le registre n'est PAS : la Synthèse. Elle mesure le chiffre d'affaires
+ * (ce que la Maison a GAGNÉ, avoir compris, pourboire exclu). Ici on mesure la
+ * TRÉSORERIE (ce qui est ENTRÉ, pourboire compris, avoir exclu). Les deux totaux
+ * diffèrent légitimement — ne jamais chercher à les faire coïncider. */
+
+export type ReceiptKind = 'facture' | 'acompte' | 'scolarite' | 'abonnement' | 'avoir';
+
+export type Receipt = {
+  /** Stable et dérivé de la source : rejouer le calcul redonne le même id. */
+  id: string;
+  kind: ReceiptKind;
+  /** Jour de l'ENTRÉE d'argent (ISO), pas celui de la prestation. */
+  date: string;
+  clientId?: string;
+  clientName: string;
+  /** Ce qui est entré ce jour-là, en XOF. Toujours > 0 (sinon pas de ligne). */
+  amountXof: number;
+  /** Moyen déclaré (Espèces, MTN MoMo, KkiaPay…). */
+  method: string;
+  /** Caisse créditée — absente quand l'argent n'a pas de tiroir (avoir). */
+  cashbox?: string;
+  /** Preuve : numéro de facture, référence de transaction… */
+  ref?: string;
+  /** Ce qui a été réglé, en clair. */
+  label: string;
+  invoiceId?: string;
+  apptId?: string;
+};
+
+const LABEL_KIND: Record<ReceiptKind, string> = {
+  facture: 'Facture',
+  acompte: 'Acompte',
+  scolarite: 'Scolarité',
+  abonnement: 'Abonnement',
+  avoir: 'Dépôt d’avoir',
+};
+export const receiptKindLabel = (k: ReceiptKind): string => LABEL_KIND[k];
+
+/** jj/mm/aaaa (saisies Académie) ou ISO → ISO. */
+const toISO = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d.slice(0, 10);
+};
+
+export type ReceiptSources = {
+  branchId: string;
+  invoices: Invoice[];
+  online: OnlinePayment[];
+  appointments: Appointment[];
+  credits: CreditMovement[];
+  /** Règlements de scolarité — les apprenants ne sont pas rattachés à une branche. */
+  scolarite: { id: string; name: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
+  /** Règlements d'abonnement. */
+  abonnements: { id: string; clientId?: string; name?: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
+  /** Nom d'une cliente à partir de son identifiant. */
+  nameOf: (clientId?: string) => string;
+  /** Libellé des prestations d'un rituel. */
+  apptLabel: (a: Appointment) => string;
+};
+
+export function buildReceipts(s: ReceiptSources): Receipt[] {
+  const out: Receipt[] = [];
+
+  /* ① Factures payées — ce qui est entré AU COMPTOIR ce jour-là : le total, moins
+     l'avoir (pas des billets) et moins l'acompte déjà reçu (entré un autre jour),
+     plus le pourboire (il passe bien par le tiroir). */
+  for (const i of s.invoices) {
+    if (i.branchId !== s.branchId || i.status !== 'payée') continue;
+    const cash = invoiceTotal(i) - (i.avoirXof ?? 0) - (i.depositCreditXof ?? 0) + (i.tipXof ?? 0);
+    if (cash <= 0) continue; // entièrement couvert par un avoir ou un acompte
+    out.push({
+      id: `r-inv-${i.id}`,
+      kind: 'facture',
+      date: i.date,
+      clientId: i.clientId,
+      clientName: i.clientName ?? s.nameOf(i.clientId),
+      amountXof: cash,
+      method: i.payment ?? 'Espèces',
+      cashbox: i.cashbox,
+      ref: i.number,
+      label: i.lines.map((l) => l.label).join(' + ') || 'Règlement',
+      invoiceId: i.id,
+    });
+  }
+
+  /* ② Acomptes réglés EN LIGNE — la preuve est la transaction elle-même. */
+  const onlineByAppt = new Set<string>();
+  for (const p of s.online) {
+    if (p.branchId !== s.branchId || p.status !== 'success') continue;
+    if (p.partnerId) onlineByAppt.add(p.partnerId);
+    const appt = s.appointments.find((a) => a.id === p.partnerId);
+    out.push({
+      id: `r-pay-${p.id}`,
+      kind: 'acompte',
+      date: (p.at ?? '').slice(0, 10),
+      clientId: p.clientId ?? appt?.clientId,
+      clientName: appt?.clientName ?? s.nameOf(p.clientId ?? appt?.clientId),
+      amountXof: p.amountXof,
+      method: `KkiaPay${p.method ? ` · ${p.method === 'CARD' ? 'carte' : 'Mobile Money'}` : ''}`,
+      cashbox: 'KkiaPay',
+      ref: p.id,
+      label: appt ? `Acompte · ${s.apptLabel(appt)}` : 'Acompte en ligne',
+      apptId: p.partnerId,
+    });
+  }
+
+  /* ③ Acomptes remis à la Maison puis RECONNUS reçus au comptoir. On saute ceux
+     déjà couverts par une transaction en ligne (même argent, une seule ligne). */
+  for (const a of s.appointments) {
+    if (a.branchId !== s.branchId) continue;
+    if (!a.depositConfirmed || !(a.depositXof ?? 0)) continue;
+    if (onlineByAppt.has(a.id)) continue;
+    out.push({
+      id: `r-dep-${a.id}`,
+      kind: 'acompte',
+      /* Date de reconnaissance ; à défaut (acomptes d'avant ce champ), le jour du rituel. */
+      date: a.depositConfirmedAt ?? a.date,
+      clientId: a.clientId,
+      clientName: a.clientName ?? s.nameOf(a.clientId),
+      amountXof: a.depositXof ?? 0,
+      method: 'Mobile Money',
+      ref: undefined,
+      label: `Acompte · ${s.apptLabel(a)}`,
+      apptId: a.id,
+    });
+  }
+
+  /* ④ Scolarité de l'Académie — hors branche par nature (la Maison encaisse). */
+  for (const ap of s.scolarite) {
+    for (const p of ap.payments ?? []) {
+      if (!(p.amountXof > 0)) continue;
+      out.push({
+        id: `r-sco-${p.id}`,
+        kind: 'scolarite',
+        date: toISO(p.date),
+        clientName: ap.name,
+        amountXof: p.amountXof,
+        method: p.method ?? 'Espèces',
+        label: 'Scolarité · Académie',
+      });
+    }
+  }
+
+  /* ⑤ Règlements d'abonnement. */
+  for (const sub of s.abonnements) {
+    for (const p of sub.payments ?? []) {
+      if (!(p.amountXof > 0)) continue;
+      out.push({
+        id: `r-abo-${p.id}`,
+        kind: 'abonnement',
+        date: toISO(p.date),
+        clientId: sub.clientId,
+        clientName: sub.name ?? s.nameOf(sub.clientId),
+        amountXof: p.amountXof,
+        method: p.method ?? 'Espèces',
+        label: 'Règlement d’abonnement',
+      });
+    }
+  }
+
+  /* ⑥ Dépôts d'avoir — de l'argent remis à la Maison d'avance, sur un compte.
+     (Un USAGE d'avoir n'est pas une entrée : il consomme ce qui est déjà là.) */
+  for (const m of s.credits) {
+    if (m.branchId !== s.branchId || m.kind !== 'depot') continue;
+    out.push({
+      id: `r-cre-${m.id}`,
+      kind: 'avoir',
+      date: m.date.slice(0, 10),
+      clientId: m.holderType === 'client' ? m.holderId : undefined,
+      clientName: m.holderType === 'client' ? s.nameOf(m.holderId) : 'Compte famille',
+      amountXof: m.amountXof,
+      method: 'Espèces',
+      label: m.note || 'Dépôt sur le compte',
+    });
+  }
+
+  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+
+/** Totaux par clé (moyen, caisse, nature…) — pour les cartes de tête. */
+export function totalBy(list: Receipt[], key: (r: Receipt) => string): { k: string; total: number; n: number }[] {
+  const m = new Map<string, { total: number; n: number }>();
+  for (const r of list) {
+    const k = key(r) || '—';
+    const cur = m.get(k) ?? { total: 0, n: 0 };
+    m.set(k, { total: cur.total + r.amountXof, n: cur.n + 1 });
+  }
+  return [...m.entries()].map(([k, v]) => ({ k, ...v })).sort((a, b) => b.total - a.total);
+}

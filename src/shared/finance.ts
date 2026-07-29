@@ -57,6 +57,13 @@ export type Invoice = {
       revenu (compte dans invoiceTotal / le CA) mais PAS de l'argent physique :
       la Synthèse la route vers le poste « Avoir (crédit) », jamais une caisse. */
   avoirXof?: number;
+  /** Part de cette facture DÉJÀ REÇUE avant le comptoir : l'acompte confirmé
+      (envoyé en ligne ou remis à l'avance). C'est du revenu, et c'est de
+      l'argent réel — mais il est entré un autre jour, dans une autre caisse.
+      Sans ce champ, la caisse du comptoir est créditée du total et l'acompte
+      est compté DEUX fois : une fois le jour où il arrive, une fois au solde.
+      Même raison d'être que `avoirXof`, autre nature. */
+  depositCreditXof?: number;
   /** Cliente réellement SOIGNÉE quand le payeur (clientId) est le parent d'un
       compte famille — mentionnée sur la facture. */
   forClientId?: string;

@@ -387,6 +387,26 @@
 
 /* ---------- Détail revenus & dépenses (Synthèse & résultat) ---------- */
 .trf-detail__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* En-tête d'un relevé : la même ligne que les autres, mais elle porte le total —
+   filet cuivré dessous pour la détacher sans l'alourdir. */
+.trf-linerow--head {
+  border-bottom: 1px solid var(--copper-300);
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+}
+.trf-linerow--head > span:last-child {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-indigo);
+}
+
 .trf-detail__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
 @media (max-width: 720px) { .trf-detail__grid { grid-template-columns: 1fr; gap: 8px; } }
 .trf-detail__sub {

@@ -22,6 +22,11 @@ export type Appointment = {
   depositXof?: number;
   /** L'acompte a été VÉRIFIÉ reçu (MoMo contrôlé au comptoir) — lui seul se déduit. */
   depositConfirmed?: boolean;
+  /** Jour où l'acompte a été RECONNU reçu (ISO). Un acompte entre dans la caisse
+      ce jour-là, pas le jour du rendez-vous : sans cette date, le registre des
+      encaissements daterait l'argent du mauvais mois. Absent sur les acomptes
+      confirmés avant son introduction — on retombe alors sur la date du RDV. */
+  depositConfirmedAt?: string;
   paidXof?: number; // total encaissé au salon (hors acompte) — suit les paiements partiels
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir

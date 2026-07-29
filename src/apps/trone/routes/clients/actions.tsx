@@ -333,6 +333,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         tipXof: tip > 0 && tipMaster ? tip : undefined,
         /* Part réglée par avoir (crédit du compte) — hors caisse physique. */
         avoirXof: avoirApplied > 0 ? avoirApplied : undefined,
+        /* Part déjà REÇUE avant ce comptoir (acompte confirmé) : elle est entrée
+           un autre jour, dans une autre caisse. La porter ici évite qu'elle soit
+           créditée une seconde fois au solde. */
+        depositCreditXof: depositCredit > 0 ? depositCredit : undefined,
         /* Ce qui a été REÇU au comptoir — règlement COMPTANT + pourboire (l'avoir
            n'est pas une devise étrangère). Le rituel reste chiffré en {currency}. */
         fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
@@ -352,7 +356,15 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          le catalogue bougera, l'histoire non. */
       const freeze = fullyPaid && appt.priceXof == null ? { priceXof: apptTotalXof(appt, byId) } : {};
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
-        ? { ...a, invoiceId: inv.id, paidXof: alreadyPaid + settleTotal, ...(depositReceived ? { depositConfirmed: true } : {}), ...freeze }
+        ? {
+            ...a,
+            invoiceId: inv.id,
+            paidXof: alreadyPaid + settleTotal,
+            /* La DATE de reconnaissance de l'acompte : c'est ce jour-là qu'il
+               entre au registre des encaissements, pas celui du rituel. */
+            ...(depositReceived ? { depositConfirmed: true, depositConfirmedAt: appt.depositConfirmedAt ?? invDate } : {}),
+            ...freeze,
+          }
         : a)));
     } else if (tip > 0 && tipMaster) {
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
@@ -389,7 +401,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     /* Confirmation d'acompte SANS encaissement : on la persiste quand même.
        (L'honneur du rituel reste un geste séparé — Marquer honoré.) */
     if (depositJustConfirmed && settleTotal <= 0) {
-      appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, depositConfirmed: true } : x)));
+      appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id
+        ? { ...x, depositConfirmed: true, depositConfirmedAt: x.depositConfirmedAt ?? todayISO() }
+        : x)));
     }
 
     /* Reprogrammation automatique : nouveau RDV « confirmé » À L'IDENTIQUE — même
