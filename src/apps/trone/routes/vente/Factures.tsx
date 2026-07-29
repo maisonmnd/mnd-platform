@@ -358,21 +358,24 @@ export default function Factures() {
 
   const draft = editing?.draft ?? null;
 
-  /* Le document choisi s'ouvre SOUS le registre : sur une longue liste, il tombe
-     tout en bas de la page. On l'amène EN HAUT de l'écran.
-     On vise le document lui-même, pas la grille : le haut de la grille, c'est la
-     colonne d'édition — s'y arrêter laissait encore la facture plus bas. Repli
-     sur la grille quand aucun document n'est affiché (création). */
+  /* Le document vit AU-DESSUS du registre — sur 340 factures, l'ouvrir en dessous
+     obligeait à traverser toute la liste, et la page, arrivée au bout, ne pouvait
+     même plus le remonter en haut de l'écran. On vise le document lui-même, pas
+     la grille : le haut de la grille, c'est la colonne d'édition. */
   const detailRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
   const revealDetail = () => {
     const el = docRef.current ?? detailRef.current;
     if (!el) return;
-    /* Déjà calé en haut ? On ne rejoue pas le défilement — la page sautillerait
-       à chaque clic sur une ligne déjà ouverte. */
+    /* Déjà à l'œil ? On ne rejoue rien — la page sautillerait à chaque clic sur
+       une ligne déjà ouverte. */
     const { top } = el.getBoundingClientRect();
     if (top >= 0 && top < 140) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    /* Depuis une ligne du fond du registre, une animation ferait défiler des
+       centaines de lignes sous les yeux : au-delà de deux hauteurs d'écran, on
+       saute d'un coup. En deçà, le glissement montre d'où l'on vient. */
+    const far = Math.abs(top) > window.innerHeight * 2;
+    el.scrollIntoView({ behavior: far ? 'auto' : 'smooth', block: 'start' });
   };
 
   /* Le défilement attend que le document soit RENDU : déclenché depuis le clic,
@@ -479,29 +482,6 @@ export default function Factures() {
       </div>
 
       {/* ===== La feuille — factures d'abord, devis en dessous ===== */}
-      <div className="trc-sheet trv-sheet">
-        <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
-          <span>Date</span>
-          <span>Numéro</span>
-          <span>Cliente</span>
-          <span>Règlement</span>
-          <span>Montant</span>
-          <span style={{ textAlign: 'right' }}>Statut</span>
-        </div>
-
-        <div className="trc-sheet__group">Factures ({factures.length})</div>
-        {factures.length === 0 && (
-          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture — la maison attend son premier encaissement.'}</div>
-        )}
-        {factures.map(renderRow)}
-
-        <div className="trc-sheet__group">Devis ({devis.length})</div>
-        {devis.length === 0 && (
-          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente.'}</div>
-        )}
-        {devis.map(renderRow)}
-      </div>
-
       <div className="trv-fac-grid" ref={detailRef}>
         {/* ===== Colonne gauche — éditeur & actions ===== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -853,6 +833,30 @@ export default function Factures() {
           </div>
         )}
       </div>
+
+      <div className="trc-sheet trv-sheet">
+        <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
+          <span>Date</span>
+          <span>Numéro</span>
+          <span>Cliente</span>
+          <span>Règlement</span>
+          <span>Montant</span>
+          <span style={{ textAlign: 'right' }}>Statut</span>
+        </div>
+
+        <div className="trc-sheet__group">Factures ({factures.length})</div>
+        {factures.length === 0 && (
+          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture — la maison attend son premier encaissement.'}</div>
+        )}
+        {factures.map(renderRow)}
+
+        <div className="trc-sheet__group">Devis ({devis.length})</div>
+        {devis.length === 0 && (
+          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente.'}</div>
+        )}
+        {devis.map(renderRow)}
+      </div>
+
     </div>
   );
 }
