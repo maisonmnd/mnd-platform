@@ -82,6 +82,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [manualDeposit, setManualDeposit] = useState(false);
   /* Identifiant de la séance 1 réservé avant le paiement (voir payOnline). */
   const onlineApptId = useRef<string | null>(null);
+  /* Issue du règlement en ligne, pour que l'écran de confirmation dise la
+     vérité : reçu (vérifié par le serveur), payé mais pas encore vérifié, ou
+     rien du tout (voie manuelle). */
+  const [onlinePaid, setOnlinePaid] = useState<{ ok: boolean; ref: string } | null>(null);
 
   const discountPct = prefill?.discountPct ?? 0;
   const offerLabel = prefill?.offerLabel;
@@ -233,7 +237,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           date: sd.iso,
           time: sd.time,
           master,
-          status: 'en attente',
+          /* Un acompte ENCAISSÉ ET VÉRIFIÉ tient le créneau : le rendez-vous
+             naît confirmé, le comptoir n'a plus à le valider à la main. Sans
+             paiement prouvé, il reste « en attente » — la Maison décide. */
+          status: online?.confirmed ? 'confirmé' : 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
           depositXof: i === 0 && hasDeposit ? deposit : undefined,
           /* Un acompte n'est « reçu » que sur verdict serveur — sinon il reste
@@ -256,8 +263,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       appointmentsStore.set((prev) => [...prev, ...newAppts]);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
-        'Nouvelle réservation · Ma Couronne',
-        `${clientName} · ${summaryLabel}`,
+        online?.confirmed ? 'Réservation payée · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
+        `${clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
       setPaying(false);
@@ -316,6 +323,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
            référence. */
         toast(e instanceof Error ? e.message : 'Vérification impossible — la Maison vérifiera.');
       }
+      setOnlinePaid({ ok: confirmed, ref: transactionId });
       settle({ apptId, transactionId, confirmed });
     } catch (e) {
       setPaying(false);
@@ -762,8 +770,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <h2>Votre rituel est scellé.</h2>
             <p>
-              La Maison confirme votre créneau très vite. Ajoutez le rituel à votre calendrier :
-              c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.
+              {onlinePaid?.ok
+                ? 'Votre acompte est reçu, votre créneau est tenu. '
+                : 'La Maison confirme votre créneau très vite. '}
+              Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre
+              téléphone, même l’app fermée.
             </p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
               <div className="mc-recapcard__name">{summaryLabel}</div>
@@ -778,8 +789,28 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
                   </div>
                 ))}
-              <div className="mc-recapcard__line"><span>Acompte</span><span>{hasDeposit ? `${fmtMoney(deposit, currency)} · à vérifier par la Maison` : 'Au salon'}</span></div>
-              <div className="mc-recapcard__line"><span>Statut</span><span>En attente de la maison</span></div>
+              {/* DIRE VRAI ici aussi : annoncer « à vérifier » à une cliente qui
+                  vient de payer en ligne détruit exactement la confiance que le
+                  paiement venait d'acheter. Trois issues, trois phrases. */}
+              <div className="mc-recapcard__line">
+                <span>Acompte</span>
+                <span>
+                  {!hasDeposit
+                    ? 'Au salon'
+                    : onlinePaid?.ok
+                      ? `${fmtMoney(deposit, currency)} · reçu`
+                      : onlinePaid
+                        ? `${fmtMoney(deposit, currency)} · payé · vérification en cours`
+                        : `${fmtMoney(deposit, currency)} · à vérifier par la Maison`}
+                </span>
+              </div>
+              {onlinePaid && (
+                <div className="mc-recapcard__line"><span>Référence</span><span>{onlinePaid.ref}</span></div>
+              )}
+              <div className="mc-recapcard__line">
+                <span>Statut</span>
+                <span>{onlinePaid?.ok ? 'Confirmé' : 'En attente de la maison'}</span>
+              </div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
               Ajouter au calendrier
