@@ -143,8 +143,8 @@ export default function Encaissements() {
             <div className="trf-empty" style={{ marginTop: 12 }}>Rien d’encaissé en {monthTitle(month)}.</div>
           ) : (
             byMethod.map((m) => (
-              <div className="trf-linerow" key={m.k}>
-                <span>{m.k}<span className="mnd-muted"> · {m.n}</span></span>
+              <div className="trf-linerow trf-linerow--split" key={m.k}>
+                <span>{m.k}<span className="mnd-muted"> · {m.n} entrée{m.n > 1 ? 's' : ''}</span></span>
                 <span>{fmtMoney(m.total, currency)}</span>
               </div>
             ))
@@ -156,8 +156,8 @@ export default function Encaissements() {
             <div className="trf-empty" style={{ marginTop: 12 }}>—</div>
           ) : (
             byBox.map((b) => (
-              <div className="trf-linerow" key={b.k}>
-                <span>{b.k}<span className="mnd-muted"> · {b.n}</span></span>
+              <div className="trf-linerow trf-linerow--split" key={b.k}>
+                <span>{b.k}<span className="mnd-muted"> · {b.n} entrée{b.n > 1 ? 's' : ''}</span></span>
                 <span>{fmtMoney(b.total, currency)}</span>
               </div>
             ))
@@ -182,7 +182,7 @@ export default function Encaissements() {
       </div>
 
       <div className="trf-panel" style={{ marginTop: 14 }}>
-        <div className="trf-linerow trf-linerow--head">
+        <div className="trf-linerow trf-linerow--split trf-linerow--head">
           <span>{shown.length} encaissement{shown.length > 1 ? 's' : ''} · {monthTitle(month)}</span>
           <span>{fmtMoney(total, currency)}</span>
         </div>
@@ -194,7 +194,7 @@ export default function Encaissements() {
           shown.map((r) => (
             <div
               key={r.id}
-              className="trf-linerow trf-linerow--click"
+              className="trf-linerow trf-linerow--split trf-linerow--click"
               role="button"
               tabIndex={0}
               onClick={() => openSource(r)}

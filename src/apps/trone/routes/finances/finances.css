@@ -387,6 +387,19 @@
 
 /* ---------- Détail revenus & dépenses (Synthèse & résultat) ---------- */
 .trf-detail__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Ligne à DEUX BOUTS : libellé à gauche, montant à droite. `.trf-linerow` seule
+   ne pose qu'une marge — la mise en page vit d'ordinaire dans `__top`. Sans
+   cette variante, les deux bouts se suivaient dans le flux et se collaient :
+   « Espèces · 22 » puis « 1 169 500 F » se lisaient « 221 169 500 F ». Un compte
+   de lignes maquillé en fortune. */
+.trf-linerow--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.trf-linerow--split > span:last-child { flex: none; }
+
 /* En-tête d'un relevé : la même ligne que les autres, mais elle porte le total —
    filet cuivré dessous pour la détacher sans l'alourdir. */
 .trf-linerow--head {
