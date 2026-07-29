@@ -35,7 +35,7 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
 type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[]; featured: boolean };
 const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40', featured: false };
 
-/* Inscription : identité + scolarité (montant convenu) + un règlement à saisir
+/* Inscription : identité + formation (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
    règlements déjà enregistrés (édition d'un·e apprenant·e existant·e). */
 type PayMode = 'integral' | 'partiel' | 'aucun';

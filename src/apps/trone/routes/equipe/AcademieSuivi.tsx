@@ -192,14 +192,14 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
 }
 
 /* ---------- Livret F1→F6 ---------- */
-type LivretTab = 'f1' | 'scolarite' | 'f3' | 'f4' | 'f5' | 'f6' | 'cert';
+type LivretTab = 'f1' | 'formation' | 'f3' | 'f4' | 'f5' | 'f6' | 'cert';
 
 function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollment; formations: Formation[]; onClose: () => void }) {
   const { branch } = useBranch();
   const [tab, setTab] = useState<LivretTab>('f3');
   const [flash, setFlash] = useState<string | null>(null);
   /* Confirmation brève d'enregistrement — les saisies en place (candidature,
-     scolarité) ne changent rien à l'écran, sans ce mot elles semblent sans effet. */
+     formation) ne changent rien à l'écran, sans ce mot elles semblent sans effet. */
   const notify = (msg: string) => { setFlash(msg); window.setTimeout(() => setFlash((m) => (m === msg ? null : m)), 2400); };
   const e = enrollment; // toujours frais : le parent re-render depuis le store
   const formation = formations.find((f) => f.id === e.formationId);
@@ -261,7 +261,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       <Tabs<LivretTab>
         tabs={[
           { k: 'f1', l: 'Candidature' },
-          { k: 'scolarite', l: 'Montant Formation' },
+          { k: 'formation', l: 'Montant Formation' },
           { k: 'f3', l: `Séances (${e.sessions.length})` },
           { k: 'f4', l: `Pratique (${e.practice.length})` },
           { k: 'f5', l: `Modules (${e.evaluations.length})` },
@@ -283,7 +283,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
 
       <div style={{ marginTop: 16 }}>
         {tab === 'f1' && <TabCandidature e={e} notify={notify} />}
-        {tab === 'scolarite' && <TabScolarite e={e} formation={formation} notify={notify} />}
+        {tab === 'formation' && <TabFormation e={e} formation={formation} notify={notify} />}
         {tab === 'f3' && <TabSeances e={e} modules={modules} masters={masters} frozen={frozen} />}
         {tab === 'f4' && <TabPratique e={e} masters={masters} frozen={frozen} />}
         {tab === 'f5' && <TabModules e={e} modules={modules} masters={masters} frozen={frozen} />}
@@ -334,8 +334,8 @@ const num = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) 
 const numOpt = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) ? n : undefined; };
 const digits = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
 
-/* ---------- Scolarité · paiements de la formation (suivi manuel) ---------- */
-function TabScolarite({ e, formation, notify }: { e: Enrollment; formation?: Formation; notify: (m: string) => void }) {
+/* ---------- Formation · paiements de la formation (suivi manuel) ---------- */
+function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: Formation; notify: (m: string) => void }) {
   const { currency } = useBranch();
   const [methods] = usePaymentMethods();
   // Montant affiché = BRUT (net convenu + remise). Enregistré en net + remise.
@@ -346,7 +346,7 @@ function TabScolarite({ e, formation, notify }: { e: Enrollment; formation?: For
     const g = digits(gross);
     const r = Math.min(g, digits(remise));
     setEnrollment(e.id, { priceXof: Math.max(0, g - r), remiseXof: r || undefined });
-    notify('Montant de la scolarité enregistré.');
+    notify('Montant de la formation enregistré.');
   };
 
   const net = enrollNet(e, formation);
@@ -943,7 +943,7 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
           ],
         },
         ...(e.priceXof != null ? [{
-          heading: 'Scolarité',
+          heading: 'Formation',
           rows: [
             { label: 'Net convenu', value: fmtMoney(enrollNet(e, formation), currency) },
             { label: 'Réglé', value: fmtMoney(enrollPaid(e), currency) },

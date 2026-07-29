@@ -165,7 +165,7 @@ export type Enrollment = {
   /** F1 · candidature portée dans le dossier (staff-only) : entretien + test d'observation. */
   interviewNotes?: string;
   observation?: { geste?: number; hygiene?: number; posture?: number };
-  /** Scolarité (suivi manuel) : montant NET convenu (après remise), remise, règlements. */
+  /** Formation (suivi manuel) : montant NET convenu (après remise), remise, règlements. */
   priceXof?: number;
   remiseXof?: number;
   payments?: Payment[];
@@ -268,7 +268,7 @@ export const newEnrollment = (init: Pick<Enrollment, 'learnerName' | 'formationI
   ...init,
 });
 
-/* ---------- Scolarité (suivi manuel) ----------
+/* ---------- Formation (suivi manuel) ----------
    `priceXof` = NET convenu (ce qui est dû). Repli sur le prix catalogue de la
    formation tant que rien n'est saisi. */
 export const DEFAULT_DEPOSIT_PCT = 40;

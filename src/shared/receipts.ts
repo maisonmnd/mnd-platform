@@ -18,7 +18,7 @@ import type { Appointment } from './agenda';
  * TRÉSORERIE (ce qui est ENTRÉ, pourboire compris, avoir exclu). Les deux totaux
  * diffèrent légitimement — ne jamais chercher à les faire coïncider. */
 
-export type ReceiptKind = 'facture' | 'acompte' | 'scolarite' | 'abonnement' | 'avoir';
+export type ReceiptKind = 'facture' | 'acompte' | 'formation' | 'abonnement' | 'avoir';
 
 export type Receipt = {
   /** Stable et dérivé de la source : rejouer le calcul redonne le même id. */
@@ -45,7 +45,7 @@ export type Receipt = {
 const LABEL_KIND: Record<ReceiptKind, string> = {
   facture: 'Facture',
   acompte: 'Acompte',
-  scolarite: 'Scolarité',
+  formation: 'Formation',
   abonnement: 'Abonnement',
   avoir: 'Dépôt d’avoir',
 };
@@ -63,8 +63,8 @@ export type ReceiptSources = {
   online: OnlinePayment[];
   appointments: Appointment[];
   credits: CreditMovement[];
-  /** Règlements de scolarité — les apprenants ne sont pas rattachés à une branche. */
-  scolarite: { id: string; name: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
+  /** Règlements de formation — les apprenants ne sont pas rattachés à une branche. */
+  formation: { id: string; name: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
   /** Règlements d'abonnement. */
   abonnements: { id: string; clientId?: string; name?: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
   /** Nom d'une cliente à partir de son identifiant. */
@@ -140,18 +140,18 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
     });
   }
 
-  /* ④ Scolarité de l'Académie — hors branche par nature (la Maison encaisse). */
-  for (const ap of s.scolarite) {
+  /* ④ Formations de l'Académie — hors branche par nature (la Maison encaisse). */
+  for (const ap of s.formation) {
     for (const p of ap.payments ?? []) {
       if (!(p.amountXof > 0)) continue;
       out.push({
-        id: `r-sco-${p.id}`,
-        kind: 'scolarite',
+        id: `r-for-${p.id}`,
+        kind: 'formation',
         date: toISO(p.date),
         clientName: ap.name,
         amountXof: p.amountXof,
         method: p.method ?? 'Espèces',
-        label: 'Scolarité · Académie',
+        label: 'Formation · Académie',
       });
     }
   }

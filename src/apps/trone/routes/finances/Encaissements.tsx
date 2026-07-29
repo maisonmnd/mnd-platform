@@ -17,7 +17,7 @@ import './finances.css';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
    factures réglées au comptoir, acomptes (en ligne ou remis à la Maison),
-   scolarité de l'Académie, règlements d'abonnement, dépôts d'avoir.
+   formations de l'Académie, règlements d'abonnement, dépôts d'avoir.
 
    C'est un registre de TRÉSORERIE, pas de chiffre d'affaires : il répond à
    « qu'est-ce qui est entré, quand, par quel moyen, dans quelle caisse, et sur
@@ -33,7 +33,7 @@ const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
   { k: 'tous', l: 'Tout' },
   { k: 'facture', l: 'Factures' },
   { k: 'acompte', l: 'Acomptes' },
-  { k: 'scolarite', l: 'Scolarité' },
+  { k: 'formation', l: 'Formations' },
   { k: 'abonnement', l: 'Abonnements' },
   { k: 'avoir', l: 'Avoirs' },
 ];
@@ -64,7 +64,7 @@ export default function Encaissements() {
       online,
       appointments,
       credits,
-      scolarite: apprenants,
+      formation: apprenants,
       abonnements: subscribers.map((s) => ({ id: s.id, clientId: s.clientId, name: s.name, payments: s.payments })),
       nameOf: (id) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage',
       apptLabel: (a) => apptLabel(a, byId),

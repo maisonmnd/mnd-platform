@@ -202,7 +202,7 @@ export type ReceiptPdfData = {
   clientName: string;
   /** Ce qui a été réglé, en clair. */
   label: string;
-  /** Nature : Facture, Acompte, Scolarité… */
+  /** Nature : Facture, Acompte, Formation… */
   kind: string;
   amount: string;
   method: string;

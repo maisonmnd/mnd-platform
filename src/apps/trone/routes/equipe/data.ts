@@ -484,7 +484,7 @@ export const FORMATIONS_SEED: Formation[] = [];
 export const formationsStore = createStore<Formation[]>('mnd_formations', FORMATIONS_SEED);
 export const useFormations = () => useStore(formationsStore);
 
-/** Un règlement de la scolarité — intégral ou partiel, avec sa date. */
+/** Un règlement de la formation — intégral ou partiel, avec sa date. */
 export type Payment = { id: string; amountXof: number; date: string; method?: PaymentMethod };
 
 export type Apprenant = {

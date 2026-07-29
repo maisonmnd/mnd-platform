@@ -21,7 +21,7 @@ import './pilotage.css';
    filtré par la branche, exprimé dans sa devise. */
 
 const monthKey = (iso: string) => iso.slice(0, 7);
-/* Date d'un règlement de scolarité (jj/mm/aaaa, ou ISO) → clé de mois / jour ISO. */
+/* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → clé de mois / jour ISO. */
 const payMonthKey = (d: string): string => {
   const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   return fr ? `${fr[3]}-${fr[2]}` : d.slice(0, 7);
@@ -80,14 +80,14 @@ export default function Dashboard() {
         .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped)
         .reduce((s, e) => s + e.amountXof, 0);
 
-    // Règlements de scolarité (Académie) — revenu réel de la Maison (hors branche).
+    // Règlements de formation (Académie) — revenu réel de la Maison (hors branche).
     const formPays = apprenants.flatMap((ap) =>
       (ap.payments ?? []).map((p) => ({ amount: p.amountXof, mk: payMonthKey(p.date), iso: payISO(p.date) })),
     );
     const formRev = (mk: string) => formPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
 
     /* Revenu réel d'un jour — MÊMES composantes que le mois (carnet non encaissé
-       + factures payées + scolarité) : le graphe 7 jours reste cohérent avec le KPI. */
+       + factures payées + formation) : le graphe 7 jours reste cohérent avec le KPI. */
     const dayRev = (iso: string) =>
       realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptTotalXof(a, byId), 0)
       + paidInv.filter((i) => i.date === iso).reduce((s, i) => s + invoiceTotal(i), 0)
@@ -149,12 +149,12 @@ export default function Dashboard() {
       pay.set(k, cur);
     }
     const encaissements = [...pay].map(([k, v]) => ({ id: k, label: k, ...v }));
-    // Scolarité de l'Académie — un encaissement du mois, tous parcours confondus.
+    // Formation de l'Académie — un encaissement du mois, tous parcours confondus.
     const scol = apprenants
       .flatMap((ap) => ap.payments ?? [])
       .filter((p) => payMonthKey(p.date) === thisMonth)
       .reduce((acc, p) => ({ count: acc.count + 1, total: acc.total + p.amountXof }), { count: 0, total: 0 });
-    if (scol.total > 0) encaissements.push({ id: 'academie', label: 'Académie · scolarité', count: scol.count, total: scol.total });
+    if (scol.total > 0) encaissements.push({ id: 'academie', label: 'Académie · formation', count: scol.count, total: scol.total });
     encaissements.sort((a, b) => b.total - a.total);
 
     return {
@@ -292,17 +292,17 @@ export default function Dashboard() {
       ...invoices
         .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
         .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
-      // Scolarité de l'Académie — hors branche, mais bien du revenu de la Maison.
+      // Formation de l'Académie — hors branche, mais bien du revenu de la Maison.
       // La ligne s'ouvre sur l'Académie, où vit le dossier de l'apprenant·e.
       ...apprenants.flatMap((ap) =>
         (ap.payments ?? [])
           .filter((p) => payISO(p.date) === iso)
-          .map((p) => ({ who: ap.name, sub: 'Scolarité · Académie', amount: p.amountXof, onOpen: () => { setDrill(null); navigate('/academie'); } })),
+          .map((p) => ({ who: ap.name, sub: 'Formation · Académie', amount: p.amountXof, onOpen: () => { setDrill(null); navigate('/academie'); } })),
       ),
     ];
     setDrill({
       title: `Revenu · ${frShort(iso)}`,
-      sub: rows.length ? 'Rituels du carnet, factures payées et scolarité de la journée.' : undefined,
+      sub: rows.length ? 'Rituels du carnet, factures payées et formations de la journée.' : undefined,
       rows,
       total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
     });
@@ -318,7 +318,7 @@ export default function Dashboard() {
         amount: d.total,
         onOpen: d.total > 0 ? () => openDay(d.iso) : undefined,
       }));
-    setDrill({ title: 'Revenu · 7 jours', sub: 'Rituels du carnet, factures payées et scolarité.', rows, total: rev7Total });
+    setDrill({ title: 'Revenu · 7 jours', sub: 'Rituels du carnet, factures payées et formations.', rows, total: rev7Total });
   };
 
   /** Les factures d'un moyen de paiement — chacune ouvrable. */

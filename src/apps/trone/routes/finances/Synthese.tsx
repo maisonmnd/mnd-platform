@@ -19,7 +19,7 @@ import './finances.css';
 const fmtDay = (iso: string): string =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
-/* Date d'un règlement de scolarité (jj/mm/aaaa, ou ISO) → clé de mois « aaaa-mm ». */
+/* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → clé de mois « aaaa-mm ». */
 const payMonthKey = (d: string): string => {
   const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (fr) return `${fr[3]}-${fr[2]}`;
@@ -71,8 +71,8 @@ export default function Synthese() {
     );
     const liveExp = expenses.filter((e) => e.branchId === branch.id && !e.stopped);
 
-    // Règlements de scolarité (Académie) — revenus de la Maison. Les apprenant·e·s
-    // ne sont pas rattaché·e·s à une branche : la scolarité compte comme revenu
+    // Règlements de formation (Académie) — revenus de la Maison. Les apprenant·e·s
+    // ne sont pas rattaché·e·s à une branche : la formation compte comme revenu
     // quelle que soit la branche affichée.
     const fName = (id: string) => formations.find((f) => f.id === id)?.name ?? 'Formation';
     const formationPays = apprenants.flatMap((ap) =>
@@ -137,7 +137,7 @@ export default function Synthese() {
       if (av > 0) bump(methodMap, 'Avoir (crédit)', av);
     });
     ritM.forEach((a) => bump(methodMap, 'Rituel · carnet', apptNetXof(a, byId)));
-    payM.forEach((p) => bump(methodMap, 'Académie · scolarité', p.amount));
+    payM.forEach((p) => bump(methodMap, 'Académie · formation', p.amount));
     const byMethod = spread(methodMap);
 
     // Top prestations du mois — tous les rituels honorés du mois (facturés ou non),
@@ -193,10 +193,10 @@ export default function Synthese() {
         key: `af-${p.id}`,
         date: p.iso,
         who: p.who,
-        title: `Scolarité · ${p.formation}`,
+        title: `Formation · ${p.formation}`,
         mode: 'Formation · Académie',
         cashbox: 'Académie',
-        methodKey: 'Académie · scolarité',
+        methodKey: 'Académie · formation',
         cashboxKey: 'Académie · formations',
         amount: p.amount,
       })),
