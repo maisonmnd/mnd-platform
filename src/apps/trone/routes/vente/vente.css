@@ -333,7 +333,13 @@
 
 /* ---------- Factures & devis ---------- */
 .trv-fac-grid { display: grid; grid-template-columns: 340px 1fr; gap: 26px; align-items: start; }
-@media (max-width: 1100px) { .trv-fac-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) {
+  .trv-fac-grid { grid-template-columns: 1fr; }
+  /* Colonnes empilées : le DOCUMENT passe devant l'éditeur. On ouvre une facture
+     pour la LIRE — la faire précéder de tout le formulaire d'édition, c'est la
+     reléguer en bas de page. L'éditeur reste à un doigt, juste en dessous. */
+  .trv-fac-grid > .trv-doc-stage { order: -1; }
+}
 
 /* ---------- Chercher une cliente (Factures & devis) ---------- */
 .trv-search { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }

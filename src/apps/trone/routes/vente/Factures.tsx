@@ -358,30 +358,39 @@ export default function Factures() {
 
   const draft = editing?.draft ?? null;
 
-  /* Le document choisi s'ouvre SOUS la feuille : sur un registre long, il tombe
-     hors de l'écran et le clic semble sans effet. On l'amène à l'œil — mais
-     seulement s'il n'y est pas déjà, sinon la page sautille à chaque clic. */
+  /* Le document choisi s'ouvre SOUS le registre : sur une longue liste, il tombe
+     tout en bas de la page. On l'amène EN HAUT de l'écran.
+     On vise le document lui-même, pas la grille : le haut de la grille, c'est la
+     colonne d'édition — s'y arrêter laissait encore la facture plus bas. Repli
+     sur la grille quand aucun document n'est affiché (création). */
   const detailRef = useRef<HTMLDivElement>(null);
+  const docRef = useRef<HTMLDivElement>(null);
   const revealDetail = () => {
-    requestAnimationFrame(() => {
-      const el = detailRef.current;
-      if (!el) return;
-      const { top } = el.getBoundingClientRect();
-      if (top < 0 || top > window.innerHeight - 140) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    const el = docRef.current ?? detailRef.current;
+    if (!el) return;
+    /* Déjà calé en haut ? On ne rejoue pas le défilement — la page sautillerait
+       à chaque clic sur une ligne déjà ouverte. */
+    const { top } = el.getBoundingClientRect();
+    if (top >= 0 && top < 140) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  /* Arrivée par `?id=` (Tableau de bord, Analytics, mouvements d'une caisse) :
-     la facture demandée est déjà sélectionnée — on la montre sans faire chercher. */
-  /* Au montage seulement : une sélection faite à la main se gère déjà au clic. */
+  /* Le défilement attend que le document soit RENDU : déclenché depuis le clic,
+     il visait un élément qui n'existait pas encore (ou l'ancien). Un effet sur
+     l'identifiant choisi s'exécute après la mise à jour de l'écran — c'est le
+     seul moment où l'on peut mesurer la vraie position de la facture.
+     Couvre aussi l'arrivée par `?id=` (Tableau de bord, Analytics, relevé de
+     caisse) : la facture demandée est déjà choisie, on la montre sans chercher. */
   useEffect(() => {
-    if (params.get('id')) revealDetail();
-  }, []);
+    if (selectedId) revealDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   const selectDoc = (d: Invoice) => {
     setSelectedId(d.id);
     if (editing) setEditing(null);
-    revealDetail();
+    /* Le défilement est déclenché par l'effet ci-dessus, une fois le document
+       rendu — l'appeler ici viserait l'écran d'avant. */
   };
 
   /* Une ligne de la feuille — le geste du Carnet : on clique, le document s'ouvre
@@ -737,7 +746,7 @@ export default function Factures() {
 
         {/* ===== Le document vivant ===== */}
         {active && totals && (
-          <div className="trv-doc-stage">
+          <div className="trv-doc-stage" ref={docRef}>
             <div className="trv-doc">
               <div className="trv-doc__motif" aria-hidden="true">
                 <Motif theme={active.theme} size={60} color="#B97A4A" />
