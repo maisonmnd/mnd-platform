@@ -23,9 +23,13 @@ import { cashboxesStore } from './finance';
 export const KKIAPAY_METHOD = 'KkiaPay';
 /** Caisse dédiée : l'argent est sur le compte KkiaPay, PAS dans le tiroir. */
 export const KKIAPAY_CASHBOX = 'KkiaPay';
-/** Où atterrit la commission — catégorie de dépense déjà semée par la Maison. */
-export const KKIAPAY_FEE_CATEGORY = 'Frais bancaires';
-export const KKIAPAY_FEE_SUB = 'Commissions Mobile Money';
+
+/* LES FRAIS SONT À LA CHARGE DE LA CLIENTE — 1,9 % en Mobile Money, 4 % par
+   carte (grille KkiaPay). La Maison reçoit le montant demandé, entier : la
+   commission n'est donc NI une dépense, NI une retenue sur son encaissement.
+   Le champ `feesXof` du paiement n'est conservé que pour la trace — ce que la
+   cliente a payé en plus, à KkiaPay, jamais à la Maison. Ne pas le transformer
+   en dépense : ce serait sortir d'une caisse un argent qui n'y est jamais entré. */
 
 const PUBLIC_KEY = ((import.meta.env.VITE_KKIAPAY_PUBLIC_KEY as string | undefined) ?? '').trim();
 const SANDBOX = (import.meta.env.VITE_KKIAPAY_SANDBOX as string | undefined) === 'true';

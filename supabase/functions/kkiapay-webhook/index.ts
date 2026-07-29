@@ -96,22 +96,9 @@ async function applyPayment(admin: any, opts: {
     }
   }
 
-  if (fees > 0) {
-    await admin.from('expenses').insert({
-      id: `exp-kkia-${opts.transactionId}`,
-      branch_id: opts.branchId,
-      data: {
-        id: `exp-kkia-${opts.transactionId}`,
-        branchId: opts.branchId,
-        label: `Commission KkiaPay · ${opts.transactionId}`,
-        amountXof: fees,
-        date: at.slice(0, 10),
-        cashbox: 'KkiaPay',
-        category: 'Frais bancaires',
-        subcategory: 'Commissions Mobile Money',
-      },
-    });
-  }
+  /* Aucune dépense de commission : les frais KkiaPay sont à la charge de la
+     CLIENTE (1,9 % Mobile Money, 4 % carte). La Maison encaisse le montant
+     demandé, entier. `feesXof` n'est gardé que pour la trace. */
 }
 
 Deno.serve(async (req) => {

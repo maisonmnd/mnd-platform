@@ -11,7 +11,8 @@ import {
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
-import { apptNetXof, useServicesById } from '../clients/_shared';
+import { useClients } from '../../../../shared/clients';
+import { apptNetXof, useServicesById, DrillModal, frShort, type Drill } from '../clients/_shared';
 import { scalesWithModel } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
@@ -21,6 +22,18 @@ import './vente.css';
    Les produits partagent productsStore avec le Laboratoire (gamme & stock). */
 
 const PALIERS: Service['palier'][] = ['Fondation', 'Élévation', 'Souveraineté'];
+
+/** Une ligne du détail d'usage d'une prestation — un rituel qui la portait. */
+type UsageRow = {
+  date: string;
+  who: string;
+  /** Part du net attribuée à CETTE prestation (absente pour un RDV à venir). */
+  amount?: number;
+  upcoming?: boolean;
+  /** Le rituel portait plusieurs prestations : le montant est une part. */
+  combined?: boolean;
+  invoiceId?: string;
+};
 
 type SvcForm = {
   id: string | null;
@@ -63,13 +76,21 @@ export default function Catalogue() {
      plusieurs prestations — la somme des parts égale toujours le net). Toutes
      branches confondues : le catalogue est celui de la maison entière. */
   const [allAppts] = useAppointments();
+  const [clients] = useClients();
   const svcById = useServicesById();
+  const clientNameOf = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage';
+  /* Détail ouvert sur le chiffre d'une prestation. */
+  const [drill, setDrill] = useState<Drill | null>(null);
   const usage = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const m = new Map<string, { done: number; upcoming: number; rev: number }>();
+    /* `rows` garde le DÉTAIL derrière chaque total : sans lui, deux prestations
+       de même nom affichent deux chiffres d'affaires sans qu'on puisse voir ce
+       qui les compose — un chiffre qu'on ne peut pas ouvrir n'est pas un chiffre,
+       c'est une rumeur. */
+    const m = new Map<string, { done: number; upcoming: number; rev: number; rows: UsageRow[] }>();
     const at = (id: string) => {
       let u = m.get(id);
-      if (!u) { u = { done: 0, upcoming: 0, rev: 0 }; m.set(id, u); }
+      if (!u) { u = { done: 0, upcoming: 0, rev: 0, rows: [] }; m.set(id, u); }
       return u;
     };
     for (const a of allAppts) {
@@ -80,15 +101,33 @@ export default function Catalogue() {
         const totalP = prices.reduce((s, x) => s + x, 0);
         a.serviceIds.forEach((id, i) => {
           const u = at(id);
+          const part = totalP > 0 ? (net * prices[i]) / totalP : net / a.serviceIds.length;
           u.done += 1;
-          u.rev += totalP > 0 ? (net * prices[i]) / totalP : net / a.serviceIds.length;
+          u.rev += part;
+          u.rows.push({
+            date: a.date,
+            who: a.clientName ?? clientNameOf(a.clientId),
+            amount: Math.round(part),
+            combined: a.serviceIds.length > 1,
+            invoiceId: a.invoiceId,
+          });
         });
       } else if (a.date >= today) {
-        for (const id of a.serviceIds) at(id).upcoming += 1;
+        for (const id of a.serviceIds) {
+          const u = at(id);
+          u.upcoming += 1;
+          u.rows.push({
+            date: a.date,
+            who: a.clientName ?? clientNameOf(a.clientId),
+            upcoming: true,
+            combined: a.serviceIds.length > 1,
+          });
+        }
       }
     }
+    for (const u of m.values()) u.rows.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
     return m;
-  }, [allAppts, svcById]);
+  }, [allAppts, svcById, clients]);
 
   /* Garantit la catégorie Consultation (ÐÓTÓ™) et les prestations signées de
      départ sur les maisons antérieures à leur introduction. */
@@ -456,11 +495,38 @@ export default function Catalogue() {
                   {/* Le point d'usage — ce que cette prestation a réellement servi. */}
                   {(() => {
                     const u = usage.get(svc.id);
+                    /* Ouvrir le chiffre : QUI, QUAND, COMBIEN. Deux prestations
+                       homonymes ne se distinguent que par là. */
+                    const openUsage = () => {
+                      if (!u) return;
+                      setDrill({
+                        title: svc.name,
+                        sub: `${u.done} rituel${u.done > 1 ? 's' : ''} honoré${u.done > 1 ? 's' : ''} · ${u.upcoming} à venir · part du chiffre encaissé`,
+                        total: Math.round(u.rev),
+                        rows: u.rows.map((r) => ({
+                          date: frShort(r.date),
+                          who: r.who,
+                          sub: r.upcoming
+                            ? 'À venir'
+                            : r.combined ? 'Part d’un rituel combiné' : 'Rituel honoré',
+                          amount: r.amount,
+                          invoiceId: r.invoiceId,
+                        })),
+                      });
+                    };
                     return (
-                      <div className="trv-svc__meta" style={{ marginTop: 2 }}>
+                      <div
+                        className={`trv-svc__meta${u && (u.done > 0 || u.upcoming > 0) ? ' trv-svc__meta--click' : ''}`}
+                        style={{ marginTop: 2 }}
+                        role={u && (u.done > 0 || u.upcoming > 0) ? 'button' : undefined}
+                        tabIndex={u && (u.done > 0 || u.upcoming > 0) ? 0 : undefined}
+                        onClick={openUsage}
+                        onKeyDown={(e) => { if (e.key === 'Enter') openUsage(); }}
+                        title={u && (u.done > 0 || u.upcoming > 0) ? 'Voir le détail : quelles clientes, quand, pour combien' : undefined}
+                      >
                         {u && (u.done > 0 || u.upcoming > 0) ? (
                           <>
-                            <span title="Rituels honorés portant cette prestation (toutes branches)">
+                            <span>
                               ◈ {u.done} honoré{u.done > 1 ? 's' : ''}
                             </span>
                             <span style={{ color: 'var(--color-argile)' }}>·</span>
@@ -694,6 +760,10 @@ export default function Catalogue() {
           </div>
         </Modal>
       )}
+
+      {/* Le détail derrière le chiffre d'une prestation — quelles clientes, quand,
+          pour quelle part. Seul moyen de distinguer deux prestations homonymes. */}
+      {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
     </div>
   );
 }

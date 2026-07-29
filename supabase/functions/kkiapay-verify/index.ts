@@ -123,25 +123,12 @@ export async function applyPayment(admin: any, opts: {
     // le comptoir le rapprochera. On ne perd jamais un franc reçu.
   }
 
-  // 3) La commission, en dépense de la caisse KkiaPay (choix de la Maison :
-  //    le CA reste brut, les frais sont une charge). Id dérivé de la
-  //    transaction — donc lui aussi insérable une seule fois.
-  if (fees > 0) {
-    await admin.from('expenses').insert({
-      id: `exp-kkia-${opts.transactionId}`,
-      branch_id: opts.branchId,
-      data: {
-        id: `exp-kkia-${opts.transactionId}`,
-        branchId: opts.branchId,
-        label: `Commission KkiaPay · ${opts.transactionId}`,
-        amountXof: fees,
-        date: at.slice(0, 10),
-        cashbox: 'KkiaPay',
-        category: 'Frais bancaires',
-        subcategory: 'Commissions Mobile Money',
-      },
-    });
-  }
+  /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
+        4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
+        demandé, entier. Les inscrire en dépense sortirait d'une caisse un
+        argent qui n'y est jamais entré, et raboterait le résultat de la Maison
+        d'une charge qu'elle ne paie pas. `feesXof` reste au registre pour la
+        seule trace de ce que la cliente a versé en plus. */
 }
 
 Deno.serve(async (req) => {

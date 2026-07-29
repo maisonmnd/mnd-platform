@@ -341,6 +341,12 @@
   .trv-fac-grid > .trv-doc-stage { order: -1; }
 }
 
+/* Point d'usage d'une prestation — cliquable : un chiffre qu'on ne peut pas
+   ouvrir n'est qu'une rumeur. C'est aussi la SEULE façon de distinguer deux
+   prestations qui portent le même nom. */
+.trv-svc__meta--click { cursor: pointer; border-radius: 3px; transition: color 0.15s ease; }
+.trv-svc__meta--click:hover { color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; }
+
 /* ---------- Chercher une cliente (Factures & devis) ---------- */
 .trv-search { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .trv-search__field {
