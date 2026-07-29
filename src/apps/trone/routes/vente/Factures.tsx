@@ -319,6 +319,20 @@ export default function Factures() {
     patchLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   const removeLine = (id: string) => patchLines((ls) => ls.filter((l) => l.id !== id));
 
+  /* Ordre des prestations sur le document — l'ordre des lignes EST celui du
+     document imprimé. La maison veut souvent le rituel principal en tête et le
+     shampoing dessous ; sans ce geste il fallait retirer les lignes et les
+     ressaisir dans le bon ordre. */
+  const moveLine = (id: string, dir: -1 | 1) =>
+    patchLines((ls) => {
+      const i = ls.findIndex((l) => l.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= ls.length) return ls;
+      const next = [...ls];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+
   const totals = active
     ? (() => {
         const gross = active.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
@@ -525,12 +539,38 @@ export default function Factures() {
               <div>
                 <div className="trv-sec-label">Prestations & remises</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {draft.lines.map((l) => (
+                  {draft.lines.map((l, li) => (
                     <div key={l.id} style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', background: 'var(--surface-card)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>{l.label}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
                           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)' }}>{fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency)}</span>
+                          {/* Monter / descendre — l'ordre des lignes est celui
+                              du document imprimé. Grisé aux extrémités. */}
+                          {draft.lines.length > 1 && (
+                            <>
+                              <button
+                                className="trv-sq trv-sq--ghost"
+                                style={{ width: 20, height: 20, color: 'var(--ink-soft)' }}
+                                title="Monter cette prestation"
+                                aria-label="Monter cette prestation"
+                                disabled={li === 0}
+                                onClick={() => moveLine(l.id, -1)}
+                              >
+                                ▲
+                              </button>
+                              <button
+                                className="trv-sq trv-sq--ghost"
+                                style={{ width: 20, height: 20, color: 'var(--ink-soft)' }}
+                                title="Descendre cette prestation"
+                                aria-label="Descendre cette prestation"
+                                disabled={li === draft.lines.length - 1}
+                                onClick={() => moveLine(l.id, 1)}
+                              >
+                                ▼
+                              </button>
+                            </>
+                          )}
                           <button
                             className="trv-sq trv-sq--ghost"
                             style={{ width: 20, height: 20, color: 'var(--ink-soft)' }}
