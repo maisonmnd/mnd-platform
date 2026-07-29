@@ -111,7 +111,11 @@ export default function Factures() {
   const factures = filtered.filter((d) => d.kind === 'facture');
   const devis = filtered.filter((d) => d.kind === 'devis');
 
-  const selected = branchDocs.find((d) => d.id === selectedId) ?? filtered[0] ?? branchDocs[0] ?? null;
+  /* AUCUN document par défaut : on arrive sur le registre nu. Un repli sur la
+     première facture affichait un document que personne n'avait demandé, et
+     poussait la liste vers le bas dès l'ouverture de l'écran. Un document ne
+     s'ouvre que sur un geste — un clic, ou une arrivée par `?id=`. */
+  const selected = selectedId ? branchDocs.find((d) => d.id === selectedId) ?? null : null;
 
   /* Document affiché dans l’aperçu vivant : le brouillon en cours d’édition, sinon la sélection. */
   const active = editing ? editing.draft : selected;
@@ -390,6 +394,10 @@ export default function Factures() {
   }, [selectedId]);
 
   const selectDoc = (d: Invoice) => {
+    /* Recliquer la ligne ouverte la referme : on retrouve le registre nu sans
+       chercher un bouton. (Pas en cours d'édition — on ne jette pas un
+       brouillon d'un clic distrait.) */
+    if (d.id === selectedId && !editing) { setSelectedId(null); return; }
     setSelectedId(d.id);
     if (editing) setEditing(null);
     /* Le défilement est déclenché par l'effet ci-dessus, une fois le document
@@ -481,7 +489,9 @@ export default function Factures() {
         </Select>
       </div>
 
-      {/* ===== La feuille — factures d'abord, devis en dessous ===== */}
+      {/* ===== Le document ouvert, AU-DESSUS du registre — rien tant que rien
+           n'est choisi : l'écran s'ouvre sur la liste nue. ===== */}
+      {(active || draft) && (
       <div className="trv-fac-grid" ref={detailRef}>
         {/* ===== Colonne gauche — éditeur & actions ===== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -833,6 +843,7 @@ export default function Factures() {
           </div>
         )}
       </div>
+      )}
 
       <div className="trc-sheet trv-sheet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
