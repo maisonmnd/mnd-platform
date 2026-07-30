@@ -6,8 +6,6 @@ import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button, toast } from '../../../ds/components';
-import { useServices } from '../../../shared/catalog';
-import { ensureRescuedServices } from '../rescueServices';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
@@ -129,15 +127,15 @@ export default function Shell() {
     houseSettingsStore.set((prev) => ({ ...prev, fix_future_rdv_invoices_2026_07: true }));
   }, [allAppts, allInvoices]);
 
-  /* SAUVETAGE du 23 juil. 2026 : re-crée les prestations supprimées du Catalogue
-     (photographie du 21 juil.) — les RDV retrouvent leurs libellés et leurs prix.
-     Une fois, après hydratation ; n'écrase jamais l'existant. */
-  const [allServices] = useServices();
-  useEffect(() => {
-    const n = ensureRescuedServices();
-    if (n > 0) toast(`${n} prestation${n > 1 ? 's' : ''} du catalogue restaurée${n > 1 ? 's' : ''} — vos rendez-vous ont retrouvé leurs prestations.`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allServices]);
+  /* SAUVETAGE du 23 juil. 2026 — RETIRÉ le 30 juil. 2026.
+     Il re-créait les prestations depuis une photographie du 21 juillet, à chaque
+     montage du Shell. Sa mission (rendre aux rendez-vous leurs libellés après un
+     effacement accidentel) était accomplie depuis une semaine ; il ne restait
+     qu'un mécanisme qui REMPLIT le catalogue sans qu'on le lui demande.
+     Le 30 juillet, après une remise à zéro complète, il a rétabli 94 prestations
+     avec `ensureStarterServices` — la Maison ne pouvait plus avoir un catalogue
+     vide. `ensureRescuedServices()` existe toujours dans rescueServices.ts, mais
+     PLUS RIEN NE L'APPELLE : c'est désormais un geste, pas un réflexe. */
 
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();

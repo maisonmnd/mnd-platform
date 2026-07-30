@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
-  QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES, ensureConsultationCategory, ensureStarterServices,
+  QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved,
   type CatalogCategory, type Service, type Product, type PriceMode,
 } from '../../../../shared/catalog';
@@ -150,12 +150,20 @@ export default function Catalogue() {
     return m;
   }, [allAppts, svcById, clients]);
 
-  /* Garantit la catégorie Consultation (ÐÓTÓ™) et les prestations signées de
-     départ sur les maisons antérieures à leur introduction. */
-  useEffect(() => {
-    ensureConsultationCategory();
-    ensureStarterServices(branch.masters[0] ?? '');
-  }, []);
+  /* LES SEMENCES SONT RETIRÉES — 30 juillet 2026.
+     Ici s'appelaient `ensureConsultationCategory()` et `ensureStarterServices()`
+     à chaque ouverture de l'écran. Elles garnissaient une maison neuve, ce qui
+     est utile UNE fois et néfaste ensuite : elles ne savent pas distinguer
+     « catalogue vide parce que neuf » de « catalogue vide parce que la Maison
+     l'a voulu » — ni de « pas encore hydraté ».
+     Le 30 juillet, après une remise à zéro vérifiée à zéro, ouvrir cet écran a
+     recréé 94 prestations et la catégorie ÐÓTÓ™. Le seul garde-fou existant, le
+     drapeau `HOUSE_BLANK`, vit dans le localStorage : il est donc PAR APPAREIL,
+     invisible, et perdu au moindre nettoyage du navigateur. Un garde-fou qu'on
+     peut oublier n'en est pas un.
+     Les deux fonctions restent exportées par shared/catalog.ts pour une
+     éventuelle action explicite (« garnir la Maison »), mais l'écran n'écrit
+     plus jamais de prestation de lui-même. */
 
   /* Descriptions signées (voix de la Maison). Dépend de `services` pour s'appliquer
      une fois le catalogue hydraté ; idempotent (renvoie la même référence si rien à
