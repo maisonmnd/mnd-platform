@@ -93,16 +93,26 @@ export default function Analytics() {
   const life = useMemo(() => {
     const inWindow = scopedAppts.filter((a) => a.date >= periodStart && a.date <= today && a.status !== 'annulé');
     const honored = inWindow.filter((a) => a.status === 'honoré');
+    /* Valeur des rituels honorés, TOUS : c'est le panier moyen et le plus gros
+       ticket. Ce n'est PAS le revenu — voir juste en dessous. */
     const honoredXof = honored.reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const invXof = scopedPaidInvoices
+    const revInv = scopedPaidInvoices
       .filter((i) => i.date >= periodStart && i.date <= today)
       .reduce((s, i) => s + invoiceTotal(i), 0);
-    const revenue = honoredXof + invXof;
+    /* JAMAIS DEUX FOIS. Un rituel encaissé par facture est déjà compté par sa
+       facture : on n'ajoute donc que les rituels honorés SANS `invoiceId`.
+       Additionner les deux totaux entiers gonflait le revenu de tout ce qui
+       avait été facturé — même règle que la Synthèse et le Bilan mensuel,
+       qui sont la source de vérité du chiffre d'affaires. */
+    const revRit = honored
+      .filter((a) => !a.invoiceId)
+      .reduce((s, a) => s + apptNetXof(a, byId), 0);
+    const revenue = revInv + revRit;
     const heads = new Set(inWindow.map((a) => a.clientId)).size;
     const basket = honored.length > 0 ? Math.round(honoredXof / honored.length) : 0;
     const maxTicket = honored.reduce((m, a) => Math.max(m, apptNetXof(a, byId)), 0);
     return {
-      revenue, honoredXof, honoredCount: honored.length, apptCount: inWindow.length,
+      revenue, revRit, honoredXof, honoredCount: honored.length, apptCount: inWindow.length,
       heads, basket, maxTicket,
       hasLife: revenue > 0 || inWindow.length > 0,
     };
@@ -114,10 +124,14 @@ export default function Analytics() {
      Les mêmes filtres que les agrégats ci-dessus, mais rendus ligne à ligne :
      si le détail ne somme pas au chiffre affiché, c'est l'un des deux qui ment. */
 
-  /** Rituels honorés d'une fenêtre, du plus récent au plus ancien. */
-  const honoredRows = (from: string, to: string): DrillRow[] =>
+  /** Rituels honorés d'une fenêtre, du plus récent au plus ancien.
+      `onlyUnbilled` — pour le détail du REVENU, qui ne doit montrer que les
+      rituels non facturés, sinon la somme des lignes dépasse le chiffre affiché
+      (et c'est alors l'un des deux qui ment, cf. la note ci-dessus). Le détail
+      des « rituels honorés », lui, les veut tous. */
+  const honoredRows = (from: string, to: string, onlyUnbilled = false): DrillRow[] =>
     scopedAppts
-      .filter((a) => a.status === 'honoré' && a.date >= from && a.date <= to)
+      .filter((a) => a.status === 'honoré' && (!onlyUnbilled || !a.invoiceId) && a.date >= from && a.date <= to)
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .map((a) => ({
         date: a.date,
@@ -143,7 +157,7 @@ export default function Analytics() {
       }));
 
   const openRevenue = (from: string, to: string, title: string, sub: string) => {
-    const rows = [...honoredRows(from, to), ...invoiceRows(from, to)].sort((a, b) =>
+    const rows = [...honoredRows(from, to, true), ...invoiceRows(from, to)].sort((a, b) =>
       (a.date ?? '') < (b.date ?? '') ? 1 : -1,
     );
     setDrill({ title, sub, rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
@@ -193,10 +207,12 @@ export default function Analytics() {
     {
       l: 'Revenu encaissé · période',
       v: life.revenue > 0 ? fmtMoney(life.revenue, currency) : '—',
-      cap: life.revenue > 0 ? 'rituels honorés + factures payées' : 'en attente de vécu',
+      cap: life.revenue > 0 ? 'factures payées + rituels honorés non facturés' : 'en attente de vécu',
       up: life.revenue > 0,
       a: 'var(--color-copper)',
-      pct: life.revenue > 0 ? Math.round((life.honoredXof / life.revenue) * 100) : 0,
+      /* Part du revenu qui vient des rituels PAS encore passés en facture.
+         Avec `honoredXof` (tous les rituels) la barre pouvait dépasser 100 %. */
+      pct: life.revenue > 0 ? Math.round((life.revRit / life.revenue) * 100) : 0,
       open: life.revenue > 0
         ? () => openRevenue(periodStart, today, 'Revenu encaissé · période', `Du ${frShort(periodStart)} au ${frShort(today)}`)
         : undefined,
@@ -339,14 +355,17 @@ export default function Analytics() {
     });
   };
 
-  /* — revenu encaissé · 12 mois, dérivé des rituels honorés et des factures payées — */
+  /* — revenu encaissé · 12 mois — factures payées + rituels honorés NON facturés.
+       Même règle que la carte du haut : un rituel encaissé par facture est déjà
+       compté par sa facture. Sans le `!a.invoiceId`, chaque barre du graphe
+       portait le double de ce qui était réellement entré. */
   const monthly = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const appt = scopedAppts
-        .filter((a) => a.status === 'honoré' && a.date.slice(0, 7) === mk)
+        .filter((a) => a.status === 'honoré' && !a.invoiceId && a.date.slice(0, 7) === mk)
         .reduce((s, a) => s + apptNetXof(a, byId), 0);
       const inv = scopedPaidInvoices
         .filter((x) => x.date.slice(0, 7) === mk)
