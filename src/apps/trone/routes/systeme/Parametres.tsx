@@ -306,7 +306,11 @@ function ViderRdvCard() {
   const [appts] = useStore(appointmentsStore);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const count = appts.filter((a) => a.branchId === branch.id).length;
+  /* TOUS les rendez-vous, pas ceux de la branche courante : l'effacement ne
+     filtre plus par branche (voir wipeAppointments), sinon ceux rattachés à une
+     branche supprimée restaient au serveur. Compter par branche annonçait « 407
+     rendez-vous » quand il y en avait 792 à effacer. */
+  const count = appts.length;
 
   const doWipe = async () => {
     setBusy(true);

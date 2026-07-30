@@ -74,21 +74,44 @@ import { bindCollection, bindDocument } from './sync';
 import { supabase } from './supabase';
 bindCollection(appointmentsStore, 'appointments');
 
-/* EFFACEMENT VOLONTAIRE de TOUS les rendez-vous d'une branche — chemin dédié qui
-   SUPPRIME directement côté serveur (l'app est connectée en staff, la RLS
-   l'autorise), CONTOURNANT à dessein le garde-fou anti-suppression-de-masse de la
-   synchro (fait pour bloquer les vidages ACCIDENTELS, pas les volontaires). On ne
-   touche PAS au magasin local ici : l'appelant recharge la page, ce qui ré-hydrate
-   depuis le serveur (vide) sans déclencher de push local. La table de sauvegarde
-   froide `import_appointments` n'est PAS concernée. ⚠ Irréversible sans sauvegarde. */
-export async function wipeAppointments(branchId: string): Promise<number> {
-  const count = appointmentsStore.get().filter((a) => a.branchId === branchId).length;
+/* EFFACEMENT VOLONTAIRE de TOUS les rendez-vous — chemin dédié qui SUPPRIME
+   directement côté serveur (l'app est connectée en staff, la RLS l'autorise),
+   CONTOURNANT à dessein le garde-fou anti-suppression-de-masse de la synchro
+   (fait pour bloquer les vidages ACCIDENTELS, pas les volontaires). La table de
+   sauvegarde froide `import_appointments` n'est PAS concernée.
+   ⚠ Irréversible sans sauvegarde.
+
+   DEUX CORRECTIONS, apprises à la dure le 30-07-2026.
+
+   ① ON N'EFFACE PLUS PAR BRANCHE. Le filtre `.eq('branch_id', …)` laissait
+      derrière tout rendez-vous rattaché à une branche SUPPRIMÉE : 385 sur 792
+      portaient `br-xrnyd4nh7x`, une branche qui n'existe plus. Le carnet
+      paraissait vidé, et la moitié de l'histoire dormait encore au serveur —
+      invisible partout sauf sous « Toutes les branches » d'Analytics.
+      `branchId` est conservé en paramètre pour la trace de l'appelant.
+
+   ② ON VIDE AUSSI LE CACHE LOCAL, sinon l'effacement se défait tout seul.
+      À l'hydratation, une table serveur VIDE est traitée comme une maison
+      neuve à amorcer : la synchro repousse alors le contenu du navigateur
+      (voir `bindCollection`, branche `else`). Serveur vide + cache plein =
+      les 792 rendez-vous remontent au rechargement. Le commentaire d'origine
+      affirmait le contraire ; il avait tort.
+
+      On écrit `[]` DANS localStorage plutôt que d'effacer la clé : une clé
+      absente fait repartir la SEMENCE du code, qui génère des rendez-vous
+      autour d'aujourd'hui. Et on écrit directement, sans passer par le
+      magasin, pour ne pas déclencher une poussée de 792 suppressions que le
+      garde-fou refuserait de toute façon — bruyamment. */
+export async function wipeAppointments(_branchId: string): Promise<number> {
+  const count = appointmentsStore.get().length;
   if (supabase) {
-    const { error } = await supabase.from('appointments').delete().eq('branch_id', branchId);
+    /* `not id is null` = toutes les lignes, quelle que soit leur branche. */
+    const { error } = await supabase.from('appointments').delete().not('id', 'is', null);
     if (error) throw new Error(error.message);
+    localStorage.setItem(appointmentsStore.key, '[]');
   } else {
-    // Mode local (sans backend) : on vide directement le magasin.
-    appointmentsStore.set((prev) => prev.filter((a) => a.branchId !== branchId));
+    // Mode local (sans backend) : le magasin est la seule vérité.
+    appointmentsStore.set(() => []);
   }
   return count;
 }
