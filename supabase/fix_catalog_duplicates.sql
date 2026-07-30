@@ -2,6 +2,10 @@
 -- RÉPARATION DU CATALOGUE — doublons de migration & catégories mortes
 -- (SQL Editor → Run). Idempotent : rejouable sans dommage.
 --
+-- À LANCER D'ABORD : `preview_catalog_duplicates.sql`, qui montre tout
+-- ce que ce script ferait SANS RIEN MODIFIER. Si son bloc « ⚠ ARRÊT »
+-- rend une seule ligne, ne lance pas celui-ci.
+--
 -- DEUX DÉGÂTS, tous deux nés de la migration de l'ancien ERP (26-07) :
 --
 --  ① 32 prestations en DOUBLE. Le rapprochement par nom a échoué sur
@@ -21,10 +25,12 @@
 -- (FIXED_PRICE_SERVICE_IDS). La copie disparaît, ses rendez-vous sont
 -- reversés à l'originale.
 --
--- CE QU'ON NE TOUCHE PAS : les PRIX. Onze paires divergent (la copie
--- portait le prix relevé dans les anciennes factures) — c'est une
--- décision de la Maison, pas une réparation technique. La liste est
--- donnée en fin de script.
+-- CE QU'ON NE TOUCHE PAS : les PRIX. Onze paires divergeaient au relevé
+-- du 29-07 (la copie portait le prix des anciennes factures) — trancher
+-- est une décision de la Maison, pas une réparation technique. Le prix
+-- des deux côtés est PHOTOGRAPHIÉ avant la suppression de la copie et
+-- restitué dans le RAPPORT FINAL, bloc « PRIX À TRANCHER ». Sans cette
+-- photographie l'information partirait avec la copie.
 --
 -- NON FUSIONNÉ À DESSEIN : « SÍNSIN™ La Reprise Réveil Frontal » et
 -- « … Réveil Frontal + » — deux prestations distinctes que seul le « + »
@@ -32,21 +38,26 @@
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ─── ÉTAT AVANT ────────────────────────────────────────────────────
-select 'AVANT' as moment,
-       (select count(*) from public.catalog_services)                                   as prestations,
-       (select count(*) from public.catalog_services where id like 'svc-%')             as copies_migration,
+-- Relevé, PAS affiché ici : l'éditeur SQL ne montre que le résultat de
+-- la dernière requête. Tout est restitué dans le RAPPORT FINAL.
+create temp table etat_avant on commit drop as
+select (select count(*) from public.catalog_services)                       as prestations,
+       (select count(*) from public.catalog_services where id like 'svc-%') as copies,
        (select count(*) from public.catalog_services s
           where not exists (select 1 from public.catalog_categories c
-                            where c.id = s.data->>'categoryId'))                        as categorie_morte;
+                            where c.id = s.data->>'categoryId'))            as cat_morte;
 
--- ─── ① CATÉGORIES MORTES : « cat-X » → « X » quand X existe ────────
+-- ─── DÉGÂT ② — CATÉGORIES MORTES : « cat-X » → « X » quand X existe ─
+-- Traité en premier : indépendant de la fusion, et une prestation bien
+-- rangée est plus facile à relire au Catalogue si la suite doit être
+-- vérifiée à la main.
 update public.catalog_services s
 set data = jsonb_set(s.data, '{categoryId}', to_jsonb(substring(s.data->>'categoryId' from 5)))
 where s.data->>'categoryId' like 'cat-%'
   and exists (select 1 from public.catalog_categories c
               where c.id = substring(s.data->>'categoryId' from 5));
 
--- ─── ② FUSION DES DOUBLONS ─────────────────────────────────────────
+-- ─── DÉGÂT ① — FUSION DES DOUBLONS ────────────────────────────────
 -- Table de correspondance EXPLICITE : chaque ligne a été relevée et
 -- vérifiée une à une. Pas de rapprochement automatique ici — sur des
 -- données de production, une règle qui « devine » finit toujours par
@@ -86,7 +97,34 @@ insert into merge_map (dup, keep) values
   ('svc-9c20227f4b41', 'sv-rituel-mq6vpu7d'),
   ('svc-65859c4a6bd7', 'sv-rituel-mpdj61e5');
 
--- 2a) Les rendez-vous passent de la copie à l'originale. `min(ord)`
+-- a) LE PRIX DES PAIRES, RELEVÉ AVANT QUE LA COPIE DISPARAISSE.
+--     Rien n'est modifié : on photographie. Le prix de la copie est celui
+--     qu'a relevé la migration dans les anciennes factures ; celui de la
+--     Maison est celui du Catalogue. Trancher est une décision de la
+--     Maison — la liste est en fin de script.
+--     Sur une seconde exécution, les copies n'existent plus : la jointure
+--     ne rend rien et le rapport annonce zéro divergence. C'est normal.
+--     `nullif` : un priceXof absent OU vide devient null, jamais une
+--     erreur de conversion. La sentinelle -1 fait qu'« un prix contre
+--     rien » compte comme une divergence — c'est bien ce qu'on veut voir.
+create temp table prix_divergents on commit drop as
+select d.data->>'name'                        as prestation,
+       m.keep                                 as id_maison,
+       nullif(k.data->>'priceXof', '')::numeric as prix_maison,
+       nullif(d.data->>'priceXof', '')::numeric as prix_copie
+from merge_map m
+join public.catalog_services k on k.id = m.keep
+join public.catalog_services d on d.id = m.dup
+where coalesce(nullif(k.data->>'priceXof', '')::numeric, -1)
+   <> coalesce(nullif(d.data->>'priceXof', '')::numeric, -1);
+
+-- PRÉ-VOL (facultatif, rien n'est modifié) : pour avoir la liste EN MAIN
+-- avant toute suppression, surligner de « create temp table merge_map »
+-- jusqu'ici, décommenter la ligne ci-dessous, et Run. Les trois requêtes
+-- surlignées ne font que lire et remplir des tables temporaires.
+-- select * from prix_divergents order by prestation;
+
+-- b) Les rendez-vous passent de la copie à l'originale. `min(ord)`
 --     conserve l'ORDRE des prestations du rituel et fond en une seule
 --     entrée le cas où un rendez-vous portait les deux.
 update public.appointments a
@@ -103,21 +141,47 @@ where exists (
   join merge_map m on m.dup = t.v
 );
 
--- 2b) Les copies disparaissent du catalogue.
+-- c) Les copies disparaissent du catalogue.
 delete from public.catalog_services where id in (select dup from merge_map);
 
--- ─── ÉTAT APRÈS ────────────────────────────────────────────────────
-select 'APRES' as moment,
-       (select count(*) from public.catalog_services)                                   as prestations,
-       (select count(*) from public.catalog_services where id like 'svc-%')             as copies_migration,
-       (select count(*) from public.catalog_services s
-          where not exists (select 1 from public.catalog_categories c
-                            where c.id = s.data->>'categoryId'))                        as categorie_morte;
+-- ═══ RAPPORT FINAL ═════════════════════════════════════════════════
+-- Un seul tableau, parce que l'éditeur SQL n'affiche que le résultat de
+-- la dernière requête. Trois blocs :
+--   ① ÉTAT             — les compteurs, avant → après
+--   ② PRIX À TRANCHER  — les paires dont les deux prix divergeaient
+--   ③ SANS CATÉGORIE   — voir `fix_missing_categories.sql` : ce ne sont
+--                        pas des identifiants morts, ce sont les LIGNES
+--                        de catégorie qui manquent en base.
+select rubrique, detail
+from (
+  select 1 as bloc, 0::bigint as rang, 'ÉTAT' as rubrique,
+         'prestations ' || v.prestations || ' → ' || a.prestations
+      || ' · copies svc- ' || v.copies    || ' → ' || a.copies
+      || ' · catégorie morte ' || v.cat_morte || ' → ' || a.cat_morte as detail
+  from etat_avant v,
+       (select (select count(*) from public.catalog_services)                       as prestations,
+               (select count(*) from public.catalog_services where id like 'svc-%') as copies,
+               (select count(*) from public.catalog_services s
+                  where not exists (select 1 from public.catalog_categories c
+                                    where c.id = s.data->>'categoryId'))            as cat_morte) a
 
--- Ce qui reste rangé nulle part : « gbeza » et « dodo » n'ont aucune
--- catégorie correspondante. À rattacher à la main au Catalogue.
-select s.data->>'categoryId' as categorie_introuvable, count(*) as prestations,
-       string_agg(s.data->>'name', ' · ') as lesquelles
-from public.catalog_services s
-where not exists (select 1 from public.catalog_categories c where c.id = s.data->>'categoryId')
-group by 1;
+  union all
+  -- `coalesce(…::text, 'aucun')` : sans lui, un prix null viderait TOUTE
+  -- la ligne (en SQL, concaténer null rend null) — la paire disparaîtrait
+  -- du rapport, silencieusement, et c'est justement celle qu'il faut voir.
+  select 2, row_number() over (order by p.prestation), 'PRIX À TRANCHER',
+         p.prestation || ' — Maison ' || coalesce(p.prix_maison::text, 'aucun')
+                      || ' F · copie ' || coalesce(p.prix_copie::text, 'aucun')
+                      || ' F  (' || p.id_maison || ')'
+  from prix_divergents p
+
+  union all
+  select 3, row_number() over (order by s.data->>'categoryId'), 'SANS CATÉGORIE',
+         (s.data->>'categoryId') || ' — ' || count(*) || ' : '
+                                 || string_agg(s.data->>'name', ' · ')
+  from public.catalog_services s
+  where not exists (select 1 from public.catalog_categories c
+                    where c.id = s.data->>'categoryId')
+  group by s.data->>'categoryId'
+) t
+order by bloc, rang;
