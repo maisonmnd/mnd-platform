@@ -8,10 +8,17 @@ import { fmtDuration, useClient, useVisibleCatalog } from './lib';
 import { priceModeOf } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
-   Ponctuel −10 % · Abonnement −15 % (SÍNSIN/FÍNFÍN/GBÈZÀ, 3 prestations minimum).
+   Ponctuel −10 % · Abonnement −15 % (l'entretien et la réparation, 3 prestations minimum).
    « Composer » publie le payload sur le pont mnd_couronne_compose → Le Trône. */
 
-const ABO_CATS = ['sinsin', 'finfin', 'gbeza'];
+/* Catégories éligibles à l'abonnement, PAR IDENTIFIANT — ce sont ceux du
+   Catalogue, pas les noms fon. La nomenclature a été refondue : SÍNSIN™
+   (entretien) et GBÈZÀ™ (shampooing) vivent désormais tous deux sous
+   `gbeji` « L'entretien des locks ». Les anciens ids `sinsin` et `gbeza`
+   n'existent plus en base — les laisser ici ne levait aucune erreur, ça
+   vidait simplement l'abonnement de tout sauf FÍNFÍN™, en silence.
+   Toute refonte des catégories doit repasser par cette ligne. */
+const ABO_CATS = ['gbeji', 'finfin'];
 
 type Props = { onClose: () => void; toast: (msg: string) => void };
 
