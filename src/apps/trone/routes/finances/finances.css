@@ -611,6 +611,29 @@
   transform: translateY(-1px);
 }
 
+/* Ligne de TOTAL cliquable (Encaissements : par moyen, par caisse) — un <button>
+   nu qui filtre le registre du dessous. Volontairement distincte de
+   `--click` : celle-ci impose `display: block` et écraserait le flex de
+   `--split`, recollant les deux bouts de la ligne. Ici on ne touche qu'au
+   chrome du bouton, `--split` reste maître de la mise en page. */
+.trf-linerow--btn {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  margin: 0 -6px 13px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+/* Le filtre actif se voit d'un coup d'œil : un filet cuivré au bord, pas une
+   couleur de plus — la carte reste lisible comme un tableau de chiffres. */
+.trf-linerow--btn[aria-pressed='true'] {
+  background: var(--hover-veil, rgba(30, 33, 80, 0.045));
+  box-shadow: inset 2px 0 0 var(--color-copper);
+}
+
 /* ---------- Lignes cliquables — un chiffre s'ouvre toujours sur son détail ---------- */
 .trf-linerow--click {
   display: block;

@@ -56,6 +56,13 @@ export default function Encaissements() {
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');
   const [q, setQ] = useState('');
+  /* Un total ne vaut que si l'on peut l'ouvrir : cliquer « Espèces » ou
+     « Caisse Principale » restreint le registre du dessous aux entrées qui le
+     composent. Re-cliquer relâche. Les deux se cumulent — « Mobile Money » ×
+     « Hors caisse » répond à une question qu'aucun des deux ne répond seul. */
+  const [method, setMethod] = useState<string | null>(null);
+  const [box, setBox] = useState<string | null>(null);
+  const boxOf = (r: Receipt) => r.cashbox ?? 'Hors caisse';
 
   const all = useMemo(
     () => buildReceipts({
@@ -77,12 +84,20 @@ export default function Encaissements() {
     const needle = normName(q);
     return ofMonth
       .filter((r) => kind === 'tous' || r.kind === kind)
+      .filter((r) => !method || r.method === method)
+      .filter((r) => !box || boxOf(r) === box)
       .filter((r) => !needle || normName(r.clientName).includes(needle) || normName(r.ref ?? '').includes(needle));
-  }, [ofMonth, kind, q]);
+  }, [ofMonth, kind, method, box, q]);
 
   const total = shown.reduce((s, r) => s + r.amountXof, 0);
+  /* Les deux cartes restent le partage du MOIS ENTIER, jamais du filtre en
+     cours : c'est ce qui permet de garder la vue d'ensemble sous les yeux
+     pendant qu'on consulte un moyen en particulier. */
   const byMethod = useMemo(() => totalBy(ofMonth, (r) => r.method), [ofMonth]);
-  const byBox = useMemo(() => totalBy(ofMonth, (r) => r.cashbox ?? 'Hors caisse'), [ofMonth]);
+  /* `boxOf` sert ICI et dans le filtre : le libellé de repli (« Hors caisse »)
+     doit être le MÊME des deux côtés, sinon cliquer la ligne ne trouverait rien. */
+  const byBox = useMemo(() => totalBy(ofMonth, boxOf), [ofMonth]);
+  const filtered = method !== null || box !== null;
 
   /* Ouvre la pièce d'origine : la facture, ou le rituel. La traçabilité ne vaut
      que si l'on peut remonter à la source en un clic. */
@@ -143,10 +158,17 @@ export default function Encaissements() {
             <div className="trf-empty" style={{ marginTop: 12 }}>Rien d’encaissé en {monthTitle(month)}.</div>
           ) : (
             byMethod.map((m) => (
-              <div className="trf-linerow trf-linerow--split" key={m.k}>
+              <button
+                type="button"
+                className="trf-linerow trf-linerow--split trf-linerow--btn trf-click"
+                key={m.k}
+                aria-pressed={method === m.k}
+                title={method === m.k ? 'Relâcher ce filtre' : `Ne voir que les entrées en ${m.k}`}
+                onClick={() => setMethod((prev) => (prev === m.k ? null : m.k))}
+              >
                 <span>{m.k}<span className="mnd-muted"> · {m.n} entrée{m.n > 1 ? 's' : ''}</span></span>
                 <span>{fmtMoney(m.total, currency)}</span>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -156,10 +178,17 @@ export default function Encaissements() {
             <div className="trf-empty" style={{ marginTop: 12 }}>—</div>
           ) : (
             byBox.map((b) => (
-              <div className="trf-linerow trf-linerow--split" key={b.k}>
+              <button
+                type="button"
+                className="trf-linerow trf-linerow--split trf-linerow--btn trf-click"
+                key={b.k}
+                aria-pressed={box === b.k}
+                title={box === b.k ? 'Relâcher ce filtre' : `Ne voir que les entrées de ${b.k}`}
+                onClick={() => setBox((prev) => (prev === b.k ? null : b.k))}
+              >
                 <span>{b.k}<span className="mnd-muted"> · {b.n} entrée{b.n > 1 ? 's' : ''}</span></span>
                 <span>{fmtMoney(b.total, currency)}</span>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -171,6 +200,16 @@ export default function Encaissements() {
           value={kind}
           onChange={setKind}
         />
+        {filtered && (
+          <button
+            type="button"
+            className="trf-chip"
+            onClick={() => { setMethod(null); setBox(null); }}
+            title="Revenir à tout le mois"
+          >
+            {[method, box].filter(Boolean).join(' · ')} ✕
+          </button>
+        )}
         <div className="trc-searchwrap">
           <Input
             value={q}
@@ -183,7 +222,13 @@ export default function Encaissements() {
 
       <div className="trf-panel" style={{ marginTop: 14 }}>
         <div className="trf-linerow trf-linerow--split trf-linerow--head">
-          <span>{shown.length} encaissement{shown.length > 1 ? 's' : ''} · {monthTitle(month)}</span>
+          {/* Le filtre s'écrit EN MOTS dans l'en-tête : un registre restreint qui
+              ne le dit pas se lit comme le registre entier — et l'export porte
+              le même sous-ensemble. */}
+          <span>
+            {shown.length} encaissement{shown.length > 1 ? 's' : ''} · {monthTitle(month)}
+            {method && ` · ${method}`}{box && ` · ${box}`}
+          </span>
           <span>{fmtMoney(total, currency)}</span>
         </div>
         {shown.length === 0 ? (
