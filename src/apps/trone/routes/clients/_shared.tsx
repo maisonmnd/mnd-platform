@@ -22,7 +22,20 @@ import './clients.css';
 export const pad2 = (n: number) => String(n).padStart(2, '0');
 export const toISO = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const todayISO = () => toISO(new Date());
-export const fromISO = (iso: string) => new Date(`${iso}T12:00:00`);
+
+/** Le JOUR d'une valeur de date, ou '' si elle est illisible.
+    `fromISO` construit la date en collant l'heure au jour (`${iso}T12:00:00`) :
+    toute valeur qui n'est pas un jour ISO nu produit une date invalide, et les
+    formateurs écrivaient « Invalid Date » en clair à l'écran. C'est arrivé pour
+    de bon — une date déjà formatée repassée dans `frShort` (voir Catalogue.tsx,
+    le point d'usage). Ce garde-fou coupe au jour, tolère un horodatage complet,
+    et refuse le reste plutôt que de deviner. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+export const dayOf = (v?: string | null): string => {
+  const s = String(v ?? '').slice(0, 10);
+  return ISO_DAY.test(s) ? s : '';
+};
+export const fromISO = (iso: string) => new Date(`${dayOf(iso)}T12:00:00`);
 export const addDaysISO = (iso: string, n: number) => {
   const d = fromISO(iso);
   d.setDate(d.getDate() + n);
@@ -31,17 +44,20 @@ export const addDaysISO = (iso: string, n: number) => {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/* Une date illisible s'écrit « — », JAMAIS « Invalid Date » : au comptoir,
+   un tiret se comprend, un message d'erreur anglais inquiète la cliente. */
+
 /** « Lun. 13 juil. » */
 export const frShort = (iso: string) =>
-  cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }));
+  dayOf(iso) ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })) : '—';
 
 /** « Lundi 13 juillet » */
 export const frLong = (iso: string) =>
-  cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }));
+  dayOf(iso) ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })) : '—';
 
 /** « 13 juil. » */
 export const frDay = (iso: string) =>
-  fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';
 
 export const timeToMin = (t: string) => {
   const [h, m] = t.split(':').map(Number);

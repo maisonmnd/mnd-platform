@@ -12,7 +12,7 @@ import {
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
-import { apptNetXof, useServicesById, DrillModal, frShort, type Drill } from '../clients/_shared';
+import { apptNetXof, useServicesById, DrillModal, dayOf, type Drill } from '../clients/_shared';
 import { scalesWithModel } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
@@ -99,33 +99,54 @@ export default function Catalogue() {
         const net = apptNetXof(a, svcById);
         const prices = a.serviceIds.map((id) => svcById.get(id)?.priceXof ?? 0);
         const totalP = prices.reduce((s, x) => s + x, 0);
+        /* UN rituel = UNE ligne par prestation. Quand `serviceIds` porte deux
+           fois le même identifiant, parcourir la liste telle quelle empilait
+           deux lignes jumelles et comptait le rituel deux fois — dans
+           « honorés » comme dans le chiffre. On CUMULE les parts par
+           prestation, en gardant le prorata sur la liste COMPLÈTE : la somme
+           des parts égale toujours le net du rituel.
+           (Attention : deux lignes de MONTANTS DIFFÉRENTS pour une même
+           cliente ne viennent pas d'ici — ce sont deux rendez-vous distincts,
+           possiblement dupliqués à l'import. Voir le bloc ③ de
+           supabase/fix_appointment_dates.sql.) */
+        const partById = new Map<string, number>();
         a.serviceIds.forEach((id, i) => {
-          const u = at(id);
           const part = totalP > 0 ? (net * prices[i]) / totalP : net / a.serviceIds.length;
+          partById.set(id, (partById.get(id) ?? 0) + part);
+        });
+        for (const [id, part] of partById) {
+          const u = at(id);
           u.done += 1;
           u.rev += part;
           u.rows.push({
             date: a.date,
             who: a.clientName ?? clientNameOf(a.clientId),
             amount: Math.round(part),
-            combined: a.serviceIds.length > 1,
+            combined: partById.size > 1,
             invoiceId: a.invoiceId,
           });
-        });
-      } else if (a.date >= today) {
-        for (const id of a.serviceIds) {
+        }
+      } else if (dayOf(a.date) >= today) {
+        /* Même règle : un identifiant répété ne fait pas deux rendez-vous. */
+        const uniq = new Set(a.serviceIds);
+        for (const id of uniq) {
           const u = at(id);
           u.upcoming += 1;
           u.rows.push({
             date: a.date,
             who: a.clientName ?? clientNameOf(a.clientId),
             upcoming: true,
-            combined: a.serviceIds.length > 1,
+            combined: uniq.size > 1,
           });
         }
       }
     }
-    for (const u of m.values()) u.rows.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
+    /* Tri sur le JOUR normalisé : comparer des horodatages complets à des jours
+       nus rangeait les rituels migrés au hasard. */
+    for (const u of m.values()) u.rows.sort((x, y) => {
+      const a2 = dayOf(x.date), b2 = dayOf(y.date);
+      return a2 < b2 ? 1 : a2 > b2 ? -1 : 0;
+    });
     return m;
   }, [allAppts, svcById, clients]);
 
@@ -504,7 +525,12 @@ export default function Catalogue() {
                         sub: `${u.done} rituel${u.done > 1 ? 's' : ''} honoré${u.done > 1 ? 's' : ''} · ${u.upcoming} à venir · part du chiffre encaissé`,
                         total: Math.round(u.rev),
                         rows: u.rows.map((r) => ({
-                          date: frShort(r.date),
+                          /* La date part BRUTE : `DrillModal` la formate lui-même
+                             (frShort), comme pour tous les autres écrans qui
+                             l'ouvrent. La formater ici la faisait formater deux
+                             fois — `new Date('Sam. 4 juil.T12:00:00')` — et toute
+                             la colonne affichait « Invalid Date ». */
+                          date: r.date,
                           who: r.who,
                           sub: r.upcoming
                             ? 'À venir'
