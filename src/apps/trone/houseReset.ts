@@ -28,6 +28,12 @@ const WIPE_TABLES = [
   'formations', 'apprenants', 'certifications',
   'academy_applications', 'academy_enrollments',
   'salary_advances', 'attendance', 'leave_requests', 'payroll_runs',
+  /* `payments` (KkiaPay) est né le 28-07-2026, APRÈS l'écriture de cette liste :
+     il en manquait. Une « réinitialisation totale » laissait donc les paiements
+     au serveur, et l'hydratation les ramenait dans une maison censée être neuve.
+     Toute table de collection ajoutée plus tard doit venir ici — c'est le seul
+     endroit qui décide ce que « repartir à zéro » veut dire. */
+  'payments',
 ];
 
 /** Vide toutes les tables de données sur le serveur. Renvoie la liste des échecs
