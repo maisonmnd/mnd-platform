@@ -115,9 +115,26 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       applyingRemote = false;
       lastPushed = snapshot(items);
     } else {
-      const local = store.get();
-      lastPushed = snapshot(local);
-      if (local.length) await pushDiff(new Map(), lastPushed, local);
+      /* Table serveur VIDE — ET LE SERVEUR FAIT FOI. On aligne le magasin local
+         sur ce vide, sans rien pousser.
+
+         AVANT, ce chemin poussait le cache du navigateur vers le serveur : une
+         table vide était lue comme « maison neuve à amorcer ». Le 30-07-2026,
+         cette ligne a ressuscité 792 rendez-vous, puis 344 clientes, puis 81
+         prestations — à chaque fois qu'on vidait la base, le premier onglet
+         ouvert la remplissait à nouveau. Aucun effacement ne pouvait tenir, et
+         la Maison ne pouvait pas décider d'avoir un catalogue vide.
+
+         Le prix, assumé : une Maison vraiment neuve démarre sans catégories de
+         départ (SERVICES_SEED et PRODUCTS_SEED étaient déjà vides — « tout naît
+         de l'usage »). Et si un poste avait des lignes créées hors ligne que le
+         serveur n'a jamais reçues, elles cèdent devant lui. C'est le sens de
+         « le serveur fait foi » : une seule vérité, la même pour tous les
+         appareils, qu'on peut effacer pour de bon. */
+      applyingRemote = true;
+      store.set([] as unknown as T[]);
+      applyingRemote = false;
+      lastPushed = new Map();
     }
   })();
 
