@@ -12,8 +12,10 @@ import { supabase } from '../../shared/supabase';
    localStorage : au rechargement, les semences de collection ne repeuplent plus
    (voir HOUSE_BLANK dans store.ts), et l'app repart vide.
 
-   La table de sauvegarde froide `import_appointments` n'est PAS concernée.
-   ⚠ Irréversible sans la sauvegarde JSON exportée au préalable. */
+   ⚠ Irréversible, et sans aucun filet côté base : les tables `import_*` qui
+   servaient de sauvegarde froide ont été retirées du schéma le 30-07-2026
+   (supabase/drop_import_tables.sql). La SEULE reprise possible est la
+   sauvegarde JSON exportée au préalable depuis cet écran. */
 
 /* Toutes les tables de COLLECTION (une ligne = un enregistrement) à vider.
    `branches` en est ABSENTE à dessein ; les tables d'auth `staff`/`staff_branches`
@@ -28,12 +30,17 @@ const WIPE_TABLES = [
   'formations', 'apprenants', 'certifications',
   'academy_applications', 'academy_enrollments',
   'salary_advances', 'attendance', 'leave_requests', 'payroll_runs',
-  /* `payments` (KkiaPay) est né le 28-07-2026, APRÈS l'écriture de cette liste :
-     il en manquait. Une « réinitialisation totale » laissait donc les paiements
-     au serveur, et l'hydratation les ramenait dans une maison censée être neuve.
-     Toute table de collection ajoutée plus tard doit venir ici — c'est le seul
-     endroit qui décide ce que « repartir à zéro » veut dire. */
-  'payments',
+  /* Ces deux-là manquaient, et pour la même raison : elles sont nées APRÈS
+     l'écriture de la liste. Une « réinitialisation totale » les laissait au
+     serveur, et l'hydratation les ramenait dans une maison censée être neuve.
+       · `payments`       — KkiaPay, 28-07-2026
+       · `push_reminders` — 53 lignes retrouvées au balayage du 30-07-2026
+     LEÇON : cette liste vieillit plus vite que le schéma. Le balayage
+     serveur (supabase/reset_server_total.sql) a donc renversé la logique —
+     il liste ce qui SURVIT et vide tout le reste, ce qui ne peut rien
+     oublier. Ici, en revanche, on est obligé d'énumérer : toute table de
+     collection ajoutée plus tard doit venir s'inscrire. */
+  'payments', 'push_reminders',
 ];
 
 /** Vide toutes les tables de données sur le serveur. Renvoie la liste des échecs

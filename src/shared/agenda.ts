@@ -77,9 +77,12 @@ bindCollection(appointmentsStore, 'appointments');
 /* EFFACEMENT VOLONTAIRE de TOUS les rendez-vous — chemin dédié qui SUPPRIME
    directement côté serveur (l'app est connectée en staff, la RLS l'autorise),
    CONTOURNANT à dessein le garde-fou anti-suppression-de-masse de la synchro
-   (fait pour bloquer les vidages ACCIDENTELS, pas les volontaires). La table de
-   sauvegarde froide `import_appointments` n'est PAS concernée.
-   ⚠ Irréversible sans sauvegarde.
+   (fait pour bloquer les vidages ACCIDENTELS, pas les volontaires).
+   ⚠ Irréversible : il n'existe PLUS de filet côté base. Les tables `import_*`,
+   zone d'atterrissage de la migration de l'ancien ERP, ont été vidées puis
+   retirées du schéma le 30-07-2026 (supabase/drop_import_tables.sql) — la copie
+   de référence de ces rendez-vous vit dans l'ancien ERP, hors de cette base.
+   Le seul filet restant est l'export JSON de Système · Paramètres.
 
    DEUX CORRECTIONS, apprises à la dure le 30-07-2026.
 
