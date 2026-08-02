@@ -1,5 +1,6 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
+import './version'; // veille de version : l'app se recharge quand un déploiement arrive
 
 /* Couche de synchronisation « offline-first ».
 

@@ -59,6 +59,11 @@ const SITES = [
   },
 ];
 
+/* EMPREINTE DE CONSTRUCTION — injectee dans le bundle ET deposee a cote de lui.
+   L'app compare les deux et se recharge quand elles divergent : c'est ce qui
+   fait qu'un deploiement atteint enfin le comptoir sans purge manuelle. */
+const BUILD_ID = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+
 const out = path.join(root, 'dist-sites');
 rmSync(out, { recursive: true, force: true });
 
@@ -67,13 +72,14 @@ for (const site of SITES) {
   execSync('npx vite build', {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, ...(site.env ?? {}) },
+    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, VITE_BUILD_ID: BUILD_ID, ...(site.env ?? {}) },
   });
   const dist = path.join(root, 'dist');
   for (const [from, to] of Object.entries(site.rename)) {
     if (existsSync(path.join(dist, from))) renameSync(path.join(dist, from), path.join(dist, to));
   }
   writeFileSync(path.join(dist, '.nojekyll'), '');
+  writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ build: BUILD_ID }));
   cpSync(dist, path.join(out, site.name), { recursive: true });
   rmSync(dist, { recursive: true, force: true });
 }
