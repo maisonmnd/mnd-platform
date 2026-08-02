@@ -3,10 +3,11 @@ import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore, type Client } from '../../../../shared/clients';
-import { useServices, type Service } from '../../../../shared/catalog';
+import { useCategories, useServices, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
-  pricingOf, personalPriceXof, isFixedPrice, MODEL_BANDS_SEED, type ModelBand,
+  pricingOf, personalPriceXof, isFixedPrice, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
+  bandSetsStore, useBandSets, type ModelBand,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
 import './finances.css';
@@ -75,9 +76,45 @@ function NumCell({
    MONTANT témoin. On édite indifféremment le coefficient OU le montant : saisir un
    montant recalcule le coefficient (montant ÷ prix de la prestation témoin). ===== */
 function BaremeModeles({ currency }: { currency: string }) {
-  const [bands] = useModelBands();
+  const [maison] = useModelBands();
+  const [sets] = useBandSets();
   const [services] = useServices();
+  const [categories] = useCategories();
+
+  /* QUEL ATELIER ON REGLE. '' = le bareme de la Maison, celui qui s'applique
+     partout ou l'atelier n'a pas le sien.
+
+     Un seul bareme pour toute la Maison ne tenait pas : une creation ne
+     progresse pas comme un resserrage. De Jumbo a Nano, le SINSIN va de x0,8 a
+     x2,2 ; le VEKPE de x0,53 a x3,33. Poser des locks fines coute du temps de
+     facon bien plus que proportionnelle. Appliquer le bareme de GBEJI a une
+     creation Nano la sous-facturerait d'un tiers. */
+  const [scope, setScope] = useState('');
+  const bands = scope ? (sets[scope] ?? MODEL_BANDS_SEED) : maison;
   const sorted = sortedBands(bands);
+
+  /* Ecrire au bon endroit : le bareme de la Maison, ou celui de l'atelier. */
+  const write = (fn: (prev: ModelBand[]) => ModelBand[]) => {
+    if (!scope) modelBandsStore.set(fn);
+    else bandSetsStore.set((prev) => ({ ...prev, [scope]: fn(prev[scope] ?? MODEL_BANDS_SEED) }));
+  };
+  const ateliers = categories.filter((c) => sets[c.id]?.length);
+  const sansBareme = categories.filter((c) => !sets[c.id]?.length);
+  /* Doter un atelier de son propre bareme : il part de celui qu'on regarde,
+     puis diverge. Retirer le bareme d'un atelier le remet sous celui de la Maison. */
+  const doter = (catId: string) => {
+    if (!catId) return;
+    const depart = catId === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : bands;
+    bandSetsStore.set((prev) => ({ ...prev, [catId]: depart.map((b) => ({ ...b })) }));
+    setScope(catId);
+  };
+  const retirer = () => {
+    if (!scope) return;
+    const nom = categories.find((c) => c.id === scope)?.fon ?? scope;
+    if (!window.confirm(`Retirer le bareme propre a ${nom} ? Cet atelier suivra de nouveau celui de la Maison.`)) return;
+    bandSetsStore.set((prev) => { const n = { ...prev }; delete n[scope]; return n; });
+    setScope('');
+  };
 
   /* Prestation témoin : celle sur laquelle on lit (et saisit) les montants. Par
      défaut, la première prestation à prix fixe qui suit le modèle. */
@@ -91,19 +128,19 @@ function BaremeModeles({ currency }: { currency: string }) {
   const refPrice = refService?.priceXof ?? 25000;
 
   const patchBand = (id: string, p: Partial<ModelBand>) =>
-    modelBandsStore.set((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
+    write((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
   const removeBand = (id: string) => {
     if (bands.length <= 1) return;
     if (!window.confirm('Retirer cette tranche du barème ?')) return;
-    modelBandsStore.set((prev) => prev.filter((b) => b.id !== id));
+    write((prev) => prev.filter((b) => b.id !== id));
   };
   const addBand = () => {
     const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
-    modelBandsStore.set((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
+    write((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
   const resetBands = () => {
     if (!window.confirm('Rétablir le barème recommandé (6 tranches) ? Vos tranches actuelles seront remplacées.')) return;
-    modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
+    write(() => (scope === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : MODEL_BANDS_SEED).map((b) => ({ ...b })));
   };
   /* Saisie d'un MONTANT → coefficient = montant ÷ prix témoin (borné ≥ 0,01). */
   const setAmount = (id: string, amount: number | null) => {
@@ -114,7 +151,10 @@ function BaremeModeles({ currency }: { currency: string }) {
   return (
     <div className="trf-panel" style={{ margin: '0 0 22px', padding: '22px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
-        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Barème des modèles · tranches de locks</div>
+        <div className="trf-panel__title" style={{ marginBottom: 0 }}>
+          Barème des modèles · tranches de locks
+          {scope && <span style={{ color: 'var(--copper-600)' }}> · {categories.find((c) => c.id === scope)?.fon ?? scope}</span>}
+        </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
           <button className="trf-act" onClick={addBand}>+ Tranche</button>
           <button
@@ -125,7 +165,52 @@ function BaremeModeles({ currency }: { currency: string }) {
           </button>
         </div>
       </div>
+      {/* LES BAREMES PAR ATELIER. Chaque atelier peut avoir le sien ; ceux qui
+          n'en ont pas suivent la Maison. C'est la seule facon de tarifer
+          honnetement deux gestes que le calibre n'affecte pas de la meme facon. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 4px' }}>
+        <button
+          type="button"
+          className={`trv-palier-chip ${scope === '' ? 'is-active' : ''}`}
+          onClick={() => setScope('')}
+        >
+          La Maison
+        </button>
+        {ateliers.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`trv-palier-chip ${scope === c.id ? 'is-active' : ''}`}
+            onClick={() => setScope(c.id)}
+          >
+            {c.fon}
+          </button>
+        ))}
+        <select
+          className="ds-select"
+          value=""
+          onChange={(e) => doter(e.target.value)}
+          style={{ maxWidth: 240, fontSize: 12 }}
+          title="Donner son propre barème à un atelier"
+        >
+          <option value="">+ Barème propre à un atelier…</option>
+          {sansBareme.map((c) => (
+            <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
+          ))}
+        </select>
+        {scope && (
+          <button
+            onClick={retirer}
+            style={{ cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            revenir au barème de la Maison
+          </button>
+        )}
+      </div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', margin: '8px 0 14px', maxWidth: 760 }}>
+        {scope
+          ? `Ce barème ne s’applique qu’aux prestations de cet atelier. Partout ailleurs, c’est celui de la Maison qui commande. `
+          : ''}
         Le modèle de la cliente (son nombre de locks, sur sa fiche) choisit sa tranche : le prix ET la durée des
         prestations qui « suivent le modèle » (interrupteur ◈ au Catalogue) sont multipliés par ses coefficients.
         Vous pouvez saisir le <b>coefficient</b> ou directement le <b>montant</b> — le montant recalcule le coefficient.
@@ -234,7 +319,8 @@ export default function JustePrix() {
 
   /* Contexte tarifaire de la cliente — sert à afficher le prix témoin de CHAQUE
      prestation pour elle (les montants de la liste se modifient selon la cliente). */
-  const pricing = useMemo(() => pricingOf(client, bands), [client, bands]);
+  const [sets] = useBandSets();
+  const pricing = useMemo(() => pricingOf(client, bands, sets), [client, bands, sets]);
 
   /* Recherche cliente — accents/casse insensibles ; filtre téléphone seulement si
      la saisie contient des chiffres. */

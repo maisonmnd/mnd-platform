@@ -13,7 +13,7 @@ import {
   type Invoice, type InvoiceLine, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
-import { useModelBands, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
@@ -188,7 +188,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   /* Contexte tarifaire de la cliente — la facture ventile chaque prestation selon
      SON prix personnalisé (le même qu'au rendez-vous), jamais le prix catalogue. */
   const [bands] = useModelBands();
-  const pricing = pricingOf(client, bands);
+  const [sets] = useBandSets();
+  const pricing = pricingOf(client, bands, sets);
   const net = apptNetXof(appt, byId);
   const deposit = appt.depositXof ?? 0;
   const alreadyPaid = appt.paidXof ?? 0;

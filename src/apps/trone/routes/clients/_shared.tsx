@@ -13,7 +13,7 @@ import { useServices, priceModeOf, type Service } from '../../../../shared/catal
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
-import { useModelBands, pricingOf, personalPriceXof, isPersonalized, bandLabel } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel } from '../../../../shared/pricing';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -446,7 +446,8 @@ export function RdvModal({
      son Juste Prix personnalisent le tarif de référence. Quand il n'y a rien à
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
-  const pricing = pricingOf(rdvClient, bands);
+  const [sets] = useBandSets();
+  const pricing = pricingOf(rdvClient, bands, sets);
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing), 0) : grossCatalogue;
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');

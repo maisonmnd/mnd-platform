@@ -51,6 +51,51 @@ export const modelBandsStore = createStore<ModelBand[]>('mnd_model_bands', MODEL
 export const useModelBands = () => useStore(modelBandsStore);
 bindDocument(modelBandsStore, 'mnd_model_bands');
 
+/** BARÈME PROPRE À VÈKPÈ™ · LA NAISSANCE.
+
+    Une création ne progresse pas comme un resserrage. Sur les tarifs v6, en
+    prenant Medium pour base :
+
+      calibre   SÍNSIN™ (GBÈJÍ)     VÈKPÈ™ (création)
+      Jumbo     ×0,8   (20 000)     ×0,53  ( 80 000)
+      Medium    ×1     (25 000)     ×1     (150 000)
+      Mini      ×1,4   (35 000)     ×1,33  (200 000)
+      Micro     ×1,8   (45 000)     ×2,33  (350 000)
+      Nano      ×2,2   (55 000)     ×3,33  (500 000)
+
+    L'écart n'est pas un détail : appliquer le barème de GBÈJÍ™ à une création
+    Nano la sous-facturerait d'un tiers. Poser des locks fines coûte du temps de
+    façon bien plus que proportionnelle ; les resserrer, non.
+
+    Les coefficients de DURÉE suivent les durées annoncées (3–4 h en Jumbo,
+    2 jours en Micro et Nano). GALAXY est extrapolé — v6 s'arrête à 600 locks. */
+export const VEKPE_BANDS_SEED: ModelBand[] = [
+  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 100, coef: 0.53, durCoef: 0.74 },
+  { id: 'cal-medium', name: 'Medium', maxLocks: 180, coef: 1, durCoef: 1 },
+  { id: 'cal-mini', name: 'Mini', maxLocks: 250, coef: 1.33, durCoef: 1.32 },
+  { id: 'cal-micro', name: 'Micro', maxLocks: 400, coef: 2.33, durCoef: 2.11 },
+  { id: 'cal-nano', name: 'Nano', maxLocks: 600, coef: 3.33, durCoef: 2.53 },
+  { id: 'cal-galaxy', name: 'Galaxy', maxLocks: null, coef: 4.2, durCoef: 3 },
+];
+
+/** LES BARÈMES PAR ATELIER — clé = identifiant de CATÉGORIE du catalogue.
+    Une catégorie absente de cette table suit le barème de la Maison
+    (`modelBandsStore`). C'est ce qui permet à VÈKPÈ™ d'avoir ses propres
+    coefficients sans que GBÈJÍ™ ni le plateau ne bougent. */
+export const bandSetsStore = createStore<Record<string, ModelBand[]>>('mnd_model_band_sets', {
+  'atl-i-vekpe': VEKPE_BANDS_SEED,
+});
+export const useBandSets = () => useStore(bandSetsStore);
+bindDocument(bandSetsStore, 'mnd_model_band_sets');
+
+/** Le barème qui s'applique à une catégorie : le sien s'il existe, sinon celui
+    de la Maison. */
+export const bandsForCategory = (
+  categoryId: string,
+  sets: Record<string, ModelBand[]>,
+  defauts: ModelBand[],
+): ModelBand[] => (sets[categoryId]?.length ? sets[categoryId] : defauts);
+
 /** Tranches triées par plafond croissant (la sans-plafond en dernier). */
 export const sortedBands = (bands: ModelBand[]): ModelBand[] =>
   [...bands].sort((a, b) => (a.maxLocks ?? Infinity) - (b.maxLocks ?? Infinity));
@@ -104,17 +149,34 @@ export const roundPrice = (x: number): number => Math.round(x / 500) * 500;
     prestations au lock comptent le nombre EXACT de locks, là où la tranche ne
     donne qu'un coefficient. Le transporter dans le contexte évite de toucher aux
     dizaines d'appels existants à `personalPriceXof`. */
-export type PersonalPricing = { band?: ModelBand; clientCoef: number; lockCount?: number };
+export type PersonalPricing = {
+  band?: ModelBand;
+  clientCoef: number;
+  lockCount?: number;
+  /** Barèmes par atelier, s'il y en a. Portés ici pour que `personalPriceXof`
+      choisisse la bonne tranche SANS que chaque appelant ait à le savoir. */
+  sets?: Record<string, ModelBand[]>;
+};
 
-/** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix. */
+/** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
+    `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
 export const pricingOf = (
   client: Pick<Client, 'lockCount' | 'priceCoef'> | undefined,
   bands: ModelBand[],
+  sets?: Record<string, ModelBand[]>,
 ): PersonalPricing => ({
   band: bandOf(client?.lockCount, bands),
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
   lockCount: client?.lockCount,
+  sets,
 });
+
+/** La tranche qui s'applique À CETTE prestation : celle de son atelier si
+    l'atelier a son barème, sinon celle de la Maison déjà calculée. */
+export const bandForService = (sv: Pick<Service, 'categoryId'>, p: PersonalPricing): ModelBand | undefined => {
+  const propre = p.sets?.[sv.categoryId];
+  return propre?.length ? bandOf(p.lockCount, propre) : p.band;
+};
 
 /** Y a-t-il quelque chose à personnaliser (modèle connu ou Juste Prix ≠ 1) ? */
 export const isPersonalized = (p: PersonalPricing): boolean => !!p.band || p.clientCoef !== 1;
@@ -155,14 +217,16 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi
      ne revient que si le Juste Prix personnel entre en jeu et produit une décimale. */
   if (auLock !== undefined) return p.clientCoef === 1 ? auLock : roundPrice(auLock * p.clientCoef);
-  const modelCoef = scalesWithModel(sv) && p.band ? p.band.coef : 1;
+  const bande = bandForService(sv, p);
+  const modelCoef = scalesWithModel(sv) && bande ? bande.coef : 1;
   return roundPrice(sv.priceXof * modelCoef * p.clientCoef);
 };
 
 /** Durée personnalisée d'une prestation — calée au quart d'heure, jamais nulle. */
 export const personalDurationMin = (sv: Service, p: PersonalPricing): number => {
   if (isFixedPrice(sv)) return sv.durationMin; // hors Juste Prix — durée catalogue
-  const c = scalesWithModel(sv) && p.band ? p.band.durCoef : 1;
+  const bande = bandForService(sv, p);
+  const c = scalesWithModel(sv) && bande ? bande.durCoef : 1;
   return Math.max(15, Math.round((sv.durationMin * c) / 15) * 15);
 };
 

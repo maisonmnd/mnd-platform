@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas, clientsStore } from '../../../../shared/clients';
 import { useCategories, useProducts, useServices, priceModeOf } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
-import { useModelBands, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
 import { vitrineConfigStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
@@ -497,7 +497,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   );
 
   /* SES prix, SA durée — le même moteur que l'app et le comptoir. */
-  const pricing = pricingOf(client, bands);
+  const [sets] = useBandSets();
+  const pricing = pricingOf(client, bands, sets);
   const priceLabel = (s: (typeof services)[number]) => {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';

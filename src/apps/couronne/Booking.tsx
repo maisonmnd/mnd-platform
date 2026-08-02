@@ -10,7 +10,7 @@ import { uid } from '../../shared/store';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { priceModeOf, type Service } from '../../shared/catalog';
-import { useModelBands, pricingOf, personalPriceXof, personalDurationMin, isPersonalized } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -98,7 +98,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* SON prix, SA durée : le modèle de la cliente (nombre de locks, barème par
      tranches) et son Juste Prix personnalisent le tarif ET le créneau. */
   const [bands] = useModelBands();
-  const pricing = pricingOf(client ?? undefined, bands);
+  /* Les barèmes par atelier : VÈKPÈ™ a les siens, la création ne progresse pas
+     comme le resserrage. */
+  const [sets] = useBandSets();
+  const pricing = pricingOf(client ?? undefined, bands, sets);
   const personalized = isPersonalized(pricing);
   const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricing), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
