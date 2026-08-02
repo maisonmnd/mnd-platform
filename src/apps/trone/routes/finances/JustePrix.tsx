@@ -388,13 +388,22 @@ export default function JustePrix() {
      × son coefficient personnel (1 par défaut, depuis que les leviers sont retirés). */
   const preview = useMemo(() => {
     if (!client || !service) return null;
-    const band = bandOf(client.lockCount, bands);
-    const modelCoef = scalesWithModel(service) && band ? band.coef : 1;
+    /* La tranche de SON atelier — pas celle de la Maison : une création ne
+       progresse pas comme un resserrage. */
+    const band = bandForService(service, pricing);
+    /* HORS CALIBRE — une création liée à un calibre ne concerne pas cette
+       cliente. Appliquer le coefficient Mini au prix du Jumbo donnait
+       « 80 000 × 1,4 = 112 000 F » : un prix qui ne correspond à rien, pour une
+       prestation qu'on ne peut de toute façon pas lui vendre. */
+    const sert = servesBand(service, band);
+    const modelCoef = sert && scalesWithModel(service) && band ? band.coef : 1;
     const clientCoef = client.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1;
-    const modelBase = roundPrice(service.priceXof * modelCoef);
-    const finalP = roundPrice(service.priceXof * modelCoef * clientCoef);
-    return { band, modelCoef, clientCoef, modelBase, finalP, lockCount: client.lockCount };
-  }, [client, service, bands]);
+    /* Le VRAI prix passe par le moteur — tarif au lock, plancher du calibre,
+       Juste Prix personnel — au lieu d'être recalculé ici de façon divergente. */
+    const finalP = sert ? personalPriceXof(service, pricing) : service.priceXof;
+    const modelBase = sert ? roundPrice(finalP / clientCoef) : service.priceXof;
+    return { band, modelCoef, clientCoef, modelBase, finalP, sert, lockCount: client.lockCount };
+  }, [client, service, pricing]);
 
   /* Coefficient personnel — remplace les leviers : facultatif, au cas par cas. */
   const [coefDraft, setCoefDraft] = useState('');
@@ -538,6 +547,14 @@ export default function JustePrix() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: preview.modelCoef !== 1 ? 6 : 0 }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Catalogue</span>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: preview.modelCoef !== 1 ? 15 : 18, color: 'var(--ink-soft)' }}>{fmtMoney(service.priceXof, currency)}</span>
+            </div>
+            {!preview.sert && (
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-600)', margin: '2px 0 8px', lineHeight: 1.5 }}>
+                Hors calibre — {client?.name} porte {preview.lockCount} locks, cette création n’existe pas pour elle.
+                Son prix reste celui du catalogue.
+              </div>
+            )}
+            <div style={{ display: 'none' }}>
             </div>
             {preview.modelCoef !== 1 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
