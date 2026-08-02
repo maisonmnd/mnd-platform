@@ -125,7 +125,13 @@ function BaremeModeles({ currency }: { currency: string }) {
   const fallback = useMemo(() => services.filter((s) => !s.hidePrice), [services]);
   const [refId, setRefId] = useState('');
   const refService = modelServices.find((s) => s.id === refId) ?? modelServices[Math.floor(modelServices.length / 2)] ?? fallback[0];
-  const refPrice = refService?.priceXof ?? 25000;
+  /* BASE DU BAREME — saisissable. La Maison cale ses coefficients sur un montant
+     ROND (100 000 F), pas sur le prix d'une prestation prise au hasard dans le
+     catalogue : c'est plus facile a lire et a discuter qu'un multiple de 22 000.
+     Vide = on retombe sur le prix de la prestation temoin, comme avant. */
+  const [refAmount, setRefAmount] = useState('');
+  const saisi = parseInt(refAmount.replace(/[^0-9]/g, ''), 10);
+  const refPrice = Number.isFinite(saisi) && saisi > 0 ? saisi : (refService?.priceXof ?? 25000);
 
   const patchBand = (id: string, p: Partial<ModelBand>) =>
     write((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
@@ -224,7 +230,19 @@ function BaremeModeles({ currency }: { currency: string }) {
               <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
             ))}
           </select>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>catalogue {fmtMoney(refPrice, currency)}</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Base du bareme</span>
+          <input
+            className="mnd-input"
+            inputMode="numeric"
+            value={refAmount}
+            onChange={(e) => setRefAmount(e.target.value)}
+            placeholder={String(refService?.priceXof ?? 100000)}
+            aria-label="Montant de base du bareme"
+            style={{ width: 120, textAlign: 'right' }}
+          />
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
+            {saisi > 0 ? `base ${fmtMoney(refPrice, currency)}` : `catalogue ${fmtMoney(refPrice, currency)}`}
+          </span>
         </div>
       )}
 
