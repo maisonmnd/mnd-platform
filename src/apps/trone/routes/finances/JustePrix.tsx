@@ -89,31 +89,57 @@ function BaremeModeles({ currency }: { currency: string }) {
      x2,2 ; le VEKPE de x0,53 a x3,33. Poser des locks fines coute du temps de
      facon bien plus que proportionnelle. Appliquer le bareme de GBEJI a une
      creation Nano la sous-facturerait d'un tiers. */
-  const [scope, setScope] = useState('');
-  const bands = scope ? (sets[scope] ?? MODEL_BANDS_SEED) : maison;
+  const bands = maison;
   const sorted = sortedBands(bands);
 
-  /* Ecrire au bon endroit : le bareme de la Maison, ou celui de l'atelier. */
-  const write = (fn: (prev: ModelBand[]) => ModelBand[]) => {
+  /* LES COLONNES DU TABLEAU — un bareme par atelier, cote a cote.
+
+     Les CALIBRES sont communs a toute la Maison : c'est la colonne vertebrale
+     de l'arborescence, « un seul langage de taille, de la naissance a
+     l'entretien ». Seuls les COEFFICIENTS changent d'un atelier a l'autre.
+     Les afficher derriere des onglets obligeait a basculer pour comparer, et a
+     ressaisir les tranches autant de fois qu'il y a d'ateliers. */
+  const colonnes = [
+    { id: '', titre: 'La Maison', bands: maison },
+    ...categories.filter((c) => sets[c.id]?.length).map((c) => ({ id: c.id, titre: c.fon, bands: sets[c.id] })),
+  ];
+
+  /* Ecrire dans le bareme d'une colonne. */
+  const write = (scope: string, fn: (prev: ModelBand[]) => ModelBand[]) => {
     if (!scope) modelBandsStore.set(fn);
     else bandSetsStore.set((prev) => ({ ...prev, [scope]: fn(prev[scope] ?? MODEL_BANDS_SEED) }));
   };
+  /* Une TRANCHE se definit une seule fois : ajouter, retirer ou deplacer une
+     borne s'applique a TOUS les baremes. Sans ca, un atelier finirait avec des
+     calibres differents des autres et le meme nombre de locks tomberait dans
+     deux tranches selon la prestation. */
+  const writeToutes = (fn: (prev: ModelBand[]) => ModelBand[]) => {
+    modelBandsStore.set(fn);
+    bandSetsStore.set((prev) => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, fn(v)])));
+  };
+  /* Le coefficient d'une tranche DANS UNE COLONNE. La tranche peut manquer d'un
+     bareme d'atelier cree avant elle : on la cree a l'identique. */
+  const coefDe = (scope: string, id: string, champ: 'coef' | 'durCoef'): number => {
+    const col = colonnes.find((c) => c.id === scope);
+    return col?.bands.find((b) => b.id === id)?.[champ] ?? 1;
+  };
+  const setCoef = (scope: string, id: string, champ: 'coef' | 'durCoef', v: number) =>
+    write(scope, (prev) => (prev.some((b) => b.id === id)
+      ? prev.map((b) => (b.id === id ? { ...b, [champ]: v } : b))
+      : [...prev, { ...(maison.find((b) => b.id === id) ?? { id, maxLocks: null, coef: 1, durCoef: 1 }), [champ]: v }]));
   const ateliers = categories.filter((c) => sets[c.id]?.length);
   const sansBareme = categories.filter((c) => !sets[c.id]?.length);
   /* Doter un atelier de son propre bareme : il part de celui qu'on regarde,
      puis diverge. Retirer le bareme d'un atelier le remet sous celui de la Maison. */
   const doter = (catId: string) => {
     if (!catId) return;
-    const depart = catId === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : bands;
+    const depart = catId === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : maison;
     bandSetsStore.set((prev) => ({ ...prev, [catId]: depart.map((b) => ({ ...b })) }));
-    setScope(catId);
   };
-  const retirer = () => {
-    if (!scope) return;
-    const nom = categories.find((c) => c.id === scope)?.fon ?? scope;
-    if (!window.confirm(`Retirer le bareme propre a ${nom} ? Cet atelier suivra de nouveau celui de la Maison.`)) return;
-    bandSetsStore.set((prev) => { const n = { ...prev }; delete n[scope]; return n; });
-    setScope('');
+  const retirer = (catId: string) => {
+    const nom = categories.find((c) => c.id === catId)?.fon ?? catId;
+    if (!window.confirm(`Retirer le barème propre à ${nom} ? Cet atelier suivra de nouveau celui de la Maison.`)) return;
+    bandSetsStore.set((prev) => { const n = { ...prev }; delete n[catId]; return n; });
   };
 
   /* Prestation témoin : celle sur laquelle on lit (et saisit) les montants. Par
@@ -134,33 +160,31 @@ function BaremeModeles({ currency }: { currency: string }) {
   const refPrice = Number.isFinite(saisi) && saisi > 0 ? saisi : (refService?.priceXof ?? 25000);
 
   const patchBand = (id: string, p: Partial<ModelBand>) =>
-    write((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
+    writeToutes((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
   const removeBand = (id: string) => {
     if (bands.length <= 1) return;
     if (!window.confirm('Retirer cette tranche du barème ?')) return;
-    write((prev) => prev.filter((b) => b.id !== id));
+    writeToutes((prev) => prev.filter((b) => b.id !== id));
   };
   const addBand = () => {
     const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
-    write((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
+    writeToutes((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
   const resetBands = () => {
     if (!window.confirm('Rétablir le barème recommandé (6 tranches) ? Vos tranches actuelles seront remplacées.')) return;
-    write(() => (scope === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : MODEL_BANDS_SEED).map((b) => ({ ...b })));
+    modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
+    bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
   };
   /* Saisie d'un MONTANT → coefficient = montant ÷ prix témoin (borné ≥ 0,01). */
-  const setAmount = (id: string, amount: number | null) => {
+  const setAmount = (scope: string, id: string, amount: number | null) => {
     if (amount == null || refPrice <= 0) return;
-    patchBand(id, { coef: Math.max(0.01, Math.round((amount / refPrice) * 100) / 100) });
+    setCoef(scope, id, 'coef', Math.max(0.01, Math.round((amount / refPrice) * 100) / 100));
   };
 
   return (
     <div className="trf-panel" style={{ margin: '0 0 22px', padding: '22px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
-        <div className="trf-panel__title" style={{ marginBottom: 0 }}>
-          Barème des modèles · tranches de locks
-          {scope && <span style={{ color: 'var(--copper-600)' }}> · {categories.find((c) => c.id === scope)?.fon ?? scope}</span>}
-        </div>
+        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Barème des modèles · tranches de locks</div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
           <button className="trf-act" onClick={addBand}>+ Tranche</button>
           <button
@@ -174,29 +198,15 @@ function BaremeModeles({ currency }: { currency: string }) {
       {/* LES BAREMES PAR ATELIER. Chaque atelier peut avoir le sien ; ceux qui
           n'en ont pas suivent la Maison. C'est la seule facon de tarifer
           honnetement deux gestes que le calibre n'affecte pas de la meme facon. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 4px' }}>
-        <button
-          type="button"
-          className={`trv-palier-chip ${scope === '' ? 'is-active' : ''}`}
-          onClick={() => setScope('')}
-        >
-          La Maison
-        </button>
-        {ateliers.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`trv-palier-chip ${scope === c.id ? 'is-active' : ''}`}
-            onClick={() => setScope(c.id)}
-          >
-            {c.fon}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 4px' }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
+          {colonnes.length} barème{colonnes.length > 1 ? 's' : ''} · calibres communs
+        </span>
         <select
-          className="ds-select"
+          className="mnd-select"
           value=""
           onChange={(e) => doter(e.target.value)}
-          style={{ maxWidth: 240, fontSize: 12 }}
+          style={{ maxWidth: 260, fontSize: 12 }}
           title="Donner son propre barème à un atelier"
         >
           <option value="">+ Barème propre à un atelier…</option>
@@ -204,19 +214,20 @@ function BaremeModeles({ currency }: { currency: string }) {
             <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
           ))}
         </select>
-        {scope && (
+        {ateliers.map((c) => (
           <button
-            onClick={retirer}
+            key={c.id}
+            onClick={() => retirer(c.id)}
             style={{ cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
           >
-            revenir au barème de la Maison
+            retirer le barème {c.fon}
           </button>
-        )}
+        ))}
       </div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', margin: '8px 0 14px', maxWidth: 760 }}>
-        {scope
-          ? `Ce barème ne s’applique qu’aux prestations de cet atelier. Partout ailleurs, c’est celui de la Maison qui commande. `
-          : ''}
+        Les tranches se définissent UNE FOIS — elles valent pour tous les barèmes. Seuls les
+        coefficients changent d’un atelier à l’autre : une création ne progresse pas comme un
+        resserrage. Un atelier sans barème propre suit celui de la Maison.{' '}
         Le modèle de la cliente (son nombre de locks, sur sa fiche) choisit sa tranche : le prix ET la durée des
         prestations qui « suivent le modèle » (interrupteur ◈ au Catalogue) sont multipliés par ses coefficients.
         Vous pouvez saisir le <b>coefficient</b> ou directement le <b>montant</b> — le montant recalcule le coefficient.
@@ -247,14 +258,27 @@ function BaremeModeles({ currency }: { currency: string }) {
       )}
 
       <div className="mnd-scroll-x">
-        <table className="tre-table" style={{ minWidth: 620 }}>
+        <table className="tre-table" style={{ minWidth: 620 + colonnes.length * 260 }}>
           <thead>
             <tr>
               <th>Tranche</th>
               <th>Jusqu’à (locks)</th>
-              <th>Coef prix</th>
-              <th>Coef durée</th>
-              <th style={{ textAlign: 'right' }}>Montant ({refService ? refService.name.split(' ')[0] : '—'})</th>
+              {colonnes.map((col) => (
+                <th key={`h-${col.id}`} colSpan={3} style={{ textAlign: 'center', borderLeft: '1px solid var(--line)' }}>
+                  {col.titre}
+                </th>
+              ))}
+              <th />
+            </tr>
+            <tr>
+              <th /><th />
+              {colonnes.map((col) => (
+                <>
+                  <th key={`c1-${col.id}`} style={{ borderLeft: '1px solid var(--line)' }}>Coef prix</th>
+                  <th key={`c2-${col.id}`}>Coef durée</th>
+                  <th key={`c3-${col.id}`} style={{ textAlign: 'right' }}>Montant</th>
+                </>
+              ))}
               <th />
             </tr>
           </thead>
@@ -268,38 +292,42 @@ function BaremeModeles({ currency }: { currency: string }) {
                     allowEmpty
                     width={92}
                     placeholder="∞"
-                    title="Vide = sans plafond (dernière tranche) — la tranche se range après validation"
+                    title="Vide = sans plafond (dernière tranche). La tranche vaut pour TOUS les barèmes."
                     ariaLabel="Plafond de la tranche (locks)"
                     onCommit={(v) => patchBand(b.id, { maxLocks: v })}
                   />
                 </td>
-                <td>
-                  <NumCell
-                    value={b.coef}
-                    decimal
-                    width={76}
-                    ariaLabel="Coefficient de prix"
-                    onCommit={(v) => { if (v != null) patchBand(b.id, { coef: v }); }}
-                  />
-                </td>
-                <td>
-                  <NumCell
-                    value={b.durCoef}
-                    decimal
-                    width={76}
-                    ariaLabel="Coefficient de durée"
-                    onCommit={(v) => { if (v != null) patchBand(b.id, { durCoef: v }); }}
-                  />
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <NumCell
-                    value={roundPrice(refPrice * b.coef)}
-                    width={104}
-                    ariaLabel="Montant pour la prestation témoin"
-                    title="Saisissez le montant voulu — le coefficient se recalcule"
-                    onCommit={(v) => setAmount(b.id, v)}
-                  />
-                </td>
+                {colonnes.map((col) => (
+                  <>
+                    <td key={`p-${col.id}-${b.id}`} style={{ borderLeft: '1px solid var(--line)' }}>
+                      <NumCell
+                        value={coefDe(col.id, b.id, 'coef')}
+                        decimal
+                        width={72}
+                        ariaLabel={`Coefficient de prix · ${col.titre}`}
+                        onCommit={(v) => { if (v != null) setCoef(col.id, b.id, 'coef', v); }}
+                      />
+                    </td>
+                    <td key={`d-${col.id}-${b.id}`}>
+                      <NumCell
+                        value={coefDe(col.id, b.id, 'durCoef')}
+                        decimal
+                        width={72}
+                        ariaLabel={`Coefficient de durée · ${col.titre}`}
+                        onCommit={(v) => { if (v != null) setCoef(col.id, b.id, 'durCoef', v); }}
+                      />
+                    </td>
+                    <td key={`m-${col.id}-${b.id}`} style={{ textAlign: 'right' }}>
+                      <NumCell
+                        value={roundPrice(refPrice * coefDe(col.id, b.id, 'coef'))}
+                        width={104}
+                        ariaLabel={`Montant · ${col.titre}`}
+                        title="Saisissez le montant voulu — le coefficient se recalcule"
+                        onCommit={(v) => setAmount(col.id, b.id, v)}
+                      />
+                    </td>
+                  </>
+                ))}
                 <td style={{ textAlign: 'right' }}>
                   <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeBand(b.id)} disabled={bands.length <= 1} title="Retirer la tranche">×</button>
                 </td>
