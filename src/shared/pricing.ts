@@ -211,8 +211,26 @@ export const perLockPriceXof = (
     Le Juste Prix de la cliente s'applique aux régimes ② et ③. */
 /** La prestation sert-elle le calibre de cette cliente ? Une création liée à un
     calibre n'existe pas ailleurs : ni plus chère, ni moins — hors sujet. */
-export const servesBand = (sv: Pick<Service, 'bandId'>, band: ModelBand | undefined): boolean =>
-  !sv.bandId || !band || sv.bandId === band.id;
+/** Le calibre auquel une prestation est LIÉE.
+
+    Explicite via `bandId`, ou DÉDUIT de ses planchers : une prestation qui n'a
+    qu'un seul plancher n'existe que dans ce calibre-là. C'est le cas des cinq
+    créations VÈKPÈ™ — un Jumbo, c'est 50 à 100 locks, au-delà il n'existe pas.
+    Le SÍNSIN™, lui, porte six planchers : il sert tous les calibres.
+
+    La déduction compte autant que le champ : le catalogue en base a été importé
+    avant que `bandId` n'existe, et attendre une migration pour que l'écran dise
+    la vérité n'avait pas de sens. */
+export const bandIdOf = (sv: Pick<Service, 'bandId' | 'priceFloors'>): string | undefined => {
+  if (sv.bandId) return sv.bandId;
+  const cles = Object.keys(sv.priceFloors ?? {});
+  return cles.length === 1 ? cles[0] : undefined;
+};
+
+export const servesBand = (sv: Pick<Service, 'bandId' | 'priceFloors'>, band: ModelBand | undefined): boolean => {
+  const lie = bandIdOf(sv);
+  return !lie || !band || lie === band.id;
+};
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
   if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
@@ -221,6 +239,7 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
      cinq créations à la fois — un prix identique du Jumbo au Nano, qui ne
      voulait rien dire. */
   const bande = bandForService(sv, p);
+  /* Hors de son calibre : prix catalogue, sans personnalisation. */
   if (!servesBand(sv, bande)) return sv.priceXof;
   const auLock = perLockPriceXof(sv, p.lockCount, bande);
   /* Pas d'arrondi au 500 sur un prix au lock non modulé : 113 locks font
