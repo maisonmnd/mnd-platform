@@ -6,7 +6,7 @@ import { useClients, clientsStore, type Client } from '../../../../shared/client
 import { useCategories, useServices, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
-  pricingOf, personalPriceXof, isFixedPrice, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
+  pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
   bandSetsStore, useBandSets, type ModelBand,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
@@ -500,12 +500,32 @@ export default function JustePrix() {
           {temoins.map((s) => {
             const pp = personalPriceXof(s, pricing);
             const changed = pp !== s.priceXof;
+            /* HORS CALIBRE — une création liée à un calibre ne concerne pas cette
+               cliente : un VÈKPÈ™ Jumbo, c'est 50 à 100 locks, au-delà il n'existe
+               pas. La griser dit la vérité ; l'afficher comme les autres laissait
+               croire qu'on pouvait la lui vendre. */
+            const sert = servesBand(s, bandForService(s, pricing));
             return (
-              <button key={s.id} className={`trf-pick ${s.id === service.id ? 'is-active--sable' : ''}`} style={{ flex: '1 1 30%' }} onClick={() => setServiceId(s.id)}>
+              <button
+                key={s.id}
+                className={`trf-pick ${s.id === service.id ? 'is-active--sable' : ''}`}
+                style={{ flex: '1 1 30%', opacity: sert ? 1 : 0.42 }}
+                onClick={() => setServiceId(s.id)}
+                title={sert ? undefined : `Hors du calibre de ${client?.name ?? 'la cliente'} — cette création ne la concerne pas`}
+              >
                 <div className="trf-pick__name">{s.name}</div>
                 <div className="trf-pick__sub">
-                  <span style={{ color: changed ? 'var(--color-indigo)' : undefined, fontWeight: changed ? 600 : undefined }}>{fmtMoney(pp, currency)}</span>
-                  {changed && <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.55 }}>{fmtMoney(s.priceXof, currency)}</span>}
+                  {sert ? (
+                    <>
+                      <span style={{ color: changed ? 'var(--color-indigo)' : undefined, fontWeight: changed ? 600 : undefined }}>{fmtMoney(pp, currency)}</span>
+                      {changed && <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.55 }}>{fmtMoney(s.priceXof, currency)}</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>hors calibre</span>
+                      <span style={{ marginLeft: 6, opacity: 0.7 }}>{fmtMoney(s.priceXof, currency)}</span>
+                    </>
+                  )}
                 </div>
               </button>
             );
