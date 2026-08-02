@@ -506,7 +506,11 @@ export default function JustePrix() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-          {temoins.map((s) => {
+          {/* SEULEMENT CE QUI LA CONCERNE. Les créations d'un autre calibre ne sont
+              pas « moins pertinentes » : elles n'existent pas pour elle. Les
+              afficher grisées entretenait la confusion — on lisait six prix pour
+              une cliente qui n'en a qu'un. */}
+          {temoins.filter((s) => servesBand(s, bandForService(s, pricing))).map((s) => {
             const pp = personalPriceXof(s, pricing);
             const changed = pp !== s.priceXof;
             /* HORS CALIBRE — une création liée à un calibre ne concerne pas cette
