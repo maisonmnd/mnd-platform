@@ -209,15 +209,25 @@ export const perLockPriceXof = (
        applique pas (il ferait double emploi et quantifierait un prix continu) ;
     ③ prix catalogue × coefficient de tranche.
     Le Juste Prix de la cliente s'applique aux régimes ② et ③. */
+/** La prestation sert-elle le calibre de cette cliente ? Une création liée à un
+    calibre n'existe pas ailleurs : ni plus chère, ni moins — hors sujet. */
+export const servesBand = (sv: Pick<Service, 'bandId'>, band: ModelBand | undefined): boolean =>
+  !sv.bandId || !band || sv.bandId === band.id;
+
 export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
   if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
-  const auLock = perLockPriceXof(sv, p.lockCount, p.band);
+  /* Hors de son calibre : on rend le prix catalogue, sans personnalisation.
+     Calculer « 200 locks × 1 100 F » sur un Jumbo donnait 220 000 F pour les
+     cinq créations à la fois — un prix identique du Jumbo au Nano, qui ne
+     voulait rien dire. */
+  const bande = bandForService(sv, p);
+  if (!servesBand(sv, bande)) return sv.priceXof;
+  const auLock = perLockPriceXof(sv, p.lockCount, bande);
   /* Pas d'arrondi au 500 sur un prix au lock non modulé : 113 locks font
      11 300 F, et l'arrondi commercial les transformerait en 11 500 F — un écart
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi
      ne revient que si le Juste Prix personnel entre en jeu et produit une décimale. */
   if (auLock !== undefined) return p.clientCoef === 1 ? auLock : roundPrice(auLock * p.clientCoef);
-  const bande = bandForService(sv, p);
   const modelCoef = scalesWithModel(sv) && bande ? bande.coef : 1;
   return roundPrice(sv.priceXof * modelCoef * p.clientCoef);
 };

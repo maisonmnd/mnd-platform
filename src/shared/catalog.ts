@@ -65,6 +65,11 @@ export type Service = {
       là où le tarif de la Maison est de 20 000 F : le temps de fauteuil ne suit
       pas le nombre de locks aussi bas. Absent = aucun plancher. */
   priceFloors?: Record<string, number>;
+  /** CALIBRE PROPRE — la prestation n'existe QUE dans cette tranche. Un VÈKPÈ™
+      Jumbo, c'est 50 à 100 locks : au-delà, ce n'est pas « plus cher », ça
+      n'existe pas. Le nombre de locks de la cliente CHOISIT la création ; il ne
+      multiplie pas un prix. Absent = la prestation sert tous les calibres. */
+  bandId?: string;
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;

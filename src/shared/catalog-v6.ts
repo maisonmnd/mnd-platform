@@ -66,6 +66,10 @@ const auLock = (b: Base, rate: number, floors: Record<string, number>, dureeMin:
   ratePerLock: rate,
   priceFloors: floors,
   scalesWithModel: true,
+  /* Un seul plancher = la prestation n'existe QUE dans ce calibre (les cinq
+     créations VÈKPÈ™). Plusieurs planchers = elle sert tous les calibres
+     (SÍNSIN™, le défaisage). */
+  ...(Object.keys(floors).length === 1 ? { bandId: Object.keys(floors)[0] } : {}),
 });
 
 /** Trois niveaux de longueur — Court · Mi-Long · Long. La fourchette du
