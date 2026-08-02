@@ -8,6 +8,8 @@ import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal } from '../../../../shared/finance';
 import { useApprenants } from '../equipe/data';
+import { splitByWeights } from '../../../../shared/pricing';
+import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
@@ -42,6 +44,9 @@ export default function Dashboard() {
   const [invoices] = useInvoices();
   const [expenses] = useExpenses();
   const [categories] = useCategories();
+  /* Index des catégories — c'est leur `maison` qui range le chiffre côté
+     Atelier ou côté Studio. */
+  const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const [apprenants] = useApprenants();
 
   const [breakOpen, setBreakOpen] = useState(false);
@@ -62,7 +67,7 @@ export default function Dashboard() {
   const prevMonth = monthKey(addDaysISO(`${thisMonth}-01`, -1));
   const prevMonthName = fromISO(`${prevMonth}-15`).toLocaleDateString('fr-FR', { month: 'long' });
 
-  const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts } = useMemo(() => {
+  const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts, revMaison } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
        On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
     /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
@@ -98,7 +103,26 @@ export default function Dashboard() {
       return { iso, total: dayRev(iso), label: fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase() };
     });
 
+    /* LE CHIFFRE PAR MAISON — Atelier MND™ / Studio ACƆ™.
+       Les deux maisons partagent une branche : ce qui les sépare est le
+       catalogue. On ventile donc LIGNE À LIGNE, jamais rendez-vous par
+       rendez-vous : sept visites portent des rituels des deux maisons, et
+       trancher pour l'une aurait basculé 209 000 F du mauvais côté.
+       Le total d'un rituel est réparti au prorata des prix catalogue, comme
+       partout ailleurs au Trône — la somme des parts égale toujours le total. */
+    const partsOf = (a: Appointment): Part[] => {
+      const total = apptTotalXof(a, byId);
+      const poids = a.serviceIds.map((id) => byId.get(id)?.priceXof ?? 0);
+      const parts = splitByWeights(total, poids);
+      return a.serviceIds.map((id, i) => ({ serviceId: id, amountXof: parts[i] }));
+    };
+    const revMaison = totalsOf(
+      realizedAppts.filter((a) => monthKey(a.date) === thisMonth),
+      partsOf, byId, catById,
+    );
+
     return {
+      revMaison,
       revenue: apptRev(thisMonth) + invRev(thisMonth) + formRev(thisMonth),
       prevRevenue: apptRev(prevMonth) + invRev(prevMonth) + formRev(prevMonth),
       spent: exp(thisMonth),
@@ -384,6 +408,30 @@ export default function Dashboard() {
       </div>
 
       {/* Tuiles secondaires */}
+      {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.
+          Une Maison qui ne vend que des locks n'a pas à lire une ligne « Studio
+          0 F » tous les matins. */}
+      {sumTotals(revMaison) > 0 && (revMaison.studio > 0 || revMaison.plateau > 0) && (
+        <div className="tr-card" style={{ marginTop: 14, padding: '14px 18px' }}>
+          <Eyebrow>Le mois, par maison</Eyebrow>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 10 }}>
+            {MAISON_BUCKETS.map((m) => (
+              <div key={m.k}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                  {m.label}
+                </div>
+                <div style={{ fontSize: 19, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(revMaison[m.k], currency)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+            Prestations du carnet, ventilées ligne à ligne. « Plateau seul » : les soins et lavages
+            vendus sans rituel d’une maison — rien ne permet de les rattacher, on ne devine pas.
+          </div>
+        </div>
+      )}
       <div className="tr-grid tr-grid--4" style={{ marginTop: 14 }}>
         {tiles.map((t) => (
           <div className="trp-tile" key={t.label}>

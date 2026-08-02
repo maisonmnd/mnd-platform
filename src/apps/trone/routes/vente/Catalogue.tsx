@@ -6,14 +6,14 @@ import { fmtMoney } from '../../../../shared/currency';
 import {
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
-  markServiceRemoved,
-  type CatalogCategory, type Service, type Product, type PriceMode,
+  markServiceRemoved, MAISONS,
+  type CatalogCategory, type Service, type Product, type PriceMode, type Maison,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, type Drill } from '../clients/_shared';
-import { scalesWithModel } from '../../../../shared/pricing';
+import { scalesWithModel, useModelBands, bandRange, sortedBands } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import './vente.css';
 
@@ -46,14 +46,29 @@ type SvcForm = {
   durationMin: string;
   sessions: number;
   master: string;
+  /* — arborescence v6 — */
+  code: string; // ATL·II·MIN·E
+  rate: string; // tarif au lock (F/lock) — vide = pas de prix au lock
+  floors: Record<string, string>; // plancher par calibre, saisi en texte
+  durationMax: string; // borne haute quand la durée s'annonce en fourchette
+  priceTo: string; // borne haute d'affichage — « de X à Y »
 };
 
 const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
+  code: '', rate: '', floors: {}, durationMax: '', priceTo: '',
 });
 
+/** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
+    une saisie vide rend undefined pour que le champ DISPARAISSE de la fiche au
+    lieu d'y écrire un zéro qui vaudrait « gratuit ». */
+const num = (s: string): number | undefined => {
+  const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
 
-type CatForm = { id: string | null; fon: string; label: string; enabled: boolean };
+
+type CatForm = { id: string | null; fon: string; label: string; enabled: boolean; maison: Maison | ''; code: string };
 
 type ProdForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
 const emptyProdForm = (categoryId: string): ProdForm => ({ id: null, categoryId, name: '', price: '', stock: '0' });
@@ -63,6 +78,9 @@ export default function Catalogue() {
   const [categories, setCategories] = useCategories();
   const [services, setServices] = useServices();
   const [products, setProducts] = useProducts();
+  /* Les calibres, triés : ils commandent la saisie des planchers du tarif au lock. */
+  const [rawBands] = useModelBands();
+  const bands = sortedBands(rawBands);
 
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
   const [catForm, setCatForm] = useState<CatForm | null>(null);
@@ -203,6 +221,30 @@ export default function Catalogue() {
   const masters = branch.masters;
   const cats = [...categories].sort((a, b) => a.order - b.order);
 
+  /* LES QUATRE ENSEMBLES DU CATALOGUE. 24 catégories à la suite, c'est un mur :
+     on ne voit plus ni le Studio ni le plateau, noyés au milieu de l'Atelier.
+     Le regroupement suit l'arborescence v6 — deux maisons, un plateau commun,
+     et l'Académie à part. L'ordre des catégories reste celui de `order` : le
+     titre d'ensemble s'insère quand on change de groupe, il ne retrie rien. */
+  const groupeDe = (c: CatalogCategory): { k: string; titre: string; sous: string } => {
+    if (c.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
+    if (c.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
+    if (c.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
+    if (c.id === 'home-rituals' || c.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Home Rituals™' };
+    return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — une même ligne, deux origines de vente' };
+  };
+  /* Replier tout un ensemble d'un geste : c'est ce qui rend les 24 catégories
+     tenables à l'écran. */
+  const toggleGroupe = (k: string) => {
+    const ids = cats.filter((c) => groupeDe(c).k === k).map((c) => c.id);
+    const tout = ids.every((id) => collapsed.has(id));
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      ids.forEach((id) => (tout ? n.delete(id) : n.add(id)));
+      return n;
+    });
+  };
+
   /* Recherche + repli — le catalogue peut être dense ; on aide à s'y retrouver.
      Une recherche déplie tout et masque les catégories sans correspondance. */
   const q = query.trim().toLowerCase();
@@ -242,10 +284,12 @@ export default function Catalogue() {
   const saveCat = () => {
     if (!catForm || !catForm.fon.trim()) return;
     if (catForm.id) {
-      setCategories((prev) => prev.map((c) => (c.id === catForm.id ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled } : c)));
+      setCategories((prev) => prev.map((c) => (c.id === catForm.id
+        ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined }
+        : c)));
     } else {
       const maxOrder = cats.reduce((m, c) => Math.max(m, c.order), 0);
-      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, order: maxOrder + 1 }]);
+      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, order: maxOrder + 1, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined }]);
     }
     setCatForm(null);
   };
@@ -305,6 +349,10 @@ export default function Catalogue() {
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
+      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '',
+      floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
+      durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
+      priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
     });
 
   const saveSvc = () => {
@@ -313,10 +361,23 @@ export default function Catalogue() {
     const dur = parseInt(svcForm.durationMin.replace(/[^0-9]/g, ''), 10) || 60;
     // `hidePrice` reste synchronisé avec le mode « devis » (front & caisse s'en servent).
     const hidePrice = svcForm.priceMode === 'devis';
+    /* Planchers : on ne garde que les calibres réellement renseignés. Un plancher
+       à 0 n'est pas « pas de plancher », c'est un prix gratuit — d'où le filtre. */
+    const floors = Object.fromEntries(
+      Object.entries(svcForm.floors).map(([k, v]) => [k, num(v)]).filter(([, v]) => v !== undefined),
+    ) as Record<string, number>;
+    const v6 = {
+      code: svcForm.code.trim() || undefined,
+      ratePerLock: num(svcForm.rate),
+      priceFloors: Object.keys(floors).length ? floors : undefined,
+      durationMaxMin: num(svcForm.durationMax),
+      priceToXof: num(svcForm.priceTo),
+    };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
         categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
         priceXof: price, priceMode: svcForm.priceMode, hidePrice, palier: svcForm.palier, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
+        ...v6,
       });
     } else {
       const maxOrder = svcOf(svcForm.categoryId).reduce((m, s) => Math.max(m, s.order), 0);
@@ -326,6 +387,7 @@ export default function Catalogue() {
           id: uid(), categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
           palier: svcForm.palier, priceXof: price, priceMode: svcForm.priceMode, hidePrice, sessions: svcForm.sessions,
           master: svcForm.master, durationMin: dur, order: maxOrder + 1, temps: [1, 1, 1, 1],
+          ...v6,
         },
       ]);
     }
@@ -380,7 +442,7 @@ export default function Catalogue() {
         sub="Segmenté par catégorie ™ et par palier d’expérience — jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
         actions={
           <>
-            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true })}>+ Catégorie</Button>
+            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '' })}>+ Catégorie</Button>
             <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>
           </>
@@ -409,6 +471,10 @@ export default function Catalogue() {
 
       {renderCats.map((cat, ci) => {
         const isOrphan = cat.id === ORPHAN_ID;
+        /* Titre d'ensemble : posé sur la PREMIÈRE catégorie du groupe. */
+        const g = isOrphan ? null : groupeDe(cat);
+        const gPrec = ci > 0 && renderCats[ci - 1].id !== ORPHAN_ID ? groupeDe(renderCats[ci - 1]).k : null;
+        const ouvreGroupe = g && g.k !== gPrec;
         const list = (isOrphan ? orphanSvcs : svcOf(cat.id)).filter(matchSvc);
         const prods = (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
@@ -418,7 +484,33 @@ export default function Catalogue() {
         /* Replié uniquement hors recherche — une recherche déplie tout. */
         const open = !q && !collapsed.has(cat.id);
         return (
-          <section key={cat.id} className="trv-catblock" style={{ opacity: cat.enabled ? 1 : 0.6 }}>
+          <div key={`w-${cat.id}`}>
+          {ouvreGroupe && g && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
+                margin: '26px 0 10px', paddingBottom: 8,
+                borderBottom: '2px solid var(--line)',
+              }}
+            >
+              <button
+                type="button"
+                className="trv-sq"
+                title="Replier ou déplier tout cet ensemble"
+                onClick={() => toggleGroupe(g.k)}
+                style={{ flex: 'none' }}
+              >
+                ⇅
+              </button>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.04em' }}>{g.titre}</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{g.sous}</span>
+              <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+                {cats.filter((c) => groupeDe(c).k === g.k).length} catégories ·{' '}
+                {services.filter((sv) => cats.some((c) => c.id === sv.categoryId && groupeDe(c).k === g.k)).length} prestations
+              </span>
+            </div>
+          )}
+          <section className="trv-catblock" style={{ opacity: cat.enabled ? 1 : 0.6 }}>
             <div className="trv-catblock__band">
               {!q && (
                 <button
@@ -453,7 +545,7 @@ export default function Catalogue() {
                     {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
                   </button>
                   <span className="trv-catblock__tools">
-                    <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled })}>
+                    <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled, maison: cat.maison ?? '', code: cat.code ?? '' })}>
                       Modifier
                     </button>
                     <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
@@ -654,6 +746,7 @@ export default function Catalogue() {
             </>
             )}
           </section>
+          </div>
         );
       })}
 
@@ -703,10 +796,61 @@ export default function Catalogue() {
                     : 'Aucun prix affiché — « sur devis ». Le montant se saisit à la prise de rendez-vous.'}
               </div>
             </Field>
+            {/* ── LE TARIF AU LOCK ──────────────────────────────────────────
+                Ce que la densité fait varier se compte lock par lock : la
+                création VÈKPÈ™, le resserrage SÍNSIN™, le démontage PLT·70.
+                Le plancher de chaque calibre empêche un petit compte de locks
+                de tomber sous le tarif de la Maison — le temps de fauteuil ne
+                descend pas aussi vite que le nombre de locks. */}
+            <Field label="Tarif au lock (F CFA par lock)">
+              <Input
+                inputMode="numeric"
+                value={svcForm.rate}
+                onChange={(e) => setSvcForm({ ...svcForm, rate: e.target.value })}
+                placeholder="Laisser vide si le prix ne dépend pas du nombre de locks"
+              />
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {svcForm.rate
+                  ? `Le prix se compte lock par lock, sans plafond. Une cliente de 250 locks paierait ${(250 * (num(svcForm.rate) ?? 0)).toLocaleString('fr-FR')} F — sauf si le plancher de son calibre est plus élevé.`
+                  : 'Vide : le prix ne suit pas la densité. C’est le cas de tout le Plateau et du Studio.'}
+              </div>
+            </Field>
+            {svcForm.rate && (
+              <Field label="Plancher par calibre — le prix ne descend jamais en dessous">
+                <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
+                  {bands.map((b) => (
+                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, width: 66, color: 'var(--ink-soft)' }}>
+                        {b.name ?? bandRange(b, bands)}
+                      </span>
+                      <Input
+                        inputMode="numeric"
+                        value={svcForm.floors[b.id] ?? ''}
+                        onChange={(e) => setSvcForm({ ...svcForm, floors: { ...svcForm.floors, [b.id]: e.target.value } })}
+                        placeholder="—"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            )}
+            <div className="tr-grid tr-grid--2">
+              <Field label="Code ERP">
+                <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
+              </Field>
+              <Field label="Prix haut affiché (facultatif)">
+                <Input inputMode="numeric" value={svcForm.priceTo} onChange={(e) => setSvcForm({ ...svcForm, priceTo: e.target.value })} placeholder="« de 15 000 à 25 000 »" />
+              </Field>
+            </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Durée (minutes)">
                 <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />
               </Field>
+              <Field label="Durée haute (facultatif)">
+                <Input inputMode="numeric" value={svcForm.durationMax} onChange={(e) => setSvcForm({ ...svcForm, durationMax: e.target.value })} placeholder="« 3h à 4h30 »" />
+              </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
               <Field label="Maître assigné">
                 <Select value={svcForm.master} onChange={(e) => setSvcForm({ ...svcForm, master: e.target.value })}>
                   {[...new Set([svcForm.master, ...masters])].filter(Boolean).map((m) => (
@@ -782,6 +926,28 @@ export default function Catalogue() {
             </Field>
             <Field label="Libellé · ce qu’elle regroupe">
               <Input value={catForm.label} onChange={(e) => setCatForm({ ...catForm, label: e.target.value })} placeholder="Ex. Pose & structure" />
+            </Field>
+            {/* LA MAISON — le catalogue du Trône est commun à toute la Maison :
+                c'est ce champ, et non la branche, qui sépare l'Atelier du Studio.
+                Sans maison, la catégorie est du PLATEAU : elle se vend des deux
+                côtés, ce que la règle 5 de l'arborescence appelle « une même
+                ligne, deux origines de vente ». */}
+            <Field label="Maison">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[{ k: '' as const, label: 'Plateau — les deux' }, ...MAISONS.map((m) => ({ k: m.k, label: m.fon }))].map((m) => (
+                  <button
+                    key={m.k || 'plateau'}
+                    type="button"
+                    className={`trv-palier-chip ${catForm.maison === m.k ? 'is-active' : ''}`}
+                    onClick={() => setCatForm({ ...catForm, maison: m.k })}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Code ERP">
+              <Input value={catForm.code} onChange={(e) => setCatForm({ ...catForm, code: e.target.value })} placeholder="ATL·II · PLT·05 · STU·A" />
             </Field>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
               <input type="checkbox" checked={catForm.enabled} onChange={(e) => setCatForm({ ...catForm, enabled: e.target.checked })} />

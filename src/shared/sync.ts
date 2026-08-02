@@ -79,6 +79,36 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
 
     let ok = true;
     if (upserts.length) {
+      /* GARDE-FOU ÉCRASEMENT de MASSE (incident du 02-08-2026 : une fenêtre
+         restée ouverte pendant un import a réécrit 175 fiches clientes par son
+         cache d'avant, effaçant 158 téléphones au passage).
+
+         Le garde-fou des suppressions ne couvrait pas ce cas : ici rien n'était
+         supprimé, tout était RÉ-ÉCRIT. Le symptôme est pourtant le même — un
+         état local périmé qui se croit la vérité.
+
+         La règle : avant une poussée massive, on demande au serveur ce qu'il
+         porte. S'il contient des lignes que ce poste n'a JAMAIS vues, c'est lui
+         qui est en avance — on abandonne la poussée et on se réaligne sur lui.
+         Une modification en masse légitime (réécriture de descriptions, import
+         local) connaît toutes les lignes du serveur et passe sans obstacle. */
+      const massif = upserts.length >= 10 && upserts.length * 4 >= prev.size;
+      if (massif) {
+        const { data: distant } = await sb.from(table).select('id,data');
+        const inconnues = (distant ?? []).filter((r) => !next.has((r as { id: string }).id));
+        if (inconnues.length) {
+          console.warn(
+            `[mnd-sync] ${table} : écrasement de masse BLOQUÉ (${upserts.length} lignes) — le serveur porte ${inconnues.length} ligne(s) que ce poste n'a jamais vues. Rien n'a été écrit ; on se réaligne sur le serveur.`,
+          );
+          const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
+          applyingRemote = true;
+          store.set(items2);
+          applyingRemote = false;
+          lastPushed = snapshot(items2);
+          syncMark.fail(table);
+          return;
+        }
+      }
       const { error } = await sb.from(table).upsert(upserts);
       if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }

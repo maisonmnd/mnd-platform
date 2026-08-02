@@ -3,3 +3,11 @@ dist/
 *.local
 .DS_Store
 dist-sites/
+
+# Fichiers d'import GÉNÉRÉS — ils portent les données personnelles des clientes
+# (noms, téléphones, e-mails, anniversaires). Ce dépôt est PUBLIC : ils n'y
+# entrent jamais. Ils se regénèrent d'une commande :
+#   node scripts/firestore-export.mjs <clé.json> <export>
+#   node scripts/import-genere.mjs <export> <catalogue-v6.json> supabase/import_v6.sql
+supabase/import_v6*.sql
+supabase/verif_clientes_intruses.sql

@@ -3,6 +3,18 @@ import { createStore, useStore } from './store';
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
 
+/** Un versement encaissé sur un rendez-vous — avance sur une séance à venir, ou
+    solde au comptoir. Une AVANCE n'honore pas le rendez-vous : le rituel reste
+    « confirmé » tant qu'il n'est pas fait, mais l'argent, lui, est bien entré. */
+export type ApptPayment = {
+  id: string;
+  amountXof: number;
+  date: string; // ISO AAAA-MM-JJ — le jour où l'argent est ENTRÉ, jamais celui du rituel
+  method?: string; // espèces · Mobile Money · carte…
+  cashbox?: string; // caisse créditée
+  note?: string;
+};
+
 export type Appointment = {
   id: string;
   branchId: string;
@@ -28,6 +40,14 @@ export type Appointment = {
       confirmés avant son introduction — on retombe alors sur la date du RDV. */
   depositConfirmedAt?: string;
   paidXof?: number; // total encaissé au salon (hors acompte) — suit les paiements partiels
+  /** JOURNAL DES VERSEMENTS — chaque règlement avec SA date. `paidXof` n'en donne
+      que la somme, et une somme ne sait pas dire quand l'argent est entré : une
+      cliente qui verse 100 000 F le 23 avril puis 300 000 F le 30 avril pour un
+      rituel du 2 mai a payé 400 000 F EN AVRIL. Sans le journal, ces 400 000 F
+      basculaient sur mai et faussaient deux mois d'un coup.
+      Quand ce journal existe, il FAIT FOI ; `paidXof` reste le repli des
+      rendez-vous d'avant (voir `apptPaidXof`). */
+  payments?: ApptPayment[];
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
       (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */
@@ -54,7 +74,39 @@ export type Appointment = {
       décompté de son allocation du cycle (voir `subServiceUsage`, equipe/data.ts).
       Ne jamais compter un RDV couvert dans le chiffre d'affaires. */
   coveredBySub?: boolean;
+  /** QUEL abonnement couvre ce rituel. Sans lui, la couverture se rattache à la
+      CLIENTE — et une cliente qui porte deux packs voit ses rendez-vous décomptés
+      deux fois, une fois sur chaque. Carolle Odoutan en portait deux simultanément
+      dans l'ancien ERP ; c'est ce qui a rendu ce champ nécessaire.
+      Il affranchit aussi le décompte des dates : un pack saisi après coup couvre
+      des séances antérieures à son enregistrement, et le lien explicite les
+      rattache quand une fenêtre de dates les aurait perdues. */
+  subId?: string;
 };
+
+/** Total réellement encaissé au salon sur un rendez-vous. Le journal fait foi dès
+    qu'il existe ; sinon on retombe sur `paidXof` — les rendez-vous d'avant le
+    journal n'ont que lui, et les ignorer effacerait leur règlement. */
+export const apptPaidXof = (a: Pick<Appointment, 'payments' | 'paidXof'>): number =>
+  a.payments?.length ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0;
+
+/** Ce qui est entré CE JOUR-LÀ sur ce rendez-vous — la brique de la recette du
+    jour et du registre des encaissements. Un rituel de mai payé d'avance en avril
+    n'apporte rien à la recette de mai : tout est déjà tombé en avril.
+    L'acompte vérifié compte lui aussi, à la date où il a été reconnu reçu. */
+export const apptCashOnDay = (a: Appointment, iso: string): number => {
+  const versements = (a.payments ?? []).filter((p) => p.date === iso).reduce((s, p) => s + (Number(p.amountXof) || 0), 0);
+  const acompte = a.depositConfirmed && (a.depositConfirmedAt ?? a.date) === iso ? Number(a.depositXof) || 0 : 0;
+  /* Sans journal, on ne sait pas dater les versements : le total tombe le jour du
+     rituel, comme avant. C'est le comportement d'origine, conservé tel quel. */
+  const sansJournal = !a.payments?.length && a.date === iso ? Number(a.paidXof) || 0 : 0;
+  return versements + acompte + sansJournal;
+};
+
+/** Reste dû sur un rendez-vous, acompte vérifié déduit. Jamais négatif : un
+    trop-perçu est un pourboire ou une erreur de saisie, pas une dette de la Maison. */
+export const apptDueXof = (a: Appointment, totalXof: number): number =>
+  Math.max(0, totalXof - apptPaidXof(a) - (a.depositConfirmed ? Number(a.depositXof) || 0 : 0));
 
 /** Date ISO à J+offset (calculée au chargement — le carnet suit le présent). */
 const dOff = (offset: number): string => {

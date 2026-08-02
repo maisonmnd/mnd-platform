@@ -79,6 +79,10 @@ export default function Carnet() {
     });
   };
 
+  /* Chiffres seulement — ce qu'attend wa.me. Un numéro vide rend '' et la
+     pastille ne s'affiche pas : mieux vaut rien qu'un lien mort. */
+  const tel = (s?: string) => String(s ?? '').replace(/\D/g, '');
+
   const renderRow = (a: Appointment) => {
     const c = clientOf(a.clientId);
     const canConfirm = a.status === 'en attente';
@@ -102,8 +106,28 @@ export default function Carnet() {
         <span className="trc-time">{a.time}</span>
         <span className="trc-carnet__client" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           {c && <Avatar client={c} size={30} />}
-          <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {c?.name ?? 'Cliente de passage'}
+          <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c?.name ?? a.clientName ?? 'Cliente de passage'}
+            </span>
+            {/* LE TÉLÉPHONE, AU CARNET. C'est ici qu'on cherche à joindre quelqu'un
+                — pour prévenir d'un retard, confirmer une venue, relancer un
+                impayé — et il n'y figurait pas : il fallait quitter le Carnet,
+                ouvrir Clientes, retrouver la fiche. Un clic ouvre WhatsApp ;
+                `stopPropagation` empêche d'ouvrir le rendez-vous au passage. */}
+            {tel(c?.phone) && (
+              <a
+                className="trc-wa"
+                href={`https://wa.me/${tel(c?.phone)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={`Écrire sur WhatsApp`}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <span className="trc-wa__num">{c?.phone}</span>
+              </a>
+            )}
           </span>
         </span>
         <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>

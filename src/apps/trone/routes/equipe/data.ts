@@ -191,17 +191,39 @@ export {
     `qty === null` = illimité (« Rituels illimités »). */
 export type PlanIncluded = { serviceId: string; qty: number | null };
 
+/** DEUX FAÇONS DE VENDRE UN ABONNEMENT, et elles ne se comptent pas pareil :
+
+    · `cycle`  — un abonnement RÉCURRENT. Le quota se recharge à chaque
+                 échéance : « 2 rituels par mois » redonne 2 le mois suivant.
+                 `priceXof` est le montant du cycle.
+    · `pack`   — un PAQUET DE CRÉDITS acheté d'un coup. « 6 GBÈZÀ™ + 6 SÍNSIN™ »
+                 vaut pour toute la durée de vie du pack, sans rechargement :
+                 une fois les 6 consommés, il est épuisé. `priceXof` est le prix
+                 total payé, et `validityDays` sa durée de vie.
+
+    Confondre les deux fausse tout le suivi : le pack annuel de Diane Djossinou,
+    lu à travers une fenêtre mensuelle, affichait 0 séance utilisée sur 6 alors
+    qu'elle les avait toutes consommées entre juin 2025 et juin 2026. */
+export type PlanMode = 'cycle' | 'pack';
+
 export type Plan = {
   id: string;
   name: string;
   tag: string;
-  priceXof: number; // mensuel
+  priceXof: number; // cycle : montant du cycle · pack : prix total du paquet
   line: string; // la promesse
   perks: string[];
   popular: boolean;
-  /** Prestations du catalogue incluses dans la formule (sélection + quota/cycle).
-      Le suivi de consommation se calcule depuis les RDV couverts (coveredBySub). */
+  /** Prestations du catalogue incluses dans la formule (sélection + quota).
+      Le suivi de consommation se calcule depuis les RDV couverts (coveredBySub).
+      En mode `pack`, `qty` est le total pour toute la vie du pack, pas par mois. */
   included?: PlanIncluded[];
+  /** Absent = `cycle`, le mode d'origine de la Maison. */
+  mode?: PlanMode;
+  /** Pack uniquement — durée de vie en jours. `null` ou absent = sans limite. */
+  validityDays?: number | null;
+  /** Remise consentie sur le prix à la carte, telle qu'annoncée à la vente. */
+  discountPct?: number;
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
@@ -290,10 +312,21 @@ export type Subscriber = {
       jamais ; il reste porté par les abonnées d'avant, en repli d'affichage. */
   sinceIso?: string;
   since: string; // hérité — « 8 mois » figé (repli si sinceIso absent)
-  status: 'active' | 'new' | 'risk' | 'churn';
+  /** `exhausted` n'existe QUE pour un pack : tous les crédits consommés. Un
+      abonnement à cycle ne s'épuise pas, il se recharge ou il se rompt. */
+  status: 'active' | 'new' | 'risk' | 'churn' | 'exhausted';
   mrrXof: number; // NORMALISÉ mensuel (annuel = montant annuel / 12) — alimente le MRR
   payments?: Payment[]; // règlements enregistrés, avec dates
   note?: string;
+  /* — pack à crédits — */
+  /** Jour d'achat du pack (ISO). C'est le début de sa fenêtre de consommation :
+      tout RDV couvert entre cette date et l'échéance décompte ses crédits. */
+  startIso?: string;
+  /** Échéance du pack (ISO). `null` = sans limite de durée. */
+  expiresIso?: string | null;
+  /** Prix TOTAL payé pour le pack — à ne pas confondre avec `mrrXof`, qui
+      normalise en mensuel pour le MRR et n'a pas de sens sur un paquet. */
+  priceXof?: number;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -350,17 +383,58 @@ export const cycleWindow = (sub: Subscriber): { start: string; end: string } => 
   return { start: addDaysFromISO(end, -cycleDays(cycle)), end };
 };
 
+/** LA FENÊTRE DE CONSOMMATION — celle dans laquelle on compte les rituels couverts.
+
+    · pack  — de l'achat à l'échéance, d'un seul tenant. Les crédits ne se
+              rechargent jamais : c'est toute la vie du pack qui compte.
+    · cycle — la fenêtre glissante de l'abonnement récurrent (cycleWindow).
+
+    Lire un pack à travers une fenêtre mensuelle est l'erreur qui vide les
+    compteurs : le pack annuel de Diane Djossinou, consommé de juin 2025 à juin
+    2026, affichait 0 sur 6 dès qu'on sortait du mois courant. Un pack sans
+    échéance court jusqu'à une borne volontairement lointaine plutôt que
+    jusqu'à « aujourd'hui » — sinon un rendez-vous PRIS D'AVANCE, déjà couvert
+    et déjà décompté au comptoir, sortirait de la fenêtre et rendrait ses
+    crédits comme s'il n'avait pas eu lieu. */
+export const subWindow = (sub: Subscriber, plan: Plan | undefined): { start: string; end: string } => {
+  if (plan?.mode !== 'pack') return cycleWindow(sub);
+  const start = sub.startIso && isoRe.test(sub.startIso) ? sub.startIso : (sub.sinceIso ?? '0000-01-01');
+  const end = sub.expiresIso && isoRe.test(sub.expiresIso) ? sub.expiresIso : '9999-12-31';
+  return { start, end };
+};
+
+/** CE RENDEZ-VOUS DÉCOMPTE-T-IL LES CRÉDITS DE CET ABONNEMENT ?
+
+    Deux façons de le rattacher, et la première prime :
+    · `subId` — le lien EXPLICITE vers un abonnement précis. Indispensable dès
+      qu'une cliente porte deux packs : sans lui, ses rendez-vous se décomptent
+      sur les deux à la fois. Et comme le lien est explicite, il se passe de la
+      fenêtre de dates — un pack saisi après coup couvre des séances antérieures
+      à son enregistrement.
+    · `clientId` + fenêtre — le repli, pour les rendez-vous d'avant ce champ.
+      La fenêtre reste indispensable là : elle est la seule chose qui empêche de
+      compter deux cycles pour un abonnement récurrent. */
+export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefined): boolean => {
+  if (!a.coveredBySub || a.status === 'annulé') return false;
+  if (a.subId) return a.subId === sub.id;
+  if (a.clientId !== sub.clientId) return false;
+  const { start, end } = subWindow(sub, plan);
+  return a.date >= start && a.date < end;
+};
+
 /** Consommation d'une prestation incluse : une ligne par prestation de la formule.
-    « Utilisée » = RDV COUVERT (coveredBySub), non annulé, daté dans la fenêtre du
-    cycle en cours et portant cette prestation. `remaining === null` = illimité. */
+    « Utilisée » = RDV COUVERT (coveredBySub), non annulé, daté dans la FENÊTRE de
+    l'abonnement — le cycle en cours pour un abonnement récurrent, toute la durée
+    de vie du paquet pour un pack à crédits. `remaining === null` = illimité.
+
+    Rien n'est stocké : le compteur se relit depuis les rendez-vous. Vérifié sur
+    les 7 abonnements repris de l'ancien ERP — 18 lignes de crédit sur 18
+    retrouvées à l'unité près, sans qu'aucun compteur ait été importé. */
 export type IncludedUsage = { serviceId: string; qty: number | null; used: number; remaining: number | null };
 export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] => {
   const inc = plan?.included ?? [];
   if (inc.length === 0) return [];
-  const { start, end } = cycleWindow(sub);
-  const mine = appts.filter(
-    (a) => a.clientId === sub.clientId && a.coveredBySub && a.status !== 'annulé' && a.date >= start && a.date < end,
-  );
+  const mine = appts.filter((a) => coversSub(a, sub, plan));
   return inc.map((i) => {
     const used = mine.filter((a) => a.serviceIds.includes(i.serviceId)).length;
     return { serviceId: i.serviceId, qty: i.qty, used, remaining: i.qty === null ? null : Math.max(0, i.qty - used) };
@@ -376,10 +450,8 @@ export const coveredRemaining = (
   const i = plan?.included?.find((x) => x.serviceId === serviceId);
   if (!i) return undefined;
   if (i.qty === null) return null;
-  const { start, end } = cycleWindow(sub);
   const used = appts.filter(
-    (a) => a.id !== excludeApptId && a.clientId === sub.clientId && a.coveredBySub && a.status !== 'annulé'
-      && a.serviceIds.includes(serviceId) && a.date >= start && a.date < end,
+    (a) => a.id !== excludeApptId && a.serviceIds.includes(serviceId) && coversSub(a, sub, plan),
   ).length;
   return Math.max(0, i.qty - used);
 };

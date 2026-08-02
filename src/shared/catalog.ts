@@ -4,13 +4,34 @@ import { createStore, useStore, HOUSE_BLANK } from './store';
    Chaque catégorie porte un nom fon (marque déposée) + un descripteur français.
    La visibilité front (Vitrine / Ma Couronne) respecte `enabled` + vitrineConfig. */
 
+/** Les deux maisons de l'arborescence v6. Une catégorie SANS maison est du
+    PLATEAU TECHNIQUE : « une même ligne, deux origines de vente » (règle 5) —
+    un DÀNDÀN™ se vend aussi bien après un rituel de locks qu'après une pose Studio.
+    Le catalogue du Trône est commun à toute la Maison (voir 0001_init.sql) : c'est
+    donc ce champ, et non la branche, qui sépare les deux maisons à l'écran. */
+export type Maison = 'atelier' | 'studio';
+
+export const MAISONS: { k: Maison; fon: string; label: string }[] = [
+  { k: 'atelier', fon: 'ATELIER MND™', label: 'Les locks exclusivement' },
+  { k: 'studio', fon: 'STUDIO MND · ACƆ™', label: 'Le cheveu afro dans tous ses styles' },
+];
+
 export type CatalogCategory = {
   id: string;
   fon: string; // VÈKPÈ™, SÍNSIN™…
   label: string; // descripteur français
   enabled: boolean; // visible côté front (Vitrine / Ma Couronne)
   order: number;
+  /** Maison d'appartenance. Absent = plateau technique, commun aux deux. */
+  maison?: Maison;
+  /** Code ERP de l'atelier ou de l'axe — `ATL·I`, `PLT·05`, `STU·A`. */
+  code?: string;
 };
+
+/** Les catégories d'une maison : les siennes ET le plateau, qui n'appartient à
+    aucune des deux mais se vend depuis les deux. */
+export const categoriesOfMaison = (cats: CatalogCategory[], m: Maison): CatalogCategory[] =>
+  cats.filter((c) => c.maison === m || !c.maison);
 
 /** Comment le prix d'une prestation est annoncé :
     · fixe     — un prix ferme, facturé tel quel ;
@@ -29,6 +50,31 @@ export type Service = {
   hidePrice: boolean;
   priceMode?: PriceMode; // défaut dérivé de hidePrice (voir priceModeOf)
   sessions: number; // nombre de séances
+  /** TARIF AU LOCK — le prix se compte lock par lock : `lockCount × ratePerLock`.
+      SANS plancher ni plafond : vérifié sur les rendez-vous de l'ancien ERP, où
+      335 locks se facturent 33 500 F et 455 locks 500 500 F, très au-delà du prix
+      « affiché ». Repris tel quel — SÍNSIN à 100 F/lock, VÈKPÈ à 1 100 F/lock.
+      Le barème par tranches (`mnd_model_bands`) ne sait pas faire ça : il rend un
+      prix CONSTANT à l'intérieur d'une tranche, ce qui écarterait jusqu'à 110 000 F
+      sur une création. Quand ce champ est posé, il PRIME sur le coefficient de
+      tranche ; le Juste Prix de la cliente s'applique ensuite, comme partout. */
+  ratePerLock?: number;
+  /** PLANCHER PAR CALIBRE — le prix au lock ne descend jamais sous le tarif du
+      calibre. Clé = identifiant de tranche (`cal-jumbo`, `cal-mini`…), valeur =
+      prix ferme en F CFA. Sans plancher, un Jumbo à 60 locks tomberait à 6 000 F
+      là où le tarif de la Maison est de 20 000 F : le temps de fauteuil ne suit
+      pas le nombre de locks aussi bas. Absent = aucun plancher. */
+  priceFloors?: Record<string, number>;
+  /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
+      aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
+  priceToXof?: number;
+  /** Code ERP de l'arborescence v6 — `ATL·II·MIN·E`, `PLT·05·SIG`, `STU·A·NUA·F`.
+      Codage MAISON·CATÉGORIE·VARIANTE : c'est lui qu'on lit sur une facture et
+      qu'on cherche à la caisse, jamais l'identifiant technique. */
+  code?: string;
+  /** Durée haute quand la prestation en annonce une fourchette (« 3h à 4h30 ») ;
+      `durationMin` porte alors la borne basse. Absent = durée ferme. */
+  durationMaxMin?: number;
   master: string; // maître assigné
   durationMin: number;
   order: number;
@@ -62,14 +108,51 @@ export type Product = {
   order: number;
 };
 
+/* L'ARBORESCENCE v6 — deux maisons, quatre ateliers, trois axes Studio, et entre
+   les deux un plateau technique qui n'appartient à personne et se vend des deux
+   côtés. L'ordre suit le document : le diagnostic ouvre, le plateau relie, le
+   Studio ferme. */
 export const CATEGORIES_SEED: CatalogCategory[] = [
-  { id: 'doto', fon: 'ÐÓTÓ™', label: 'Consultation & conseil', enabled: true, order: 0 },
-  { id: 'vekpe', fon: 'VÈKPÈ™', label: 'Création de couronne', enabled: true, order: 1 },
-  { id: 'sinsin', fon: 'SÍNSIN™', label: 'Entretien & resserrage', enabled: true, order: 2 },
-  { id: 'finfin', fon: 'FÍNFÍN™', label: 'Soin profond & rituel', enabled: true, order: 3 },
-  { id: 'gbeza', fon: 'GBÈZÀ™', label: 'Coiffure & style', enabled: true, order: 4 },
-  { id: 'agbo', fon: 'ÀGBÓ™', label: 'Restauration & SOS', enabled: true, order: 5 },
-  { id: 'dodo', fon: 'DÒDÒ™', label: 'Gamme & produits', enabled: true, order: 6 },
+  /* ─── Maison 1 · ATELIER MND™ — les locks exclusivement ─── */
+  { id: 'koko', code: 'KOKO', fon: 'KÒKÒ™', label: 'Le Diagnostic', maison: 'atelier', enabled: true, order: 0 },
+  { id: 'atl-i-vekpe', code: 'ATL·I', fon: 'VÈKPÈ™', label: 'La Naissance', maison: 'atelier', enabled: true, order: 1 },
+  { id: 'atl-ii-gbeji', code: 'ATL·II', fon: 'GBÈJÍ™', label: 'La Vie', maison: 'atelier', enabled: true, order: 2 },
+  { id: 'atl-iii-yekpe', code: 'ATL·III', fon: 'YÈKPÈ™', label: 'La Lumière', maison: 'atelier', enabled: true, order: 3 },
+  { id: 'atl-iv-finfin', code: 'ATL·IV', fon: 'FÍNFÍN™', label: 'La Renaissance', maison: 'atelier', enabled: true, order: 4 },
+
+  /* ─── Le PLATEAU TECHNIQUE — sans maison : commun aux deux (règle 5) ─── */
+  { id: 'plt-05', code: 'PLT·05', fon: 'KLƆKLƆ™', label: 'Le Lavage Rituel', enabled: true, order: 10 },
+  { id: 'plt-10', code: 'PLT·10', fon: 'DÀNDÀN™', label: 'Le Soin Hydratant', enabled: true, order: 11 },
+  { id: 'plt-20', code: 'PLT·20', fon: 'WÈWÈ™', label: 'La Purification', enabled: true, order: 12 },
+  { id: 'plt-30', code: 'PLT·30', fon: 'VÍVÍVÓ™', label: "L'Activateur de Pousse", enabled: true, order: 13 },
+  { id: 'plt-40', code: 'PLT·40', fon: 'GBÌGBÌ™ Module', label: 'Soin Reconstruction', enabled: true, order: 14 },
+  /* PLT·45 — l'acte INVERSE de VÈKPÈ™ : on défait ce que la création a posé.
+     Le ranger sous VÈKPÈ™ (« La Naissance ») était un contresens. */
+  { id: 'plt-45', code: 'PLT·45', fon: 'GBÀTÀ™', label: 'Le Défaisage', enabled: true, order: 15 },
+  { id: 'plt-50', code: 'PLT·50', fon: 'Styling & Coiffures Signature', label: 'Les livrables physiques', enabled: true, order: 16 },
+  /* PLT·55 — la reprise PARTIELLE du contour, absente du document v6 mais vendue
+     5 fois dans l'ancien ERP. Créée sur décision de la Maison. */
+  { id: 'plt-55', code: 'PLT·55', fon: 'La Reprise Frontale', label: 'Reprise partielle du contour', enabled: true, order: 17 },
+  { id: 'plt-60', code: 'PLT·60', fon: 'Combinaisons officielles', label: 'Lignes autonomes à prix propre', enabled: true, order: 18 },
+  { id: 'plt-70', code: 'PLT·70', fon: 'SOINS ANNEXES', label: 'Beauté & Bien-être', enabled: true, order: 19 },
+  { id: 'sup', code: 'SUP', fon: 'Préparation & Suppléments', label: 'Prélude, démontage, essais', enabled: true, order: 20 },
+  /* DDS — la règle 6 : un produit apporté par la cliente ne supprime jamais la
+     facturation, il déclenche le prix du GESTE. Le droit de service REMPLACE le
+     prix produit, il ne s'y ajoute pas. */
+  { id: 'dds', code: 'DDS', fon: 'DROIT DE SERVICE', label: 'Produits apportés par la cliente', enabled: true, order: 21 },
+
+  /* ─── PILIER 3 · MND ACADÉMIE — la transmission ─── */
+  { id: 'aca-ini', code: 'ACA·INI', fon: "L'INITIÉE", label: 'Particuliers · entretenir ses propres locks', enabled: true, order: 25 },
+  { id: 'aca-pro', code: 'ACA·PRO', fon: 'LA PROFESSIONNELLE', label: 'Cursus certifiant', enabled: true, order: 26 },
+
+  /* ─── LA GAMME — produits, communs aux deux maisons ─── */
+  { id: 'home-rituals', code: 'HR', fon: 'HOME RITUALS™', label: 'Le soin à la maison', enabled: true, order: 30 },
+  { id: 'meches', code: 'MCH', fon: 'Mèches & Extensions', label: 'Naturelles et synthétiques', enabled: true, order: 31 },
+
+  /* ─── Maison 2 · STUDIO MND · ACƆ™ — ne touche jamais aux locks ─── */
+  { id: 'stu-a', code: 'STU·A', fon: 'COIFFER', label: 'Les Couronnes Tressées', maison: 'studio', enabled: true, order: 20 },
+  { id: 'stu-b', code: 'STU·B', fon: 'RÉVÉLER', label: 'Le Cheveu Naturel Libre', maison: 'studio', enabled: true, order: 21 },
+  { id: 'stu-c', code: 'STU·C', fon: 'SUBLIMER', label: 'Les Grands Jours', maison: 'studio', enabled: true, order: 22 },
 ];
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
