@@ -5,6 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { useCategories, MAISONS, type Maison } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
@@ -20,12 +21,14 @@ export default function Carnet() {
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
+  const [categories] = useCategories();
   const today = todayISO();
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [maison, setMaison] = useState<Maison | ''>('');
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
   useEffect(() => {
@@ -43,7 +46,18 @@ export default function Carnet() {
        le RDV sert de repli pour les têtes de passage sans fiche. */
     const qn = normName(query);
     const nameOf = (a: Appointment) => clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? '';
-    const match = (a: Appointment) => qn === '' || normName(nameOf(a)).includes(qn);
+    /* LA MAISON D'UN RENDEZ-VOUS NE SE STOCKE PAS — elle se lit des prestations.
+       L'Atelier MND™ et le Studio ACƆ™ partagent une branche, une caisse et un
+       plateau : seul le geste les distingue. Une visite mixte (un resserrage
+       PUIS des tresses) appartient donc aux deux, et se montre sous les deux
+       filtres — la couper en deux fabriquerait un rendez-vous qui n'a pas eu
+       lieu. Les prestations du plateau technique, qui n'ont pas de maison, ne
+       tranchent rien : elles ne suffisent pas à ranger une visite d'un côté. */
+    const maisonDe = (sid: string) => categories.find((c) => c.id === byId.get(sid)?.categoryId)?.maison;
+    const estDeLaMaison = (a: Appointment) =>
+      maison === '' || a.serviceIds.some((sid) => maisonDe(sid) === maison);
+    const match = (a: Appointment) =>
+      (qn === '' || normName(nameOf(a)).includes(qn)) && estDeLaMaison(a);
     const upcoming = appts
       .filter((a) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé' && match(a))
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
@@ -51,7 +65,7 @@ export default function Carnet() {
       .filter((a) => !(a.date >= today && a.status !== 'honoré' && a.status !== 'annulé') && match(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past };
-  }, [appts, today, query, clients]);
+  }, [appts, today, query, clients, maison, categories, byId]);
 
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
@@ -234,6 +248,39 @@ export default function Carnet() {
             placeholder="Rechercher un rendez-vous par cliente…"
             aria-label="Rechercher un rendez-vous par cliente"
           />
+        </div>
+        {/* LA BASCULE DES DEUX MAISONS. Le 3 août 2026, un rendez-vous du
+            Studio saisi depuis l'Atelier restait introuvable : il était au bon
+            endroit — une seule branche — mais rien ne permettait de le
+            retrouver par sa maison. */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} role="group" aria-label="Filtrer par maison">
+          {([['', 'Tout'], ...MAISONS.map((m) => [m.k, m.fon] as const)] as ReadonlyArray<readonly [string, string]>).map(
+            ([id, label]) => {
+              const actif = maison === id;
+              return (
+                <button
+                  key={id || 'tout'}
+                  type="button"
+                  onClick={() => setMaison(id as Maison | '')}
+                  aria-pressed={actif}
+                  style={{
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 11.5,
+                    letterSpacing: '.04em',
+                    padding: '7px 13px',
+                    borderRadius: 999,
+                    whiteSpace: 'nowrap',
+                    border: `1px solid ${actif ? 'var(--copper-600)' : 'var(--line)'}`,
+                    background: actif ? 'var(--copper-600)' : 'transparent',
+                    color: actif ? '#fff' : 'var(--ink-soft)',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            },
+          )}
         </div>
       </div>
 
