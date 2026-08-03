@@ -10,7 +10,7 @@ import { uid } from '../../shared/store';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { priceModeOf, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, servesBand, bandForService } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -133,9 +133,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + personalPriceXof(s, pricing), 0) * (1 - discountPct / 100),
   );
 
+  /* CE QUI LA CONCERNE, ELLE. Les créations existent en cinq versions, une par
+     calibre : montrer les cinq à une cliente dont on connaît le modèle ne lui
+     donne pas le choix, ça lui donne l'occasion de réserver le mauvais. On ne
+     retient donc que les prestations de SON calibre — et tant qu'elle n'a pas
+     de modèle au dossier, `servesBand` laisse tout passer, comme avant.
+
+     `selected` (plus haut) lit toujours le catalogue entier : une prestation
+     déjà choisie ne doit pas s'évaporer d'un panier parce que le modèle a
+     changé entre-temps. */
+  const offre = services.filter((s) => servesBand(s, bandForService(s, pricing)));
+
   /* Catégories réservables : au moins une prestation visible. */
-  const bookableCats = cats.filter((c) => services.some((s) => s.categoryId === c.id));
-  const catServices = services.filter((s) => s.categoryId === catId);
+  const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id));
+  const catServices = offre.filter((s) => s.categoryId === catId);
   const stepServices = catServices.filter((s) => s.palier === palier);
 
   const toggleService = (id: string) =>
@@ -401,7 +412,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     /* Un seul palier peuplé → on saute l'étape : « Fondation/Élévation/
                        Souveraineté » est notre taxonomie, pas un choix que la cliente
                        doit deviner quand il n'y a rien à choisir. */
-                    const paliers = [...new Set(services.filter((s) => s.categoryId === c.id).map((s) => s.palier))];
+                    const paliers = [...new Set(offre.filter((s) => s.categoryId === c.id).map((s) => s.palier))];
                     setCatId(c.id); setSelectedIds([]);
                     if (paliers.length === 1) { setPalier(paliers[0]); setStep(2); }
                     else { setPalier(null); setStep(1); }

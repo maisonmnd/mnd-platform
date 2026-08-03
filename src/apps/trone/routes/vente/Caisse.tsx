@@ -10,6 +10,9 @@ import { useCategories, useServices, useProducts, priceModeOf, type PriceMode } 
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
+import {
+  useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService,
+} from '../../../../shared/pricing';
 import { ClientPicker } from '../clients/_shared';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -60,6 +63,8 @@ export default function Caisse() {
   const [products] = useProducts();
   const [formations] = useFormations();
   const [clients] = useClients();
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
   const [families] = useFamilies();
   const [credits] = useCredits();
   const [invoices, setInvoices] = useInvoices();
@@ -113,15 +118,37 @@ export default function Caisse() {
 
   /* — l'offre, groupée par catégorie ™ — */
   const groups = useMemo(() => {
+    /* LE COMPTOIR PARLE À UNE TÊTE, PAS AU CATALOGUE. Tant qu'aucune cliente
+       n'est choisie, `pricing` est neutre : tout s'affiche au prix catalogue,
+       comme avant. Dès qu'une tête est au comptoir, deux choses changent —
+
+       1. LE PRIX EST LE SIEN. Un resserrage à 100 F le lock ne coûte pas la
+          même chose à 113 locks qu'à 195 ; afficher « dès 35 000 F » à quelqu'un
+          dont le prix est calculable, c'est faire ressaisir un montant qu'on
+          connaît, et se tromper un jour sur deux.
+       2. ON NE PROPOSE QUE SON CALIBRE. Les créations VÈKPÈ™ existent en cinq
+          versions, une par calibre, au même prix affiché : les cinq côte à côte
+          n'offrent aucun choix, seulement l'occasion d'encaisser la mauvaise. */
+    const cliente = clients.find((c) => c.id === clientId);
+    const pricing = pricingOf(cliente, bands, sets);
+    const offre = services.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
     const cats = [...categories].sort((a, b) => a.order - b.order);
     const knownCats = new Set(cats.map((c) => c.id));
     type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode };
-    const toItem = (s: typeof services[number]): CaisseItem => ({ key: `s:${s.id}`, n: s.name, priceXof: s.priceXof, kind: 'service' as const, mode: priceModeOf(s) });
+    const toItem = (s: typeof services[number]): CaisseItem => ({
+      key: `s:${s.id}`,
+      n: s.name,
+      priceXof: personalPriceXof(s, pricing),
+      kind: 'service' as const,
+      /* Un tarif au lock CESSE d'être « variable » dès qu'on connaît le nombre
+         de locks : le montant est exact, il n'a plus à s'annoncer « dès ». */
+      mode: s.ratePerLock && pricing.lockCount ? ('fixe' as const) : priceModeOf(s),
+    });
     const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({
         key: cat.id,
         label: `${cat.fon} · ${cat.label}`,
-        items: services
+        items: offre
           .filter((s) => s.categoryId === cat.id)
           .sort((a, b) => a.order - b.order)
           .map(toItem),
@@ -129,7 +156,7 @@ export default function Caisse() {
       .filter((g) => g.items.length > 0);
     /* Prestation dont la catégorie est absente ou pas encore chargée : elle
        apparaît quand même en caisse (« Autres prestations ») — jamais perdue. */
-    const orphans = services.filter((s) => !knownCats.has(s.categoryId)).sort((a, b) => a.order - b.order).map(toItem);
+    const orphans = offre.filter((s) => !knownCats.has(s.categoryId)).sort((a, b) => a.order - b.order).map(toItem);
     if (orphans.length) gs.push({ key: 'autres', label: 'Autres prestations', items: orphans });
     const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const, mode: 'fixe' as const }));
     if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', items: prods });
@@ -138,7 +165,7 @@ export default function Caisse() {
       .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
     if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
     return gs;
-  }, [categories, services, products, formations]);
+  }, [categories, services, products, formations, clients, clientId, bands, sets]);
 
   const flat = useMemo(() => {
     const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode }> = {};
