@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore, type Client } from '../../../../shared/clients';
 import { useCategories, useServices, type Service } from '../../../../shared/catalog';
-import {
+import { tarifModeOf,
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
   pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
   bandSetsStore, useBandSets, type ModelBand,
@@ -158,6 +158,14 @@ function BaremeModeles({ currency }: { currency: string }) {
   const [refAmount, setRefAmount] = useState('');
   const saisi = parseInt(refAmount.replace(/[^0-9]/g, ''), 10);
   const refPrice = Number.isFinite(saisi) && saisi > 0 ? saisi : (refService?.priceXof ?? 25000);
+  /* LE COEFFICIENT EST-IL SEULEMENT UTILISE ? Une prestation qui porte un tarif
+     au lock ou des planchers par calibre tire son prix du Catalogue : le
+     coefficient du bareme ne la touche pas. Le montant de la colonne reste une
+     indication de bareme, pas le prix que paiera la cliente — et l'ecran doit
+     le dire, sinon on edite un levier qui ne commande rien. */
+  const coefUtile = !!refService
+    && !refService.ratePerLock
+    && !Object.keys(refService.priceFloors ?? {}).length;
 
   const patchBand = (id: string, p: Partial<ModelBand>) =>
     writeToutes((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
@@ -253,6 +261,13 @@ function BaremeModeles({ currency }: { currency: string }) {
           />
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
             {saisi > 0 ? `base ${fmtMoney(refPrice, currency)}` : `catalogue ${fmtMoney(refPrice, currency)}`}
+            {!coefUtile && (
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 5, lineHeight: 1.55, maxWidth: 420 }}>
+                Cette prestation est pilotée par son <strong style={{ fontWeight: 500 }}>tarif au lock</strong> ou ses
+                <strong style={{ fontWeight: 500 }}> planchers par calibre</strong>, réglés au Catalogue. Le coefficient
+                ci-dessous ne change pas son prix — les montants affichés ne sont qu'une lecture du barème.
+              </div>
+            )}
           </span>
         </div>
       )}
@@ -274,7 +289,13 @@ function BaremeModeles({ currency }: { currency: string }) {
               <th /><th />
               {colonnes.map((col) => (
                 <>
-                  <th key={`c1-${col.id}`} style={{ borderLeft: '1px solid var(--line)' }}>Coef prix</th>
+                  <th
+                    key={`c1-${col.id}`}
+                    style={{ borderLeft: '1px solid var(--line)', opacity: coefUtile ? 1 : 0.4 }}
+                    title={coefUtile ? undefined : 'Sans effet sur la prestation témoin choisie — son prix vient du Catalogue'}
+                  >
+                    Coef prix
+                  </th>
                   <th key={`c2-${col.id}`}>Coef durée</th>
                   <th key={`c3-${col.id}`} style={{ textAlign: 'right' }}>Montant</th>
                 </>
@@ -402,7 +423,21 @@ export default function JustePrix() {
        Juste Prix personnel — au lieu d'être recalculé ici de façon divergente. */
     const finalP = sert ? personalPriceXof(service, pricing) : service.priceXof;
     const modelBase = sert ? roundPrice(finalP / clientCoef) : service.priceXof;
-    return { band, modelCoef, clientCoef, modelBase, finalP, sert, lockCount: client.lockCount };
+    /* CE QUI PILOTE REELLEMENT LE PRIX. L'ecran annoncait « (×2,5) » sur une
+       prestation dont le prix vient de son plancher : 20 000 × 2,5 ne fait pas
+       55 000, et la ligne justifiait le bon montant par le mauvais mecanisme.
+       Pour toute prestation portant un tarif au lock ou des planchers, le
+       coefficient du bareme est inerte — c'est le Catalogue qui commande. */
+    const mode = tarifModeOf(service);
+    const auLockBrut = service.ratePerLock && client.lockCount ? client.lockCount * service.ratePerLock : undefined;
+    const plancher = band ? service.priceFloors?.[band.id] : undefined;
+    const pilote: 'coef' | 'lock' | 'plancher' =
+      !sert || (!auLockBrut && plancher === undefined) ? 'coef'
+        : mode === 'calibre' && plancher !== undefined ? 'plancher'
+          : plancher !== undefined && (auLockBrut ?? 0) < plancher && mode !== 'lock' ? 'plancher'
+            : 'lock';
+    return { band, modelCoef, clientCoef, modelBase, finalP, sert, lockCount: client.lockCount,
+             pilote, auLockBrut, plancher };
   }, [client, service, pricing]);
 
   /* Coefficient personnel — remplace les leviers : facultatif, au cas par cas. */
@@ -560,12 +595,34 @@ export default function JustePrix() {
             )}
             <div style={{ display: 'none' }}>
             </div>
-            {preview.modelCoef !== 1 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
-                  Modèle · {preview.lockCount} locks{preview.band ? ` · ${bandLabel(preview.band, bands)} (×${preview.band.coef})` : ''}
-                </span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{fmtMoney(preview.modelBase, currency)}</span>
+            {(preview.modelCoef !== 1 || preview.pilote !== 'coef') && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    Modèle · {preview.lockCount} locks{preview.band ? ` · ${bandLabel(preview.band, bands)}` : ''}
+                    {preview.pilote === 'coef' && preview.band ? ` (×${preview.band.coef})` : ''}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{fmtMoney(preview.modelBase, currency)}</span>
+                </div>
+                {preview.pilote !== 'coef' && (
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.6 }}>
+                    {preview.auLockBrut !== undefined && (
+                      <div>
+                        au lock · {preview.lockCount} × {fmtMoney(service?.ratePerLock ?? 0, currency)} = {fmtMoney(preview.auLockBrut, currency)}
+                        {preview.pilote === 'lock' ? ' — retenu' : ''}
+                      </div>
+                    )}
+                    {preview.plancher !== undefined && (
+                      <div>
+                        plancher {preview.band ? bandLabel(preview.band, bands) : ''} = {fmtMoney(preview.plancher, currency)}
+                        {preview.pilote === 'plancher' ? ' — retenu' : ''}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 3 }}>
+                      Ce prix vient du Catalogue, pas du coefficient du barème.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {preview.clientCoef !== 1 && (
