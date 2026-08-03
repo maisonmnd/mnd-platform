@@ -130,13 +130,18 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       }
     }
     if (ok) syncMark.ok(table); else syncMark.fail(table);
+    return ok;
   };
 
   // 1. Hydratation (ou amorçage de la semence).
   void (async () => {
     const { data, error } = await sb.from(table).select('id,data');
     if (error) {
+      /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
+         sur un poste qui travaillait en realite sur son seul cache local — table
+         absente, RLS, reseau au demarrage. */
       console.warn(`[mnd-sync] ${table} hydrate:`, error.message);
+      syncMark.fail(table);
       return;
     }
     if (data && data.length) {
@@ -191,6 +196,14 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     applyingRemote = false;
     lastPushed = next;
   };
+  /* RETOUR DU RESEAU : on relance une poussee. Sans cela, les ecritures faites
+     hors ligne attendaient qu'on les re-modifie a la main pour repartir. */
+  window.addEventListener('online', () => {
+    const items = store.get();
+    void pushDiff(lastPushed, snapshot(items), items).then((ok) => {
+      if (ok) lastPushed = snapshot(store.get());
+    });
+  });
   window.addEventListener('focus', () => void refetch());
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void refetch();
@@ -209,11 +222,22 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     syncMark.dirty(table);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
+      /* `timer` DOIT etre libere ici. Il n'etait jusqu'ici que `clearTimeout`e,
+         jamais remis a undefined : le garde `if (timer) return` de refetch()
+         restait donc vrai a vie des la premiere ecriture locale de la session,
+         et TOUS les rattrapages — focus, retour d'onglet, changement de session —
+         sortaient sans rien faire. Le filet de fraicheur n'existait plus. */
+      timer = undefined;
       const items = store.get();
       const next = snapshot(items);
       const prev = lastPushed;
-      lastPushed = next;
-      void pushDiff(prev, next, items);
+      /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
+         poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
+         diff futur : l'ecriture etait perdue sans retour possible, et le
+         rechargement suivant l'effacait. */
+      void pushDiff(prev, next, items).then((ok) => {
+        if (ok) lastPushed = next;
+      });
     }, PUSH_DEBOUNCE_MS);
   });
 

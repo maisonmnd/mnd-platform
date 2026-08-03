@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
+import { useApprenants } from '../equipe/data';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
@@ -50,11 +51,19 @@ function relSeen(iso: string): string {
   return `il y a ${d} j`;
 }
 
+
+/* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → jour ISO comparable. */
+const payISOLocal = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
+};
+
 export default function Analytics() {
   const { branch, branches, currency } = useBranch();
   const [appointments] = useAppointments();
   const [invoices] = useInvoices();
   const [clients] = useClients();
+  const [apprenants] = useApprenants();
   const [categories] = useCategories();
   const [queue] = useStore(consultationsQueueStore);
   const [sessions] = useClientSessions();
@@ -107,7 +116,16 @@ export default function Analytics() {
     const revRit = honored
       .filter((a) => !a.invoiceId)
       .reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const revenue = revInv + revRit;
+    /* LES REGLEMENTS DE FORMATION SONT DU REVENU. La Synthese et le Tableau de
+       bord les comptent ; cet ecran les oubliait, et affichait donc un chiffre
+       inferieur pour le meme mois — sur la courbe 12 mois comme sur le panier
+       moyen. Les apprenant·e·s ne sont pas rattachees a une branche : la
+       formation compte quelle que soit la branche affichee, comme ailleurs. */
+    const revForm = apprenants
+      .flatMap((ap) => ap.payments ?? [])
+      .filter((pm) => { const j = payISOLocal(pm.date); return j >= periodStart && j <= today; })
+      .reduce((s2, pm) => s2 + pm.amountXof, 0);
+    const revenue = revInv + revRit + revForm;
     const heads = new Set(inWindow.map((a) => a.clientId)).size;
     const basket = honored.length > 0 ? Math.round(honoredXof / honored.length) : 0;
     const maxTicket = honored.reduce((m, a) => Math.max(m, apptNetXof(a, byId)), 0);
@@ -116,7 +134,7 @@ export default function Analytics() {
       heads, basket, maxTicket,
       hasLife: revenue > 0 || inWindow.length > 0,
     };
-  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today]);
+  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today, apprenants]);
 
   const nameOf = (id: string) => clientNameById.get(id) ?? 'Cliente';
 

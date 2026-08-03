@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { categoriesStore, useCategories, useProducts, type CatalogCategory, type Product } from '../../../../shared/catalog';
+import { SEUIL_REASSORT, categoriesStore, useCategories, useProducts, type CatalogCategory, type Product } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 
@@ -28,7 +28,7 @@ const estLigne = (c: CatalogCategory) => c.produits === true || LIGNES_FONDATRIC
 
 /** Seuil de réassort — sous ce nombre, la ligne s'allume. Volontairement bas :
     une alerte qui se déclenche tout le temps n'est plus une alerte. */
-const SEUIL = 3;
+const SEUIL = SEUIL_REASSORT;
 
 type Form = { id: string | null; categoryId: string; name: string; price: string; stock: string };
 /** Le formulaire d'une ligne — `id` nul quand on la crée. */
@@ -72,7 +72,10 @@ export default function HomeRituals() {
   const save = () => {
     if (!form || !form.name.trim()) return;
     const price = parseInt(form.price.replace(/[^0-9]/g, ''), 10) || 0;
-    const stock = parseInt(form.stock.replace(/[^0-9-]/g, ''), 10) || 0;
+    /* Le tiret etait admis dans la classe : saisir « -5 » enregistrait un stock
+       negatif, que « Valeur du stock » comptait a la baisse sans rien signaler.
+       L'ecran Catalogue, lui, refusait deja le signe. */
+    const stock = parseInt(form.stock.replace(/[^0-9]/g, ''), 10) || 0;
     if (form.id) patch(form.id, { name: form.name.trim(), priceXof: price, stock, categoryId: form.categoryId });
     else {
       const maxOrder = products.reduce((m, p) => Math.max(m, p.order), 0);

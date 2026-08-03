@@ -144,7 +144,10 @@ export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Sou
     (MND-V-…) n'inflatent plus le compteur. Le suffixe grandit au-delà de 4
     chiffres sans troncature. Résiduel accepté : deux appareils HORS LIGNE peuvent
     encore tirer le même numéro dans la même fenêtre de synchronisation. */
-export function nextInvoiceNumber(invoices: Invoice[], prefix: 'MND' | 'F'): string {
+/* 'MND-D' est la serie des DEVIS. Le motif ancre en debut et en fin
+   (`^MND-2026-(\d+)$`) ne confond pas les deux series : un devis
+   « MND-D-2026-0007 » ne compte pas dans les factures, ni l'inverse. */
+export function nextInvoiceNumber(invoices: Invoice[], prefix: 'MND' | 'MND-D' | 'F'): string {
   const year = new Date().getFullYear();
   const re = new RegExp(`^${prefix}-${year}-(\\d+)$`);
   const used = new Set<string>();

@@ -109,6 +109,13 @@ export const PRICE_MODES: { k: PriceMode; label: string; hint: string }[] = [
 export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): PriceMode =>
   s.priceMode ?? (s.hidePrice ? 'devis' : 'fixe');
 
+/** SEUIL DE REASSORT — un seul pour toute la Maison. Trois ecrans en avaient
+    trois differents (3 aux Produits, 8 au Catalogue, 10 au Tableau de bord et
+    aux notifications) : l'ecran Produits annoncait 5 references a reassortir
+    pendant que le Tableau de bord en annoncait 13. Volontairement bas : une
+    alerte qui se declenche tout le temps n'est plus une alerte. */
+export const SEUIL_REASSORT = 3;
+
 export type Product = {
   id: string;
   categoryId: string;

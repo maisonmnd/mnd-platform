@@ -133,13 +133,20 @@ export const FIXED_PRICE_SERVICE_IDS = new Set<string>([
 ]);
 export const isFixedPrice = (sv: { id?: string }): boolean => !!sv.id && FIXED_PRICE_SERVICE_IDS.has(sv.id);
 
-/** Une prestation suit-elle le modèle ? Hors Juste Prix → non. Sinon explicite si
-    l'interrupteur est posé au Catalogue, puis dérivé : entretien / resserrage / soins. */
+/** Une prestation suit-elle le modèle ? Hors Juste Prix → non. Sinon UNIQUEMENT
+    si l'interrupteur est posé au Catalogue — jamais déduit du libellé. */
 export const scalesWithModel = (s: Pick<Service, 'name' | 'categoryId'> & { id?: string; scalesWithModel?: boolean }): boolean => {
   if (isFixedPrice(s)) return false;
-  if (typeof s.scalesWithModel === 'boolean') return s.scalesWithModel;
-  if (['sinsin', 'finfin', 'cat-finfin'].includes(s.categoryId)) return true;
-  return /s[íi]nsin|resserrage|entretien/i.test(s.name);
+  /* LE COMPORTEMENT TARIFAIRE NE SE DEDUIT PLUS DU NOM. La regle precedente
+     lisait le libelle : toute prestation contenant « resserrage » ou
+     « entretien » etait indexee sur le nombre de locks, meme a prix fixe. Quatre
+     forfaits et deux formations de l'Academie tombaient dedans par accident —
+     « Les 3 Premiers Entretiens » a 380 000 F etait facture 1 265 500 F a une
+     cliente Nano, et le prix d'une formation dependait du nombre de locks de
+     l'eleve. Les identifiants de la liste ('sinsin', 'finfin', 'cat-finfin')
+     ne correspondaient d'ailleurs a aucune categorie reelle du catalogue v6.
+     Seul le champ explicite fait foi desormais. */
+  return s.scalesWithModel === true;
 };
 
 /** Arrondi commercial — au 500 F, un prix se dit sans virgule au comptoir. */

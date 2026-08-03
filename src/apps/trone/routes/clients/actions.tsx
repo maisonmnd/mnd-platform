@@ -82,6 +82,18 @@ function reverseHonorPoints(appt: Appointment): number {
 /** Annule l'encaissement d'un rituel : le RDV redevient impayé (honoré →
     confirmé), sa facture liée repasse « envoyée » (émise, impayée), et les
     points de l'honneur sont repris quand on retrouve leur attribution. */
+/* RENDRE L'AVOIR CONSOMME PAR UNE FACTURE. Sans ce geste, annuler ou supprimer
+   un encaissement remettait le rituel « impaye » tout en laissant le compte de
+   la cliente debite : elle payait deux fois, une fois avec son credit detruit,
+   une fois au re-encaissement. `resetAllPaidInvoices` savait deja le faire ;
+   les deux chemins courants, non. */
+function restituerAvoir(invoiceId: string): void {
+  const usages = creditMovementsStore.get().filter((m) => m.kind === 'usage' && m.invoiceId === invoiceId);
+  if (!usages.length) return;
+  const ids = new Set(usages.map((m) => m.id));
+  creditMovementsStore.set((prev) => prev.filter((m) => !ids.has(m.id)));
+}
+
 export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: boolean; pointsReversed: number } {
   let invoiceUpdated = false;
   if (appt.invoiceId) {
@@ -91,6 +103,7 @@ export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: b
       return { ...i, status: 'envoyée' as const };
     }));
   }
+  if (appt.invoiceId) restituerAvoir(appt.invoiceId);
   const pointsReversed = reverseHonorPoints(appt);
   appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
     ? {
@@ -110,6 +123,7 @@ export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: b
     (déduit le montant ; à zéro, dés-honore et reprend les points). Renvoie le
     RDV touché, ou null si la facture ne réglait aucun rituel. */
 export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: number): Appointment | null {
+  restituerAvoir(invoiceId);
   const appt = appointmentsStore.get().find((a) => a.invoiceId === invoiceId);
   if (!appt) return null;
   const newPaid = Math.max(0, (appt.paidXof ?? 0) - Math.max(0, amountXof));
@@ -285,7 +299,20 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          chaque ligne. Cas inverse rare (net > prix pleins) : on répartit pour coller. */
       const svcWeights = services.map((sv) => personalPriceXof(sv, pricing));
       const grossSum = svcWeights.reduce((s, w) => s + w, 0);
-      const depositCredit = depositReceived ? deposit : 0;
+      /* L'ACOMPTE N'EST CONSOMME QU'UNE FOIS — a la PREMIERE facture du rituel.
+         Il etait jusqu'ici reporte sur chaque reglement partiel suivant, ce qui
+         faisait disparaitre le second versement du registre de caisse. */
+      const depositCredit = depositReceived && alreadyPaid === 0 ? deposit : 0;
+
+      /* CE QUE LA FACTURE PORTE. `settleTotal` est le seul RESTE encaisse ce
+         coup-ci ; la facture doit valoir en plus l'acompte qu'elle consomme,
+         sans quoi cet argent n'apparait dans AUCUN chiffre d'affaires (le rituel,
+         portant desormais un invoiceId, est compte par sa facture et par elle
+         seule). C'est la convention que `depositCreditXof` documente dans
+         finance.ts : le total INCLUT l'acompte, et le champ sert uniquement a ne
+         pas crediter la caisse du comptoir d'un argent entre un autre jour. */
+      const factureTotal = settleTotal + depositCredit;
+
       /* Le montant facturé ce coup-ci = comptant + avoir appliqué. L'avoir est du
          REVENU (il compte au CA) mais pas de l'argent physique : on le porte à part
          (avoirXof), la Synthèse le route hors caisse. */
@@ -301,7 +328,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         lines = [{
           id: `il-${uid()}`,
           label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
-          qty: 1, unitXof: settleTotal, discountPct: 0,
+          qty: 1, unitXof: factureTotal, discountPct: 0,
         }];
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée

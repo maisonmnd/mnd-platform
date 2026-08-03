@@ -167,7 +167,15 @@ export type SalaryAdvance = {
   note?: string;
   branchId?: string;
 };
-export const advancesStore = createStore<SalaryAdvance[]>('mnd_salary_advances', []);
+/* CLE DISTINCTE DE CELLE DE Personnel.tsx. Les deux magasins reclamaient
+   'mnd_salary_advances' avec des formes incompatibles — un tableau ici, un
+   dictionnaire par employee la-bas — et `createStore` lit directement
+   localStorage : ils ecrivaient donc dans la MEME case, chacun ecrasant l'autre.
+   Des avances versees pouvaient disparaitre. C'est ce conflit que `asArray`
+   ci-dessus et `healPayrollStores()` plus bas rafistolaient.
+   On renomme ce cote-ci : il pousse vers la table `salary_advances`, qui n'a
+   jamais existe en base, donc il n'a aucune donnee serveur a preserver. */
+export const advancesStore = createStore<SalaryAdvance[]>('mnd_payroll_advances', []);
 export const useAdvances = (): [SalaryAdvance[], typeof advancesStore.set] => {
   const [v, set] = useStore(advancesStore);
   return [asArray<SalaryAdvance>(v), set];

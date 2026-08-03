@@ -5,8 +5,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { useCategories, useProducts } from '../../../../shared/catalog';
-import { useInvoices, useExpenses, invoiceTotal } from '../../../../shared/finance';
+import { SEUIL_REASSORT, useCategories, useProducts } from '../../../../shared/catalog';
+import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
 import { useApprenants } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
@@ -78,12 +78,12 @@ export default function Dashboard() {
     const realizedAppts = appts.filter(realized);
     const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée');
 
-    const apptRev = (mk: string) => realizedAppts.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptTotalXof(a, byId), 0);
+    const apptRev = (mk: string) => realizedAppts.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0);
     const invRev = (mk: string) => paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0);
     const exp = (mk: string) =>
       expenses
         .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped)
-        .reduce((s, e) => s + e.amountXof, 0);
+        .reduce((s, e) => s + expenseTotal(e), 0);
 
     // Règlements de formation (Académie) — revenu réel de la Maison (hors branche).
     const formPays = apprenants.flatMap((ap) =>
@@ -94,7 +94,7 @@ export default function Dashboard() {
     /* Revenu réel d'un jour — MÊMES composantes que le mois (carnet non encaissé
        + factures payées + formation) : le graphe 7 jours reste cohérent avec le KPI. */
     const dayRev = (iso: string) =>
-      realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptTotalXof(a, byId), 0)
+      realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptNetXof(a, byId), 0)
       + paidInv.filter((i) => i.date === iso).reduce((s, i) => s + invoiceTotal(i), 0)
       + formPays.filter((p) => p.iso === iso).reduce((s, p) => s + p.amount, 0);
 
@@ -111,7 +111,7 @@ export default function Dashboard() {
        Le total d'un rituel est réparti au prorata des prix catalogue, comme
        partout ailleurs au Trône — la somme des parts égale toujours le total. */
     const partsOf = (a: Appointment): Part[] => {
-      const total = apptTotalXof(a, byId);
+      const total = apptNetXof(a, byId);
       const poids = a.serviceIds.map((id) => byId.get(id)?.priceXof ?? 0);
       const parts = splitByWeights(total, poids);
       return a.serviceIds.map((id, i) => ({ serviceId: id, amountXof: parts[i] }));
@@ -131,7 +131,7 @@ export default function Dashboard() {
       todayRows: appts
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
-      stockAlerts: products.filter((p) => p.stock < 10),
+      stockAlerts: products.filter((p) => p.stock <= SEUIL_REASSORT),
     };
   }, [appts, byId, invoices, expenses, products, apprenants, branch.id, today, thisMonth, prevMonth]);
 
@@ -312,7 +312,7 @@ export default function Dashboard() {
         .filter((a) => a.date === iso && !a.invoiceId && a.status === 'honoré')
         // Un rituel du carnet n'a pas (encore) de facture : la ligne ouvre son RDV,
         // d'où l'on encaisse — plutôt que de mener à une facture qui n'existe pas.
-        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptTotalXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
+        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
       ...invoices
         .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
         .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),

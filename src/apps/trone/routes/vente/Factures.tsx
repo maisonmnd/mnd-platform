@@ -10,7 +10,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, frDay } from '../clients/_shared';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
-import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod } from '../../../../shared/finance';
+import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber } from '../../../../shared/finance';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
@@ -226,14 +226,14 @@ export default function Factures() {
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
-  const nextNumber = (kind: Invoice['kind']) => {
-    const year = new Date().getFullYear();
-    const max = invoices.reduce((m, i) => {
-      const n = parseInt(i.number.replace(/\D/g, '').slice(-4), 10);
-      return Number.isFinite(n) ? Math.max(m, n) : m;
-    }, 1042);
-    return kind === 'devis' ? `MND-D-${year}-${String(max + 1).padStart(4, '0')}` : `MND-${year}-${String(max + 1).padStart(4, '0')}`;
-  };
+  /* UN SEUL ALGORITHME DE NUMEROTATION POUR TOUTE LA MAISON. Celui qui vivait
+     ici etait l'ancien : aucun controle d'unicite, un socle arbitraire a 1042
+     qui creusait mille numeros de trou dans une serie neuve, et un slice(-4)
+     qui cassait au-dela de 9999 (« MND-2026-10000 » redonnait 0, donc un numero
+     deja remis a une cliente). `nextInvoiceNumber` tient un compteur par serie
+     et saute les numeros deja pris. */
+  const nextNumber = (kind: Invoice['kind']) =>
+    nextInvoiceNumber(invoices, kind === 'devis' ? 'MND-D' : 'MND');
 
   const blankDraft = (kind: Invoice['kind']): Invoice => ({
     id: uid(),

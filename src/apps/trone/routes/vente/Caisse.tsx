@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button } from '../../../../ds/components';
@@ -6,14 +6,15 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useCategories, useServices, useProducts, priceModeOf, type PriceMode } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, productsStore, priceModeOf, type PriceMode } from '../../../../shared/catalog';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService,
 } from '../../../../shared/pricing';
-import { ClientPicker } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
+import { appointmentsStore } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -73,6 +74,13 @@ export default function Caisse() {
 
   const [tab, setTab] = useState<'encaisser' | 'journal'>('encaisser');
   const [cart, setCart] = useState<Record<string, CartLine>>({});
+  /* GARDE ANTI DOUBLE-CLIC. Le chemin « Lien WhatsApp » attend la generation du
+     PDF avant de vider le panier : pendant cette attente le bouton restait actif
+     avec le meme panier, et un second clic creait une facture jumelle -- chiffre
+     double, tiroir credite deux fois, et depuis la correction du stock, deux
+     decrements pour une seule vente. */
+  const submitting = useRef(false);
+
   const [globalDisc, setGlobalDisc] = useState(0);
   const [globalDiscXof, setGlobalDiscXof] = useState(0);
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres. */
@@ -81,6 +89,21 @@ export default function Caisse() {
   const [fxCode, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
   const [clientId, setClientId] = useState('');
+
+  /* SOLDER UN RITUEL DU CARNET. Toute la protection anti-double-comptage de la
+     maison repose sur `Appointment.invoiceId` : un rituel qui en porte un est
+     compte par sa facture, jamais par le carnet. La Caisse ne l'ecrivait
+     jamais — donc une cliente qui reglait au comptoir un rendez-vous du Carnet
+     etait comptee DEUX fois des que le rituel passait « honore ». On laisse
+     donc le comptoir designer le rituel que cette vente solde. */
+  const carnet = useBranchAppointments();
+  const svcById = useServicesById();
+  const [apptToSettle, setApptToSettle] = useState('');
+  const rituelsDuJour = useMemo(
+    () => carnet.filter((a) => a.clientId && a.clientId === clientId && !a.invoiceId && a.status !== 'annulé'),
+    [carnet, clientId],
+  );
+
   const [avoirStr, setAvoirStr] = useState('0');
   /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
      en dur devenait un Select vide si la maison renommait le moyen. */
@@ -231,6 +254,9 @@ export default function Caisse() {
 
   const checkout = async () => {
     if (lines.length === 0 || devisMissing.length > 0) return;
+    if (submitting.current) return;
+    submitting.current = true;
+    try {
     const client = branchClients.find((c) => c.id === clientId);
     const now = new Date();
     const grossXof = lines.reduce((s, l) => s + l.unit * l.qty, 0);
@@ -256,6 +282,29 @@ export default function Caisse() {
       avoirXof: posAvoir > 0 ? posAvoir : undefined,
     };
     setInvoices((prev) => [inv, ...prev]);
+
+    /* LE RITUEL SOLDE PORTE DESORMAIS SA FACTURE : les ecrans de chiffre
+       d'affaires le compteront par elle, et cesseront de le compter aussi par
+       le carnet le jour ou il passera « honore ». */
+    if (apptToSettle) {
+      appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle ? { ...a, invoiceId: inv.id } : a)));
+    }
+
+    /* LE STOCK SUIT LA VENTE. Il ne bougeait jusqu'ici que si quelqu'un pensait
+       a cliquer « − » sur l'ecran Produits : « Valeur du stock », les alertes de
+       reassort et les notifications reposaient donc sur un compteur mort, qui
+       divergeait du reel des la premiere journee.
+
+       On ne borne pas a zero : un stock negatif dit qu'on a vendu plus que ce
+       qui etait compte, et cette information vaut mieux qu'un zero rassurant. */
+    const vendus = lines.filter((l) => l.kind === 'product');
+    if (vendus.length) {
+      productsStore.set((prev) => prev.map((prod) => {
+        const l = vendus.find((x) => x.key === `p:${prod.id}`);
+        return l ? { ...prod, stock: prod.stock - l.qty } : prod;
+      }));
+    }
+
     /* Avoir consommé : écriture d'usage sur le compte porteur. */
     if (posAvoir > 0 && posAccount) {
       creditMovementsStore.set((prev) => [...prev, {
@@ -303,9 +352,13 @@ export default function Caisse() {
       setWaHint(null);
     }
     setCart({});
+    setApptToSettle('');
     setGlobalDisc(0);
     setGlobalDiscXof(0);
     setAvoirStr('0');
+    } finally {
+      submitting.current = false;
+    }
   };
 
   /* — journal du jour — */
@@ -413,6 +466,27 @@ export default function Caisse() {
                   <ClientPicker value={clientId} onChange={setClientId} allowWalkIn />
                 </div>
               </div>
+
+              {rituelsDuJour.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Rituel</span>
+                  <div style={{ flex: 1 }}>
+                    <select
+                      className="ds-select"
+                      value={apptToSettle}
+                      onChange={(e) => setApptToSettle(e.target.value)}
+                    >
+                      <option value="">Vente libre — ne solde aucun rendez-vous</option>
+                      {rituelsDuJour.map((a) => (
+                        <option key={a.id} value={a.id}>{a.date} · {apptLabel(a, svcById)}</option>
+                      ))}
+                    </select>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.5 }}>
+                      Sans cela, le rituel serait compté une deuxième fois le jour où il passe « honoré ».
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {lines.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '34px 16px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>

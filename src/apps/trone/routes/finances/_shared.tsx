@@ -41,7 +41,14 @@ export const paceForecast = (soFar: number, dayOfMonth: number, daysInMonth: num
 /** Télécharge des lignes en CSV « Excel-FR » : point-virgule, BOM UTF-8, CRLF. */
 export const downloadCsv = (filename: string, rows: (string | number)[][]): void => {
   const esc = (v: string | number) => {
-    const s = String(v);
+    let s = String(v);
+    /* NEUTRALISER LES FORMULES. Excel et LibreOffice exécutent toute cellule qui
+       commence par = + - @ ou une tabulation. Ces exports embarquent du texte
+       libre — nom de cliente, libellé de dépense, référence — donc une fiche
+       nommée « =HYPERLINK(...) » s'exécutait à l'ouverture du fichier chez qui
+       le recevait. L'apostrophe de tête est la convention du tableur : elle
+       force le texte et ne s'affiche pas dans la cellule. */
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const body = rows.map((r) => r.map(esc).join(';')).join('\r\n');

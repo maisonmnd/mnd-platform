@@ -1430,16 +1430,18 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
     setWhy(null);
     setThinking(true);
     try {
+      /* ON N'ENVOIE QUE CE QUI SERT AU CLASSEMENT. Le nom, l'e-mail, le
+         telephone et l'anniversaire partaient vers l'API du prestataire
+         d'intelligence artificielle — hors du territoire — alors qu'aucune
+         regle du prompt ne les utilise. Le rangement en persona et en segments
+         se decide sur le style, la densite et l'anciennete. */
       const s = await suggestClient(
         {
-          name: name.trim(),
+          name: '',
           city: city.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
           crownStyle,
           lockCount: lockCount === '' ? undefined : Number(lockCount),
           crownSince,
-          birthday,
           country: branch.country,
         },
         personas.map((p) => ({ id: p.id, name: p.name, essence: p.essence })),

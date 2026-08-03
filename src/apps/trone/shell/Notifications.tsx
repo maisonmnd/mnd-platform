@@ -8,7 +8,7 @@ import { useBranch } from '../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../shared/agenda';
 import { askNotifyPermission, notifyLocal } from '../../../shared/ics';
 import { useInvoices, invoiceTotal } from '../../../shared/finance';
-import { useProducts } from '../../../shared/catalog';
+import { SEUIL_REASSORT, useProducts } from '../../../shared/catalog';
 import { useClients } from '../../../shared/clients';
 import { consultationsQueueStore } from '../../../shared/bridges';
 import { createStore, useStore } from '../../../shared/store';
@@ -220,7 +220,7 @@ function useNotifications(): Notif[] {
     // 8 — Produits en stock bas (< 10).
     if (okStock) {
       for (const p of products) {
-        if (p.stock >= 10) continue;
+        if (p.stock > SEUIL_REASSORT) continue;
         out.push({
           id: `stock-${p.id}`, kind: 'stock',
           label: `Stock bas — ${p.name}`,

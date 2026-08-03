@@ -83,10 +83,18 @@ export async function signUpEmail(
    laisserait lisibles (DevTools) — la déconnexion, elle, efface le disque. Les
    données re-hydratent depuis Supabase (sous RLS) à la prochaine connexion. */
 const SENSITIVE_KEYS = [
-  'mnd_payroll_runs', 'mnd_salary_advances', 'mnd_attendance', 'mnd_leave_requests',
+  'mnd_payroll_runs', 'mnd_salary_advances', 'mnd_payroll_advances', 'mnd_attendance', 'mnd_leave_requests',
   'mnd_staff', 'mnd_tips_v2', 'mnd_tips',
   'mnd_primes', 'mnd_retenues', 'mnd_commission_rates', 'mnd_paie_overrides', 'mnd_paie_confirm',
   'mnd_access_codes',
+  /* LES FICHES CLIENTES AUSSI. Elles restaient en clair dans le navigateur
+     apres la deconnexion — nom, telephone, e-mail, anniversaire, et les notes
+     de consultation sur le cuir chevelu, serialisees dans `client.notes`.
+     Sur la tablette du comptoir, fermer la session ne retirait rien ; et le
+     tunnel public « La Consultation » etant servi depuis la MEME origine
+     (/trone/), toute faille sur cette page y avait acces de plein droit. */
+  'mnd_clients', 'mnd_appointments', 'mnd_invoices', 'mnd_families',
+  'mnd_consult_forms', 'mnd_consultations_queue', 'mnd_client_sessions',
 ];
 
 export async function signOut(): Promise<void> {

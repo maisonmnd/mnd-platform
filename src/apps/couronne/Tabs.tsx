@@ -654,7 +654,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                 <div className="mc-micro-eyebrow" style={{ fontSize: 9.5 }}>{meta.tag}</div>
                 <div className="mc-productcard__name">{p.name}</div>
                 <div className="mc-productcard__line">{meta.line}</div>
-                {p.stock <= 8 && <div className="mc-productcard__scarce">Dernières pièces — {p.stock} en maison</div>}
+                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">Dernières pièces — {p.stock} en maison</div>}
               </div>
               <div className="mc-productcard__side">
                 <span className="mc-productcard__price">{fmtMoney(p.priceXof, currency)}</span>

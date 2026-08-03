@@ -4,6 +4,7 @@ import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
+import { useApprenants } from '../equipe/data';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import {
@@ -26,11 +27,19 @@ const monthTitle = (mk: string) => { const [y, m] = mk.split('-').map(Number); r
 const shiftMonth = (mk: string, dir: 1 | -1) => { const [y, m] = mk.split('-').map(Number); const d = new Date(y, m - 1 + dir, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
 const daysInMonth = (mk: string) => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 
+
+/* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → jour ISO comparable. */
+const payISOLocal = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
+};
+
 export default function BilanMensuel() {
   const { branch, currency } = useBranch();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [clients] = useClients();
+  const [apprenants] = useApprenants();
   const byId = useServicesById();
   const today = todayISO();
 
@@ -65,7 +74,13 @@ export default function BilanMensuel() {
 
     const revInv = paidInv.reduce((s, i) => s + invoiceTotal(i), 0);
     const revRit = honoredNoInv.reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const revenue = revInv + revRit;
+    /* Meme correction qu'a l'Analytics : le Bilan annoncait « meme base que la
+       Synthese » tout en omettant les reglements de formation. */
+    const revForm = apprenants
+      .flatMap((ap) => ap.payments ?? [])
+      .filter((pm) => inMonth(payISOLocal(pm.date)))
+      .reduce((s2, pm) => s2 + pm.amountXof, 0);
+    const revenue = revInv + revRit + revForm;
     const honoredNet = honoredValue.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const honoredCount = monthAppts.filter((a) => a.status === 'honoré').length;
     const totalRdv = monthAppts.length;
@@ -112,7 +127,7 @@ export default function BilanMensuel() {
       revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles,
       days, dayMax, topClients, cliMax, services, svcCountMax, svcTotalCount,
     };
-  }, [appts, invoices, branch.id, month, byId, clients]);
+  }, [appts, invoices, branch.id, month, byId, clients, apprenants]);
 
   const hasLife = d.totalRdv > 0 || d.revenue > 0;
 
