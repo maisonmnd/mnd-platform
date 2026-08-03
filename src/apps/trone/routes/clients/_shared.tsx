@@ -13,7 +13,7 @@ import { useServices, useCategories, priceModeOf, type Service } from '../../../
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
+import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -623,7 +623,7 @@ export function RdvModal({
                       /* « dès » ne vaut que si le modèle est INCONNU. Dès qu'on
                          sait son nombre de locks, le prix au lock est exact —
                          l'annoncer comme un plancher fait douter la caissière. */
-                      : priceModeOf(sv) === 'variable' && !(sv.ratePerLock && pricing.lockCount)
+                      : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
                         ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}`
                         : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
                   <button

@@ -246,6 +246,26 @@ export const servesBand = (sv: Pick<Service, 'bandId' | 'priceFloors'>, band: Mo
   return cles.length === 0 || cles.includes(band.id);
 };
 
+/** Qui commande le prix de cette prestation — le comptage ou la tranche.
+    Sans choix explicite, on garde le comportement historique : le tarif au lock
+    s'il existe, la tranche sinon. Rien ne bouge tant que la Maison n'a pas
+    bascule l'interrupteur au Catalogue. */
+export const tarifModeOf = (sv: Pick<Service, 'tarifMode' | 'ratePerLock'>): 'lock' | 'calibre' =>
+  sv.tarifMode ?? (sv.ratePerLock ? 'lock' : 'calibre');
+
+/** Le prix de cette prestation est-il EXACTEMENT connu pour cette cliente ?
+
+    Vrai des que son modele permet de trancher : un tarif au lock avec un
+    comptage, ou un prix par calibre avec un calibre. Dans ces cas l'ecran doit
+    afficher le montant ferme, pas « des X F » — annoncer une fourchette sur un
+    prix qu'on sait calculer fait ressaisir a la main un montant deja connu. */
+export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
+  if (isFixedPrice(sv)) return true;
+  const bande = bandForService(sv, p);
+  if (tarifModeOf(sv) === 'calibre') return !!bande && sv.priceFloors?.[bande.id] !== undefined;
+  return !!p.lockCount;
+};
+
 export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
   if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
   /* Hors de son calibre : on rend le prix catalogue, sans personnalisation.
@@ -255,6 +275,20 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
   const bande = bandForService(sv, p);
   /* Hors de son calibre : prix catalogue, sans personnalisation. */
   if (!servesBand(sv, bande)) return sv.priceXof;
+
+  /* PRIX PAR CALIBRE — quand l'interrupteur du Catalogue le dit. Le plancher
+     de la tranche EST le prix, pas un minimum ; le tarif au lock reste inscrit
+     sur la fiche mais ne commande pas.
+
+     Avant cette regle, le tarif au lock etait de toute facon inerte : a 100 F
+     le lock, le plafond du calibre Medium donnait 18 000 F contre un plancher
+     a 25 000 F. Le plancher gagnait partout sauf au-dela de 550 locks, et deux
+     clientes a 105 et 180 locks payaient le meme prix sans que rien ne le dise. */
+  if (tarifModeOf(sv) === 'calibre' && bande && sv.priceFloors?.[bande.id] !== undefined) {
+    const parCalibre = sv.priceFloors[bande.id];
+    return p.clientCoef === 1 ? parCalibre : roundPrice(parCalibre * p.clientCoef);
+  }
+
   const auLock = perLockPriceXof(sv, p.lockCount, bande);
   /* Pas d'arrondi au 500 sur un prix au lock non modulé : 113 locks font
      11 300 F, et l'arrondi commercial les transformerait en 11 500 F — un écart

@@ -63,7 +63,10 @@ const ferme = (b: Base, prix: number, dureeMin: number, dureeMax?: number): Serv
 const auLock = (b: Base, rate: number, floors: Record<string, number>, dureeMin: number, dureeMax?: number): Service => ({
   ...ferme(b, floors[MED] ?? Math.min(...Object.values(floors)), dureeMin, dureeMax),
   priceMode: 'variable',
-  ratePerLock: rate,
+  /* rate = 0 : la prestation se facture AU CALIBRE, le plancher de la tranche
+     est son prix. On n'ecrit pas un tarif au lock nul, qui laisserait croire
+     qu'un comptage entre dans le calcul. */
+  ...(rate > 0 ? { ratePerLock: rate } : {}),
   priceFloors: floors,
   scalesWithModel: true,
   /* Un seul plancher = la prestation n'existe QUE dans ce calibre (les cinq

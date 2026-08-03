@@ -11,7 +11,7 @@ import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import {
-  useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService,
+  useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService, prixFerme,
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
 import { appointmentsStore } from '../../../../shared/agenda';
@@ -165,7 +165,7 @@ export default function Caisse() {
       kind: 'service' as const,
       /* Un tarif au lock CESSE d'être « variable » dès qu'on connaît le nombre
          de locks : le montant est exact, il n'a plus à s'annoncer « dès ». */
-      mode: s.ratePerLock && pricing.lockCount ? ('fixe' as const) : priceModeOf(s),
+      mode: prixFerme(s, pricing) ? ('fixe' as const) : priceModeOf(s),
     });
     const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({

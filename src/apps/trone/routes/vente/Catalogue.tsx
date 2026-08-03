@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import {
+import { type TarifMode,
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
@@ -49,6 +49,7 @@ type SvcForm = {
   /* — arborescence v6 — */
   code: string; // ATL·II·MIN·E
   rate: string; // tarif au lock (F/lock) — vide = pas de prix au lock
+  tarifMode: '' | TarifMode; // qui commande : '' = comportement historique
   floors: Record<string, string>; // plancher par calibre, saisi en texte
   durationMax: string; // borne haute quand la durée s'annonce en fourchette
   priceTo: string; // borne haute d'affichage — « de X à Y »
@@ -56,7 +57,7 @@ type SvcForm = {
 
 const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
-  code: '', rate: '', floors: {}, durationMax: '', priceTo: '',
+  code: '', rate: '', tarifMode: '', floors: {}, durationMax: '', priceTo: '',
 });
 
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
@@ -349,7 +350,7 @@ export default function Catalogue() {
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
-      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '',
+      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '',
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
       durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
@@ -369,6 +370,7 @@ export default function Catalogue() {
     const v6 = {
       code: svcForm.code.trim() || undefined,
       ratePerLock: num(svcForm.rate),
+      tarifMode: svcForm.tarifMode || undefined,
       priceFloors: Object.keys(floors).length ? floors : undefined,
       durationMaxMin: num(svcForm.durationMax),
       priceToXof: num(svcForm.priceTo),
@@ -802,6 +804,21 @@ export default function Catalogue() {
                 Le plancher de chaque calibre empêche un petit compte de locks
                 de tomber sous le tarif de la Maison — le temps de fauteuil ne
                 descend pas aussi vite que le nombre de locks. */}
+            <Field label="Qui commande le prix">
+              <select
+                className="ds-select"
+                value={svcForm.tarifMode}
+                onChange={(e) => setSvcForm({ ...svcForm, tarifMode: e.target.value as '' | TarifMode })}
+              >
+                <option value="">Automatique — le tarif au lock s’il existe, la tranche sinon</option>
+                <option value="lock">Le comptage — locks × tarif, le plancher n’est qu’un filet</option>
+                <option value="calibre">La tranche — le plancher du calibre EST le prix</option>
+              </select>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.5 }}>
+                Le tarif au lock reste inscrit dans les deux cas : basculer sur « la tranche » le met en
+                sommeil sans l’effacer, et tu peux le réveiller quand il t’arrange.
+              </div>
+            </Field>
             <Field label="Tarif au lock (F CFA par lock)">
               <Input
                 inputMode="numeric"

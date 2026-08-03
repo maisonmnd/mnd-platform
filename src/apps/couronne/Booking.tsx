@@ -10,7 +10,7 @@ import { uid } from '../../shared/store';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { priceModeOf, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, servesBand, bandForService } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, servesBand, bandForService, prixFerme } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -373,7 +373,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Total lisible : « Prix en salon » si tout est masqué, sinon montant (+ salon si mixte). */
   /* Un rituel à prix VARIABLE ne peut pas annoncer un total ferme : chaque ligne
      dit « à partir de », le total doit le dire aussi. */
-  const anyVariable = selected.some((s) => priceModeOf(s) === 'variable');
+  /* « A partir de » ne s'affiche QUE si le prix est reellement indetermine.
+     Avant, tout tarif au lock etait dit variable — donc le resserrage, coeur du
+     chiffre, s'annoncait « a partir de » alors que la caisse affichait un
+     montant ferme. Les deux surfaces se contredisaient sur la meme prestation. */
+  const anyVariable = selected.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing));
   const totalLabel = allHidden ? 'Prix en salon' : `${anyVariable ? 'à partir de ' : ''}${fmtMoney(price, currency)}`;
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';

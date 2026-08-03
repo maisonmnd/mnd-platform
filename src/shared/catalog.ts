@@ -64,6 +64,8 @@ export type Service = {
       sur une création. Quand ce champ est posé, il PRIME sur le coefficient de
       tranche ; le Juste Prix de la cliente s'applique ensuite, comme partout. */
   ratePerLock?: number;
+  /** Qui commande le prix : le comptage ou la tranche. Voir TarifMode. */
+  tarifMode?: TarifMode;
   /** PLANCHER PAR CALIBRE — le prix au lock ne descend jamais sous le tarif du
       calibre. Clé = identifiant de tranche (`cal-jumbo`, `cal-mini`…), valeur =
       prix ferme en F CFA. Sans plancher, un Jumbo à 60 locks tomberait à 6 000 F
@@ -114,6 +116,22 @@ export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): 
     aux notifications) : l'ecran Produits annoncait 5 references a reassortir
     pendant que le Tableau de bord en annoncait 13. Volontairement bas : une
     alerte qui se declenche tout le temps n'est plus une alerte. */
+/** QUI COMMANDE LE PRIX d'une prestation qui porte a la fois un tarif au lock
+    et des planchers par calibre.
+
+      'lock'    — le comptage commande : prix = locks x tarif, le plancher n'est
+                  qu'un filet de securite si le compte est tres bas.
+      'calibre' — la tranche commande : le plancher du calibre EST le prix, le
+                  tarif au lock est conserve mais mis en sommeil.
+
+    Absent : 'lock' si la prestation porte un tarif, 'calibre' sinon — le
+    comportement d'avant l'interrupteur, pour que rien ne bouge tout seul.
+
+    Ce choix se fait au Catalogue, prestation par prestation : selon le geste,
+    l'un ou l'autre est juste. Un resserrage se facture volontiers a la tranche ;
+    une creation suit le comptage de pres. */
+export type TarifMode = 'lock' | 'calibre';
+
 export const SEUIL_REASSORT = 3;
 
 export type Product = {
