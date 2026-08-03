@@ -11,3 +11,4 @@ dist-sites/
 #   node scripts/import-genere.mjs <export> <catalogue-v6.json> supabase/import_v6.sql
 supabase/import_v6*.sql
 supabase/verif_clientes_intruses.sql
+supabase/repare_telephones.sql
