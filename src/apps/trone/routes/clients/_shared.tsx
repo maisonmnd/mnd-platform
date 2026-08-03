@@ -13,7 +13,7 @@ import { useServices, priceModeOf, type Service } from '../../../../shared/catal
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -422,7 +422,11 @@ export function RdvModal({
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
-  const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
+  const remaining = (services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order))
+    /* SEULEMENT CE QUI LA CONCERNE. Un VÈKPÈ™ Medium n'existe pas pour une
+       cliente Mini : le proposer, c'est risquer de figer 150 000 F sur son
+       rendez-vous là où son prix est de 220 000 F. */
+    .filter((sv) => servesBand(sv, bandForService(sv, pricing)));
 
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
@@ -603,7 +607,14 @@ export function RdvModal({
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
                   {/* SON prix PLEIN — la remise éventuelle est une ligne à part (comme la facture). */}
-                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis' ? 'sur devis' : priceModeOf(sv) === 'variable' ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}` : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
+                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis'
+                      ? 'sur devis'
+                      /* « dès » ne vaut que si le modèle est INCONNU. Dès qu'on
+                         sait son nombre de locks, le prix au lock est exact —
+                         l'annoncer comme un plancher fait douter la caissière. */
+                      : priceModeOf(sv) === 'variable' && !(sv.ratePerLock && pricing.lockCount)
+                        ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}`
+                        : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
                   <button
                     onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
                     aria-label="Retirer"
