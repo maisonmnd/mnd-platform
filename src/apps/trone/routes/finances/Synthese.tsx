@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
+import { useInvoices, useExpenses, invoiceTotal, expenseTotal, cashboxLabel } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -125,7 +125,7 @@ export default function Synthese() {
     invM.forEach((i) => {
       const av = i.avoirXof ?? 0;
       const cash = invoiceTotal(i) - av;
-      if (cash > 0) bump(caisseMap, i.cashbox ?? 'Autres', cash);
+      if (cash > 0) bump(caisseMap, cashboxLabel(i.cashbox), cash);
       if (av > 0) bump(caisseMap, 'Avoir (crédit)', av);
     });
     ritM.forEach((a) => bump(caisseMap, 'Rituels honorés', apptNetXof(a, byId)));
@@ -216,9 +216,9 @@ export default function Synthese() {
         who: i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage',
         title: `Facture ${i.number}`,
         mode: i.payment ?? 'Paiement non précisé',
-        cashbox: i.cashbox ?? '',
+        cashbox: i.cashbox ? cashboxLabel(i.cashbox) : '',
         methodKey: i.payment ?? 'Non précisé',
-        cashboxKey: i.cashbox ?? 'Autres',
+        cashboxKey: cashboxLabel(i.cashbox),
         amount: invoiceTotal(i),
       })),
       ...ritM.map((a) => ({
@@ -262,7 +262,7 @@ export default function Synthese() {
 
     // Lignes de dépense aplaties — pour le détail cliquable « Dépenses ».
     const expenseRows = expM
-      .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
+      .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox ? cashboxLabel(e.cashbox) : ''].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
     return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows };

@@ -300,3 +300,29 @@ bindCollection(expenseCategoriesStore, 'expense_categories');
 bindCollection(coffreStore, 'coffre_movements');
 bindCollection(creditMovementsStore, 'credit_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
+
+/* ═══════════════════════════════════════════════════════════
+   LES CAISSES DE L'ANCIEN LOGICIEL.
+
+   L'import de juillet 2026 a ecrit `cashbox: caisseId` — l'identifiant de la
+   caisse Firebase, pas son nom. D'ou les « 9a7vogg », « uu5mhlr » et
+   « ja1y92oymqfhqzu1 » qui s'affichaient tels quels dans Revenus par caisse :
+   des montants justes sous une etiquette illisible. Les vrais noms sont restes
+   dans Firebase, hors de portee ; plutot que d'inventer une correspondance,
+   on regroupe ces identifiants sous un libelle qui dit ce qu'ils sont.
+
+   La detection ne touche QUE ce qui ne peut pas etre un nom ecrit par une
+   main : six caracteres ou plus, sans espace ni accent ni tiret, melangeant
+   lettres et chiffres. « mobile-money », « especes », « Caisse principale »
+   et « Autres » passent tous a travers, intacts. */
+export const CAISSE_HERITEE = 'Caisse · ancien logiciel';
+
+const semblePasUnNom = (v: string): boolean =>
+  /^[a-z0-9]{6,}$/i.test(v) && /[0-9]/.test(v) && /[a-z]/i.test(v);
+
+/** Le nom lisible d'une caisse — ou le libelle de l'heritage si c'en est un. */
+export const cashboxLabel = (raw: string | undefined | null): string => {
+  const v = (raw ?? '').trim();
+  if (!v) return 'Autres';
+  return semblePasUnNom(v) ? CAISSE_HERITEE : v;
+};
