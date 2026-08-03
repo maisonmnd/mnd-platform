@@ -178,7 +178,14 @@ export default function Synthese() {
       const parts = splitByWeights(net, poids);
       return a.serviceIds.map((id, i) => ({ serviceId: id, amountXof: parts[i] }));
     };
-    const revMaison = totalsOf(ritM, partsOf, byId, catById);
+    /* TOUS les rituels honorés du mois, pas seulement ceux restés hors facture.
+       `ritM` exclut les rendez-vous rattachés à une facture — c'est juste pour
+       le REVENU, qui les compte alors par la facture et ne doit pas les compter
+       deux fois. Mais pour la VENTILATION, cette exclusion effaçait des visites
+       bel et bien honorées : le 31 juillet, des Tresses Jumbo passées en caisse
+       ne comptaient nulle part, et le Studio affichait trois écritures au lieu
+       de quatre. On ventile donc le même ensemble que TOP PRESTATIONS. */
+    const revMaison = totalsOf(honoredAll, partsOf, byId, catById);
 
     /* LE DÉTAIL DERRIÈRE CHAQUE MONTANT. Un chiffre par maison qu'on ne peut pas
        ouvrir demande de le croire ; celui-ci se justifie visite par visite. Un
@@ -186,7 +193,7 @@ export default function Synthese() {
        c'est la même règle que le total, montrée. */
     const maisonRows: Record<MaisonBucket, { date: string; who: string; meta: string; amount: number }[]> =
       { atelier: [], studio: [], plateau: [] };
-    ritM.forEach((a) => {
+    honoredAll.forEach((a) => {
       const t = splitByMaison(partsOf(a), byId, catById);
       MAISON_BUCKETS.forEach((m) => {
         if (t[m.k] > 0) {
