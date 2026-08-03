@@ -26,6 +26,11 @@ export type CatalogCategory = {
   maison?: Maison;
   /** Code ERP de l'atelier ou de l'axe — `ATL·I`, `PLT·05`, `STU·A`. */
   code?: string;
+  /** Une LIGNE DE PRODUITS — une collection au comptoir, pas un atelier.
+      Elle vit dans le meme magasin que les ateliers : meme ecran Catalogue,
+      meme code, meme ordre. Seul ce drapeau dit qu'elle se remplit de produits
+      et non de rituels, et qu'elle a sa place a l'ecran Produits. */
+  produits?: boolean;
 };
 
 /** Les catégories d'une maison : les siennes ET le plateau, qui n'appartient à
@@ -151,8 +156,8 @@ export const CATEGORIES_SEED: CatalogCategory[] = [
   { id: 'aca-pro', code: 'ACA·PRO', fon: 'LA PROFESSIONNELLE', label: 'Cursus certifiant', enabled: true, order: 26 },
 
   /* ─── LA GAMME — produits, communs aux deux maisons ─── */
-  { id: 'home-rituals', code: 'HR', fon: 'HOME RITUALS™', label: 'Le soin à la maison', enabled: true, order: 30 },
-  { id: 'meches', code: 'MCH', fon: 'Mèches & Extensions', label: 'Naturelles et synthétiques', enabled: true, order: 31 },
+  { id: 'home-rituals', code: 'HR', fon: 'HOME RITUALS™', label: 'Le soin à la maison', enabled: true, produits: true, order: 30 },
+  { id: 'meches', code: 'MCH', fon: 'Mèches & Extensions', label: 'Naturelles et synthétiques', enabled: true, produits: true, order: 31 },
 
   /* ─── Maison 2 · STUDIO MND · ACƆ™ — ne touche jamais aux locks ─── */
   { id: 'stu-a', code: 'STU·A', fon: 'COIFFER', label: 'Les Couronnes Tressées', maison: 'studio', enabled: true, order: 20 },

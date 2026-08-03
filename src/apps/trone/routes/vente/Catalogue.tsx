@@ -230,7 +230,7 @@ export default function Catalogue() {
     if (c.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
     if (c.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
     if (c.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
-    if (c.id === 'home-rituals' || c.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Home Rituals™' };
+    if (c.produits || c.id === 'home-rituals' || c.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Produits' };
     return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — une même ligne, deux origines de vente' };
   };
   /* Replier tout un ensemble d'un geste : c'est ce qui rend les 24 catégories

@@ -43,7 +43,7 @@ export const NAV: TroneGroup[] = [
     items: [
       { path: '/catalogue', label: 'Catalogue', icon: BookOpen, Component: lazy(() => import('./vente/Catalogue')) },
       { path: '/caisse', label: 'Caisse POS', icon: Wallet, Component: lazy(() => import('./vente/Caisse')) },
-      { path: '/home-rituals', label: 'Home Rituals', icon: ShoppingBag, Component: lazy(() => import('./vente/HomeRituals')) },
+      { path: '/home-rituals', label: 'Produits', icon: ShoppingBag, Component: lazy(() => import('./vente/HomeRituals')) },
       { path: '/factures', label: 'Factures & devis', icon: FileText, Component: lazy(() => import('./vente/Factures')) },
       { path: '/laboratoire', label: 'Le Laboratoire', icon: FlaskConical, Component: lazy(() => import('./vente/Laboratoire')) },
     ],
