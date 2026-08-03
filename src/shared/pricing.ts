@@ -234,9 +234,16 @@ export const bandIdOf = (sv: Pick<Service, 'bandId' | 'priceFloors'>): string | 
   return cles.length === 1 ? cles[0] : undefined;
 };
 
+/** LES CALIBRES SERVIS SONT CEUX QUI ONT UN PLANCHER. Un seul plancher = la
+    prestation n'existe que dans ce calibre (les créations VÈKPÈ™). Plusieurs
+    planchers = elle sert exactement ceux-là, et pas les autres — c'est ce qui
+    permet d'étendre une création au-delà de son calibre d'origine sans la
+    proposer à tout le monde. Aucun plancher = elle sert tout le monde. */
 export const servesBand = (sv: Pick<Service, 'bandId' | 'priceFloors'>, band: ModelBand | undefined): boolean => {
-  const lie = bandIdOf(sv);
-  return !lie || !band || lie === band.id;
+  if (!band) return true;
+  if (sv.bandId) return sv.bandId === band.id;
+  const cles = Object.keys(sv.priceFloors ?? {});
+  return cles.length === 0 || cles.includes(band.id);
 };
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {

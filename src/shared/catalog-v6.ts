@@ -127,7 +127,12 @@ const VEKPE: Service[] = [
     palier: 'Élévation', sessions: 2 }, RATE_VEKPE, { [MIC]: 350000 }, 600, 600),
   auLock({ code: 'ATL·I·NAN', name: 'VÈKPÈ™ Nano · La Couronne KPÒKPÒ™', cat: 'atl-i-vekpe',
     desc: '400 à 600 locks ultra fines. Le sommet de la création MND. Travail sur 2 jours, engagement d’entretien expliqué et validé avant pose. Inclus : DÀNDÀN™ + GBÌGBÌ™ post pose, 1 SÍNSIN™ Nano Essentielle offert à 6 semaines, coiffure signature de sortie, huile Kòfí™ 100 ml.',
-    palier: 'Souveraineté', sessions: 2 }, RATE_VEKPE, { [NAN]: 500000 }, 720, 720),
+    palier: 'Souveraineté', sessions: 2 }, /* Au-dela de 600 locks, la couronne existe (une cliente en porte 700) mais
+       aucune creation ne la servait : elle disparaissait de la caisse, de la
+       reservation et du carnet. On etend la ligne Nano plutot que d'ouvrir une
+       sixieme creation — le plancher Galaxy prend le relais la ou le Nano
+       s'arrete (600 x 1 100 = 660 000 F), sans rupture de prix. */
+    RATE_VEKPE, { [NAN]: 500000, [GAL]: 660000 }, 720, 720),
 ];
 
 /* ─────────────────────────────────────────────────────────────────
