@@ -6,12 +6,14 @@ import { uid, HOUSE_BLANK } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
-import {
+import { expenseOccurrences,
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
+import { useApprenants, useSubscribers } from '../equipe/data';
+import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './finances.css';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
@@ -36,6 +38,13 @@ type BoxForm = { name: string; sub: string; glyph: string; opening: string; curr
 
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
+
+/* Date d'un règlement (jj/mm/aaaa, ou ISO) → clé de mois « aaaa-mm ». */
+const payMonthKeyLocal = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}` : (d ?? '').slice(0, 7);
+};
+
 export default function Depenses() {
   const { branch, currency } = useBranch();
   const [expenses, setExpenses] = useExpenses();
@@ -43,6 +52,10 @@ export default function Depenses() {
   const [cashboxes, setCashboxes] = useCashboxes();
   const [categories, setCategories] = useExpenseCategories();
   const [invoices, setInvoices] = useInvoices();
+  const appts = useBranchAppointments();
+  const byId = useServicesById();
+  const [apprenants] = useApprenants();
+  const [abonnes] = useSubscribers();
 
   const [tab, setTab] = useState<Tab>('flux');
   const [filterCaisse, setFilterCaisse] = useState('all');
@@ -102,22 +115,42 @@ export default function Depenses() {
     || (e.subcategory ?? '').toLowerCase().includes(q)
     || (e.items ?? []).some((it) => it.label.toLowerCase().includes(q));
 
+  /* Une recurrente active pese sur CHAQUE mois qu'elle traverse, pas seulement
+     sur celui de sa saisie — `expenseOccurrences` dit combien de fois. */
   const monthExp = useMemo(
-    () => expenses.filter((e) => e.branchId === branch.id && monthKey(e.date) === month),
+    () => expenses.filter((e) => e.branchId === branch.id && expenseOccurrences(e, month) > 0),
     [expenses, branch.id, month],
   );
+  const poids = (e: typeof expenses[number]) => expenseTotal(e) * expenseOccurrences(e, month);
   const live = monthExp.filter((e) => !e.stopped);
   const visibleMonthExp = monthExp.filter(matches);
 
-  const engaged = live.reduce((s, e) => s + expenseTotal(e), 0);
-  const potential = live.filter((e) => e.flagged).reduce((s, e) => s + expenseTotal(e), 0);
-  const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + expenseTotal(e), 0);
-  const revenue = useMemo(
-    () => invoices
+  const engaged = live.reduce((s, e) => s + poids(e), 0);
+  const potential = live.filter((e) => e.flagged).reduce((s, e) => s + poids(e), 0);
+  const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + poids(e), 0);
+  /* LE MEME REVENU QUE LA SYNTHESE. Cet ecran ne comptait que les factures
+     payees, en ignorant les rituels encaisses au carnet, les formations et les
+     abonnements — puis affichait « Resultat net » et un ratio de depenses sur
+     ce revenu tronque, tout en renvoyant par un bouton vers la Synthese, qui
+     annoncait un autre chiffre. Sur une maison qui encaisse surtout au carnet,
+     le resultat s'affichait negatif a tort. */
+  const revenue = useMemo(() => {
+    const inv = invoices
       .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && monthKey(i.date) === month)
-      .reduce((s, i) => s + invoiceTotal(i), 0),
-    [invoices, branch.id, month],
-  );
+      .reduce((s, i) => s + invoiceTotal(i), 0);
+    const rit = appts
+      .filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && monthKey(a.date) === month)
+      .reduce((s, a) => s + apptNetXof(a, byId), 0);
+    const form = apprenants
+      .flatMap((ap) => ap.payments ?? [])
+      .filter((pm) => payMonthKeyLocal(pm.date) === month)
+      .reduce((s, pm) => s + pm.amountXof, 0);
+    const abo = abonnes
+      .flatMap((sub) => sub.payments ?? [])
+      .filter((pm) => pm.amountXof > 0 && payMonthKeyLocal(pm.date) === month)
+      .reduce((s, pm) => s + pm.amountXof, 0);
+    return inv + rit + form + abo;
+  }, [invoices, appts, apprenants, abonnes, byId, branch.id, month]);
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   // Prévision : au rythme réel pour le mois courant ; sinon, le total constaté du mois.

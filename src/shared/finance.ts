@@ -91,6 +91,34 @@ export type Expense = {
 };
 
 /** Total d'une dépense — somme des lignes si présentes, sinon le montant simple. */
+/** COMBIEN DE FOIS une dépense pèse sur le mois `mk` (« aaaa-mm »).
+
+    Le champ `recurring` était décoratif : rien ne reportait l'engagement d'un
+    mois sur le suivant, si bien qu'un loyer de 300 000 F saisi en janvier
+    laissait février à décembre trop beaux d'autant — alors que l'onglet
+    Engagements l'affichait « actif ». Une récurrente court désormais sur
+    chaque mois, de sa saisie jusqu'à son arrêt.
+
+    `stopped` et `paused` la ramènent à son seul mois de saisie : arrêtée, elle
+    ne court plus ; en pause, elle ne pèse pas non plus (le champ n'existait
+    que pour l'affichage, et une dépense en pause était comptée en entier).
+
+    L'hebdomadaire compte autant de fois que son jour de semaine tombe dans le
+    mois — quatre ou cinq selon les mois, jamais un chiffre arbitraire. */
+export const expenseOccurrences = (e: Expense, mk: string): number => {
+  const debut = (e.date ?? '').slice(0, 7);
+  if (!e.recurring || e.stopped || e.paused) return debut === mk ? 1 : 0;
+  if (debut > mk) return 0;
+  if (e.recurring === 'mensuel') return 1;
+  const [y, m] = mk.split('-').map(Number);
+  if (!y || !m) return 0;
+  const jour = new Date(`${e.date}T12:00:00`).getDay();
+  const fin = new Date(y, m, 0).getDate();
+  let n = 0;
+  for (let d = 1; d <= fin; d += 1) if (new Date(y, m - 1, d).getDay() === jour) n += 1;
+  return n;
+};
+
 export const expenseTotal = (e: Expense): number =>
   e.items && e.items.length ? e.items.reduce((s, it) => s + it.amountXof, 0) : e.amountXof;
 

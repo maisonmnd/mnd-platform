@@ -2,13 +2,13 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { useInvoices, useExpenses, invoiceTotal, expenseTotal, cashboxLabel } from '../../../../shared/finance';
+import { expenseOccurrences, useInvoices, useExpenses, invoiceTotal, expenseTotal, cashboxLabel } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, type Part } from '../../../../shared/maisons';
 import { useClients } from '../../../../shared/clients';
-import { useApprenants, useFormations } from '../equipe/data';
+import { useSubscribers, useApprenants, useFormations } from '../equipe/data';
 import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
 import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
@@ -48,6 +48,7 @@ export default function Synthese() {
   const [clients] = useClients();
   const [categories] = useCategories();
   const [apprenants] = useApprenants();
+  const [abonnes] = useSubscribers();
   const [formations] = useFormations();
   const byId = useServicesById();
 
@@ -86,12 +87,27 @@ export default function Synthese() {
       })),
     );
 
+    /* REGLEMENTS D'ABONNEMENT — du chiffre d'affaires, decide par la Maison le
+       3 aout 2026 : le pack compte le jour ou il est ENCAISSE, et les rituels
+       qu'il couvre restent a zero (`coveredBySub` pose deja priceXof: 0).
+       Jusqu'ici le pack n'entrait nulle part : ni a la vente, ni a la
+       consommation — le chiffre d'abonnement valait zero partout. */
+    const aboPays = abonnes.flatMap((sub) =>
+      (sub.payments ?? [])
+        .filter((pm) => pm.amountXof > 0)
+        .map((pm) => ({ mk: payMonthKey(pm.date), amount: pm.amountXof })),
+    );
+
     const revenueOf = (mk: string) =>
       paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0) +
       honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0) +
-      formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
+      formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0) +
+      aboPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
     const expenseOf = (mk: string) =>
-      liveExp.filter((e) => monthKey(e.date) === mk).reduce((s, e) => s + expenseTotal(e), 0);
+      /* Meme regle qu'a l'ecran Depenses : une recurrente active pese sur chaque
+         mois qu'elle traverse. Sans cela les deux ecrans donneraient deux
+         resultats nets pour le meme mois. */
+      liveExp.reduce((s, e) => s + expenseTotal(e) * expenseOccurrences(e, mk), 0);
 
     // Fenêtre de 6 mois : elle se termine au présent (ou au futur navigué) et
     // glisse en arrière si le mois choisi sort du cadre — il reste toujours visible.
@@ -273,7 +289,7 @@ export default function Synthese() {
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
     return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows };
-  }, [invoices, expenses, appts, clients, apprenants, formations, branch.id, month, thisMonth, byId, categories]);
+  }, [invoices, expenses, appts, clients, apprenants, formations, abonnes, branch.id, month, thisMonth, byId, categories]);
 
   const monthName = monthLabel(month);
   const revenue = revenueOf(month);
