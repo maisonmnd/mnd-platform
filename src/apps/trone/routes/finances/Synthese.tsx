@@ -6,7 +6,7 @@ import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../.
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
-import { totalsOf, MAISON_BUCKETS, sumTotals, type Part } from '../../../../shared/maisons';
+import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, type Part } from '../../../../shared/maisons';
 import { useClients } from '../../../../shared/clients';
 import { useApprenants, useFormations } from '../equipe/data';
 import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
@@ -61,7 +61,7 @@ export default function Synthese() {
   const prevMonth = shiftMonth(month, -1);
 
   const {
-    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison,
+    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows,
   } = useMemo(() => {
     const nameOf = (id: string) => clients.find((c) => c.id === id)?.name;
 
@@ -180,6 +180,27 @@ export default function Synthese() {
     };
     const revMaison = totalsOf(ritM, partsOf, byId, catById);
 
+    /* LE DÉTAIL DERRIÈRE CHAQUE MONTANT. Un chiffre par maison qu'on ne peut pas
+       ouvrir demande de le croire ; celui-ci se justifie visite par visite. Un
+       rendez-vous mixte apparaît sous les deux maisons, chacune pour SA part —
+       c'est la même règle que le total, montrée. */
+    const maisonRows: Record<MaisonBucket, { date: string; who: string; meta: string; amount: number }[]> =
+      { atelier: [], studio: [], plateau: [] };
+    ritM.forEach((a) => {
+      const t = splitByMaison(partsOf(a), byId, catById);
+      MAISON_BUCKETS.forEach((m) => {
+        if (t[m.k] > 0) {
+          maisonRows[m.k].push({
+            date: a.date,
+            who: nameOf(a.clientId) ?? 'Cliente',
+            meta: apptLabel(a, byId),
+            amount: t[m.k],
+          });
+        }
+      });
+    });
+    MAISON_BUCKETS.forEach((m) => maisonRows[m.k].sort((x, y) => y.date.localeCompare(x.date)));
+
     // Meilleures clientes du mois — factures payées + rituels honorés non facturés
     const cliMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceTotal(i)));
@@ -244,7 +265,7 @@ export default function Synthese() {
       .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison };
+    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows };
   }, [invoices, expenses, appts, clients, apprenants, formations, branch.id, month, thisMonth, byId, categories]);
 
   const monthName = monthLabel(month);
@@ -484,8 +505,23 @@ export default function Synthese() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginTop: 12 }}>
               {MAISON_BUCKETS.map((m) => {
                 const part = sumTotals(revMaison) ? Math.round((revMaison[m.k] / sumTotals(revMaison)) * 100) : 0;
+                const rows = maisonRows[m.k];
                 return (
-                  <div key={m.k} style={{ minWidth: 150 }}>
+                  <div
+                    key={m.k}
+                    className={rows.length ? 'trf-click' : undefined}
+                    role={rows.length ? 'button' : undefined}
+                    tabIndex={rows.length ? 0 : undefined}
+                    title={rows.length ? `Voir les ${rows.length} rituels` : undefined}
+                    onClick={() => rows.length && setDetail({ title: `${m.label} · ${monthName}`, rows, total: revMaison[m.k] })}
+                    onKeyDown={(e) => {
+                      if (rows.length && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        setDetail({ title: `${m.label} · ${monthName}`, rows, total: revMaison[m.k] });
+                      }
+                    }}
+                    style={{ minWidth: 150, cursor: rows.length ? 'pointer' : 'default', borderRadius: 4, padding: '4px 6px', margin: '-4px -6px' }}
+                  >
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
                       {m.label}
                     </div>
@@ -493,7 +529,7 @@ export default function Synthese() {
                       {fmtMoney(revMaison[m.k], currency)}
                     </div>
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
-                      {part} % des rituels
+                      {part} % des rituels{rows.length ? ` · ${rows.length} visite${rows.length > 1 ? 's' : ''}` : ''}
                     </div>
                     <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', marginTop: 7 }}>
                       <div style={{ width: `${part}%`, height: '100%', borderRadius: 2, background: m.k === 'studio' ? 'var(--color-copper)' : m.k === 'atelier' ? 'var(--color-indigo)' : 'var(--indigo-300)' }} />
