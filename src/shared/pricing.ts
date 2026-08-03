@@ -289,7 +289,17 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
     return p.clientCoef === 1 ? parCalibre : roundPrice(parCalibre * p.clientCoef);
   }
 
-  const auLock = perLockPriceXof(sv, p.lockCount, bande);
+  /* LE COMPTAGE COMMANDE, choisi explicitement au Catalogue : le prix est
+     `locks x tarif`, sans plancher. Les `priceFloors` sont les prix PAR TRANCHE,
+     pas des minimums — les appliquer ici annulerait le choix : a 100 F le lock,
+     le plancher Medium a 25 000 F ecrasait les 12 500 F d'une tete a 125 locks,
+     et basculer l'interrupteur ne changeait rien.
+
+     En mode automatique (aucun choix pose), on garde le comportement historique
+     — `max(comptage, plancher)` — pour ne pas deplacer un prix tout seul. */
+  const auLock = sv.tarifMode === 'lock'
+    ? (p.lockCount && p.lockCount > 0 && sv.ratePerLock ? p.lockCount * sv.ratePerLock : undefined)
+    : perLockPriceXof(sv, p.lockCount, bande);
   /* Pas d'arrondi au 500 sur un prix au lock non modulé : 113 locks font
      11 300 F, et l'arrondi commercial les transformerait en 11 500 F — un écart
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi
