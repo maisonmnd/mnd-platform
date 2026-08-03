@@ -3,7 +3,10 @@ import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
 import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, type Appointment } from '../../../../shared/agenda';
+import { useCategories } from '../../../../shared/catalog';
+import { splitByWeights } from '../../../../shared/pricing';
+import { totalsOf, MAISON_BUCKETS, sumTotals, type Part } from '../../../../shared/maisons';
 import { useClients } from '../../../../shared/clients';
 import { useApprenants, useFormations } from '../equipe/data';
 import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
@@ -43,6 +46,7 @@ export default function Synthese() {
   const [expenses] = useExpenses();
   const [appts] = useAppointments();
   const [clients] = useClients();
+  const [categories] = useCategories();
   const [apprenants] = useApprenants();
   const [formations] = useFormations();
   const byId = useServicesById();
@@ -57,7 +61,7 @@ export default function Synthese() {
   const prevMonth = shiftMonth(month, -1);
 
   const {
-    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail,
+    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison,
   } = useMemo(() => {
     const nameOf = (id: string) => clients.find((c) => c.id === id)?.name;
 
@@ -158,6 +162,24 @@ export default function Synthese() {
     });
     const topServices = spread(svcMap).slice(0, 5);
 
+    /* LE CHIFFRE DE CHAQUE MAISON. L'Atelier MND™ et le Studio ACƆ™ partagent
+       une branche, une caisse et un plateau : rien dans le rendez-vous ne dit
+       de qui il relève. C'est le catalogue qui le sait — chaque atelier porte
+       sa maison — alors on ventile LIGNE À LIGNE, jamais rendez-vous par
+       rendez-vous : une visite qui enchaîne un resserrage et des tresses
+       nourrit les deux, et trancher pour l'une en déplacerait tout le montant.
+
+       On répartit le NET encaissé (remises comprises) au prorata des prix
+       catalogue — la somme des parts égale toujours le net du rendez-vous. */
+    const catById = new Map(categories.map((c) => [c.id, c]));
+    const partsOf = (a: Appointment): Part[] => {
+      const net = apptNetXof(a, byId);
+      const poids = a.serviceIds.map((id) => byId.get(id)?.priceXof ?? 0);
+      const parts = splitByWeights(net, poids);
+      return a.serviceIds.map((id, i) => ({ serviceId: id, amountXof: parts[i] }));
+    };
+    const revMaison = totalsOf(ritM, partsOf, byId, catById);
+
     // Meilleures clientes du mois — factures payées + rituels honorés non facturés
     const cliMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceTotal(i)));
@@ -222,8 +244,8 @@ export default function Synthese() {
       .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail };
-  }, [invoices, expenses, appts, clients, apprenants, formations, branch.id, month, thisMonth, byId]);
+    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison };
+  }, [invoices, expenses, appts, clients, apprenants, formations, branch.id, month, thisMonth, byId, categories]);
 
   const monthName = monthLabel(month);
   const revenue = revenueOf(month);
@@ -447,6 +469,50 @@ export default function Synthese() {
                 : <>Les charges ont dépassé les encaissements en {monthName} — le détail ci-dessous dit où.</>}
           </div>
         </div>
+      </div>
+
+      {/* LE CHIFFRE PAR MAISON. Il ne remplace pas le revenu du mois : il en
+          montre l'origine. Le reste — factures, produits, Académie — n'a pas de
+          maison à lire (une ligne de facture est du texte libre, pas un rituel
+          du catalogue), et se dit en clair plutôt que d'être réparti au jugé. */}
+      <div className="trf-panel" style={{ marginTop: 18 }}>
+        <div className="trf-panel__title">Chiffre par maison · {monthName}</div>
+        {sumTotals(revMaison) === 0 ? (
+          <div className="trf-empty">Aucun rituel honoré en {monthName} — rien à ventiler.</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginTop: 12 }}>
+              {MAISON_BUCKETS.map((m) => {
+                const part = sumTotals(revMaison) ? Math.round((revMaison[m.k] / sumTotals(revMaison)) * 100) : 0;
+                return (
+                  <div key={m.k} style={{ minWidth: 150 }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                      {m.label}
+                    </div>
+                    <div style={{ fontSize: 22, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtMoney(revMaison[m.k], currency)}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                      {part} % des rituels
+                    </div>
+                    <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', marginTop: 7 }}>
+                      <div style={{ width: `${part}%`, height: '100%', borderRadius: 2, background: m.k === 'studio' ? 'var(--color-copper)' : m.k === 'atelier' ? 'var(--color-indigo)' : 'var(--indigo-300)' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+              Rituels honorés du mois, ventilés ligne à ligne : une visite mixte nourrit les deux maisons,
+              chacune à hauteur de ce qu'elle a fait. « Plateau seul » — les lavages et soins vendus sans
+              rituel d'une maison : rien ne permet de les rattacher, on ne devine pas.
+              {revenue - sumTotals(revMaison) > 0 && (
+                <> S'y ajoutent <strong style={{ fontWeight: 500 }}>{fmtMoney(revenue - sumTotals(revMaison), currency)}</strong> de
+                factures, produits et formations, qui ne relèvent d'aucune maison.</>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Le podium du mois — prestations, clientes, mix des paiements */}
