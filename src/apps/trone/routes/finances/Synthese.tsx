@@ -62,7 +62,7 @@ export default function Synthese() {
   const prevMonth = shiftMonth(month, -1);
 
   const {
-    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows,
+    revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows, couvertes,
   } = useMemo(() => {
     const nameOf = (id: string) => clients.find((c) => c.id === id)?.name;
 
@@ -201,6 +201,16 @@ export default function Synthese() {
        bel et bien honorées : le 31 juillet, des Tresses Jumbo passées en caisse
        ne comptaient nulle part, et le Studio affichait trois écritures au lieu
        de quatre. On ventile donc le même ensemble que TOP PRESTATIONS. */
+    /* CE QUE CHAQUE FORMULE A FAIT TRAVAILLER. Ces seances valent 0 F -- elles
+       sont deja payees -- donc elles n'apparaissent dans aucun chiffre
+       d'affaires. Sans ce comptage, un forfait vendu 380 000 F et un abonnement
+       mensuel se ressemblaient : du travail fourni, invisible partout. */
+    const couvertes = { abonnement: 0, forfait: 0 };
+    for (const a of honoredAll) {
+      if (!a.coveredBySub) continue;
+      couvertes[a.coverKind === 'forfait' ? 'forfait' : 'abonnement'] += 1;
+    }
+
     const revMaison = totalsOf(honoredAll, partsOf, byId, catById);
 
     /* LE DÉTAIL DERRIÈRE CHAQUE MONTANT. Un chiffre par maison qu'on ne peut pas
@@ -288,7 +298,7 @@ export default function Synthese() {
       .map((e) => ({ date: e.date, who: e.label || 'Dépense', meta: [e.category, e.subcategory, e.cashbox ? cashboxLabel(e.cashbox) : ''].filter(Boolean).join(' · '), amount: expenseTotal(e) }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows };
+    return { revenueOf, expenseOf, series, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows, couvertes };
   }, [invoices, expenses, appts, clients, apprenants, formations, abonnes, branch.id, month, thisMonth, byId, categories]);
 
   const monthName = monthLabel(month);
@@ -573,6 +583,27 @@ export default function Synthese() {
           </>
         )}
       </div>
+
+      {(couvertes.abonnement > 0 || couvertes.forfait > 0) && (
+        <div className="trf-panel" style={{ marginTop: 18 }}>
+          <div className="trf-panel__title">Séances déjà payées · {monthName}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginTop: 12 }}>
+            {([['Abonnements', couvertes.abonnement], ['Forfaits', couvertes.forfait]] as const).map(([nom, n]) => (
+              <div key={nom} style={{ minWidth: 150 }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{nom}</div>
+                <div style={{ fontSize: 22, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+                  {n} séance{n > 1 ? 's' : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+            Du travail fourni ce mois-ci sans encaissement : ces séances étaient déjà réglées, à la vente
+            du forfait ou du pack. Elles ne comptent donc dans aucun chiffre d'affaires — mais elles ont
+            occupé le fauteuil, et c'est ce que ce compte rend visible.
+          </div>
+        </div>
+      )}
 
       {/* Le podium du mois — prestations, clientes, mix des paiements */}
       <div className="tr-grid tr-grid--3" style={{ marginTop: 18, alignItems: 'start' }}>

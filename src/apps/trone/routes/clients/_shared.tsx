@@ -554,6 +554,7 @@ export function RdvModal({
         source: 'trone',
         note: note.trim() || undefined,
         coveredBySub: effCovered || undefined,
+        coverKind: effCovered ? ('abonnement' as const) : undefined,
         discountPct: effCovered ? undefined : (discountPct || undefined),
         discountXof: effCovered ? undefined : (discountXof || undefined),
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
@@ -588,6 +589,8 @@ export function RdvModal({
             source: 'trone',
             note: `Inclus au forfait · ${byId.get(sid)?.name ?? ''} — date à confirmer`.trim(),
             coveredBySub: true,
+            coverKind: 'forfait',
+            coverServiceId: sid,
             priceXof: 0,
             depositServiceIds: [],
             depositXof: 0,

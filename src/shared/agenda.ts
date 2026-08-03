@@ -74,6 +74,15 @@ export type Appointment = {
       décompté de son allocation du cycle (voir `subServiceUsage`, equipe/data.ts).
       Ne jamais compter un RDV couvert dans le chiffre d'affaires. */
   coveredBySub?: boolean;
+  /** PAR QUOI la seance est couverte. `coveredBySub` dit qu'elle est deja
+      payee ; ce champ dit par quoi — un abonnement mensuel n'est pas un forfait
+      vendu d'un coup, et les confondre au comptoir empeche de savoir ce que
+      chaque formule rapporte reellement. Absent sur l'historique : on retombe
+      alors sur « abonnement », seul mecanisme qui existait avant le 3 aout. */
+  coverKind?: 'abonnement' | 'forfait';
+  /** Le forfait qui couvre cette seance — l'identifiant de la prestation
+      vendue, pour remonter du suivi a la vente qui l'a promis. */
+  coverServiceId?: string;
   /** QUEL abonnement couvre ce rituel. Sans lui, la couverture se rattache à la
       CLIENTE — et une cliente qui porte deux packs voit ses rendez-vous décomptés
       deux fois, une fois sur chaque. Carolle Odoutan en portait deux simultanément

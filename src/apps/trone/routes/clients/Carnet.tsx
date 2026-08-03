@@ -154,9 +154,15 @@ export default function Carnet() {
             <span
               className="trc-serie-chip"
               style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
-              title="Rituel couvert par l’abonnement — rien à facturer, décompté du quota du cycle"
+              title={a.coverKind === 'forfait'
+                ? 'Séance promise par un forfait déjà réglé — rien à facturer'
+                : 'Rituel couvert par l’abonnement — rien à facturer, décompté du quota du cycle'}
             >
-              ★ Inclus · abonnement
+              {/* Un abonnement mensuel et un forfait vendu d'un coup ne sont pas
+                  la même formule : les confondre au comptoir empêchait de savoir
+                  ce que chacune rapporte. L'historique n'a pas le champ — il
+                  n'existait alors qu'un seul mécanisme, l'abonnement. */}
+              ★ Inclus · {a.coverKind === 'forfait' ? 'forfait' : 'abonnement'}
             </span>
           ) : a.seriesIndex && a.seriesIndex > 1 ? (
             <span className="trc-serie-incluse">
