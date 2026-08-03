@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { type TarifMode,
+import { type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
@@ -50,6 +50,7 @@ type SvcForm = {
   code: string; // ATL·II·MIN·E
   rate: string; // tarif au lock (F/lock) — vide = pas de prix au lock
   tarifMode: '' | TarifMode; // qui commande : '' = comportement historique
+  includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   floors: Record<string, string>; // plancher par calibre, saisi en texte
   durationMax: string; // borne haute quand la durée s'annonce en fourchette
   priceTo: string; // borne haute d'affichage — « de X à Y »
@@ -57,7 +58,7 @@ type SvcForm = {
 
 const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
-  code: '', rate: '', tarifMode: '', floors: {}, durationMax: '', priceTo: '',
+  code: '', rate: '', tarifMode: '', includes: [], floors: {}, durationMax: '', priceTo: '',
 });
 
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
@@ -350,7 +351,7 @@ export default function Catalogue() {
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
-      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '',
+      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [],
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
       durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
@@ -371,6 +372,7 @@ export default function Catalogue() {
       code: svcForm.code.trim() || undefined,
       ratePerLock: num(svcForm.rate),
       tarifMode: svcForm.tarifMode || undefined,
+      includes: svcForm.includes.length ? svcForm.includes : undefined,
       priceFloors: Object.keys(floors).length ? floors : undefined,
       durationMaxMin: num(svcForm.durationMax),
       priceToXof: num(svcForm.priceTo),
@@ -804,6 +806,71 @@ export default function Catalogue() {
                 Le plancher de chaque calibre empêche un petit compte de locks
                 de tomber sous le tarif de la Maison — le temps de fauteuil ne
                 descend pas aussi vite que le nombre de locks. */}
+            {/* ── LES PRESTATIONS INCLUSES ──────────────────────────────────
+                Un forfait n'est pas une phrase : c'est un ensemble de gestes
+                reels. Tant qu'ils n'etaient que du texte, rien ne savait ce
+                qui restait du a la cliente, ces gestes ne comptaient dans
+                aucune statistique, et les seances de suivi se perdaient. */}
+            <Field label="Prestations incluses dans ce forfait">
+              {svcForm.includes.length === 0 && (
+                <div className="mnd-muted" style={{ fontSize: 12, padding: '4px 0 8px' }}>
+                  Aucune — cette prestation se vend seule.
+                </div>
+              )}
+              {svcForm.includes.map((inc, i) => (
+                <div key={`inc-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <select
+                    className="ds-select"
+                    style={{ flex: 1 }}
+                    value={inc.serviceId}
+                    onChange={(e) => setSvcForm({
+                      ...svcForm,
+                      includes: svcForm.includes.map((x, j) => (j === i ? { ...x, serviceId: e.target.value } : x)),
+                    })}
+                  >
+                    <option value="">Choisir une prestation…</option>
+                    {services
+                      .filter((sv) => sv.id !== svcForm.id)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((sv) => (
+                        <option key={sv.id} value={sv.id}>{sv.name}</option>
+                      ))}
+                  </select>
+                  <Input
+                    inputMode="numeric"
+                    style={{ width: 92 }}
+                    value={inc.afterWeeks ? String(inc.afterWeeks) : ''}
+                    onChange={(e) => setSvcForm({
+                      ...svcForm,
+                      includes: svcForm.includes.map((x, j) => (j === i
+                        ? { ...x, afterWeeks: parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || undefined }
+                        : x)),
+                    })}
+                    placeholder="semaines"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSvcForm({ ...svcForm, includes: svcForm.includes.filter((_, j) => j !== i) })}
+                    style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+                    title="Retirer cette ligne"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSvcForm({ ...svcForm, includes: [...svcForm.includes, { serviceId: '' }] })}
+                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+              >
+                + Ajouter une prestation incluse
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                La colonne « semaines » dit quand la prestation est due. Laisser vide pour le jour même ;
+                6 pour un entretien à six semaines. Les lignes à échéance deviennent des rendez-vous
+                posés au carnet dès la réservation du forfait, couverts par lui, à 0 F.
+              </div>
+            </Field>
             <Field label="Qui commande le prix">
               <select
                 className="ds-select"

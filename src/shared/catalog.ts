@@ -66,6 +66,8 @@ export type Service = {
   ratePerLock?: number;
   /** Qui commande le prix : le comptage ou la tranche. Voir TarifMode. */
   tarifMode?: TarifMode;
+  /** Prestations reellement couvertes par ce forfait. Voir ServiceInclus. */
+  includes?: ServiceInclus[];
   /** PLANCHER PAR CALIBRE — le prix au lock ne descend jamais sous le tarif du
       calibre. Clé = identifiant de tranche (`cal-jumbo`, `cal-mini`…), valeur =
       prix ferme en F CFA. Sans plancher, un Jumbo à 60 locks tomberait à 6 000 F
@@ -131,6 +133,22 @@ export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): 
     l'un ou l'autre est juste. Un resserrage se facture volontiers a la tranche ;
     une creation suit le comptage de pres. */
 export type TarifMode = 'lock' | 'calibre';
+
+/** UNE PRESTATION INCLUSE DANS UN FORFAIT.
+
+    Les forfaits n'etaient que du texte : « La Naissance + Les 3 Premiers
+    Entretiens » decrivait quatre gestes sans qu'aucun n'existe pour
+    l'application. Impossible de savoir ce qui restait du, ni de compter ces
+    gestes dans les statistiques, ni de poser les rendez-vous de suivi.
+
+    Chaque ligne nomme une VRAIE prestation du catalogue et dit quand elle est
+    due : `afterWeeks: 0` (ou absent) = pendant la meme visite ; au-dela, c'est
+    un rendez-vous a poser au carnet a cette echeance. */
+export type ServiceInclus = {
+  serviceId: string;
+  /** Dans combien de semaines apres la visite d'ouverture. 0 = le jour meme. */
+  afterWeeks?: number;
+};
 
 export const SEUIL_REASSORT = 3;
 

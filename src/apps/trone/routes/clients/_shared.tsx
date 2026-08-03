@@ -562,7 +562,39 @@ export function RdvModal({
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
-      appointmentsStore.set((prev) => [...prev, created]);
+      /* LES SEANCES DUES PAR UN FORFAIT SE POSENT AU CARNET. Un forfait qui
+         promet « les 3 premiers entretiens » ne les promettait qu'en toutes
+         lettres : rien ne savait ce qui restait du, ces gestes n'entraient dans
+         aucune statistique, et une seance oubliee ne se voyait nulle part.
+
+         Chaque prestation incluse portant une echeance devient un rendez-vous
+         a sa date, couvert par le forfait donc a 0 F. Le montant du forfait
+         reste entier sur la visite d'ouverture : ces seances sont deja payees.
+         Les dates sont a confirmer avec la cliente — elles sont posees pour ne
+         pas etre perdues, pas pour etre gravees. */
+      const suites: Appointment[] = [];
+      for (const sid of serviceIds) {
+        for (const inc of byId.get(sid)?.includes ?? []) {
+          if (!inc.serviceId || !inc.afterWeeks || inc.afterWeeks <= 0) continue;
+          suites.push({
+            id: uid(),
+            branchId: branch.id,
+            clientId,
+            serviceIds: [inc.serviceId],
+            date: addDaysISO(date, inc.afterWeeks * 7),
+            time,
+            master,
+            status: 'confirmé',
+            source: 'trone',
+            note: `Inclus au forfait · ${byId.get(sid)?.name ?? ''} — date à confirmer`.trim(),
+            coveredBySub: true,
+            priceXof: 0,
+            depositServiceIds: [],
+            depositXof: 0,
+          });
+        }
+      }
+      appointmentsStore.set((prev) => [...prev, created, ...suites]);
     }
     onClose();
   };
