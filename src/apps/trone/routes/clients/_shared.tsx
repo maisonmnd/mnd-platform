@@ -9,7 +9,7 @@ import {
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { useServices, priceModeOf, type Service } from '../../../../shared/catalog';
+import { useServices, useCategories, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
@@ -422,6 +422,7 @@ export function RdvModal({
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
+  const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
@@ -453,6 +454,14 @@ export function RdvModal({
      où son prix est de 220 000 F. Déclaré APRÈS `pricing` — le lire plus haut
      touchait une constante non encore initialisée et cassait tout le Carnet. */
   const proposables = remaining.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
+  /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
+     faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
+     nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
+     ça que la Maison en parle. Les catégories vides ne s'affichent pas. */
+  const parAtelier = cats
+    .map((c) => ({ cat: c, list: proposables.filter((sv) => sv.categoryId === c.id) }))
+    .filter((g) => g.list.length);
+  const horsAtelier = proposables.filter((sv) => !cats.some((c) => c.id === sv.categoryId));
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing), 0) : grossCatalogue;
@@ -639,11 +648,24 @@ export function RdvModal({
               <option value="" disabled>
                 + Ajouter une prestation…
               </option>
-              {proposables.map((sv) => (
-                <option key={sv.id} value={sv.id}>
-                  {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
-                </option>
+              {parAtelier.map((g) => (
+                <optgroup key={g.cat.id} label={`${g.cat.fon} · ${g.cat.label}`}>
+                  {g.list.map((sv) => (
+                    <option key={sv.id} value={sv.id}>
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+              {horsAtelier.length > 0 && (
+                <optgroup label="Autres">
+                  {horsAtelier.map((sv) => (
+                    <option key={sv.id} value={sv.id}>
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </Select>
           </div>
         </div>
