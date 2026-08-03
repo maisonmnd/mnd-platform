@@ -422,11 +422,7 @@ export function RdvModal({
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
-  const remaining = (services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order))
-    /* SEULEMENT CE QUI LA CONCERNE. Un VÈKPÈ™ Medium n'existe pas pour une
-       cliente Mini : le proposer, c'est risquer de figer 150 000 F sur son
-       rendez-vous là où son prix est de 220 000 F. */
-    .filter((sv) => servesBand(sv, bandForService(sv, pricing)));
+  const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
@@ -452,6 +448,12 @@ export function RdvModal({
   const rdvClient = clients.find((c) => c.id === clientId);
   const [sets] = useBandSets();
   const pricing = pricingOf(rdvClient, bands, sets);
+  /* SEULEMENT CE QUI LA CONCERNE. Un VÈKPÈ™ Medium n'existe pas pour une cliente
+     Mini : le proposer, c'est risquer de figer 150 000 F sur son rendez-vous là
+     où son prix est de 220 000 F. Déclaré APRÈS `pricing` — le lire plus haut
+     touchait une constante non encore initialisée et cassait tout le Carnet. */
+  const proposables = remaining.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
+
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing), 0) : grossCatalogue;
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
@@ -637,7 +639,7 @@ export function RdvModal({
               <option value="" disabled>
                 + Ajouter une prestation…
               </option>
-              {remaining.map((sv) => (
+              {proposables.map((sv) => (
                 <option key={sv.id} value={sv.id}>
                   {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
                 </option>
