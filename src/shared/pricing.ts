@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import type { Service } from './catalog';
+import type { CatalogCategory, Service } from './catalog';
 import type { Client } from './clients';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
@@ -163,6 +163,10 @@ export type PersonalPricing = {
   /** Barèmes par atelier, s'il y en a. Portés ici pour que `personalPriceXof`
       choisisse la bonne tranche SANS que chaque appelant ait à le savoir. */
   sets?: Record<string, ModelBand[]>;
+  /** L'arbre des categories — pour remonter d'une famille a son atelier. Le
+      bareme est attache a l'ATELIER : sans cette remontee, une prestation
+      rangee sous SINSIN cesserait de suivre le bareme de GBEJI. */
+  cats?: Pick<CatalogCategory, 'id' | 'parentId'>[];
 };
 
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
@@ -181,8 +185,15 @@ export const pricingOf = (
 /** La tranche qui s'applique À CETTE prestation : celle de son atelier si
     l'atelier a son barème, sinon celle de la Maison déjà calculée. */
 export const bandForService = (sv: Pick<Service, 'categoryId'>, p: PersonalPricing): ModelBand | undefined => {
-  const propre = p.sets?.[sv.categoryId];
-  return propre?.length ? bandOf(p.lockCount, propre) : p.band;
+  /* On cherche le bareme sur la categorie, puis en remontant ses parents : une
+     famille herite du bareme de son atelier, elle ne le redefinit pas. */
+  let id: string | undefined = sv.categoryId;
+  for (let i = 0; id && i < 8; i += 1) {
+    const propre = p.sets?.[id];
+    if (propre?.length) return bandOf(p.lockCount, propre);
+    id = p.cats?.find((c) => c.id === id)?.parentId;
+  }
+  return p.band;
 };
 
 /** Y a-t-il quelque chose à personnaliser (modèle connu ou Juste Prix ≠ 1) ? */

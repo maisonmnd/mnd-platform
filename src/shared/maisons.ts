@@ -42,7 +42,19 @@ export const maisonOfService = (
   serviceId: string,
   svcById: Map<string, Service>,
   catById: Map<string, CatalogCategory>,
-): Maison | undefined => catById.get(svcById.get(serviceId)?.categoryId ?? '')?.maison;
+): Maison | undefined => {
+  /* REMONTEE A L'ATELIER. Une prestation rangee sous une famille — SINSIN sous
+     GBEJI — n'a pas de maison propre : elle herite de celle de son atelier.
+     Lire la famille seule renverrait `undefined` et ferait tomber toute la
+     ventilation dans le seau « plateau ». */
+  let cat = catById.get(svcById.get(serviceId)?.categoryId ?? '');
+  for (let i = 0; cat?.parentId && !cat.maison && i < 8; i += 1) {
+    const parent = catById.get(cat.parentId);
+    if (!parent) break;
+    cat = parent;
+  }
+  return cat?.maison;
+};
 
 /** Une part de chiffre attribuée à une prestation — la brique de la ventilation.
     `amountXof` est déjà la part NETTE de cette ligne (remises comprises). */

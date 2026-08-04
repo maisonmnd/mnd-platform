@@ -73,7 +73,7 @@ const num = (s: string): number | undefined => {
 };
 
 
-type CatForm = { id: string | null; fon: string; label: string; enabled: boolean; maison: Maison | ''; code: string };
+type CatForm = { id: string | null; fon: string; label: string; enabled: boolean; maison: Maison | ''; code: string; parentId: string };
 
 type ProdForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
 const emptyProdForm = (categoryId: string): ProdForm => ({ id: null, categoryId, name: '', price: '', stock: '0' });
@@ -291,11 +291,11 @@ export default function Catalogue() {
     if (!catForm || !catForm.fon.trim()) return;
     if (catForm.id) {
       setCategories((prev) => prev.map((c) => (c.id === catForm.id
-        ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined }
+        ? { ...c, fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined, parentId: catForm.parentId || undefined }
         : c)));
     } else {
       const maxOrder = cats.reduce((m, c) => Math.max(m, c.order), 0);
-      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, order: maxOrder + 1, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined }]);
+      setCategories((prev) => [...prev, { id: uid(), fon: catForm.fon.trim(), label: catForm.label.trim(), enabled: catForm.enabled, order: maxOrder + 1, maison: catForm.maison || undefined, code: catForm.code.trim() || undefined, parentId: catForm.parentId || undefined }]);
     }
     setCatForm(null);
   };
@@ -534,7 +534,7 @@ export default function Catalogue() {
         sub="Segmenté par catégorie ™ et par palier d’expérience — jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
         actions={
           <>
-            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '' })}>+ Catégorie</Button>
+            <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '', parentId: '' })}>+ Catégorie</Button>
             <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>
             {/* UN FORFAIT N'EST PAS UNE PRESTATION. Il en rassemble plusieurs et
@@ -642,7 +642,7 @@ export default function Catalogue() {
                     {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
                   </button>
                   <span className="trv-catblock__tools">
-                    <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled, maison: cat.maison ?? '', code: cat.code ?? '' })}>
+                    <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled, maison: cat.maison ?? '', code: cat.code ?? '' , parentId: cat.parentId ?? '' })}>
                       Modifier
                     </button>
                     <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
@@ -1213,6 +1213,30 @@ export default function Catalogue() {
       {catForm && (
         <Modal title={catForm.id ? 'La catégorie.' : 'Nouvelle catégorie.'} onClose={() => setCatForm(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* UNE FAMILLE DE RITUELS SOUS SON ATELIER. GBEJI porte les SINSIN,
+                les KLOKLO, les DANDAN. La famille n'a ni maison ni bareme
+                propres : elle herite de son atelier, et tout ce qui les lit
+                remonte jusqu'a lui. */}
+            <Field label="Rattachée à un atelier — facultatif">
+              <select
+                className="ds-select"
+                value={catForm.parentId}
+                onChange={(e) => setCatForm({ ...catForm, parentId: e.target.value })}
+              >
+                <option value="">Aucun — c’est un atelier</option>
+                {categories
+                  .filter((c) => !c.parentId && c.id !== catForm.id)
+                  .sort((a, b) => a.order - b.order)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
+                  ))}
+              </select>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.55 }}>
+                Laisser vide pour un atelier. Choisir un atelier en fait une famille de rituels rangée
+                sous lui — les SÍNSIN™ sous GBÈJÍ™, par exemple. Une famille hérite de la maison et du
+                barème de son atelier ; inutile de les redéfinir.
+              </div>
+            </Field>
             <Field label="Code de la catégorie">
               <Input
                 value={catForm.fon}

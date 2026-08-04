@@ -26,6 +26,19 @@ export type CatalogCategory = {
   maison?: Maison;
   /** Code ERP de l'atelier ou de l'axe — `ATL·I`, `PLT·05`, `STU·A`. */
   code?: string;
+  /** L'ATELIER AUQUEL CETTE SOUS-CATEGORIE APPARTIENT.
+
+      Un atelier se compose de familles de rituels : GBEJI porte les SINSIN
+      (reprises de racines), les KLOKLO (shampoings), les DANDAN (soins
+      signature). Ces familles n'existaient que dans les noms — c'est le prefixe
+      qui faisait office de regroupement, sans que rien ne le sache.
+
+      Absent = c'est un atelier, une racine. Present = c'est une famille rangee
+      sous lui. Tout ce qui lit la maison, le bareme ou le calibre d'une
+      prestation doit REMONTER a la racine : ces reglages appartiennent a
+      l'atelier, pas a la famille. Voir `racineOf`. */
+  parentId?: string;
+
   /** Une LIGNE DE PRODUITS — une collection au comptoir, pas un atelier.
       Elle vit dans le meme magasin que les ateliers : meme ecran Catalogue,
       meme code, meme ordre. Seul ce drapeau dit qu'elle se remplit de produits
@@ -252,6 +265,23 @@ bindDocument(removedServicesStore, 'mnd_removed_services');
 export const markServiceRemoved = (id: string): void =>
   removedServicesStore.set((prev) => (prev.includes(id) ? prev : [...prev, id]));
 export const removedServiceIds = (): Set<string> => new Set(removedServicesStore.get());
+
+/** LA RACINE d'une categorie — l'atelier dont elle releve, ou elle-meme si
+    c'en est un. La maison, les baremes du Juste Prix et les calibres sont
+    attaches a l'atelier : une famille en herite, elle ne les redefinit pas.
+    La remontee est bornee pour qu'un parent circulaire ne fige pas l'ecran. */
+export const racineOf = (cats: CatalogCategory[], id: string | undefined): CatalogCategory | undefined => {
+  let cur = cats.find((c) => c.id === id);
+  for (let i = 0; cur?.parentId && i < 8; i += 1) {
+    const parent = cats.find((c) => c.id === cur!.parentId);
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
+};
+
+/** Les ateliers seuls — les categories sans parent. */
+export const ateliersOf = (cats: CatalogCategory[]): CatalogCategory[] => cats.filter((c) => !c.parentId);
 
 export const useCategories = () => useStore(categoriesStore);
 export const useServices = () => useStore(servicesStore);
