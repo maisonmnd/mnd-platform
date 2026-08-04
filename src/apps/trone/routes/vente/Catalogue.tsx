@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
@@ -583,6 +583,12 @@ export default function Catalogue() {
         const gPrec = ci > 0 && renderCats[ci - 1].id !== ORPHAN_ID ? groupeDe(renderCats[ci - 1]).k : null;
         const ouvreGroupe = g && g.k !== gPrec;
         const list = (isOrphan ? orphanSvcs : svcOf(cat.id)).filter(matchSvc);
+        /* LES FORFAITS A PART. Un forfait rassemble plusieurs gestes et se
+           vend comme un engagement ; melange aux prestations, il se lisait
+           comme l'une d'elles. On les range en fin d'atelier, sous leur propre
+           en-tete, pour qu'on sache toujours dans lequel des deux on se trouve. */
+        const prestations = list.filter((sv) => !sv.includes?.length);
+        const forfaits = list.filter((sv) => !!sv.includes?.length);
         const prods = (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
         const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
@@ -680,9 +686,27 @@ export default function Catalogue() {
             <>
             <div className="trv-catblock__filet" />
 
+            {prestations.length > 0 && forfaits.length > 0 && (
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', padding: '4px 0 8px' }}>
+                Prestations · {prestations.length}
+              </div>
+            )}
             <div className="trv-catblock__body tr-grid tr-grid--2">
-              {list.map((svc, si) => (
-                <article key={svc.id} className="trv-svc">
+              {[...prestations, ...forfaits].map((svc, si) => (
+                <Fragment key={svc.id}>
+                {/* L'EN-TETE DES FORFAITS s'insere pile avant le premier d'entre
+                    eux : on sait toujours dans lequel des deux on se trouve. */}
+                {si === prestations.length && forfaits.length > 0 && (
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 14, paddingBottom: 6, borderBottom: '1px solid var(--copper-300)' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                      Forfaits · {forfaits.length}
+                    </span>
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                      plusieurs gestes, un seul engagement — les prestations incluses se posent au carnet
+                    </span>
+                  </div>
+                )}
+                <article className="trv-svc">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                     <div className="trv-svc__name">{svc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flex: 'none' }}>
@@ -829,6 +853,7 @@ export default function Catalogue() {
                     </span>
                   </div>
                 </article>
+                </Fragment>
               ))}
 
               {prods.map((p, pi) => (
