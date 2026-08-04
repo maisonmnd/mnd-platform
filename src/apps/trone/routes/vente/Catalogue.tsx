@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -96,6 +97,7 @@ export default function Catalogue() {
      (net du RDV ventilé au prorata des prix catalogue quand un rituel combine
      plusieurs prestations — la somme des parts égale toujours le net). Toutes
      branches confondues : le catalogue est celui de la maison entière. */
+  const navigate = useNavigate();
   const [allAppts] = useAppointments();
   const [clients] = useClients();
   const svcById = useServicesById();
@@ -721,6 +723,12 @@ export default function Catalogue() {
                             : r.combined ? 'Part d’un rituel combiné' : 'Rituel honoré',
                           amount: r.amount,
                           invoiceId: r.invoiceId,
+                          /* Pas de facture rattachee — la ligne ouvre alors le
+                             RENDEZ-VOUS, filtre sur la cliente. Un chiffre qu'on
+                             ne peut pas ouvrir n'est pas un chiffre. */
+                          onOpen: r.invoiceId || r.upcoming
+                            ? undefined
+                            : () => navigate(`/carnet?q=${encodeURIComponent(r.who)}`),
                         })),
                       });
                     };

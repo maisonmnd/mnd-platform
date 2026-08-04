@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -27,7 +28,12 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  /* La recherche peut arriver par l'adresse — c'est ainsi qu'un chiffre du
+     Catalogue ouvre le rendez-vous qui le compose quand aucune facture n'y est
+     rattachee : on ne peut pas ouvrir une piece qui n'existe pas, on ouvre donc
+     le rituel. */
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [maison, setMaison] = useState<Maison | ''>('');
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
