@@ -109,6 +109,10 @@ export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: b
     ? {
         ...a,
         paidXof: undefined,
+        /* LE JOURNAL SUIT L'ANNULATION. Il survivait a l'encaissement annule :
+           le reste du revenait au total, mais la trace du versement restait
+           affichee — un argent rendu qui continuait de figurer comme recu. */
+        payments: undefined,
         invoiceId: undefined,
         status: a.status === 'honoré' ? 'confirmé' : a.status,
         /* Points repris → une future ré-attribution redevient légitime. Pas
@@ -127,12 +131,27 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
   const appt = appointmentsStore.get().find((a) => a.invoiceId === invoiceId);
   if (!appt) return null;
   const newPaid = Math.max(0, (appt.paidXof ?? 0) - Math.max(0, amountXof));
+  /* Le journal se rembobine du meme montant, du versement le plus recent au
+     plus ancien : la piece supprimee emporte les versements qu'elle portait. */
+  let aReprendre = Math.max(0, amountXof);
+  const journal = [...(appt.payments ?? [])];
+  while (aReprendre > 0 && journal.length) {
+    const dernier = journal[journal.length - 1];
+    if (dernier.amountXof <= aReprendre) {
+      aReprendre -= dernier.amountXof;
+      journal.pop();
+    } else {
+      journal[journal.length - 1] = { ...dernier, amountXof: dernier.amountXof - aReprendre };
+      aReprendre = 0;
+    }
+  }
   const fully = newPaid === 0;
   const pointsReversed = fully ? reverseHonorPoints(appt) : 0;
   appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
     ? {
         ...a,
         paidXof: newPaid > 0 ? newPaid : undefined,
+        payments: journal.length ? journal : undefined,
         invoiceId: undefined,
         status: fully && a.status === 'honoré' ? 'confirmé' : a.status,
         ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
