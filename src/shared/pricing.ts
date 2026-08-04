@@ -279,7 +279,13 @@ export const forfaitPriceXof = (
   catalogue: readonly Service[],
   profondeur = 0,
 ): number | undefined => {
-  if (sv.forfaitRemisePct === undefined || !sv.includes?.length || profondeur > 2) return undefined;
+  if (!sv.includes?.length || profondeur > 2) return undefined;
+  /* Un forfait SANS prix propre vaut sa composition. Poser 0 F en attendant que
+     le calcul prenne le relais laissait le forfait se vendre... zero franc :
+     l'intention etait claire, l'application ne la lisait pas. Remise absente et
+     prix a zero = remise nulle, le forfait vaut la somme de ses prestations. */
+  const remise = sv.forfaitRemisePct ?? (sv.priceXof === 0 ? 0 : undefined);
+  if (remise === undefined) return undefined;
   let somme = 0;
   for (const inc of sv.includes) {
     const cible = inc.categoryId
@@ -289,7 +295,7 @@ export const forfaitPriceXof = (
     somme += forfaitPriceXof(cible, p, catalogue, profondeur + 1) ?? personalPriceXof(cible, p);
   }
   if (somme <= 0) return undefined;
-  return Math.max(0, Math.round(somme * (1 - sv.forfaitRemisePct / 100)));
+  return Math.max(0, Math.round(somme * (1 - remise / 100)));
 };
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[]): number => {

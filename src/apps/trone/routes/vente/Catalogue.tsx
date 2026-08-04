@@ -387,7 +387,12 @@ export default function Catalogue() {
   const inclusPaires = (svcForm?.includes ?? [])
     .map((inc) => {
       if (inc.categoryId) {
-        const fam = services.filter((x) => x.categoryId === inc.categoryId);
+        /* « La prestation de son calibre » ne designe QUE celles qui varient
+           avec la densite. Retenir tout l'atelier melait le resserrage et
+           l'abonnement annuel a 480 000 F, et la fourchette annoncee n'avait
+           plus aucun sens — de 8 900 F a 1 140 000 F. */
+        const fam = services.filter((x) => x.categoryId === inc.categoryId
+          && Object.keys(x.priceFloors ?? {}).length > 0);
         if (!fam.length) return null;
         const bs = fam.map(bornes);
         return {
@@ -1027,7 +1032,12 @@ export default function Catalogue() {
                     placeholder="Laisser vide pour garder le prix annoncé ci-dessus"
                   />
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
-                    {svcForm.forfaitRemise.trim()
+                    {!svcForm.forfaitRemise.trim() && inclusPrix === 0
+                      ? <span style={{ color: 'var(--copper-700)' }}>Le prix saisi plus haut est à 0 F : le forfait
+                        vaudra donc la <strong style={{ fontWeight: 500 }}>somme entière</strong> de ses prestations au
+                        prix de la cliente, sans remise. Saisis un pourcentage ici pour accorder une remise, ou un prix
+                        plus haut pour vendre à prix fixe.</span>
+                      : svcForm.forfaitRemise.trim()
                       ? <>Le forfait vaudra la somme de ses prestations <strong style={{ fontWeight: 500 }}>au prix
                         de la cliente</strong>, moins {parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0} %.
                         Chaque tête a donc son montant exact, et ta marge reste la même sur toutes.
