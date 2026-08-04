@@ -53,14 +53,15 @@ type SvcForm = {
   tarifMode: '' | TarifMode; // qui commande : '' = comportement historique
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
+  estForfait: boolean; // un forfait porte une composition ; une prestation, non
   floors: Record<string, string>; // plancher par calibre, saisi en texte
   durationMax: string; // borne haute quand la durée s'annonce en fourchette
   priceTo: string; // borne haute d'affichage — « de X à Y »
 };
 
-const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
+const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
-  code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', floors: {}, durationMax: '', priceTo: '',
+  code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
 });
 
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
@@ -354,7 +355,7 @@ export default function Catalogue() {
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
-      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [], forfaitRemise: svc.forfaitRemisePct !== undefined ? String(svc.forfaitRemisePct) : '',
+      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [], estForfait: !!svc.includes?.length, forfaitRemise: svc.forfaitRemisePct !== undefined ? String(svc.forfaitRemisePct) : '',
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
       durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
@@ -536,6 +537,11 @@ export default function Catalogue() {
             <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '' })}>+ Catégorie</Button>
             <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>
+            {/* UN FORFAIT N'EST PAS UNE PRESTATION. Il en rassemble plusieurs et
+                leur applique une remise ; une prestation isolee n'a rien a
+                composer. Les deux formulaires ne montrent donc pas les memes
+                champs, et le geste de creation le dit des le depart. */}
+            <Button variant="ghost" onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? '', true))}>+ Forfait</Button>
           </>
         }
       />
@@ -848,7 +854,7 @@ export default function Catalogue() {
       })}
 
       {svcForm && (
-        <Modal title={svcForm.id ? 'La prestation.' : 'Nouvelle prestation.'} onClose={() => setSvcForm(null)} width={600}>
+        <Modal title={svcForm.id ? (svcForm.estForfait ? 'Le forfait.' : 'La prestation.') : (svcForm.estForfait ? 'Nouveau forfait.' : 'Nouvelle prestation.')} onClose={() => setSvcForm(null)} width={600}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom de la prestation">
               <Input value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })} placeholder="Ex. Création microlocks" />
@@ -904,6 +910,7 @@ export default function Catalogue() {
                 reels. Tant qu'ils n'etaient que du texte, rien ne savait ce
                 qui restait du a la cliente, ces gestes ne comptaient dans
                 aucune statistique, et les seances de suivi se perdaient. */}
+            {svcForm.estForfait && (
             <Field label="Prestations incluses dans ce forfait">
               {svcForm.includes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12, padding: '4px 0 8px' }}>
@@ -1051,9 +1058,9 @@ export default function Catalogue() {
                 La colonne « semaines » dit quand la prestation est due. Laisser vide pour le jour même ;
                 6 pour un entretien à six semaines. Les lignes à échéance deviennent des rendez-vous
                 posés au carnet dès la réservation du forfait, couverts par lui, à 0 F.
-
               </div>
             </Field>
+            )}
             <Field label="Qui commande le prix">
               <select
                 className="ds-select"
