@@ -637,7 +637,7 @@ export function RdvModal({
         <div>
           <span className="trc-microlabel">Prestations</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {chosen.map((sv) => (
+            {chosen.map((sv, i) => (
               <div
                 key={sv.id}
                 style={{
@@ -661,6 +661,47 @@ export function RdvModal({
                       : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
                         ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}`
                         : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
+                  {/* L'ORDRE DES PRESTATIONS EST CELUI DU FAUTEUIL. Il decide de
+                      la lecture du rendez-vous, de l'ordre des lignes sur la
+                      facture et du deroule de la seance : un diagnostic ouvre,
+                      un styling ferme. On ne pouvait que retirer et re-ajouter
+                      pour le corriger. */}
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <button
+                      /* On echange par la POSITION REELLE de la prestation, pas
+                         par son rang a l'ecran : `chosen` ecarte les fiches
+                         disparues du catalogue, et les deux index divergent des
+                         qu'un rendez-vous ancien en porte une. */
+                      onClick={() => setServiceIds((ids) => {
+                        const pos = ids.indexOf(sv.id);
+                        if (pos <= 0) return ids;
+                        const n = [...ids];
+                        [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]];
+                        return n;
+                      })}
+                      disabled={i === 0}
+                      aria-label="Monter cette prestation"
+                      title="Monter"
+                      style={{ cursor: i === 0 ? 'default' : 'pointer', background: 'none', border: 'none', padding: 0, lineHeight: 0.9, fontSize: 11, color: i === 0 ? 'var(--line)' : 'var(--ink-soft)' }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      onClick={() => setServiceIds((ids) => {
+                        const pos = ids.indexOf(sv.id);
+                        if (pos < 0 || pos >= ids.length - 1) return ids;
+                        const n = [...ids];
+                        [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]];
+                        return n;
+                      })}
+                      disabled={i >= chosen.length - 1}
+                      aria-label="Descendre cette prestation"
+                      title="Descendre"
+                      style={{ cursor: i >= chosen.length - 1 ? 'default' : 'pointer', background: 'none', border: 'none', padding: 0, lineHeight: 0.9, fontSize: 11, color: i >= chosen.length - 1 ? 'var(--line)' : 'var(--ink-soft)' }}
+                    >
+                      ▼
+                    </button>
+                  </span>
                   <button
                     onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
                     aria-label="Retirer"
