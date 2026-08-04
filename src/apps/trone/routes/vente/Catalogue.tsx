@@ -225,7 +225,16 @@ export default function Catalogue() {
   }, [services, setServices]);
 
   const masters = branch.masters;
-  const cats = [...categories].sort((a, b) => a.order - b.order);
+  /* L'ORDRE DE L'ARBRE : chaque atelier, puis ses familles a la suite. Trier a
+     plat melait les familles aux ateliers et l'ecran ne montrait plus la
+     composition — GBEJI et ses SINSIN se retrouvaient a des bouts opposes de la
+     page selon leur rang. Une famille orpheline (atelier supprime) remonte au
+     rang des ateliers plutot que de disparaitre. */
+  const cats = useMemo(() => {
+    const rang = [...categories].sort((a, b) => a.order - b.order);
+    const racines = rang.filter((c) => !c.parentId || !categories.some((p2) => p2.id === c.parentId));
+    return racines.flatMap((r) => [r, ...rang.filter((c) => c.parentId === r.id)]);
+  }, [categories]);
 
   /* LES QUATRE ENSEMBLES DU CATALOGUE. 24 catégories à la suite, c'est un mur :
      on ne voit plus ni le Studio ni le plateau, noyés au milieu de l'Atelier.
@@ -607,7 +616,18 @@ export default function Catalogue() {
               </span>
             </div>
           )}
-          <section className="trv-catblock" style={{ opacity: cat.enabled ? 1 : 0.6 }}>
+          {/* UNE FAMILLE SE LIT COMME TELLE : decalee sous son atelier, avec un
+              filet a gauche. Sans ce retrait, l'ecran affichait une liste plate
+              ou rien ne disait que les SINSIN appartiennent a GBEJI. */}
+          <section
+            className="trv-catblock"
+            style={{
+              opacity: cat.enabled ? 1 : 0.6,
+              ...(cat.parentId && categories.some((p2) => p2.id === cat.parentId)
+                ? { marginLeft: 26, borderLeft: '2px solid var(--line)', paddingLeft: 14 }
+                : {}),
+            }}
+          >
             <div className="trv-catblock__band">
               {!q && (
                 <button

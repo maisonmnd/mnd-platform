@@ -451,7 +451,7 @@ export function RdvModal({
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
   const [sets] = useBandSets();
-  const pricing = pricingOf(rdvClient, bands, sets);
+  const pricing = pricingOf(rdvClient, bands, sets, cats);
   /* SEULEMENT CE QUI LA CONCERNE. Un VÈKPÈ™ Medium n'existe pas pour une cliente
      Mini : le proposer, c'est risquer de figer 150 000 F sur son rendez-vous là
      où son prix est de 220 000 F. Déclaré APRÈS `pricing` — le lire plus haut

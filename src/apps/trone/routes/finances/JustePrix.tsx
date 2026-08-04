@@ -387,7 +387,8 @@ export default function JustePrix() {
   /* Contexte tarifaire de la cliente — sert à afficher le prix témoin de CHAQUE
      prestation pour elle (les montants de la liste se modifient selon la cliente). */
   const [sets] = useBandSets();
-  const pricing = useMemo(() => pricingOf(client, bands, sets), [client, bands, sets]);
+  const [categories] = useCategories();
+  const pricing = useMemo(() => pricingOf(client, bands, sets, categories), [client, bands, sets, categories]);
 
   /* Recherche cliente — accents/casse insensibles ; filtre téléphone seulement si
      la saisie contient des chiffres. */

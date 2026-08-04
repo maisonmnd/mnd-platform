@@ -175,11 +175,16 @@ export const pricingOf = (
   client: Pick<Client, 'lockCount' | 'priceCoef'> | undefined,
   bands: ModelBand[],
   sets?: Record<string, ModelBand[]>,
+  /* L'arbre des categories : sans lui, une prestation rangee sous une famille
+     ne trouverait pas le bareme de son atelier. Facultatif — absent, tout se
+     comporte comme avant la mise en place des familles. */
+  cats?: Pick<CatalogCategory, 'id' | 'parentId'>[],
 ): PersonalPricing => ({
   band: bandOf(client?.lockCount, bands),
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
   lockCount: client?.lockCount,
   sets,
+  cats,
 });
 
 /** La tranche qui s'applique À CETTE prestation : celle de son atelier si

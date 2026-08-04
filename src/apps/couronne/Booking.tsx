@@ -9,7 +9,7 @@ import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
-import { priceModeOf, type Service } from '../../shared/catalog';
+import { useCategories, priceModeOf, type Service } from '../../shared/catalog';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, servesBand, bandForService, prixFerme } from '../../shared/pricing';
 import {
   DOW_LETTERS,
@@ -101,7 +101,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Les barèmes par atelier : VÈKPÈ™ a les siens, la création ne progresse pas
      comme le resserrage. */
   const [sets] = useBandSets();
-  const pricing = pricingOf(client ?? undefined, bands, sets);
+  const pricing = pricingOf(client ?? undefined, bands, sets, cats);
   const personalized = isPersonalized(pricing);
   const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricing), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */

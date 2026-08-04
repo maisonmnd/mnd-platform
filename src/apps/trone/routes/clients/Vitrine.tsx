@@ -498,7 +498,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
 
   /* SES prix, SA durée — le même moteur que l'app et le comptoir. */
   const [sets] = useBandSets();
-  const pricing = pricingOf(client, bands, sets);
+  const pricing = pricingOf(client, bands, sets, categories);
   const priceLabel = (s: (typeof services)[number]) => {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';

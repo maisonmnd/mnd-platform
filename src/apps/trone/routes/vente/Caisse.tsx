@@ -153,7 +153,7 @@ export default function Caisse() {
           versions, une par calibre, au même prix affiché : les cinq côte à côte
           n'offrent aucun choix, seulement l'occasion d'encaisser la mauvaise. */
     const cliente = clients.find((c) => c.id === clientId);
-    const pricing = pricingOf(cliente, bands, sets);
+    const pricing = pricingOf(cliente, bands, sets, categories);
     const offre = services.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
     const cats = [...categories].sort((a, b) => a.order - b.order);
     const knownCats = new Set(cats.map((c) => c.id));

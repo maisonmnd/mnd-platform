@@ -6,7 +6,7 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { type Service } from '../../../../shared/catalog';
+import { useCategories, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
   useCredits, creditMovementsStore, creditBalanceOf,
@@ -222,7 +222,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      SON prix personnalisé (le même qu'au rendez-vous), jamais le prix catalogue. */
   const [bands] = useModelBands();
   const [sets] = useBandSets();
-  const pricing = pricingOf(client, bands, sets);
+  const [categories] = useCategories();
+  const pricing = pricingOf(client, bands, sets, categories);
   const net = apptNetXof(appt, byId);
   const deposit = appt.depositXof ?? 0;
   const alreadyPaid = appt.paidXof ?? 0;
