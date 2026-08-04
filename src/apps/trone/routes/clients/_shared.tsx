@@ -1018,7 +1018,7 @@ export function RdvModal({
             </Button>
             {onEncaisser && (
               <Button variant="ghost" onClick={() => onEncaisser(appt)}>
-                Encaisser
+                Encaisser ou poser un acompte
               </Button>
             )}
             {appt.status !== 'annulé' && (

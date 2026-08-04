@@ -323,7 +323,20 @@ export default function Carnet() {
         {past.map(renderRow)}
       </div>
 
-      {modal && <RdvModal onClose={() => setModal(null)} initial={modal.initial} appt={modal.appt} title={modal.title} />}
+      {/* ENCAISSER DEPUIS LA FICHE OUVERTE. Le bouton existait dans la modale et
+          etait branche au Calendrier et au Bilan, pas ici — alors que le Carnet
+          est l'ecran ou l'on ouvre un rendez-vous pour le regler. Il fallait le
+          refermer et repasser par le menu ⋯. La meme modale sert a solder ou a
+          poser un acompte : le montant se saisit librement. */}
+      {modal && (
+        <RdvModal
+          onClose={() => setModal(null)}
+          initial={modal.initial}
+          appt={modal.appt}
+          title={modal.title}
+          onEncaisser={(a) => { setModal(null); setPayAppt(a); }}
+        />
+      )}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
