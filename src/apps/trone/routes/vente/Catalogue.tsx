@@ -51,6 +51,7 @@ type SvcForm = {
   rate: string; // tarif au lock (F/lock) — vide = pas de prix au lock
   tarifMode: '' | TarifMode; // qui commande : '' = comportement historique
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
+  forfaitRemise: string; // remise du forfait, en % de sa composition
   floors: Record<string, string>; // plancher par calibre, saisi en texte
   durationMax: string; // borne haute quand la durée s'annonce en fourchette
   priceTo: string; // borne haute d'affichage — « de X à Y »
@@ -58,7 +59,7 @@ type SvcForm = {
 
 const emptySvcForm = (categoryId: string, master: string): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
-  code: '', rate: '', tarifMode: '', includes: [], floors: {}, durationMax: '', priceTo: '',
+  code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', floors: {}, durationMax: '', priceTo: '',
 });
 
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
@@ -351,7 +352,7 @@ export default function Catalogue() {
     setSvcForm({
       id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
-      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [],
+      code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [], forfaitRemise: svc.forfaitRemisePct !== undefined ? String(svc.forfaitRemisePct) : '',
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
       durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
@@ -365,9 +366,43 @@ export default function Catalogue() {
      Filtrer d'abord les prestations introuvables casserait l'alignement avec
      les echeances, et on additionnerait la duree d'une seance a venir dans
      celle de la visite d'ouverture. */
+  /* CE QU'UNE LIGNE PEUT COUTER, DU MOINS AU PLUS.
+
+     Le prix d'une prestation varie avec la densite de deux facons, et un
+     forfait peut porter les deux :
+       · cinq prestations soeurs, une par calibre — les creations VEKPE ;
+       · UNE prestation qui porte six planchers — le resserrage SINSIN.
+     Prendre le prix catalogue d'une seule d'entre elles donnerait un total
+     faux dans les deux cas. On lit donc les bornes reelles : les planchers
+     quand il y en a, le prix ferme sinon.
+
+     Aucune tete n'est en face au moment ou l'on compose : le total s'annonce
+     en fourchette, jamais en montant unique invente. */
+  const bornes = (sv: Service): { bas: number; haut: number } => {
+    const f = Object.values(sv.priceFloors ?? {});
+    return f.length ? { bas: Math.min(...f), haut: Math.max(...f) } : { bas: sv.priceXof, haut: sv.priceXof };
+  };
   const inclusPaires = (svcForm?.includes ?? [])
-    .map((inc) => ({ inc, sv: services.find((x) => x.id === inc.serviceId) }))
-    .filter((x): x is { inc: ServiceInclus; sv: Service } => !!x.sv);
+    .map((inc) => {
+      if (inc.categoryId) {
+        const fam = services.filter((x) => x.categoryId === inc.categoryId);
+        if (!fam.length) return null;
+        const bs = fam.map(bornes);
+        return {
+          inc,
+          sv: fam[0],
+          bas: Math.min(...bs.map((b) => b.bas)),
+          haut: Math.max(...bs.map((b) => b.haut)),
+          variable: true,
+          nom: categories.find((c) => c.id === inc.categoryId)?.fon ?? '',
+        };
+      }
+      const sv = services.find((x) => x.id === inc.serviceId);
+      if (!sv) return null;
+      const b = bornes(sv);
+      return { inc, sv, bas: b.bas, haut: b.haut, variable: b.haut > b.bas, nom: sv.name };
+    })
+    .filter((x): x is { inc: ServiceInclus; sv: Service; bas: number; haut: number; variable: boolean; nom: string } => !!x);
   const inclusLignes = inclusPaires.map((x) => x.sv);
   /* LA DUREE DE LA VISITE D'OUVERTURE — les seules prestations du jour meme.
      Une seance a six semaines est un AUTRE rendez-vous : l'additionner ici
@@ -377,8 +412,9 @@ export default function Catalogue() {
   const dureeJour = jourMeme.reduce((n, x) => n + x.sv.durationMin, 0);
   const dureeJourHaute = jourMeme.reduce((n, x) => n + (x.sv.durationMaxMin ?? x.sv.durationMin), 0);
   const dureeSuites = suites.reduce((n, x) => n + x.sv.durationMin, 0);
-  const inclusValeur = inclusLignes.reduce((n, sv) => n + sv.priceXof, 0);
-  const inclusVariables = inclusLignes.filter((sv) => sv.ratePerLock || Object.keys(sv.priceFloors ?? {}).length).length;
+  const inclusValeur = inclusPaires.reduce((n, x) => n + x.bas, 0);
+  const inclusValeurHaute = inclusPaires.reduce((n, x) => n + x.haut, 0);
+  const inclusFamilles = inclusPaires.filter((x) => x.variable).length;
   const inclusPrix = parseInt((svcForm?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
   const inclusEcart = inclusValeur - inclusPrix;
 
@@ -416,6 +452,7 @@ export default function Catalogue() {
       ratePerLock: num(svcForm.rate),
       tarifMode: svcForm.tarifMode || undefined,
       includes: svcForm.includes.length ? svcForm.includes : undefined,
+      forfaitRemisePct: svcForm.forfaitRemise.trim() === '' ? undefined : Math.max(0, Math.min(100, parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0)),
       priceFloors: Object.keys(floors).length ? floors : undefined,
       durationMaxMin: num(svcForm.durationMax),
       priceToXof: num(svcForm.priceTo),
@@ -876,19 +913,39 @@ export default function Catalogue() {
                   <select
                     className="ds-select"
                     style={{ minWidth: 0, width: '100%' }}
-                    value={inc.serviceId}
-                    onChange={(e) => setSvcForm({
-                      ...svcForm,
-                      includes: svcForm.includes.map((x, j) => (j === i ? { ...x, serviceId: e.target.value } : x)),
-                    })}
+                    value={inc.categoryId ? `cat:${inc.categoryId}` : inc.serviceId}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const cat = v.startsWith('cat:') ? v.slice(4) : undefined;
+                      setSvcForm({
+                        ...svcForm,
+                        includes: svcForm.includes.map((x, j) => (j === i
+                          ? { ...x, serviceId: cat ? '' : v, categoryId: cat }
+                          : x)),
+                      });
+                    }}
                   >
                     <option value="">Choisir une prestation…</option>
-                    {services
-                      .filter((sv) => sv.id !== svcForm.id)
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((sv) => (
-                        <option key={sv.id} value={sv.id}>{sv.name}</option>
-                      ))}
+                    {/* SELON LE CALIBRE — la prestation reelle sera choisie a la
+                        reservation d'apres le modele de la cliente. Un seul
+                        forfait couvre alors les cinq densites. */}
+                    <optgroup label="Selon le calibre de la cliente">
+                      {categories
+                        .filter((c) => services.some((sv) => sv.categoryId === c.id && Object.keys(sv.priceFloors ?? {}).length))
+                        .map((c) => (
+                          <option key={`cat-${c.id}`} value={`cat:${c.id}`}>
+                            {c.fon} · la prestation de son calibre
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Une prestation précise">
+                      {services
+                        .filter((sv) => sv.id !== svcForm.id)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((sv) => (
+                          <option key={sv.id} value={sv.id}>{sv.name}</option>
+                        ))}
+                    </optgroup>
                   </select>
                   <Input
                     inputMode="numeric"
@@ -934,6 +991,14 @@ export default function Catalogue() {
                       <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(val as number, currency)}</span>
                     </div>
                   ))}
+                  {inclusFamilles > 0 && inclusValeurHaute > inclusValeur && (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginBottom: 6, lineHeight: 1.5 }}>
+                      {inclusFamilles} prestation{inclusFamilles > 1 ? 's' : ''} varie{inclusFamilles > 1 ? 'nt' : ''} avec
+                      la densité — la valeur du forfait va de {fmtMoney(inclusValeur, currency)} à
+                      {' '}{fmtMoney(inclusValeurHaute, currency)} selon la tête. La ligne ci-dessus retient
+                      la borne basse ; l’économie réelle sera plus forte sur une tête dense.
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, paddingTop: 6, borderTop: '1px solid var(--line)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
                     <span style={{ color: inclusEcart > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
                       {inclusEcart > 0 ? 'Économie pour la cliente' : inclusEcart < 0 ? 'Majoration' : 'Ni remise ni majoration'}
@@ -945,15 +1010,30 @@ export default function Catalogue() {
                   </div>
                 </div>
               )}
+              {inclusPaires.length > 0 && (
+                <Field label="Remise du forfait (% de sa composition) — facultatif">
+                  <Input
+                    inputMode="numeric"
+                    value={svcForm.forfaitRemise}
+                    onChange={(e) => setSvcForm({ ...svcForm, forfaitRemise: e.target.value })}
+                    placeholder="Laisser vide pour garder le prix annoncé ci-dessus"
+                  />
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                    {svcForm.forfaitRemise.trim()
+                      ? <>Le forfait vaudra la somme de ses prestations <strong style={{ fontWeight: 500 }}>au prix
+                        de la cliente</strong>, moins {parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0} %.
+                        Chaque tête a donc son montant exact, et ta marge reste la même sur toutes.
+                        Le prix saisi plus haut ne sert alors plus qu'à l'affichage en vitrine.</>
+                      : <>Vide : le forfait se vend au prix fixe saisi plus haut, le même pour toutes.
+                        Une tête dense reçoit alors bien plus de valeur qu'une tête légère pour la même somme.</>}
+                  </div>
+                </Field>
+              )}
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
                 La colonne « semaines » dit quand la prestation est due. Laisser vide pour le jour même ;
                 6 pour un entretien à six semaines. Les lignes à échéance deviennent des rendez-vous
                 posés au carnet dès la réservation du forfait, couverts par lui, à 0 F.
-                {inclusVariables > 0 && (
-                  <> {inclusVariables} prestation{inclusVariables > 1 ? 's' : ''} incluse{inclusVariables > 1 ? 's' : ''} se
-                  facture{inclusVariables > 1 ? 'nt' : ''} au modèle : la valeur ci-dessus les compte au prix catalogue,
-                  le vrai montant dépendra de la tête.</>
-                )}
+
               </div>
             </Field>
             <Field label="Qui commande le prix">

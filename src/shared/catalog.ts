@@ -68,6 +68,17 @@ export type Service = {
   tarifMode?: TarifMode;
   /** Prestations reellement couvertes par ce forfait. Voir ServiceInclus. */
   includes?: ServiceInclus[];
+  /** REMISE DU FORFAIT, en pourcentage de sa composition.
+
+      Un forfait a prix fixe fait payer la meme somme a toutes : une tete Jumbo
+      et une tete Nano recoivent des valeurs du simple au double pour le meme
+      montant, et l'economie reelle varie sans que rien ne le dise. Avec ce
+      champ, le forfait vaut la somme de ses prestations AU PRIX DE LA CLIENTE,
+      moins ce pourcentage — chaque tete a son montant exact, et la marge de la
+      Maison reste constante.
+
+      Absent : le forfait garde son prix annonce, comme avant. */
+  forfaitRemisePct?: number;
   /** PLANCHER PAR CALIBRE — le prix au lock ne descend jamais sous le tarif du
       calibre. Clé = identifiant de tranche (`cal-jumbo`, `cal-mini`…), valeur =
       prix ferme en F CFA. Sans plancher, un Jumbo à 60 locks tomberait à 6 000 F
@@ -145,7 +156,14 @@ export type TarifMode = 'lock' | 'calibre';
     due : `afterWeeks: 0` (ou absent) = pendant la meme visite ; au-dela, c'est
     un rendez-vous a poser au carnet a cette echeance. */
 export type ServiceInclus = {
+  /** La prestation exacte. Vide si la ligne designe un atelier (voir categoryId). */
   serviceId: string;
+  /** UN ATELIER PLUTOT QU'UNE PRESTATION — « la creation VEKPE du calibre de la
+      cliente ». Les creations existent en cinq versions, une par calibre : sans
+      cela il aurait fallu cinq forfaits identiques, un par densite, et changer
+      un prix aurait voulu dire le changer cinq fois. La prestation reelle se
+      resout a la reservation, d'apres le modele inscrit sur la fiche. */
+  categoryId?: string;
   /** Dans combien de semaines apres la visite d'ouverture. 0 = le jour meme. */
   afterWeeks?: number;
 };

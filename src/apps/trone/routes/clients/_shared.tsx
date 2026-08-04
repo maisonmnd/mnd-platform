@@ -464,7 +464,7 @@ export function RdvModal({
   const horsAtelier = proposables.filter((sv) => !cats.some((c) => c.id === sv.categoryId));
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
-  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing), 0) : grossCatalogue;
+  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing, services), 0) : grossCatalogue;
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
      montant convenu (saisi dans la modale) prime alors sur la somme de référence ;
@@ -576,12 +576,20 @@ export function RdvModal({
       const suites: Appointment[] = [];
       for (const sid of serviceIds) {
         for (const inc of byId.get(sid)?.includes ?? []) {
-          if (!inc.serviceId || !inc.afterWeeks || inc.afterWeeks <= 0) continue;
+          if (!inc.afterWeeks || inc.afterWeeks <= 0) continue;
+          /* « SELON LE CALIBRE » se resout ICI, au moment ou une tete est en
+             face : la ligne designe un atelier, on y prend la prestation qui
+             sert le modele de la cliente. Sans cela il aurait fallu cinq
+             forfaits identiques, un par densite. */
+          const cible = inc.categoryId
+            ? services.find((sv) => sv.categoryId === inc.categoryId && servesBand(sv, bandForService(sv, pricing)))
+            : byId.get(inc.serviceId);
+          if (!cible) continue;
           suites.push({
             id: uid(),
             branchId: branch.id,
             clientId,
-            serviceIds: [inc.serviceId],
+            serviceIds: [cible.id],
             date: addDaysISO(date, inc.afterWeeks * 7),
             time,
             master,
@@ -659,8 +667,8 @@ export function RdvModal({
                          sait son nombre de locks, le prix au lock est exact —
                          l'annoncer comme un plancher fait douter la caissière. */
                       : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
-                        ? `dès ${fmtMoney(personalPriceXof(sv, pricing), currency)}`
-                        : fmtMoney(personalPriceXof(sv, pricing), currency)}</span>
+                        ? `dès ${fmtMoney(personalPriceXof(sv, pricing, services), currency)}`
+                        : fmtMoney(personalPriceXof(sv, pricing, services), currency)}</span>
                   {/* L'ORDRE DES PRESTATIONS EST CELUI DU FAUTEUIL. Il decide de
                       la lecture du rendez-vous, de l'ordre des lignes sur la
                       facture et du deroule de la seance : un diagnostic ouvre,
@@ -728,7 +736,7 @@ export function RdvModal({
                 <optgroup key={g.cat.id} label={`${g.cat.fon} · ${g.cat.label}`}>
                   {g.list.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing, services), currency)}
                     </option>
                   ))}
                 </optgroup>
@@ -737,7 +745,7 @@ export function RdvModal({
                 <optgroup label="Autres">
                   {horsAtelier.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing), currency)}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing, services), currency)}
                     </option>
                   ))}
                 </optgroup>

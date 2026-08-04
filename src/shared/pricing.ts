@@ -266,7 +266,37 @@ export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
   return !!p.lockCount;
 };
 
-export const personalPriceXof = (sv: Service, p: PersonalPricing): number => {
+/** LE PRIX D'UN FORFAIT POUR CETTE TETE. Somme de ses prestations au prix de la
+    cliente, moins la remise du forfait. Une ligne « selon le calibre » se resout
+    ici comme a la reservation : on prend la prestation de l'atelier qui sert son
+    modele.
+
+    `profondeur` arrete une composition qui se contiendrait elle-meme : un
+    forfait ne peut pas se calculer a partir de lui-meme. */
+export const forfaitPriceXof = (
+  sv: Service,
+  p: PersonalPricing,
+  catalogue: readonly Service[],
+  profondeur = 0,
+): number | undefined => {
+  if (sv.forfaitRemisePct === undefined || !sv.includes?.length || profondeur > 2) return undefined;
+  let somme = 0;
+  for (const inc of sv.includes) {
+    const cible = inc.categoryId
+      ? catalogue.find((x) => x.categoryId === inc.categoryId && servesBand(x, bandForService(x, p)))
+      : catalogue.find((x) => x.id === inc.serviceId);
+    if (!cible) continue;
+    somme += forfaitPriceXof(cible, p, catalogue, profondeur + 1) ?? personalPriceXof(cible, p);
+  }
+  if (somme <= 0) return undefined;
+  return Math.max(0, Math.round(somme * (1 - sv.forfaitRemisePct / 100)));
+};
+
+export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[]): number => {
+  if (catalogue) {
+    const forfait = forfaitPriceXof(sv, p, catalogue);
+    if (forfait !== undefined) return p.clientCoef === 1 ? forfait : roundPrice(forfait * p.clientCoef);
+  }
   if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
   /* Hors de son calibre : on rend le prix catalogue, sans personnalisation.
      Calculer « 200 locks × 1 100 F » sur un Jumbo donnait 220 000 F pour les

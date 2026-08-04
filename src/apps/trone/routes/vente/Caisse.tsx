@@ -161,7 +161,7 @@ export default function Caisse() {
     const toItem = (s: typeof services[number]): CaisseItem => ({
       key: `s:${s.id}`,
       n: s.name,
-      priceXof: personalPriceXof(s, pricing),
+      priceXof: personalPriceXof(s, pricing, services),
       kind: 'service' as const,
       /* Un tarif au lock CESSE d'être « variable » dès qu'on connaît le nombre
          de locks : le montant est exact, il n'a plus à s'annoncer « dès ». */
