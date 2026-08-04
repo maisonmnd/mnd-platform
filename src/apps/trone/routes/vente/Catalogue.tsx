@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -361,13 +361,44 @@ export default function Catalogue() {
      prix demande, et l'ecart entre les deux — la remise que la cliente gagne.
      Les prestations au modele sont comptees a leur prix catalogue : leur vrai
      montant depend de la tete, on le signale plutot que de l'inventer. */
-  const inclusLignes = (svcForm?.includes ?? [])
-    .map((inc) => services.find((sv) => sv.id === inc.serviceId))
-    .filter((sv): sv is Service => !!sv);
+  /* On garde la PAIRE — la ligne du forfait ET la prestation qu'elle designe.
+     Filtrer d'abord les prestations introuvables casserait l'alignement avec
+     les echeances, et on additionnerait la duree d'une seance a venir dans
+     celle de la visite d'ouverture. */
+  const inclusPaires = (svcForm?.includes ?? [])
+    .map((inc) => ({ inc, sv: services.find((x) => x.id === inc.serviceId) }))
+    .filter((x): x is { inc: ServiceInclus; sv: Service } => !!x.sv);
+  const inclusLignes = inclusPaires.map((x) => x.sv);
+  /* LA DUREE DE LA VISITE D'OUVERTURE — les seules prestations du jour meme.
+     Une seance a six semaines est un AUTRE rendez-vous : l'additionner ici
+     ferait bloquer sept heures de fauteuil pour un geste qui n'aura pas lieu. */
+  const jourMeme = inclusPaires.filter((x) => !x.inc.afterWeeks);
+  const suites = inclusPaires.filter((x) => !!x.inc.afterWeeks);
+  const dureeJour = jourMeme.reduce((n, x) => n + x.sv.durationMin, 0);
+  const dureeJourHaute = jourMeme.reduce((n, x) => n + (x.sv.durationMaxMin ?? x.sv.durationMin), 0);
+  const dureeSuites = suites.reduce((n, x) => n + x.sv.durationMin, 0);
   const inclusValeur = inclusLignes.reduce((n, sv) => n + sv.priceXof, 0);
   const inclusVariables = inclusLignes.filter((sv) => sv.ratePerLock || Object.keys(sv.priceFloors ?? {}).length).length;
   const inclusPrix = parseInt((svcForm?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
   const inclusEcart = inclusValeur - inclusPrix;
+
+  /* LA DUREE SE RECALCULE QUAND LA COMPOSITION CHANGE — pas a l'ouverture de la
+     fiche, sinon on ecraserait en silence une duree posee a la main. La cle
+     n'inclut que ce qui compte : quelles prestations, a quelles echeances. */
+  const cleInclus = (svcForm?.includes ?? []).map((i) => `${i.serviceId}@${i.afterWeeks ?? 0}`).join('|');
+  const cleInclusPrec = useRef<string | null>(null);
+  useEffect(() => {
+    if (!svcForm) { cleInclusPrec.current = null; return; }
+    if (cleInclusPrec.current === null) { cleInclusPrec.current = cleInclus; return; }
+    if (cleInclusPrec.current === cleInclus) return;
+    cleInclusPrec.current = cleInclus;
+    if (!jourMeme.length) return;
+    setSvcForm((f) => (f ? {
+      ...f,
+      durationMin: String(dureeJour),
+      durationMax: dureeJourHaute > dureeJour ? String(dureeJourHaute) : '',
+    } : f));
+  }, [cleInclus, svcForm, jourMeme.length, dureeJour, dureeJourHaute]);
 
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
@@ -981,7 +1012,30 @@ export default function Catalogue() {
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">
-              <Field label="Durée (minutes)">
+              {inclusPaires.length > 0 && (
+              <div style={{ gridColumn: '1 / -1', padding: '11px 14px', background: 'var(--color-sable)', borderRadius: 4, marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
+                  <span>Visite d’ouverture · {jourMeme.length} prestation{jourMeme.length > 1 ? 's' : ''} le jour même</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {dureeJour} min{dureeJourHaute > dureeJour ? ` à ${dureeJourHaute} min` : ''}
+                  </span>
+                </div>
+                {suites.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginTop: 5, color: 'var(--ink-soft)' }}>
+                    <span>Séances à venir · {suites.length} rendez-vous séparés</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{dureeSuites} min au total</span>
+                  </div>
+                )}
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                  La durée ci-dessous se recalcule à chaque prestation ajoutée ou retirée : elle ne retient
+                  que le jour même. Les séances à échéance sont d’autres rendez-vous, avec leur propre durée —
+                  les additionner ici bloquerait des heures de fauteuil pour des gestes qui n’auront pas lieu.
+                  Tu peux toujours saisir une durée à la main ; elle tiendra jusqu’à la prochaine modification
+                  de la composition.
+                </div>
+              </div>
+            )}
+            <Field label="Durée (minutes)">
                 <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />
               </Field>
               <Field label="Durée haute (facultatif)">
