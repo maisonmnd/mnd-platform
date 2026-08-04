@@ -107,7 +107,12 @@ where net_xof > 0;
 -- net as (
 --   select k.*,
 --          greatest(0, round(k.brut * (1 - coalesce(nullif(k.data ->> 'discountPct', '')::numeric, 0) / 100))
---                    - coalesce(nullif(k.data ->> 'discountXof', '')::numeric, 0)) as net_xof
+--                    - coalesce(nullif(k.data ->> 'discountXof', '')::numeric, 0)) as net_xof,
+--          -- CE QUI A REELLEMENT ETE ENCAISSE : le regle du rendez-vous, acompte
+--          -- confirme compris. C'est lui qui decide du statut de la piece.
+--          coalesce(nullif(k.data ->> 'paidXof', '')::numeric, 0)
+--          + case when coalesce((k.data ->> 'depositConfirmed')::boolean, false)
+--                 then coalesce(nullif(k.data ->> 'depositXof', '')::numeric, 0) else 0 end as regle
 --   from calc k
 --   where k.lignes is not null
 -- ),
@@ -116,6 +121,10 @@ where net_xof > 0;
 --          row_number() over (order by n.data ->> 'date', n.id) as rang
 --   from net n
 --   where n.net_xof > 0
+--     -- Un rituel date du FUTUR n'a pas eu lieu : une piece comptable a une
+--     -- date a venir est irrecevable. Cas de Prunelle Atayi, prepayee en
+--     -- juillet pour le 8 aout — a corriger au Carnet, pas ici.
+--     and n.data ->> 'date' <= to_char(now(), 'YYYY-MM-DD')
 -- ),
 -- cree as (
 --   insert into public.invoices (id, branch_id, data)
@@ -140,7 +149,11 @@ where net_xof > 0;
 --            -- …et remise quand il vaut MOINS : le total redescend au net.
 --            'globalDiscountXof', greatest(0, p.somme_lignes - p.net_xof),
 --            'theme',     'Aube',
---            'status',    'payée',
+--            -- LE STATUT DIT LA VERITE. Solde -> payee, elle compte au chiffre.
+--            -- Non solde -> envoyee, elle rejoint tes impayes et cesse de
+--            -- compter. Ce n'est PAS une perte : ces sommes n'etaient jamais
+--            -- entrees en caisse, et le carnet les comptait quand meme.
+--            'status',    case when p.regle >= p.net_xof then 'payée' else 'envoyée' end,
 --            'note',      'Pièce de reprise — rituel honoré avant la mise en service du Trône.'
 --          ) || case when coalesce(p.data ->> 'clientId', '') = ''
 --                    then jsonb_build_object('clientName', coalesce(p.data ->> 'clientName', 'Cliente de passage'))
