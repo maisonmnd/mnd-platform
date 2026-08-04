@@ -5,7 +5,7 @@ import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, type Client } from '../../../../shared/clients';
-import {
+import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
@@ -119,7 +119,10 @@ export const apptDepositCreditXof = (a: Appointment) =>
 
 /** Reste à encaisser : net − acompte VÉRIFIÉ − déjà encaissé (jamais négatif). */
 export const apptDueXof = (a: Appointment, byId: Map<string, Service>) =>
-  Math.max(0, apptNetXof(a, byId) - apptDepositCreditXof(a) - (a.paidXof ?? 0));
+  /* `apptPaidXof` lit le JOURNAL des versements quand il existe, et retombe sur
+     `paidXof` sinon. Sans cela, des qu'un reglement s'inscrit au journal, cet
+     ecran reclamerait un argent deja encaisse. */
+  Math.max(0, apptNetXof(a, byId) - apptDepositCreditXof(a) - apptPaidXof(a));
 
 /** État de règlement d'un RDV — support de la pastille payé/partiel/impayé/gratuit. */
 export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé' | 'partiel' | 'impayé' | 'gratuit' {

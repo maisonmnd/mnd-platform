@@ -220,6 +220,11 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */
   const [invDate, setInvDate] = useState(appt.date || todayISO());
+  /* LA DATE DU PAIEMENT N'EST PAS CELLE DE LA FACTURE. La piece porte le jour du
+     rituel ; l'argent, lui, entre le jour ou il est remis. Prunelle a prepaye en
+     juillet un rituel du 8 aout : forcer les deux a la meme date rangeait ses
+     68 000 F dans les encaissements d'aout, ou ils ne sont jamais entres. */
+  const [payDate, setPayDate] = useState(todayISO());
   /* Avoir appliqué à ce règlement — plafonné au solde ET au reste dû. Le comptant
      ne couvre alors que ce qui reste après l'avoir. */
   const [avoirStr, setAvoirStr] = useState('0');
@@ -388,6 +393,23 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             ...a,
             invoiceId: inv.id,
             paidXof: alreadyPaid + settleTotal,
+            /* LE JOURNAL DES VERSEMENTS. Une somme ne sait pas dire quand
+               l'argent est entre : chaque reglement s'inscrit ici avec SA date,
+               son moyen et sa caisse. `paidXof` reste tenu a jour pour tout ce
+               qui le lit encore. */
+            ...(settleTotal > 0 ? {
+              payments: [
+                ...(a.payments ?? []),
+                {
+                  id: `pay-${uid()}`,
+                  amountXof: settleTotal,
+                  date: payDate,
+                  method: pay,
+                  cashbox: activeBox || undefined,
+                  ...(avoirApplied > 0 ? { note: `dont ${avoirApplied} F par avoir` } : {}),
+                },
+              ],
+            } : {}),
             /* La DATE de reconnaissance de l'acompte : c'est ce jour-là qu'il
                entre au registre des encaissements, pas celui du rituel. */
             ...(depositReceived ? { depositConfirmed: true, depositConfirmedAt: appt.depositConfirmedAt ?? invDate } : {}),
@@ -545,6 +567,19 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             Annuler l’encaissement ({fmtMoney(alreadyPaid, currency)})
           </button>
         )}
+        {(appt.payments ?? []).length > 0 && (
+          <div style={{ padding: '10px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>
+              Versements déjà reçus
+            </div>
+            {(appt.payments ?? []).map((v) => (
+              <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 3 }}>
+                <span>{v.date}{v.method ? ` · ${v.method}` : ''}{v.cashbox ? ` · ${v.cashbox}` : ''}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(v.amountXof, currency)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <Field label="Date de la facture (jour du rituel)">
           <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
         </Field>
@@ -559,6 +594,13 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             </div>
           </Field>
         )}
+        <Field label="Date du paiement (jour où l’argent entre)">
+          <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
+            Distincte de la date de la facture : celle-ci porte le jour du rituel, celle-là le jour où
+            la somme est réellement remise. C’est elle qui range l’encaissement dans le bon mois.
+          </div>
+        </Field>
         <Field label="Montant encaissé maintenant (comptant)">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
