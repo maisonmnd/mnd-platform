@@ -9,7 +9,7 @@ import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { useServices, useCategories, priceModeOf, type Service } from '../../../../shared/catalog';
+import { sousArbreOf, useServices, useCategories, priceModeOf, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
@@ -584,8 +584,9 @@ export function RdvModal({
              face : la ligne designe un atelier, on y prend la prestation qui
              sert le modele de la cliente. Sans cela il aurait fallu cinq
              forfaits identiques, un par densite. */
-          const cible = inc.categoryId
-            ? services.find((sv) => sv.categoryId === inc.categoryId && servesBand(sv, bandForService(sv, pricing)))
+          const sousArbre = inc.categoryId ? sousArbreOf(cats, inc.categoryId) : undefined;
+          const cible = sousArbre
+            ? services.find((sv) => sousArbre.has(sv.categoryId) && servesBand(sv, bandForService(sv, pricing)))
             : byId.get(inc.serviceId);
           if (!cible) continue;
           suites.push({

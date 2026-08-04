@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { type ServiceInclus, type TarifMode,
+import { sousArbreOf, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
@@ -401,7 +401,8 @@ export default function Catalogue() {
            avec la densite. Retenir tout l'atelier melait le resserrage et
            l'abonnement annuel a 480 000 F, et la fourchette annoncee n'avait
            plus aucun sens — de 8 900 F a 1 140 000 F. */
-        const fam = services.filter((x) => x.categoryId === inc.categoryId
+        const sousArbre = sousArbreOf(categories, inc.categoryId);
+        const fam = services.filter((x) => sousArbre.has(x.categoryId)
           && Object.keys(x.priceFloors ?? {}).length > 0);
         if (!fam.length) return null;
         const bs = fam.map(bornes);
@@ -971,7 +972,10 @@ export default function Catalogue() {
                         forfait couvre alors les cinq densites. */}
                     <optgroup label="Selon le calibre de la cliente">
                       {categories
-                        .filter((c) => services.some((sv) => sv.categoryId === c.id && Object.keys(sv.priceFloors ?? {}).length))
+                        .filter((c) => {
+                          const sa = sousArbreOf(categories, c.id);
+                          return services.some((sv) => sa.has(sv.categoryId) && Object.keys(sv.priceFloors ?? {}).length);
+                        })
                         .map((c) => (
                           <option key={`cat-${c.id}`} value={`cat:${c.id}`}>
                             {c.fon} · la prestation de son calibre

@@ -280,6 +280,20 @@ export const racineOf = (cats: CatalogCategory[], id: string | undefined): Catal
   return cur;
 };
 
+/** L'ATELIER ET TOUTES SES FAMILLES. Designer « GBEJI » dans un forfait doit
+    couvrir ce qui est range dessous : sans cette descente, sortir les SINSIN
+    vers une famille ferait disparaitre la seance du forfait en silence, la
+    ligne ne trouvant plus aucune prestation dans l'atelier lui-meme. */
+export const sousArbreOf = (cats: CatalogCategory[], rootId: string): Set<string> => {
+  const ids = new Set([rootId]);
+  for (let i = 0; i < 8; i += 1) {
+    const avant = ids.size;
+    for (const c of cats) if (c.parentId && ids.has(c.parentId)) ids.add(c.id);
+    if (ids.size === avant) break;
+  }
+  return ids;
+};
+
 /** Les ateliers seuls — les categories sans parent. */
 export const ateliersOf = (cats: CatalogCategory[]): CatalogCategory[] => cats.filter((c) => !c.parentId);
 
