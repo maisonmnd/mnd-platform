@@ -357,6 +357,18 @@ export default function Catalogue() {
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
     });
 
+  /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
+     prix demande, et l'ecart entre les deux — la remise que la cliente gagne.
+     Les prestations au modele sont comptees a leur prix catalogue : leur vrai
+     montant depend de la tete, on le signale plutot que de l'inventer. */
+  const inclusLignes = (svcForm?.includes ?? [])
+    .map((inc) => services.find((sv) => sv.id === inc.serviceId))
+    .filter((sv): sv is Service => !!sv);
+  const inclusValeur = inclusLignes.reduce((n, sv) => n + sv.priceXof, 0);
+  const inclusVariables = inclusLignes.filter((sv) => sv.ratePerLock || Object.keys(sv.priceFloors ?? {}).length).length;
+  const inclusPrix = parseInt((svcForm?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+  const inclusEcart = inclusValeur - inclusPrix;
+
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
     const price = parseInt(svcForm.price.replace(/[^0-9]/g, ''), 10) || 0;
@@ -817,11 +829,22 @@ export default function Catalogue() {
                   Aucune — cette prestation se vend seule.
                 </div>
               )}
+              {svcForm.includes.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 26px', gap: 8, marginBottom: 4 }}>
+                  <span className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>Prestation</span>
+                  <span className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>Semaines</span>
+                  <span />
+                </div>
+              )}
               {svcForm.includes.map((inc, i) => (
-                <div key={`inc-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                /* `minmax(0,1fr)` et non `1fr` : sans le minimum a zero, un
+                   `<select>` dont le libelle est long refuse de se retrecir et
+                   pousse les colonnes suivantes hors du cadre — c'est ce qui
+                   faisait deborder la fenetre et sortir la colonne semaines. */
+                <div key={`inc-${i}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 26px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                   <select
                     className="ds-select"
-                    style={{ flex: 1 }}
+                    style={{ minWidth: 0, width: '100%' }}
                     value={inc.serviceId}
                     onChange={(e) => setSvcForm({
                       ...svcForm,
@@ -838,7 +861,7 @@ export default function Catalogue() {
                   </select>
                   <Input
                     inputMode="numeric"
-                    style={{ width: 92 }}
+                    style={{ width: '100%', minWidth: 0, textAlign: 'center' }}
                     value={inc.afterWeeks ? String(inc.afterWeeks) : ''}
                     onChange={(e) => setSvcForm({
                       ...svcForm,
@@ -851,7 +874,7 @@ export default function Catalogue() {
                   <button
                     type="button"
                     onClick={() => setSvcForm({ ...svcForm, includes: svcForm.includes.filter((_, j) => j !== i) })}
-                    style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+                    style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 16, lineHeight: 1, padding: 0 }}
                     title="Retirer cette ligne"
                   >
                     ×
@@ -865,10 +888,41 @@ export default function Catalogue() {
               >
                 + Ajouter une prestation incluse
               </button>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+              {inclusValeur > 0 && (
+                /* CE QUE LE FORFAIT PROMET, CE QU'IL COUTE, CE QU'IL OFFRE.
+                   Composer un pack a l'aveugle revenait a deviner la remise :
+                   on additionne donc les prestations retenues au prix catalogue
+                   et on montre l'ecart avec le prix demande. */
+                <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--color-sable)', borderRadius: 4 }}>
+                  {[
+                    ['Valeur des prestations incluses', inclusValeur, 'var(--ink)'],
+                    ['Prix du forfait', inclusPrix, 'var(--ink)'],
+                  ].map(([label, val]) => (
+                    <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 5 }}>
+                      <span>{label as string}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(val as number, currency)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, paddingTop: 6, borderTop: '1px solid var(--line)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                    <span style={{ color: inclusEcart > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
+                      {inclusEcart > 0 ? 'Économie pour la cliente' : inclusEcart < 0 ? 'Majoration' : 'Ni remise ni majoration'}
+                    </span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums', color: inclusEcart > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
+                      {inclusEcart > 0 ? '− ' : ''}{fmtMoney(Math.abs(inclusEcart), currency)}
+                      {inclusValeur > 0 ? ` · ${Math.round((inclusEcart / inclusValeur) * 100)} %` : ''}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
                 La colonne « semaines » dit quand la prestation est due. Laisser vide pour le jour même ;
                 6 pour un entretien à six semaines. Les lignes à échéance deviennent des rendez-vous
                 posés au carnet dès la réservation du forfait, couverts par lui, à 0 F.
+                {inclusVariables > 0 && (
+                  <> {inclusVariables} prestation{inclusVariables > 1 ? 's' : ''} incluse{inclusVariables > 1 ? 's' : ''} se
+                  facture{inclusVariables > 1 ? 'nt' : ''} au modèle : la valeur ci-dessus les compte au prix catalogue,
+                  le vrai montant dépendra de la tête.</>
+                )}
               </div>
             </Field>
             <Field label="Qui commande le prix">
