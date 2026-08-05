@@ -6,12 +6,25 @@
 -- dix-huit lignes pour trois gestes. Une prestation porte désormais ses trois
 -- prix (`prixParLongueur`) et ses trois durées : une seule suffit.
 --
--- ── CE QUI COMMANDE TOUT ─────────────────────────────────────────
--- Un rendez-vous sans prix figé se relit AU CATALOGUE. Transférer ses
--- prestations sans lui poser la longueur le ferait retomber sur le prix de
--- repli de la survivante — et le chiffre d'affaires bougerait sans que rien ne
--- le dise. CHAQUE rendez-vous repris reçoit donc la longueur de la variante
--- qu'il portait. C'est la seule raison d'être de ce script.
+-- ── CE QUI COMMANDE TOUT : LE PRIX D'ORIGINE FAIT FOI ────────────
+-- Un rendez-vous sans prix figé se relit AU CATALOGUE. Le transférer le ferait
+-- donc relire à travers les prix par longueur de la survivante — et si ces
+-- prix ne sont pas exactement ceux qu'il a portés, le chiffre d'affaires de
+-- mai et juin bougerait sans que rien ne le dise.
+--
+-- CHAQUE rendez-vous repris voit donc son total FIGÉ d'abord, à la valeur
+-- qu'il porte aujourd'hui, avant que quoi que ce soit ne le touche. C'est
+-- rigoureusement neutre — c'est déjà le montant que Le Trône lui calcule — et
+-- cela le rend définitivement sourd au catalogue. Le transfert ne peut alors
+-- plus déplacer un franc, que les prix par longueur soient justes, faux ou
+-- provisoires.
+--
+-- La longueur reste posée sur chaque rituel : elle dit ce qui a été travaillé,
+-- elle ne commande plus le montant. Et les prix par longueur ne concernent
+-- plus que les réservations À VENIR — celles qu'on corrigera au Catalogue.
+--
+-- Pour qu'un rituel à venir reprenne le tarif du jour une fois les vrais prix
+-- posés : l'ouvrir au Carnet et cocher « recalculer au tarif du jour ».
 --
 -- ── LA CARTOGRAPHIE SE DÉDUIT, ELLE NE S'ÉCRIT PAS ───────────────
 -- Aucun identifiant n'est écrit en dur. Pour chaque soin :
@@ -23,6 +36,7 @@
 -- fait à l'aveugle.
 --
 -- ── LES RITUELS A DEUX LONGUEURS ─────────────────────────────────
+-- (leur cas se resout de lui-meme depuis que TOUS les totaux sont figes)
 -- Trois rendez-vous combinent une purification Court et une hydratation
 -- Mi-Long. Une tete n'a pourtant qu'une longueur ce jour-la : ce ne sont pas
 -- deux longueurs, c'est une reservation qui a pique deux variantes
@@ -165,17 +179,19 @@ having count(distinct k.longueur) > 1;
 -- select * from public.appointments where id in (select id from touche)
 -- on conflict (id) do nothing;
 --
--- -- ⓪ LES RITUELS A DEUX LONGUEURS : on fige leur total AVANT tout transfert.
--- --    Lu sur les variantes d'origine — c'est le montant qu'ils ont porte. Une
--- --    fois fige, aucun choix de longueur ne peut plus le deplacer, ni ici ni
--- --    au Carnet. Les rituels deja figes ne sont pas touches.
+-- -- ⓪ LE PRIX D'ORIGINE EST FIGE, sur TOUS les rituels repris.
+-- --    Lu sur les variantes d'origine : c'est exactement le montant que Le
+-- --    Trone leur calcule aujourd'hui, donc l'operation ne deplace rien. Une
+-- --    fois fige, ni le transfert ni un prix par longueur errone ne peuvent
+-- --    plus toucher ce rituel. Les rituels deja figes ne sont pas retouches —
+-- --    leur prix d'origine est plus ancien et plus vrai que tout calcul.
 -- update public.appointments a
 -- set data = jsonb_set(a.data, '{priceXof}', to_jsonb((
 --       select coalesce(sum((s.data ->> 'priceXof')::numeric), 0)
 --       from jsonb_array_elements_text(a.data -> 'serviceIds') sid
 --       join public.catalog_services s on s.id = sid)))
 -- from touche t
--- where t.id = a.id and t.nb_longueurs > 1 and a.data ->> 'priceXof' is null;
+-- where t.id = a.id and a.data ->> 'priceXof' is null;
 --
 -- update public.appointments a
 -- set data = jsonb_set(jsonb_set(a.data, '{serviceIds}', t.nouveaux),
