@@ -225,22 +225,16 @@ export default function Catalogue() {
   }, [services, setServices]);
 
   const masters = branch.masters;
-  /* L'ORDRE DE L'ARBRE : chaque atelier, puis ses familles a la suite. Trier a
-     plat melait les familles aux ateliers et l'ecran ne montrait plus la
-     composition — GBEJI et ses SINSIN se retrouvaient a des bouts opposes de la
-     page selon leur rang. Une famille orpheline (atelier supprime) remonte au
-     rang des ateliers plutot que de disparaitre. */
-  const cats = useMemo(() => {
-    const rang = [...categories].sort((a, b) => a.order - b.order);
-    const racines = rang.filter((c) => !c.parentId || !categories.some((p2) => p2.id === c.parentId));
-    return racines.flatMap((r) => [r, ...rang.filter((c) => c.parentId === r.id)]);
-  }, [categories]);
 
   /* LES QUATRE ENSEMBLES DU CATALOGUE. 24 catégories à la suite, c'est un mur :
      on ne voit plus ni le Studio ni le plateau, noyés au milieu de l'Atelier.
      Le regroupement suit l'arborescence v6 — deux maisons, un plateau commun,
-     et l'Académie à part. L'ordre des catégories reste celui de `order` : le
-     titre d'ensemble s'insère quand on change de groupe, il ne retrie rien. */
+     et l'Académie à part.
+
+     LES LIGNES DE PRODUITS SONT DU PLATEAU. Elles avaient leur propre ensemble,
+     « LA GAMME » : une troisième colonne qui ne correspondait à rien de la
+     maison. Un pot de crème se vend depuis l'Atelier comme depuis le Studio,
+     exactement comme un soin annexe — c'est la définition du plateau. */
   const groupeDe = (c: CatalogCategory): { k: string; titre: string; sous: string } => {
     /* LA MAISON EST CELLE DE L'ATELIER, JAMAIS DE LA FAMILLE. Une famille — les
        KLƆKLƆ™, les Soins, les Retouches — ne porte pas de maison : elle la tient
@@ -253,9 +247,32 @@ export default function Catalogue() {
     if (r.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
     if (r.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
     if (r.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
-    if (r.produits || r.id === 'home-rituals' || r.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Produits' };
-    return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — une même ligne, deux origines de vente' };
+    return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — rituels annexes et lignes de produits' };
   };
+
+  /* L'ORDRE DE L'ARBRE : les deux maisons, ce qu'elles partagent, puis l'école ;
+     et dans chaque ensemble, chaque atelier suivi de ses familles.
+
+     L'ENSEMBLE COMMANDE AVANT `order`. Le titre d'ensemble se pose sur la
+     PREMIÈRE catégorie de son groupe : si deux categories d'un même ensemble
+     sont séparées par une troisième d'un autre, le titre se rouvre — on a vu
+     trois « PLATEAU TECHNIQUE » sur une même page. Trier d'abord par ensemble
+     garantit un seul titre chacun, quels que soient les rangs saisis.
+
+     Une famille orpheline (atelier supprimé) remonte au rang des ateliers
+     plutôt que de disparaître. */
+  const RANG_ENSEMBLE: Record<string, number> = { atelier: 0, studio: 1, plateau: 2, academie: 3 };
+  const cats = useMemo(() => {
+    const rang = [...categories].sort((a, b) => a.order - b.order);
+    const racines = rang.filter((c) => !c.parentId || !categories.some((p2) => p2.id === c.parentId));
+    /* `sort` est stable : à ensemble égal, l'ordre saisi est conservé. */
+    const parEnsemble = [...racines].sort(
+      (a, b) => (RANG_ENSEMBLE[groupeDe(a).k] ?? 9) - (RANG_ENSEMBLE[groupeDe(b).k] ?? 9),
+    );
+    return parEnsemble.flatMap((r) => [r, ...rang.filter((c) => c.parentId === r.id)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories]);
+
   /* Replier tout un ensemble d'un geste : c'est ce qui rend les 24 catégories
      tenables à l'écran. */
   const toggleGroupe = (k: string) => {
@@ -291,9 +308,21 @@ export default function Catalogue() {
     : cats;
 
   /* — catégories — */
+  /* LE VOISIN DE MÊME RANG. La flèche échangeait l'ordre avec la ligne d'à côté
+     dans la liste à plat — qui peut appartenir à un autre atelier ou à un autre
+     ensemble. Depuis que l'ensemble commande l'affichage, un tel échange ne
+     bouge plus rien : le clic semblait ne pas fonctionner. On ne permute donc
+     qu'entre voisins de même parent ET de même ensemble, et la flèche
+     s'éteint quand il n'y a personne à cette place. */
+  const voisinDe = (cat: CatalogCategory, dir: -1 | 1): CatalogCategory | undefined => {
+    const memeRang = cats.filter(
+      (c) => (c.parentId ?? '') === (cat.parentId ?? '') && groupeDe(c).k === groupeDe(cat).k,
+    );
+    const i = memeRang.findIndex((c) => c.id === cat.id);
+    return i < 0 ? undefined : memeRang[i + dir];
+  };
   const moveCat = (cat: CatalogCategory, dir: -1 | 1) => {
-    const idx = cats.findIndex((c) => c.id === cat.id);
-    const other = cats[idx + dir];
+    const other = voisinDe(cat, dir);
     if (!other) return;
     setCategories((prev) =>
       prev.map((c) =>
@@ -705,8 +734,8 @@ export default function Catalogue() {
                     <button className="trv-minibtn" title="Supprimer la catégorie" onClick={() => deleteCat(cat)}>
                       Supprimer
                     </button>
-                    <button className="trv-sq" title="Monter" disabled={ci === 0} onClick={() => moveCat(cat, -1)}>↑</button>
-                    <button className="trv-sq" title="Descendre" disabled={ci === renderCats.length - 1} onClick={() => moveCat(cat, 1)}>↓</button>
+                    <button className="trv-sq" title="Monter" disabled={!voisinDe(cat, -1)} onClick={() => moveCat(cat, -1)}>↑</button>
+                    <button className="trv-sq" title="Descendre" disabled={!voisinDe(cat, 1)} onClick={() => moveCat(cat, 1)}>↓</button>
                   </span>
                 </>
               )}
