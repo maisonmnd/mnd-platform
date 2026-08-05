@@ -13,7 +13,11 @@
 -- Chaque famille se replie sur UNE prestation qui porte ses trois prix et ses
 -- trois durées. LE BARÈME NE SE SAISIT PAS : il se lit sur les variantes
 -- elles-mêmes. Chacune donne son prix et sa durée sous sa propre longueur.
--- Ce que tu as déjà écrit à la main l'emporte sur ce qui est déduit.
+--
+-- Ce qui a été écrit à la main l'emporte, et se récolte sur TOUTE la famille :
+-- les prix corrigés de DÀNDÀN sont posés sur sa variante Court alors que la
+-- survivante est la Mi-Long — ne lire que la survivante aurait effacé la
+-- correction et rétabli les prix de l'ancien catalogue.
 --
 -- ── POURQUOI C'EST NEUTRE ────────────────────────────────────────
 -- Un rendez-vous sans prix figé se relit au catalogue ; avec un prix figé, il
@@ -143,8 +147,7 @@ from variante group by famille having count(*) = 1 order by 1;
 -- where v.id <> s.id;
 --
 -- -- ① LE BARÈME SE LIT SUR LES VARIANTES. Chacune donne son prix et sa durée
--- --    sous sa propre longueur — y compris la survivante, qui apporte la
--- --    sienne. `||` en dernier : ce qui a été saisi à la main l'emporte.
+-- --    sous sa propre longueur — y compris la survivante, qui apporte la sienne.
 -- create temporary table bareme on commit drop as
 -- select v.famille,
 --        jsonb_object_agg(v.longueur, v.prix)  as prix_map,
@@ -152,6 +155,26 @@ from variante group by famille having count(*) = 1 order by 1;
 -- from (select distinct on (famille, longueur) famille, longueur, prix, duree
 --         from variante order by famille, longueur, prix desc) v
 -- where v.famille in (select famille from survivante)
+-- group by v.famille;
+--
+-- -- ①b CE QUI A ÉTÉ SAISI À LA MAIN L'EMPORTE — et se récolte sur TOUTE la
+-- --     famille, pas sur la seule survivante. Les prix corrigés de DÀNDÀN sont
+-- --     posés sur sa variante Court, alors que la survivante est la Mi-Long :
+-- --     ne lire que la survivante aurait effacé la correction et rétabli les
+-- --     prix de l'ancien catalogue. Ce qui est mesuré cède au su.
+-- create temporary table manuel on commit drop as
+-- select v.famille,
+--        coalesce(jsonb_object_agg(e.key, e.value)
+--                 filter (where e.champ = 'prix'),  '{}'::jsonb) as prix_manuel,
+--        coalesce(jsonb_object_agg(e.key, e.value)
+--                 filter (where e.champ = 'duree'), '{}'::jsonb) as duree_manuel
+-- from variante v
+-- join public.catalog_services s on s.id = v.id
+-- cross join lateral (
+--   select 'prix' as champ, key, value from jsonb_each(coalesce(s.data -> 'prixParLongueur', '{}'::jsonb))
+--   union all
+--   select 'duree', key, value from jsonb_each(coalesce(s.data -> 'dureeParLongueur', '{}'::jsonb))
+-- ) e
 -- group by v.famille;
 --
 -- -- ② Sauvegarde des rendez-vous touchés, ENTIERS.
@@ -221,11 +244,13 @@ from variante group by famille having count(*) = 1 order by 1;
 -- update public.catalog_services s
 -- set data = s.data
 --          || jsonb_build_object(
---               'prixParLongueur',  b.prix_map  || coalesce(s.data -> 'prixParLongueur',  '{}'::jsonb),
---               'dureeParLongueur', b.duree_map || coalesce(s.data -> 'dureeParLongueur', '{}'::jsonb),
+--               'prixParLongueur',  b.prix_map  || coalesce(m.prix_manuel,  '{}'::jsonb),
+--               'dureeParLongueur', b.duree_map || coalesce(m.duree_manuel, '{}'::jsonb),
 --               'name', regexp_replace(s.data ->> 'name',
 --                         ' · (Court|Mi-Long|Long ou haute densité)$', ''))
--- from survivante v join bareme b on b.famille = v.famille
+-- from survivante v
+-- join bareme b on b.famille = v.famille
+-- left join manuel m on m.famille = v.famille
 -- where s.id = v.id;
 --
 -- update public.catalog_services s
