@@ -1,4 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- ⚠ REMPLACÉ PAR 0023_repli_longueurs_catalogue.sql — 5 août 2026
+--
+-- Ce script ne traitait que Les Soins. Le motif des longueurs traverse tout
+-- le catalogue (KLƆKLƆ™, YÈKPÈ™ Couleur, GBÌGBÌ™, les Vanilles, le Prélude) :
+-- le 0023 fait la même chose pour toutes les familles, lit le barème sur les
+-- variantes au lieu de le faire saisir, et respecte les prix déjà écrits à la
+-- main. NE PAS EXÉCUTER CELUI-CI. Conservé pour l'historique.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════════
 -- 0022 — Un seul soin par geste : les variantes de longueur se replient
 --        (à coller dans Supabase → SQL Editor). EN DEUX TEMPS.
 --
