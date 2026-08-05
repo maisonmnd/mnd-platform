@@ -22,10 +22,18 @@
 -- il n'entre dans aucune correspondance — l'étape 1 le montre, et rien ne se
 -- fait à l'aveugle.
 --
--- ── LE CAS QUI BLOQUE ────────────────────────────────────────────
--- Un rendez-vous ne porte QU'UNE longueur — c'est la tête de la cliente ce
--- jour-là. S'il combine deux variantes de longueurs différentes, il est LAISSÉ
--- EN PLACE et signalé : personne ne peut deviner laquelle est la bonne.
+-- ── LES RITUELS A DEUX LONGUEURS ─────────────────────────────────
+-- Trois rendez-vous combinent une purification Court et une hydratation
+-- Mi-Long. Une tete n'a pourtant qu'une longueur ce jour-la : ce ne sont pas
+-- deux longueurs, c'est une reservation qui a pique deux variantes
+-- incoherentes dans l'ancien catalogue.
+--
+-- Sous une longueur unique, l'un des deux gestes change forcement de prix —
+-- 20 000 + 22 000 devient 20 000 + 15 000. On FIGE donc leur total AVANT de
+-- les transferer : la longueur redevient descriptive, et plus aucun choix ne
+-- peut deplacer un franc. La longueur posee est celle du geste DOMINANT (la
+-- variante la plus chere du rituel) ; elle se corrige ensuite au Carnet d'un
+-- clic, sans que le montant bouge, puisqu'il est fige.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── ÉTAPE 1 · APERÇU — ne modifie RIEN. À lire avant l'étape 2. ───
@@ -67,7 +75,8 @@ left join survivante v on v.famille = k.famille
 order by k.famille, k.longueur nulls first;
 
 -- CONTRÔLE · les rendez-vous qui combinent DEUX longueurs différentes.
--- Doit rendre ZÉRO ligne. Toute ligne ici sera laissée intacte par l'étape 2.
+-- Trois attendus. Chacun verra son total FIGÉ avant transfert : la longueur
+-- posée devient descriptive et se corrige au Carnet sans déplacer un franc.
 with soin as (
   select s.id,
          case
@@ -132,15 +141,22 @@ having count(distinct k.longueur) > 1;
 -- where not k.porte_les_prix and k.longueur is not null and v.id <> k.id;
 --
 -- -- ① Les rendez-vous : sauvegarde entière, puis transfert AVEC la longueur.
--- --    Un rituel qui mêle deux longueurs est écarté (`= 1`) — il reste intact.
 -- create temporary table touche on commit drop as
 -- select a.id,
 --        (select jsonb_agg(to_jsonb(coalesce(c.nouveau, e.v)) order by e.ord)
 --           from jsonb_array_elements_text(a.data -> 'serviceIds') with ordinality e(v, ord)
 --           left join corresp c on c.ancien = e.v)                       as nouveaux,
---        (select array_agg(distinct c.longueur)
+--        -- LA LONGUEUR DU GESTE DOMINANT : la variante la plus chere du rituel.
+--        -- Sur un rituel a une seule longueur, c'est evidemment celle-la.
+--        (select c.longueur
 --           from jsonb_array_elements_text(a.data -> 'serviceIds') e(v)
---           join corresp c on c.ancien = e.v)                            as longueurs
+--           join corresp c on c.ancien = e.v
+--           join public.catalog_services s on s.id = e.v
+--           order by (s.data ->> 'priceXof')::numeric desc, c.longueur
+--           limit 1)                                                     as longueur,
+--        (select count(distinct c.longueur)
+--           from jsonb_array_elements_text(a.data -> 'serviceIds') e(v)
+--           join corresp c on c.ancien = e.v)                            as nb_longueurs
 -- from public.appointments a
 -- where exists (select 1 from jsonb_array_elements_text(coalesce(a.data -> 'serviceIds', '[]'::jsonb)) e(v)
 --                 join corresp c on c.ancien = e.v);
@@ -149,11 +165,23 @@ having count(distinct k.longueur) > 1;
 -- select * from public.appointments where id in (select id from touche)
 -- on conflict (id) do nothing;
 --
+-- -- ⓪ LES RITUELS A DEUX LONGUEURS : on fige leur total AVANT tout transfert.
+-- --    Lu sur les variantes d'origine — c'est le montant qu'ils ont porte. Une
+-- --    fois fige, aucun choix de longueur ne peut plus le deplacer, ni ici ni
+-- --    au Carnet. Les rituels deja figes ne sont pas touches.
+-- update public.appointments a
+-- set data = jsonb_set(a.data, '{priceXof}', to_jsonb((
+--       select coalesce(sum((s.data ->> 'priceXof')::numeric), 0)
+--       from jsonb_array_elements_text(a.data -> 'serviceIds') sid
+--       join public.catalog_services s on s.id = sid)))
+-- from touche t
+-- where t.id = a.id and t.nb_longueurs > 1 and a.data ->> 'priceXof' is null;
+--
 -- update public.appointments a
 -- set data = jsonb_set(jsonb_set(a.data, '{serviceIds}', t.nouveaux),
---                      '{longueur}', to_jsonb(t.longueurs[1]))
+--                      '{longueur}', to_jsonb(t.longueur))
 -- from touche t
--- where t.id = a.id and array_length(t.longueurs, 1) = 1;
+-- where t.id = a.id;
 --
 -- -- ② La composition des forfaits suit — une ligne qui désigne une variante
 -- --    désignerait sinon une prestation effacée, et la séance disparaîtrait
@@ -197,7 +225,8 @@ having count(distinct k.longueur) > 1;
 --   and s.data ->> 'name' ~ ' · (Court|Mi-Long|Long ou haute densité)$';
 --
 -- -- ⑥ Les variantes partent — mais SEULEMENT celles que plus rien ne retient.
--- --    Un rituel à deux longueurs a été laissé intact : sa variante survit.
+-- --    Le filtre reste : si quoi que ce soit pointe encore vers l'une d'elles,
+-- --    elle survit plutot que de laisser une reference dans le vide.
 -- insert into public.menage_0022_services
 -- select * from public.catalog_services s
 -- where s.id in (select ancien from corresp)
