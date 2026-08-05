@@ -259,6 +259,18 @@ having count(distinct k.longueur) > 1;
 --
 -- delete from public.catalog_services where id in (select id from public.menage_0022_services);
 --
+-- -- ⑦ TATIANA MAMA, 18 juin — la seule correction nommee de ce script.
+-- --    Son rituel etait reserve sur la variante Mi-Long, mais c'est un LONG
+-- --    qui lui est facture : 28 000 F, le prix du Long. Le transfert lui aurait
+-- --    pose « mi-long » puisqu'il lit le nom de la variante d'origine. Son prix
+-- --    etant fige, la longueur ne fait que decrire — la corriger ne deplace
+-- --    rien, elle rend seulement le rituel conforme a ce qu'il a ete.
+-- update public.appointments a
+-- set data = jsonb_set(a.data, '{longueur}', '"long"')
+-- where a.data ->> 'date' = '2026-06-18'
+--   and a.data ->> 'clientName' = 'Tatiana Mama'
+--   and a.data ->> 'longueur' = 'mi-long';
+--
 -- commit;
 
 
