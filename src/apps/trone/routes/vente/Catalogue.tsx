@@ -442,7 +442,20 @@ export default function Catalogue() {
   const inclusValeur = inclusPaires.reduce((n, x) => n + x.bas, 0);
   const inclusValeurHaute = inclusPaires.reduce((n, x) => n + x.haut, 0);
   const inclusFamilles = inclusPaires.filter((x) => x.variable).length;
-  const inclusPrix = parseInt((svcForm?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+  const inclusSaisi = parseInt((svcForm?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+  /* LE RECAPITULATIF SUIT LA REMISE. Il lisait le prix saisi plus haut, qui ne
+     commande plus rien des qu'une remise est posee : on affichait « 0 F » sous
+     une composition a 95 000 F, et les deux blocs semblaient etrangers l'un a
+     l'autre. Le prix montre est desormais celui que la cliente paiera. */
+  const remisePct = svcForm?.forfaitRemise.trim()
+    ? Math.max(0, Math.min(100, parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0))
+    : undefined;
+  const inclusPrix = remisePct !== undefined
+    ? Math.round(inclusValeur * (1 - remisePct / 100))
+    : inclusSaisi;
+  const inclusPrixHaut = remisePct !== undefined
+    ? Math.round(inclusValeurHaute * (1 - remisePct / 100))
+    : inclusSaisi;
   const inclusEcart = inclusValeur - inclusPrix;
 
   /* LA DUREE SE RECALCULE QUAND LA COMPOSITION CHANGE — pas a l'ouverture de la
@@ -1073,7 +1086,8 @@ export default function Catalogue() {
                 <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--color-sable)', borderRadius: 4 }}>
                   {[
                     ['Valeur des prestations incluses', inclusValeur, 'var(--ink)'],
-                    ['Prix du forfait', inclusPrix, 'var(--ink)'],
+                    [remisePct !== undefined ? `Prix du forfait · remise ${remisePct} %` : 'Prix du forfait',
+                     inclusPrix, 'var(--ink)'],
                   ].map(([label, val]) => (
                     <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 5 }}>
                       <span>{label as string}</span>
@@ -1083,9 +1097,12 @@ export default function Catalogue() {
                   {inclusFamilles > 0 && inclusValeurHaute > inclusValeur && (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginBottom: 6, lineHeight: 1.5 }}>
                       {inclusFamilles} prestation{inclusFamilles > 1 ? 's' : ''} varie{inclusFamilles > 1 ? 'nt' : ''} avec
-                      la densité — la valeur du forfait va de {fmtMoney(inclusValeur, currency)} à
-                      {' '}{fmtMoney(inclusValeurHaute, currency)} selon la tête. La ligne ci-dessus retient
-                      la borne basse ; l’économie réelle sera plus forte sur une tête dense.
+                      la densité — la valeur va de {fmtMoney(inclusValeur, currency)} à
+                      {' '}{fmtMoney(inclusValeurHaute, currency)} selon la tête
+                      {remisePct !== undefined && (
+                        <>, et la cliente paiera donc de {fmtMoney(inclusPrix, currency)} à
+                        {' '}{fmtMoney(inclusPrixHaut, currency)}</>
+                      )}. Les lignes ci-dessus retiennent la borne basse.
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, paddingTop: 6, borderTop: '1px solid var(--line)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
