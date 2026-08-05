@@ -86,3 +86,31 @@ Trois destinations ne sont pas encore fixées :
 Les autres sont acquises : stylings et coiffures sous GBÈJÍ™, retouches post
 création sous VÈKPÈ™, retouches post restauration sous FÍNFÍN™, AFA·YEK sous
 YÈKPÈ™, PLT·55 et PLT·70 sous GBÈJÍ™.
+
+## Destinations arrêtées — 5 août 2026, décision complète
+
+| prestations | famille créée | sous |
+|---|---|---|
+| KLƆKLƆ™ Essentiel / Signature / Prestige + AFA·KLO | Les lavages rituels | GBÈJÍ™ |
+| DÀNDÀN™, GBÌGBÌ™, WÈWÈ™ + AFA·WEW·D et ·S | Les soins | GBÈJÍ™ |
+| PLT·50 stylings et coiffures signature | Styling & Coiffures | GBÈJÍ™ |
+| PLT·55 reprise frontale | — (à plat) | GBÈJÍ™ |
+| PLT·70 démontage | — (à plat) | GBÈJÍ™ |
+| Retouches Post Création | Retouches | VÈKPÈ™ |
+| Retouches Post Restauration | Retouches | FÍNFÍN™ |
+| AFA·YEK couleur à façon | — (à plat) | YÈKPÈ™ |
+| PLT·60 WÈWÈ™ + DÀNDÀN™ | Les soins | GBÈJÍ™ |
+| PLT·60 YÈKPÈ™ Couleur + Lumière | — (à plat) | YÈKPÈ™ |
+
+Les combinaisons rejoignent l'atelier de leur geste dominant, pas une famille
+commune : c'est ce qui les rend comparables aux prestations qu'elles associent.
+
+Aucune duplication. Le Studio ACƆ™ n'est pas touché. La catégorie plateau reste
+en place, vide, disponible pour de futures prestations.
+
+### Contrôles après exécution
+
+1. Le plateau tombe à 0 F sur juillet et août.
+2. Atelier juillet ≈ 2 368 000 F, Studio inchangé à 47 667 F.
+3. Totaux ventilés inchangés : 2 416 200 F et 117 500 F.
+4. Aucune prestation orpheline — toutes ont une catégorie existante.
