@@ -232,6 +232,18 @@ export default function Caisse() {
       return { key: k, ...it, ...v, unit, netXof };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
+  /* LE SELECTEUR DE LONGUEUR NE PARAIT QUE S'IL COMMANDE QUELQUE CHOSE. Il
+     s'affichait des que le catalogue portait une seule prestation a la
+     longueur — donc toujours : vendre une manucure ou une formation de
+     l'Academie demandait une longueur de cheveux sans objet. Il ne parait
+     desormais que si le TICKET en porte une. Avant la premiere ligne, le
+     defaut Mi-Long s'applique ; des qu'elle est posee, le choix apparait et
+     les prix du ticket se recalculent en direct. */
+  const longueurUtile = lines.some((l) => {
+    if (l.kind !== 'service') return false;
+    const sv = svcById.get(l.key.slice(2)); // clé « s:<id> »
+    return !!sv && suitLongueur(sv);
+  });
   /* Un sur-devis sans montant bloque l'encaissement : mieux vaut un blocage
      explicite qu'une création microlocks vendue 0 F par inattention. */
   const devisMissing = lines.filter((l) => l.mode === 'devis' && l.unit <= 0);
@@ -474,7 +486,7 @@ export default function Caisse() {
               {/* LA LONGUEUR TRAVAILLEE — elle commande le prix des prestations
                   qui s'y facturent. Elle ne parait que si le catalogue en porte :
                   une maison qui ne facture pas a la longueur n'a pas a la voir. */}
-              {services.some(suitLongueur) && (
+              {longueurUtile && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Longueur</span>
                   <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
