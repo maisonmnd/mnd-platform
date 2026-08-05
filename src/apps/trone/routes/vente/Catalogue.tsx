@@ -103,6 +103,14 @@ export default function Catalogue() {
   const bands = sortedBands(rawBands);
 
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
+  /* LE BLOC DES LONGUEURS EST REPLIE PAR DEFAUT. Une trentaine de prestations
+     sur soixante-quatorze se facturent a la longueur ; sur toutes les autres —
+     une manucure, une formation de l'Academie, une vente de produit — trois
+     lignes de cases vides ne disaient rien et encombraient la fiche. Le repli
+     vaut mieux qu'une regle « telle categorie n'y a pas droit » : une regle
+     pareille se trompe le jour ou l'exception se presente. L'etat est attache
+     a la prestation ouverte, pour ne pas rester ouvert d'une fiche a l'autre. */
+  const [longueurOuverte, setLongueurOuverte] = useState<string | null>(null);
   const [catForm, setCatForm] = useState<CatForm | null>(null);
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
   const [query, setQuery] = useState('');
@@ -1284,6 +1292,27 @@ export default function Catalogue() {
                 locks et se constate une fois ; la longueur mesure ce qui pend et
                 repousse. Une seule prestation porte ici ses trois prix, au lieu
                 des trois prestations sœurs qu'il fallait renommer une à une. */}
+            {(() => {
+              const clef = svcForm.id ?? '__nouvelle__';
+              const posee = Object.values(svcForm.prixLong).some((v) => v?.trim())
+                || Object.values(svcForm.dureeLong).some((v) => v?.trim());
+              if (!posee && longueurOuverte !== clef) {
+                return (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', padding: '2px 0' }}>
+                    <button
+                      type="button"
+                      className="trv-minibtn"
+                      onClick={() => setLongueurOuverte(clef)}
+                    >
+                      + Prix par longueur
+                    </button>
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                      seulement si le même geste se facture différemment selon la longueur travaillée
+                    </span>
+                  </div>
+                );
+              }
+              return (
             <Field label="Prix et durée par longueur (facultatif)">
               <div style={{ display: 'grid', gap: 8 }}>
                 {LONGUEURS.map((l) => (
@@ -1313,6 +1342,8 @@ export default function Catalogue() {
                   : 'Tout laisser vide : la prestation garde un prix unique. À remplir seulement quand le même geste se facture différemment selon la longueur travaillée.'}
               </div>
             </Field>
+              );
+            })()}
             <div className="tr-grid tr-grid--2">
               <Field label="Code ERP">
                 <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
