@@ -415,6 +415,15 @@ export default function Catalogue() {
           nom: categories.find((c) => c.id === inc.categoryId)?.fon ?? '',
         };
       }
+      if (inc.productId) {
+        /* Un produit a un prix ferme : ni calibre ni fourchette, et pas de duree
+           — on le remet, on ne le realise pas. */
+        const pr = products.find((x) => x.id === inc.productId);
+        if (!pr) return null;
+        const commeSvc = { id: pr.id, name: pr.name, priceXof: pr.priceXof, durationMin: 0,
+                           categoryId: pr.categoryId } as unknown as Service;
+        return { inc, sv: commeSvc, bas: pr.priceXof, haut: pr.priceXof, variable: false, nom: pr.name };
+      }
       const sv = services.find((x) => x.id === inc.serviceId);
       if (!sv) return null;
       const b = bornes(sv);
@@ -957,10 +966,10 @@ export default function Catalogue() {
                 qui restait du a la cliente, ces gestes ne comptaient dans
                 aucune statistique, et les seances de suivi se perdaient. */}
             {svcForm.estForfait && (
-            <Field label="Prestations incluses dans ce forfait">
+            <Field label="Prestations et produits inclus dans ce forfait">
               {svcForm.includes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12, padding: '4px 0 8px' }}>
-                  Aucune — cette prestation se vend seule.
+                  Aucun — cette prestation se vend seule.
                 </div>
               )}
               {svcForm.includes.length > 0 && (
@@ -979,19 +988,20 @@ export default function Catalogue() {
                   <select
                     className="ds-select"
                     style={{ minWidth: 0, width: '100%' }}
-                    value={inc.categoryId ? `cat:${inc.categoryId}` : inc.serviceId}
+                    value={inc.categoryId ? `cat:${inc.categoryId}` : inc.productId ? `prod:${inc.productId}` : inc.serviceId}
                     onChange={(e) => {
                       const v = e.target.value;
                       const cat = v.startsWith('cat:') ? v.slice(4) : undefined;
+                      const prod = v.startsWith('prod:') ? v.slice(5) : undefined;
                       setSvcForm({
                         ...svcForm,
                         includes: svcForm.includes.map((x, j) => (j === i
-                          ? { ...x, serviceId: cat ? '' : v, categoryId: cat }
+                          ? { ...x, serviceId: cat || prod ? '' : v, categoryId: cat, productId: prod }
                           : x)),
                       });
                     }}
                   >
-                    <option value="">Choisir une prestation…</option>
+                    <option value="">Choisir une prestation ou un produit…</option>
                     {/* SELON LE CALIBRE — la prestation reelle sera choisie a la
                         reservation d'apres le modele de la cliente. Un seul
                         forfait couvre alors les cinq densites. */}
@@ -1007,6 +1017,16 @@ export default function Catalogue() {
                           </option>
                         ))}
                     </optgroup>
+                    {/* LES PRODUITS AUSSI. Un forfait promet souvent un flacon
+                        ou une trousse : sans eux, sa valeur affichee etait
+                        incomplete et la promesse ne vivait que dans le texte. */}
+                    {products.length > 0 && (
+                      <optgroup label="Un produit de la Gamme">
+                        {[...products].sort((a, b) => a.name.localeCompare(b.name)).map((pr) => (
+                          <option key={`prod-${pr.id}`} value={`prod:${pr.id}`}>{pr.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                     <optgroup label="Une prestation précise">
                       {services
                         .filter((sv) => sv.id !== svcForm.id)
@@ -1043,7 +1063,7 @@ export default function Catalogue() {
                 onClick={() => setSvcForm({ ...svcForm, includes: [...svcForm.includes, { serviceId: '' }] })}
                 style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
               >
-                + Ajouter une prestation incluse
+                + Ajouter une ligne au forfait
               </button>
               {inclusValeur > 0 && (
                 /* CE QUE LE FORFAIT PROMET, CE QU'IL COUTE, CE QU'IL OFFRE.

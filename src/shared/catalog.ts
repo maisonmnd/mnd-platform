@@ -177,6 +177,10 @@ export type ServiceInclus = {
       un prix aurait voulu dire le changer cinq fois. La prestation reelle se
       resout a la reservation, d'apres le modele inscrit sur la fiche. */
   categoryId?: string;
+  /** UN PRODUIT DE LA GAMME inclus dans le forfait — le flacon remis avec la
+      creation, la trousse promise. Il ne devient pas un rendez-vous : il se
+      compte dans la valeur du forfait et se remet au comptoir. */
+  productId?: string;
   /** Dans combien de semaines apres la visite d'ouverture. 0 = le jour meme. */
   afterWeeks?: number;
 };
