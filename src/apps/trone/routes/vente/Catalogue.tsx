@@ -1020,10 +1020,18 @@ export default function Catalogue() {
                         forfait couvre alors les cinq densites. */}
                     <optgroup label="Selon le calibre de la cliente">
                       {categories
-                        .filter((c) => {
-                          const sa = sousArbreOf(categories, c.id);
-                          return services.some((sv) => sa.has(sv.categoryId) && Object.keys(sv.priceFloors ?? {}).length);
-                        })
+                        /* ON NE PROPOSE QUE LE NIVEAU LE PLUS PRECIS. Depuis que
+                           les reprises sont une famille, GBEJI et SINSIN
+                           designaient la meme chose — le sous-arbre fait que
+                           viser le parent trouve l'enfant. Deux entrees pour un
+                           seul resultat n'offrent pas un choix, seulement une
+                           hesitation. On ne liste donc que les categories qui
+                           portent DIRECTEMENT des prestations au calibre.
+                           La resolution, elle, continue de descendre l'arbre :
+                           un forfait pose avant la mise en familles marche
+                           toujours. */
+                        .filter((c) => services.some((sv) => sv.categoryId === c.id
+                          && Object.keys(sv.priceFloors ?? {}).length))
                         .map((c) => (
                           <option key={`cat-${c.id}`} value={`cat:${c.id}`}>
                             {c.fon} · la prestation de son calibre
