@@ -2,7 +2,16 @@
 
 État au 5 août 2026. À lire en premier dans une nouvelle session.
 
-## Ce qui reste à faire : l'étape 3
+## L'étape 3 est FAITE — 5 août 2026
+
+Le script `supabase/0019_rangement_plateau.sql` a été exécuté et vérifié. Le
+plateau ne garde plus que PLT·70 · SOINS ANNEXES ; lavages, soins, stylings,
+retouches, défaisage, reprise frontale et combinaisons sont rangés en familles
+sous leur atelier. Aucune duplication. Ne pas relancer ce script.
+
+Le rollback reste en fin de fichier si un écart apparaissait plus tard.
+
+## ~~Ce qui reste à faire : l'étape 3~~ (historique)
 
 Écrire et livrer **un script SQL** qui range le plateau technique dans les
 ateliers. Il n'est pas encore écrit. Toutes les décisions sont prises.
