@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { racineOf, sousArbreOf, type ServiceInclus, type TarifMode,
+import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
@@ -57,11 +57,16 @@ type SvcForm = {
   floors: Record<string, string>; // plancher par calibre, saisi en texte
   durationMax: string; // borne haute quand la durée s'annonce en fourchette
   priceTo: string; // borne haute d'affichage — « de X à Y »
+  /* — la longueur — un prix et une durée par longueur travaillée, saisis en
+       texte. Vides partout = prestation à prix unique. */
+  prixLong: Partial<Record<LongueurId, string>>;
+  dureeLong: Partial<Record<LongueurId, string>>;
 };
 
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
+  prixLong: {}, dureeLong: {},
 });
 
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
@@ -70,6 +75,16 @@ const emptySvcForm = (categoryId: string, master: string, estForfait = false): S
 const num = (s: string): number | undefined => {
   const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
   return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
+/** Un barème par longueur, débarrassé de ses cases vides. Rend `undefined` quand
+    il ne reste rien — la prestation retrouve alors son prix unique au lieu de
+    porter un objet vide qui la ferait passer pour tarifée à la longueur. */
+const nettoie = (saisi: Partial<Record<LongueurId, string>>): Partial<Record<LongueurId, number>> | undefined => {
+  const garde = Object.entries(saisi)
+    .map(([k, v]) => [k, num(v ?? '')] as const)
+    .filter(([, v]) => v !== undefined) as [LongueurId, number][];
+  return garde.length ? Object.fromEntries(garde) : undefined;
 };
 
 
@@ -405,6 +420,8 @@ export default function Catalogue() {
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
       durationMax: svc.durationMaxMin ? String(svc.durationMaxMin) : '',
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
+      prixLong: Object.fromEntries(Object.entries(svc.prixParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
+      dureeLong: Object.fromEntries(Object.entries(svc.dureeParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -533,6 +550,10 @@ export default function Catalogue() {
       priceFloors: Object.keys(floors).length ? floors : undefined,
       durationMaxMin: num(svcForm.durationMax),
       priceToXof: num(svcForm.priceTo),
+      /* Même filtre que les planchers : une case vide fait disparaître la
+         longueur de la fiche, elle n'y écrit pas un zéro qui vaudrait gratuit. */
+      prixParLongueur: nettoie(svcForm.prixLong),
+      dureeParLongueur: nettoie(svcForm.dureeLong),
     };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
@@ -800,6 +821,26 @@ export default function Catalogue() {
                       </div>
                     </div>
                   </div>
+
+                  {/* LES TROIS LONGUEURS, quand la prestation en porte. Le grand
+                      prix au-dessus reste celui du catalogue — c'est le repli
+                      quand la longueur n'est pas connue ; ces trois-là sont ceux
+                      qui sortent réellement en caisse. */}
+                  {suitLongueur(svc) && (
+                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', margin: '7px 0 2px', fontFamily: 'var(--font-sans)', fontSize: 12 }}>
+                      {LONGUEURS.filter((l) => svc.prixParLongueur?.[l.id] !== undefined).map((l) => (
+                        <span key={l.id} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+                          <span style={{ color: 'var(--ink-soft)' }}>{l.label}</span>
+                          <strong style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--copper-700)' }}>
+                            {fmtMoney(svc.prixParLongueur![l.id]!, currency)}
+                          </strong>
+                          {svc.dureeParLongueur?.[l.id] !== undefined && (
+                            <span className="mnd-muted" style={{ fontSize: 11 }}>{fmtDuration(svc.dureeParLongueur[l.id]!)}</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="trv-svc__meta">
                     <span>{svc.palier}</span>
@@ -1239,6 +1280,39 @@ export default function Catalogue() {
                 </div>
               </Field>
             )}
+            {/* LA LONGUEUR — un axe distinct du calibre. Le calibre compte les
+                locks et se constate une fois ; la longueur mesure ce qui pend et
+                repousse. Une seule prestation porte ici ses trois prix, au lieu
+                des trois prestations sœurs qu'il fallait renommer une à une. */}
+            <Field label="Prix et durée par longueur (facultatif)">
+              <div style={{ display: 'grid', gap: 8 }}>
+                {LONGUEURS.map((l) => (
+                  <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 108px 96px', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
+                      {l.label}
+                      <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 6 }}>{l.hint}</span>
+                    </span>
+                    <Input
+                      inputMode="numeric"
+                      value={svcForm.prixLong[l.id] ?? ''}
+                      onChange={(e) => setSvcForm({ ...svcForm, prixLong: { ...svcForm.prixLong, [l.id]: e.target.value } })}
+                      placeholder="prix"
+                    />
+                    <Input
+                      inputMode="numeric"
+                      value={svcForm.dureeLong[l.id] ?? ''}
+                      onChange={(e) => setSvcForm({ ...svcForm, dureeLong: { ...svcForm.dureeLong, [l.id]: e.target.value } })}
+                      placeholder="min"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+                {Object.values(svcForm.prixLong).some((v) => v?.trim())
+                  ? 'La longueur se choisit à la réservation et se fige sur le rendez-vous. Une longueur laissée vide retombe sur le prix et la durée annoncés plus haut.'
+                  : 'Tout laisser vide : la prestation garde un prix unique. À remplir seulement quand le même geste se facture différemment selon la longueur travaillée.'}
+              </div>
+            </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Code ERP">
                 <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />

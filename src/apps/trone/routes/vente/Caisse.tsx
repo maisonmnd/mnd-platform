@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useCategories, useServices, useProducts, productsStore, priceModeOf, type PriceMode } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, productsStore, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
@@ -89,6 +89,10 @@ export default function Caisse() {
   const [fxCode, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
   const [clientId, setClientId] = useState('');
+  /* LA LONGUEUR TRAVAILLEE. Le comptoir vend aussi hors carnet : sans ce choix,
+     un soin facture a la longueur sortirait toujours au prix de son repli.
+     Mi-Long par defaut — le cas courant au fauteuil. */
+  const [longueur, setLongueur] = useState<LongueurId>('mi-long');
 
   /* SOLDER UN RITUEL DU CARNET. Toute la protection anti-double-comptage de la
      maison repose sur `Appointment.invoiceId` : un rituel qui en porte un est
@@ -153,7 +157,7 @@ export default function Caisse() {
           versions, une par calibre, au même prix affiché : les cinq côte à côte
           n'offrent aucun choix, seulement l'occasion d'encaisser la mauvaise. */
     const cliente = clients.find((c) => c.id === clientId);
-    const pricing = pricingOf(cliente, bands, sets, categories);
+    const pricing = { ...pricingOf(cliente, bands, sets, categories), longueur };
     const offre = services.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
     const cats = [...categories].sort((a, b) => a.order - b.order);
     const knownCats = new Set(cats.map((c) => c.id));
@@ -188,7 +192,7 @@ export default function Caisse() {
       .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
     if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
     return gs;
-  }, [categories, services, products, formations, clients, clientId, bands, sets]);
+  }, [categories, services, products, formations, clients, clientId, bands, sets, longueur]);
 
   const flat = useMemo(() => {
     const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode }> = {};
@@ -466,6 +470,28 @@ export default function Caisse() {
                   <ClientPicker value={clientId} onChange={setClientId} allowWalkIn />
                 </div>
               </div>
+
+              {/* LA LONGUEUR TRAVAILLEE — elle commande le prix des prestations
+                  qui s'y facturent. Elle ne parait que si le catalogue en porte :
+                  une maison qui ne facture pas a la longueur n'a pas a la voir. */}
+              {services.some(suitLongueur) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Longueur</span>
+                  <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {LONGUEURS.map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        className={`trv-palier-chip ${longueur === l.id ? 'is-active' : ''}`}
+                        title={l.hint}
+                        onClick={() => setLongueur(l.id)}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {rituelsDuJour.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>

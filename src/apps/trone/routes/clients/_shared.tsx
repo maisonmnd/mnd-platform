@@ -9,11 +9,11 @@ import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { sousArbreOf, useServices, useCategories, priceModeOf, type Service } from '../../../../shared/catalog';
+import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
-import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
+import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -78,8 +78,20 @@ export function relDays(iso: string): string {
 export const apptServices = (a: Appointment, byId: Map<string, Service>): Service[] =>
   a.serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
 
+/** Le prix d'une prestation POUR CE RENDEZ-VOUS : celui de la longueur
+    travaillée quand le rituel en porte une, son prix catalogue sinon.
+
+    Le rendez-vous connaît sa longueur — elle est inscrite dessus. Aucun contexte
+    cliente n'est donc nécessaire ici, et ces totaux restent lisibles partout
+    (carnet, synthèse, impayés) sans que chaque écran ait à retrouver la fiche. */
+export const svcPriceForAppt = (a: Appointment, s: Service): number =>
+  (a.longueur ? s.prixParLongueur?.[a.longueur] : undefined) ?? s.priceXof;
+
 export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
-  apptServices(a, byId).reduce((sum, s) => sum + s.durationMin, 0) || 60;
+  apptServices(a, byId).reduce(
+    (sum, s) => sum + ((a.longueur ? s.dureeParLongueur?.[a.longueur] : undefined) ?? s.durationMin),
+    0,
+  ) || 60;
 
 /* Série multi-séances : la prestation n'est facturée qu'UNE fois.
    Le montant est porté par la séance 1 ; les séances suivantes valent 0
@@ -92,7 +104,7 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
      ERP, à 3 M F près. La règle des séries reste au-dessus : une séance 2+ ne
      vaut rien, prix figé ou non. */
   if (typeof a.priceXof === 'number') return a.priceXof;
-  return apptServices(a, byId).reduce((sum, s) => sum + s.priceXof, 0);
+  return apptServices(a, byId).reduce((sum, s) => sum + svcPriceForAppt(a, s), 0);
 };
 
 /** Total après remise du RDV : le pourcentage d'abord, puis la remise en CFA.
@@ -445,13 +457,24 @@ export function RdvModal({
      QUE si l'on change les prestations elles-mêmes — l'ancien prix ne décrit
      alors plus le même rituel. */
   const frozenXof = appt?.priceXof;
-  const grossCatalogue = chosen.reduce((s, sv) => s + sv.priceXof, 0);
   /* SON prix : le modèle de la cliente (nombre de locks → tranche du barème) et
      son Juste Prix personnalisent le tarif de référence. Quand il n'y a rien à
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
   const [sets] = useBandSets();
-  const pricing = pricingOf(rdvClient, bands, sets, cats);
+  /* LA LONGUEUR TRAVAILLÉE, choisie ici et non lue sur la fiche : elle repousse.
+     Elle entre dans le contexte tarifaire comme le calibre, et se réinscrit sur
+     le rendez-vous pour que le relire ne le retarife jamais à la longueur
+     d'aujourd'hui. Par défaut Mi-Long — le cas courant au fauteuil. */
+  const [longueur, setLongueur] = useState<LongueurId>(appt?.longueur ?? 'mi-long');
+  const pricing = { ...pricingOf(rdvClient, bands, sets, cats), longueur };
+  /* Le prix de référence suit déjà la longueur : sans cela, une cliente sans
+     modèle ni Juste Prix — donc « non personnalisée » — se serait vu facturer
+     le prix du Court quelle que soit sa longueur. */
+  const grossCatalogue = chosen.reduce((s, sv) => s + prixDeBase(sv, pricing), 0);
+  /* La longueur ne concerne que les prestations qui s'y facturent. Ailleurs, le
+     sélecteur n'a rien à commander : on ne le montre pas. */
+  const longueurPertinente = chosen.some(suitLongueur);
   /* SEULEMENT CE QUI LA CONCERNE. Un VÈKPÈ™ Medium n'existe pas pour une cliente
      Mini : le proposer, c'est risquer de figer 150 000 F sur son rendez-vous là
      où son prix est de 220 000 F. Déclaré APRÈS `pricing` — le lire plus haut
@@ -529,6 +552,10 @@ export function RdvModal({
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
+                /* La longueur ne s'inscrit que si une prestation s'y facture :
+                   la poser partout salirait tous les rituels d'une donnee qui
+                   ne commande rien chez eux. */
+                longueur: longueurPertinente ? longueur : undefined,
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
@@ -550,6 +577,7 @@ export function RdvModal({
         branchId: branch.id,
         clientId,
         serviceIds,
+        longueur: longueurPertinente ? longueur : undefined,
         date,
         time,
         master,
@@ -757,6 +785,34 @@ export function RdvModal({
             </Select>
           </div>
         </div>
+
+        {/* LA LONGUEUR TRAVAILLÉE — elle commande le prix et la durée des
+            prestations qui s'y facturent, et se fige sur le rendez-vous. Elle ne
+            paraît que si une prestation choisie la lit : ailleurs, un sélecteur
+            qui ne commande rien n'est qu'une case de plus à remplir. */}
+        {longueurPertinente && (
+          <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', marginBottom: 8 }}>
+              Longueur travaillée
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {LONGUEURS.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  className={`trv-palier-chip ${longueur === l.id ? 'is-active' : ''}`}
+                  title={l.hint}
+                  onClick={() => setLongueur(l.id)}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 7, lineHeight: 1.5 }}>
+              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${fmtMoney(personalPriceXof(sv, pricing, services), currency)}`).join(' — ')}
+            </div>
+          </div>
+        )}
 
         {coverageRows.length > 0 && (
           <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>

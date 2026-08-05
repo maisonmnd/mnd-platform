@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import type { CatalogCategory, Service } from './catalog';
+import type { CatalogCategory, LongueurId, Service } from './catalog';
 import type { Client } from './clients';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
@@ -167,7 +167,17 @@ export type PersonalPricing = {
       bareme est attache a l'ATELIER : sans cette remontee, une prestation
       rangee sous SINSIN cesserait de suivre le bareme de GBEJI. */
   cats?: Pick<CatalogCategory, 'id' | 'parentId'>[];
+  /** LA LONGUEUR TRAVAILLÉE — choisie à la réservation, jamais portée par la
+      fiche. Elle ne vient donc pas de `pricingOf` comme le reste du contexte :
+      l'écran qui réserve la pose, et le rendez-vous la fige. Absente, une
+      prestation à prix par longueur retombe sur son prix catalogue. */
+  longueur?: LongueurId;
 };
+
+/** Le prix de base d'une prestation POUR CETTE LONGUEUR — son prix catalogue
+    quand elle n'en a qu'un, ou quand la longueur n'est pas connue. */
+export const prixDeBase = (sv: Pick<Service, 'priceXof' | 'prixParLongueur'>, p: PersonalPricing): number =>
+  (p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined) ?? sv.priceXof;
 
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
@@ -326,7 +336,7 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      voulait rien dire. */
   const bande = bandForService(sv, p);
   /* Hors de son calibre : prix catalogue, sans personnalisation. */
-  if (!servesBand(sv, bande)) return sv.priceXof;
+  if (!servesBand(sv, bande)) return prixDeBase(sv, p);
 
   /* PRIX PAR CALIBRE — quand l'interrupteur du Catalogue le dit. Le plancher
      de la tranche EST le prix, pas un minimum ; le tarif au lock reste inscrit
@@ -358,15 +368,24 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      ne revient que si le Juste Prix personnel entre en jeu et produit une décimale. */
   if (auLock !== undefined) return p.clientCoef === 1 ? auLock : roundPrice(auLock * p.clientCoef);
   const modelCoef = scalesWithModel(sv) && bande ? bande.coef : 1;
-  return roundPrice(sv.priceXof * modelCoef * p.clientCoef);
+  /* PRIX PAR LONGUEUR — un prix SAISI, pas un calcul. Tant que ni le modèle ni
+     le Juste Prix ne le modulent, il sort au franc près : l'arrondi commercial
+     au 500 F a du sens sur un produit de multiplication, aucun sur un montant
+     que la Maison a écrit elle-même. */
+  const parLongueur = p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined;
+  if (parLongueur !== undefined && modelCoef === 1 && p.clientCoef === 1) return parLongueur;
+  return roundPrice(prixDeBase(sv, p) * modelCoef * p.clientCoef);
 };
 
 /** Durée personnalisée d'une prestation — calée au quart d'heure, jamais nulle. */
 export const personalDurationMin = (sv: Service, p: PersonalPricing): number => {
-  if (isFixedPrice(sv)) return sv.durationMin; // hors Juste Prix — durée catalogue
+  /* La durée suit la longueur AVANT tout le reste : un soin Long ne prend pas
+     45 minutes parce que la fiche annonce 45 minutes pour le Court. */
+  const base = (p.longueur ? sv.dureeParLongueur?.[p.longueur] : undefined) ?? sv.durationMin;
+  if (isFixedPrice(sv)) return base; // hors Juste Prix — durée annoncée
   const bande = bandForService(sv, p);
   const c = scalesWithModel(sv) && bande ? bande.durCoef : 1;
-  return Math.max(15, Math.round((sv.durationMin * c) / 15) * 15);
+  return Math.max(15, Math.round((base * c) / 15) * 15);
 };
 
 /** Répartit un TOTAL en parts entières proportionnelles à des poids — la dernière

@@ -66,6 +66,21 @@ export const categoriesOfMaison = (cats: CatalogCategory[], m: Maison): CatalogC
     pour ne rien casser du front / de la caisse ; `priceModeOf` fait le pont. */
 export type PriceMode = 'fixe' | 'variable' | 'devis';
 
+/** LES TROIS LONGUEURS. Un axe de prix distinct du calibre : le calibre compte
+    les locks, la longueur mesure ce qui pend. Une tête Micro peut être courte,
+    une tête Jumbo très longue — les deux se croisent, aucune ne remplace l'autre. */
+export type LongueurId = 'court' | 'mi-long' | 'long';
+export const LONGUEURS: { id: LongueurId; label: string; hint: string }[] = [
+  { id: 'court', label: 'Court', hint: 'jusqu’aux épaules' },
+  { id: 'mi-long', label: 'Mi-Long', hint: 'des épaules aux omoplates' },
+  { id: 'long', label: 'Long ou haute densité', hint: 'au-delà des omoplates' },
+];
+export const longueurLabel = (id: LongueurId | undefined): string =>
+  LONGUEURS.find((l) => l.id === id)?.label ?? '—';
+/** La prestation se facture-t-elle à la longueur ? Vrai dès qu'un prix est saisi. */
+export const suitLongueur = (sv: Pick<Service, 'prixParLongueur'>): boolean =>
+  Object.values(sv.prixParLongueur ?? {}).some((v) => typeof v === 'number');
+
 export type Service = {
   id: string;
   categoryId: string;
@@ -105,6 +120,28 @@ export type Service = {
       là où le tarif de la Maison est de 20 000 F : le temps de fauteuil ne suit
       pas le nombre de locks aussi bas. Absent = aucun plancher. */
   priceFloors?: Record<string, number>;
+  /** PRIX PAR LONGUEUR — un même soin, trois prix selon la longueur travaillée.
+
+      LA LONGUEUR N'EST PAS LE CALIBRE. Le calibre se constate une fois au KÒKÒ™
+      et ne bouge plus ; la longueur pousse de mois en mois. Elle ne peut donc
+      pas vivre sur la fiche cliente sans vieillir — elle se choisit au moment de
+      la réservation, et se fige sur le rendez-vous avec le prix.
+
+      Avant ce champ, chaque soin existait en trois prestations — Court, Mi-Long,
+      Long — soit dix-huit lignes pour trois soins. Renommer un soin voulait dire
+      le renommer trois fois, et le Catalogue ne montrait plus ce que la Maison
+      propose : il montrait sa grille tarifaire.
+
+      Clé = identifiant de longueur, valeur = prix ferme en F CFA. Un prix saisi
+      sort au franc près : tant que ni le modèle ni le Juste Prix ne le modulent,
+      il n'est pas arrondi. Absent = la prestation a un prix unique. */
+  prixParLongueur?: Partial<Record<LongueurId, number>>;
+  /** DURÉE PAR LONGUEUR, en minutes. Les trois variantes qu'on remplace
+      n'annonçaient pas seulement trois prix mais trois durées — 45 min, 1 h 10,
+      1 h 30. Sans ce champ, réserver un soin Long aurait bloqué le fauteuil
+      45 minutes et l'agenda aurait débordé sur le rituel suivant.
+      Absent pour une longueur = `durationMin`, la durée annoncée. */
+  dureeParLongueur?: Partial<Record<LongueurId, number>>;
   /** CALIBRE PROPRE — la prestation n'existe QUE dans cette tranche. Un VÈKPÈ™
       Jumbo, c'est 50 à 100 locks : au-delà, ce n'est pas « plus cher », ça
       n'existe pas. Le nombre de locks de la cliente CHOISIT la création ; il ne

@@ -1,4 +1,5 @@
 import { createStore, useStore } from './store';
+import type { LongueurId } from './catalog';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -23,6 +24,14 @@ export type Appointment = {
       l'affiche même si la fiche n'est pas (encore) synchronisée, et pour l'auto-réparation. */
   clientName?: string;
   serviceIds: string[]; // RDV multi-services
+  /** LA LONGUEUR TRAVAILLÉE CE JOUR-LÀ. Elle commande le prix et la durée des
+      prestations qui se facturent à la longueur (voir `prixParLongueur`).
+
+      Elle vit sur le rendez-vous et non sur la fiche cliente parce qu'elle
+      change : une tête coupée en mars n'est plus la même en septembre. Inscrite
+      ici, chaque rituel garde la longueur qu'il a réellement travaillée, et
+      relire un rendez-vous de mars ne le retarife pas à la longueur d'aujourd'hui. */
+  longueur?: LongueurId;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   master: string;
