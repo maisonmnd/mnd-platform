@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { sousArbreOf, type ServiceInclus, type TarifMode,
+import { racineOf, sousArbreOf, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
@@ -242,10 +242,18 @@ export default function Catalogue() {
      et l'Académie à part. L'ordre des catégories reste celui de `order` : le
      titre d'ensemble s'insère quand on change de groupe, il ne retrie rien. */
   const groupeDe = (c: CatalogCategory): { k: string; titre: string; sous: string } => {
-    if (c.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
-    if (c.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
-    if (c.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
-    if (c.produits || c.id === 'home-rituals' || c.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Produits' };
+    /* LA MAISON EST CELLE DE L'ATELIER, JAMAIS DE LA FAMILLE. Une famille — les
+       KLƆKLƆ™, les Soins, les Retouches — ne porte pas de maison : elle la tient
+       de l'atelier qui la contient. Lire `c.maison` a plat rangeait donc les six
+       familles creees le 5 aout dans LE PLATEAU TECHNIQUE, et comme l'ordre de
+       l'arbre les intercale entre leurs ateliers, l'ecran rouvrait un titre
+       d'ensemble a chaque famille : trois « PLATEAU TECHNIQUE » sur une meme
+       page, et les KLƆKLƆ™ coupes des SINSIN™ auxquels ils appartiennent. */
+    const r = racineOf(categories, c.id) ?? c;
+    if (r.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
+    if (r.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
+    if (r.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
+    if (r.produits || r.id === 'home-rituals' || r.id === 'meches') return { k: 'gamme', titre: 'LA GAMME', sous: 'Produits — voir aussi l’écran Produits' };
     return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — une même ligne, deux origines de vente' };
   };
   /* Replier tout un ensemble d'un geste : c'est ce qui rend les 24 catégories

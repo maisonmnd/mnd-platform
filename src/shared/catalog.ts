@@ -47,9 +47,16 @@ export type CatalogCategory = {
 };
 
 /** Les catégories d'une maison : les siennes ET le plateau, qui n'appartient à
-    aucune des deux mais se vend depuis les deux. */
+    aucune des deux mais se vend depuis les deux.
+
+    La maison se lit sur l'ATELIER : une famille rangée sous lui n'en porte pas
+    et la tiendrait pour absente — elle passerait pour du plateau, donc visible
+    depuis les deux maisons. */
 export const categoriesOfMaison = (cats: CatalogCategory[], m: Maison): CatalogCategory[] =>
-  cats.filter((c) => c.maison === m || !c.maison);
+  cats.filter((c) => {
+    const maison = racineOf(cats, c.id)?.maison;
+    return maison === m || !maison;
+  });
 
 /** Comment le prix d'une prestation est annoncé :
     · fixe     — un prix ferme, facturé tel quel ;
