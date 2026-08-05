@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le Trône — Ménage du catalogue</title>
+<style>
+  :root {
+    --parchemin: #F6F2EA;
+    --carte:     #FFFDF8;
+    --encre:     #221E33;
+    --encre-pale:#6B6480;
+    --cuivre:    #A85F32;
+    --cuivre-vif:#C4763F;
+    --indigo:    #2C2748;
+    --filet:     #E3DBCC;
+    --alerte:    #8F3B30;
+    --ombre:     0 1px 2px rgba(34,30,51,.05), 0 8px 24px -12px rgba(34,30,51,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --parchemin: #17142A;
+      --carte:     #1F1B38;
+      --encre:     #EDE7DC;
+      --encre-pale:#9A93AE;
+      --cuivre:    #D8935F;
+      --cuivre-vif:#E8A874;
+      --indigo:    #ECE6DB;
+      --filet:     #322C52;
+      --alerte:    #E08A7A;
+      --ombre:     0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --parchemin: #17142A; --carte: #1F1B38; --encre: #EDE7DC; --encre-pale:#9A93AE;
+    --cuivre: #D8935F; --cuivre-vif:#E8A874; --indigo:#ECE6DB; --filet:#322C52;
+    --alerte:#E08A7A; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    --parchemin: #F6F2EA; --carte:#FFFDF8; --encre:#221E33; --encre-pale:#6B6480;
+    --cuivre:#A85F32; --cuivre-vif:#C4763F; --indigo:#2C2748; --filet:#E3DBCC;
+    --alerte:#8F3B30; --ombre: 0 1px 2px rgba(34,30,51,.05), 0 8px 24px -12px rgba(34,30,51,.18);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchemin);
+    color: var(--encre);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    padding-bottom: 220px;
+  }
+  .enveloppe { max-width: 860px; margin: 0 auto; padding: 40px 22px 0; }
+
+  header { border-bottom: 2px solid var(--filet); padding-bottom: 22px; margin-bottom: 28px; }
+  .maison {
+    font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--cuivre); margin-bottom: 12px;
+  }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 400; font-size: clamp(26px, 4.5vw, 36px);
+    margin: 0 0 12px; letter-spacing: -.01em; text-wrap: balance;
+  }
+  .chapo { color: var(--encre-pale); max-width: 60ch; margin: 0; font-size: 14.5px; }
+  .chapo strong { color: var(--encre); font-weight: 600; }
+
+  .famille { margin: 30px 0 0; }
+  .famille__titre {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 7px; margin-bottom: 10px; border-bottom: 1px solid var(--filet);
+  }
+  .famille__nom {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--cuivre); font-weight: 600;
+  }
+  .famille__note { font-size: 12.5px; color: var(--encre-pale); }
+  .tout {
+    margin-left: auto; background: none; border: 1px solid var(--filet);
+    color: var(--encre-pale); font: inherit; font-size: 11.5px;
+    padding: 2px 10px; border-radius: 3px; cursor: pointer;
+  }
+  .tout:hover { border-color: var(--cuivre); color: var(--cuivre); }
+  .tout:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+  .ligne {
+    display: grid; grid-template-columns: 26px 1fr auto; gap: 12px;
+    align-items: baseline; padding: 9px 12px; border-radius: 4px;
+    background: var(--carte); border: 1px solid transparent; margin-bottom: 4px;
+    cursor: pointer;
+  }
+  .ligne:hover { border-color: var(--filet); }
+  .ligne.coche { border-color: var(--cuivre); background: color-mix(in srgb, var(--cuivre) 7%, var(--carte)); }
+  .ligne input { width: 17px; height: 17px; accent-color: var(--cuivre); cursor: pointer; margin: 0; }
+  .ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+  .nom { min-width: 0; }
+  .nom b { font-weight: 600; }
+  .num { color: var(--encre-pale); font-size: 12px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .code { display: block; font-size: 11.5px; color: var(--encre-pale); margin-top: 1px; }
+  .note { display: block; font-size: 12px; color: var(--alerte); margin-top: 3px; }
+  .prix { font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--encre-pale); white-space: nowrap; }
+
+  .barre {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--carte); border-top: 2px solid var(--cuivre);
+    box-shadow: var(--ombre); padding: 14px 22px 16px;
+  }
+  .barre__dedans { max-width: 860px; margin: 0 auto; }
+  .barre__tete { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .compte { font-size: 14px; }
+  .compte b { font-size: 19px; font-variant-numeric: tabular-nums; color: var(--cuivre); }
+  .boutons { margin-left: auto; display: flex; gap: 8px; }
+  button.action {
+    font: inherit; font-size: 13px; padding: 8px 16px; border-radius: 3px;
+    border: 1px solid var(--cuivre); background: var(--cuivre); color: #FFF9F2;
+    cursor: pointer; font-weight: 600;
+  }
+  button.action:hover { background: var(--cuivre-vif); border-color: var(--cuivre-vif); }
+  button.action[disabled] { opacity: .4; cursor: default; }
+  button.fantome { background: none; color: var(--cuivre); }
+  button.fantome:hover { background: color-mix(in srgb, var(--cuivre) 12%, transparent); color: var(--cuivre); }
+  button.action:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+  pre {
+    margin: 12px 0 0; padding: 12px 14px; max-height: 190px; overflow: auto;
+    background: var(--parchemin); border: 1px solid var(--filet); border-radius: 4px;
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-size: 12px; line-height: 1.5; white-space: pre; color: var(--encre);
+  }
+  .vide { color: var(--encre-pale); font-size: 13px; margin: 10px 0 0; }
+  .renommer {
+    display: flex; align-items: flex-start; gap: 10px; margin-top: 8px;
+    font-size: 13px; color: var(--encre-pale);
+  }
+  .renommer input { accent-color: var(--cuivre); margin-top: 3px; }
+  @media (prefers-reduced-motion: no-preference) { .ligne { transition: border-color .12s, background .12s; } }
+</style>
+</head>
+<body>
+
+
+<div class="enveloppe">
+  <header>
+    <div class="maison">Le Trône · Maison MND</div>
+    <h1>Ce que tu proposes et qui n'a pas encore servi</h1>
+    <p class="chapo">
+      Cinquante et une prestations sans aucun rendez-vous, forfait, abonnement ni offre du Cercle.
+      <strong>Coche celles à retirer</strong> — le script se réécrit en bas à mesure. Rien n'est
+      supprimé ici : la page ne fait qu'écrire le SQL à coller dans Supabase, avec sa sauvegarde et
+      son rollback.
+    </p>
+  </header>
+  <div id="liste"></div>
+</div>
+
+<div class="barre">
+  <div class="barre__dedans">
+    <div class="barre__tete">
+      <div class="compte"><b id="compte">0</b> prestation<span id="pluriel"></span> à retirer</div>
+      <div class="boutons">
+        <button class="action fantome" id="reinit">Tout décocher</button>
+        <button class="action" id="copier" disabled>Copier le script</button>
+      </div>
+    </div>
+    <label class="renommer">
+      <input type="checkbox" id="renommer">
+      <span>Corriger aussi le nom de <b>YÈKPÈ™ Couleur · La Décoloration ·</b> — son séparateur final est orphelin</span>
+    </label>
+    <div id="sortie"><p class="vide">Rien de coché. Le script apparaîtra ici.</p></div>
+  </div>
+</div>
+
+<script>
+const GROUPES = [
+  { f: "COIFFER", note: "Studio · tresses", items: [
+    { n:1, nom:"Tresses Fines · Épaules", prix:30000, code:"STU·A·LIB·FIN·EPA" },
+    { n:2, nom:"Tresses Fines · Mi-dos", prix:35000, code:"STU·A·LIB·FIN·DOS" },
+    { n:3, nom:"Tresses Fines · Reins", prix:40000, code:"STU·A·LIB·FIN·REI" },
+    { n:4, nom:"Tresses Jumbo · Mi-dos", prix:18000, code:"STU·A·LIB·JUM·DOS" },
+    { n:5, nom:"Tresses Jumbo · Reins", prix:22000, code:"STU·A·LIB·JUM·REI" },
+    { n:6, nom:"Tresses Moyennes · Épaules", prix:22000, code:"STU·A·LIB·MOY·EPA" },
+    { n:7, nom:"Tresses Moyennes · Mi-dos", prix:26000, code:"STU·A·LIB·MOY·DOS" },
+    { n:8, nom:"Tresses Moyennes · Reins", prix:30000, code:"STU·A·LIB·MOY·REI" },
+    { n:9, nom:"Volume Express · crochet", prix:12000, code:"STU·A·VOL·C" },
+  ]},
+  { f: "FÍNFÍN™", note: "forfaits", items: [
+    { n:10, nom:"Cure GBÌGBÌ™ Profond × 3 · La Reconstruction Suivie", prix:270000, code:"FFT·IV·01" },
+    { n:11, nom:"FÍNFÍN™ × GBÈJÍ™ · La Renaissance + 6 Mois d’Entretien", prix:425000, code:"FFT·IV·02" },
+  ]},
+  { f: "GBÀTÀ™", note: "le défaisage", items: [
+    { n:12, nom:"GBÀTÀ™ Intégral · Le Défaisage", prix:120000, code:"PLT·45·INT" },
+  ]},
+  { f: "GBÈJÍ™", note: "forfaits · prix calculé sur la composition", items: [
+    { n:13, nom:"GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois", prix:0, code:"FFT·II·02" },
+    { n:14, nom:"GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois", prix:0, code:"FFT·II·01" },
+  ]},
+  { f: "KÒKÒ™", note: "le diagnostic", items: [
+    { n:15, nom:"KÒKÒ™ Prestige · Diagnostic cas Complexes", prix:15000, code:"KOKO·PRE" },
+  ]},
+  { f: "L'INITIÉE", note: "Académie · particuliers", items: [
+    { n:16, nom:"Pack Autonomie · 3 séances", prix:85000, code:"ACA·INI·AUT" },
+    { n:17, nom:"Séance Découverte · Laver & Hydrater", prix:25000, code:"ACA·INI·DEC" },
+    { n:18, nom:"Séance Resserrage · Les Racines", prix:35000, code:"ACA·INI·RES" },
+  ]},
+  { f: "LA PROFESSIONNELLE", note: "Académie · cursus certifiant", items: [
+    { n:19, nom:"Cursus Certifiant Complet · KPLƆ̌N™", prix:380000, code:"ACA·PRO·CERT" },
+    { n:20, nom:"Module Business du Salon", prix:90000, code:"ACA·PRO·BIZ" },
+    { n:21, nom:"Module Création", prix:180000, code:"ACA·PRO·CRE" },
+    { n:22, nom:"Module Entretien & Restauration", prix:130000, code:"ACA·PRO·ENT" },
+  ]},
+  { f: "LES SOINS", note: "GBÈJÍ™", items: [
+    { n:23, nom:"Cure VÍVÍVÓ™ × 3 séances", prix:65000, code:"PLT·30·CUR" },
+    { n:24, nom:"VÍVÍVÓ™ · L’Activateur de Pousse", prix:18000, code:"PLT·30·C", note:"Ton troisième soin, avec DÀNDÀN™ et WÈWÈ™." },
+    { n:25, nom:"WÈWÈ™ + DÀNDÀN™ · la combinaison trimestrielle", prix:42000, code:"PLT·60·WD·C" },
+    { n:26, nom:"WÈWÈ™ à Façon Décapage · décapant apporté", prix:10000, code:"AFA·WEW·D" },
+    { n:27, nom:"WÈWÈ™ à Façon Soin · masque ou huile apportés", prix:10000, code:"AFA·WEW·S" },
+  ]},
+  { f: "Préparation & Suppléments", note: "options d’appoint", items: [
+    { n:28, nom:"Démontage ancienne coiffure", prix:3000, code:"SUP·20·C" },
+    { n:29, nom:"Lock Test · Essai de Calibre", prix:5000, code:"SUP·30" },
+    { n:30, nom:"Option Nuage · technique knotless", prix:5000, code:"SUP·50" },
+    { n:31, nom:"Option Tout inclus · mèches premium fournies", prix:6000, code:"SUP·60" },
+    { n:32, nom:"Prélude Express · cheveu prêt à travailler", prix:0, code:"SUP·01" },
+    { n:33, nom:"Prélude Intensif · très emmêlé, transition, cheveu lisse", prix:8000, code:"SUP·03·C" },
+    { n:34, nom:"Shampoing décapant · locks longues 40 cm et plus", prix:18000, code:"SUP·10" },
+  ]},
+  { f: "Retouches", note: "FÍNFÍN™", items: [
+    { n:35, nom:"Retouches Post Restauration", prix:15000, code:"PLT·50·RET·R·C" },
+  ]},
+  { f: "RÉVÉLER", note: "Studio", items: [
+    { n:36, nom:"Coupe & Forme", prix:10000, code:"STU·B·CPF·C" },
+    { n:37, nom:"Diagnostic Cheveu Naturel", prix:8000, code:"STU·B·DIA" },
+    { n:38, nom:"Éveil Studio", prix:8000, code:"STU·B·EVE·C" },
+    { n:39, nom:"Programme Transition", prix:45000, code:"STU·B·TRA" },
+  ]},
+  { f: "SOINS ANNEXES", note: "le plateau technique", items: [
+    { n:40, nom:"Pédicure", prix:12000, code:"PLT·70·PED·C" },
+    { n:41, nom:"Pendant le Rituel · manucure ou pédicure", prix:0, code:"PLT·70·PAR" },
+  ]},
+  { f: "SUBLIMER", note: "Studio", items: [
+    { n:42, nom:"Sika Day · Formule Essentielle", prix:20000, code:"STU·C·SIK·1·C" },
+    { n:43, nom:"Sika Day · Formule Signature", prix:35000, code:"STU·C·SIK·2·C" },
+  ]},
+  { f: "VÈKPÈ™", note: "forfaits", items: [
+    { n:44, nom:"Forfait VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens", prix:0, code:"FFT·I·02" },
+    { n:45, nom:"Forfait VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens II", prix:0, code:null,
+      nomExact:"Forfait VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens II",
+      note:"Sans code ERP — doublon manifeste du 44. Le seul dont je sois certain." },
+    { n:46, nom:"VÈKPÈ™ Initiation · La Naissance + Trousse MND™", prix:0, code:"FFT·I·01" },
+  ]},
+  { f: "YÈKPÈ™", note: "la lumière", items: [
+    { n:47, nom:"YÈKPÈ™ × 3 · Le Cycle de Transformation, 3 mois", prix:220000, code:"FFT·III·01" },
+    { n:48, nom:"YÈKPÈ™ Couleur · La Décoloration ·", prix:10000, code:"ATL·III·COU·L",
+      note:"Nom tronqué. À renommer plutôt qu’à supprimer — la case en bas s’en charge." },
+    { n:49, nom:"YÈKPÈ™ Couleur + Lumière · la combinaison complète", prix:55000, code:"PLT·60·CL·C" },
+    { n:50, nom:"YÈKPÈ™ Lumière · La Brillance Signature", prix:25000, code:"ATL·III·LUM·C" },
+    { n:51, nom:"YÈKPÈ™ Sublimation · La Transformation Totale", prix:80000, code:"ATL·III·SUB·C" },
+  ]},
+];
+
+const fmt = (n) => n === 0 ? "offert" : n.toLocaleString("fr-FR") + " F";
+const echappe = (s) => s.replace(/'/g, "''");
+const liste = document.getElementById("liste");
+
+GROUPES.forEach((g, gi) => {
+  const sec = document.createElement("section");
+  sec.className = "famille";
+  const tete = document.createElement("div");
+  tete.className = "famille__titre";
+  tete.innerHTML = '<span class="famille__nom"></span><span class="famille__note"></span>';
+  tete.querySelector(".famille__nom").textContent = g.f;
+  tete.querySelector(".famille__note").textContent = g.note;
+  const btn = document.createElement("button");
+  btn.className = "tout";
+  btn.type = "button";
+  btn.textContent = "cocher la famille";
+  btn.addEventListener("click", () => {
+    const cases = sec.querySelectorAll("input[type=checkbox]");
+    const tout = [...cases].every((c) => c.checked);
+    cases.forEach((c) => { c.checked = !tout; c.dispatchEvent(new Event("change", { bubbles: true })); });
+  });
+  tete.appendChild(btn);
+  sec.appendChild(tete);
+
+  g.items.forEach((it) => {
+    const lab = document.createElement("label");
+    lab.className = "ligne";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.groupe = String(gi);
+    cb.dataset.n = String(it.n);
+    const nom = document.createElement("span");
+    nom.className = "nom";
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = String(it.n).padStart(2, "0");
+    const b = document.createElement("b");
+    b.textContent = it.nom;
+    nom.append(num, b);
+    const code = document.createElement("span");
+    code.className = "code";
+    code.textContent = it.code ? it.code : "sans code ERP";
+    nom.appendChild(code);
+    if (it.note) {
+      const nt = document.createElement("span");
+      nt.className = "note";
+      nt.textContent = it.note;
+      nom.appendChild(nt);
+    }
+    const prix = document.createElement("span");
+    prix.className = "prix";
+    prix.textContent = fmt(it.prix);
+    lab.append(cb, nom, prix);
+    cb.addEventListener("change", () => { lab.classList.toggle("coche", cb.checked); rendre(); });
+    sec.appendChild(lab);
+  });
+  liste.appendChild(sec);
+});
+
+const elCompte = document.getElementById("compte");
+const elPluriel = document.getElementById("pluriel");
+const elSortie = document.getElementById("sortie");
+const elCopier = document.getElementById("copier");
+const elRenommer = document.getElementById("renommer");
+
+function choisis() {
+  return [...document.querySelectorAll("#liste input:checked")].map((c) => {
+    const g = GROUPES[Number(c.dataset.groupe)];
+    return g.items.find((i) => i.n === Number(c.dataset.n));
+  });
+}
+
+function script(sel, renomme) {
+  const codes = sel.filter((i) => i.code).map((i) => "'" + echappe(i.code) + "'");
+  const noms  = sel.filter((i) => !i.code).map((i) => "'" + echappe(i.nomExact || i.nom) + "'");
+  const cibles = [];
+  if (codes.length) cibles.push("  s.data ->> 'code' in (\n    " + codes.join(",\n    ") + ")");
+  if (noms.length)  cibles.push("  s.data ->> 'name' in (\n    " + noms.join(",\n    ") + ")");
+
+  let sql = "";
+  if (sel.length) {
+    sql += "-- MENAGE DU CATALOGUE — " + sel.length + " prestation" + (sel.length > 1 ? "s" : "") + " retiree" + (sel.length > 1 ? "s" : "") + ".\n";
+    sql += "-- Ferme d'abord tous les onglets du Trone.\n";
+    sql += "-- Chaque ligne est sauvegardee AVANT d'etre effacee, et le filtre des quatre\n";
+    sql += "-- porteurs d'identifiant est reapplique : si l'une d'elles a servi entre-temps,\n";
+    sql += "-- elle reste en place.\n\n";
+    sql += "begin;\n\n";
+    sql += "create table if not exists public.repli_0025_services\n  (like public.catalog_services including all);\n";
+    sql += "alter table public.repli_0025_services enable row level security;\n\n";
+    sql += "insert into public.repli_0025_services\nselect * from public.catalog_services s\nwhere (\n" + cibles.join("\n  or\n") + "\n)\n";
+    sql += "  and not exists (select 1 from public.appointments a\n                    where a.data -> 'serviceIds' ? s.id)\n";
+    sql += "  and not exists (select 1 from public.catalog_services f,\n                         jsonb_array_elements(coalesce(f.data -> 'includes', '[]'::jsonb)) inc\n                   where inc ->> 'serviceId' = s.id)\n";
+    sql += "  and not exists (select 1 from public.plans p,\n                         jsonb_array_elements(coalesce(p.data -> 'included', '[]'::jsonb)) inc\n                   where inc ->> 'serviceId' = s.id)\n";
+    sql += "  and not exists (select 1 from public.documents d\n                   where d.key = 'mnd_offers' and d.data::text like '%' || s.id || '%')\n";
+    sql += "on conflict (id) do nothing;\n\n";
+    sql += "delete from public.catalog_services\nwhere id in (select id from public.repli_0025_services);\n\n";
+    sql += "-- LES PIERRES TOMBALES : sans elles, Le Trone recreerait a la prochaine\n-- ouverture de l'ecran les prestations de depart qu'il ne trouve plus.\n";
+    sql += "insert into public.documents (key, data)\nselect 'mnd_removed_services',\n       coalesce((select data from public.documents where key = 'mnd_removed_services'), '[]'::jsonb)\n       || (select coalesce(jsonb_agg(to_jsonb(id)), '[]'::jsonb) from public.repli_0025_services)\non conflict (key) do update set data = excluded.data;\n";
+  }
+  if (renomme) {
+    if (!sql) {
+      sql += "-- CORRECTION DU NOM tronque de la Decoloration.\n\nbegin;\n";
+    }
+    sql += "\n-- Le separateur final orphelin s'en va.\n";
+    sql += "update public.catalog_services\nset data = jsonb_set(data, '{name}', '\"YÈKPÈ™ Couleur · La Décoloration\"')\nwhere data ->> 'code' = 'ATL·III·COU·L';\n";
+  }
+  if (!sql) return "";
+  sql += "\ncommit;\n\n\n";
+  sql += "-- ── CONTROLE — doit rendre ZERO ligne ────────────────────────────\n";
+  sql += "-- select a.id, sid as prestation_inconnue\n";
+  sql += "-- from public.appointments a,\n";
+  sql += "--      jsonb_array_elements_text(coalesce(a.data -> 'serviceIds', '[]'::jsonb)) sid\n";
+  sql += "-- left join public.catalog_services s on s.id = sid\n";
+  sql += "-- where s.id is null;\n\n";
+  if (sel.length) {
+    sql += "-- ── ROLLBACK — remet tout en place ───────────────────────────────\n";
+    sql += "-- begin;\n";
+    sql += "-- insert into public.catalog_services select * from public.repli_0025_services\n-- on conflict (id) do nothing;\n";
+    sql += "-- update public.documents set data = (\n";
+    sql += "--   select coalesce(jsonb_agg(x), '[]'::jsonb) from jsonb_array_elements(data) x\n";
+    sql += "--   where x #>> '{}' not in (select id from public.repli_0025_services))\n";
+    sql += "-- where key = 'mnd_removed_services';\n";
+    sql += "-- commit;\n";
+  }
+  return sql;
+}
+
+function rendre() {
+  const sel = choisis();
+  elCompte.textContent = String(sel.length);
+  elPluriel.textContent = sel.length > 1 ? "s" : "";
+  const sql = script(sel, elRenommer.checked);
+  elSortie.innerHTML = "";
+  if (!sql) {
+    const p = document.createElement("p");
+    p.className = "vide";
+    p.textContent = "Rien de coché. Le script apparaîtra ici.";
+    elSortie.appendChild(p);
+    elCopier.disabled = true;
+    return;
+  }
+  const pre = document.createElement("pre");
+  pre.textContent = sql;
+  elSortie.appendChild(pre);
+  elCopier.disabled = false;
+}
+
+elRenommer.addEventListener("change", rendre);
+document.getElementById("reinit").addEventListener("click", () => {
+  document.querySelectorAll("#liste input:checked").forEach((c) => {
+    c.checked = false;
+    c.closest(".ligne").classList.remove("coche");
+  });
+  rendre();
+});
+elCopier.addEventListener("click", async () => {
+  const txt = elSortie.querySelector("pre")?.textContent ?? "";
+  try { await navigator.clipboard.writeText(txt); }
+  catch {
+    const t = document.createElement("textarea");
+    t.value = txt; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+  const av = elCopier.textContent;
+  elCopier.textContent = "Copié";
+  setTimeout(() => { elCopier.textContent = av; }, 1400);
+});
+
+rendre();
+</script>
+
+</body>
+</html>

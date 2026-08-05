@@ -1,47 +1,62 @@
-# Reprendre — restructuration du catalogue
+# Reprendre — état du catalogue
 
 État au 5 août 2026. À lire en premier dans une nouvelle session.
 
-## L'étape 3 est FAITE — 5 août 2026
+## Le catalogue est replié — 5 août 2026
 
-Le script `supabase/0019_rangement_plateau.sql` a été exécuté et vérifié. Le
-plateau ne garde plus que PLT·70 · SOINS ANNEXES ; lavages, soins, stylings,
-retouches, défaisage, reprise frontale et combinaisons sont rangés en familles
-sous leur atelier. Aucune duplication. Ne pas relancer ce script.
+**147 → 74 prestations.** Deux mouvements, dans cet ordre :
 
-Le rollback reste en fin de fichier si un écart apparaissait plus tard.
+1. `supabase/0023_repli_longueurs_catalogue.sql` — 92 variantes de longueur
+   (« … · Court / Mi-Long / Long ou haute densité ») repliées en 31 gestes qui
+   portent chacun ses trois prix et ses trois durées. 61 lignes retirées.
+2. Le ménage, écrit par `menage-catalogue.html` (à la racine du dossier
+   « Le Trone ») : 12 prestations jamais réservées, choisies une à une.
 
-## ~~Ce qui reste à faire : l'étape 3~~ (historique)
+Contrôles passés : aucun rituel n'a changé de montant, aucun rendez-vous ne
+pointe vers une prestation disparue. **Ne pas relancer ces scripts.**
 
-Écrire et livrer **un script SQL** qui range le plateau technique dans les
-ateliers. Il n'est pas encore écrit. Toutes les décisions sont prises.
+`supabase/0022_soins_une_prestation_par_geste.sql` est REMPLACÉ par le 0023 et
+ne doit jamais être exécuté.
 
-La spécification complète — quelles prestations, vers quelle famille, sous quel
-atelier — est dans **`docs/reference_maisons_avant_restructuration.md`**,
-section « Destinations arrêtées ». Ce fichier porte aussi les chiffres d'avant
-et les quatre contrôles d'après. Ne pas réinventer ces choix : ils ont été
-mesurés, pas supposés.
+### Les tables de secours
 
-Le script doit suivre la forme des précédents (`supabase/0013`, `0015`, `0018`) :
-un aperçu qui ne modifie rien, la création et le déplacement dans **une seule
-transaction**, un contrôle chiffré, un rollback complet. Livré à coller — jamais
-exécuté par l'assistant, la base est en production.
+`repli_0023_services`, `repli_0023_appointments`, `repli_0025_services`. Elles
+sont le seul retour en arrière. Ne pas les supprimer avant d'avoir travaillé
+quelques jours avec le nouveau catalogue. Les blocs de rollback sont en fin des
+fichiers correspondants.
+
+## Comment la longueur fonctionne désormais
+
+Une prestation porte `prixParLongueur` et `dureeParLongueur` — un prix et une
+durée par longueur travaillée. `priceXof` reste le **prix de repli** : celui
+qu'annonce la Vitrine (« dès ») et qui sort quand la longueur est inconnue.
+
+La longueur **se choisit à la réservation**, pas sur la fiche cliente : le
+calibre se constate une fois au KÒKÒ™ et ne bouge plus, la longueur repousse.
+Elle s'inscrit sur le rendez-vous (`Appointment.longueur`), si bien que relire
+un rituel de mars ne le retarife jamais à la longueur d'aujourd'hui.
+
+Un prix par longueur est un prix SAISI : tant que ni le modèle ni le Juste Prix
+ne le modulent, il sort au franc près, sans l'arrondi commercial au 500 F.
+
+Le sélecteur paraît à la réservation et à la Caisse dès qu'une prestation
+choisie s'y facture. **Ma Couronne ne le porte pas** — une cliente n'évalue pas
+sa propre longueur ; le comptoir corrige à l'arrivée.
 
 ## Le piège à ne pas oublier
 
 Un rendez-vous ne stocke ni la maison ni la catégorie de ses prestations, mais
 leurs identifiants. La ventilation se recalcule à chaque affichage depuis le
-catalogue courant : **déplacer une prestation reclasse tout l'historique.**
-C'est voulu, et c'est pourquoi les chiffres d'avant ont été relevés.
+catalogue courant : **déplacer une prestation reclasse tout l'historique**, et
+mettre son prix à zéro vide sa part du chiffre sur les cartes du Catalogue
+(le total du rituel, lui, ne bouge pas s'il est figé).
 
-## Ce qui est déjà en place
+## Deux barèmes à revoir, sans urgence
 
-- Familles de catégories (`parentId`) : la maison, le barème du Juste Prix et
-  les calibres remontent jusqu'à l'atelier ; les forfaits « selon le calibre »
-  descendent jusqu'aux familles.
-- Catégorie **À FAÇON** reclassée : 4 prestations actives, 6 anciennes désactivées.
-- Section **Forfaits** distincte dans chaque atelier au Catalogue.
-- Boutons **+ Prestation** et **+ Forfait** séparés.
+- **YÈKPÈ™ Couleur · La Révélation Végétale** — saute de 15 000 à 65 000 F entre
+  court et mi-long, et n'a pas de long.
+- **Manucure** et **Pédicure** — leur prix suit une longueur de cheveux qui ne
+  les concerne pas. Héritage de l'ancien catalogue, appliqué partout.
 
 ## Chantiers ouverts par ailleurs
 
@@ -54,3 +69,10 @@ C'est voulu, et c'est pourquoi les chiffres d'avant ont été relevés.
   bon mois.
 - **Notification APDP** de la fuite du 2 août : à la charge de la Maison, hors
   code. La purge de l'historique Git ne la remplace pas.
+
+## Historique
+
+Les étapes 1 à 3 de la restructuration (plateau technique rangé dans les
+ateliers, familles de catégories, section Forfaits) sont faites depuis le
+5 août. Voir `supabase/0019_rangement_plateau.sql` et
+`docs/reference_maisons_avant_restructuration.md` pour les chiffres d'avant.
