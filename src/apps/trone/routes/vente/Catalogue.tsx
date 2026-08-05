@@ -1336,10 +1336,26 @@ export default function Catalogue() {
                   </div>
                 ))}
               </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
-                {Object.values(svcForm.prixLong).some((v) => v?.trim())
-                  ? 'La longueur se choisit à la réservation et se fige sur le rendez-vous. Une longueur laissée vide retombe sur le prix et la durée annoncés plus haut.'
-                  : 'Tout laisser vide : la prestation garde un prix unique. À remplir seulement quand le même geste se facture différemment selon la longueur travaillée.'}
+              {/* LE GESTE INVERSE. Ouvrir sans pouvoir refermer laissait la fiche
+                  encombree jusqu'au rechargement. Sur une fiche vide, le bouton
+                  replie ; sur une fiche qui porte un bareme, il le RETIRE — ce
+                  n'est pas la meme decision, et le libelle le dit. */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="trv-minibtn"
+                  onClick={() => {
+                    setSvcForm({ ...svcForm, prixLong: {}, dureeLong: {} });
+                    setLongueurOuverte(null);
+                  }}
+                >
+                  {posee ? '− Retirer le barème' : '− Replier'}
+                </button>
+                <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, flex: 1, minWidth: 220 }}>
+                  {posee
+                    ? 'La longueur se choisit à la réservation et se fige sur le rendez-vous. Une longueur laissée vide retombe sur le prix et la durée annoncés plus haut.'
+                    : 'À remplir seulement quand le même geste se facture différemment selon la longueur travaillée. Sinon, replie : la prestation garde un prix unique.'}
+                </span>
               </div>
             </Field>
               );
