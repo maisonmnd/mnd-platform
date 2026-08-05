@@ -46,3 +46,43 @@ Si après le script le plateau n'est pas à zéro, c'est qu'une prestation a ét
 oubliée. Si le total ventilé d'un mois change, c'est qu'une prestation a été
 perdue ou dupliquée à tort : les deux totaux doivent rester **2 416 200 F** et
 **117 500 F**.
+
+---
+
+# Décision révisée — 5 août 2026 : pas de duplication
+
+Mesure faite sur les rendez-vous honorés, famille par famille du plateau :
+
+| famille | studio seul | atelier seul | les deux | vendue seule |
+|---|---|---|---|---|
+| PLT·40 | 0 | 67 | 0 | 0 |
+| PLT·50 · stylings | 0 | 36 | 0 | 10 |
+| PLT·20 | 0 | 6 | 0 | 0 |
+| PLT·55 | 0 | 5 | 0 | 0 |
+| PLT·45 | 0 | 2 | 0 | 2 |
+| AFA·KLO | 0 | 2 | 0 | 0 |
+| PLT·70 | 0 | 1 | 0 | 0 |
+| PLT·02 | 0 | 0 | 1 | 0 |
+
+**`studio seul` est à zéro partout.** Aucune prestation du plateau n'a jamais été
+vendue dans une visite du Studio. La duplication par maison, décidée le 4 août,
+est donc abandonnée : elle doublerait le catalogue et imposerait deux prix par
+prestation pour protéger une ventilation que rien ne menace.
+
+Tout part à l'**Atelier MND™**, en familles, sans doublon. Le Studio ne bouge pas.
+
+Attendu après le déplacement : Atelier ≈ 2 368 000 F en juillet (2 228 033 +
+140 500), Studio inchangé à 47 667 F, plateau à 0 F. Total ventilé toujours
+2 416 200 F.
+
+## Reste à trancher avant d'écrire le script
+
+Trois destinations ne sont pas encore fixées :
+
+- les **lavages KLƆKLƆ™** et l'**AFA·KLO** — famille propre sous quel atelier ?
+- les **soins DÀNDÀN™, GBÌGBÌ™, WÈWÈ™** et les **AFA·WEW** — même question ;
+- les **combinaisons PLT·60**, qui mêlent deux rituels par construction.
+
+Les autres sont acquises : stylings et coiffures sous GBÈJÍ™, retouches post
+création sous VÈKPÈ™, retouches post restauration sous FÍNFÍN™, AFA·YEK sous
+YÈKPÈ™, PLT·55 et PLT·70 sous GBÈJÍ™.
