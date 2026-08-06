@@ -23,15 +23,33 @@ import { useOffers, offerLiveNow } from '../../shared/offers';
 
 /** Identifiant du client courant : l'utilisateur authentifié (Supabase),
     sinon un identifiant local stable pour le mode développement sans backend. */
+/** LA FICHE DE CETTE CLIENTE — la sienne, pas une neuve.
+
+    Trois lectures, dans cet ordre :
+      ① la fiche qui porte déjà son compte (`authUserId`) ;
+      ② celle qui porte son ADRESSE, qu'on adopte alors une fois pour toutes ;
+      ③ à défaut, son identifiant de compte — la fiche naîtra à son nom.
+
+    L'adresse est le seul lien possible avec l'histoire d'avant : la Maison a
+    inscrit ses clientes bien avant qu'elles n'aient un compte. Sans cette
+    reconnaissance, une inscription ouvrait un dossier vide et laissait des
+    années de rituels de l'autre côté. */
 export function useClientId(): string {
   const { session } = useAuth();
-  return session?.user?.id ?? 'c-local';
+  const uid = session?.user?.id;
+  const mail = (session?.user?.email ?? '').trim().toLowerCase();
+  const [clients] = useClients();
+  if (!uid) return 'c-local';
+  const parCompte = clients.find((c) => c.authUserId === uid);
+  if (parCompte) return parCompte.id;
+  const parMail = mail ? clients.find((c) => !c.authUserId && (c.email ?? '').trim().toLowerCase() === mail) : undefined;
+  return parMail ? parMail.id : uid;
 }
 
 /** Crée le dossier de la cliente dans le CRM partagé s'il n'existe pas encore
     (idempotent). Le nom initial dérive de l'e-mail ; il reste éditable au Profil,
     de sorte que réservations et devis restent liés au bon compte, visibles au Trône. */
-export function ensureClient(clientId: string, email?: string | null, branchId?: string, fullName?: string | null): void {
+export function ensureClient(clientId: string, email?: string | null, branchId?: string, fullName?: string | null, authUserId?: string | null): void {
   if (!clientId || clientId === 'c-local') return;
   const bid = branchId ?? branchesStore.get()[0]?.id ?? 'maison';
   const mail = (email ?? '').trim() || undefined;
@@ -40,11 +58,15 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
     /* Réaligne la branche si besoin, et complète l'e-mail s'il manque encore. */
     const needBranch = !!branchId && existing.branchId !== branchId;
     const needMail = !!mail && !existing.email;
-    if (needBranch || needMail) {
+    /* L'ADOPTION S'INSCRIT UNE FOIS. Reconnue par son adresse, la fiche garde
+       desormais le compte : si la cliente change d'adresse au Profil, le lien
+       tient quand meme, et une homonyme ne peut plus la reprendre. */
+    const needCompte = !!authUserId && existing.authUserId !== authUserId;
+    if (needBranch || needMail || needCompte) {
       clientsStore.set((prev) =>
         prev.map((c) =>
           c.id === clientId
-            ? { ...c, ...(needBranch ? { branchId } : {}), ...(needMail ? { email: mail } : {}) }
+            ? { ...c, ...(needBranch ? { branchId } : {}), ...(needMail ? { email: mail } : {}), ...(needCompte ? { authUserId } : {}) }
             : c,
         ),
       );
@@ -62,6 +84,7 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
           ...prev,
           {
             id: clientId, branchId: bid, name, phone: '', email: mail, city: '',
+            authUserId: authUserId ?? clientId,
             /* Lecture seule : la RLS réserve l'écriture des personas au personnel.
                Si l'accueil n'existe pas encore, la fiche naît sans persona et le
                Trône la nommera — mieux qu'une écriture rejetée. */
@@ -72,14 +95,20 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
   );
 }
 
-/** Garantit l'existence du dossier client dès qu'une session est ouverte. */
+/** Garantit l'existence du dossier client dès qu'une session est ouverte.
+
+    LE DOSSIER EST RÉSOLU AVANT D'ÊTRE CRÉÉ : `useClientId` a déjà cherché la
+    fiche de cette cliente par son compte, puis par son adresse. On ne crée donc
+    qu'en dernier recours — et le compte s'inscrit sur la fiche trouvée, pour
+    que la reconnaissance ne dépende plus jamais de l'adresse. */
 export function useEnsureClient(): string {
   const { session } = useAuth();
-  const clientId = session?.user?.id ?? 'c-local';
+  const clientId = useClientId();
+  const uid = session?.user?.id;
   const metaName = (session?.user?.user_metadata as { name?: string } | undefined)?.name;
   useEffect(() => {
-    ensureClient(clientId, session?.user?.email, undefined, metaName);
-  }, [clientId, session?.user?.email, metaName]);
+    ensureClient(clientId, session?.user?.email, undefined, metaName, uid);
+  }, [clientId, session?.user?.email, metaName, uid]);
   return clientId;
 }
 

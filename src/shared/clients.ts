@@ -9,6 +9,18 @@ export type Client = {
   name: string;
   phone: string;
   email?: string;
+  /** LE COMPTE MA COURONNE RATTACHÉ À CETTE FICHE.
+
+      Ma Couronne reliait une cliente à son dossier par l'IDENTIFIANT : la
+      fiche portait l'identifiant du compte. Cela marche pour une cliente qui
+      naît en ligne, et seulement pour elle. Toutes celles que la Maison a
+      inscrites elle-même au Trône portent un identifiant maison, et leurs
+      rendez-vous avec — s'inscrire leur ouvrait une fiche NEUVE et vide, à
+      côté de la leur, et elles ne voyaient rien de leur histoire.
+
+      La fiche garde donc son identifiant, et c'est le compte qui vient s'y
+      rattacher. Rien à re-clefer, aucun rendez-vous à déplacer. */
+  authUserId?: string;
   city: string;
   persona: string; // id de persona
   since: string; // ISO date
