@@ -12,7 +12,7 @@ import { apptPaidXof,
 import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
-import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining } from '../equipe/data';
+import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff } from '../equipe/data';
 import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
 
@@ -412,6 +412,17 @@ export function RdvModal({
 
   const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? clients[0]?.id ?? '');
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
+  /* LES MAINS, prestation par prestation. Un tableau parallele a `serviceIds` :
+     le rituel peut porter deux fois le meme geste, et pas forcement par les
+     memes personnes. Vide sur une ligne = on retombe sur le maitre assigne. */
+  const [mains, setMains] = useState<string[][]>(appt?.mains ?? []);
+  const [equipe] = useStaff();
+  const mainsDe = (i: number) => mains[i] ?? [];
+  const basculeMain = (i: number, staffId: string) => setMains((prev) => {
+    const n = serviceIds.map((_, k) => prev[k] ?? []);
+    n[i] = n[i].includes(staffId) ? n[i].filter((x) => x !== staffId) : [...n[i], staffId];
+    return n;
+  });
   const [date, setDate] = useState(appt?.date ?? initial?.date ?? todayISO());
   const [time, setTime] = useState(appt?.time ?? initial?.time ?? '09:00');
   const [master, setMaster] = useState(appt?.master ?? initial?.master ?? branch.masters[0] ?? '');
@@ -556,6 +567,9 @@ export function RdvModal({
                    la poser partout salirait tous les rituels d'une donnee qui
                    ne commande rien chez eux. */
                 longueur: longueurPertinente ? longueur : undefined,
+                /* Aucune main nulle part : on n'ecrit rien plutot qu'un tableau
+                   de listes vides — le rendez-vous retombe alors sur son maitre. */
+                mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
@@ -578,6 +592,7 @@ export function RdvModal({
         clientId,
         serviceIds,
         longueur: longueurPertinente ? longueur : undefined,
+        mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
         date,
         time,
         master,
@@ -682,9 +697,10 @@ export function RdvModal({
                 key={sv.id}
                 style={{
                   border: '1px solid var(--hairline)', borderRadius: 2, padding: '11px 14px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, background: 'var(--surface-card)',
+                  background: 'var(--surface-card)',
                 }}
               >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13.5, color: 'var(--color-indigo)' }}>{sv.name}</span>
                   <span style={{ display: 'block', fontSize: 10, color: 'var(--ink-soft)', marginTop: 2 }}>
@@ -712,13 +728,19 @@ export function RdvModal({
                          par son rang a l'ecran : `chosen` ecarte les fiches
                          disparues du catalogue, et les deux index divergent des
                          qu'un rendez-vous ancien en porte une. */
-                      onClick={() => setServiceIds((ids) => {
-                        const pos = ids.indexOf(sv.id);
-                        if (pos <= 0) return ids;
-                        const n = [...ids];
-                        [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]];
-                        return n;
-                      })}
+                      onClick={() => {
+                        const pos = serviceIds.indexOf(sv.id);
+                        if (pos <= 0) return;
+                        /* LES MAINS SUIVENT LEUR GESTE. Les deux tableaux sont
+                           paralleles : deplacer l'un sans l'autre attribuerait
+                           le travail d'une personne a la prestation voisine. */
+                        setServiceIds((ids) => { const n = [...ids]; [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]]; return n; });
+                        setMains((prev) => {
+                          const n = serviceIds.map((_, k) => prev[k] ?? []);
+                          [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]];
+                          return n;
+                        });
+                      }}
                       disabled={i === 0}
                       aria-label="Monter cette prestation"
                       title="Monter"
@@ -727,13 +749,16 @@ export function RdvModal({
                       ▲
                     </button>
                     <button
-                      onClick={() => setServiceIds((ids) => {
-                        const pos = ids.indexOf(sv.id);
-                        if (pos < 0 || pos >= ids.length - 1) return ids;
-                        const n = [...ids];
-                        [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]];
-                        return n;
-                      })}
+                      onClick={() => {
+                        const pos = serviceIds.indexOf(sv.id);
+                        if (pos < 0 || pos >= serviceIds.length - 1) return;
+                        setServiceIds((ids) => { const n = [...ids]; [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]]; return n; });
+                        setMains((prev) => {
+                          const n = serviceIds.map((_, k) => prev[k] ?? []);
+                          [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]];
+                          return n;
+                        });
+                      }}
                       disabled={i >= chosen.length - 1}
                       aria-label="Descendre cette prestation"
                       title="Descendre"
@@ -743,13 +768,48 @@ export function RdvModal({
                     </button>
                   </span>
                   <button
-                    onClick={() => setServiceIds((ids) => ids.filter((id) => id !== sv.id))}
+                    onClick={() => {
+                      const pos = serviceIds.indexOf(sv.id);
+                      setServiceIds((ids) => ids.filter((_, k) => k !== pos));
+                      setMains((prev) => serviceIds.map((_, k) => prev[k] ?? []).filter((_, k) => k !== pos));
+                    }}
                     aria-label="Retirer"
                     style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13 }}
                   >
                     ✕
                   </button>
                 </span>
+              </div>
+              {/* LES MAINS. Qui a reellement execute ce geste — un KLOKLO se
+                  fait a deux, une reprise rarement a moins, la coiffure souvent
+                  par une troisieme. Le maitre assigne repond du rendez-vous ;
+                  il ne dit pas qui a travaille, et c'est pourtant lui seul que
+                  la commission suivait. Aucune main cochee : on retombe sur lui. */}
+              {equipe.filter((m) => m.branchId === branch.id && m.auFauteuil).length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 9, paddingTop: 9, borderTop: '1px dashed var(--hairline)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                    Mains
+                  </span>
+                  {equipe.filter((m) => m.branchId === branch.id && m.auFauteuil).map((m) => {
+                    const pos = serviceIds.indexOf(sv.id);
+                    const on = mainsDe(pos).includes(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={`trv-palier-chip ${on ? 'is-active' : ''}`}
+                        style={{ fontSize: 11.5, padding: '3px 10px' }}
+                        onClick={() => basculeMain(pos, m.id)}
+                      >
+                        {m.name}
+                      </button>
+                    );
+                  })}
+                  {mainsDe(serviceIds.indexOf(sv.id)).length === 0 && (
+                    <span className="mnd-muted" style={{ fontSize: 11 }}>— {master || 'le maître assigné'}</span>
+                  )}
+                </div>
+              )}
               </div>
             ))}
             <Select

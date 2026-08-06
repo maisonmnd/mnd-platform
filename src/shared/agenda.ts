@@ -24,6 +24,22 @@ export type Appointment = {
       l'affiche même si la fiche n'est pas (encore) synchronisée, et pour l'auto-réparation. */
   clientName?: string;
   serviceIds: string[]; // RDV multi-services
+  /** LES MAINS — qui a réellement exécuté chaque prestation, par identifiant de
+      membre du personnel. Tableau PARALLÈLE à `serviceIds` : `mains[i]` liste
+      ceux qui ont fait `serviceIds[i]`.
+
+      Parallèle et non indexé par prestation, parce qu'un rituel peut porter
+      deux fois le même geste — deux modules de soin dans la même visite — et
+      qu'ils ne sont pas forcément faits par les mêmes personnes.
+
+      `master` reste le maître ASSIGNÉ, celui qui répond du rendez-vous. Il ne
+      dit pas qui a travaillé : un KLƆKLƆ se fait à deux mains, une reprise
+      rarement à moins, et la coiffure souvent par une troisième. Sans ce
+      champ, une commission ne peut aller qu'à un seul nom, et c'est le mauvais
+      dès que la journée se partage.
+
+      Absent ou vide pour une ligne = on retombe sur `master`. */
+  mains?: string[][];
   /** LA LONGUEUR TRAVAILLÉE CE JOUR-LÀ. Elle commande le prix et la durée des
       prestations qui se facturent à la longueur (voir `prixParLongueur`).
 

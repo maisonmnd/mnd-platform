@@ -9,7 +9,9 @@ import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type 
 import { useServices } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
-import { apptDiscountFactor } from '../clients/_shared';
+import { apptNetXof, svcPriceForAppt } from '../clients/_shared';
+import { splitByWeights } from '../../../../shared/pricing';
+import { sameName } from '../../../../shared/text';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk,
@@ -122,6 +124,8 @@ type StaffForm = {
   salaire: string;
   auFauteuil: boolean;
   partPourboire: string; // part dans le partage des pourboires — « 1 », « 0.5 », « 0 »
+  commissionne: boolean;
+  commissionTaux: string; // % negocie — vide = bareme de la Maison
   /* — Dossier paie — */
   matricule: string;
   cnssNum: string;
@@ -133,7 +137,7 @@ type StaffForm = {
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
-  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1',
+  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
 });
 
@@ -246,17 +250,45 @@ export default function Personnel() {
   }, [appts]);
   const paletteRate = (p: string) =>
     (p === 'Fondation' ? rates.fondation : p === 'Élévation' ? rates.elevation : rates.souverainete) / 100;
+  /* LE TAUX D'UNE PERSONNE. Le sien s'il est negocie — c'est le cas d'un maitre
+     externe recrute pour la journee — sinon le bareme de la Maison par palier.
+     Qui n'est pas commissionne ne touche rien, quel que soit le bareme : chez
+     MND on ne commissionne pas les salaries, et le taux de palier existait
+     pourtant deja pour tout le monde. */
+  const tauxDe = (m: StaffMember, palier: string) =>
+    m.commissionne === true
+      ? (m.commissionTauxPct !== undefined ? m.commissionTauxPct / 100 : paletteRate(palier))
+      : 0;
   const computeComm = (m: StaffMember, month: string) => {
     let presta = 0;
     let produit = 0;
     for (const a of appts) {
-      if (a.branchId !== branch.id || a.master !== m.name || a.status !== 'honoré') continue;
+      if (a.branchId !== branch.id || a.status !== 'honoré') continue;
       if (a.date.slice(0, 7) !== month || (a.seriesIndex && a.seriesIndex > 1)) continue;
-      const disc = apptDiscountFactor(a, byId);
-      for (const id of a.serviceIds) {
-        const s = byId.get(id);
-        if (s) presta += Math.round(s.priceXof * disc * paletteRate(s.palier));
-      }
+      /* CE QUI A ETE FACTURE, PAS CE QU'ANNONCE LE CATALOGUE. La commission se
+         calculait sur `priceXof` du catalogue : un resserrage au lock etait
+         commissionne sur son prix d'affichage, un rituel a prix fige au tarif
+         d'aujourd'hui, et une prestation a la longueur sur son prix de repli.
+         On repartit desormais le NET du rituel entre ses prestations, au
+         prorata de ce que chacune vaut reellement pour cette tete. */
+      const net = apptNetXof(a, byId);
+      const poids = a.serviceIds.map((id) => {
+        const sv = byId.get(id);
+        return sv ? svcPriceForAppt(a, sv) : 0;
+      });
+      const parts = splitByWeights(net, poids);
+      a.serviceIds.forEach((id, i) => {
+        const sv = byId.get(id);
+        if (!sv) return;
+        /* LES MAINS DE CETTE PRESTATION — a defaut, le maitre assigne. */
+        const mains = a.mains?.[i]?.length
+          ? a.mains[i]
+          : team.filter((x) => sameName(x.name, a.master)).map((x) => x.id);
+        if (!mains.includes(m.id)) return;
+        /* A parts egales entre les mains : deux personnes sur une reprise se
+           partagent sa commission, elles ne la touchent pas chacune en entier. */
+        presta += Math.round((parts[i] / mains.length) * tauxDe(m, sv.palier));
+      });
     }
     for (const i of invoices) {
       if (i.branchId !== branch.id || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
@@ -545,6 +577,8 @@ export default function Personnel() {
       name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, since: m.since,
       salaire: String(m.salaireXof), auFauteuil: m.auFauteuil,
       partPourboire: String(m.partPourboire ?? 1),
+      commissionne: m.commissionne === true,
+      commissionTaux: m.commissionTauxPct !== undefined ? String(m.commissionTauxPct) : '',
       matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
       contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
     });
@@ -566,13 +600,14 @@ export default function Personnel() {
     };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
-        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0), ...dossier }
+        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0), commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined, ...dossier }
         : m));
     } else {
       const nm: StaffMember = {
         id: `st-${uid()}`, branchId: form.branchId, name: form.name.trim(), role: form.role,
         phone: form.phone.trim(), email: form.email.trim(), since: form.since, auFauteuil: form.auFauteuil,
         partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0),
+        commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined,
         salaireXof, commPrestaXof: 0, commProduitXof: 0, primeXof: 0,
         satisfaction: 0, wellbeing: 80, charge: 0, risk: 'faible',
         riskDrivers: 'Nouvelle recrue — intégration en cours.', nextStep: 'Parcours d’intégration',
@@ -873,12 +908,22 @@ export default function Personnel() {
             </div>
           </Card>
 
-          {/* Taux de commission par palier — pilotés ici, appliqués automatiquement. */}
-          <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+        </div>
+      )}
+
+      {tab === 'temps' && <TempsAbsences />}
+      {tab === 'paie' && <PaieRuns />}
+      {tab === 'parametres' && (
+        <div>
+          {/* LE BAREME DE COMMISSION EST UN PARAMETRE DE PAIE. Il vivait dans
+              l'onglet Equipe, sous l'effectif : on ne l'y trouvait pas, parce
+              que ce n'est pas la qu'on le cherche. */}
+          <Card style={{ marginBottom: 14, padding: '16px 18px' }}>
             <div className="tre-rates__head">
               <span className="tre-rates__title">Commission par palier</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>
-                Appliquée automatiquement aux rituels honorés & ventes du mois. 0 % = pas de commission.
+                Le barème de la Maison. Il ne s’applique qu’aux membres marqués « Commissionné », et
+                seulement s’ils ne portent pas leur propre taux. 0 % = pas de commission.
               </span>
             </div>
             <div className="tre-rates">
@@ -904,16 +949,15 @@ export default function Personnel() {
                 </label>
               ))}
             </div>
-            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-              « Ajuster comm./prime » sur une ligne force les montants d’un maître pour ce mois ; les primes récompensent la rétention, pas le volume.
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+              La commission d’une prestation va à ses <strong style={{ fontWeight: 500 }}>mains</strong> — celles
+              désignées au rendez-vous — et se partage entre elles à parts égales. À défaut de mains
+              désignées, elle revient au maître assigné.
             </div>
           </Card>
+          <PaieParametres />
         </div>
       )}
-
-      {tab === 'temps' && <TempsAbsences />}
-      {tab === 'paie' && <PaieRuns />}
-      {tab === 'parametres' && <PaieParametres />}
 
       {tab === 'retention' && (
         <div>
@@ -1011,6 +1055,30 @@ export default function Personnel() {
                   fauteuil ou non — c'est la regle de la Maison. Une part, une
                   demi-part pour le couple fondateur qui n'en compte qu'une a
                   deux, zero pour qui n'entre pas dans le partage. */}
+              {/* LA COMMISSION — un reglage, jamais un statut deduit. Chez MND
+                  on ne commissionne pas les salaries : elle ne concerne que le
+                  maitre recrute ponctuellement, et le praticien devenu maitre
+                  le jour ou on l'a decide pour lui. */}
+              <Field label="Commission sur ses prestations">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className={`tre-chip ${!form.commissionne ? 'is-on' : ''}`} onClick={() => setForm({ ...form, commissionne: false })}>Aucune</button>
+                  <button className={`tre-chip ${form.commissionne ? 'is-on' : ''}`} onClick={() => setForm({ ...form, commissionne: true })}>Commissionné</button>
+                </div>
+                {form.commissionne && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
+                    <Input
+                      inputMode="numeric"
+                      value={form.commissionTaux}
+                      onChange={(e) => setForm({ ...form, commissionTaux: e.target.value.replace(/[^0-9]/g, '') })}
+                      placeholder="son taux"
+                      style={{ width: 96, textAlign: 'right' }}
+                    />
+                    <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                      % du montant facturé. Vide : le barème de la Maison par palier s’applique.
+                    </span>
+                  </div>
+                )}
+              </Field>
               <Field label="Part de pourboire">
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[['1', 'Une part'], ['0.5', 'Une demi-part'], ['0', 'Aucune']].map(([v, l]) => (

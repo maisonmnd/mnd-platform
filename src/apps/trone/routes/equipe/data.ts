@@ -57,6 +57,16 @@ export type StaffMember = {
   email: string;
   since: string; // ISO — l'ancienneté se calcule dynamiquement
   auFauteuil: boolean; // exécute des prestations
+  /** COMMISSIONNÉ ? Faux par défaut — chez MND, on ne commissionne pas les
+      salariés. La commission ne concerne que les maîtres recrutés
+      ponctuellement, et le praticien qui devient maître le jour où on l'a
+      décidé pour lui. Un réglage, jamais un statut déduit. */
+  commissionne?: boolean;
+  /** SON taux, en pourcentage du montant facturé de la prestation qu'il a
+      exécutée. Absent = on retombe sur le barème de la Maison par palier
+      (Paramètres de paie). C'est ce qui permet à un maître externe de porter
+      le taux négocié avec lui sans déplacer celui de tout le monde. */
+  commissionTauxPct?: number;
   /** PART DE POURBOIRE — 1 par défaut, 0,5 pour le couple fondateur qui n'en
       compte qu'une à deux, 0 pour qui n'entre pas dans le partage.
       Le pourboire se partage entre TOUS, pas seulement entre ceux qui ont
