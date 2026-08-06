@@ -24,7 +24,7 @@ import { bindDocument } from '../../../../shared/sync';
 import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
-type Tab = 'equipe' | 'temps' | 'paie' | 'parametres' | 'retention';
+type Tab = 'equipe' | 'travail' | 'temps' | 'paie' | 'parametres' | 'retention';
 
 /* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
    (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
@@ -259,6 +259,51 @@ export default function Personnel() {
     m.commissionne === true
       ? (m.commissionTauxPct !== undefined ? m.commissionTauxPct / 100 : paletteRate(palier))
       : 0;
+  /* QUI A FAIT QUOI, ce mois-ci. Le travail se lisait jusqu'ici par le maitre
+     ASSIGNE du rendez-vous : une reprise faite a deux comptait entiere pour un
+     seul, et rien ne disait que la coiffure avait ete faite par une troisieme.
+     On lit desormais les MAINS, geste par geste — a defaut, le maitre assigne,
+     pour que l'historique d'avant reste lisible.
+
+     La valeur produite est le NET du rituel reparti entre ses prestations, puis
+     entre leurs mains : la somme des colonnes egale le chiffre du mois, jamais
+     davantage. Deux personnes sur un geste a 30 000 F en portent 15 000 chacune
+     — sans quoi additionner les maitres inventerait du chiffre d'affaires. */
+  const travailDuMois = useMemo(() => {
+    const par = new Map<string, { gestes: number; minutes: number; valeur: number; detail: Map<string, number> }>();
+    const at = (id: string) => {
+      let v = par.get(id);
+      if (!v) { v = { gestes: 0, minutes: 0, valeur: 0, detail: new Map() }; par.set(id, v); }
+      return v;
+    };
+    for (const a of appts) {
+      if (a.branchId !== branch.id || a.status !== 'honoré') continue;
+      if (a.date.slice(0, 7) !== M) continue;
+      const net = a.seriesIndex && a.seriesIndex > 1 ? 0 : apptNetXof(a, byId);
+      const poids = a.serviceIds.map((id) => { const sv = byId.get(id); return sv ? svcPriceForAppt(a, sv) : 0; });
+      const parts = splitByWeights(net, poids);
+      a.serviceIds.forEach((id, i) => {
+        const sv = byId.get(id);
+        if (!sv) return;
+        const mains = a.mains?.[i]?.length
+          ? a.mains[i]
+          : team.filter((x) => sameName(x.name, a.master)).map((x) => x.id);
+        if (!mains.length) return;
+        const duree = (a.longueur ? sv.dureeParLongueur?.[a.longueur] : undefined) ?? sv.durationMin;
+        for (const staffId of mains) {
+          const v = at(staffId);
+          v.gestes += 1;
+          /* La duree se partage elle aussi : deux mains sur une reprise d'une
+             heure ne bloquent pas deux heures de fauteuil. */
+          v.minutes += duree / mains.length;
+          v.valeur += parts[i] / mains.length;
+          v.detail.set(sv.name, (v.detail.get(sv.name) ?? 0) + 1);
+        }
+      });
+    }
+    return par;
+  }, [appts, branch.id, M, byId, team]);
+
   const computeComm = (m: StaffMember, month: string) => {
     let presta = 0;
     let produit = 0;
@@ -633,7 +678,7 @@ export default function Personnel() {
       <RhDashboard />
 
       <Tabs<Tab>
-        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
+        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'travail', l: 'Qui a fait quoi' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
         value={tab}
         onChange={setTab}
       />
@@ -908,6 +953,67 @@ export default function Personnel() {
             </div>
           </Card>
 
+        </div>
+      )}
+
+      {tab === 'travail' && (
+        <div>
+          <Card style={{ padding: '16px 18px' }}>
+            <div className="tre-rates__head">
+              <span className="tre-rates__title">Qui a fait quoi · {cap(monthTitle(M))}</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>
+                Lu sur les <strong style={{ fontWeight: 500 }}>mains</strong> désignées à chaque prestation.
+                Un geste fait à deux compte pour une demi-part de chaque côté — la somme des colonnes
+                égale le mois, jamais davantage.
+              </span>
+            </div>
+            <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+              <table className="tre-table">
+                <thead>
+                  <tr>
+                    <th>Membre</th>
+                    <th className="num">Gestes</th>
+                    <th className="num">Heures au fauteuil</th>
+                    <th className="num">Valeur produite</th>
+                    <th>Ce qu’elle a fait</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.map((m) => {
+                    const t = travailDuMois.get(m.id);
+                    const detail = [...(t?.detail ?? new Map())]
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([nom, n]) => (n > 1 ? `${nom} ×${n}` : nom));
+                    return (
+                      <tr key={m.id}>
+                        <td>{m.name}</td>
+                        <td className="num">{t ? Math.round(t.gestes) : '—'}</td>
+                        <td className="num">{t ? (Math.round((t.minutes / 60) * 10) / 10).toLocaleString('fr-FR') : '—'}</td>
+                        <td className="num">{t ? fmtMoney(Math.round(t.valeur), currency) : '—'}</td>
+                        <td style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                          {detail.length ? detail.slice(0, 6).join(' · ') + (detail.length > 6 ? ` · +${detail.length - 6}` : '') : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* LE TOTAL DIT SI LE COMPTE EST BON : il doit egaler le
+                      chiffre du mois. S'il est plus bas, des rituels n'ont ni
+                      mains designees ni maitre reconnu dans l'equipe. */}
+                  <tr>
+                    <td style={{ fontWeight: 500 }}>Total attribué</td>
+                    <td className="num">{Math.round([...travailDuMois.values()].reduce((n, t) => n + t.gestes, 0))}</td>
+                    <td className="num">
+                      {(Math.round(([...travailDuMois.values()].reduce((n, t) => n + t.minutes, 0) / 60) * 10) / 10).toLocaleString('fr-FR')}
+                    </td>
+                    <td className="num">
+                      {fmtMoney(Math.round([...travailDuMois.values()].reduce((n, t) => n + t.valeur, 0)), currency)}
+                    </td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       )}
 
