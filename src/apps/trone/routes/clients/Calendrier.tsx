@@ -8,6 +8,7 @@ import {
   useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
+import { useStaff as useMyStaff } from '../../../../shared/auth';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -30,6 +31,8 @@ function useIsPhone(): boolean {
 }
 
 export default function Calendrier() {
+  const moi = useMyStaff();
+  const estMaitre = moi?.role === 'maitre';
   const { branch } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
@@ -690,15 +693,24 @@ export default function Calendrier() {
         +
       </button>
 
-      {createInit && <RdvModal onClose={() => setCreateInit(null)} initial={createInit} />}
+      {/* LE CALENDRIER NE PORTE AUCUN MONTANT — mais les modales qu'il ouvre en
+          portent : la fiche du rendez-vous affiche le prix de chaque prestation,
+          et l'encaissement toute la caisse. Un maître vient y lire sa journée et
+          remplir ses mains, pas le chiffre de la Maison.
+
+          On lui laisse donc la fiche du rituel EN LECTURE (`sansPrix`), et on lui
+          ferme l'encaissement. Masquer le bouton n'aurait pas suffi : la modale
+          s'ouvre aussi depuis la fiche. */}
+      {createInit && !estMaitre && <RdvModal onClose={() => setCreateInit(null)} initial={createInit} />}
       {editAppt && (
         <RdvModal
           onClose={() => setEditAppt(null)}
           appt={editAppt}
-          onEncaisser={(a) => { setEditAppt(null); setPayAppt(a); }}
+          sansPrix={estMaitre}
+          onEncaisser={estMaitre ? undefined : (a) => { setEditAppt(null); setPayAppt(a); }}
         />
       )}
-      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {payAppt && !estMaitre && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }

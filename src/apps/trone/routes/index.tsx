@@ -82,3 +82,27 @@ export const NAV: TroneGroup[] = [
     ],
   },
 ];
+
+/* ── CE QU'UN RÔLE OUVRE ────────────────────────────────────────────────
+   La barre affichait les vingt-cinq écrans à quiconque se connectait. Le
+   modèle portait pourtant des rubriques par domaine et trois rôles depuis
+   toujours — rien ne les appliquait. Donner un compte à un maître pour qu'il
+   pointe, c'était lui ouvrir le Coffre-fort, les Finances, et les bulletins
+   de paie de ses collègues.
+
+   UN MAÎTRE VOIT SON MOIS ET LE CALENDRIER, et le calendrier sans les
+   montants — décision du 6 août. Il vient y lire sa journée, pas le chiffre
+   d'affaires de la Maison.
+
+   La liste est BLANCHE, jamais noire : un écran nouveau n'est pas ouvert par
+   défaut. Ajouter une route ne peut donc pas élargir un accès par distraction. */
+export const ROUTES_MAITRE = ['/mon-mois', '/calendrier'];
+
+export const peutVoir = (role: string | undefined, path: string): boolean =>
+  role === 'maitre' ? ROUTES_MAITRE.includes(path) : true;
+
+/** L'écran d'accueil d'un rôle — celui vers lequel on renvoie quand la route
+    demandée ne lui est pas ouverte. Un maître qui tape une adresse de finances
+    atterrit sur son mois, pas sur une page blanche. */
+export const accueilDe = (role: string | undefined): string =>
+  role === 'maitre' ? '/mon-mois' : '/';

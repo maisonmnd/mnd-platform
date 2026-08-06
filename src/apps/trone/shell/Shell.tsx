@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
-import { NAV } from '../routes/index';
+import { NAV, peutVoir, accueilDe } from '../routes/index';
 import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
@@ -45,8 +45,24 @@ export default function Shell() {
   const { branch, branches, setBranch, currency } = useBranch();
   const { session } = useAuth();
   const staff = useStaff();
+  const role = staff?.role;
   const navigate = useNavigate();
+  const emplacement = useLocation();
   const [allClients] = useClients();
+
+  /* CACHER UN LIEN NE SUFFIT PAS. Une adresse tapée à la main, un favori posé
+     un jour où l'accès était ouvert, un lien reçu d'un collègue : la barre ne
+     protège rien. On renvoie donc vers l'écran d'accueil du rôle dès que la
+     route demandée ne lui est pas ouverte.
+
+     Ce n'est toujours qu'une garde D'ÉCRAN — la vraie barrière est côté
+     serveur, dans les politiques RLS de Supabase. Un maître déterminé lit la
+     base par l'API, quoi qu'affiche Le Trône. */
+  useEffect(() => {
+    if (!role) return;
+    if (peutVoir(role, emplacement.pathname)) return;
+    navigate(accueilDe(role), { replace: true });
+  }, [role, emplacement.pathname, navigate]);
 
   /* Remise à zéro PONCTUELLE des points Cercle (décision maison, juil. 2026) :
      compteurs à 0 + historique vidé, UNE fois — marqueur synchronisé pour ne
@@ -175,7 +191,12 @@ export default function Shell() {
         </div>
 
         <nav className="tr-nav">
-          {NAV.map((g) => (
+          {/* CHAQUE ROLE NE VOIT QUE CE QU'IL OUVRE. Un groupe dont tous les
+              ecrans sont fermes disparait avec eux : un titre seul ne dit rien
+              d'autre que ce qu'on ne peut pas atteindre. */}
+          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => peutVoir(role, it.path)) }))
+            .filter((g) => g.items.length > 0)
+            .map((g) => (
             <div key={g.group}>
               <div className="tr-nav__group">{g.group}</div>
               {g.items.map((it) => (

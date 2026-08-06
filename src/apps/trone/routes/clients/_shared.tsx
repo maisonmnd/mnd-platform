@@ -395,8 +395,14 @@ export function RdvModal({
   appt,
   title,
   onEncaisser,
+  sansPrix,
 }: {
   onClose: () => void;
+  /** LA FICHE SANS SES MONTANTS. Un maître ouvre le rituel pour lire sa
+      journée et désigner ses mains, pas pour lire le chiffre de la Maison.
+      Le prix de chaque prestation, le total, la remise et l'acompte se
+      taisent alors — le reste de la fiche fonctionne à l'identique. */
+  sansPrix?: boolean;
   initial?: RdvInitial;
   /** Rendez-vous existant — la modale passe en mode modification (statut, suppression). */
   appt?: Appointment;
@@ -478,6 +484,10 @@ export function RdvModal({
      le rendez-vous pour que le relire ne le retarife jamais à la longueur
      d'aujourd'hui. Par défaut Mi-Long — le cas courant au fauteuil. */
   const [longueur, setLongueur] = useState<LongueurId>(appt?.longueur ?? 'mi-long');
+  /* TOUS LES MONTANTS DE CETTE FICHE PASSENT PAR ICI. Masquer les prix un par
+     un aurait laissé passer celui qu'on oublie — et un prix oublié dans un
+     écran censé n'en montrer aucun vaut pire que pas de masquage du tout. */
+  const argent = (n: number): string => (sansPrix ? '—' : fmtMoney(n, currency));
   const pricing = { ...pricingOf(rdvClient, bands, sets, cats), longueur };
   /* Le prix de référence suit déjà la longueur : sans cela, une cliente sans
      modèle ni Juste Prix — donc « non personnalisée » — se serait vu facturer
@@ -670,7 +680,7 @@ export function RdvModal({
     if (!appt) return;
     const paid = appt.paidXof ?? 0;
     const msg = paid > 0
-      ? `Annuler ce rendez-vous ? Il porte déjà ${fmtMoney(paid, currency)} encaissés — l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
+      ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés — l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
       : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre — il restera visible, barré, au Carnet.';
     if (!window.confirm(msg)) return;
     appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
@@ -715,8 +725,8 @@ export function RdvModal({
                          sait son nombre de locks, le prix au lock est exact —
                          l'annoncer comme un plancher fait douter la caissière. */
                       : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
-                        ? `dès ${fmtMoney(personalPriceXof(sv, pricing, services), currency)}`
-                        : fmtMoney(personalPriceXof(sv, pricing, services), currency)}</span>
+                        ? `dès ${argent(personalPriceXof(sv, pricing, services))}`
+                        : argent(personalPriceXof(sv, pricing, services))}</span>
                   {/* L'ORDRE DES PRESTATIONS EST CELUI DU FAUTEUIL. Il decide de
                       la lecture du rendez-vous, de l'ordre des lignes sur la
                       facture et du deroule de la seance : un diagnostic ouvre,
@@ -828,7 +838,7 @@ export function RdvModal({
                 <optgroup key={g.cat.id} label={`${g.cat.fon} · ${g.cat.label}`}>
                   {g.list.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing, services), currency)}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services))}
                     </option>
                   ))}
                 </optgroup>
@@ -837,7 +847,7 @@ export function RdvModal({
                 <optgroup label="Autres">
                   {horsAtelier.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : fmtMoney(personalPriceXof(sv, pricing, services), currency)}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services))}
                     </option>
                   ))}
                 </optgroup>
@@ -869,7 +879,7 @@ export function RdvModal({
               ))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 7, lineHeight: 1.5 }}>
-              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${fmtMoney(personalPriceXof(sv, pricing, services), currency)}`).join(' — ')}
+              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services))}`).join(' — ')}
             </div>
           </div>
         )}
@@ -974,7 +984,7 @@ export function RdvModal({
             />
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
               Rituel à prix variable ou sur devis — saisissez le montant convenu.
-              {grossBase > 0 ? ` À défaut, ${fmtMoney(grossBase, currency)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
+              {grossBase > 0 ? ` À défaut, ${argent(grossBase)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
             </div>
           </Field>
         )}
@@ -1029,8 +1039,8 @@ export function RdvModal({
             prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
         {frozenDiffers && !servicesChanged && !refreshPrice && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Prix d’origine conservé : <b>{fmtMoney(frozenXof!, currency)}</b> (au tarif d’aujourd’hui,
-            ces prestations vaudraient {fmtMoney(grossBase, currency)}). Il ne changera que si vous
+            Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
+            ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
             modifiez les prestations — ou si vous l’actualisez :
             <div style={{ marginTop: 8 }}>
               <button
@@ -1038,15 +1048,15 @@ export function RdvModal({
                 onClick={() => setRefreshPrice(true)}
                 style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
               >
-                Actualiser au tarif du jour ({fmtMoney(grossBase, currency)})
+                Actualiser au tarif du jour ({argent(grossBase)})
               </button>
             </div>
           </div>
         )}
         {frozenDiffers && !servicesChanged && refreshPrice && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Ré-tarifé au tarif du jour : <b>{fmtMoney(grossBase, currency)}</b> (ancien prix
-            {' '}{fmtMoney(frozenXof!, currency)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
+            Ré-tarifé au tarif du jour : <b>{argent(grossBase)}</b> (ancien prix
+            {' '}{argent(frozenXof!)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
             ensuite pour que la facture porte les mêmes montants.
             <div style={{ marginTop: 8 }}>
               <button
@@ -1062,17 +1072,17 @@ export function RdvModal({
         {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
-            ({fmtMoney(grossBase, currency)}) — l’ancien prix de {fmtMoney(frozenXof, currency)} sera abandonné.
+            ({argent(grossBase)}) — l’ancien prix de {argent(frozenXof)} sera abandonné.
           </div>
         )}
         {/* Prix PERSONNALISÉ — modèle (tranche de locks) × Juste Prix : annoncé
             avant d'enregistrer, puis figé sur le rendez-vous. */}
         {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Prix personnalisé : <b>{fmtMoney(grossBase, currency)}</b>
+            Prix personnalisé : <b>{argent(grossBase)}</b>
             {pricing.band ? <> — modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
             {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
-            {grossBase !== grossCatalogue ? <> · catalogue {fmtMoney(grossCatalogue, currency)}</> : null}.
+            {grossBase !== grossCatalogue ? <> · catalogue {argent(grossCatalogue)}</> : null}.
             Il sera figé sur ce rendez-vous à l’enregistrement.
           </div>
         )}
@@ -1091,11 +1101,11 @@ export function RdvModal({
             <>
               <div className="trc-total__row">
                 <span>Prix du jour</span>
-                <span className="trc-total__num">{fmtMoney(grossBase, currency)}</span>
+                <span className="trc-total__num">{argent(grossBase)}</span>
               </div>
               <div className="trc-total__row">
                 <span>Remise · prix d’origine conservé</span>
-                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>−{fmtMoney(frozenRemiseXof, currency)}</span>
+                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>−{argent(frozenRemiseXof)}</span>
               </div>
             </>
           )}
@@ -1104,14 +1114,14 @@ export function RdvModal({
               <span>
                 Sous-total
                 {discountPct > 0 ? ` · remise −${discountPct}%` : ''}
-                {discountXof > 0 ? ` · remise −${fmtMoney(discountXof, currency)}` : ''}
+                {discountXof > 0 ? ` · remise −${argent(discountXof)}` : ''}
               </span>
-              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{fmtMoney(effGross, currency)}</s></span>
+              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{argent(effGross)}</s></span>
             </div>
           )}
           <div className="trc-total__row">
             <span>Total prestations</span>
-            <span className="trc-total__num">{fmtMoney(totalXof, currency)}</span>
+            <span className="trc-total__num">{argent(totalXof)}</span>
           </div>
           </>
           )}
@@ -1122,7 +1132,7 @@ export function RdvModal({
                 {depositServiceIds.length < chosen.length ? ' (partiel)' : ''}
                 {' · à vérifier à l’encaissement'}
               </span>
-              <span className="trc-total__num">{fmtMoney(depositXof, currency)}</span>
+              <span className="trc-total__num">{argent(depositXof)}</span>
             </div>
           )}
         </div>
