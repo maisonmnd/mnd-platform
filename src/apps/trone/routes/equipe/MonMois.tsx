@@ -209,10 +209,10 @@ export default function MonMois() {
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
                   <button className="tre-chip" style={{ opacity: a?.arrivee ? 0.5 : 1 }} onClick={() => pointer(moi, 'arrivee')}>
-                    {a?.arrivee ? `Arrivée · ${a.arrivee}` : 'J’arrive'}
+                    {a?.arrivee ? `Arrivée · ${a.arrivee}` : 'Arrivée'}
                   </button>
                   <button className="tre-chip" style={{ opacity: a?.depart ? 0.5 : 1 }} onClick={() => pointer(moi, 'depart')}>
-                    {a?.depart ? `Départ · ${a.depart}` : 'Je pars'}
+                    {a?.depart ? `Départ · ${a.depart}` : 'Départ'}
                   </button>
                   {p && p.total > 0 && (
                     <span className="mnd-muted" style={{ fontSize: 12.5 }}>
