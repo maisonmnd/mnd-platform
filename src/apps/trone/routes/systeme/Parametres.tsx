@@ -75,6 +75,11 @@ const ACCES_TOGGLES: ToggleRow[] = [
   { k: 'export', l: 'Export souverain autorisé', sub: 'la Maison peut tout emporter' },
 ];
 
+const JOUR_LABEL: Record<string, string> = {
+  lun: 'Lundi', mar: 'Mardi', mer: 'Mercredi', jeu: 'Jeudi',
+  ven: 'Vendredi', sam: 'Samedi', dim: 'Dimanche',
+};
+
 /* ----- Accès ERP · ce que chaque rang ouvre -----
 
    CE TABLEAU DISAIT AUTRE CHOSE QUE LE SYSTÈME. Il annonçait cinq rangs et
@@ -842,7 +847,58 @@ export default function Parametres() {
       {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
       <FactoryResetCard />
 
-      {/* ---------- Jours & heures d'ouverture ---------- */}
+      {/* ── LES HEURES DU SALON ─────────────────────────────────────
+          UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
+          qui commande les créneaux réservables (`openingForIso`), et une autre
+          branchée sur un second document jamais lu par la réservation. « Mon
+          mois » lisait la seconde, restée à ses valeurs de départ, et
+          annonçait 9 h quand la Maison ouvrait à 8 h.
+
+          Deux sources d'horaires pour une seule maison, c'est une de trop.
+          Celle-ci reste, et tout s'y branche : la réservation, l'amplitude du
+          Calendrier, la ponctualité au pointage et les heures au-delà. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Les heures du salon</div>
+            <div className="sys-section__cap">
+              Le salon n’accepte des rendez-vous que pendant ces plages. Elles décident aussi de
+              l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure » au pointage,
+              et de ce qui compte comme heure au-delà.
+            </div>
+          </div>
+          <span className="sys-badge-count">{openDays} / 7 jours</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {settings.hours.map((d) => (
+            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{JOUR_LABEL[d.key] ?? d.key}</span>
+              <button
+                className={`tre-chip ${d.closed ? '' : 'is-on'}`}
+                onClick={() => setHour(d.key, 'closed', !d.closed)}
+                style={{ fontSize: 11.5, minWidth: 78 }}
+              >
+                {d.closed ? 'Fermé' : 'Ouvert'}
+              </button>
+              {!d.closed && (
+                <>
+                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="08h00" style={{ width: 92, textAlign: 'center' }} />
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="20h30" style={{ width: 92, textAlign: 'center' }} />
+                </>
+              )}
+              {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+          Écris l’heure comme « 08h00 ». Le Calendrier couvre la plus large amplitude de la
+          semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
+        </div>
+      </Card>
+
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
           <div>
