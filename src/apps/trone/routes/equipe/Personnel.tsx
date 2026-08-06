@@ -121,6 +121,7 @@ type StaffForm = {
   since: string;
   salaire: string;
   auFauteuil: boolean;
+  partPourboire: string; // part dans le partage des pourboires — « 1 », « 0.5 », « 0 »
   /* — Dossier paie — */
   matricule: string;
   cnssNum: string;
@@ -132,7 +133,7 @@ type StaffForm = {
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
-  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true,
+  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
 });
 
@@ -543,6 +544,7 @@ export default function Personnel() {
     setForm({
       name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, since: m.since,
       salaire: String(m.salaireXof), auFauteuil: m.auFauteuil,
+      partPourboire: String(m.partPourboire ?? 1),
       matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
       contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
     });
@@ -564,12 +566,13 @@ export default function Personnel() {
     };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
-        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, ...dossier }
+        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0), ...dossier }
         : m));
     } else {
       const nm: StaffMember = {
         id: `st-${uid()}`, branchId: form.branchId, name: form.name.trim(), role: form.role,
         phone: form.phone.trim(), email: form.email.trim(), since: form.since, auFauteuil: form.auFauteuil,
+        partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0),
         salaireXof, commPrestaXof: 0, commProduitXof: 0, primeXof: 0,
         satisfaction: 0, wellbeing: 80, charge: 0, risk: 'faible',
         riskDrivers: 'Nouvelle recrue — intégration en cours.', nextStep: 'Parcours d’intégration',
@@ -1002,6 +1005,27 @@ export default function Personnel() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className={`tre-chip ${form.auFauteuil ? 'is-on' : ''}`} onClick={() => setForm({ ...form, auFauteuil: true })}>Exécute des prestations</button>
                   <button className={`tre-chip ${!form.auFauteuil ? 'is-on' : ''}`} onClick={() => setForm({ ...form, auFauteuil: false })}>Hors fauteuil</button>
+                </div>
+              </Field>
+              {/* LA PART DE POURBOIRE. Le pourboire se partage entre TOUS, au
+                  fauteuil ou non — c'est la regle de la Maison. Une part, une
+                  demi-part pour le couple fondateur qui n'en compte qu'une a
+                  deux, zero pour qui n'entre pas dans le partage. */}
+              <Field label="Part de pourboire">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[['1', 'Une part'], ['0.5', 'Une demi-part'], ['0', 'Aucune']].map(([v, l]) => (
+                    <button
+                      key={v}
+                      className={`tre-chip ${form.partPourboire === v ? 'is-on' : ''}`}
+                      onClick={() => setForm({ ...form, partPourboire: v })}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                  Le partage suit ces parts, jamais un nombre fixe : trois personnes à une part et deux
+                  à une demi-part font les quatre parts d’aujourd’hui.
                 </div>
               </Field>
             </div>

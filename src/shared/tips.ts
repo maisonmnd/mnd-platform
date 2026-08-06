@@ -18,6 +18,66 @@ export function useTips(): [Tip[], typeof tipsStore.set] {
   return [Array.isArray(v) ? v : [], set];
 }
 
+/** LA PART DE POURBOIRE D'UNE PERSONNE — 1 par défaut.
+
+    Le pourboire de la Maison ne récompense pas la tête travaillée : il se
+    partage entre TOUS, qu'on ait officié ce jour-là ou non. Chacun compte pour
+    une part, sauf le gérant et le fondateur — un couple — qui n'en comptent
+    qu'une à eux deux, soit une demi-part chacun.
+
+    C'est un POIDS, jamais une division par quatre écrite en dur : les quatre
+    parts d'aujourd'hui viennent de trois personnes à 1 et de deux à 0,5. Le
+    jour où la Maison recrute, le total suit tout seul. Une part à 0 écarte
+    quelqu'un du partage sans le retirer du personnel. */
+export const PART_POURBOIRE_DEFAUT = 1;
+
+/** Répartit un pourboire selon les parts, en francs ENTIERS dont la somme fait
+    exactement le montant reçu — le XOF n'a pas de subdivision, et un franc
+    perdu à chaque arrondi finit par se voir dans la caisse.
+
+    Le reste de la division va aux plus grandes parts d'abord (méthode du plus
+    fort reste) : sur 2 500 F en cinq parts de 1, 1, 1, 0,5 et 0,5, personne ne
+    paie systématiquement l'arrondi du même côté. */
+export function repartirPourboire(
+  montantXof: number,
+  membres: { id: string; part?: number }[],
+): { staffId: string; amountXof: number }[] {
+  const retenus = membres
+    .map((m) => ({ id: m.id, part: m.part ?? PART_POURBOIRE_DEFAUT }))
+    .filter((m) => m.part > 0);
+  const total = retenus.reduce((n, m) => n + m.part, 0);
+  if (montantXof <= 0 || total <= 0) return [];
+  const brut = retenus.map((m) => ({ id: m.id, exact: (montantXof * m.part) / total }));
+  const parts = brut.map((b) => ({ id: b.id, bas: Math.floor(b.exact), reste: b.exact - Math.floor(b.exact) }));
+  let restant = montantXof - parts.reduce((n, p) => n + p.bas, 0);
+  const ordre = [...parts].sort((a, b) => b.reste - a.reste);
+  for (const p of ordre) {
+    if (restant <= 0) break;
+    p.bas += 1;
+    restant -= 1;
+  }
+  return parts.filter((p) => p.bas > 0).map((p) => ({ staffId: p.id, amountXof: p.bas }));
+}
+
+/** Enregistre le pourboire d'un rituel, PARTAGÉ selon les parts de chacun.
+    Une ligne par bénéficiaire — chacune s'upserte par son id, aucune ne peut
+    en écraser une autre. Rend ce qui a été réellement attribué, pour que
+    l'écran puisse le montrer plutôt que de l'affirmer. */
+export function addTipPartage(
+  membres: { id: string; part?: number }[],
+  montantXof: number,
+  date: string,
+  note?: string,
+): { staffId: string; amountXof: number }[] {
+  const parts = repartirPourboire(montantXof, membres);
+  if (!parts.length) return [];
+  const lignes: Tip[] = parts.map((p) => ({
+    id: `tp-${uid()}`, staffId: p.staffId, amountXof: p.amountXof, date, note,
+  }));
+  tipsStore.set((prev) => [...prev, ...lignes]);
+  return parts;
+}
+
 /** Enregistre un pourboire pour un membre du personnel (par staffId). */
 export function addTip(staffId: string, amountXof: number, date: string, note?: string) {
   if (!staffId || amountXof <= 0) return;

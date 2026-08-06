@@ -17,7 +17,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
-import { addTip } from '../../../../shared/tips';
+import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -263,10 +263,17 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     });
   const [tipStr, setTipStr] = useState('0');
   const tip = Math.max(0, Math.round(Number(tipStr) || 0));
-  /* Le maître officiant, retrouvé dans le personnel par son nom — reçoit le
-     pourboire. Comparaison NORMALISÉE (accents, casse, espaces) : une majuscule
-     de différence privait le maître de son pourboire. */
-  const tipMaster = team.find((s) => sameName(s.name, appt.master));
+  /* LE POURBOIRE SE PARTAGE ENTRE TOUS. Il allait auparavant au seul maître
+     officiant, retrouvé par son nom — une majuscule de différence suffisait
+     alors à le faire disparaître. Ce n'est pas la règle de la Maison : le
+     pourboire revient à l'équipe entière, qu'on ait touché la tête ou non,
+     chacun selon sa part. Plus aucun nom à faire correspondre, donc plus
+     aucun pourboire perdu. */
+  const beneficiaires = team
+    .filter((s) => s.branchId === branch.id)
+    .map((s) => ({ id: s.id, part: s.partPourboire ?? PART_POURBOIRE_DEFAUT }));
+  const partage = repartirPourboire(tip, beneficiaires);
+  const nomDe = (id: string) => team.find((s) => s.id === id)?.name ?? '—';
   const remainingAfter = Math.max(0, due - settleTotal);
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
@@ -382,8 +389,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         note: [avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
         /* Le pourboire rejoint la MÊME caisse que le paiement — traçable, mais
            toujours hors chiffre d'affaires (invoiceTotal l'exclut). Seulement s'il est
-           attribuable à un maître, pour que « à reverser aux maîtres » reste juste. */
-        tipXof: tip > 0 && tipMaster ? tip : undefined,
+           partageable, pour que « à reverser aux maîtres » reste juste. */
+        tipXof: partage.length > 0 ? tip : undefined,
         /* Part réglée par avoir (crédit du compte) — hors caisse physique. */
         avoirXof: avoirApplied > 0 ? avoirApplied : undefined,
         /* Part déjà REÇUE avant ce comptoir (acompte confirmé) : elle est entrée
@@ -436,7 +443,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             ...freeze,
           }
         : a)));
-    } else if (tip > 0 && tipMaster) {
+    } else if (partage.length > 0) {
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
          (invoiceTotal=0 → aucun chiffre d'affaires) portant le pourboire, pour qu'il
          reste tracé dans la caisse et reversable au maître. */
@@ -462,11 +469,11 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       invoicesStore.set((prev) => [inv, ...prev]);
     }
 
-    /* Pourboire — enregistré séparément sur le maître officiant (jamais dans la
-       facture ni le chiffre d'affaires). Possible même si le rituel est déjà soldé,
-       à condition que le maître soit bien dans le personnel. */
-    const tipRecorded = tip > 0 && !!tipMaster;
-    if (tip > 0 && tipMaster) addTip(tipMaster.id, tip, invDate);
+    /* Pourboire — PARTAGÉ entre toute l'équipe, une ligne par bénéficiaire.
+       Jamais dans la facture ni dans le chiffre d'affaires. Possible même si le
+       rituel est déjà soldé. */
+    const partsEcrites = tip > 0 ? addTipPartage(beneficiaires, tip, invDate) : [];
+    const tipRecorded = tip > 0 && partsEcrites.length > 0;
 
     /* Confirmation d'acompte SANS encaissement : on la persiste quand même.
        (L'honneur du rituel reste un geste séparé — Marquer honoré.) */
@@ -511,8 +518,8 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           : `Paiement partiel enregistré · ${fmtMoney(settleTotal, currency)}${avoirMsg} · reste ${fmtMoney(remainingAfter, currency)}.`)
       : '';
     const tipMsg = tip <= 0 ? ''
-      : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} pour ${appt.master}`
-      : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (maître « ${appt.master || '—'} » introuvable dans le personnel)`;
+      : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} partagé en ${partsEcrites.length} parts`
+      : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (aucun membre du personnel dans cette branche)`;
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
     const reschedMsg = rescheduled
       ? `Prochain RDV reprogrammé le ${new Date(`${nextDate}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${nextTime}.`
@@ -639,12 +646,25 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             </Select>
           </Field>
         )}
-        <Field label={`Pourboire (F CFA) — pour ${appt.master || 'le maître'}`}>
+        <Field label="Pourboire (F CFA) — partagé entre l’équipe">
           <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} />
         </Field>
-        {tip > 0 && !tipMaster && (
+        {/* LE PARTAGE SE MONTRE AVANT D'ÊTRE ÉCRIT. Une règle de répartition
+            qu'on ne voit pas est une règle qu'on finit par croire fausse : le
+            détail lève le doute au comptoir, pas au bulletin de paie. */}
+        {tip > 0 && partage.length > 0 && (
+          <div style={{ marginTop: -4, padding: '9px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
+            {partage.map((p) => (
+              <div key={p.staffId} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 2 }}>
+                <span>{nomDe(p.staffId)}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(p.amountXof, currency)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {tip > 0 && partage.length === 0 && (
           <div style={{ fontSize: 12, color: 'var(--trf-error, #8f3b30)', marginTop: -6 }}>
-            « {appt.master || '—'} » n'est pas dans le personnel — le pourboire ne pourra pas être attribué.
+            Aucun membre du personnel dans cette branche — le pourboire ne pourra pas être partagé.
           </div>
         )}
 
@@ -726,7 +746,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <Button
           variant="copper"
           onClick={confirm}
-          disabled={(settleTotal <= 0 && (tip <= 0 || !tipMaster) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(settleTotal <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
           {fxOn && fxAmount > 0

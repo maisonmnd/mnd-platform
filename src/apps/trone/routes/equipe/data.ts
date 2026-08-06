@@ -57,6 +57,12 @@ export type StaffMember = {
   email: string;
   since: string; // ISO — l'ancienneté se calcule dynamiquement
   auFauteuil: boolean; // exécute des prestations
+  /** PART DE POURBOIRE — 1 par défaut, 0,5 pour le couple fondateur qui n'en
+      compte qu'une à deux, 0 pour qui n'entre pas dans le partage.
+      Le pourboire se partage entre TOUS, pas seulement entre ceux qui ont
+      officié : c'est la règle de la Maison, et elle ne se déduit d'aucun
+      rendez-vous. Voir `repartirPourboire`. */
+  partPourboire?: number;
   salaireXof: number; // base mensuelle
   commPrestaXof: number;
   commProduitXof: number;
