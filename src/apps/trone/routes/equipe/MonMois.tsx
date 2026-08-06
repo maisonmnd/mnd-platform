@@ -192,6 +192,28 @@ export default function MonMois() {
       avant: x.avant ?? { arrivee: x.arrivee, depart: x.depart },
     } : x)));
 
+  /* SUPPRIMER UN POINTAGE — le gerant seul, et jamais sans confirmation.
+     Corriger suffit dans la vie courante : la trace garde ce qui etait
+     inscrit avant, et un mois de paie doit pouvoir se relire. Mais un essai
+     n'est pas une erreur a rectifier, c'est une ligne qui n'aurait jamais du
+     exister ; la trainer fausse les points et le classement de tout le monde.
+     D'ou ce geste, separe du reste, et volontairement plus lourd. */
+  const supprimerPointage = (a: Attendance) => {
+    const qui = equipe.find((m) => m.id === a.employeeId)?.name ?? 'ce membre';
+    const quand = new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    if (!window.confirm(
+      `Supprimer le pointage de ${qui} du ${quand} ?
+
+`
+      + `${a.arrivee ?? '—'} → ${a.depart ?? '—'}
+
+`
+      + `Les points de cette journée disparaissent avec lui. C'est definitif.`,
+    )) return;
+    setPointages((prev) => prev.filter((x) => x.id !== a.id));
+    toast('Pointage supprimé.');
+  };
+
   /* MES POURBOIRES DU MOIS. Le partage se voit deja au comptoir au moment de
      l'encaissement ; il ne se revoyait plus ensuite, et une regle qu'on ne
      peut pas relire finit par se discuter de memoire. */
@@ -500,7 +522,7 @@ export default function MonMois() {
           <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
             <table className="tre-table">
               <thead>
-                <tr><th>Membre</th><th>Jour</th><th>Arrivée</th><th>Départ</th><th>Trace</th></tr>
+                <tr><th>Membre</th><th>Jour</th><th>Arrivée</th><th>Départ</th><th>Trace</th><th /></tr>
               </thead>
               <tbody>
                 {pointages
@@ -533,10 +555,26 @@ export default function MonMois() {
                               {corrige === a.id ? 'Terminé' : 'Corriger'}
                             </button>}
                       </td>
+                      {/* LE RETRAIT SE TIENT A L'ECART de la correction : deux
+                          gestes de portee differente ne partagent pas un bouton. */}
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="tre-link-btn"
+                          onClick={() => supprimerPointage(a)}
+                          title="Supprimer ce pointage"
+                          style={{ color: 'var(--color-danger, #a4423a)' }}
+                        >
+                          Supprimer
+                        </button>
+                      </td>
                     </tr>
                   ))}
               </tbody>
             </table>
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+            Corriger garde une trace de ce qui était inscrit avant ; supprimer n'en garde aucune.
+            Le retrait est fait pour les essais — une ligne qui n'aurait jamais dû exister.
           </div>
         </Card>
       )}
