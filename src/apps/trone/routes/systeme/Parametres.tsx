@@ -15,7 +15,7 @@ import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } fr
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
-import { ERP_DOMAINS, useSalonHours, WEEK_DAYS, useStaff } from '../equipe/data';
+import { ERP_DOMAINS, useStaff } from '../equipe/data';
 import { useExceptionsHoraires, usePointageConfig, type HoraireException } from '../equipe/payroll';
 import { uid } from '../../../../shared/store';
 import './systeme.css';
@@ -430,7 +430,6 @@ function FactoryResetCard() {
 }
 
 export default function Parametres() {
-  const [heures, setHeures] = useSalonHours();
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [preuve, setPreuve] = usePointageConfig();
   const [equipe] = useStaff();
@@ -1064,58 +1063,6 @@ export default function Parametres() {
       </Card>
 
       {/* ---------- Accès ERP · rôles & codes ---------- */}
-      {/* ── LES HEURES DU SALON ─────────────────────────────────────
-          Elles existaient dans le modèle depuis toujours, lues par « Mon mois »
-          pour juger la ponctualité — et réglables NULLE PART. Le calendrier
-          ouvrait donc à 8 h pendant que le pointage attendait 9 h, sans qu'on
-          puisse les accorder. Elles commandent maintenant les deux. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Les heures du salon</div>
-        <div className="sys-section__cap">
-          Elles décident de l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure »
-          au pointage, et de ce qui compte comme heure au-delà.
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          {WEEK_DAYS.map((j) => {
-            const h = heures[j.k] ?? { open: '09h00', close: '19h00', closed: false };
-            const maj = (patch: Partial<typeof h>) => setHeures({ ...heures, [j.k]: { ...h, ...patch } });
-            return (
-              <div key={j.k} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{j.l}</span>
-                <button
-                  className={`tre-chip ${h.closed ? '' : 'is-on'}`}
-                  onClick={() => maj({ closed: !h.closed })}
-                  style={{ fontSize: 11.5, minWidth: 78 }}
-                >
-                  {h.closed ? 'Fermé' : 'Ouvert'}
-                </button>
-                {!h.closed && (
-                  <>
-                    <Input
-                      value={h.open}
-                      onChange={(e) => maj({ open: e.target.value })}
-                      placeholder="09h00"
-                      style={{ width: 92, textAlign: 'center' }}
-                    />
-                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                    <Input
-                      value={h.close}
-                      onChange={(e) => maj({ close: e.target.value })}
-                      placeholder="19h00"
-                      style={{ width: 92, textAlign: 'center' }}
-                    />
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-          Écris l’heure comme « 08h00 » ou « 08:00 ». Le Calendrier couvre la plus large amplitude
-          de la semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
-        </div>
-      </Card>
-
       {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
           Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
           l'écrire depuis son lit. La position d'abord — aucun geste quotidien —

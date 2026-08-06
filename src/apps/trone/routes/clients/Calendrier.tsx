@@ -3,13 +3,13 @@ import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { useSalonHours } from '../equipe/data';
 import {
   PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { useSettings } from '../../../../shared/settings';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { voitLesPrix } from '../index';
@@ -40,8 +40,10 @@ export default function Calendrier() {
      que « Mon mois » jugeait la ponctualité sur 9 h – 20 h : un maître arrivé
      à 8 h 55 pouvait se croire en retard, et le fauteuil de 19 h n'existait
      pas à l'écran. */
-  const [horairesSalon] = useSalonHours();
-  const { ouverture: OPEN_HOUR, fermeture: CLOSE_HOUR } = bornesDuSalon(horairesSalon);
+  const [reglagesMaison] = useSettings();
+  const { ouverture: OPEN_HOUR, fermeture: CLOSE_HOUR } = bornesDuSalon(
+    Object.fromEntries(reglagesMaison.hours.map((d) => [d.key, { open: d.open, close: d.close, closed: d.closed }])),
+  );
   /* CE N'EST PAS LE ROLE QUI DECIDE DES PRIX, C'EST LE DOMAINE OUVERT. Gerard
      tient le secretariat ET le fauteuil : maitre par son role, il encaisse
      pourtant, et un comptoir sans montants ne sert a rien. */

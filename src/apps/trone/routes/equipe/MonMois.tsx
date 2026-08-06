@@ -5,7 +5,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { sameName } from '../../../../shared/text';
-import { useStaff, useSalonHours, type StaffMember } from './data';
+import { useStaff, type StaffMember } from './data';
+import { useSettings } from '../../../../shared/settings';
 import {
   useAttendance, useBaremePoints, pointsDuJour, minutesDe,
   useExceptionsHoraires, horaireEffectif,
@@ -46,7 +47,7 @@ export default function MonMois() {
   const [team] = useStaff();
   const [pointages, setPointages] = useAttendance();
   const [bareme] = useBaremePoints();
-  const [horaires] = useSalonHours();
+  const [reglages] = useSettings();
   const [exceptions] = useExceptionsHoraires();
   const [preuve] = usePointageConfig();
   const [verif, setVerif] = useState<string>('');
@@ -77,12 +78,24 @@ export default function MonMois() {
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';
 
   const M = moisDe(iso(new Date()));
-  /* L'HORAIRE D'UNE PERSONNE UN JOUR DONNÉ — la semaine type, sauf exception.
-     Une exception nominative l'emporte sur celle de la Maison : c'est le plus
-     précis qui gagne. */
+  /* L'HORAIRE D'UNE PERSONNE UN JOUR DONNÉ.
+
+     LES HEURES SONT CELLES DES PARAMÈTRES — « Jours & heures d'ouverture »,
+     celles qui commandent déjà les créneaux réservables. Cet écran lisait un
+     SECOND document, jamais branché à rien, resté à ses valeurs de départ :
+     il annonçait 9 h quand la Maison ouvrait à 8 h. Deux sources d'horaires
+     pour une seule maison, c'est une de trop.
+
+     L'exception du jour se pose par-dessus ; une exception nominative
+     l'emporte sur celle de la Maison, le plus précis gagne. */
   const jourDeLaSemaine = (d: string) => JOURS[new Date(`${d}T00:00:00`).getDay()];
+  const semaine = useMemo(() => {
+    const m: Record<string, { open: string; close: string; closed: boolean }> = {};
+    for (const d of reglages.hours) m[d.key] = { open: d.open, close: d.close, closed: d.closed };
+    return m;
+  }, [reglages.hours]);
   const horaireDe = (d: string, staffId?: string) =>
-    horaireEffectif(d, staffId, horaires, exceptions, jourDeLaSemaine);
+    horaireEffectif(d, staffId, semaine, exceptions, jourDeLaSemaine);
   const horaireDu = (d: string) => horaireDe(d, moi?.id);
 
   /* Les points d'une personne sur le mois, et le détail jour par jour. */
@@ -102,7 +115,7 @@ export default function MonMois() {
   const classement = useMemo(
     () => equipe.map((m) => ({ m, b: bilanDe(m) })).sort((a, b) => b.b.total - a.b.total),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [equipe, pointages, bareme, horaires, M],
+    [equipe, pointages, bareme, semaine, exceptions, M],
   );
 
   const duJour = (staffId: string, d: string) =>
