@@ -15,6 +15,7 @@ import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } fr
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
+import { ERP_DOMAINS } from '../equipe/data';
 import './systeme.css';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
@@ -72,23 +73,28 @@ const ACCES_TOGGLES: ToggleRow[] = [
   { k: 'export', l: 'Export souverain autorisé', sub: 'la Maison peut tout emporter' },
 ];
 
-/* ----- Accès ERP · rôles par rubrique de domaine ----- */
-const DOMAINS: { k: string; l: string }[] = [
-  { k: 'pilotage', l: 'Pilotage' },
-  { k: 'clients', l: 'Clients & Agenda' },
-  { k: 'vente', l: 'Vente' },
-  { k: 'finances', l: 'Finances' },
-  { k: 'equipe', l: 'Équipe & Croissance' },
-  { k: 'academie', l: 'Académie' },
-  { k: 'systeme', l: 'Système' },
-];
+/* ----- Accès ERP · ce que chaque rang ouvre -----
+
+   CE TABLEAU DISAIT AUTRE CHOSE QUE LE SYSTÈME. Il annonçait cinq rangs et
+   sept domaines — Praticien·ne, Accueil, Académie — quand l'application en
+   porte trois et six ; et il promettait qu'un maître ouvre le Pilotage et la
+   Vente, alors qu'il n'atteint que son mois et son calendrier.
+
+   Écrit en dur, il ne commandait rien : c'était une intention, pas une règle.
+   Tant que rien n'appliquait les accès, l'écart ne se voyait pas. Depuis que
+   la barre les applique, un tableau qui ment est pire qu'un tableau absent. */
+const DOMAINS = ERP_DOMAINS;
 type Role = { k: string; label: string; desc: string; perms: string[] };
+const TOUS = ERP_DOMAINS.map((d) => d.k);
 const ROLE_DEFS: Role[] = [
-  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total — la Maison entière.', perms: ['pilotage', 'clients', 'vente', 'finances', 'equipe', 'academie', 'systeme'] },
-  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: ['pilotage', 'clients', 'vente', 'finances', 'equipe', 'academie'] },
-  { k: 'maitre', label: 'Maître', desc: 'Son carnet, ses clientes, l’offre.', perms: ['pilotage', 'clients', 'vente', 'academie'] },
-  { k: 'praticien', label: 'Praticien·ne', desc: 'Carnet & agenda, rien de plus.', perms: ['clients'] },
-  { k: 'accueil', label: 'Accueil', desc: 'Réception, caisse, clientes.', perms: ['clients', 'vente'] },
+  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total — la Maison entière.', perms: TOUS },
+  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: TOUS.filter((k) => k !== 'systeme') },
+  {
+    k: 'maitre',
+    label: 'Maître',
+    desc: 'Mon mois et son calendrier, sans les montants. Le reste s’ouvre domaine par domaine, personne par personne, depuis Accès & personnel.',
+    perms: [],
+  },
 ];
 
 function FieldRowView({ l, v }: FieldRow) {
@@ -1055,9 +1061,11 @@ export default function Parametres() {
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div className="sys-section__title">Accès ERP du personnel</div>
         <div className="sys-section__cap">
-          Chaque rôle ouvre certaines rubriques de domaine. Un membre rejoint le Trône avec son
-          e-mail et son mot de passe, puis un souverain le rattache au personnel depuis
-          Accès &amp; personnel — il entre avec exactement les droits de son rang, rien de plus.
+          Un membre rejoint le Trône avec son e-mail et son mot de passe, puis un souverain le
+          rattache au personnel depuis Accès &amp; personnel — il entre avec exactement les droits
+          de son rang, rien de plus. C’est là aussi qu’on ouvre à un maître les domaines
+          supplémentaires dont il a besoin : le secrétariat et le fauteuil tiennent sur un seul
+          compte, jamais sur deux.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
           {ROLE_DEFS.map((role) => (
