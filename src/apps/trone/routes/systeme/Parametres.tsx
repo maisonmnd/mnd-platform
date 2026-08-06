@@ -5,7 +5,7 @@ import { Toggle } from '../equipe/ui';
 import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
-import { HOUR_OPTIONS, useSettings, type DayHours } from '../../../../shared/settings';
+import { useSettings, type DayHours } from '../../../../shared/settings';
 import { useCrownStyles, useSegments, renameSegment, clientsStore } from '../../../../shared/clients';
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
@@ -899,38 +899,11 @@ export default function Parametres() {
         </div>
       </Card>
 
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Jours & heures d’ouverture</div>
-            <div className="sys-section__cap">Le salon n’accepte des rendez-vous que pendant ces plages.</div>
-          </div>
-          <span className="sys-badge-count">{openDays} / 7 jours</span>
-        </div>
-        {settings.hours.map((d) => (
-          <div key={d.key} className="sys-day" style={{ opacity: d.closed ? 0.6 : 1 }}>
-            <div className="sys-day__name">{d.label}</div>
-            <Toggle
-              on={!d.closed}
-              onToggle={() => setHour(d.key, 'closed', !d.closed)}
-              label={d.closed ? 'Fermé' : 'Ouvert'}
-            />
-            {d.closed ? (
-              <div className="sys-day__closed">Fermé ce jour</div>
-            ) : (
-              <div className="sys-day__hours">
-                <select className="sys-select" value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)}>
-                  {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-                </select>
-                <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>→</span>
-                <select className="sys-select" value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)}>
-                  {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
-        ))}
-      </Card>
+      {/* LA SECONDE CARTE D'HORAIRES A ÉTÉ RETIRÉE le 6 août. Elle montrait
+          exactement la même donnée — `settings.hours` — sous une autre
+          présentation : deux fenêtres sur un seul chiffre, dont l'une finit
+          toujours par faire douter de l'autre. Une maison n'a qu'un horaire.
+          Celle qui reste est au-dessus. */}
 
       {/* ---------- Catalogue · styles de couronne ---------- */}
       <Card className="sys-section" style={{ marginTop: 18 }}>
