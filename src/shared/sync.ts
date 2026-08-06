@@ -256,6 +256,15 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         } else {
           const row = payload.new as { id: string; data: T };
           const i = at(row.id);
+          /* L'ECHO DE NOTRE PROPRE ECRITURE, et lui seul. Supabase renvoie a
+             l'emetteur ce qu'il vient d'ecrire ; reappliquer cet echo pendant
+             une saisie REMBOBINE le champ, et la frappe se met a sauter.
+
+             On ne saute que ce qui est deja identique en local : un vrai
+             changement venu d'un autre poste passe toujours. Un garde plus
+             large — « ignorer tant qu'une poussee attend » — aurait perdu en
+             silence ce qu'une collegue vient d'enregistrer. */
+          if (i >= 0 && JSON.stringify(items[i]) === JSON.stringify(row.data)) return;
           if (i >= 0) items[i] = row.data;
           else items.push(row.data);
         }
@@ -311,6 +320,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     syncMark.dirty(`doc:${key}`);
     if (timer) clearTimeout(timer);
     timer = setTimeout(async () => {
+      /* LE GARDE SE REARME. Sans cette remise a zero, `timer` reste verite a
+         vie apres la premiere ecriture, et la garde de frappe ci-dessous ne
+         laisserait plus JAMAIS passer une mise a jour distante. */
+      timer = undefined;
       const val = store.get();
       const j = JSON.stringify(val);
       if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
@@ -329,10 +342,23 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       (payload: { new: Record<string, unknown> }) => {
         const row = payload.new as { data: T } | undefined;
         if (!row) return;
+        const j = JSON.stringify(row.data);
+        /* L'ECHO DE NOTRE PROPRE ECRITURE. Supabase renvoie a l'emetteur les
+           changements qu'il vient de faire. Appliquer cet echo tel quel
+           REMBOBINE la saisie en cours : on tape « Les reprises », la poussee
+           part a « Les reprise », l'echo revient et efface le « s » qu'on
+           venait d'ajouter. Le champ ecrivait alors ce qu'il voulait, et la
+           pastille de synchro semblait se battre contre le clavier.
+           Ce qui revient identique a ce qu'on a pousse n'apprend rien. */
+        if (j === lastPushed) return;
+        /* UNE FRAPPE EN COURS EST PLUS RECENTE QUE LE SERVEUR. Tant qu'une
+           poussee est en attente, l'etat local vaut mieux que ce qui arrive :
+           on laisse la poussee partir, et l'echo suivant fera foi. */
+        if (timer) return;
         applyingRemote = true;
         store.set(row.data);
         applyingRemote = false;
-        lastPushed = JSON.stringify(row.data);
+        lastPushed = j;
       },
     )
     .subscribe();
