@@ -1,6 +1,46 @@
-# Reprendre — état du catalogue
+# Reprendre — état de la Maison
 
-État au 5 août 2026. À lire en premier dans une nouvelle session.
+État au 6 août 2026. À lire en premier dans une nouvelle session.
+
+## L'équipe — construit le 6 août
+
+**Les mains.** Chaque prestation d'un rendez-vous porte ceux qui l'ont exécutée
+(`Appointment.mains`, tableau parallèle à `serviceIds`). Le `master` reste le
+maître ASSIGNÉ, celui qui répond du rituel — il ne dit pas qui a travaillé. À
+défaut de mains, tout retombe sur lui.
+
+**Le pourboire se partage entre tous**, qu'on ait touché la tête ou non, selon
+`StaffMember.partPourboire` — 1 par défaut, 0,5 pour le couple fondateur qui
+n'en compte qu'une à deux. C'est un POIDS, jamais une division par quatre.
+
+**La commission** est un réglage par personne (`commissionne`,
+`commissionTauxPct`) : chez MND on ne commissionne pas les salariés. Elle ne
+concerne que le maître recruté ponctuellement et le praticien devenu maître.
+Elle va aux mains, à parts égales, et se calcule sur le NET facturé — plus sur
+le prix catalogue.
+
+**Production & primes de seuil** (onglet de Personnel & paie) : un barème par
+famille, prestation, toutes prestations ou têtes, avec des paliers qui se
+franchissent sans se proratiser. Un geste fait à deux vaut une demi-part de
+chaque côté. La prime se propose, le gérant l'inscrit — et sa marque
+`seuil:<regle>:<mois>` empêche tout doublon.
+
+**Mon mois** (`/mon-mois`) : chacun pointe son arrivée et son départ, voit ses
+points, ses pourboires, son rang, et complète les têtes dont les mains
+manquent. La prime se gagne sur un SEUIL, pas sur un rang.
+
+**Les accès.** Un maître n'atteint que Mon mois et le Calendrier, sans les
+montants. On lui ouvre des domaines un à un depuis Système → Accès & personnel
+(`staffAccessStore`) : c'est ainsi qu'une personne qui tient le secrétariat ET
+le fauteuil garde un seul compte. Ouvrir Vente ou Finances lui rend les prix.
+La migration `0026_pointage_par_chacun.sql` est PASSÉE — `attendance` est sous
+`is_staff()`.
+
+**Ce n'est qu'une garde d'écran.** Les rôles organisent l'interface, ils ne
+cloisonnent pas les données : côté serveur, seule la paie est réservée au
+souverain. Le bandeau d'Accès & personnel le dit.
+
+## Le catalogue — construit le 5 et 6 août
 
 ## Le catalogue est replié — 5 août 2026
 
