@@ -11,6 +11,9 @@ import {
   type Attendance, type BaremePoints,
 } from './payroll';
 import { uid } from '../../../../shared/store';
+import { useTips } from '../../../../shared/tips';
+import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
+import { useServices } from '../../../../shared/catalog';
 import './equipe.css';
 
 /* MON MOIS — l'écran que chacun ouvre pour soi.
@@ -44,6 +47,10 @@ export default function MonMois() {
   const [horaires] = useSalonHours();
   const me = useMyStaff();
   const [corrige, setCorrige] = useState<string | null>(null);
+  const [tips] = useTips();
+  const [appts] = useAppointments();
+  const [services] = useServices();
+  const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
 
   const equipe = useMemo(() => team.filter((m) => m.branchId === branch.id), [team, branch.id]);
   /* QUI SUIS-JE dans l'équipe : le compte du Trône porte un nom, la fiche du
@@ -106,6 +113,39 @@ export default function MonMois() {
       corrigePar: me?.name ?? '—', corrigeAt: new Date().toISOString(),
       avant: x.avant ?? { arrivee: x.arrivee, depart: x.depart },
     } : x)));
+
+  /* MES POURBOIRES DU MOIS. Le partage se voit deja au comptoir au moment de
+     l'encaissement ; il ne se revoyait plus ensuite, et une regle qu'on ne
+     peut pas relire finit par se discuter de memoire. */
+  const mesPourboires = useMemo(
+    () => (moi ? tips.filter((t) => t.staffId === moi.id && moisDe(t.date) === M).sort((a, b) => (a.date < b.date ? 1 : -1)) : []),
+    [tips, moi, M],
+  );
+  const totalPourboires = mesPourboires.reduce((n, t) => n + t.amountXof, 0);
+
+  /* LES TÊTES À COMPLÉTER. Une prestation sans mains désignées ne compte pour
+     personne — ni dans la production, ni dans les seuils. Elle retombe sur le
+     maître assigné, qui n'est pas toujours celui qui a travaillé.
+
+     On les remonte ici pour que celui qui a fait le geste puisse le dire
+     lui-même, plutôt que d'attendre qu'on le lui demande. */
+  const aCompleter = useMemo(() => appts
+    .filter((a) => a.branchId === branch.id && a.status === 'honoré' && moisDe(a.date) === M)
+    .filter((a) => a.serviceIds.some((_, i) => !(a.mains?.[i]?.length)))
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 30),
+    [appts, branch.id, M]);
+
+  const poserMain = (apptId: string, i: number, staffId: string) =>
+    appointmentsStore.set((prev) => prev.map((a) => {
+      if (a.id !== apptId) return a;
+      /* On repart TOUJOURS d'un tableau aligne sur serviceIds : un tableau
+         plus court laisserait les lignes suivantes sans mains, et un index
+         decale attribuerait le travail au geste voisin. */
+      const n = a.serviceIds.map((_, k) => a.mains?.[k] ?? []);
+      n[i] = n[i].includes(staffId) ? n[i].filter((x) => x !== staffId) : [...n[i], staffId];
+      return { ...a, mains: n };
+    }));
 
   const monBilan = moi ? bilanDe(moi) : null;
   const monRang = moi ? classement.findIndex((c) => c.m.id === moi.id) + 1 : 0;
@@ -232,6 +272,94 @@ export default function MonMois() {
             </div>
           </Card>
         </>
+      )}
+
+      {/* ── MES POURBOIRES ────────────────────────────────────────────
+          Transparents : chacun relit sa part sans avoir à la demander. */}
+      {moi && (
+        <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+          <div className="tre-rates__head">
+            <span className="tre-rates__title">Mes pourboires · {totalPourboires > 0 ? fmtMoney(totalPourboires, currency) : '—'}</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>
+              Le pourboire se partage entre toute l’équipe, qu’on ait touché la tête ou non.
+              Ta part : {(moi.partPourboire ?? 1) === 1 ? 'une part' : (moi.partPourboire ?? 1) === 0 ? 'aucune' : `${moi.partPourboire} part`}.
+            </span>
+          </div>
+          {mesPourboires.length === 0 ? (
+            <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 10 }}>Aucun pourboire ce mois-ci.</div>
+          ) : (
+            <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+              <table className="tre-table">
+                <thead><tr><th>Jour</th><th className="num">Ma part</th></tr></thead>
+                <tbody>
+                  {mesPourboires.map((t) => (
+                    <tr key={t.id}>
+                      <td>{new Date(`${t.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+                      <td className="num">{fmtMoney(t.amountXof, currency)}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td style={{ fontWeight: 500 }}>Total du mois</td>
+                    <td className="num">{fmtMoney(totalPourboires, currency)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* ── LES TÊTES À COMPLÉTER ─────────────────────────────────────
+          Une prestation sans mains ne compte pour personne. Celui qui a fait
+          le geste le dit lui-même, sans attendre qu'on le lui demande. */}
+      {moi && aCompleter.length > 0 && (
+        <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+          <div className="tre-rates__head">
+            <span className="tre-rates__title">Têtes à compléter · {aCompleter.length}</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>
+              Ces rituels n’ont pas dit qui les a faits. Sans mains, la prestation ne compte
+              ni dans la production ni dans les seuils.
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+            {aCompleter.map((a) => (
+              <div key={a.id} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '11px 13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13 }}>{a.clientName ?? 'Cliente'}</span>
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>
+                    {new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
+                    {a.master ? ` · assigné à ${a.master}` : ''}
+                  </span>
+                </div>
+                {a.serviceIds.map((sid, i) => {
+                  const sv = svcById.get(sid);
+                  if (!sv) return null;
+                  const posees = a.mains?.[i] ?? [];
+                  return (
+                    <div key={`${a.id}-${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', padding: '5px 0' }}>
+                      <span style={{ fontSize: 12.5, minWidth: 180 }}>{sv.name}</span>
+                      {equipe.filter((x) => x.auFauteuil).map((x) => (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className={`tre-chip ${posees.includes(x.id) ? 'is-on' : ''}`}
+                          style={{ fontSize: 11.5 }}
+                          onClick={() => poserMain(a.id, i, x.id)}
+                        >
+                          {x.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+            Un geste fait à deux compte une demi-part de chaque côté. Ne coche que ce que tu as
+            réellement fait — le gérant relit ces attributions.
+          </div>
+        </Card>
       )}
 
       {/* ── LE CLASSEMENT ─────────────────────────────────────────────
