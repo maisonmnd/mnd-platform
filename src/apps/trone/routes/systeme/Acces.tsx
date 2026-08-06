@@ -3,7 +3,8 @@ import { PageHead } from '../_ui';
 import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff } from '../../../../shared/auth';
-import { staffAccessStore, ERP_DOMAINS } from '../equipe/data';
+import { staffAccessStore } from '../equipe/data';
+import { NAV, ROUTES_MAITRE, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
 import './systeme.css';
@@ -332,26 +333,49 @@ export default function Acces() {
                     Rien a cocher pour un gerant ou un souverain : ils ouvrent
                     tout, et des cases sans effet feraient croire au contraire. */}
                 {m.role === 'maitre' && (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', padding: '0 0 12px 2px' }}>
-                    <span className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' }}>
-                      Domaines ouverts en plus
-                    </span>
-                    {ERP_DOMAINS.map((d) => (
-                      <button
-                        key={d.k}
-                        type="button"
-                        className={`tre-chip ${acces[m.user_id]?.[d.k] ? 'is-on' : ''}`}
-                        style={{ fontSize: 11.5 }}
-                        onClick={() => basculeDomaine(m.user_id, d.k)}
-                      >
-                        {d.l}
-                      </button>
-                    ))}
-                    <span className="mnd-muted" style={{ fontSize: 11.5, flexBasis: '100%', marginTop: 4, lineHeight: 1.5 }}>
-                      Sans rien de coché : Mon mois et le Calendrier, sans les montants.
-                      Ouvrir <strong style={{ fontWeight: 500 }}>Vente</strong> ou{' '}
-                      <strong style={{ fontWeight: 500 }}>Finances</strong> lui rend aussi les prix.
-                    </span>
+                  <div style={{ padding: '0 0 14px 2px' }}>
+                    <div className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      Écrans ouverts en plus
+                    </div>
+                    {NAV.map((g) => {
+                      const ecrans = g.items.filter((it) => !ROUTES_MAITRE.includes(it.path));
+                      if (!ecrans.length) return null;
+                      const dom = domaineDe(ecrans[0].path);
+                      const toutOuvert = !!dom && acces[m.user_id]?.[dom] === true;
+                      return (
+                        <div key={g.group} style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginBottom: 7 }}>
+                          <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', minWidth: 150 }}>
+                            {g.group}
+                          </span>
+                          {/* LE DOMAINE ENTIER RESTE POSSIBLE, mais ce n'est plus
+                              le seul geste : il eclaire alors tous ses ecrans. */}
+                          <button
+                            className={`tre-chip ${toutOuvert ? 'is-on' : ''}`}
+                            style={{ fontSize: 11 }}
+                            onClick={() => dom && basculeDomaine(m.user_id, dom)}
+                          >
+                            tout
+                          </button>
+                          {ecrans.map((it) => (
+                            <button
+                              key={it.path}
+                              className={`tre-chip ${toutOuvert || acces[m.user_id]?.[it.path] ? 'is-on' : ''}`}
+                              style={{ fontSize: 11.5 }}
+                              onClick={() => basculeDomaine(m.user_id, it.path)}
+                              title={toutOuvert ? 'Ouvert par le domaine entier' : undefined}
+                            >
+                              {it.label}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                      Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la
+                      <strong style={{ fontWeight: 500 }}> Caisse</strong>, les
+                      <strong style={{ fontWeight: 500 }}> Factures</strong> ou tout le domaine
+                      <strong style={{ fontWeight: 500 }}> Vente</strong> lui rend aussi les prix.
+                    </div>
                   </div>
                 )}
                 </div>

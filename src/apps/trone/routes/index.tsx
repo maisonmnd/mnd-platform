@@ -121,22 +121,37 @@ const DOMAINE_DU_GROUPE: Record<string, string> = {
 export const domaineDe = (path: string): string | undefined =>
   DOMAINE_DU_GROUPE[NAV.find((g) => g.items.some((i) => i.path === path))?.group ?? ''];
 
+/* ── OUVRIR UN ÉCRAN, PAS UN DOMAINE ────────────────────────────────────
+   Cocher « Clients & Agenda » ouvrait onze écrans d'un coup — les
+   consultations, les personas, la vitrine — là où un secrétaire n'a besoin
+   que du calendrier, du carnet et des clientes. Une porte trop large est une
+   porte ouverte.
+
+   La matrice accepte donc les deux : la CLÉ D'UN DOMAINE ouvre tout le
+   domaine, le CHEMIN D'UN ÉCRAN ouvre cet écran seul. Les chemins commencent
+   par « / », les domaines non : rien ne se confond, et les réglages posés
+   avant ce jour continuent de valoir. */
 export const peutVoir = (
   role: string | undefined,
   path: string,
-  domaines: Record<string, boolean> = {},
+  acces: Record<string, boolean> = {},
 ): boolean => {
   if (role !== 'maitre') return true;
   if (ROUTES_MAITRE.includes(path)) return true;
+  if (acces[path] === true) return true;
   const d = domaineDe(path);
-  return !!d && domaines[d] === true;
+  return !!d && acces[d] === true;
 };
 
 /** LES MONTANTS SE TAISENT POUR UN MAÎTRE — sauf s'il tient aussi le comptoir.
     Un secrétaire qui encaisse a besoin des prix ; un praticien qui vient
     pointer, non. C'est le domaine ouvert qui tranche, pas le rôle. */
-export const voitLesPrix = (role: string | undefined, domaines: Record<string, boolean> = {}): boolean =>
-  role !== 'maitre' || domaines.vente === true || domaines.finances === true;
+export const voitLesPrix = (role: string | undefined, acces: Record<string, boolean> = {}): boolean =>
+  role !== 'maitre'
+  || acces.vente === true || acces.finances === true
+  /* Ouvrir la Caisse ou les Factures sans les montants n'aurait aucun sens :
+     l'écran lui-même vaut autorisation de voir les prix. */
+  || acces['/caisse'] === true || acces['/factures'] === true;
 
 /** L'écran d'accueil d'un rôle — celui vers lequel on renvoie quand la route
     demandée ne lui est pas ouverte. Un maître qui tape une adresse de finances
