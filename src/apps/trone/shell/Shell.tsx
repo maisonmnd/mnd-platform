@@ -23,7 +23,12 @@ function SyncDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
   if (!s.enabled) return null;
   const mode = !s.online ? 'off' : s.failed > 0 ? 'err' : s.pending > 0 ? 'wait' : 'ok';
-  const label = mode === 'off' ? 'Hors ligne' : mode === 'err' ? 'Synchro en échec' : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
+  /* EN ÉCHEC, ON NOMME. Une pastille qui dit « en échec » sans dire de quoi
+     oblige à ouvrir la console du navigateur pour diagnostiquer — ce qui n'est
+     pas une chose qu'on demande à un comptoir en pleine journée. */
+  const label = mode === 'off' ? 'Hors ligne'
+    : mode === 'err' ? `Synchro en échec · ${s.failedNames.join(', ') || '?'}`
+    : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
   const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne — les écritures restent sur ce poste et partiront au retour du réseau.'
