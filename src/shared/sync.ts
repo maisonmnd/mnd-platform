@@ -27,6 +27,24 @@ const PUSH_DEBOUNCE_MS = 250;
 export type SyncState = { enabled: boolean; online: boolean; pending: number; failed: number; failedNames: string[]; lastOkAt: number | null };
 const syncListeners = new Set<() => void>();
 const dirtyTables = new Set<string>();
+/* UN REFUS DE DROIT N'EST PAS UNE PANNE.
+
+   Depuis que des comptes non souverains ouvrent Le Trône, la pastille virait
+   au rouge en permanence : un maître ne peut ni lire ni écrire les tables de
+   paie, et chaque tentative était comptée comme un échec de synchronisation.
+
+   Ce n'en est pas un. C'est la sécurité de la base qui fait son travail — et
+   annoncer une panne quand tout fonctionne apprend à ignorer l'alerte, ce qui
+   coûte plus cher que l'alerte elle-même. Ces tables sont mises DE CÔTÉ : on
+   cesse d'essayer, on ne crie pas, et le journal le note une fois.
+
+   Un vrai échec — réseau coupé, table absente, contrainte violée — continue
+   d'allumer le rouge. */
+const horsPortee = new Set<string>();
+const estRefusDeDroit = (msg: string | undefined): boolean => {
+  const m = (msg ?? '').toLowerCase();
+  return m.includes('row-level security') || m.includes('permission denied') || m.includes('42501');
+};
 const failedTables = new Set<string>();
 let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
@@ -61,6 +79,17 @@ const syncMark = {
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
   ok(t: string) { dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now(); bumpSync(); },
   fail(t: string) { dirtyTables.delete(t); failedTables.add(t); bumpSync(); },
+  /* La table sort du décompte ET des tentatives : une fois pour la session. */
+  horsPortee(t: string) {
+    dirtyTables.delete(t);
+    failedTables.delete(t);
+    if (!horsPortee.has(t)) {
+      horsPortee.add(t);
+      console.info(`[mnd-sync] ${t} : hors de portée de ce compte — les droits l'y refusent, ce n'est pas une panne.`);
+    }
+    bumpSync();
+  },
+  estHorsPortee: (t: string) => horsPortee.has(t),
 };
 
 type WithId = { id: string; branchId?: string };
@@ -86,6 +115,9 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     const deletes: string[] = [];
     for (const id of prev.keys()) if (!next.has(id)) deletes.push(id);
 
+    /* Une table hors de portée ne se retente pas : on épargne au serveur des
+       refus certains, et au comptoir une pastille qui clignote pour rien. */
+    if (syncMark.estHorsPortee(table)) return true;
     let ok = true;
     if (upserts.length) {
       /* GARDE-FOU ÉCRASEMENT de MASSE (incident du 02-08-2026 : une fenêtre
@@ -119,6 +151,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         }
       }
       const { error } = await sb.from(table).upsert(upserts);
+      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
       if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
@@ -134,6 +167,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         console.warn(`[mnd-sync] ${table} : suppression de masse BLOQUÉE (${deletes.length}/${prev.size} lignes) — état local suspect, rien n'a été effacé du serveur.`);
       } else {
         const { error } = await sb.from(table).delete().in('id', deletes);
+        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
         if (error) { ok = false; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
@@ -148,6 +182,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
          sur un poste qui travaillait en realite sur son seul cache local — table
          absente, RLS, reseau au demarrage. */
+      if (estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return; }
       console.warn(`[mnd-sync] ${table} hydrate:`, error.message);
       syncMark.fail(table);
       return;
@@ -300,6 +335,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   const hydrate = async (seed: boolean) => {
     const { data, error } = await sb.from('documents').select('data').eq('key', key).maybeSingle();
     if (error) {
+      if (estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
       console.warn(`[mnd-sync] doc ${key} hydrate:`, error.message);
       return;
     }
@@ -308,7 +344,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       store.set((data as { data: T }).data);
       applyingRemote = false;
       lastPushed = JSON.stringify((data as { data: T }).data);
-    } else if (seed) {
+    } else if (seed && !syncMark.estHorsPortee(`doc:${key}`)) {
       const local = store.get();
       lastPushed = JSON.stringify(local);
       const { error: upErr } = await upsert(local);
@@ -337,6 +373,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
       lastPushed = j;
       const { error } = await upsert(val);
+      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
       if (error) { syncMark.fail(`doc:${key}`); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); }
       else syncMark.ok(`doc:${key}`);
     }, PUSH_DEBOUNCE_MS);
