@@ -101,6 +101,12 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
 
   let applyingRemote = false;
   let lastPushed = new Map<string, string>();
+  /* AUCUNE POUSSÉE AVANT D'AVOIR LU. Tant que le poste n'a pas vu le serveur,
+     `lastPushed` est vide : tout lui paraît nouveau, et le moindre changement
+     local déclenche une poussée massive que les garde-fous bloquent. On attend
+     donc la première lecture réussie — le serveur fait foi, y compris sur
+     l'ordre des choses. */
+  let lu = false;
 
   const snapshot = (items: readonly T[]): Map<string, string> => {
     const m = new Map<string, string>();
@@ -195,8 +201,23 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     return ok;
   };
 
-  // 1. Hydratation (ou amorçage de la semence).
+  // 1. Hydratation — MAIS PAS AVANT QUE LA SESSION SOIT LÀ.
   void (async () => {
+    /* SANS SESSION, « zéro ligne » NE VEUT PAS DIRE « serveur vide ».
+       L'hydratation partait dès le chargement du module, avant que Supabase
+       n'ait restauré la session. Les tables publiques — le catalogue, les
+       branches — répondaient normalement ; celles que la RLS protège —
+       clientes, rendez-vous, factures, familles — rendaient zéro ligne, et
+       ce zéro était lu comme « le serveur ne porte rien, alignons-nous ».
+       Le cache local était effacé.
+       La session arrivait une fraction de seconde plus tard et tout se
+       rechargeait, mais dans cet intervalle une poussée pouvait partir sur du
+       vide : les garde-fous la bloquaient, et la pastille restait rouge.
+       C'était la cause des quatre tables toujours citées ensemble.
+       On attend donc la session ; l'écouteur ci-dessous hydratera dès qu'elle
+       est là. */
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
     const { data, error } = await sb.from(table).select('id,data');
     if (error) {
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
@@ -213,6 +234,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       store.set(items);
       applyingRemote = false;
       lastPushed = snapshot(items);
+      lu = true;
     } else {
       /* Table serveur VIDE — ET LE SERVEUR FAIT FOI. On aligne le magasin local
          sur ce vide, sans rien pousser.
@@ -234,6 +256,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       store.set([] as unknown as T[]);
       applyingRemote = false;
       lastPushed = new Map();
+      lu = true;
     }
   })();
 
@@ -256,6 +279,9 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     if (same) return;
     applyingRemote = true;
     store.set(items);
+    /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
+       quand la session arrive apres le chargement du module. */
+    lu = true;
     applyingRemote = false;
     lastPushed = next;
   };
@@ -281,7 +307,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   // 2. Poussée des changements locaux (coalescée).
   let timer: ReturnType<typeof setTimeout> | undefined;
   store.subscribe(() => {
-    if (applyingRemote) return;
+    if (applyingRemote || !lu) return;
     syncMark.dirty(table);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
@@ -371,10 +397,21 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       if (upErr) console.warn(`[mnd-sync] doc ${key} seed:`, upErr.message);
     }
   };
-  void hydrate(true);
-  /* Session prête / connexion / déconnexion : re-lit (droits RLS changés), sans ré-amorcer. */
+  /* MÊME RÈGLE QU'AUX COLLECTIONS : sans session, une lecture vide ne prouve
+     rien, et amorcer le serveur avec le cache local serait une faute. On
+     n'amorce donc qu'une fois la session connue — et une seule fois. */
+  let amorce = false;
+  void (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    amorce = true;
+    await hydrate(true);
+  })();
   sb.auth.onAuthStateChange((event) => {
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') void hydrate(false);
+    if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'TOKEN_REFRESHED') return;
+    const premier = !amorce;
+    amorce = true;
+    void hydrate(premier);
   });
 
   // 2. Poussée locale (coalescée).
