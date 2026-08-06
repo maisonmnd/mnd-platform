@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Input, Textarea, toast } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
@@ -15,7 +15,9 @@ import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } fr
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
-import { ERP_DOMAINS, useSalonHours, WEEK_DAYS } from '../equipe/data';
+import { ERP_DOMAINS, useSalonHours, WEEK_DAYS, useStaff } from '../equipe/data';
+import { useExceptionsHoraires, type HoraireException } from '../equipe/payroll';
+import { uid } from '../../../../shared/store';
 import './systeme.css';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
@@ -429,6 +431,8 @@ function FactoryResetCard() {
 
 export default function Parametres() {
   const [heures, setHeures] = useSalonHours();
+  const [exceptions, setExceptions] = useExceptionsHoraires();
+  const [equipe] = useStaff();
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
   const [autoCfgRaw, setAutoCfgRaw] = useStore(autoConfigStore);
@@ -1108,6 +1112,85 @@ export default function Parametres() {
         <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
           Écris l’heure comme « 08h00 » ou « 08:00 ». Le Calendrier couvre la plus large amplitude
           de la semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
+        </div>
+      </Card>
+
+      {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────
+          Un inventaire, une fermeture, une personne à qui l'on a demandé de
+          venir plus tard. Sans elles, le pointage jugeait en retard quelqu'un
+          qui faisait exactement ce qu'on lui avait demandé — et une prime se
+          perdait sur un malentendu. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Journées exceptionnelles</div>
+        <div className="sys-section__cap">
+          Un inventaire, une fermeture, une arrivée décalée pour une personne. Ce jour-là,
+          l’horaire ci-dessous remplace celui de la semaine — et le pointage juge sur lui.
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+          {exceptions.length === 0 && (
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+              Aucune. La semaine type s’applique tous les jours.
+            </div>
+          )}
+          {[...exceptions].sort((a, b) => (a.date < b.date ? 1 : -1)).map((ex) => {
+            const maj = (patch: Partial<HoraireException>) =>
+              setExceptions(exceptions.map((x) => (x.id === ex.id ? { ...x, ...patch } : x)));
+            return (
+              <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
+                <Input type="date" value={ex.date} onChange={(e) => maj({ date: e.target.value })} style={{ width: 150 }} />
+                <Select
+                  value={ex.staffId ?? ''}
+                  onChange={(e) => maj({ staffId: e.target.value || undefined })}
+                  style={{ width: 190 }}
+                >
+                  <option value="">Toute la Maison</option>
+                  {equipe.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </Select>
+                <button
+                  className={`tre-chip ${ex.closed ? '' : 'is-on'}`}
+                  onClick={() => maj({ closed: !ex.closed })}
+                  style={{ fontSize: 11.5, minWidth: 78 }}
+                >
+                  {ex.closed ? 'Fermé' : 'Ouvert'}
+                </button>
+                {!ex.closed && (
+                  <>
+                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} placeholder="10h00" style={{ width: 86, textAlign: 'center' }} />
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} placeholder="19h00" style={{ width: 86, textAlign: 'center' }} />
+                  </>
+                )}
+                <Input value={ex.note ?? ''} onChange={(e) => maj({ note: e.target.value })} placeholder="Inventaire" style={{ flex: 1, minWidth: 130 }} />
+                <button
+                  className="tre-link-btn tre-link-btn--danger"
+                  onClick={() => setExceptions(exceptions.filter((x) => x.id !== ex.id))}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <button
+            className="tre-link-btn"
+            onClick={() => setExceptions([
+              ...exceptions,
+              { id: `hx-${uid()}`, date: new Date().toISOString().slice(0, 10), open: '', close: '', closed: false },
+            ])}
+          >
+            + Journée exceptionnelle
+          </button>
+        </div>
+
+        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+          Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
+          possible sans retoucher la fermeture. Une exception nominative l’emporte sur celle de la
+          Maison — le plus précis gagne.
         </div>
       </Card>
 

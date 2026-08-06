@@ -240,6 +240,49 @@ export const baremePointsStore = createStore<BaremePoints>('mnd_bareme_points', 
 export const useBaremePoints = () => useStore(baremePointsStore);
 bindDocument(baremePointsStore, 'mnd_bareme_points');
 
+/* ── LES JOURNÉES QUI NE SUIVENT PAS LA SEMAINE ─────────────────────────
+   Un inventaire, une fermeture exceptionnelle, une personne à qui l'on a
+   demandé de venir plus tard : la semaine type ne sait pas dire ces jours-là.
+   Sans elles, le pointage jugeait en retard quelqu'un qui faisait exactement
+   ce qu'on lui avait demandé — et une prime se perdait sur un malentendu.
+
+   Une exception SANS `staffId` vaut pour toute la Maison ; avec, elle ne vaut
+   que pour cette personne, et l'emporte alors sur celle du salon. Le plus
+   précis gagne : c'est la règle habituelle, et c'est celle qu'on attend. */
+export type HoraireException = {
+  id: string;
+  date: string;       // AAAA-MM-JJ
+  staffId?: string;   // absent = toute la Maison
+  open?: string;
+  close?: string;
+  closed?: boolean;
+  note?: string;
+};
+export const exceptionsHorairesStore = createStore<HoraireException[]>('mnd_horaires_exceptions', []);
+export const useExceptionsHoraires = () => useStore(exceptionsHorairesStore);
+bindDocument(exceptionsHorairesStore, 'mnd_horaires_exceptions');
+
+/** L'horaire qui s'applique VRAIMENT à une personne un jour donné. */
+export const horaireEffectif = (
+  date: string,
+  staffId: string | undefined,
+  semaine: Record<string, { open: string; close: string; closed: boolean }>,
+  exceptions: HoraireException[],
+  jourDeLaSemaine: (d: string) => string,
+): { open: string; close: string; closed: boolean; exception?: HoraireException } => {
+  const base = semaine[jourDeLaSemaine(date)] ?? { open: '09h00', close: '19h00', closed: false };
+  const duJour = exceptions.filter((e) => e.date === date);
+  /* Le plus précis d'abord : la personne, puis la Maison. */
+  const ex = duJour.find((e) => e.staffId && e.staffId === staffId) ?? duJour.find((e) => !e.staffId);
+  if (!ex) return base;
+  return {
+    open: ex.open?.trim() || base.open,
+    close: ex.close?.trim() || base.close,
+    closed: ex.closed ?? base.closed,
+    exception: ex,
+  };
+};
+
 /** Minutes depuis minuit. Accepte « 09h00 » comme « 09:00 » — les horaires du
     salon s'écrivent avec un h, le pointage avec deux points. */
 export const minutesDe = (h: string | undefined): number | undefined => {

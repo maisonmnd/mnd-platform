@@ -8,7 +8,8 @@ import { sameName } from '../../../../shared/text';
 import { useStaff, useSalonHours, type StaffMember } from './data';
 import {
   useAttendance, useBaremePoints, pointsDuJour, minutesDe,
-  type Attendance, type BaremePoints,
+  useExceptionsHoraires, horaireEffectif,
+  type Attendance,
 } from './payroll';
 import { uid } from '../../../../shared/store';
 import { useTips } from '../../../../shared/tips';
@@ -45,6 +46,7 @@ export default function MonMois() {
   const [pointages, setPointages] = useAttendance();
   const [bareme] = useBaremePoints();
   const [horaires] = useSalonHours();
+  const [exceptions] = useExceptionsHoraires();
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
@@ -72,7 +74,13 @@ export default function MonMois() {
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';
 
   const M = moisDe(iso(new Date()));
-  const horaireDu = (d: string) => horaires[JOURS[new Date(`${d}T00:00:00`).getDay()]];
+  /* L'HORAIRE D'UNE PERSONNE UN JOUR DONNÉ — la semaine type, sauf exception.
+     Une exception nominative l'emporte sur celle de la Maison : c'est le plus
+     précis qui gagne. */
+  const jourDeLaSemaine = (d: string) => JOURS[new Date(`${d}T00:00:00`).getDay()];
+  const horaireDe = (d: string, staffId?: string) =>
+    horaireEffectif(d, staffId, horaires, exceptions, jourDeLaSemaine);
+  const horaireDu = (d: string) => horaireDe(d, moi?.id);
 
   /* Les points d'une personne sur le mois, et le détail jour par jour. */
   const bilanDe = (m: StaffMember) => {
