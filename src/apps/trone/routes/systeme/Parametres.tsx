@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
@@ -16,7 +17,7 @@ import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import { ERP_DOMAINS, useStaff } from '../equipe/data';
-import { useExceptionsHoraires, usePointageConfig, type HoraireException } from '../equipe/payroll';
+import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
 import { uid } from '../../../../shared/store';
 import './systeme.css';
 
@@ -437,6 +438,15 @@ function FactoryResetCard() {
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [preuve, setPreuve] = usePointageConfig();
+  const navigate = useNavigate();
+
+  /* LE CODE DU JOUR NAÎT SEUL. On l'assure au premier regard porté sur cet
+     écran ; le Comptoir fait de même de son côté, et la synchro les accorde. */
+  const aujourdhuiIso = new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    if (preuve.exigerPreuve) assurerCodeDuJour(preuve, aujourdhuiIso, setPreuve);
+  }, [preuve, aujourdhuiIso, setPreuve]);
+  const codeAujourdhui = preuve.codeDate === aujourdhuiIso ? (preuve.codeValeur ?? '') : '';
   const [equipe] = useStaff();
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
@@ -1176,27 +1186,28 @@ export default function Parametres() {
               </Field>
             </div>
 
-            <Field label="Code du jour — à afficher au comptoir">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {/* LE BOUTON DU MATIN A DISPARU le 6 août. Il fallait le presser
+                chaque jour — donc on l'oubliait, et le jour de l'oubli
+                personne ne pouvait plus pointer sans GPS. Une vérification
+                suspendue à un geste humain répété finit toujours par céder. */}
+            <Field label="Code du jour">
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
-                  {preuve.codeDate === new Date().toISOString().slice(0, 10) && preuve.codeValeur ? preuve.codeValeur : '— — — —'}
+                  {codeAujourdhui || '— — — —'}
                 </span>
-                <button
-                  className="tre-link-btn"
-                  onClick={() => setPreuve({
-                    ...preuve,
-                    codeValeur: String(Math.floor(1000 + Math.random() * 9000)),
-                    codeDate: new Date().toISOString().slice(0, 10),
-                  })}
-                >
-                  Générer le code d’aujourd’hui
+                <button className="tre-link-btn" onClick={() => navigate('/comptoir')}>
+                  Ouvrir l’affichage du comptoir
                 </button>
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                Il ne sert qu’à celles et ceux dont le téléphone ne donne pas sa position. Génère-le
-                le matin et écris-le au comptoir : ce qu’il prouve, c’est d’être passé le lire.
-                Ce n’est pas un secret — qui sait interroger la base le trouvera — mais il protège
-                de la négligence, comme le reste de cette maison.
+                Il se renouvelle seul chaque jour — rien à presser. Il ne sert qu’à celles et ceux
+                dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
+                le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
+                quatre chiffres à la main.
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                L’équipe ne le voit jamais dans l’application : un code que le logiciel montre au
+                téléphone qui s’en sert ne prouve plus rien.
               </div>
             </Field>
           </>

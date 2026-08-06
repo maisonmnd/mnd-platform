@@ -814,3 +814,92 @@
   outline: 2px solid var(--copper-600);
   outline-offset: 2px;
 }
+
+/* ═══ LE COMPTOIR ═════════════════════════════════════════════════════════
+   L'écran posé au salon. Il couvre tout : on le pose sur une tablette et on
+   n'y touche plus, donc il ne doit rien montrer d'autre. Fond indigo, chiffres
+   cuivre — les couleurs de la Maison, lisibles à trois mètres. */
+.cpt {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.2vh;
+  padding: 4vh 5vw;
+  background: var(--color-indigo, #1b1f3b);
+  color: #f6f1e8;
+  text-align: center;
+}
+
+.cpt__sortie {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: rgba(246, 241, 232, 0.34);
+  font-size: 20px;
+  line-height: 1;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.cpt__sortie:hover { color: rgba(246, 241, 232, 0.8); }
+
+.cpt__marque {
+  font-family: var(--font-sans);
+  font-size: clamp(11px, 1.5vw, 15px);
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 232, 0.5);
+}
+
+.cpt__jour {
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 3.4vw, 40px);
+  color: rgba(246, 241, 232, 0.86);
+}
+
+/* LES CHIFFRES SÉPARÉS, pas un nombre. On les lit un par un depuis l'autre
+   bout de la pièce, et l'on ne confond pas 4712 avec 4 712. */
+.cpt__code {
+  display: flex;
+  gap: clamp(10px, 2.4vw, 34px);
+  margin: 1vh 0;
+}
+
+.cpt__chiffre {
+  font-family: var(--font-serif);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(72px, 20vw, 260px);
+  line-height: .95;
+  color: var(--color-copper, #c98a5b);
+  min-width: .62em;
+}
+
+.cpt__attente {
+  font-family: var(--font-serif);
+  font-size: clamp(60px, 14vw, 180px);
+  color: rgba(246, 241, 232, 0.3);
+}
+
+.cpt__pied {
+  font-family: var(--font-sans);
+  font-size: clamp(11px, 1.4vw, 14px);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 232, 0.44);
+}
+
+.cpt__dormant {
+  max-width: 46ch;
+  margin-top: 2vh;
+  padding: 12px 18px;
+  border: 1px solid rgba(246, 241, 232, 0.18);
+  font-family: var(--font-sans);
+  font-size: clamp(11.5px, 1.3vw, 13.5px);
+  line-height: 1.6;
+  color: rgba(246, 241, 232, 0.62);
+}

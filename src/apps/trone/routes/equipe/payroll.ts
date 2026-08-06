@@ -283,12 +283,39 @@ export const distanceM = (aLat: number, aLng: number, bLat: number, bLng: number
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 };
 
-/** Le code du jour — quatre chiffres, régénérés au premier regard d'un jour
+/** Le code du jour — quatre chiffres, renouvelés au premier regard d'un jour
     nouveau. On ne le calcule pas depuis la date : un code déductible se
     devinerait à l'avance, et l'on veut qu'il faille être passé au comptoir. */
 export const codeDuJour = (cfg: PointageConfig, aujourdhui: string): string => {
   if (cfg.codeDate === aujourdhui && cfg.codeValeur) return cfg.codeValeur;
   return '';
+};
+
+/* LE CODE SE RENOUVELLE SEUL — décidé le 6 août. Il y avait un bouton
+   « Générer le code d'aujourd'hui » à presser chaque matin : une corvée
+   quotidienne, donc une corvée qu'on oublie, et le jour où on l'oublie
+   personne ne peut plus pointer sans GPS. Une vérification qui dépend d'un
+   geste humain répété finit toujours par céder.
+
+   IL RESTE INVISIBLE À CELUI QUI POINTE. Un code que l'application montre au
+   téléphone qui s'en sert ne prouve plus rien : on le lirait depuis son lit.
+   Il ne s'affiche qu'au comptoir et dans les Paramètres — là où il faut être,
+   ou être responsable, pour le voir. */
+export const codeAleatoire = (): string => String(Math.floor(1000 + Math.random() * 9000));
+
+/** Le code d'aujourd'hui, créé s'il manque. `ecrire` n'est appelé que par les
+    écrans qui ont le droit de l'afficher ; deux écrans ouverts le même jour
+    convergent d'eux-mêmes, la synchro tranchant au dernier écrivant. */
+export const assurerCodeDuJour = (
+  cfg: PointageConfig,
+  aujourdhui: string,
+  ecrire: (c: PointageConfig) => void,
+): string => {
+  const existant = codeDuJour(cfg, aujourdhui);
+  if (existant) return existant;
+  const neuf = codeAleatoire();
+  ecrire({ ...cfg, codeValeur: neuf, codeDate: aujourdhui });
+  return neuf;
 };
 
 /* ── LES JOURNÉES QUI NE SUIVENT PAS LA SEMAINE ─────────────────────────
