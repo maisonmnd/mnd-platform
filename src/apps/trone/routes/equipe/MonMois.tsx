@@ -3,7 +3,7 @@ import { PageHead } from '../_ui';
 import { Card, Input, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { sameName } from '../../../../shared/text';
 import { useStaff, useSalonHours, type StaffMember } from './data';
 import {
@@ -46,6 +46,7 @@ export default function MonMois() {
   const [bareme] = useBaremePoints();
   const [horaires] = useSalonHours();
   const me = useMyStaff();
+  const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
   const [tips] = useTips();
   const [appts] = useAppointments();
@@ -53,10 +54,21 @@ export default function MonMois() {
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
 
   const equipe = useMemo(() => team.filter((m) => m.branchId === branch.id), [team, branch.id]);
-  /* QUI SUIS-JE dans l'équipe : le compte du Trône porte un nom, la fiche du
-     personnel aussi. On les rapproche par le nom, normalisé — c'est déjà
-     ainsi que la Maison relie ses deux registres. */
-  const moi = equipe.find((m) => sameName(m.name, me?.name ?? '')) ?? null;
+  /* QUI SUIS-JE dans l'équipe. Le compte du Trône et la fiche du personnel
+     sont deux registres distincts ; il faut les rapprocher.
+
+     L'ADRESSE D'ABORD, le nom ensuite. Le nom d'un compte est proposé d'après
+     son e-mail au moment de l'autorisation — « Locksmnd » pour
+     locksmnd@gmail.com — quand la fiche, elle, porte « Gerard Tolofon ».
+     Deux registres, deux libellés, aucun rattachement : c'est ce qui laissait
+     ce membre devant un écran vide alors que tout était bien saisi.
+
+     L'adresse, elle, ne se paraphrase pas. On la lit sur la fiche du
+     personnel ; le nom reste le repli pour les fiches qui n'en portent pas. */
+  const monMail = (session?.user?.email ?? '').trim().toLowerCase();
+  const moi = equipe.find((m) => monMail && (m.email ?? '').trim().toLowerCase() === monMail)
+    ?? equipe.find((m) => sameName(m.name, me?.name ?? ''))
+    ?? null;
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';
 
   const M = moisDe(iso(new Date()));
@@ -163,8 +175,9 @@ export default function MonMois() {
         <Card style={{ padding: '18px 20px' }}>
           <div className="tre-rates__title">Ce compte n’est rattaché à aucune fiche du personnel</div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6, maxWidth: '62ch' }}>
-            Le pointage se rattache à une fiche de l’équipe, retrouvée par le nom. Demande au gérant
-            de vérifier que ton nom dans Personnel &amp; paie est bien le même que celui de ton compte.
+            Le pointage se rattache à une fiche de l’équipe, retrouvée par l’adresse e-mail — ou à
+            défaut par le nom. Demande au gérant d’inscrire l’adresse de ton compte sur ta fiche
+            dans Personnel &amp; paie, ou d’y écrire exactement le même nom.
           </div>
         </Card>
       )}
