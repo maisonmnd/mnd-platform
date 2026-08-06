@@ -146,7 +146,13 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
           store.set(items2);
           applyingRemote = false;
           lastPushed = snapshot(items2);
-          syncMark.fail(table);
+          /* LE GARDE-FOU A FAIT SON TRAVAIL : la poussée périmée est abandonnée
+             et le poste porte maintenant EXACTEMENT ce que porte le serveur.
+             Il n'y a donc plus rien en attente — annoncer « en échec » serait
+             faux, et ce faux a coûté cher : la pastille restait rouge jusqu'au
+             prochain rechargement, et l'on finissait par ne plus la croire.
+             On dit ce qui s'est passé dans le journal, et on repart au vert. */
+          syncMark.ok(table);
           return;
         }
       }
@@ -163,8 +169,22 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
          le dit en console, et la pastille de synchro passe en échec. */
       const massive = deletes.length >= 10 && deletes.length * 4 >= prev.size;
       if (massive) {
-        ok = false;
         console.warn(`[mnd-sync] ${table} : suppression de masse BLOQUÉE (${deletes.length}/${prev.size} lignes) — état local suspect, rien n'a été effacé du serveur.`);
+        /* ON NE SE CONTENTE PLUS DE REFUSER. Un état local jugé suspect le
+           reste tant qu'on ne le remplace pas : la poussée suivante
+           représentait la même demande d'effacement, indéfiniment, et la
+           pastille restait rouge jusqu'au rechargement manuel.
+           On va donc rechercher la vérité au serveur et on s'aligne dessus.
+           Le poste redevient sain sans qu'on ait à lui demander quoi que ce
+           soit, et rien n'a été détruit. */
+        const { data: distant } = await sb.from(table).select('id,data');
+        const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
+        applyingRemote = true;
+        store.set(items2);
+        applyingRemote = false;
+        lastPushed = snapshot(items2);
+        syncMark.ok(table);
+        return true;
       } else {
         const { error } = await sb.from(table).delete().in('id', deletes);
         if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
