@@ -6,7 +6,7 @@ import { useBranch, branchesStore } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
-import { useServices } from '../../../../shared/catalog';
+import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
 import { apptNetXof, svcPriceForAppt } from '../clients/_shared';
@@ -24,7 +24,7 @@ import { bindDocument } from '../../../../shared/sync';
 import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
 
-type Tab = 'equipe' | 'travail' | 'temps' | 'paie' | 'parametres' | 'retention';
+type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retention';
 
 /* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
    (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
@@ -58,6 +58,40 @@ const PRIME_LABEL: Record<PrimeType, string> = {
 const PRIME_TYPES: [PrimeType, string][] = [
   ['performance', 'Performance'], ['nuit', 'Nuit'], ['fin_annee', 'Fin d’année'], ['autre', 'Autre'],
 ];
+
+/* ── LE BARÈME DE SEUILS ────────────────────────────────────────────────
+   Une prime qui récompense le VOLUME, là où la commission récompense le
+   montant. Vingt-cinq shampoings dans le mois valent 5 000 F, quarante en
+   valent 7 000 : le seuil se franchit, il ne se proratise pas.
+
+   Une règle vise ce qu'elle compte — un geste précis, une famille entière,
+   toutes les prestations, ou les TÊTES, c'est-à-dire les rituels. Ses paliers
+   sont cumulatifs par le haut : on retient le plus élevé qui soit atteint,
+   jamais leur somme, sinon franchir 40 paierait aussi les 25.
+
+   UN GESTE PARTAGÉ VAUT UNE PART, PARTAGÉE. Deux mains sur un shampoing font
+   avancer chacune d'une demi-unité — décision du 6 août. C'est ce qui rend le
+   seuil comparable à la valeur produite : sans cela, travailler à deux
+   doublerait le compte de la Maison sans doubler son travail. */
+export type CibleSeuil =
+  | { kind: 'service'; id: string }
+  | { kind: 'categorie'; id: string }
+  | { kind: 'tout' }
+  | { kind: 'tetes' };
+export type ReglePrime = {
+  id: string;
+  libelle: string;
+  cible: CibleSeuil;
+  /** Paliers triés ou non — le calcul retient le plus haut atteint. */
+  paliers: { seuil: number; montantXof: number }[];
+};
+const seuilsStore = createStore<ReglePrime[]>('mnd_seuils_primes', []);
+bindDocument(seuilsStore, 'mnd_seuils_primes');
+const useSeuils = () => useStore(seuilsStore);
+
+/** La prime due pour un compte donné : le palier le plus haut qui soit atteint. */
+export const primeDeSeuil = (regle: ReglePrime, compte: number): { seuil: number; montantXof: number } | undefined =>
+  [...regle.paliers].sort((a, b) => b.seuil - a.seuil).find((p) => p.seuil > 0 && compte >= p.seuil);
 
 /* Pourboires — staffId → liste, datés (rattachés au mois). Ajoutés au net à verser.
    Le magasin est partagé (`shared/tips.ts`) afin d'être alimenté aussi à
@@ -195,6 +229,8 @@ export default function Personnel() {
   const { session } = useAuth();
   const isSouverain = me?.role === 'souverain';
   const M = payMonth();
+  const [categories] = useCategories();
+  const [seuils, setSeuils] = useSeuils();
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
 
@@ -259,29 +295,43 @@ export default function Personnel() {
     m.commissionne === true
       ? (m.commissionTauxPct !== undefined ? m.commissionTauxPct / 100 : paletteRate(palier))
       : 0;
-  /* QUI A FAIT QUOI, ce mois-ci. Le travail se lisait jusqu'ici par le maitre
-     ASSIGNE du rendez-vous : une reprise faite a deux comptait entiere pour un
-     seul, et rien ne disait que la coiffure avait ete faite par une troisieme.
-     On lit desormais les MAINS, geste par geste — a defaut, le maitre assigne,
-     pour que l'historique d'avant reste lisible.
+  /* LA PRODUCTION DU MOIS — ce que chacun a réellement exécuté.
 
-     La valeur produite est le NET du rituel reparti entre ses prestations, puis
-     entre leurs mains : la somme des colonnes egale le chiffre du mois, jamais
-     davantage. Deux personnes sur un geste a 30 000 F en portent 15 000 chacune
-     — sans quoi additionner les maitres inventerait du chiffre d'affaires. */
-  const travailDuMois = useMemo(() => {
-    const par = new Map<string, { gestes: number; minutes: number; valeur: number; detail: Map<string, number> }>();
-    const at = (id: string) => {
+     Le travail se lisait par le maître ASSIGNÉ du rendez-vous : une reprise
+     faite à deux comptait entière pour un seul, et rien ne disait que la
+     coiffure avait été faite par une troisième. On lit désormais les MAINS,
+     geste par geste — à défaut, le maître assigné, pour que l'historique
+     d'avant reste lisible.
+
+     TOUT SE PARTAGE À PARTS ÉGALES : le compte du geste, sa durée, sa valeur.
+     Deux mains sur une reprise d'une heure à 30 000 F, c'est une demi-unité,
+     une demi-heure et 15 000 F pour chacune. Additionner sans partager
+     inventerait des heures de fauteuil que personne n'a passées. */
+  const production = useMemo(() => {
+    type Fiche = {
+      gestes: number; minutes: number; valeur: number; tetes: number;
+      parService: Map<string, number>; parCategorie: Map<string, number>;
+    };
+    const par = new Map<string, Fiche>();
+    const at = (id: string): Fiche => {
       let v = par.get(id);
-      if (!v) { v = { gestes: 0, minutes: 0, valeur: 0, detail: new Map() }; par.set(id, v); }
+      if (!v) {
+        v = { gestes: 0, minutes: 0, valeur: 0, tetes: 0, parService: new Map(), parCategorie: new Map() };
+        par.set(id, v);
+      }
       return v;
     };
+    const ajoute = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
+
     for (const a of appts) {
       if (a.branchId !== branch.id || a.status !== 'honoré') continue;
       if (a.date.slice(0, 7) !== M) continue;
       const net = a.seriesIndex && a.seriesIndex > 1 ? 0 : apptNetXof(a, byId);
       const poids = a.serviceIds.map((id) => { const sv = byId.get(id); return sv ? svcPriceForAppt(a, sv) : 0; });
       const parts = splitByWeights(net, poids);
+      /* LA TÊTE — le rituel lui-même, compté une fois et partagé entre toutes
+         les mains qui y ont touché, quel que soit le nombre de gestes. */
+      const surLaTete = new Set<string>();
       a.serviceIds.forEach((id, i) => {
         const sv = byId.get(id);
         if (!sv) return;
@@ -292,17 +342,36 @@ export default function Personnel() {
         const duree = (a.longueur ? sv.dureeParLongueur?.[a.longueur] : undefined) ?? sv.durationMin;
         for (const staffId of mains) {
           const v = at(staffId);
-          v.gestes += 1;
-          /* La duree se partage elle aussi : deux mains sur une reprise d'une
-             heure ne bloquent pas deux heures de fauteuil. */
+          v.gestes += 1 / mains.length;
           v.minutes += duree / mains.length;
           v.valeur += parts[i] / mains.length;
-          v.detail.set(sv.name, (v.detail.get(sv.name) ?? 0) + 1);
+          ajoute(v.parService, sv.id, 1 / mains.length);
+          ajoute(v.parCategorie, sv.categoryId, 1 / mains.length);
+          surLaTete.add(staffId);
         }
       });
+      for (const staffId of surLaTete) at(staffId).tetes += 1 / surLaTete.size;
     }
     return par;
   }, [appts, branch.id, M, byId, team]);
+
+  /* CE QUE COMPTE UNE RÈGLE, pour une personne. Une famille compte aussi ce
+     qui est rangé SOUS elle : viser GBÈJÍ™ doit prendre les SÍNSIN™, sinon la
+     mise en familles du 5 août aurait vidé les seuils en silence. */
+  const compteRegle = (regle: ReglePrime, staffId: string): number => {
+    const f = production.get(staffId);
+    if (!f) return 0;
+    if (regle.cible.kind === 'tetes') return f.tetes;
+    if (regle.cible.kind === 'tout') return f.gestes;
+    if (regle.cible.kind === 'service') return f.parService.get(regle.cible.id) ?? 0;
+    const sousArbre = sousArbreOf(categories, regle.cible.id);
+    let n = 0;
+    for (const [catId, v] of f.parCategorie) if (sousArbre.has(catId)) n += v;
+    return n;
+  };
+  /* Un compte se dit « 12,5 » quand un geste a été partagé — l'arrondi
+     masquerait qu'il manque une demi-unité pour franchir le seuil. */
+  const fmtCompte = (n: number) => (Math.round(n * 10) / 10).toLocaleString('fr-FR');
 
   const computeComm = (m: StaffMember, month: string) => {
     let presta = 0;
@@ -401,6 +470,38 @@ export default function Personnel() {
     setPrimes((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), p] }));
     setPrimeFor(null);
   };
+  /* INSCRIRE UNE PRIME DE SEUIL. Elle porte une MARQUE — la regle et le mois —
+     qui la rend reconnaissable : rouvrir l'ecran ne peut pas doubler un
+     versement, et retirer la prime rend le bouton, si le seuil se defait. */
+  const inscrirePrime = (m: StaffMember, regle: ReglePrime, montantXof: number, marque: string) => {
+    const pr: Prime = {
+      id: `pr-${uid()}`, type: 'performance', amountXof: montantXof,
+      date: `${M}-01`, note: marque,
+    };
+    setPrimes((prev) => ({ ...prev, [m.id]: [...(prev[m.id] ?? []), pr] }));
+    toast(`${regle.libelle} · ${fmtMoney(montantXof, currency)} inscrits en prime pour ${m.name}.`);
+  };
+  /* ── ÉDITION DU BARÈME DE SEUILS ───────────────────────────────────── */
+  const cibleDepuis = (v: string): CibleSeuil =>
+    v.startsWith('s:') ? { kind: 'service', id: v.slice(2) }
+    : v.startsWith('c:') ? { kind: 'categorie', id: v.slice(2) }
+    : v === 'tout' ? { kind: 'tout' } : { kind: 'tetes' };
+  const majRegle = (id: string, patch: Partial<ReglePrime>) =>
+    setSeuils((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const majPalier = (id: string, i: number, patch: Partial<{ seuil: number; montantXof: number }>) =>
+    setSeuils((prev) => prev.map((r) => (r.id === id
+      ? { ...r, paliers: r.paliers.map((pa, k) => (k === i ? { ...pa, ...patch } : pa)) } : r)));
+  const ajouterPalier = (id: string) =>
+    setSeuils((prev) => prev.map((r) => (r.id === id ? { ...r, paliers: [...r.paliers, { seuil: 0, montantXof: 0 }] } : r)));
+  const retirerPalier = (id: string, i: number) =>
+    setSeuils((prev) => prev.map((r) => (r.id === id ? { ...r, paliers: r.paliers.filter((_, k) => k !== i) } : r)));
+  const ajouterRegle = () =>
+    setSeuils((prev) => [...prev, { id: `sl-${uid()}`, libelle: '', cible: { kind: 'tetes' }, paliers: [{ seuil: 25, montantXof: 5000 }] }]);
+  const retirerRegle = (id: string) => {
+    if (!window.confirm('Supprimer ce barème ? Les primes déjà inscrites au mois ne bougent pas.')) return;
+    setSeuils((prev) => prev.filter((r) => r.id !== id));
+  };
+
   const removePrime = (staffId: string, primeId: string) =>
     setPrimes((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((p) => p.id !== primeId) }));
 
@@ -678,7 +779,7 @@ export default function Personnel() {
       <RhDashboard />
 
       <Tabs<Tab>
-        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'travail', l: 'Qui a fait quoi' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
+        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'production', l: 'Production & primes de seuil' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
         value={tab}
         onChange={setTab}
       />
@@ -956,15 +1057,91 @@ export default function Personnel() {
         </div>
       )}
 
-      {tab === 'travail' && (
-        <div>
+      {tab === 'production' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* ── LES SEUILS ─────────────────────────────────────────────
+              Ce qui déclenche un versement passe avant ce qui l'explique. */}
+          {seuils.length === 0 ? (
+            <Card style={{ padding: '18px 20px' }}>
+              <div className="tre-rates__title">Aucun barème de seuils</div>
+              <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6, maxWidth: '62ch' }}>
+                Une prime de seuil récompense le volume, là où la commission récompense le montant :
+                vingt-cinq shampoings dans le mois valent 5 000 F, quarante en valent 7 000. Les
+                barèmes se posent dans <strong style={{ fontWeight: 500 }}>Paramètres de paie</strong>.
+              </div>
+            </Card>
+          ) : seuils.map((regle) => {
+            const atteints = team
+              .map((m) => ({ m, compte: compteRegle(regle, m.id) }))
+              .map((x) => ({ ...x, prime: primeDeSeuil(regle, x.compte) }))
+              .filter((x) => x.compte > 0)
+              .sort((a, b) => b.compte - a.compte);
+            const paliers = [...regle.paliers].sort((a, b) => a.seuil - b.seuil);
+            return (
+              <Card key={regle.id} style={{ padding: '16px 18px' }}>
+                <div className="tre-rates__head">
+                  <span className="tre-rates__title">{regle.libelle}</span>
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>
+                    {paliers.map((pa) => `${pa.seuil} → ${fmtMoney(pa.montantXof, currency)}`).join('  ·  ')}
+                  </span>
+                </div>
+                <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+                  <table className="tre-table">
+                    <thead>
+                      <tr>
+                        <th>Membre</th>
+                        <th className="num">Compte</th>
+                        <th>Palier</th>
+                        <th className="num">Prime due</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {atteints.length === 0 && (
+                        <tr><td colSpan={5} className="mnd-muted">Personne n’a encore de compte sur ce barème ce mois-ci.</td></tr>
+                      )}
+                      {atteints.map(({ m, compte, prime }) => {
+                        /* LA MÊME PRIME NE S'INSCRIT PAS DEUX FOIS. On la
+                           reconnaît à sa note, qui porte la règle et le mois :
+                           rouvrir l'écran ne doit jamais doubler un versement. */
+                        const marque = `seuil:${regle.id}:${M}`;
+                        const deja = primesForMonth(m.id, M).find((pr) => pr.note === marque);
+                        const suivant = paliers.find((pa) => compte < pa.seuil);
+                        return (
+                          <tr key={m.id}>
+                            <td>{m.name}</td>
+                            <td className="num">{fmtCompte(compte)}</td>
+                            <td style={{ fontSize: 12.5 }}>
+                              {prime
+                                ? <span style={{ color: 'var(--copper-700)' }}>◆ seuil {prime.seuil} atteint</span>
+                                : suivant
+                                  ? <span className="mnd-muted">encore {fmtCompte(suivant.seuil - compte)} pour {suivant.seuil}</span>
+                                  : <span className="mnd-muted">—</span>}
+                            </td>
+                            <td className="num">{prime ? fmtMoney(prime.montantXof, currency) : '—'}</td>
+                            <td>
+                              {prime && (deja
+                                ? <span className="mnd-muted" style={{ fontSize: 12 }}>inscrite en prime</span>
+                                : <button className="tre-link-btn" onClick={() => inscrirePrime(m, regle, prime.montantXof, marque)}>Inscrire en prime du mois</button>)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })}
+
+          {/* ── LA PRODUCTION ──────────────────────────────────────────
+              La matière première des seuils : ce que chacun a exécuté. */}
           <Card style={{ padding: '16px 18px' }}>
             <div className="tre-rates__head">
-              <span className="tre-rates__title">Qui a fait quoi · {cap(monthTitle(M))}</span>
+              <span className="tre-rates__title">Production · {cap(monthTitle(M))}</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>
-                Lu sur les <strong style={{ fontWeight: 500 }}>mains</strong> désignées à chaque prestation.
-                Un geste fait à deux compte pour une demi-part de chaque côté — la somme des colonnes
-                égale le mois, jamais davantage.
+                Lue sur les <strong style={{ fontWeight: 500 }}>mains</strong> désignées à chaque prestation.
+                Un geste fait à deux vaut une demi-part de chaque côté : la somme égale le mois, jamais davantage.
               </span>
             </div>
             <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
@@ -973,42 +1150,33 @@ export default function Personnel() {
                   <tr>
                     <th>Membre</th>
                     <th className="num">Gestes</th>
-                    <th className="num">Heures au fauteuil</th>
+                    <th className="num">Têtes</th>
+                    <th className="num">Heures</th>
                     <th className="num">Valeur produite</th>
-                    <th>Ce qu’elle a fait</th>
                   </tr>
                 </thead>
                 <tbody>
                   {team.map((m) => {
-                    const t = travailDuMois.get(m.id);
-                    const detail = [...(t?.detail ?? new Map())]
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([nom, n]) => (n > 1 ? `${nom} ×${n}` : nom));
+                    const f = production.get(m.id);
                     return (
                       <tr key={m.id}>
                         <td>{m.name}</td>
-                        <td className="num">{t ? Math.round(t.gestes) : '—'}</td>
-                        <td className="num">{t ? (Math.round((t.minutes / 60) * 10) / 10).toLocaleString('fr-FR') : '—'}</td>
-                        <td className="num">{t ? fmtMoney(Math.round(t.valeur), currency) : '—'}</td>
-                        <td style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-                          {detail.length ? detail.slice(0, 6).join(' · ') + (detail.length > 6 ? ` · +${detail.length - 6}` : '') : '—'}
-                        </td>
+                        <td className="num">{f ? fmtCompte(f.gestes) : '—'}</td>
+                        <td className="num">{f ? fmtCompte(f.tetes) : '—'}</td>
+                        <td className="num">{f ? fmtCompte(f.minutes / 60) : '—'}</td>
+                        <td className="num">{f ? fmtMoney(Math.round(f.valeur), currency) : '—'}</td>
                       </tr>
                     );
                   })}
-                  {/* LE TOTAL DIT SI LE COMPTE EST BON : il doit egaler le
-                      chiffre du mois. S'il est plus bas, des rituels n'ont ni
-                      mains designees ni maitre reconnu dans l'equipe. */}
+                  {/* LE TOTAL DIT SI LE COMPTE EST BON : la valeur doit égaler
+                      le chiffre du mois. Plus bas, des rituels n'ont ni mains
+                      désignées ni maître reconnu dans l'équipe. */}
                   <tr>
                     <td style={{ fontWeight: 500 }}>Total attribué</td>
-                    <td className="num">{Math.round([...travailDuMois.values()].reduce((n, t) => n + t.gestes, 0))}</td>
-                    <td className="num">
-                      {(Math.round(([...travailDuMois.values()].reduce((n, t) => n + t.minutes, 0) / 60) * 10) / 10).toLocaleString('fr-FR')}
-                    </td>
-                    <td className="num">
-                      {fmtMoney(Math.round([...travailDuMois.values()].reduce((n, t) => n + t.valeur, 0)), currency)}
-                    </td>
-                    <td />
+                    <td className="num">{fmtCompte([...production.values()].reduce((n, f) => n + f.gestes, 0))}</td>
+                    <td className="num">{fmtCompte([...production.values()].reduce((n, f) => n + f.tetes, 0))}</td>
+                    <td className="num">{fmtCompte([...production.values()].reduce((n, f) => n + f.minutes, 0) / 60)}</td>
+                    <td className="num">{fmtMoney(Math.round([...production.values()].reduce((n, f) => n + f.valeur, 0)), currency)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1059,6 +1227,99 @@ export default function Personnel() {
               La commission d’une prestation va à ses <strong style={{ fontWeight: 500 }}>mains</strong> — celles
               désignées au rendez-vous — et se partage entre elles à parts égales. À défaut de mains
               désignées, elle revient au maître assigné.
+            </div>
+          </Card>
+          {/* ── LE BARÈME DE SEUILS ────────────────────────────────────
+              Il se règle ici, à côté du barème de commission : les deux
+              disent ce que la Maison verse en plus du salaire. */}
+          <Card style={{ marginBottom: 14, padding: '16px 18px' }}>
+            <div className="tre-rates__head">
+              <span className="tre-rates__title">Primes de seuil</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>
+                Le volume, là où la commission récompense le montant. Un seuil se franchit, il ne se
+                proratise pas — et l’on retient le palier le plus haut atteint, jamais leur somme.
+              </span>
+            </div>
+
+            {seuils.length === 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12.5, margin: '12px 0', lineHeight: 1.6 }}>
+                Aucun barème. Exemple : « Shampoings » visant KLƆKLƆ™, avec 25 → 5 000 F et 40 → 7 000 F.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+              {seuils.map((regle) => (
+                <div key={regle.id} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px' }}>
+                  <div className="tr-grid tr-grid--2">
+                    <Field label="Nom du barème">
+                      <Input
+                        value={regle.libelle}
+                        onChange={(e) => majRegle(regle.id, { libelle: e.target.value })}
+                        placeholder="Shampoings"
+                      />
+                    </Field>
+                    <Field label="Ce qui est compté">
+                      <Select
+                        value={regle.cible.kind === 'service' ? `s:${regle.cible.id}`
+                          : regle.cible.kind === 'categorie' ? `c:${regle.cible.id}`
+                          : regle.cible.kind}
+                        onChange={(e) => majRegle(regle.id, { cible: cibleDepuis(e.target.value) })}
+                      >
+                        <option value="tetes">Les têtes — un rituel, quel qu’il soit</option>
+                        <option value="tout">Toutes les prestations</option>
+                        <optgroup label="Une famille entière">
+                          {categories.map((c) => (
+                            <option key={c.id} value={`c:${c.id}`}>{c.fon} · {c.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Une prestation précise">
+                          {[...services].sort((a, b) => a.name.localeCompare(b.name)).map((sv) => (
+                            <option key={sv.id} value={`s:${sv.id}`}>{sv.name}</option>
+                          ))}
+                        </optgroup>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  <div style={{ marginTop: 4 }}>
+                    <span className="trc-microlabel">Paliers</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                      {regle.paliers.map((pa, i) => (
+                        <div key={`${regle.id}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Input
+                            inputMode="numeric"
+                            value={String(pa.seuil)}
+                            onChange={(e) => majPalier(regle.id, i, { seuil: parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0 })}
+                            style={{ width: 84, textAlign: 'right' }}
+                          />
+                          <span className="mnd-muted" style={{ fontSize: 12 }}>atteints →</span>
+                          <Input
+                            inputMode="numeric"
+                            value={String(pa.montantXof)}
+                            onChange={(e) => majPalier(regle.id, i, { montantXof: parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0 })}
+                            style={{ width: 110, textAlign: 'right' }}
+                          />
+                          <span className="mnd-muted" style={{ fontSize: 12 }}>F</span>
+                          <button className="tre-link-btn tre-link-btn--danger" onClick={() => retirerPalier(regle.id, i)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                      <button className="tre-link-btn" onClick={() => ajouterPalier(regle.id)}>+ Palier</button>
+                      <button className="tre-link-btn tre-link-btn--danger" onClick={() => retirerRegle(regle.id)}>Supprimer ce barème</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <button className="tre-link-btn" onClick={ajouterRegle}>+ Barème</button>
+            </div>
+
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+              Un geste fait à deux compte une demi-part de chaque côté. Une famille compte aussi ce
+              qui est rangé sous elle : viser GBÈJÍ™ prend les SÍNSIN™.
             </div>
           </Card>
           <PaieParametres />
