@@ -4,6 +4,7 @@ import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import { staffAccessStore, ERP_DOMAINS } from '../equipe/data';
+import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
 import './systeme.css';
 
@@ -43,6 +44,23 @@ export default function Acces() {
      commande desormais la barre de navigation. Clef : l'identifiant de compte,
      le seul qui ne bouge pas quand un nom se corrige. */
   const [acces, setAcces] = useStore(staffAccessStore);
+  /* DISTINGUER UNE CLIENTE D'UNE FUTURE COLLÈGUE.
+
+     `list_pending_staff` rend TOUT compte qui n'est pas encore au personnel —
+     et une cliente qui s'inscrit sur Ma Couronne en crée un. Elle atterrissait
+     donc dans cette liste, à côté des vraies candidatures, avec un bouton
+     « Autoriser » à portée de clic. L'autoriser par mégarde lui ouvrait l'ERP.
+
+     La reconnaissance est rétroactive et ne demande aucune migration :
+     l'identifiant d'une fiche cliente EST l'identifiant de son compte
+     (`useClientId`). Un compte en attente qui porte déjà une fiche vient donc
+     de Ma Couronne, et non du Trône. */
+  const [clients] = useClients();
+  const fichesClientes = new Set(clients.map((c) => c.id));
+  const estCliente = (userId: string) => fichesClientes.has(userId);
+  const attenteTrone = pending.filter((u) => !estCliente(u.user_id));
+  const attenteCouronne = pending.filter((u) => estCliente(u.user_id));
+  const nomCliente = (userId: string) => clients.find((c) => c.id === userId)?.name ?? '—';
   const basculeDomaine = (userId: string, d: string) =>
     setAcces((prev) => ({
       ...prev,
@@ -151,15 +169,26 @@ export default function Acces() {
           {/* Comptes en attente d'autorisation */}
           <Card className="sys-section">
             <div className="sys-section__title">
-              Comptes en attente {pending.length > 0 && <span className="sys-badge-count">{pending.length}</span>}
+              Comptes en attente · Le Trône {attenteTrone.length > 0 && <span className="sys-badge-count">{attenteTrone.length}</span>}
             </div>
-            <div className="sys-section__cap">Des personnes se sont connectées mais n'ont pas encore accès. Donnez-leur un rôle pour les faire entrer.</div>
+            <div className="sys-section__cap">
+              Des personnes se sont connectées au Trône mais n'ont pas encore accès.
+              Donnez-leur un rôle pour les faire entrer.
+              {/* LA RECONNAISSANCE A UNE LIMITE, et la taire serait pire que de
+                  ne rien reconnaitre : une cliente inscrite qui n'a jamais
+                  ouvert Ma Couronne n'a pas encore de fiche, et arrive donc
+                  ici. L'adresse reste le dernier juge. */}
+              <span style={{ display: 'block', marginTop: 6 }}>
+                Vérifiez l’adresse avant d’autoriser : une cliente qui vient de s’inscrire sans
+                avoir encore ouvert Ma Couronne n’a pas de fiche, et apparaît dans cette liste.
+              </span>
+            </div>
 
             {loading && <div className="sys-acc-empty">Chargement…</div>}
-            {!loading && pending.length === 0 && (
+            {!loading && attenteTrone.length === 0 && (
               <div className="sys-acc-empty">Aucun compte en attente. Quand quelqu'un se connectera au Trône, il apparaîtra ici.</div>
             )}
-            {pending.map((u) => (
+            {attenteTrone.map((u) => (
               <div className="sys-acc-row" key={u.user_id}>
                 <div className="sys-acc-row__id">
                   <div className="sys-acc-row__email">{u.email ?? '—'}</div>
@@ -188,6 +217,41 @@ export default function Acces() {
               </div>
             ))}
           </Card>
+
+          {/* ── LES COMPTES DE MA COURONNE ────────────────────────────
+              Ce ne sont pas des candidatures : ce sont tes clientes. Elles
+              n'ont rien à faire dans Le Trône, et le bouton « Autoriser » leur
+              ouvrirait l'ERP entier. On les montre pour que la liste du haut
+              soit franche — sans elles, on se demanderait où elles sont
+              passées — et on n'y met aucun bouton. */}
+          {attenteCouronne.length > 0 && (
+            <Card className="sys-section" style={{ marginTop: 16 }}>
+              <div className="sys-section__title">
+                Comptes de Ma Couronne <span className="sys-badge-count">{attenteCouronne.length}</span>
+              </div>
+              <div className="sys-section__cap">
+                Des clientes inscrites sur Ma Couronne. Elles n'ont pas à entrer dans Le Trône —
+                leur compte leur sert à réserver et à suivre leurs rituels. Reconnues à leur fiche
+                cliente, qui porte le même identifiant que leur compte.
+              </div>
+              {attenteCouronne.map((u) => (
+                <div className="sys-acc-row" key={u.user_id}>
+                  <div className="sys-acc-row__id">
+                    <div className="sys-acc-row__email">{nomCliente(u.user_id)}</div>
+                    <div className="sys-acc-row__sub">
+                      {u.email ?? '—'} · inscrite le {fmtDate(u.created_at)}
+                    </div>
+                  </div>
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>Cliente — aucun accès à l’ERP</span>
+                </div>
+              ))}
+              <div className="mnd-muted" style={{ fontSize: 11.5, padding: '10px 2px 2px', lineHeight: 1.55 }}>
+                Si l’une d’elles rejoint vraiment l’équipe, ouvre-lui un compte avec une AUTRE
+                adresse : mêler sa fiche cliente et son accès au personnel rendrait ses propres
+                rendez-vous indiscernables de ceux qu’elle exécute.
+              </div>
+            </Card>
+          )}
 
           {/* Personnel autorisé */}
           <Card className="sys-section" style={{ marginTop: 16 }}>
