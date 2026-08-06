@@ -27,7 +27,7 @@ function SyncDot() {
   const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne — les écritures restent sur ce poste et partiront au retour du réseau.'
-    : mode === 'err' ? 'Des écritures n’ont pas pu être poussées au serveur — vérifiez la connexion, puis refaites une modification pour relancer.'
+    : mode === 'err' ? `Refusé par le serveur : ${s.failedNames.join(', ') || '—'}. Vérifiez la connexion, puis refaites une modification pour relancer.`
     : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
     : 'Toutes les écritures sont sur le serveur.';
   return (

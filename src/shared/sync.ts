@@ -24,7 +24,7 @@ const PUSH_DEBOUNCE_MS = 250;
    savait jamais qu'une facture n'existait que sur son poste. On suit les tables
    « en attente » (écriture locale pas encore poussée) et « en échec », plus
    l'état réseau — le Shell affiche une pastille d'un mot. */
-export type SyncState = { enabled: boolean; online: boolean; pending: number; failed: number; lastOkAt: number | null };
+export type SyncState = { enabled: boolean; online: boolean; pending: number; failed: number; failedNames: string[]; lastOkAt: number | null };
 const syncListeners = new Set<() => void>();
 const dirtyTables = new Set<string>();
 const failedTables = new Set<string>();
@@ -32,12 +32,20 @@ let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  failedNames: [],
   pending: 0,
   failed: 0,
   lastOkAt: null,
 };
 function bumpSync(): void {
-  syncSnapshot = { enabled: !!supabase, online: navigator.onLine, pending: dirtyTables.size, failed: failedTables.size, lastOkAt };
+  /* LES NOMS, PAS SEULEMENT LE NOMBRE. « Des écritures n'ont pas pu être
+     poussées » n'aide personne : il a fallu ouvrir la console du navigateur
+     pour apprendre laquelle, le 6 août, pendant que la Maison tournait. */
+  syncSnapshot = {
+    enabled: !!supabase, online: navigator.onLine,
+    pending: dirtyTables.size, failed: failedTables.size,
+    failedNames: [...failedTables].sort(), lastOkAt,
+  };
   syncListeners.forEach((f) => f());
 }
 export function subscribeSync(fn: () => void): () => void {
