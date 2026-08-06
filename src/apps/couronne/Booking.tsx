@@ -14,7 +14,6 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurati
 import {
   DOW_LETTERS,
   MONTHS,
-  PALIERS,
   QUATRE_TEMPS,
   dayLabelIso,
   ensureClient,
@@ -28,14 +27,27 @@ import {
   type BookingPrefill,
 } from './lib';
 
-/* RÉSERVER EN 7 TEMPS
-   objectif → palier → prestations → créneau → récapitulatif → acompte → confirmé
+/* RÉSERVER EN 6 TEMPS
+   objectif → prestations → créneau → récapitulatif → acompte → confirmé
+
+   LE PALIER A QUITTÉ LE PARCOURS — 6 août 2026. Fondation, Élévation et
+   Souveraineté ne commandent qu'une chose : le taux de commission du maître
+   qui exécute le rituel. C'est une affaire interne à la Maison. On demandait
+   donc à la cliente de trancher entre trois mots qui ne décrivent rien de ce
+   qu'elle vient chercher, et dont la réponse ne changeait ni son prix ni son
+   rendez-vous.
+
+   Le champ demeure au Catalogue, où il paie l'équipe. L'étape reste indexée
+   à 1 dans les tableaux ci-dessous : renuméroter six écrans pour supprimer le
+   deuxième, c'est six occasions de se tromper d'un cran. Elle n'est plus
+   jamais atteinte — l'objectif mène directement aux prestations.
+
    L'acompte suit le taux de la Maison (Paramètres du Trône), non figé. */
 
-const TITLES = ['Votre objectif.', 'Le palier.', 'Les prestations.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
+const TITLES = ['Votre objectif.', '—', 'Les prestations.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
 const EYEBROWS = [
   'Réserver · 1 décision',
-  'Réserver · palier d’expérience',
+  '—',
   'Réserver · prestations',
   'Réserver · disponibilité',
   'Réserver · les quatre temps',
@@ -67,7 +79,6 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   const [step, setStep] = useState(prefService ? 3 : 0);
   const [catId, setCatId] = useState<string | null>(prefService?.categoryId ?? null);
-  const [palier, setPalier] = useState<Service['palier'] | null>(prefService?.palier ?? null);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
   const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
   const [monthIdx, setMonthIdx] = useState(0);
@@ -147,7 +158,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Catégories réservables : au moins une prestation visible. */
   const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id));
   const catServices = offre.filter((s) => s.categoryId === catId);
-  const stepServices = catServices.filter((s) => s.palier === palier);
+  /* TOUTES les prestations de l'objectif choisi : le palier ne les trie plus. */
+  const stepServices = catServices;
 
   const toggleService = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -204,7 +216,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       setStep(2);
       return;
     }
-    setStep(step - 1);
+    /* L'étape 1 n'existe plus : depuis les prestations, on remonte à l'objectif. */
+    setStep(step === 2 ? 0 : step - 1);
   };
 
   /* ---- Écriture dans l'agenda partagé ----
@@ -392,7 +405,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           ) : <span />}
           <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
         </div>
-        <div className="mc-progress"><div style={{ width: `${((step + 1) / 7) * 100}%` }} /></div>
+        {/* Six temps, et l'etape 1 n'est jamais atteinte : on la retire du
+            compte pour que la barre dise la verite. */}
+        <div className="mc-progress"><div style={{ width: `${((step > 1 ? step : step + 1) / 6) * 100}%` }} /></div>
         <div className="mc-flowhead__titles">
           <div>
             <div className="mc-micro-eyebrow">{EYEBROWS[step]}</div>
@@ -413,13 +428,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   key={c.id}
                   className="mc-rowcard"
                   onClick={() => {
-                    /* Un seul palier peuplé → on saute l'étape : « Fondation/Élévation/
-                       Souveraineté » est notre taxonomie, pas un choix que la cliente
-                       doit deviner quand il n'y a rien à choisir. */
-                    const paliers = [...new Set(offre.filter((s) => s.categoryId === c.id).map((s) => s.palier))];
-                    setCatId(c.id); setSelectedIds([]);
-                    if (paliers.length === 1) { setPalier(paliers[0]); setStep(2); }
-                    else { setPalier(null); setStep(1); }
+/* Le palier n'est plus demandé : l'objectif mène aux prestations. */
+                    setStep(2);
                   }}
                 >
                   <div>
@@ -444,30 +454,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           )
         )}
 
-        {/* -------- 2 · palier -------- */}
-        {step === 1 && (
-          <div className="mc-stack mc-fade" style={{ gap: 12 }}>
-            {PALIERS.map((p) => {
-              const n = catServices.filter((s) => s.palier === p.key).length;
-              return (
-                <button
-                  key={p.key}
-                  className={`mc-paliercard ${n === 0 ? 'is-off' : ''}`}
-                  disabled={n === 0}
-                  onClick={() => { setPalier(p.key); setSelectedIds([]); setStep(2); }}
-                >
-                  <span className="mc-paliercard__filet" />
-                  <div className="mc-paliercard__name">{p.key}</div>
-                  <div className="mc-paliercard__sub">
-                    {n === 0 ? 'Aucune prestation à ce palier pour cet objectif.' : p.sub}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* -------- 3 · prestations (sélection multiple) -------- */}
+        {/* -------- 2 · prestations (sélection multiple) -------- */}
         {step === 2 && (
           <div className="mc-fade">
             <div className="mc-stack">
