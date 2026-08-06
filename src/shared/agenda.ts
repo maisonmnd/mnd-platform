@@ -234,5 +234,41 @@ export function markReminderSent(apptId: string, date: string, kind: ReminderKin
     prev.includes(key) ? prev : [...prev.filter((k) => keyDate(k) >= floor), key]);
 }
 
+/* LES BORNES DE REPLI DU CALENDRIER — 8 h à 18 h.
+
+   Elles étaient la SEULE vérité de la grille, alors que la Maison porte par
+   ailleurs des horaires par jour (`mnd_salon_hours`) que « Mon mois » lit pour
+   juger la ponctualité. Deux vérités qui s'ignorent : le calendrier ouvrait à
+   8 h quand le pointage attendait 9 h, et personne ne pouvait les accorder —
+   aucun écran ne réglait les heures du salon.
+
+   Ces constantes ne servent plus que de repli, quand les heures du salon ne
+   disent rien. Voir `bornesDuSalon`. */
 export const OPEN_HOUR = 8;
 export const CLOSE_HOUR = 18;
+
+/** L'amplitude à couvrir par la grille : la plus large de la semaine, arrondie
+    à l'heure. Une grille par jour ferait sauter la hauteur des blocs d'un jour
+    à l'autre ; une amplitude commune garde la semaine lisible. */
+export const bornesDuSalon = (
+  horaires: Record<string, { open: string; close: string; closed: boolean }>,
+): { ouverture: number; fermeture: number } => {
+  const heure = (t: string | undefined): number | undefined => {
+    const m = /^(\d{1,2})\s*[h:]\s*(\d{2})?$/.exec((t ?? '').trim());
+    return m ? Number(m[1]) : undefined;
+  };
+  let min: number | undefined;
+  let max: number | undefined;
+  for (const j of Object.values(horaires ?? {})) {
+    if (!j || j.closed) continue;
+    const o = heure(j.open);
+    const f = heure(j.close);
+    if (o !== undefined) min = min === undefined ? o : Math.min(min, o);
+    if (f !== undefined) max = max === undefined ? f : Math.max(max, f);
+  }
+  return {
+    ouverture: min ?? OPEN_HOUR,
+    /* +1 pour que la dernière heure d'ouverture reste cliquable. */
+    fermeture: Math.max((max ?? CLOSE_HOUR), (min ?? OPEN_HOUR) + 1),
+  };
+};
