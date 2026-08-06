@@ -98,8 +98,45 @@ export const NAV: TroneGroup[] = [
    défaut. Ajouter une route ne peut donc pas élargir un accès par distraction. */
 export const ROUTES_MAITRE = ['/mon-mois', '/calendrier'];
 
-export const peutVoir = (role: string | undefined, path: string): boolean =>
-  role === 'maitre' ? ROUTES_MAITRE.includes(path) : true;
+/* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
+   Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
+   couperait la personne en deux : deux pointages, deux productions, deux
+   parts de pourboire — et le partage le compterait deux fois.
+
+   Son rôle reste donc `maitre`, et on lui OUVRE des domaines en plus. La
+   matrice existait dans le modèle depuis toujours (`staffAccessStore`,
+   `ERP_DOMAINS`) sans que rien ne la lise ; elle commande désormais la barre.
+
+   Les groupes de la barre portent exactement les libellés des domaines : la
+   correspondance se lit, elle ne se maintient pas dans un second tableau. */
+const DOMAINE_DU_GROUPE: Record<string, string> = {
+  'Pilotage': 'pilotage',
+  'Clients & Agenda': 'clients',
+  'Vente': 'vente',
+  'Finances': 'finances',
+  'Équipe & Croissance': 'equipe',
+  'Système': 'systeme',
+};
+
+export const domaineDe = (path: string): string | undefined =>
+  DOMAINE_DU_GROUPE[NAV.find((g) => g.items.some((i) => i.path === path))?.group ?? ''];
+
+export const peutVoir = (
+  role: string | undefined,
+  path: string,
+  domaines: Record<string, boolean> = {},
+): boolean => {
+  if (role !== 'maitre') return true;
+  if (ROUTES_MAITRE.includes(path)) return true;
+  const d = domaineDe(path);
+  return !!d && domaines[d] === true;
+};
+
+/** LES MONTANTS SE TAISENT POUR UN MAÎTRE — sauf s'il tient aussi le comptoir.
+    Un secrétaire qui encaisse a besoin des prix ; un praticien qui vient
+    pointer, non. C'est le domaine ouvert qui tranche, pas le rôle. */
+export const voitLesPrix = (role: string | undefined, domaines: Record<string, boolean> = {}): boolean =>
+  role !== 'maitre' || domaines.vente === true || domaines.finances === true;
 
 /** L'écran d'accueil d'un rôle — celui vers lequel on renvoie quand la route
     demandée ne lui est pas ouverte. Un maître qui tape une adresse de finances

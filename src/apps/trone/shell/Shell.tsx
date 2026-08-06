@@ -2,6 +2,8 @@ import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
 import { NAV, peutVoir, accueilDe } from '../routes/index';
+import { staffAccessStore } from '../routes/equipe/data';
+import { useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
 import { useBranch } from '../../../shared/branches';
@@ -46,6 +48,10 @@ export default function Shell() {
   const { session } = useAuth();
   const staff = useStaff();
   const role = staff?.role;
+  /* Les domaines ouverts EN PLUS a cette personne. Clef : son identifiant de
+     compte — le seul qui ne change pas quand un nom se corrige. */
+  const acces = useStore(staffAccessStore)[0];
+  const mesDomaines = acces[staff?.user_id ?? ''] ?? {};
   const navigate = useNavigate();
   const emplacement = useLocation();
   const [allClients] = useClients();
@@ -60,9 +66,9 @@ export default function Shell() {
      base par l'API, quoi qu'affiche Le Trône. */
   useEffect(() => {
     if (!role) return;
-    if (peutVoir(role, emplacement.pathname)) return;
+    if (peutVoir(role, emplacement.pathname, mesDomaines)) return;
     navigate(accueilDe(role), { replace: true });
-  }, [role, emplacement.pathname, navigate]);
+  }, [role, emplacement.pathname, navigate, mesDomaines]);
 
   /* Remise à zéro PONCTUELLE des points Cercle (décision maison, juil. 2026) :
      compteurs à 0 + historique vidé, UNE fois — marqueur synchronisé pour ne
@@ -194,7 +200,7 @@ export default function Shell() {
           {/* CHAQUE ROLE NE VOIT QUE CE QU'IL OUVRE. Un groupe dont tous les
               ecrans sont fermes disparait avec eux : un titre seul ne dit rien
               d'autre que ce qu'on ne peut pas atteindre. */}
-          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => peutVoir(role, it.path)) }))
+          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => peutVoir(role, it.path, mesDomaines)) }))
             .filter((g) => g.items.length > 0)
             .map((g) => (
             <div key={g.group}>

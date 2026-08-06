@@ -9,6 +9,9 @@ import {
 } from './_shared';
 import { PayAppointmentModal } from './actions';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { staffAccessStore } from '../equipe/data';
+import { useStore } from '../../../../shared/store';
+import { voitLesPrix } from '../index';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -32,7 +35,11 @@ function useIsPhone(): boolean {
 
 export default function Calendrier() {
   const moi = useMyStaff();
-  const estMaitre = moi?.role === 'maitre';
+  /* CE N'EST PAS LE ROLE QUI DECIDE DES PRIX, C'EST LE DOMAINE OUVERT. Gerard
+     tient le secretariat ET le fauteuil : maitre par son role, il encaisse
+     pourtant, et un comptoir sans montants ne sert a rien. */
+  const mesDomaines = useStore(staffAccessStore)[0][moi?.user_id ?? ''] ?? {};
+  const estMaitre = !voitLesPrix(moi?.role, mesDomaines);
   const { branch } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();

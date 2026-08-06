@@ -3,6 +3,8 @@ import { PageHead } from '../_ui';
 import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff } from '../../../../shared/auth';
+import { staffAccessStore, ERP_DOMAINS } from '../equipe/data';
+import { useStore } from '../../../../shared/store';
 import './systeme.css';
 
 /* Accès & personnel — le souverain autorise les comptes connectés à entrer dans
@@ -37,6 +39,15 @@ export default function Acces() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [team, setTeam] = useState<StaffFull[]>([]);
   const [roleFor, setRoleFor] = useState<Record<string, Role>>({});
+  /* LA MATRICE DES DOMAINES. Elle vivait dans le modele sans lecteur ; elle
+     commande desormais la barre de navigation. Clef : l'identifiant de compte,
+     le seul qui ne bouge pas quand un nom se corrige. */
+  const [acces, setAcces] = useStore(staffAccessStore);
+  const basculeDomaine = (userId: string, d: string) =>
+    setAcces((prev) => ({
+      ...prev,
+      [userId]: { ...(prev[userId] ?? {}), [d]: !(prev[userId]?.[d]) },
+    }));
   const [nameFor, setNameFor] = useState<Record<string, string>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -191,7 +202,8 @@ export default function Acces() {
               const lastSouverain = m.role === 'souverain' && team.filter((x) => x.role === 'souverain').length <= 1;
               const editing = editId === m.user_id;
               return (
-                <div className="sys-acc-row" key={m.user_id}>
+                <div key={m.user_id}>
+                <div className="sys-acc-row">
                   <div className="sys-acc-row__id">
                     {editing ? (
                       <Input
@@ -246,6 +258,38 @@ export default function Acces() {
                       </Button>
                     </>
                   )}
+                </div>
+                {/* DEUX CASQUETTES, UN SEUL COMPTE. Un maitre n'atteint que Mon
+                    mois et le Calendrier. Ouvrir un domaine lui rend les ecrans
+                    de ce domaine — c'est ainsi qu'une personne qui tient le
+                    secretariat ET le fauteuil garde un seul pointage, une seule
+                    part de pourboire et une seule prime.
+
+                    Rien a cocher pour un gerant ou un souverain : ils ouvrent
+                    tout, et des cases sans effet feraient croire au contraire. */}
+                {m.role === 'maitre' && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', padding: '0 0 12px 2px' }}>
+                    <span className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' }}>
+                      Domaines ouverts en plus
+                    </span>
+                    {ERP_DOMAINS.map((d) => (
+                      <button
+                        key={d.k}
+                        type="button"
+                        className={`tre-chip ${acces[m.user_id]?.[d.k] ? 'is-on' : ''}`}
+                        style={{ fontSize: 11.5 }}
+                        onClick={() => basculeDomaine(m.user_id, d.k)}
+                      >
+                        {d.l}
+                      </button>
+                    ))}
+                    <span className="mnd-muted" style={{ fontSize: 11.5, flexBasis: '100%', marginTop: 4, lineHeight: 1.5 }}>
+                      Sans rien de coché : Mon mois et le Calendrier, sans les montants.
+                      Ouvrir <strong style={{ fontWeight: 500 }}>Vente</strong> ou{' '}
+                      <strong style={{ fontWeight: 500 }}>Finances</strong> lui rend aussi les prix.
+                    </span>
+                  </div>
+                )}
                 </div>
               );
             })}
