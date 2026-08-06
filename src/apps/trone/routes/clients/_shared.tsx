@@ -970,7 +970,11 @@ export function RdvModal({
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
         </Field>
 
-        {needsAmount && !effCovered && (
+        {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait
+            pas : le montant du rituel et les remises sont des nombres bruts,
+            qui passaient au travers. Un écran censé ne montrer aucun prix en
+            montrait trois. */}
+        {needsAmount && !effCovered && !sansPrix && (
           <Field label="Montant du rituel (F CFA)">
             <input
               className="mnd-input"
@@ -991,7 +995,7 @@ export function RdvModal({
 
         {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
             Masquée quand le rituel est couvert par l'abonnement (rien à facturer). */}
-        {!effCovered && (
+        {!effCovered && !sansPrix && (
         <>
         <Field label="Remise sur le rituel (%)">
           <div style={{ display: 'flex', gap: 6 }}>
@@ -1037,7 +1041,7 @@ export function RdvModal({
         {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
             le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
             prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
-        {frozenDiffers && !servicesChanged && !refreshPrice && (
+        {frozenDiffers && !servicesChanged && !refreshPrice && !sansPrix && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
             ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
@@ -1053,7 +1057,7 @@ export function RdvModal({
             </div>
           </div>
         )}
-        {frozenDiffers && !servicesChanged && refreshPrice && (
+        {frozenDiffers && !servicesChanged && refreshPrice && !sansPrix && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Ré-tarifé au tarif du jour : <b>{argent(grossBase)}</b> (ancien prix
             {' '}{argent(frozenXof!)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
@@ -1087,6 +1091,10 @@ export function RdvModal({
           </div>
         )}
 
+        {/* LE RÉCAPITULATIF ENTIER SE TAIT. Le laisser avec des tirets partout
+            n'apprend rien et donne l'air d'un écran cassé : mieux vaut qu'il
+            n'y soit pas. */}
+        {!sansPrix && (
         <div className="trc-total">
           {effCovered ? (
             <div className="trc-total__row">
@@ -1136,6 +1144,7 @@ export function RdvModal({
             </div>
           )}
         </div>
+        )}
 
         {error && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>
