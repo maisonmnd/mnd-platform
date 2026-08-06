@@ -1,0 +1,332 @@
+import { useMemo, useState } from 'react';
+import { PageHead } from '../_ui';
+import { Card, Input, toast } from '../../../../ds/components';
+import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
+import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { sameName } from '../../../../shared/text';
+import { useStaff, useSalonHours, type StaffMember } from './data';
+import {
+  useAttendance, useBaremePoints, pointsDuJour, minutesDe,
+  type Attendance, type BaremePoints,
+} from './payroll';
+import { uid } from '../../../../shared/store';
+import './equipe.css';
+
+/* MON MOIS — l'écran que chacun ouvre pour soi.
+
+   Le suivi du personnel se lisait jusqu'ici depuis le bureau : le gérant
+   ouvrait Personnel & paie et découvrait qui avait tenu son mois. Personne
+   d'autre ne voyait rien, et ce qu'on ne voit pas ne se corrige pas en cours
+   de route.
+
+   Ici, chacun pointe son arrivée et son départ, et voit ses points grandir le
+   jour même. Celui qui ne pointe pas ne marque rien : la règle est la même
+   pour tous, et elle ne demande à personne d'aller réclamer son dû.
+
+   Le classement est visible de tous — mais la prime se gagne sur un SEUIL, pas
+   sur un rang : on n'y perd rien parce qu'un collègue a fait mieux. */
+
+const JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const moisDe = (d: string) => d.slice(0, 7);
+const maintenant = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+const fmtHeures = (min: number) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}`;
+
+export default function MonMois() {
+  const { branch, currency } = useBranch();
+  const [team] = useStaff();
+  const [pointages, setPointages] = useAttendance();
+  const [bareme] = useBaremePoints();
+  const [horaires] = useSalonHours();
+  const me = useMyStaff();
+  const [corrige, setCorrige] = useState<string | null>(null);
+
+  const equipe = useMemo(() => team.filter((m) => m.branchId === branch.id), [team, branch.id]);
+  /* QUI SUIS-JE dans l'équipe : le compte du Trône porte un nom, la fiche du
+     personnel aussi. On les rapproche par le nom, normalisé — c'est déjà
+     ainsi que la Maison relie ses deux registres. */
+  const moi = equipe.find((m) => sameName(m.name, me?.name ?? '')) ?? null;
+  const gerant = me?.role === 'souverain' || me?.role === 'gerant';
+
+  const M = moisDe(iso(new Date()));
+  const horaireDu = (d: string) => horaires[JOURS[new Date(`${d}T00:00:00`).getDay()]];
+
+  /* Les points d'une personne sur le mois, et le détail jour par jour. */
+  const bilanDe = (m: StaffMember) => {
+    const jours = pointages
+      .filter((a) => a.employeeId === m.id && moisDe(a.date) === M)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    const lignes = jours.map((a) => ({ a, p: pointsDuJour(a, horaireDu(a.date), bareme) }));
+    return {
+      lignes,
+      total: lignes.reduce((n, l) => n + l.p.total, 0),
+      joursPointes: lignes.filter((l) => l.p.total > 0).length,
+      heuresSup: lignes.reduce((n, l) => n + l.p.heuresSup, 0),
+    };
+  };
+
+  const classement = useMemo(
+    () => equipe.map((m) => ({ m, b: bilanDe(m) })).sort((a, b) => b.b.total - a.b.total),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [equipe, pointages, bareme, horaires, M],
+  );
+
+  const duJour = (staffId: string, d: string) =>
+    pointages.find((a) => a.employeeId === staffId && a.date === d);
+
+  /* POINTER. L'arrivée crée la ligne du jour, le départ la complète. On
+     n'écrase jamais une heure déjà posée : corriger est un autre geste, tracé. */
+  const pointer = (m: StaffMember, champ: 'arrivee' | 'depart') => {
+    const d = iso(new Date());
+    const h = maintenant();
+    const existe = duJour(m.id, d);
+    if (existe?.[champ]) { toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} déjà inscrit — le gérant peut le corriger.`); return; }
+    if (existe) setPointages((prev) => prev.map((a) => (a.id === existe.id ? { ...a, [champ]: h } : a)));
+    else {
+      const ouverture = minutesDe(horaireDu(d)?.open);
+      const arr = minutesDe(h);
+      setPointages((prev) => [...prev, {
+        id: `at-${uid()}`, employeeId: m.id, date: d, branchId: branch.id,
+        /* Le statut suit l'heure : arriver au-dela de la tolerance EST un
+           retard, et le dire tout de suite evite de le decouvrir en paie. */
+        status: ouverture !== undefined && arr !== undefined && arr > ouverture + bareme.toleranceMin ? 'retard' : 'present',
+        [champ]: h,
+      } as Attendance]);
+    }
+    toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} inscrit à ${h}.`);
+  };
+
+  const corriger = (a: Attendance, champ: 'arrivee' | 'depart', valeur: string) =>
+    setPointages((prev) => prev.map((x) => (x.id === a.id ? {
+      ...x, [champ]: valeur,
+      corrigePar: me?.name ?? '—', corrigeAt: new Date().toISOString(),
+      avant: x.avant ?? { arrivee: x.arrivee, depart: x.depart },
+    } : x)));
+
+  const monBilan = moi ? bilanDe(moi) : null;
+  const monRang = moi ? classement.findIndex((c) => c.m.id === moi.id) + 1 : 0;
+  const primeAcquise = !!monBilan && bareme.seuilPrime > 0 && monBilan.total >= bareme.seuilPrime;
+
+  return (
+    <>
+      <PageHead
+        eyebrow="Équipe & Croissance"
+        title="Mon mois."
+        sub="Ce que j’ai tenu — mon pointage, mes points, ma prime."
+      />
+
+      {!moi && (
+        <Card style={{ padding: '18px 20px' }}>
+          <div className="tre-rates__title">Ce compte n’est rattaché à aucune fiche du personnel</div>
+          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6, maxWidth: '62ch' }}>
+            Le pointage se rattache à une fiche de l’équipe, retrouvée par le nom. Demande au gérant
+            de vérifier que ton nom dans Personnel &amp; paie est bien le même que celui de ton compte.
+          </div>
+        </Card>
+      )}
+
+      {moi && monBilan && (
+        <>
+          {/* ── AUJOURD'HUI ─────────────────────────────────────────── */}
+          <Card style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+              <span className="tre-rates__title">Aujourd’hui</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>
+                {horaireDu(iso(new Date()))?.closed
+                  ? 'Le salon est fermé'
+                  : `Salon ${horaireDu(iso(new Date()))?.open ?? '—'} – ${horaireDu(iso(new Date()))?.close ?? '—'} · ${bareme.toleranceMin} min de tolérance`}
+              </span>
+            </div>
+            {(() => {
+              const d = iso(new Date());
+              const a = duJour(moi.id, d);
+              const p = a ? pointsDuJour(a, horaireDu(d), bareme) : null;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+                  <button className="tre-chip" style={{ opacity: a?.arrivee ? 0.5 : 1 }} onClick={() => pointer(moi, 'arrivee')}>
+                    {a?.arrivee ? `Arrivée · ${a.arrivee}` : 'J’arrive'}
+                  </button>
+                  <button className="tre-chip" style={{ opacity: a?.depart ? 0.5 : 1 }} onClick={() => pointer(moi, 'depart')}>
+                    {a?.depart ? `Départ · ${a.depart}` : 'Je pars'}
+                  </button>
+                  {p && p.total > 0 && (
+                    <span className="mnd-muted" style={{ fontSize: 12.5 }}>
+                      {p.ponctualite > 0 ? '◆ à l’heure' : 'hors tolérance'}
+                      {p.heuresSup > 0 ? ` · ${p.heuresSup} h au-delà` : ''}
+                      {' · '}<strong style={{ fontWeight: 500, color: 'var(--copper-700)' }}>{p.total} pts</strong>
+                    </span>
+                  )}
+                  {!a?.arrivee && (
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>Sans pointage, la journée ne compte pas.</span>
+                  )}
+                </div>
+              );
+            })()}
+          </Card>
+
+          {/* ── MON COMPTE DU MOIS ──────────────────────────────────── */}
+          <div className="tr-grid tr-grid--4" style={{ marginTop: 14 }}>
+            <Card filet="copper" style={{ padding: 18 }}>
+              <div className="mnd-stat__label">Mes points</div>
+              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{monBilan.total}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {bareme.seuilPrime > 0 && (primeAcquise
+                  ? `seuil de ${bareme.seuilPrime} franchi`
+                  : `encore ${bareme.seuilPrime - monBilan.total} pour la prime`)}
+              </div>
+            </Card>
+            <Card style={{ padding: 18 }}>
+              <div className="mnd-stat__label">Jours pointés</div>
+              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{monBilan.joursPointes}</div>
+            </Card>
+            <Card style={{ padding: 18 }}>
+              <div className="mnd-stat__label">Heures au-delà</div>
+              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{monBilan.heuresSup}</div>
+            </Card>
+            <Card style={{ padding: 18 }}>
+              <div className="mnd-stat__label">Prime du mois</div>
+              <div className="mnd-stat__value" style={{ fontSize: 26, color: primeAcquise ? 'var(--copper-700)' : undefined }}>
+                {primeAcquise ? fmtMoney(bareme.primeXof, currency) : '—'}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {primeAcquise ? 'acquise, à inscrire par le gérant' : `au-delà de ${bareme.seuilPrime} points`}
+              </div>
+            </Card>
+          </div>
+
+          {/* ── MON JOURNAL ─────────────────────────────────────────── */}
+          <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+            <div className="tre-rates__head">
+              <span className="tre-rates__title">Mon journal</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>
+                {bareme.ptsPointage} pt pour avoir pointé · {bareme.ptsPonctualite} pour l’heure ·
+                {' '}{bareme.ptsParHeureSup} par heure au-delà
+              </span>
+            </div>
+            <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+              <table className="tre-table">
+                <thead>
+                  <tr><th>Jour</th><th>Arrivée</th><th>Départ</th><th>Au-delà</th><th className="num">Points</th></tr>
+                </thead>
+                <tbody>
+                  {monBilan.lignes.length === 0 && (
+                    <tr><td colSpan={5} className="mnd-muted">Aucun pointage ce mois-ci.</td></tr>
+                  )}
+                  {monBilan.lignes.map(({ a, p }) => (
+                    <tr key={a.id}>
+                      <td>{new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+                      <td style={{ color: p.ponctualite > 0 ? 'var(--copper-700)' : undefined }}>
+                        {a.arrivee ?? '—'}{p.ponctualite > 0 ? ' ◆' : ''}
+                      </td>
+                      <td>{a.depart ?? '—'}</td>
+                      <td>{p.heuresSup > 0 ? fmtHeures(p.heuresSup * 60) : '—'}</td>
+                      <td className="num">{p.total || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* ── LE CLASSEMENT ─────────────────────────────────────────────
+          Visible de tous, parce qu'un classement caché ne motive personne.
+          Mais la prime se gagne au SEUIL : voir le premier ne prive de rien. */}
+      <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+        <div className="tre-rates__head">
+          <span className="tre-rates__title">Le mois de l’équipe</span>
+          <span className="mnd-muted" style={{ fontSize: 12 }}>
+            {bareme.seuilPrime > 0
+              ? `Chacun qui dépasse ${bareme.seuilPrime} points touche ${fmtMoney(bareme.primeXof, currency)} — le rang ne prive de rien.`
+              : 'Aucun seuil de prime réglé.'}
+          </span>
+        </div>
+        <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+          <table className="tre-table">
+            <thead>
+              <tr><th>Membre</th><th className="num">Points</th><th className="num">Jours</th><th className="num">Heures au-delà</th><th>Prime</th></tr>
+            </thead>
+            <tbody>
+              {classement.map(({ m, b }, i) => (
+                <tr key={m.id} style={moi && m.id === moi.id ? { background: 'var(--color-sable)' } : undefined}>
+                  <td>{i + 1}. {m.name}</td>
+                  <td className="num">{b.total}</td>
+                  <td className="num">{b.joursPointes}</td>
+                  <td className="num">{b.heuresSup}</td>
+                  <td style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
+                    {bareme.seuilPrime > 0 && b.total >= bareme.seuilPrime ? `◆ ${fmtMoney(bareme.primeXof, currency)}` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {moi && monRang > 0 && (
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+            Tu es {monRang}<sup>{monRang === 1 ? 'er' : 'e'}</sup> sur {classement.length}.
+          </div>
+        )}
+      </Card>
+
+      {/* ── LA CORRECTION, réservée au gérant ─────────────────────────
+          Un oubli ou une heure fantaisiste se rectifie — jamais en silence :
+          la trace garde qui a corrigé, quand, et ce qui était inscrit avant. */}
+      {gerant && (
+        <Card style={{ marginTop: 14, padding: '16px 18px' }}>
+          <div className="tre-rates__head">
+            <span className="tre-rates__title">Corriger un pointage</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>
+              Réservé au gérant. Chaque correction garde sa trace.
+            </span>
+          </div>
+          <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+            <table className="tre-table">
+              <thead>
+                <tr><th>Membre</th><th>Jour</th><th>Arrivée</th><th>Départ</th><th>Trace</th></tr>
+              </thead>
+              <tbody>
+                {pointages
+                  .filter((a) => moisDe(a.date) === M && equipe.some((m) => m.id === a.employeeId))
+                  .sort((a, b) => (a.date < b.date ? 1 : -1))
+                  .slice(0, 40)
+                  .map((a) => (
+                    <tr key={a.id}>
+                      <td>{equipe.find((m) => m.id === a.employeeId)?.name ?? '—'}</td>
+                      <td>{new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</td>
+                      <td>
+                        {corrige === a.id
+                          ? <Input value={a.arrivee ?? ''} onChange={(e) => corriger(a, 'arrivee', e.target.value)} placeholder="09:00" style={{ width: 92 }} />
+                          : a.arrivee ?? '—'}
+                      </td>
+                      <td>
+                        {corrige === a.id
+                          ? <Input value={a.depart ?? ''} onChange={(e) => corriger(a, 'depart', e.target.value)} placeholder="19:00" style={{ width: 92 }} />
+                          : a.depart ?? '—'}
+                      </td>
+                      <td style={{ fontSize: 11.5 }}>
+                        {a.corrigePar
+                          ? <span className="mnd-muted">
+                              corrigé par {a.corrigePar}
+                              {a.avant?.arrivee || a.avant?.depart
+                                ? ` — était ${a.avant?.arrivee ?? '—'} → ${a.avant?.depart ?? '—'}`
+                                : ''}
+                            </span>
+                          : <button className="tre-link-btn" onClick={() => setCorrige(corrige === a.id ? null : a.id)}>
+                              {corrige === a.id ? 'Terminé' : 'Corriger'}
+                            </button>}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </>
+  );
+}

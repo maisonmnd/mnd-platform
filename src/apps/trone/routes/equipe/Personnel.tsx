@@ -16,6 +16,7 @@ import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk,
 } from './data';
+import { useBaremePoints, type BaremePoints } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import TempsAbsences from './TempsAbsences';
@@ -231,6 +232,7 @@ export default function Personnel() {
   const M = payMonth();
   const [categories] = useCategories();
   const [seuils, setSeuils] = useSeuils();
+  const [bareme, setBareme] = useBaremePoints();
 
   const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
 
@@ -1229,6 +1231,49 @@ export default function Personnel() {
               désignées, elle revient au maître assigné.
             </div>
           </Card>
+          {/* ── LES POINTS DU MOIS ─────────────────────────────────────
+              Ce qui rend le personnel autonome : chacun pointe depuis « Mon
+              mois » et voit ses points grandir. Le seuil, pas le rang :
+              plusieurs peuvent toucher la prime le même mois. */}
+          <Card style={{ marginBottom: 14, padding: '16px 18px' }}>
+            <div className="tre-rates__head">
+              <span className="tre-rates__title">Points & prime du mois</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>
+                Le pointage, la ponctualité et les heures au-delà. Chacun les inscrit lui-même —
+                qui ne pointe pas ne marque rien.
+              </span>
+            </div>
+            <div className="tre-rates">
+              {([
+                ['toleranceMin', 'Tolérance', 'min'],
+                ['ptsPointage', 'Avoir pointé', 'pts'],
+                ['ptsPonctualite', 'À l’heure', 'pts'],
+                ['ptsParHeureSup', 'Par heure au-delà', 'pts'],
+                ['seuilPrime', 'Seuil de prime', 'pts'],
+                ['primeXof', 'Montant de la prime', 'F'],
+              ] as [keyof BaremePoints, string, string][]).map(([k, label, unite]) => (
+                <label className="tre-rate" key={String(k)}>
+                  <span className="tre-rate__label">{label}</span>
+                  <span className="tre-rate__field">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={String(bareme[k])}
+                      onChange={(e) => setBareme({ ...bareme, [k]: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0) })}
+                      style={{ width: 88, textAlign: 'right' }}
+                    />
+                    <span className="tre-rate__pct">{unite}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+              La ponctualité se mesure sur l’<strong style={{ fontWeight: 500 }}>horaire du salon</strong> du jour,
+              plus la tolérance. Les heures au-delà se comptent en heures entières après la fermeture :
+              une demi-heure de rangement n’est pas une heure supplémentaire.
+            </div>
+          </Card>
+
           {/* ── LE BARÈME DE SEUILS ────────────────────────────────────
               Il se règle ici, à côté du barème de commission : les deux
               disent ce que la Maison verse en plus du salaire. */}

@@ -187,13 +187,90 @@ export type AttendanceStatus = 'present' | 'retard' | 'absent' | 'absent_justifi
 export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
   present: 'Présent', retard: 'Retard', absent: 'Absent', absent_justifie: 'Absent justifié', maladie: 'Maladie',
 };
-export type Attendance = { id: string; employeeId: string; date: string; status: AttendanceStatus; note?: string; branchId?: string };
+export type Attendance = {
+  id: string; employeeId: string; date: string; status: AttendanceStatus; note?: string; branchId?: string;
+  /** L'HEURE D'ARRIVÉE ET DE DÉPART, en HH:mm. Le statut du jour disait déjà
+      présent ou en retard ; il ne disait pas de combien, ni jusqu'à quand.
+      Sans ces deux heures, un dépassement ne se mesure pas — et c'est lui
+      qu'on veut récompenser. Chacun les inscrit depuis son propre compte. */
+  arrivee?: string;
+  depart?: string;
+  /** TRACE DE CORRECTION. Le gérant peut rectifier un oubli ou une heure
+      fantaisiste, jamais en silence : on garde qui a corrigé, quand, et ce
+      qui était inscrit avant. Une correction qui s'efface elle-même vaut
+      moins qu'une absence de correction. */
+  corrigePar?: string;
+  corrigeAt?: string;
+  avant?: { arrivee?: string; depart?: string };
+};
 export const attendanceStore = createStore<Attendance[]>('mnd_attendance', []);
 export const useAttendance = (): [Attendance[], typeof attendanceStore.set] => {
   const [v, set] = useStore(attendanceStore);
   return [asArray<Attendance>(v), set];
 };
 bindCollection(attendanceStore, 'attendance');
+
+/* ── LE BARÈME DE POINTS ────────────────────────────────────────────────
+   Ce qui rend le personnel autonome : chacun pointe, et voit ses points
+   grandir. Celui qui ne pointe pas ne marque rien — la règle est la même
+   pour tous et ne demande à personne d'aller réclamer son dû.
+
+   Trois sources, et rien d'autre : avoir pointé, être arrivé à l'heure, être
+   resté au-delà. La production a déjà ses primes de seuil ; mêler les deux
+   ferait payer deux fois le même mérite.
+
+   LA PRIME SE GAGNE SUR UN SEUIL, PAS SUR UN RANG — décision du 6 août. Qui
+   dépasse le seuil la touche, fussent-ils trois : on récompense d'avoir bien
+   tenu son mois, pas d'avoir fait mieux que le voisin. Personne ne perd sa
+   prime parce qu'un collègue a fait plus fort. */
+export type BaremePoints = {
+  /** Minutes de grâce sur l'ouverture — arriver à 09h03 pour 09h00 n'est pas un retard. */
+  toleranceMin: number;
+  ptsPointage: number;      // avoir inscrit son arrivée ET son départ
+  ptsPonctualite: number;   // arrivé dans la tolérance
+  ptsParHeureSup: number;   // par heure entière au-delà de la fermeture
+  seuilPrime: number;       // points à dépasser
+  primeXof: number;
+};
+export const BAREME_POINTS_DEFAUT: BaremePoints = {
+  toleranceMin: 5, ptsPointage: 1, ptsPonctualite: 3, ptsParHeureSup: 2,
+  seuilPrime: 60, primeXof: 10000,
+};
+export const baremePointsStore = createStore<BaremePoints>('mnd_bareme_points', BAREME_POINTS_DEFAUT);
+export const useBaremePoints = () => useStore(baremePointsStore);
+bindDocument(baremePointsStore, 'mnd_bareme_points');
+
+/** Minutes depuis minuit. Accepte « 09h00 » comme « 09:00 » — les horaires du
+    salon s'écrivent avec un h, le pointage avec deux points. */
+export const minutesDe = (h: string | undefined): number | undefined => {
+  const m = /^(\d{1,2})\s*[h:]\s*(\d{2})$/.exec((h ?? '').trim());
+  if (!m) return undefined;
+  return Number(m[1]) * 60 + Number(m[2]);
+};
+
+/** Les points d'UNE journée. Rend le détail plutôt qu'un total : un point qui
+    ne s'explique pas se conteste, et une contestation coûte plus cher que la
+    prime. */
+export const pointsDuJour = (
+  a: Pick<Attendance, 'arrivee' | 'depart'>,
+  horaire: { open: string; close: string; closed: boolean } | undefined,
+  b: BaremePoints,
+): { total: number; pointage: number; ponctualite: number; heuresSup: number; ptsSup: number } => {
+  const vide = { total: 0, pointage: 0, ponctualite: 0, heuresSup: 0, ptsSup: 0 };
+  const arr = minutesDe(a.arrivee);
+  const dep = minutesDe(a.depart);
+  if (arr === undefined || dep === undefined) return vide; // qui ne pointe pas ne marque rien
+  const pointage = b.ptsPointage;
+  const ouverture = minutesDe(horaire?.open);
+  const fermeture = minutesDe(horaire?.close);
+  const ponctualite = ouverture !== undefined && arr <= ouverture + b.toleranceMin ? b.ptsPonctualite : 0;
+  /* Heures ENTIERES au-dela de la fermeture : une demi-heure de rangement
+     n'est pas une heure supplementaire, et arrondir au superieur ferait
+     payer chaque soir. */
+  const heuresSup = fermeture !== undefined && dep > fermeture ? Math.floor((dep - fermeture) / 60) : 0;
+  const ptsSup = heuresSup * b.ptsParHeureSup;
+  return { total: pointage + ponctualite + ptsSup, pointage, ponctualite, heuresSup, ptsSup };
+};
 
 export type LeaveType = 'conge' | 'maladie';
 export type LeaveStatus = 'demande' | 'approuve' | 'refuse';
