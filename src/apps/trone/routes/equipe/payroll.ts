@@ -240,6 +240,57 @@ export const baremePointsStore = createStore<BaremePoints>('mnd_bareme_points', 
 export const useBaremePoints = () => useStore(baremePointsStore);
 bindDocument(baremePointsStore, 'mnd_bareme_points');
 
+/* ── LA PREUVE DE PRÉSENCE ──────────────────────────────────────────────
+   Sans elle, le pointage n'est pas un pointage : c'est une déclaration, et
+   rien n'empêche de l'écrire depuis son lit. La trace de correction permet au
+   gérant de rectifier après coup — c'est une réparation, jamais une preuve.
+
+   DEUX VOIES, décidées le 6 août. La POSITION d'abord : le téléphone doit se
+   trouver dans un rayon réglé autour du salon, et personne n'a de geste
+   quotidien à faire. Le CODE ensuite, en secours : le GPS hésite en intérieur,
+   se refuse quand la permission n'est pas donnée, et une journée de travail ne
+   peut pas dépendre d'un satellite.
+
+   Le code n'est pas un secret cryptographique — qui sait interroger la base le
+   lira. Il demande seulement d'avoir été AU COMPTOIR pour le voir, ce qui est
+   exactement ce qu'on veut prouver. Comme le reste de cette application, il
+   protège de la négligence, pas d'une volonté de tricher. */
+export type PointageConfig = {
+  /** Le pointage exige-t-il une preuve ? Faux tant que rien n'est réglé. */
+  exigerPreuve: boolean;
+  lat?: number;
+  lng?: number;
+  rayonM: number;
+  /** Le code du jour, et le jour qu'il couvre. */
+  codeValeur?: string;
+  codeDate?: string;
+};
+export const POINTAGE_DEFAUT: PointageConfig = { exigerPreuve: false, rayonM: 150 };
+export const pointageConfigStore = createStore<PointageConfig>('mnd_pointage_config', POINTAGE_DEFAUT);
+export const usePointageConfig = () => useStore(pointageConfigStore);
+bindDocument(pointageConfigStore, 'mnd_pointage_config');
+
+/** Distance en mètres entre deux points — formule de la corde (haversine).
+    Le rayon de la Terre suffit à la précision qu'on cherche : on compare des
+    dizaines de mètres, pas des centimètres. */
+export const distanceM = (aLat: number, aLng: number, bLat: number, bLng: number): number => {
+  const R = 6371000;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(bLat - aLat);
+  const dLng = rad(bLng - aLng);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+};
+
+/** Le code du jour — quatre chiffres, régénérés au premier regard d'un jour
+    nouveau. On ne le calcule pas depuis la date : un code déductible se
+    devinerait à l'avance, et l'on veut qu'il faille être passé au comptoir. */
+export const codeDuJour = (cfg: PointageConfig, aujourdhui: string): string => {
+  if (cfg.codeDate === aujourdhui && cfg.codeValeur) return cfg.codeValeur;
+  return '';
+};
+
 /* ── LES JOURNÉES QUI NE SUIVENT PAS LA SEMAINE ─────────────────────────
    Un inventaire, une fermeture exceptionnelle, une personne à qui l'on a
    demandé de venir plus tard : la semaine type ne sait pas dire ces jours-là.

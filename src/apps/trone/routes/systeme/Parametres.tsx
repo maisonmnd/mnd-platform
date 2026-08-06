@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Input, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { autoConfigStore, type AutoConfig } from '../equipe/data';
 import { useBranch } from '../../../../shared/branches';
@@ -16,7 +16,7 @@ import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import { ERP_DOMAINS, useSalonHours, WEEK_DAYS, useStaff } from '../equipe/data';
-import { useExceptionsHoraires, type HoraireException } from '../equipe/payroll';
+import { useExceptionsHoraires, usePointageConfig, type HoraireException } from '../equipe/payroll';
 import { uid } from '../../../../shared/store';
 import './systeme.css';
 
@@ -432,6 +432,7 @@ function FactoryResetCard() {
 export default function Parametres() {
   const [heures, setHeures] = useSalonHours();
   const [exceptions, setExceptions] = useExceptionsHoraires();
+  const [preuve, setPreuve] = usePointageConfig();
   const [equipe] = useStaff();
   const { branch, currency } = useBranch();
   const [settings, setSettings] = useSettings();
@@ -1113,6 +1114,117 @@ export default function Parametres() {
           Écris l’heure comme « 08h00 » ou « 08:00 ». Le Calendrier couvre la plus large amplitude
           de la semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
         </div>
+      </Card>
+
+      {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
+          Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
+          l'écrire depuis son lit. La position d'abord — aucun geste quotidien —
+          et le code en secours, parce qu'une journée de travail ne peut pas
+          dépendre d'un satellite. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Preuve de présence au pointage</div>
+        <div className="sys-section__cap">
+          Sans elle, « Arrivée » est une déclaration que rien ne vérifie. On demande d’abord la
+          position du téléphone ; le code affiché au comptoir prend le relais quand le GPS refuse.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0 10px' }}>
+          <button
+            className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
+            onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
+          >
+            Confiance — aucune vérification
+          </button>
+          <button
+            className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
+            onClick={() => setPreuve({ ...preuve, exigerPreuve: true })}
+          >
+            Vérifier la présence
+          </button>
+        </div>
+
+        {preuve.exigerPreuve && (
+          <>
+            <div className="tr-grid tr-grid--2" style={{ marginTop: 6 }}>
+              <Field label="Position du salon">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Input
+                    value={preuve.lat !== undefined ? String(preuve.lat) : ''}
+                    onChange={(e) => setPreuve({ ...preuve, lat: Number(e.target.value) || undefined })}
+                    placeholder="latitude"
+                    style={{ width: 118 }}
+                  />
+                  <Input
+                    value={preuve.lng !== undefined ? String(preuve.lng) : ''}
+                    onChange={(e) => setPreuve({ ...preuve, lng: Number(e.target.value) || undefined })}
+                    placeholder="longitude"
+                    style={{ width: 118 }}
+                  />
+                </div>
+                {/* LA POSITION SE CAPTURE DEPUIS LE SALON — saisir des
+                    coordonnées à la main est le meilleur moyen de se tromper
+                    d'un chiffre et de rendre le pointage impossible. */}
+                <button
+                  className="tre-link-btn"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    if (!navigator.geolocation) { toast('Position indisponible sur cet appareil.'); return; }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setPreuve({
+                          ...preuve,
+                          lat: Math.round(pos.coords.latitude * 1e6) / 1e6,
+                          lng: Math.round(pos.coords.longitude * 1e6) / 1e6,
+                        });
+                        toast('Position du salon enregistrée.');
+                      },
+                      () => toast('Position refusée — autorisez-la dans le navigateur.'),
+                      { enableHighAccuracy: true, timeout: 8000 },
+                    );
+                  }}
+                >
+                  Utiliser ma position actuelle — à faire DEPUIS le salon
+                </button>
+              </Field>
+              <Field label="Rayon accepté (mètres)">
+                <Input
+                  inputMode="numeric"
+                  value={String(preuve.rayonM)}
+                  onChange={(e) => setPreuve({ ...preuve, rayonM: Math.max(20, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 150) })}
+                  style={{ width: 110, textAlign: 'right' }}
+                />
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                  150 m est un bon départ : le GPS hésite de quelques dizaines de mètres en intérieur,
+                  et un rayon trop serré refuserait des gens réellement présents.
+                </div>
+              </Field>
+            </div>
+
+            <Field label="Code du jour — à afficher au comptoir">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
+                  {preuve.codeDate === new Date().toISOString().slice(0, 10) && preuve.codeValeur ? preuve.codeValeur : '— — — —'}
+                </span>
+                <button
+                  className="tre-link-btn"
+                  onClick={() => setPreuve({
+                    ...preuve,
+                    codeValeur: String(Math.floor(1000 + Math.random() * 9000)),
+                    codeDate: new Date().toISOString().slice(0, 10),
+                  })}
+                >
+                  Générer le code d’aujourd’hui
+                </button>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                Il ne sert qu’à celles et ceux dont le téléphone ne donne pas sa position. Génère-le
+                le matin et écris-le au comptoir : ce qu’il prouve, c’est d’être passé le lire.
+                Ce n’est pas un secret — qui sait interroger la base le trouvera — mais il protège
+                de la négligence, comme le reste de cette maison.
+              </div>
+            </Field>
+          </>
+        )}
       </Card>
 
       {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────

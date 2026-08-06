@@ -9,6 +9,7 @@ import { useStaff, useSalonHours, type StaffMember } from './data';
 import {
   useAttendance, useBaremePoints, pointsDuJour, minutesDe,
   useExceptionsHoraires, horaireEffectif,
+  usePointageConfig, distanceM,
   type Attendance,
 } from './payroll';
 import { uid } from '../../../../shared/store';
@@ -47,6 +48,8 @@ export default function MonMois() {
   const [bareme] = useBaremePoints();
   const [horaires] = useSalonHours();
   const [exceptions] = useExceptionsHoraires();
+  const [preuve] = usePointageConfig();
+  const [verif, setVerif] = useState<string>('');
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
@@ -107,9 +110,51 @@ export default function MonMois() {
 
   /* POINTER. L'arrivée crée la ligne du jour, le départ la complète. On
      n'écrase jamais une heure déjà posée : corriger est un autre geste, tracé. */
-  const pointer = (m: StaffMember, champ: 'arrivee' | 'depart') => {
+  /* LA POSITION, PUIS LE CODE. On demande d'abord au téléphone où il se
+     trouve : c'est la voie sans geste, et la plus difficile à contourner.
+     Quand elle échoue — permission refusée, GPS muet en intérieur, trop loin —
+     on retombe sur le code affiché au comptoir. Une journée de travail ne peut
+     pas dépendre d'un satellite. */
+  const positionOk = (): Promise<{ ok: boolean; motif: string }> =>
+    new Promise((resolve) => {
+      if (preuve.lat === undefined || preuve.lng === undefined) { resolve({ ok: true, motif: '' }); return; }
+      if (!navigator.geolocation) { resolve({ ok: false, motif: 'position indisponible sur cet appareil' }); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const d = distanceM(pos.coords.latitude, pos.coords.longitude, preuve.lat!, preuve.lng!);
+          resolve(d <= preuve.rayonM
+            ? { ok: true, motif: `${d} m du salon` }
+            : { ok: false, motif: `${d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${d} m`} du salon` });
+        },
+        () => resolve({ ok: false, motif: 'position refusée' }),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
+      );
+    });
+
+  const pointer = async (m: StaffMember, champ: 'arrivee' | 'depart') => {
     const d = iso(new Date());
     const h = maintenant();
+    if (preuve.exigerPreuve) {
+      setVerif('Vérification de la position…');
+      const { ok, motif } = await positionOk();
+      if (!ok) {
+        /* LE CODE NE S'IMPOSE QU'EN SECOURS, et on dit pourquoi : « refusé »
+           sans raison fait croire à une panne, et l'on cesse de pointer. */
+        const attendu = preuve.codeDate === d ? preuve.codeValeur : undefined;
+        if (!attendu) {
+          setVerif('');
+          toast(`Pointage impossible — ${motif}, et aucun code du jour n’est affiché au salon.`);
+          return;
+        }
+        const saisi = window.prompt(`${motif}. Saisis le code affiché au comptoir :`, '');
+        if ((saisi ?? '').trim() !== attendu) {
+          setVerif('');
+          toast('Code incorrect — le pointage n’a pas été inscrit.');
+          return;
+        }
+      }
+      setVerif('');
+    }
     const existe = duJour(m.id, d);
     if (existe?.[champ]) { toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} déjà inscrit — le gérant peut le corriger.`); return; }
     if (existe) setPointages((prev) => prev.map((a) => (a.id === existe.id ? { ...a, [champ]: h } : a)));
@@ -221,8 +266,14 @@ export default function MonMois() {
                       {' · '}<strong style={{ fontWeight: 500, color: 'var(--copper-700)' }}>{p.total} pts</strong>
                     </span>
                   )}
-                  {!a?.arrivee && (
+                  {verif && <span className="mnd-muted" style={{ fontSize: 12 }}>{verif}</span>}
+                  {!verif && !a?.arrivee && (
                     <span className="mnd-muted" style={{ fontSize: 12 }}>Sans pointage, la journée ne compte pas.</span>
+                  )}
+                  {!verif && preuve.exigerPreuve && preuve.lat !== undefined && (
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                      · le pointage vérifie que tu es au salon
+                    </span>
                   )}
                 </div>
               );
