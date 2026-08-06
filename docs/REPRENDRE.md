@@ -40,8 +40,6 @@ La migration `0026_pointage_par_chacun.sql` est PASSÉE — `attendance` est sou
 cloisonnent pas les données : côté serveur, seule la paie est réservée au
 souverain. Le bandeau d'Accès & personnel le dit.
 
-## Le catalogue — construit le 5 et 6 août
-
 ## Le catalogue est replié — 5 août 2026
 
 **147 → 74 prestations.** Deux mouvements, dans cet ordre :
