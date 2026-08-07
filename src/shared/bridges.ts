@@ -32,6 +32,19 @@ export type VitrineConfig = {
   visibleCategories: string[];
   hiddenServices: string[];
   hiddenProducts: string[];
+  /** CE QUE LE QUIZ RECOMMANDE, prestation par envie.
+
+      Le miroir proposait quatre rituels écrits en dur dans le code — « Le Soin
+      Allongement » à 28 000 F, « La Création Nano-locks » à 120 000 F — qui
+      n'existaient dans aucun catalogue, avec des prix inventés qu'un
+      multiplicateur arrondissait encore. Montrés à une cliente, ils devenaient
+      une promesse que la Maison n'avait jamais faite.
+
+      On désigne donc, pour chacune des quatre envies, une prestation du
+      catalogue. Son nom et son prix sont alors les vrais — le prix personnel
+      de la cliente, coefficient compris. Rien n'est désigné = le miroir ne
+      recommande rien, ce qui vaut mieux qu'une recommandation fausse. */
+  recoParEnvie?: Partial<Record<'longueur' | 'eclat' | 'protection' | 'transformation', string>>;
   quizEnabled: boolean;
 };
 
@@ -42,6 +55,7 @@ export const vitrineConfigStore = createStore<VitrineConfig>('mnd_vitrine_config
   visibleCategories: [],
   hiddenServices: [],
   hiddenProducts: [],
+  recoParEnvie: {},
   quizEnabled: true,
 });
 

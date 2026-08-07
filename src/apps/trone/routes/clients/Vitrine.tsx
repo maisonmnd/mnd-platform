@@ -26,13 +26,16 @@ const QUIZ_POOL: { q1: string; q1opts: [string, string][]; q2: string; q2opts: [
     q2: 'Pour ta prochaine venue, tu aimerais…', q2opts: [['garder', 'Rester fidèle à mon style'], ['oser', 'Voir plus grand'], ['surprise', 'Qu’on me guide']] },
 ];
 
-const RECO: Record<string, { title: string; base: number; line: string }> = {
-  longueur: { title: 'Le Soin Allongement', base: 28000, line: 'On nourrit la racine — c’est là que la longueur se gagne.' },
-  eclat: { title: 'Le Rituel Éclat Cuivré', base: 32000, line: 'Une lumière posée sur ta couronne, rien que pour la faire chanter.' },
-  protection: { title: 'La Coiffure Refuge', base: 24000, line: 'On protège ce que tu as bâti, mèche après mèche.' },
-  transformation: { title: 'La Création Nano-locks', base: 120000, line: 'Le grand passage — une œuvre qui change tout.' },
-};
-const Q2MULT: Record<string, number> = { garder: 1.0, oser: 1.18, surprise: 1.08 };
+/* LES QUATRE ENVIES du quiz. Les prestations qui y répondent ne sont plus
+   écrites ici : elles se désignent dans la Régie, prises au catalogue. Ne
+   restent que les mots — ce que la Maison dit en proposant, et qui n'a pas de
+   prix. */
+export const ENVIES = [
+  { k: 'longueur' as const, label: 'La longueur', line: 'On nourrit la racine — c’est là que la longueur se gagne.' },
+  { k: 'eclat' as const, label: 'L’éclat', line: 'Une lumière posée sur ta couronne, rien que pour la faire chanter.' },
+  { k: 'protection' as const, label: 'La protection', line: 'On protège ce que tu as bâti, mèche après mèche.' },
+  { k: 'transformation' as const, label: 'Le changement', line: 'Le grand passage — une œuvre qui change tout.' },
+];
 
 export default function Vitrine() {
   const [mode, setMode] = useState<'apercu' | 'couronne' | 'regie'>('apercu');
@@ -124,6 +127,8 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
   const [scene, setScene] = useState(0);
   const [playing, setPlaying] = useState(cfg.autoplay);
   const [variant, setVariant] = useState(0);
+  const [servicesTous] = useServices();
+  const [cfgMiroir] = useStore(vitrineConfigStore);
   const [q1, setQ1] = useState<string | null>(null);
   const [q2, setQ2] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
@@ -150,8 +155,14 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
   }, [playing, cfg.quizEnabled]);
 
   const pool = QUIZ_POOL[variant % QUIZ_POOL.length];
-  const reco = q1 ? RECO[q1] : null;
-  const recoPrice = reco ? Math.round(reco.base * client.priceCoef * (q2 ? Q2MULT[q2] : 1)) : 0;
+  /* LA RECOMMANDATION VIENT DU CATALOGUE, et son prix est celui de la
+     cliente — coefficient personnel compris, comme partout ailleurs dans la
+     Maison. Plus de tarif inventé, plus de multiplicateur d'humeur : ce qui
+     s'affiche au miroir est ce qu'elle paiera. */
+  const svcReco = q1 ? servicesTous.find((sv) => sv.id === cfgMiroir.recoParEnvie?.[q1 as 'longueur']) : undefined;
+  const mot = ENVIES.find((e) => e.k === q1);
+  const reco = svcReco && mot ? { title: svcReco.name, line: mot.line } : null;
+  const recoPrice = svcReco ? personalPriceXof(svcReco, { clientCoef: client.priceCoef }) : 0;
 
   const goto = (s: number) => { setScene(s); setPlaying(false); };
 
@@ -295,6 +306,7 @@ function QuizRow({ label, opts, value, onPick }: { label: string; opts: [string,
 
 /* ---------- Régie · la configuration de la Vitrine ---------- */
 function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
+  const [servicesRegie] = useServices();
   const [cfg] = useStore(vitrineConfigStore);
   const [categories] = useCategories();
   const [services] = useServices();
@@ -368,6 +380,33 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           <div className="trc-microlabel" style={{ margin: 0 }}>Réglages de la Vitrine</div>
           <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
           <SwitchRow label="Quiz sur-mesure (IA)" sub="Deux questions à rotation, puis une reco." on={cfg.quizEnabled} onToggle={(v) => setFlag('quizEnabled', v)} />
+
+          {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le
+              miroir recommandait quatre rituels écrits en dur, à des prix qui
+              n existaient nulle part : montrés a une cliente, ils devenaient
+              une promesse que la Maison n avait jamais faite. */}
+          {cfg.quizEnabled && (
+            <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                À chaque envie, la prestation que le miroir propose. Son prix sera celui de la
+                cliente, coefficient compris. Rien de choisi = le miroir ne recommande rien.
+              </div>
+              {ENVIES.map((e) => (
+                <label key={e.k} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12.5 }}>{e.label}</span>
+                  <select
+                    className="sys-select"
+                    style={{ maxWidth: 230, flex: 1 }}
+                    value={cfg.recoParEnvie?.[e.k] ?? ''}
+                    onChange={(ev) => vitrineConfigStore.set((c) => ({ ...c, recoParEnvie: { ...(c.recoParEnvie ?? {}), [e.k]: ev.target.value || undefined } }))}
+                  >
+                    <option value="">— aucune —</option>
+                    {servicesRegie.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -414,6 +453,21 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               carpet.map((name) => <span key={name} className="trc-stage__piece">{name}</span>)
             )}
           </div>
+        </div>
+
+        {/* L ESSAI EN VRAI, sous les réglages. Régler d un côté et vérifier de
+            l autre obligeait à changer d onglet à chaque case cochée : on ne
+            voyait jamais l effet du geste qu on venait de faire. Le miroir est
+            donc ici, vivant, nourri par la configuration du dessus — coche une
+            catégorie, réponds au quiz, et tu vois exactement ce que la cliente
+            verra. */}
+        <div>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>L essai · ce que {client.name.split(' ')[0]} verra</div>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 4, marginBottom: 12, lineHeight: 1.55 }}>
+            Le miroir tel qu il se jouera devant elle. Réponds aux deux questions pour vérifier la
+            prestation proposée et son prix — ce sont les vrais, pris au catalogue.
+          </div>
+          <Apercu client={client} />
         </div>
       </div>
     </div>
