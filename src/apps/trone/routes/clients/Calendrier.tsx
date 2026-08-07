@@ -717,7 +717,14 @@ export default function Calendrier() {
           On lui laisse donc la fiche du rituel EN LECTURE (`sansPrix`), et on lui
           ferme l'encaissement. Masquer le bouton n'aurait pas suffi : la modale
           s'ouvre aussi depuis la fiche. */}
-      {createInit && !estMaitre && <RdvModal onClose={() => setCreateInit(null)} initial={createInit} />}
+      {/* IL PEUT POSER UN RENDEZ-VOUS. Le lui refuser obligeait à passer par le
+          secrétariat pour la moindre cliente qui repart en fixant sa prochaine
+          venue — un aller-retour pour rien, au comptoir, devant elle. Il le
+          pose donc, sans jamais voir un prix : le tarif se lit au catalogue et
+          se règle à la caisse, pas au fauteuil. */}
+      {createInit && (
+        <RdvModal onClose={() => setCreateInit(null)} initial={createInit} sansPrix={estMaitre} />
+      )}
       {editAppt && (
         <RdvModal
           onClose={() => setEditAppt(null)}

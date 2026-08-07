@@ -7,6 +7,10 @@ import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, MAISONS, type Maison } from '../../../../shared/catalog';
+import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { staffAccessStore } from '../equipe/data';
+import { useStore } from '../../../../shared/store';
+import { voitLesPrix } from '../index';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
@@ -18,6 +22,18 @@ import { honorAppointment, PayAppointmentModal } from './actions';
 const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 232px';
 
 export default function Carnet() {
+  /* UN MAÎTRE NE LIT PAS L'ARGENT DE LA MAISON. Il ouvre le Carnet pour savoir
+     qui vient, avec quel rituel et à quelle heure — pas pour connaître le
+     montant, la remise ou ce qui reste dû. La colonne se vide, le solde
+     disparaît, l'encaissement se ferme, et la fiche s'ouvre sans prix.
+
+     MÊME JUGE QUE LE CALENDRIER : `voitLesPrix`, une seule règle pour toute la
+     Maison. Et ce n'est pas le rôle qui trance mais le domaine ouvert —
+     Gerard tient le secrétariat ET le fauteuil, il encaisse. */
+  const moiCarnet = useMyStaff();
+  const mesDomainesCarnet = useStore(staffAccessStore)[0][moiCarnet?.user_id ?? ''] ?? {};
+  const sansPrix = !voitLesPrix(moiCarnet?.role, mesDomainesCarnet);
+
   const { currency } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
@@ -176,11 +192,13 @@ export default function Carnet() {
             </span>
           ) : (
             <>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>
-                {fmtMoney(apptTotalXof(a, byId), currency)}
-              </span>
+              {!sansPrix && (
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>
+                  {fmtMoney(apptTotalXof(a, byId), currency)}
+                </span>
+              )}
               {(a.seriesTotal ?? 0) > 1 && <span className="trc-serie-chip">Séance 1/{a.seriesTotal}</span>}
-              {showReste && (
+              {showReste && !sansPrix && (
                 <span
                   className="trc-serie-chip"
                   style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
@@ -206,7 +224,7 @@ export default function Carnet() {
             </button>
             {menuFor === a.id && (
               <div className="trc-menu">
-                {canEncaisser && (
+                {canEncaisser && !sansPrix && (
                   <button onClick={() => { setPayAppt(a); setMenuFor(null); }}>
                     Encaisser {dueX > 0 ? `· reste ${fmtMoney(dueX, currency)}` : '(pourboire)'}
                   </button>
@@ -302,7 +320,7 @@ export default function Carnet() {
           <span>Heure</span>
           <span>Cliente</span>
           <span>Services</span>
-          <span>Montant</span>
+          <span>{sansPrix ? '' : 'Montant'}</span>
           <span style={{ textAlign: 'right' }}>Statut</span>
         </div>
 
@@ -334,10 +352,13 @@ export default function Carnet() {
           initial={modal.initial}
           appt={modal.appt}
           title={modal.title}
-          onEncaisser={(a) => { setModal(null); setPayAppt(a); }}
+          sansPrix={sansPrix}
+          onEncaisser={sansPrix ? undefined : (a) => { setModal(null); setPayAppt(a); }}
         />
       )}
-      {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {/* L'ENCAISSEMENT NE S'OUVRE PAS AU FAUTEUIL. Fermer le bouton ne
+          suffisait pas : la modale s'ouvre aussi depuis la fiche du rituel. */}
+      {payAppt && !sansPrix && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
     </div>
   );
 }
