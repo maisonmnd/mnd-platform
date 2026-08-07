@@ -14,8 +14,7 @@ import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
-  type StaffMember, type StaffRisk,
-} from './data';
+  type StaffMember, type StaffRisk, ordonneEquipe, staffStore } from './data';
 import { useBaremePoints, type BaremePoints } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
@@ -234,7 +233,29 @@ export default function Personnel() {
   const [seuils, setSeuils] = useSeuils();
   const [bareme, setBareme] = useBaremePoints();
 
-  const team = useMemo(() => staff.filter((m) => m.branchId === branch.id), [staff, branch.id]);
+  const team = useMemo(() => ordonneEquipe(staff.filter((m) => m.branchId === branch.id)), [staff, branch.id]);
+
+  /* L'ORDRE DES MEMBRES, décidé ici et respecté partout ailleurs.
+
+     Les pastilles d'attribution sortaient dans l'ordre de création des fiches
+     — c'est-à-dire dans aucun ordre. Or personne ne fait une tête seul : un
+     KLOKLO se fait à deux, une reprise à deux ou trois, la coiffure par un
+     troisième. On coche ces combinaisons des dizaines de fois par jour, et
+     chercher un nom dans une liste rangée au hasard coûte ce temps-là.
+
+     On renumérote TOUTE la branche à chaque déplacement plutôt que d'échanger
+     deux rangs : des fiches sans rang, ou à rang égal, laisseraient l'ordre
+     dépendre du tri de secours — donc bouger sans qu'on l'ait demandé. */
+  const deplacer = (id: string, sens: -1 | 1) => {
+    const i = team.findIndex((m) => m.id === id);
+    const j = i + sens;
+    if (i < 0 || j < 0 || j >= team.length) return;
+    const ordonne = [...team];
+    const [pris] = ordonne.splice(i, 1);
+    ordonne.splice(j, 0, pris);
+    const rangs = new Map(ordonne.map((m, k) => [m.id, k]));
+    staffStore.set((prev) => prev.map((m) => (rangs.has(m.id) ? { ...m, ordre: rangs.get(m.id) } : m)));
+  };
 
   /* ----- Attribution des RDV à l'équipe -----
      Un RDV n'apparaît « sous Team » que si son maître (`a.master`) porte le nom
@@ -813,12 +834,17 @@ export default function Personnel() {
             </Card>
           </div>
 
-          <Card style={{ marginTop: 18, overflow: 'hidden' }}>
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 18, marginBottom: 8, lineHeight: 1.55 }}>
+            Les flèches rangent l’équipe dans l’ordre où tu veux la voir. Cet ordre vaut partout :
+            les mains d’un rendez-vous, « Mon mois », les listes d’attribution. Range-les comme on
+            travaille — personne ne fait une tête seul, et les combinaisons reviennent tous les jours.
+          </div>
+          <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
               <table className="tre-table">
                 <thead>
                   <tr>
-                    <th>Membre</th><th>Rôle</th><th>Branche</th><th>Au fauteuil</th><th>Ancienneté</th><th>Salaire · base</th><th>Statut</th><th></th>
+                    <th style={{ width: 62 }}>Ordre</th><th>Membre</th><th>Rôle</th><th>Branche</th><th>Au fauteuil</th><th>Ancienneté</th><th>Salaire · base</th><th>Statut</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -829,6 +855,30 @@ export default function Personnel() {
                       onClick={() => openEdit(m)}
                       title={`Modifier la fiche de ${m.name}`}
                     >
+                      {/* LE DÉPLACEMENT NE DOIT PAS OUVRIR LA FICHE : la ligne
+                          entière est cliquable, on arrête donc la propagation. */}
+                      <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="tre-link-btn"
+                          onClick={() => deplacer(m.id, -1)}
+                          disabled={team[0]?.id === m.id}
+                          title={`Remonter ${m.name}`}
+                          style={{ padding: '2px 5px' }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="tre-link-btn"
+                          onClick={() => deplacer(m.id, 1)}
+                          disabled={team[team.length - 1]?.id === m.id}
+                          title={`Descendre ${m.name}`}
+                          style={{ padding: '2px 5px' }}
+                        >
+                          ↓
+                        </button>
+                      </td>
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                           <span className="tre-avatar">{m.name.slice(0, 1)}</span>

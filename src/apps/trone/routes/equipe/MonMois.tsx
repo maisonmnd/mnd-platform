@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { sameName } from '../../../../shared/text';
-import { useStaff, type StaffMember } from './data';
+import { useStaff, ordonneEquipe, type StaffMember } from './data';
 import { useSettings } from '../../../../shared/settings';
 import {
   useAttendance, useBaremePoints, pointsDuJour, minutesDe,
@@ -103,7 +103,7 @@ export default function MonMois() {
   const [services] = useServices();
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
 
-  const equipe = useMemo(() => team.filter((m) => m.branchId === branch.id), [team, branch.id]);
+  const equipe = useMemo(() => ordonneEquipe(team.filter((m) => m.branchId === branch.id)), [team, branch.id]);
   /* QUI SUIS-JE dans l'équipe. Le compte du Trône et la fiche du personnel
      sont deux registres distincts ; il faut les rapprocher.
 

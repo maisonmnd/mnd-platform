@@ -12,7 +12,7 @@ import { apptPaidXof,
 import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { uid } from '../../../../shared/store';
-import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff } from '../equipe/data';
+import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
 
@@ -795,12 +795,12 @@ export function RdvModal({
                   par une troisieme. Le maitre assigne repond du rendez-vous ;
                   il ne dit pas qui a travaille, et c'est pourtant lui seul que
                   la commission suivait. Aucune main cochee : on retombe sur lui. */}
-              {equipe.filter((m) => m.branchId === branch.id && m.auFauteuil).length > 0 && (
+              {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 9, paddingTop: 9, borderTop: '1px dashed var(--hairline)' }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
                     Mains
                   </span>
-                  {equipe.filter((m) => m.branchId === branch.id && m.auFauteuil).map((m) => {
+                  {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).map((m) => {
                     const pos = serviceIds.indexOf(sv.id);
                     const on = mainsDe(pos).includes(m.id);
                     return (

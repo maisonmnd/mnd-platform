@@ -57,6 +57,17 @@ export type StaffMember = {
   email: string;
   since: string; // ISO — l'ancienneté se calcule dynamiquement
   auFauteuil: boolean; // exécute des prestations
+  /** L'ORDRE D'AFFICHAGE, décidé à la main dans Personnel & paie.
+
+      Les listes sortaient dans l'ordre où les fiches avaient été créées —
+      c'est-à-dire dans aucun ordre. Or attribuer une tête est un geste
+      répété des dizaines de fois par jour, et jamais par une seule personne :
+      un KLOKLO se fait à deux, une reprise à deux ou trois, la coiffure par
+      un troisième. Ranger les pastilles dans l'ordre où l'on travaille
+      réellement fait gagner ce temps-là, tous les jours.
+
+      Absent = à la fin, par ancienneté. */
+  ordre?: number;
   /** COMMISSIONNÉ ? Faux par défaut — chez MND, on ne commissionne pas les
       salariés. La commission ne concerne que les maîtres recrutés
       ponctuellement, et le praticien qui devient maître le jour où on l'a
@@ -100,6 +111,19 @@ export const STAFF_SEED: StaffMember[] = [];
 
 export const staffStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
 export const useStaff = () => useStore(staffStore);
+
+/** L'ÉQUIPE DANS L'ORDRE VOULU. Une seule fonction, appelée partout où des
+    noms s'alignent : les pastilles du rendez-vous, celles de « Mon mois »,
+    la fiche Personnel. Deux écrans qui trient différemment donnent deux
+    maisons différentes. */
+export const ordonneEquipe = <T extends { ordre?: number; since?: string; name: string }>(l: T[]): T[] =>
+  [...l].sort((a, b) => {
+    const ra = a.ordre ?? Number.MAX_SAFE_INTEGER;
+    const rb = b.ordre ?? Number.MAX_SAFE_INTEGER;
+    if (ra !== rb) return ra - rb;
+    if (a.since && b.since && a.since !== b.since) return a.since < b.since ? -1 : 1;
+    return a.name.localeCompare(b.name, 'fr');
+  });
 
 export const netAVerser = (m: StaffMember) =>
   m.salaireXof + m.commPrestaXof + m.commProduitXof + m.primeXof;
