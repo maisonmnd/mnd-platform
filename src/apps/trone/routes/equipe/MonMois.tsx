@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Card, Input, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -42,6 +43,33 @@ const maintenant = () => {
 };
 const fmtHeures = (min: number) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}`;
 
+/* LE RANG SE PARTAGE, PAS LE BILAN. Savoir qui mène motive — c'est tout
+   l'intérêt d'un classement. Mais lire les journées, les retards et la prime
+   d'un collègue ne regarde que lui et le gérant : ce sont des bilans
+   personnels. Chacun voit donc l'ordre complet, et ses chiffres à lui seul. */
+function TrClassement({ rang, nom, b, sien, ouvert, seuil, prime }: {
+  rang: number;
+  nom: string;
+  b: { total: number; joursPointes: number; heuresSup: number };
+  sien: boolean;
+  ouvert: boolean;
+  seuil: number;
+  prime: string;
+}) {
+  const masque = <span className="mnd-muted">·</span>;
+  return (
+    <tr style={sien ? { background: 'var(--color-sable)' } : undefined}>
+      <td>{rang}. {nom}</td>
+      <td className="num">{ouvert ? b.total : masque}</td>
+      <td className="num">{ouvert ? b.joursPointes : masque}</td>
+      <td className="num">{ouvert ? b.heuresSup : masque}</td>
+      <td style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
+        {!ouvert ? masque : seuil > 0 && b.total >= seuil ? `◆ ${prime}` : '—'}
+      </td>
+    </tr>
+  );
+}
+
 export default function MonMois() {
   const { branch, currency } = useBranch();
   const [team] = useStaff();
@@ -51,6 +79,22 @@ export default function MonMois() {
   const [exceptions] = useExceptionsHoraires();
   const [preuve] = usePointageConfig();
   const [verif, setVerif] = useState<string>('');
+  const [demande, setDemande] = useState<{ m: StaffMember; champ: 'arrivee' | 'depart'; motif: string } | null>(null);
+  const [saisie, setSaisie] = useState('');
+
+  /* LE CODE APPORTÉ PAR LE QR. Scanné au comptoir avec l'appareil photo du
+     téléphone — aucune application à installer —, il ouvre cet écran avec le
+     code dans l'adresse. On le retire aussitôt de la barre d'adresse : un lien
+     partagé par mégarde ne doit pas emporter le code du jour avec lui. */
+  const [params, setParams] = useSearchParams();
+  const codeScanne = params.get('code') ?? '';
+  useEffect(() => {
+    if (!codeScanne) return;
+    const p = new URLSearchParams(params);
+    p.delete('code');
+    setParams(p, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeScanne]);
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
@@ -144,30 +188,12 @@ export default function MonMois() {
       );
     });
 
-  const pointer = async (m: StaffMember, champ: 'arrivee' | 'depart') => {
+  /* L'ÉCRITURE, une fois la présence acquise. Séparée de la vérification :
+     le code peut arriver par le QR, par la saisie, ou n'être pas nécessaire
+     du tout quand la position suffit — trois chemins, une seule inscription. */
+  const inscrire = (m: StaffMember, champ: 'arrivee' | 'depart') => {
     const d = iso(new Date());
     const h = maintenant();
-    if (preuve.exigerPreuve) {
-      setVerif('Vérification de la position…');
-      const { ok, motif } = await positionOk();
-      if (!ok) {
-        /* LE CODE NE S'IMPOSE QU'EN SECOURS, et on dit pourquoi : « refusé »
-           sans raison fait croire à une panne, et l'on cesse de pointer. */
-        const attendu = preuve.codeDate === d ? preuve.codeValeur : undefined;
-        if (!attendu) {
-          setVerif('');
-          toast(`Pointage impossible — ${motif}, et aucun code du jour n’est affiché au salon.`);
-          return;
-        }
-        const saisi = window.prompt(`${motif}. Saisis le code affiché au comptoir :`, '');
-        if ((saisi ?? '').trim() !== attendu) {
-          setVerif('');
-          toast('Code incorrect — le pointage n’a pas été inscrit.');
-          return;
-        }
-      }
-      setVerif('');
-    }
     const existe = duJour(m.id, d);
     if (existe?.[champ]) { toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} déjà inscrit — le gérant peut le corriger.`); return; }
     if (existe) setPointages((prev) => prev.map((a) => (a.id === existe.id ? { ...a, [champ]: h } : a)));
@@ -183,6 +209,44 @@ export default function MonMois() {
       } as Attendance]);
     }
     toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} inscrit à ${h}.`);
+  };
+
+  /* POINTER — la position d'abord, le code ensuite, l'inscription enfin.
+     LA BOÎTE DU NAVIGATEUR A DISPARU : elle sortait du dessin de la Maison et
+     plusieurs navigateurs mobiles la refusent purement et simplement. La
+     demande se fait maintenant dans la carte, sous les boutons. */
+  const pointer = async (m: StaffMember, champ: 'arrivee' | 'depart') => {
+    const d = iso(new Date());
+    if (preuve.exigerPreuve) {
+      const attendu = preuve.codeDate === d ? preuve.codeValeur : undefined;
+      /* LE QR A DÉJÀ RÉPONDU : scanné au comptoir, il ouvre cet écran avec le
+         code en poche. On ne redemande rien — c'est tout l'intérêt du geste. */
+      if (attendu && codeScanne === attendu) { inscrire(m, champ); return; }
+
+      setVerif('Vérification de la position…');
+      const { ok, motif } = await positionOk();
+      setVerif('');
+      if (!ok) {
+        if (!attendu) {
+          toast(`Pointage impossible — ${motif}, et aucun code du jour n’est affiché au salon.`);
+          return;
+        }
+        setDemande({ m, champ, motif });
+        setSaisie('');
+        return;
+      }
+    }
+    inscrire(m, champ);
+  };
+
+  /* LA SAISIE DU CODE, quand la position n'a rien donné. */
+  const validerCode = () => {
+    if (!demande) return;
+    const attendu = preuve.codeDate === iso(new Date()) ? preuve.codeValeur : undefined;
+    if (saisie.trim() !== attendu) { toast('Code incorrect — le pointage n’a pas été inscrit.'); return; }
+    inscrire(demande.m, demande.champ);
+    setDemande(null);
+    setSaisie('');
   };
 
   const corriger = (a: Attendance, champ: 'arrivee' | 'depart', valeur: string) =>
@@ -305,10 +369,39 @@ export default function MonMois() {
                   {!verif && !a?.arrivee && (
                     <span className="mnd-muted" style={{ fontSize: 12 }}>Sans pointage, la journée ne compte pas.</span>
                   )}
-                  {!verif && preuve.exigerPreuve && preuve.lat !== undefined && (
+                  {!verif && !demande && preuve.exigerPreuve && preuve.lat !== undefined && (
                     <span className="mnd-muted" style={{ fontSize: 11.5 }}>
                       · le pointage vérifie que tu es au salon
                     </span>
+                  )}
+
+                  {/* LA DEMANDE DE CODE, dans la carte et non dans une boîte
+                      système. On dit POURQUOI on la fait : « refusé » sans
+                      raison fait croire à une panne, et l'on cesse de pointer. */}
+                  {demande && (
+                    <div className="tre-code-ask">
+                      <div className="tre-code-ask__motif">
+                        {demande.motif} — scanne le carré affiché au comptoir, ou saisis ses quatre chiffres.
+                      </div>
+                      <div className="tre-code-ask__ligne">
+                        <Input
+                          value={saisie}
+                          onChange={(e) => setSaisie(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') validerCode(); }}
+                          inputMode="numeric"
+                          autoFocus
+                          placeholder="0000"
+                          aria-label="Code du jour"
+                          style={{ width: 128, textAlign: 'center', fontFamily: 'var(--font-serif)', fontSize: 22, letterSpacing: '.28em' }}
+                        />
+                        <button className="tre-chip is-on" onClick={validerCode} disabled={saisie.length < 4}>
+                          Valider
+                        </button>
+                        <button className="tre-link-btn" onClick={() => { setDemande(null); setSaisie(''); }}>
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
@@ -488,15 +581,16 @@ export default function MonMois() {
             </thead>
             <tbody>
               {classement.map(({ m, b }, i) => (
-                <tr key={m.id} style={moi && m.id === moi.id ? { background: 'var(--color-sable)' } : undefined}>
-                  <td>{i + 1}. {m.name}</td>
-                  <td className="num">{b.total}</td>
-                  <td className="num">{b.joursPointes}</td>
-                  <td className="num">{b.heuresSup}</td>
-                  <td style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
-                    {bareme.seuilPrime > 0 && b.total >= bareme.seuilPrime ? `◆ ${fmtMoney(bareme.primeXof, currency)}` : '—'}
-                  </td>
-                </tr>
+                <TrClassement
+                  key={m.id}
+                  rang={i + 1}
+                  nom={m.name}
+                  b={b}
+                  sien={!!moi && m.id === moi.id}
+                  ouvert={(!!moi && m.id === moi.id) || gerant}
+                  seuil={bareme.seuilPrime}
+                  prime={fmtMoney(bareme.primeXof, currency)}
+                />
               ))}
             </tbody>
           </table>

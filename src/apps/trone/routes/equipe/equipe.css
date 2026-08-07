@@ -903,3 +903,40 @@
   line-height: 1.6;
   color: rgba(246, 241, 232, 0.62);
 }
+
+/* LE QR occupe la place qu'il mérite : c'est le geste normal, les chiffres ne
+   sont que le secours. Fond clair obligatoire — un QR inversé ne se lit pas
+   sur la moitié des téléphones. */
+.cpt__qr { line-height: 0; }
+.cpt__qrsvg {
+  width: clamp(180px, 34vh, 380px);
+  height: clamp(180px, 34vh, 380px);
+  border-radius: 3px;
+}
+
+/* LA DEMANDE DE CODE — dans la carte, pas dans une boîte système. Elle ne
+   paraît que lorsque la position a échoué : la voir tous les jours ferait
+   croire qu'il faut la remplir tous les jours. */
+.tre-code-ask {
+  flex-basis: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--copper-300, #d9b48f);
+  border-radius: 3px;
+  background: rgba(201, 138, 91, 0.06);
+}
+.tre-code-ask__motif {
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.tre-code-ask__ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Les chiffres cèdent la place au QR : c'est lui le geste normal. */
+.cpt__chiffre { font-size: clamp(44px, 9vw, 108px); }
+.cpt__code { gap: clamp(8px, 1.6vw, 20px); }

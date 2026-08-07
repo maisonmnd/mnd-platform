@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import qrcode from 'qrcode-generator';
 import { useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
 import { usePointageConfig, assurerCodeDuJour } from './payroll';
@@ -26,6 +27,38 @@ import './equipe.css';
    allumé toute la nuit affiche le bon code au réveil de l'équipe. */
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/* LE LIEN QUE PORTE LE QR. Chemin relatif à l'origine servie, jamais un
+   domaine en dur : changer de compte GitHub ne doit rien casser. */
+export const lienDuJour = (code: string) =>
+  `${window.location.origin}${window.location.pathname}#/mon-mois?code=${code}`;
+
+/* LE QR, DESSINÉ À LA MAIN en SVG depuis la matrice — comme les graphiques de
+   cette maison. Un seul chemin pour tous les modules noirs : le navigateur en
+   redessine des centaines à chaque rendu sinon, et l'écran reste allumé
+   des journées entières. */
+function QrSvg({ valeur }: { valeur: string }) {
+  const d = useMemo(() => {
+    const qr = qrcode(0, 'M');
+    qr.addData(valeur);
+    qr.make();
+    const n = qr.getModuleCount();
+    let path = '';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) path += `M${c} ${r}h1v1h-1z`;
+      }
+    }
+    return { path, n };
+  }, [valeur]);
+
+  return (
+    <svg viewBox={`-2 -2 ${d.n + 4} ${d.n + 4}`} className="cpt__qrsvg" role="img" aria-label="Code du jour à scanner">
+      <rect x={-2} y={-2} width={d.n + 4} height={d.n + 4} fill="#f6f1e8" />
+      <path d={d.path} fill="#1b1f3b" shapeRendering="crispEdges" />
+    </svg>
+  );
+}
 
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -69,13 +102,25 @@ export default function Comptoir() {
       <div className="cpt__marque">{branch?.name ?? 'Maison MND'}</div>
       <div className="cpt__jour">{enToutesLettres(new Date(`${jour}T12:00:00`))}</div>
 
+      {/* LE QR D'ABORD. L'appareil photo natif de n'importe quel téléphone le
+          lit — aucune application à installer, aucun chiffre à recopier. Il
+          ouvre « Mon mois » avec le code déjà porté : il ne reste qu'à pointer.
+
+          CE QU'IL PROUVE RESTE LE MÊME : il a fallu se tenir devant cet écran.
+          Un QR photographié la veille ne vaut rien, le code change chaque nuit. */}
+      {code && (
+        <div className="cpt__qr">
+          <QrSvg valeur={lienDuJour(code)} />
+        </div>
+      )}
+
       <div className="cpt__code" aria-label="Code du jour">
         {code ? code.split('').map((c, i) => <span key={i} className="cpt__chiffre">{c}</span>)
           : <span className="cpt__attente">…</span>}
       </div>
 
       <div className="cpt__pied">
-        Code du jour · à saisir au pointage
+        Scanne le carré · ou saisis ces quatre chiffres
       </div>
 
       {!preuve.exigerPreuve && (
