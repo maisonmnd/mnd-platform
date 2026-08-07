@@ -623,24 +623,33 @@ export default function MonMois() {
               <tr><th>Membre</th><th className="num">Points</th><th className="num">Jours</th><th className="num">Heures au-delà</th><th>Prime</th></tr>
             </thead>
             <tbody>
-              {classement.map(({ m, b }, i) => (
-                <TrClassement
-                  key={m.id}
-                  rang={i + 1}
-                  nom={m.name}
-                  b={b}
-                  sien={!!moi && m.id === moi.id}
-                  ouvert={(!!moi && m.id === moi.id) || gerant}
-                  seuil={bareme.seuilPrime}
-                  prime={fmtMoney(bareme.primeXof, currency)}
-                />
-              ))}
+              {/* LE NOM D'UN COLLÈGUE NE S'AFFICHE PAS ICI. On voyait la
+                  maison entière alignée avec ses chiffres : un tableau de
+                  comparaison, là où il fallait un bilan. Chacun lit sa ligne
+                  et son rang — savoir qu'on est deuxième sur cinq suffit à se
+                  situer, nommer les autres n'y ajoute rien et les expose.
+                  Le gérant, lui, garde la maison entière sous les yeux. */}
+              {classement
+                .filter(({ m }) => gerant || (!!moi && m.id === moi.id))
+                .map(({ m, b }) => (
+                  <TrClassement
+                    key={m.id}
+                    rang={classement.findIndex((c) => c.m.id === m.id) + 1}
+                    nom={m.name}
+                    b={b}
+                    sien={!!moi && m.id === moi.id}
+                    ouvert
+                    seuil={bareme.seuilPrime}
+                    prime={fmtMoney(bareme.primeXof, currency)}
+                  />
+                ))}
             </tbody>
           </table>
         </div>
         {moi && monRang > 0 && (
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10 }}>
             Tu es {monRang}<sup>{monRang === 1 ? 'er' : 'e'}</sup> sur {classement.length}.
+            {!gerant && ' Le rang de chacun lui appartient — la prime se gagne au seuil, pas sur le podium.'}
           </div>
         )}
       </Card>
