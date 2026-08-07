@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Card, Input, toast } from '../../../../ds/components';
+import { Card, Input, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
@@ -311,6 +311,13 @@ export default function MonMois() {
       return { ...a, mains: n };
     }));
 
+  /* UN SEUL RITUEL À LA FOIS. La liste dépliée faisait défiler des dizaines de
+     pastilles : on ne savait plus où l'on en était, et le geste — dire qui a
+     fait la tête — se perdait dans le défilement. On choisit dans une liste
+     déroulante, on renseigne, on passe au suivant. */
+  const [rituelChoisi, setRituelChoisi] = useState<string>('');
+  const rituel = aCompleter.find((a) => a.id === rituelChoisi) ?? aCompleter[0];
+
   const monBilan = moi ? bilanDe(moi) : null;
   const monRang = moi ? classement.findIndex((c) => c.m.id === moi.id) + 1 : 0;
   const primeAcquise = !!monBilan && bareme.seuilPrime > 0 && monBilan.total >= bareme.seuilPrime;
@@ -521,43 +528,79 @@ export default function MonMois() {
               ni dans la production ni dans les seuils.
             </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-            {aCompleter.map((a) => (
-              <div key={a.id} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '11px 13px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                  <span style={{ fontSize: 13 }}>{a.clientName ?? 'Cliente'}</span>
-                  <span className="mnd-muted" style={{ fontSize: 12 }}>
-                    {new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
-                    {a.master ? ` · assigné à ${a.master}` : ''}
-                  </span>
-                </div>
-                {a.serviceIds.map((sid, i) => {
-                  const sv = svcById.get(sid);
-                  if (!sv) return null;
-                  const posees = a.mains?.[i] ?? [];
-                  return (
-                    <div key={`${a.id}-${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', padding: '5px 0' }}>
-                      <span style={{ fontSize: 12.5, minWidth: 180 }}>{sv.name}</span>
-                      {equipe.filter((x) => x.auFauteuil).map((x) => (
-                        <button
-                          key={x.id}
-                          type="button"
-                          className={`tre-chip ${posees.includes(x.id) ? 'is-on' : ''}`}
-                          style={{ fontSize: 11.5 }}
-                          onClick={() => poserMain(a.id, i, x.id)}
-                        >
-                          {x.name}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+          {/* LE CHOIX D'ABORD, le geste ensuite. */}
+          <div style={{ marginTop: 14 }}>
+            <Select
+              value={rituel?.id ?? ''}
+              onChange={(e) => setRituelChoisi(e.target.value)}
+              aria-label="Choisir un rituel à compléter"
+              style={{ width: '100%', maxWidth: 460 }}
+            >
+              {aCompleter.map((a) => {
+                const reste = a.serviceIds.filter((_, k) => !(a.mains?.[k]?.length)).length;
+                const quand = new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                return (
+                  <option key={a.id} value={a.id}>
+                    {a.clientName ?? 'Cliente'} · {quand} · {reste} geste{reste > 1 ? 's' : ''}
+                  </option>
+                );
+              })}
+            </Select>
           </div>
+
+          {rituel && (
+            <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '13px 15px', marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17 }}>{rituel.clientName ?? 'Cliente'}</span>
+                <span className="mnd-muted" style={{ fontSize: 12 }}>
+                  {new Date(`${rituel.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {rituel.master ? ` · assigné à ${rituel.master}` : ''}
+                </span>
+              </div>
+
+              {/* SEULS LES GESTES SANS MAINS RESTENT ICI. Une ligne déjà
+                  renseignée disparaît d'elle-même : ce qui reste à l'écran est
+                  exactement ce qui reste à faire. */}
+              {rituel.serviceIds.map((sid, i) => {
+                const sv = svcById.get(sid);
+                const posees = rituel.mains?.[i] ?? [];
+                /* CE QUI RESTE À L'ÉCRAN EST CE QUI RESTE À FAIRE — plus ce
+                   qu'on vient de cocher, pour pouvoir se dédire. Un geste
+                   attribué à d'autres seulement ne nous concerne plus. */
+                if (!sv || (posees.length > 0 && !posees.includes(moi.id))) return null;
+                return (
+                  <div key={`${rituel.id}-${i}`} style={{ padding: '8px 0', borderTop: i > 0 ? '1px solid var(--hairline)' : undefined }}>
+                    <div style={{ fontSize: 13, marginBottom: 7 }}>{sv.name}</div>
+                    {/* CHACUN NE PARLE QUE POUR LUI. La liste entière du
+                        personnel invitait à désigner les autres — or personne
+                        ne sait à leur place, et cet écran est un bilan
+                        personnel. Un seul bouton : le sien. Le gérant garde
+                        la vue complète dans Personnel & paie. */}
+                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className={`tre-chip ${posees.includes(moi.id) ? 'is-on' : ''}`}
+                        style={{ fontSize: 11.5 }}
+                        onClick={() => poserMain(rituel.id, i, moi.id)}
+                      >
+                        {posees.includes(moi.id) ? '✓ C’est moi' : 'C’est moi'}
+                      </button>
+                      {posees.length > 0 && (
+                        <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                          {posees.length > 1 ? `${posees.length} mains sur ce geste` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
             Un geste fait à deux compte une demi-part de chaque côté. Ne coche que ce que tu as
-            réellement fait — le gérant relit ces attributions.
+            réellement fait — le gérant relit ces attributions. Un rituel renseigné quitte la
+            liste : il en reste {aCompleter.length}.
           </div>
         </Card>
       )}
