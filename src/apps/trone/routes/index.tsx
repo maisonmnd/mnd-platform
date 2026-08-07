@@ -10,6 +10,8 @@ import {
 
 export type TroneRoute = {
   path: string;
+  /** Joignable, mais absent de la barre latérale. */
+  horsMenu?: boolean;
   label: string;
   icon: LucideIcon;
   Component: LazyExoticComponent<ComponentType>;
@@ -76,10 +78,12 @@ export const NAV: TroneGroup[] = [
     group: 'Système',
     items: [
       { path: '/parametres', label: 'Paramètres', icon: Settings, Component: lazy(() => import('./systeme/Parametres')) },
-      /* LE COMPTOIR VIT AVEC LES PARAMÈTRES, pas avec « Mon mois ». Il affiche
-         le code du jour : le laisser à ceux qui pointent le viderait de son
-         sens, puisqu'ils le liraient sans se déplacer. */
-      { path: '/comptoir', label: 'Comptoir · code du jour', icon: KeyRound, Component: lazy(() => import('../routes/equipe/Comptoir')) },
+      /* LE COMPTOIR N'EST PLUS DANS LE MENU. Un écran qu'on ouvre trois fois
+         par an n'a pas sa place entre Paramètres et Accès : il encombrait une
+         barre déjà longue. Il reste joignable depuis Paramètres, là où l'on
+         règle la preuve de présence — et le code du jour se lit désormais
+         directement dans « Mon mois », sur le compte du gérant. */
+      { path: '/comptoir', label: 'Comptoir · code du jour', icon: KeyRound, horsMenu: true, Component: lazy(() => import('../routes/equipe/Comptoir')) },
       { path: '/acces', label: 'Accès & personnel', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
       { path: '/branches', label: 'Branches', icon: MapPin, Component: lazy(() => import('./systeme/Branches')) },
       { path: '/marque', label: 'Marque & thème', icon: Palette, Component: lazy(() => import('./systeme/Marque')) },

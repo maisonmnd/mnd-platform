@@ -940,3 +940,30 @@
 /* Les chiffres cèdent la place au QR : c'est lui le geste normal. */
 .cpt__chiffre { font-size: clamp(44px, 9vw, 108px); }
 .cpt__code { gap: clamp(8px, 1.6vw, 20px); }
+
+/* LE CODE DU JOUR dans « Mon mois » — assez grand pour être scanné par-dessus
+   l'épaule, assez discret pour ne pas voler la carte de pointage. */
+.tre-code-jour {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+}
+.tre-code-jour > svg { width: 104px; height: 104px; flex: none; }
+.tre-code-jour__label {
+  font-size: 10.5px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tre-code-jour__valeur {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  letter-spacing: .22em;
+  color: var(--color-indigo);
+  margin: 2px 0 6px;
+}

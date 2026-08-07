@@ -205,7 +205,7 @@ export default function Shell() {
           {/* CHAQUE ROLE NE VOIT QUE CE QU'IL OUVRE. Un groupe dont tous les
               ecrans sont fermes disparait avec eux : un titre seul ne dit rien
               d'autre que ce qu'on ne peut pas atteindre. */}
-          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => peutVoir(role, it.path, mesDomaines)) }))
+          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
             .filter((g) => g.items.length > 0)
             .map((g) => (
             <div key={g.group}>

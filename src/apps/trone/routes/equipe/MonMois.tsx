@@ -7,11 +7,12 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { sameName } from '../../../../shared/text';
 import { useStaff, ordonneEquipe, type StaffMember } from './data';
+import { QrSvg, lienDuJour } from './Comptoir';
 import { useSettings } from '../../../../shared/settings';
 import {
   useAttendance, useBaremePoints, pointsDuJour, minutesDe,
   useExceptionsHoraires, horaireEffectif,
-  usePointageConfig, distanceM,
+  usePointageConfig, distanceM, assurerCodeDuJour,
   type Attendance,
 } from './payroll';
 import { uid } from '../../../../shared/store';
@@ -77,7 +78,7 @@ export default function MonMois() {
   const [bareme] = useBaremePoints();
   const [reglages] = useSettings();
   const [exceptions] = useExceptionsHoraires();
-  const [preuve] = usePointageConfig();
+  const [preuve, setPreuve] = usePointageConfig();
   const [verif, setVerif] = useState<string>('');
   const [demande, setDemande] = useState<{ m: StaffMember; champ: 'arrivee' | 'depart'; motif: string } | null>(null);
   const [saisie, setSaisie] = useState('');
@@ -121,6 +122,14 @@ export default function MonMois() {
     ?? null;
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';
 
+  /* LE CODE DU JOUR, À CÔTÉ DU POINTAGE — et seulement pour le gérant.
+     L'écran Comptoir existe toujours pour les maisons qui posent une tablette
+     à l'entrée, mais il ne mérite pas une ligne dans le menu : ici, celui qui
+     tient la Maison ouvre son propre « Mon mois » le matin, montre le carré à
+     qui en a besoin, et n'a rien d'autre à faire.
+
+     IL RESTE INVISIBLE À CELUI QUI POINTE. Un code que l'application montre au
+     téléphone qui s'en sert ne prouve plus rien : on le lirait de chez soi. */
   const M = moisDe(iso(new Date()));
   /* L'HORAIRE D'UNE PERSONNE UN JOUR DONNÉ.
 
@@ -238,6 +247,13 @@ export default function MonMois() {
     }
     inscrire(m, champ);
   };
+
+  const codeDuJourVisible = gerant && preuve.exigerPreuve
+    ? (preuve.codeDate === iso(new Date()) ? preuve.codeValeur : undefined)
+    : undefined;
+  useEffect(() => {
+    if (gerant && preuve.exigerPreuve) assurerCodeDuJour(preuve, iso(new Date()), setPreuve);
+  }, [gerant, preuve, setPreuve]);
 
   /* LA SAISIE DU CODE, quand la position n'a rien donné. */
   const validerCode = () => {
@@ -380,6 +396,21 @@ export default function MonMois() {
                     <span className="mnd-muted" style={{ fontSize: 11.5 }}>
                       · le pointage vérifie que tu es au salon
                     </span>
+                  )}
+
+                  {/* LE CARRÉ DU JOUR, montré par le gérant à qui en a besoin. */}
+                  {codeDuJourVisible && (
+                    <div className="tre-code-jour">
+                      <QrSvg valeur={lienDuJour(codeDuJourVisible)} />
+                      <div>
+                        <div className="tre-code-jour__label">Code du jour</div>
+                        <div className="tre-code-jour__valeur">{codeDuJourVisible}</div>
+                        <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5, maxWidth: 220 }}>
+                          Visible de toi seule. Montre le carré à qui n’arrive pas à pointer —
+                          il se renouvelle chaque nuit.
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {/* LA DEMANDE DE CODE, dans la carte et non dans une boîte

@@ -37,7 +37,7 @@ export const lienDuJour = (code: string) =>
    cette maison. Un seul chemin pour tous les modules noirs : le navigateur en
    redessine des centaines à chaque rendu sinon, et l'écran reste allumé
    des journées entières. */
-function QrSvg({ valeur }: { valeur: string }) {
+export function QrSvg({ valeur }: { valeur: string }) {
   const d = useMemo(() => {
     const qr = qrcode(0, 'M');
     qr.addData(valeur);
