@@ -157,10 +157,45 @@ partis. `VitrineConfig.recoParEnvie` désigne une prestation RÉELLE du catalogu
 par envie ; le prix affiché est `personalPriceXof` (coefficient cliente compris).
 Le multiplicateur d'humeur Q2MULT est supprimé. L'Aperçu est intégré au bas de la
 Régie pour essayer en direct.
-→ **PROCHAIN CHANTIER DEMANDÉ : porter le quiz de la Vitrine sur Ma Couronne.**
-Aujourd'hui SEULS `visibleCategories` / `hiddenServices` / `hiddenProducts`
-traversent le pont (couronne/lib.ts). Les scènes et le quiz sont Trône-only. À
-décider : où l'insérer dans le tunnel de réservation, et où ranger la réponse.
+**Le quiz a traversé le pont — 7 août 2026.** Les mots vivent désormais dans
+`shared/quiz.ts` : mêmes envies, mêmes questions à rotation, en deux adresses
+(`.tu` pour le miroir du salon, `.vous` pour l'application — une phrase par
+voix, jamais deux jeux de mots).
+
+Sur Ma Couronne, le quiz **ouvre le tunnel de réservation**, à l'index `QUIZ`
+(−1) : les sept index existants ne bougent pas, et `rang()`/`total` comptent les
+écrans réellement traversés (7 avec le quiz, 6 sans). Il se contourne d'un mot
+(« Je sais déjà ce que je veux »), ne s'ouvre pas du tout si la Régie n'a rien
+désigné, et saute pour une réservation préremplie (offre, re-réservation). La
+reco se cherche dans `offre` — catalogue visible ET calibre de la cliente : une
+prestation masquée ou taillée pour un autre modèle ne se propose pas.
+
+`quizEnabled` de la Régie commande maintenant LES DEUX surfaces.
+
+**La reco se choisit selon la cliente — 7 août 2026.** Un seul juge,
+`shared/reco.ts`, lu par le miroir comme par l'app : deux surfaces qui
+calculeraient chacune la leur diraient deux choses à la même tête. La cascade,
+dans l'ordre :
+
+1. **son histoire**, si « Son histoire tranche » est allumé à la Régie
+   (`VitrineConfig.recoAuto`) et qu'elle a des rendez-vous — la prestation
+   qu'elle reprend le plus, sinon un candidat de la maison qu'elle fréquente ;
+2. **son persona** (`Persona.recoParEnvie`, désigné dans CRM → Les personas) ;
+3. **le repli de la Maison** (`VitrineConfig.recoParEnvie`, la Régie) ;
+4. **rien** — ce qui vaut mieux qu'une recommandation fausse.
+
+Le mode automatique **n'invente rien** : il ne trie que des prestations déjà
+désignées quelque part (tous personas + repli). Et à chaque cran, la prestation
+doit être dans l'`offre` — catalogue visible ET calibre de la cliente : une
+prestation qu'elle ne peut pas réserver ne se propose à aucun cran. La Régie
+affiche, pour la cliente choisie, ce qui sortira et par quel cran.
+
+**Sa réponse se range à deux endroits** : `Client.envie` + `envieAt` sur la
+fiche (écrit dès qu'elle répond, même si la réservation n'aboutit pas ; la
+dernière seulement, lisible en clair sur la fiche du Trône, bloc « La couronne »),
+et `Envie · L'éclat` dans la note du rendez-vous, pour le maître au Calendrier.
+Aucun SQL : les lignes sont du JSONB `data`. L'élan (2ᵉ question) ne se stocke
+pas — rien n'agit dessus, et le Q2MULT est mort avec la Vitrine.
 
 **Déploiement.** GitHub Pages sature vite : une publication à la fois par dépôt,
 ~10/heure. Le 6 août, quinze déploiements ont bloqué la file quatre heures
@@ -168,7 +203,58 @@ décider : où l'insérer dans le tunnel de réservation, et où ranger la répo
 publications** — une par lot de travail, pas une par correction. Adresse de
 secours disponible : `maisonmnd.github.io/mnd-platform` (non maintenue).
 
+**Le registre lit le journal — 7 août 2026.** `buildReceipts` datait un
+règlement de rituel par sa FACTURE, qui porte le jour du rituel : les 68 000 F
+que Prunelle a prépayés en juillet tombaient dans la caisse d'août. Chaque
+versement porte désormais `invoiceId` (écrit par `PayAppointmentModal`), et le
+registre date la pièce par le versement qui l'a fait naître. Deux replis :
+le DERNIER versement du rituel (journaux d'avant le lien), puis la date de la
+pièce (ventes au comptoir, rituels sans journal — inchangés).
+
+Conséquence à connaître : **la Synthèse ne bouge pas**, et c'est voulu. Elle
+mesure le chiffre d'affaires, daté par la prestation ; le registre mesure la
+trésorerie, datée par l'argent. Les deux totaux diffèrent légitimement.
+
+Au passage, la suppression d'une facture reprend désormais SES versements (par
+`invoiceId`) et non les plus récents, retrouve le rituel même quand la pièce
+n'est pas la dernière du rendez-vous, et ne coupe le lien `invoiceId` que si
+c'est bien cette pièce-là.
+
 **Toujours en attente** (inchangé) : `0027_rattachement_cliente.sql` et
-`0018_factures_reprise.sql` jamais exécutés ; registre des encaissements
-(`buildReceipts` ignore le journal `ApptPayment`) ; barèmes YÈKPÈ Couleur et
+`0018_factures_reprise.sql` jamais exécutés ; barèmes YÈKPÈ Couleur et
 Manucure/Pédicure à revoir ; notification APDP de la fuite du 2 août.
+Un pourboire saisi SEUL (rituel déjà soldé) reste daté par la pièce — il
+n'écrit pas au journal.
+
+### CHANTIER DEMANDÉ — forfait ponctuel à l'encaissement
+
+**La demande.** Passer un ensemble de prestations en forfait AU MOMENT de
+l'encaissement : la cliente a pris quatre gestes aujourd'hui, on les facture
+comme un tout à un prix négocié.
+
+**Ce qui existe déjà, et ne répond pas.** `Service.includes` + `forfaitRemisePct`
+(catalog.ts) font un forfait DURABLE, qui vit dans le catalogue et se réserve
+comme tel. Ce n'est pas la même chose : ici le forfait naît à la caisse, pour une
+cliente et une fois.
+
+**LE PIÈGE, à ne pas rater.** La tentation est d'effondrer les lignes en une
+seule « Forfait — 60 000 F ». Il ne faut PAS. Le montant par prestation porte
+tout le reste de la Maison :
+- les **mains** et donc la production, les seuils et les primes ;
+- les **commissions** des maîtres (`apptNetXof` × taux) ;
+- la ventilation par maison / catégorie du Bilan mensuel ;
+- le **prix figé** (`prix_fige`) qui protège l'historique d'un changement de
+  catalogue.
+Une ligne unique effacerait tout cela d'un coup — c'est exactement la faute
+qu'on a évitée en repliant les longueurs le 6 août.
+
+**La forme retenue.** Un forfait de caisse fixe un TOTAL VOULU et le
+redistribue sur les lignes existantes au prorata de leur prix, en entiers XOF —
+`splitByWeights` (shared/tips.ts) fait déjà exactement ce calcul, avec le plus
+fort reste. Chaque prestation garde donc un montant propre, cohérent avec le
+total, et toute la ventilation continue de fonctionner. La facture peut
+présenter UNE ligne à la cliente tout en gardant le détail dessous.
+
+**À décider avec Yéman** : le forfait porte-t-il un nom libre ? Se saisit-il en
+montant total ou en pourcentage de remise ? Et un forfait de caisse doit-il
+pouvoir être proposé à la réservation, ou reste-t-il un geste de comptoir ?
