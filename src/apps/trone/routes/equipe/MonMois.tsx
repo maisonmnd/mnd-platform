@@ -335,7 +335,6 @@ export default function MonMois() {
   const rituel = aCompleter.find((a) => a.id === rituelChoisi) ?? aCompleter[0];
 
   const monBilan = moi ? bilanDe(moi) : null;
-  const monRang = moi ? classement.findIndex((c) => c.m.id === moi.id) + 1 : 0;
   const primeAcquise = !!monBilan && bareme.seuilPrime > 0 && monBilan.total >= bareme.seuilPrime;
 
   return (
@@ -641,7 +640,10 @@ export default function MonMois() {
           Mais la prime se gagne au SEUIL : voir le premier ne prive de rien. */}
       <Card style={{ marginTop: 14, padding: '16px 18px' }}>
         <div className="tre-rates__head">
-          <span className="tre-rates__title">Le mois de l’équipe</span>
+          {/* LE TITRE SUIT CE QU'ON MONTRE. Un maître n'y lit plus que sa
+              ligne : l'appeler « le mois de l'équipe » annoncerait une maison
+              entière qui n'y est pas. */}
+          <span className="tre-rates__title">{gerant ? 'Le mois de l’équipe' : 'Mon mois en chiffres'}</span>
           <span className="mnd-muted" style={{ fontSize: 12 }}>
             {bareme.seuilPrime > 0
               ? `Chacun qui dépasse ${bareme.seuilPrime} points touche ${fmtMoney(bareme.primeXof, currency)} — le rang ne prive de rien.`
@@ -677,10 +679,17 @@ export default function MonMois() {
             </tbody>
           </table>
         </div>
-        {moi && monRang > 0 && (
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-            Tu es {monRang}<sup>{monRang === 1 ? 'er' : 'e'}</sup> sur {classement.length}.
-            {!gerant && ' Le rang de chacun lui appartient — la prime se gagne au seuil, pas sur le podium.'}
+        {/* LE RANG A ÉTÉ RETIRÉ le 7 août. « Tu es 2ᵉ sur 5 » ne dit rien
+            d'utile à qui le lit : la prime se gagne sur un SEUIL, pas sur un
+            podium. Dépasser soixante points la donne, qu'on soit premier ou
+            dernier — et savoir qu'un collègue a fait mieux ne change ni le
+            geste du jour ni ce qu'on touchera. Un chiffre qui n'appelle aucune
+            décision n'a rien à faire à l'écran. */}
+        {!gerant && bareme.seuilPrime > 0 && monBilan && (
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+            {monBilan.total >= bareme.seuilPrime
+              ? 'Le seuil est atteint — la prime est acquise.'
+              : `Encore ${bareme.seuilPrime - monBilan.total} points pour la prime.`}
           </div>
         )}
       </Card>
