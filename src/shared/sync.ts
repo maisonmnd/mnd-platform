@@ -94,6 +94,23 @@ const syncMark = {
 
 type WithId = { id: string; branchId?: string };
 
+/* TABLES DONT UNE LIGNE NE SE SUPPRIME JAMAIS DEPUIS UN POSTE — 8 août 2026.
+
+   `branches` est l'axe de toute la Maison : chaque cliente, chaque rendez-vous,
+   chaque facture porte un `branch_id`, et l'écran filtre tout par la branche
+   choisie. Perdre cette ligne ne perd aucune donnée — elle les rend toutes
+   invisibles d'un coup, ce qui se vit exactement comme une perte totale.
+
+   C'est arrivé le 8 août : la fiche de L'atelier MND a disparu de la table, et
+   la branche par défaut du code s'est insérée à sa place. Les 406 rendez-vous,
+   185 clientes et 58 factures étaient intacts, orphelins d'une carte d'identité.
+
+   Le garde-fou de masse ne pouvait rien : il exige ≥ 10 lignes, et cette table
+   n'en portera jamais dix. Une suppression de branche est un geste rare et grave
+   — elle se fait au SQL, en connaissance de cause (voir
+   `supabase/0016_supprimer_branche_studio.sql`), jamais par le diff d'un cache. */
+const SANS_SUPPRESSION = new Set(['branches']);
+
 /** Lie un magasin de collection (tableau d'objets à `id`) à une table distante. */
 export function bindCollection<T extends WithId>(store: Store<T[]>, table: string): void {
   if (!supabase) return;
@@ -167,15 +184,38 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
-      /* GARDE-FOU suppression de MASSE (incident du 23-07 : 28 prestations
-         effacées du serveur d'un geste local). Les suppressions légitimes se
-         font une à une à l'écran ; un diff qui veut effacer ≥ 10 lignes ET
-         ≥ 25 % de la table est presque sûrement un état local corrompu ou
-         vidé (cache purgé, hydratation ratée) — on REFUSE de le propager, on
-         le dit en console, et la pastille de synchro passe en échec. */
-      const massive = deletes.length >= 10 && deletes.length * 4 >= prev.size;
+      /* GARDE-FOU des suppressions (incident du 23-07 : 28 prestations effacées
+         du serveur d'un geste local ; incident du 08-08 : la fiche de la seule
+         branche, emportée par un cache neuf). Un diff qui efface est presque
+         toujours un état local corrompu ou vidé — cache purgé, hydratation
+         ratée. On REFUSE de le propager, on le dit en console, et on va
+         rechercher la vérité au serveur.
+
+         Trois refus, et non plus un seul :
+
+         ① les tables structurelles (voir `SANS_SUPPRESSION`) ne perdent jamais
+            une ligne par un diff — quelle que soit leur taille ;
+         ② un diff qui VIDE une table entière n'est jamais légitime : les
+            suppressions vraies se font une à une à l'écran, et personne n'efface
+            sa dernière branche, sa dernière caisse ou son dernier persona en
+            passant. C'est la signature d'un cache purgé ou d'une hydratation
+            ratée — celle du 8 août, où une table d'UNE ligne a été vidée sans
+            que le seuil des dix ne bronche ;
+         ③ le seuil de masse d'origine (≥ 10 lignes ET ≥ 25 % de la table).
+
+         Ce qui reste permis : retirer un persona parmi six, une caisse parmi
+         trois — un geste délibéré, qui laisse la table debout. */
+      const structurelle = SANS_SUPPRESSION.has(table);
+      const videTout = prev.size > 0 && deletes.length >= prev.size;
+      const enMasse = deletes.length >= 10 && deletes.length * 4 >= prev.size;
+      const massive = structurelle || videTout || enMasse;
       if (massive) {
-        console.warn(`[mnd-sync] ${table} : suppression de masse BLOQUÉE (${deletes.length}/${prev.size} lignes) — état local suspect, rien n'a été effacé du serveur.`);
+        const motif = structurelle
+          ? 'table structurelle — une suppression ne peut venir que du SQL'
+          : videTout
+            ? 'ce diff VIDERAIT la table'
+            : 'état local suspect';
+        console.warn(`[mnd-sync] ${table} : suppression BLOQUÉE (${deletes.length}/${prev.size} lignes) — ${motif}. Rien n'a été effacé du serveur.`);
         /* ON NE SE CONTENTE PLUS DE REFUSER. Un état local jugé suspect le
            reste tant qu'on ne le remplace pas : la poussée suivante
            représentait la même demande d'effacement, indéfiniment, et la
