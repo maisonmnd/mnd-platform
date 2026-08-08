@@ -226,6 +226,46 @@ Manucure/Pédicure à revoir ; notification APDP de la fuite du 2 août.
 Un pourboire saisi SEUL (rituel déjà soldé) reste daté par la pièce — il
 n'écrit pas au journal.
 
+### L'archétype se lit dans le carnet — 8 août 2026
+
+`shared/persona.ts` pèse les signaux d'une cliente et rend un **verdict motivé** ;
+`usePersonaVivant` (shell du Trône) le déclenche à chaque mouvement du carnet et
+écrit — quand, et seulement quand, la lecture est franche.
+
+**La pesée**, plutôt qu'une cascade de `if` : chaque indice donne des points à un
+archétype et dit pourquoi. Il faut **5 points et 2 d'avance** sur le suivant.
+Sous ce seuil, ou à égalité, on ne tranche pas — la fiche ne bouge pas. Le
+verdict nomme quand même son meilleur candidat, pour que le Trône puisse dire
+« pressentie, pas encore sûre ».
+
+**Quatre verrous** : sans session on n'écrit rien (un carnet vide ferait retomber
+la Maison au seuil d'accueil) ; rien de chargé = on attend ; seul un verdict
+confiant écrit, **jamais de rétrogradation** ; et `Client.personaFige` — choisir
+à la main au CRM fige la fiche, un lien la rend à la lecture. Le calcul est
+idempotent : une deuxième passe n'écrit rien.
+
+**Deux corrections du modèle**, trouvées en le vérifiant :
+- ÀLÀLÀ™ vit dans FÍNFÍN™ et comptait donc aussi comme une reconstruction —
+  chaque audacieuse devenait convalescente. La Grande Renaissance ne dit pas une
+  fibre qui souffre, elle dit une femme qui recommence.
+- *La Souveraine* et *La Constante* s'annulaient (scores voisins, aucune marge) :
+  la cliente la plus fidèle retombait au seuil d'accueil. Un archétype précis
+  **mange** le plus général — souveraine et lointaine effacent constante.
+
+**La durée des visites n'est plus pesée.** Les rendez-vous de l'ancien carnet ne
+portent pas toutes leurs prestations : la moyenne tombait à 59 min pour une tête
+de 600 locks. Cet indice mesurait une saisie incomplète, pas de la hâte — il
+classait 25 clientes sur du vide. *La Pressée* reste un archétype, elle ne
+s'attribue simplement plus toute seule.
+
+`crownSince` étant vide sur toute la Maison, *La Souveraine* et *La Naissante* ne
+peuvent pas se gagner aujourd'hui. C'est une donnée absente, pas un mauvais
+seuil.
+
+Dix-neuf cas vérifiés (les huit archétypes qui se gagnent, les cinq qui ne
+doivent pas se gagner, l'égalité, la médiane de cadence, la résolution des
+personas).
+
 ### Le forfait ponctuel est construit — 8 août 2026
 
 **Un seul champ décide** : `Appointment.forfait` = `{ nom?, totalXof, baseXof,
@@ -296,3 +336,32 @@ montant ET en pourcentage, l'un remplissant l'autre · posable **aussi à la
 réservation**, le total promis tenant si les prestations changent ensuite.
 
 </details>
+
+### CHANTIER DEMANDÉ — reprise des RDV pris ailleurs (8 août)
+
+Les clientes réservent encore sur **Fresha** et sur **mnd-admin.vercel.app**
+(ancienne app maison, encore en ligne) pendant que Le Trône se construit.
+
+**RÈGLE ABSOLUE : un seul sens.** L'ancien écrit, Le Trône lit. Deux systèmes qui
+écrivent le même RDV finissent par s'écraser — incidents du 23-07 et du 02-08. Un
+doublon se voit et se corrige ; une écriture croisée efface en silence.
+
+**Deux points durs.** (1) Rapprocher les clientes sur le TÉLÉPHONE normalisé, pas
+sur le nom, sinon le CRM double. (2) Chaque RDV repris doit porter son
+identifiant d'origine (`sourceRef`, à ajouter sur `Appointment`) pour qu'une
+seconde reprise le reconnaisse au lieu d'en créer un second.
+
+**mnd-admin.vercel.app — à vérifier EN PREMIER :** pointe-t-il sur le MÊME projet
+Supabase, ou sur un autre ? Même projet = peut-être déjà les mêmes tables, et
+alors il n'y a rien à reprendre, seulement une porte à fermer. Autre projet =
+copie de base à base, faisable en SQL en une passe.
+
+**Fresha :** pas d'interface publique ouverte aux salons à ma connaissance (à
+revérifier). Voie réaliste : export CSV des rendez-vous → import, relançable
+autant de fois qu'on veut grâce au `sourceRef`. Écrire le script dans
+`scripts/`, sur le modèle de `import-genere.mjs`.
+
+**LE VRAI CONSEIL, à donner avant de coder :** le problème n'est pas la synchro,
+c'est d'avoir trois portes d'entrée. Une reprise est un pansement qu'il faudra
+maintenir indéfiniment. Fermer mnd-admin et faire pointer le lien de réservation
+Fresha vers Ma Couronne coûte moins cher, une fois, que de synchroniser à vie.
