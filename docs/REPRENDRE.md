@@ -170,7 +170,11 @@ désigné, et saute pour une réservation préremplie (offre, re-réservation). 
 reco se cherche dans `offre` — catalogue visible ET calibre de la cliente : une
 prestation masquée ou taillée pour un autre modèle ne se propose pas.
 
-`quizEnabled` de la Régie commande maintenant LES DEUX surfaces.
+**Deux surfaces, deux interrupteurs** (8 août) : `quizEnabled` commande le miroir
+du salon, `quizCouronne` commande Ma Couronne. Un seul interrupteur obligeait à
+choisir entre les deux — or au fauteuil la maîtresse est là pour expliquer ce
+qui se propose, sur le téléphone la cliente est seule. `quizCouronne` absent =
+allumé (l'état dans lequel le quiz est né côté cliente).
 
 **La reco se choisit selon la cliente — 7 août 2026.** Un seul juge,
 `shared/reco.ts`, lu par le miroir comme par l'app : deux surfaces qui

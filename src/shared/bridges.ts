@@ -50,7 +50,20 @@ export type VitrineConfig = {
       une Souveraine de dix ans n'en était pas une. Ce réglage-ci sert quand
       l'archétype n'a rien dit. */
   recoParEnvie?: Partial<Record<'longueur' | 'eclat' | 'protection' | 'transformation', string>>;
+  /** LE QUIZ AU MIROIR DU SALON — la scène « une question pour toi ». */
   quizEnabled: boolean;
+  /** LE QUIZ SUR MA COURONNE, au seuil de la réservation — commandé À PART.
+
+      Un seul interrupteur pour les deux surfaces obligeait à choisir entre les
+      deux : éteindre le quiz pour les clientes l'éteignait au fauteuil, où il
+      se joue pourtant devant quelqu'un qui peut l'expliquer. Ce ne sont pas les
+      mêmes conditions — au salon la maîtresse est là, sur le téléphone la
+      cliente est seule.
+
+      Absent = allumé : c'est l'état dans lequel le quiz est né sur Ma Couronne,
+      et le retirer par surprise à une maison qui l'utilise serait pire que de
+      lui demander de l'éteindre. */
+  quizCouronne?: boolean;
   /** SON HISTOIRE TRANCHE. Allumé, le quiz ne prend plus la désignation de son
       persona telle quelle : il choisit, PARMI tout ce que la Maison a désigné
       pour cette envie, la prestation que ses rendez-vous rendent la plus juste
@@ -68,6 +81,7 @@ export const vitrineConfigStore = createStore<VitrineConfig>('mnd_vitrine_config
   hiddenProducts: [],
   recoParEnvie: {},
   quizEnabled: true,
+  quizCouronne: true,
 });
 
 import { bindCollection, bindDocument } from './sync';

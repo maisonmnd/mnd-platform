@@ -331,7 +331,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
     vitrineConfigStore.set((c) => ({ ...c, hiddenServices: c.hiddenServices.includes(id) ? c.hiddenServices.filter((x) => x !== id) : [...c.hiddenServices, id] }));
   const toggleProd = (id: string) =>
     vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: c.hiddenProducts.includes(id) ? c.hiddenProducts.filter((x) => x !== id) : [...c.hiddenProducts, id] }));
-  const setFlag = (k: 'autoplay' | 'quizEnabled' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
+  const setFlag = (k: 'autoplay' | 'quizEnabled' | 'quizCouronne' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
 
   const carpet = useMemo(() => {
     const s = services.filter((x) => svcVisible(x.id) && catVisible(x.categoryId)).map((x) => x.name);
@@ -379,18 +379,28 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="trc-microlabel" style={{ margin: 0 }}>Réglages de la Vitrine</div>
           <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
+          {/* DEUX SURFACES, DEUX INTERRUPTEURS. Au fauteuil la maîtresse est là
+              pour expliquer ce que le miroir propose ; sur son téléphone, la
+              cliente est seule. Ce ne sont pas les mêmes conditions, ça ne
+              s'éteint pas ensemble. */}
           <SwitchRow
-            label="Quiz sur-mesure"
-            sub="Deux questions à rotation, puis une reco. Au miroir ET au seuil de Ma Couronne."
+            label="Quiz au miroir du salon"
+            sub="La scène « une question pour toi », pendant le rituel."
             on={cfg.quizEnabled}
             onToggle={(v) => setFlag('quizEnabled', v)}
+          />
+          <SwitchRow
+            label="Quiz sur Ma Couronne"
+            sub="Les deux mêmes questions au seuil de sa réservation, sur son téléphone."
+            on={cfg.quizCouronne !== false}
+            onToggle={(v) => setFlag('quizCouronne', v)}
           />
 
           {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le
               miroir recommandait quatre rituels écrits en dur, à des prix qui
               n existaient nulle part : montrés a une cliente, ils devenaient
               une promesse que la Maison n avait jamais faite. */}
-          {cfg.quizEnabled && (
+          {(cfg.quizEnabled || cfg.quizCouronne !== false) && (
             <>
               <SwitchRow
                 label="Son histoire tranche"
@@ -405,6 +415,14 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                   <b style={{ fontWeight: 500 }}>par persona</b> (CRM → Les personas). Rien nulle
                   part = rien n’est recommandé, et le quiz ne s’ouvre pas sur son téléphone. Une
                   prestation masquée à la Vitrine ne se propose jamais.
+                  {cfg.quizCouronne === false && (
+                    <><br />
+                      <b style={{ fontWeight: 500, color: 'var(--copper-700)' }}>
+                        Le quiz est éteint sur Ma Couronne
+                      </b>{' '}
+                      — ces désignations ne servent donc plus qu’au miroir du salon.
+                    </>
+                  )}
                 </div>
                 {ENVIES.map((e) => (
                   <label key={e.k} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>

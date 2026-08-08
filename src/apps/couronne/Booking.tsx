@@ -216,10 +216,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const recoSvc = envie ? recoDe(envie) : undefined;
   const motEnvie = ENVIES.find((e) => e.k === envie);
   const pool = QUIZ_POOL[variante % QUIZ_POOL.length];
-  /* Le quiz ne s'ouvre que s'il a quelque chose à proposer : réglage allumé au
-     Trône, et au moins une envie pourvue d'une prestation qu'elle peut vraiment
-     réserver. Rien à proposer = pas d'écran, plutôt que deux questions pour rien. */
-  const quizActif = cfg.quizEnabled && !prefService && ENVIES.some((e) => !!recoDe(e.k));
+  /* Le quiz ne s'ouvre que s'il a quelque chose à proposer : l'interrupteur DE
+     MA COURONNE allumé au Trône (`quizCouronne`, distinct de celui du miroir du
+     salon — la cliente est seule devant son téléphone, la maîtresse n'est pas
+     là pour expliquer), et au moins une envie pourvue d'une prestation qu'elle
+     peut vraiment réserver. Rien à proposer = pas d'écran, plutôt que deux
+     questions pour rien. Réglage absent = allumé, comme à sa naissance. */
+  const quizActif = cfg.quizCouronne !== false && !prefService && ENVIES.some((e) => !!recoDe(e.k));
   /* L'écran qu'on REGARDE. Le quiz s'efface s'il n'a rien à dire — l'objectif
      prend alors sa place, sans qu'aucune navigation n'ait à le savoir (le
      catalogue peut arriver du serveur après le premier rendu). */
