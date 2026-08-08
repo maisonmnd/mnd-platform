@@ -1,5 +1,5 @@
 import { invoiceTotal, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
-import type { Appointment } from './agenda';
+import type { Appointment, ApptPayment } from './agenda';
 
 /* Le registre des encaissements — TOUT ce que la Maison reçoit, d'où que ça vienne.
  *
@@ -76,6 +76,27 @@ export type ReceiptSources = {
 export function buildReceipts(s: ReceiptSources): Receipt[] {
   const out: Receipt[] = [];
 
+  /* LA DATE D'UN RÈGLEMENT DE RITUEL SE LIT AU JOURNAL, jamais sur la pièce.
+     Une facture porte le jour du RITUEL — c'est la prestation qu'elle décrit ;
+     l'argent, lui, entre le jour où il est remis. Une cliente qui verse
+     100 000 F le 23 avril puis 300 000 F le 30 avril pour un rituel du 2 mai a
+     payé 400 000 F EN AVRIL : datées par leur facture, ces entrées basculaient
+     sur mai et faussaient deux mois d'un coup — mai enflé d'un argent qui n'y
+     est jamais entré, avril vidé d'autant.
+
+     Deux lectures, dans cet ordre : le versement qui porte l'identifiant de
+     cette pièce ; à défaut (journaux d'avant ce lien), le DERNIER versement du
+     rituel que cette facture a soldé — c'est elle qui l'a écrit. Puis, en
+     dernier recours, la date de la pièce : les rituels sans journal n'ont
+     jamais su dire autre chose, et les ignorer effacerait leur règlement. */
+  const versementDeFacture = new Map<string, ApptPayment>();
+  const dernierVersementDeFacture = new Map<string, ApptPayment>();
+  for (const a of s.appointments) {
+    const journal = a.payments ?? [];
+    for (const p of journal) if (p.invoiceId) versementDeFacture.set(p.invoiceId, p);
+    if (a.invoiceId && journal.length) dernierVersementDeFacture.set(a.invoiceId, journal[journal.length - 1]);
+  }
+
   /* ① Factures payées — ce qui est entré AU COMPTOIR ce jour-là : le total, moins
      l'avoir (pas des billets) et moins l'acompte déjà reçu (entré un autre jour),
      plus le pourboire (il passe bien par le tiroir). */
@@ -83,10 +104,11 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
     if (i.branchId !== s.branchId || i.status !== 'payée') continue;
     const cash = invoiceTotal(i) - (i.avoirXof ?? 0) - (i.depositCreditXof ?? 0) + (i.tipXof ?? 0);
     if (cash <= 0) continue; // entièrement couvert par un avoir ou un acompte
+    const versement = versementDeFacture.get(i.id) ?? dernierVersementDeFacture.get(i.id);
     out.push({
       id: `r-inv-${i.id}`,
       kind: 'facture',
-      date: i.date,
+      date: versement?.date ?? i.date,
       clientId: i.clientId,
       clientName: i.clientName ?? s.nameOf(i.clientId),
       amountXof: cash,
