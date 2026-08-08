@@ -5,9 +5,9 @@ import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, 
 import { useServices } from '../../../../shared/catalog';
 import { ENVIES, type EnvieKey } from '../../../../shared/quiz';
 import {
-  REGLES_DEFAUT, SIGNAL_NOMS, evaluePersona, nomArchetype, personaDe,
+  PERSONA_NOMS, REGLES_DEFAUT, SIGNAL_NOMS, evaluePersona, nomArchetype, personaDe,
   personaReglesStore, suggereArchetypes, usePersonaRegles,
-  type ArchetypeCle, type PropositionArchetype,
+  type ArchetypeCle, type PropositionArchetype, type ReglePersona, type SignalCle,
 } from '../../../../shared/persona';
 import { uid } from '../../../../shared/store';
 import { Avatar, todayISO, useBranchAppointments, useBranchClients } from './_shared';
@@ -306,12 +306,57 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
     }));
   const majSeuil = (champ: 'seuil' | 'marge', v: number) =>
     personaReglesStore.set((c) => ({ ...c, [champ]: Math.max(0, v) }));
+
+  /* Modifier la NATURE d'un indice — le signal qu'il lit, le sens de la
+     comparaison, la phrase qu'il dira au verdict. */
+  const majChamp = (id: string, champ: keyof ReglePersona, v: unknown) =>
+    personaReglesStore.set((c) => ({
+      ...c,
+      regles: c.regles.map((r) => (r.id === id ? { ...r, [champ]: v } : r)),
+    }));
+
+  /* La condition « et » — c'est elle qui empêche une couronne ancienne vue une
+     fois de passer pour une souveraine. */
+  const majEt = (id: string, patch: Partial<NonNullable<ReglePersona['et']>> | null) =>
+    personaReglesStore.set((c) => ({
+      ...c,
+      regles: c.regles.map((r) => (r.id === id
+        ? { ...r, et: patch === null ? undefined : { signal: 'rituels', valeur: 1, ...(r.et ?? {}), ...patch } }
+        : r)),
+    }));
+
+  const ajouteRegle = (pour: ArchetypeCle) =>
+    personaReglesStore.set((c) => ({
+      ...c,
+      regles: [...c.regles, {
+        id: `r-${uid()}`, actif: true, pour,
+        signal: 'rituels', mode: 'seuil', valeur: 3, poids: 2,
+        dit: 'à décrire — ce que cet indice dira',
+      }],
+    }));
+
+  const supprimeRegle = (id: string) =>
+    personaReglesStore.set((c) => ({ ...c, regles: c.regles.filter((r) => r.id !== id) }));
   const retablir = () => {
     if (!window.confirm('Rétablir les règles de la Maison ? Vos réglages seront perdus.')) return;
     personaReglesStore.set(() => structuredClone(REGLES_DEFAUT));
   };
 
-  const cles = [...new Set(config.regles.map((r) => r.pour))];
+  /* TOUT ARCHÉTYPE QUI PEUT RECEVOIR UN INDICE : ceux que les règles désignent,
+     et tous les personas de la Maison. Sans cela, un persona neuf — ou un dont
+     on vient de retirer le dernier indice — disparaîtrait de cet écran et ne
+     pourrait plus jamais rien recevoir.
+
+     Le seuil d'accueil est écarté : rien ne doit ranger AUTOMATIQUEMENT une
+     cliente dans « Initiée ». C'est là qu'elle naît, pas là qu'on la relègue. */
+  const cleDePersona = (p: Persona): ArchetypeCle => {
+    const suffixe = p.id.startsWith('p-') ? p.id.slice(2) : p.id;
+    return suffixe in PERSONA_NOMS ? suffixe : p.id;
+  };
+  const cles = [...new Set([
+    ...config.regles.map((r) => r.pour),
+    ...personas.map(cleDePersona),
+  ])].filter((c) => c !== 'initiee' && !/^\s*initi/i.test(nomArchetype(c, personas)));
 
   return (
     <div className="tr-cols" style={{ '--cols': '1fr 320px', gap: 18, alignItems: 'start' } as CSSProperties}>
@@ -360,46 +405,132 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
               {open && (
                 <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {regles.map((r) => (
-                    <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', opacity: r.actif ? 1 : 0.45, borderTop: '1px solid var(--hairline)', paddingTop: 10 }}>
-                      <button
-                        type="button"
-                        className={`trc-switch ${r.actif ? 'is-on' : ''}`}
-                        onClick={() => bascule(r.id)}
-                        aria-label={`Indice ${r.dit}`}
-                        style={{ flex: 'none' }}
-                      />
-                      <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 12.5 }}>
-                        {r.dit.replace('{n}', '…')}
-                        <span className="trc-sub" style={{ display: 'block' }}>
-                          {SIGNAL_NOMS[r.signal]}
-                          {r.mode === 'seuil' ? (r.sous ? ' · au plus' : ' · au moins') : ' · par unité'}
-                          {r.et ? ` · et ${SIGNAL_NOMS[r.et.signal]} ${r.et.sous ? '≤' : '≥'} ${r.et.valeur}` : ''}
-                        </span>
-                      </span>
-                      {r.mode === 'seuil' && (
+                    <div key={r.id} style={{ opacity: r.actif ? 1 : 0.45, borderTop: '1px solid var(--hairline)', paddingTop: 10 }}>
+                      {/* La PHRASE d'abord : c'est elle qu'on lira au verdict.
+                          « {n} » y devient la valeur lue. */}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className={`trc-switch ${r.actif ? 'is-on' : ''}`}
+                          onClick={() => bascule(r.id)}
+                          aria-label={`Indice ${r.dit}`}
+                          style={{ flex: 'none' }}
+                        />
+                        <Input
+                          value={r.dit}
+                          onChange={(e) => majChamp(r.id, 'dit', e.target.value)}
+                          style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}
+                          aria-label="Ce que dit cet indice"
+                        />
+                        <button
+                          type="button"
+                          className="trc-iconbtn trc-iconbtn--danger"
+                          onClick={() => supprimeRegle(r.id)}
+                          title="Retirer cet indice"
+                          aria-label="Retirer cet indice"
+                          style={{ flex: 'none' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Ce qu'il lit, et ce qu'il vaut. */}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 7, paddingLeft: 38 }}>
+                        <Select
+                          value={r.signal}
+                          onChange={(e) => majChamp(r.id, 'signal', e.target.value)}
+                          style={{ flex: '1 1 210px', minWidth: 0, fontSize: 12 }}
+                          aria-label="Signal lu"
+                        >
+                          {(Object.keys(SIGNAL_NOMS) as SignalCle[]).map((s) => (
+                            <option key={s} value={s}>{SIGNAL_NOMS[s]}</option>
+                          ))}
+                        </Select>
+                        <Select
+                          value={r.mode === 'parUnite' ? 'parUnite' : r.sous ? 'auPlus' : 'auMoins'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            majChamp(r.id, 'mode', v === 'parUnite' ? 'parUnite' : 'seuil');
+                            majChamp(r.id, 'sous', v === 'auPlus' ? true : undefined);
+                          }}
+                          style={{ width: 122, fontSize: 12 }}
+                          aria-label="Comment il compte"
+                        >
+                          <option value="auMoins">au moins ≥</option>
+                          <option value="auPlus">au plus ≤</option>
+                          <option value="parUnite">par unité</option>
+                        </Select>
+                        {r.mode === 'seuil' && (
+                          <Input type="number" value={r.valeur ?? 1}
+                            step={r.signal === 'regularite' || r.signal.startsWith('part') ? 0.1 : 1}
+                            onChange={(e) => majChamp(r.id, 'valeur', Number(e.target.value) || 0)}
+                            style={{ width: 78, textAlign: 'right', fontSize: 12 }}
+                            aria-label="Valeur à atteindre" />
+                        )}
                         <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span className="trc-sub">{r.sous ? '≤' : '≥'}</span>
-                          <Input type="number" value={r.valeur ?? 1} step={r.signal === 'regularite' || r.signal.startsWith('part') ? 0.1 : 1}
-                            onChange={(e) => majRegle(r.id, 'valeur', Number(e.target.value) || 0)}
-                            style={{ width: 78, textAlign: 'right', fontSize: 12 }} />
+                          <span className="trc-sub">points</span>
+                          <Input type="number" min={0} value={r.poids}
+                            onChange={(e) => majRegle(r.id, 'poids', Math.max(0, Number(e.target.value) || 0))}
+                            style={{ width: 62, textAlign: 'right', fontSize: 12 }} />
                         </label>
-                      )}
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span className="trc-sub">points</span>
-                        <Input type="number" min={0} value={r.poids}
-                          onChange={(e) => majRegle(r.id, 'poids', Math.max(0, Number(e.target.value) || 0))}
-                          style={{ width: 66, textAlign: 'right', fontSize: 12 }} />
-                      </label>
-                      {r.mode === 'parUnite' && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span className="trc-sub">max</span>
-                          <Input type="number" min={0} value={r.plafond ?? 0}
-                            onChange={(e) => majRegle(r.id, 'plafond', Math.max(0, Number(e.target.value) || 0))}
-                            style={{ width: 66, textAlign: 'right', fontSize: 12 }} />
-                        </label>
-                      )}
+                        {r.mode === 'parUnite' && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span className="trc-sub">max</span>
+                            <Input type="number" min={0} value={r.plafond ?? 0}
+                              onChange={(e) => majRegle(r.id, 'plafond', Math.max(0, Number(e.target.value) || 0))}
+                              style={{ width: 62, textAlign: 'right', fontSize: 12 }} />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* LA CONDITION « ET » — deux signaux qui doivent tomber
+                          ensemble. C'est elle qui empêche une couronne ancienne
+                          vue une fois de passer pour une souveraine. */}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 6, paddingLeft: 38 }}>
+                        {r.et ? (
+                          <>
+                            <span className="trc-sub" style={{ flex: 'none' }}>et</span>
+                            <Select
+                              value={r.et.signal}
+                              onChange={(e) => majEt(r.id, { signal: e.target.value as SignalCle })}
+                              style={{ flex: '1 1 190px', minWidth: 0, fontSize: 12 }}
+                              aria-label="Second signal"
+                            >
+                              {(Object.keys(SIGNAL_NOMS) as SignalCle[]).map((s) => (
+                                <option key={s} value={s}>{SIGNAL_NOMS[s]}</option>
+                              ))}
+                            </Select>
+                            <Select
+                              value={r.et.sous ? 'auPlus' : 'auMoins'}
+                              onChange={(e) => majEt(r.id, { sous: e.target.value === 'auPlus' || undefined })}
+                              style={{ width: 100, fontSize: 12 }}
+                              aria-label="Sens de la seconde condition"
+                            >
+                              <option value="auMoins">au moins ≥</option>
+                              <option value="auPlus">au plus ≤</option>
+                            </Select>
+                            <Input type="number" value={r.et.valeur}
+                              onChange={(e) => majEt(r.id, { valeur: Number(e.target.value) || 0 })}
+                              style={{ width: 70, textAlign: 'right', fontSize: 12 }}
+                              aria-label="Valeur de la seconde condition" />
+                            <button type="button" className="tre-link-btn" onClick={() => majEt(r.id, null)}>
+                              retirer la condition
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" className="tre-link-btn" onClick={() => majEt(r.id, {})}>
+                            + une seconde condition
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
+
+                  <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 10 }}>
+                    <Button size="sm" variant="ghost" onClick={() => ajouteRegle(cle)}>
+                      + Ajouter un indice à {nomArchetype(cle, personas)}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
