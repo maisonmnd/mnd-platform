@@ -407,3 +407,32 @@ sait calculer une durée personnelle.
 
 Vérifier au passage QUELLE durée le tunnel passe réellement à `durationMin` —
 non tranché faute de contexte le 8 août.
+
+### 0018 factures de reprise — ÉTAPE 1 PASSÉE le 8 août (rien écrit)
+
+Résultat de l'aperçu, à ne pas refaire :
+
+| | |
+|---|---|
+| factures_a_creer | **335** |
+| chiffre_couvert | **15 517 600 F** |
+| avec_remise_de_reprise | 239 |
+| avec_ligne_d_ajustement | 63 |
+| sans_ajustement | 33 |
+| période | 15 oct. 2025 → 1 août 2026 |
+
+Cohérence vérifiée : 239 + 63 + 33 = 335, aucune ligne perdue.
+
+Les **63 lignes d'ajustement** (19 %, élevé mais attendu) viennent du REPLI DES
+LONGUEURS du 6 août : leur prix figé — un DÀNDÀN Long à 28 000 F — dépasse le
+prix de la prestation unique survivante. L'ajustement rétablit l'écart, ce qui
+est le comportement voulu : la facture doit valoir le prix réellement payé.
+
+**LA PORTE EST ICI.** Yéman doit confirmer que 15 517 600 F sur cette période
+correspond à ses relevés (~1 630 000 F/mois) — elle vérifie, réponse en
+attente au 8 août. **Ne PAS lancer l'étape 2 sans ce feu vert** : dès qu'une
+facture est rattachée, le rituel compte par elle et non plus par le Carnet ; un
+écart deviendrait indémêlable sur 335 lignes (cf. les 330 000 F perdus le 4/08).
+
+Si trop bas → chercher du côté des rituels écartés (séries, abonnements, RDV
+jamais marqués honorés). Si trop haut → doublons et annulés.
