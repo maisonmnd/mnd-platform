@@ -365,3 +365,17 @@ autant de fois qu'on veut grâce au `sourceRef`. Écrire le script dans
 c'est d'avoir trois portes d'entrée. Une reprise est un pansement qu'il faudra
 maintenir indéfiniment. Fermer mnd-admin et faire pointer le lien de réservation
 Fresha vers Ma Couronne coûte moins cher, une fois, que de synchroniser à vie.
+
+**RÉPONSE (8 août) : mnd-admin tourne sur FIREBASE**, pas sur Supabase. Ce n'est
+donc pas un branchement mais une reprise entre deux bases de nature différente
+(Firestore, orienté documents → Postgres, relationnel).
+
+Voie : un script Node dans `scripts/` avec `firebase-admin`, qui lit les
+collections (rendez-vous, clientes) et écrit un JSON ; un second qui mappe vers
+la forme du Trône et insère dans Supabase. Relançable grâce au `sourceRef`.
+
+**DANGER — LE DÉPÔT EST PUBLIC.** La clé de service Firebase (JSON de compte de
+service) ne doit JAMAIS entrer dans un commit : elle ouvre la base entière en
+écriture. Elle vit dans une variable d'environnement locale, pas dans un
+fichier du dépôt. Les JSON exportés portent noms, téléphones et e-mails de
+clientes : `.gitignore`, comme `import_v6*.sql` après la fuite du 2 août.
