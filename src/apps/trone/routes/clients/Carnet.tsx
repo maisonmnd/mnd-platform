@@ -11,15 +11,81 @@ import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { voitLesPrix } from '../index';
+import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import { honorAppointment, PayAppointmentModal } from './actions';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
 const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 232px';
+
+/* ---------- LES VUES DU CARNET ----------
+   Ce qu'on vient chercher au comptoir, en une question : « les impayés », « ce
+   qui arrive », « ce qui reste à confirmer ». Deux natures s'y mêlent — l'état
+   du RITUEL et celui de son RÈGLEMENT — parce que c'est ainsi qu'on les
+   demande, jamais comme deux axes à croiser.
+
+   L'état de règlement se lit par `apptPayState`, le même juge que la pastille
+   de la ligne : un filtre qui ne dirait pas la même chose que la colonne d'à
+   côté ne servirait qu'à faire douter.
+
+   UN RITUEL ANNULÉ N'EST PAS UN IMPAYÉ. `apptPayState` ne regarde que l'argent,
+   et un rendez-vous annulé sans règlement lui paraît donc impayé — ce qu'il est
+   comptablement, et ce qu'il n'est pas dans la vie : personne ne l'encaissera
+   jamais. Le laisser dans la liste des impayés, c'est y mettre une dette qui
+   n'existe pas, et faire chercher au comptoir un argent que la Maison n'attend
+   pas. Les trois vues d'argent l'écartent donc. La pastille de la ligne, elle,
+   continue de dire l'état comptable — c'est son rôle. */
+type VueCarnet = '' | 'avenir' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'confirme' | 'honore' | 'annule';
+
+const VUES: Record<VueCarnet, {
+  label: string;
+  garde: (a: Appointment, byId: Map<string, Service>, aVenir: (a: Appointment) => boolean) => boolean;
+}> = {
+  '':         { label: 'Tout',        garde: () => true },
+  avenir:     { label: 'À venir',     garde: (a, _b, aVenir) => aVenir(a) },
+  impaye:     { label: 'Impayés',     garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'impayé' },
+  partiel:    { label: 'Partiels',    garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'partiel' },
+  paye:       { label: 'Payés',       garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'payé' },
+  attente:    { label: 'En attente',  garde: (a) => a.status === 'en attente' },
+  confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' },
+  honore:     { label: 'Honorés',     garde: (a) => a.status === 'honoré' },
+  annule:     { label: 'Annulés',     garde: (a) => a.status === 'annulé' },
+};
+
+/* Une pastille de filtre — la même dans les deux rangées, pour que le Carnet
+   n'ait qu'une seule façon de dire « ceci est actif ». */
+function FiltreChip({ actif, onClick, children, compte }: {
+  actif: boolean; onClick: () => void; children: React.ReactNode; compte?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={actif}
+      style={{
+        cursor: 'pointer',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 11.5,
+        letterSpacing: '.04em',
+        padding: '7px 13px',
+        borderRadius: 999,
+        whiteSpace: 'nowrap',
+        border: `1px solid ${actif ? 'var(--copper-600)' : 'var(--line)'}`,
+        background: actif ? 'var(--copper-600)' : 'transparent',
+        color: actif ? '#fff' : 'var(--ink-soft)',
+      }}
+    >
+      {children}
+      {compte !== undefined && (
+        <span style={{ marginLeft: 6, opacity: actif ? 0.85 : 0.6 }}>{compte}</span>
+      )}
+    </button>
+  );
+}
 
 export default function Carnet() {
   /* UN MAÎTRE NE LIT PAS L'ARGENT DE LA MAISON. Il ouvre le Carnet pour savoir
@@ -51,6 +117,13 @@ export default function Carnet() {
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') ?? '');
   const [maison, setMaison] = useState<Maison | ''>('');
+  /* CE QU'ON CHERCHE DANS LE CARNET. Deux natures se mêlent ici — l'état du
+     rituel (confirmé, honoré, annulé) et celui de son règlement (payé,
+     partiel, impayé) — parce que c'est ainsi qu'on les cherche au comptoir :
+     « les impayés » est une question, pas une combinaison d'axes.
+     Le regroupement à venir / passés reste au-dessus : filtrer sur les impayés
+     montre donc d'abord ceux qui arrivent, ce qui est l'ordre utile. */
+  const [vue, setVue] = useState<VueCarnet>('');
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
   useEffect(() => {
@@ -62,7 +135,7 @@ export default function Carnet() {
 
   const clientOf = (id: string) => clients.find((c) => c.id === id);
 
-  const { upcoming, past } = useMemo(() => {
+  const { upcoming, past, comptes } = useMemo(() => {
     /* Recherche par nom de cliente — taper les premières lettres suffit
        (insensible aux accents : « agnes » trouve « Agnès ») ; le nom porté par
        le RDV sert de repli pour les têtes de passage sans fiche. */
@@ -80,14 +153,28 @@ export default function Carnet() {
       maison === '' || a.serviceIds.some((sid) => maisonDe(sid) === maison);
     const match = (a: Appointment) =>
       (qn === '' || normName(nameOf(a)).includes(qn)) && estDeLaMaison(a);
-    const upcoming = appts
-      .filter((a) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé' && match(a))
+    const aVenir = (a: Appointment) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé';
+
+    /* La base : ce que la recherche et la maison laissent passer. Les compteurs
+       se lisent DESSUS, pas sur le résultat filtré — sinon chaque vue
+       afficherait son propre total et n'annoncerait plus rien. */
+    const base = appts.filter(match);
+    const comptes = {} as Record<VueCarnet, number>;
+    for (const v of Object.keys(VUES) as VueCarnet[]) {
+      comptes[v] = base.filter((a) => VUES[v].garde(a, byId, aVenir)).length;
+    }
+
+    const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir);
+    const upcoming = base
+      .filter((a) => aVenir(a) && garde(a))
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
-    const past = appts
-      .filter((a) => !(a.date >= today && a.status !== 'honoré' && a.status !== 'annulé') && match(a))
+    /* « À venir » vide la section des passés : c'est tout l'intérêt de le
+       demander. */
+    const past = vue === 'avenir' ? [] : base
+      .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
-    return { upcoming, past };
-  }, [appts, today, query, clients, maison, categories, byId]);
+    return { upcoming, past, comptes };
+  }, [appts, today, query, clients, maison, categories, byId, vue]);
 
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
@@ -288,30 +375,36 @@ export default function Carnet() {
             ([id, label]) => {
               const actif = maison === id;
               return (
-                <button
-                  key={id || 'tout'}
-                  type="button"
-                  onClick={() => setMaison(id as Maison | '')}
-                  aria-pressed={actif}
-                  style={{
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 11.5,
-                    letterSpacing: '.04em',
-                    padding: '7px 13px',
-                    borderRadius: 999,
-                    whiteSpace: 'nowrap',
-                    border: `1px solid ${actif ? 'var(--copper-600)' : 'var(--line)'}`,
-                    background: actif ? 'var(--copper-600)' : 'transparent',
-                    color: actif ? '#fff' : 'var(--ink-soft)',
-                  }}
-                >
+                <FiltreChip key={id || 'tout'} actif={actif} onClick={() => setMaison(id as Maison | '')}>
                   {label}
-                </button>
+                </FiltreChip>
               );
             },
           )}
         </div>
+      </div>
+
+      {/* CE QU'ON VIENT CHERCHER. Chaque pastille porte son compte : on voit
+          combien d'impayés il y a AVANT de cliquer, et le comptoir sait s'il a
+          du travail sans avoir à explorer. Les comptes se lisent sur ce que la
+          recherche et la maison laissent passer — pas sur le filtre courant,
+          qui ferait dire à chaque vue son propre total.
+
+          Un maître ne voit pas les vues d'argent : elles n'ont pas de sens pour
+          quelqu'un à qui les montants se taisent. */}
+      <div
+        className="trc-toolbar"
+        style={{ marginTop: -6, marginBottom: 14, flexWrap: 'wrap', gap: 6 }}
+        role="group"
+        aria-label="Filtrer les rendez-vous"
+      >
+        {(Object.keys(VUES) as VueCarnet[])
+          .filter((v) => !sansPrix || !['impaye', 'partiel', 'paye'].includes(v))
+          .map((v) => (
+            <FiltreChip key={v || 'tout'} actif={vue === v} onClick={() => setVue(v)} compte={comptes[v]}>
+              {VUES[v].label}
+            </FiltreChip>
+          ))}
       </div>
 
       <div className="trc-sheet trc-carnet">
@@ -324,21 +417,34 @@ export default function Carnet() {
           <span style={{ textAlign: 'right' }}>Statut</span>
         </div>
 
+        {/* UN VIDE DOIT DIRE POURQUOI. « Le carnet est libre » sous un filtre
+            actif est un mensonge : ce n'est pas le carnet qui est vide, c'est la
+            question qui ne rend rien. */}
         <div className="trc-sheet__group">Rendez-vous à venir ({upcoming.length})</div>
         {upcoming.length === 0 && (
           <div className="trc-empty">
-            {query.trim() ? `Aucun rendez-vous à venir pour « ${query.trim()} ».` : 'Le carnet est libre — la maison respire.'}
+            {vue !== '' ? `Aucun rendez-vous à venir dans « ${VUES[vue].label} »${query.trim() ? ` pour « ${query.trim()} »` : ''}.`
+              : query.trim() ? `Aucun rendez-vous à venir pour « ${query.trim()} ».`
+              : 'Le carnet est libre — la maison respire.'}
           </div>
         )}
         {upcoming.map(renderRow)}
 
-        <div className="trc-sheet__group">Rendez-vous passés ({past.length})</div>
-        {past.length === 0 && (
-          <div className="trc-empty">
-            {query.trim() ? `Aucun rendez-vous passé pour « ${query.trim()} ».` : 'Aucun rendez-vous passé sur cette branche.'}
-          </div>
+        {/* La vue « À venir » masque les passés — c'est ce qu'on lui demande.
+            Afficher « Rendez-vous passés (0) » ferait croire qu'il n'y en a pas. */}
+        {vue !== 'avenir' && (
+          <>
+            <div className="trc-sheet__group">Rendez-vous passés ({past.length})</div>
+            {past.length === 0 && (
+              <div className="trc-empty">
+                {vue !== '' ? `Aucun rendez-vous passé dans « ${VUES[vue].label} »${query.trim() ? ` pour « ${query.trim()} »` : ''}.`
+                  : query.trim() ? `Aucun rendez-vous passé pour « ${query.trim()} ».`
+                  : 'Aucun rendez-vous passé sur cette branche.'}
+              </div>
+            )}
+            {past.map(renderRow)}
+          </>
         )}
-        {past.map(renderRow)}
       </div>
 
       {/* ENCAISSER DEPUIS LA FICHE OUVERTE. Le bouton existait dans la modale et
