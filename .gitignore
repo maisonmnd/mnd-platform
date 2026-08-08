@@ -4,6 +4,10 @@ dist/
 .DS_Store
 dist-sites/
 
+# Réglages Claude Code personnels (chemins de la machine, allow-list locale).
+# .claude/settings.json et .claude/hooks/ restent versionnés, eux.
+.claude/settings.local.json
+
 # Fichiers d'import GÉNÉRÉS — ils portent les données personnelles des clientes
 # (noms, téléphones, e-mails, anniversaires). Ce dépôt est PUBLIC : ils n'y
 # entrent jamais. Ils se regénèrent d'une commande :

@@ -204,8 +204,8 @@ publications** — une par lot de travail, pas une par correction. Adresse de
 secours disponible : `maisonmnd.github.io/mnd-platform` (non maintenue).
 
 **Le registre lit le journal — 7 août 2026.** `buildReceipts` datait un
-règlement de rituel par sa FACTURE, qui porte le jour du rituel : les 68 000 F
-que Prunelle a prépayés en juillet tombaient dans la caisse d'août. Chaque
+règlement de rituel par sa FACTURE, qui porte le jour du rituel : un rituel d'août
+prépayé en juillet tombait dans la caisse d'août. Chaque
 versement porte désormais `invoiceId` (écrit par `PayAppointmentModal`), et le
 registre date la pièce par le versement qui l'a fait naître. Deux replis :
 le DERNIER versement du rituel (journaux d'avant le lien), puis la date de la
@@ -225,6 +225,42 @@ c'est bien cette pièce-là.
 Manucure/Pédicure à revoir ; notification APDP de la fuite du 2 août.
 Un pourboire saisi SEUL (rituel déjà soldé) reste daté par la pièce — il
 n'écrit pas au journal.
+
+### Le forfait ponctuel est construit — 8 août 2026
+
+**Un seul champ décide** : `Appointment.forfait` = `{ nom?, totalXof, baseXof,
+poseAt }`, et `apptNetXof` le renvoie tel quel. Rien d'autre dans la Maison n'a
+eu à changer : `splitByWeights(apptNetXof(a), poids)` était DÉJÀ la règle
+partout (production et seuils, commissions, Synthèse, Tableau de bord). Chaque
+prestation reçoit donc sa part du total au prorata de ce qu'elle vaut pour cette
+tête — les mains, les primes, les commissions, la ventilation par maison et le
+prix figé continuent de compter juste. **`serviceIds` n'est jamais touché**, et
+le piège décrit ci-dessous est évité par construction.
+
+Deux règles au-dessus du forfait : une **séance 2+ d'une série** vaut toujours 0
+(sinon un forfait se compterait une fois par séance), et un forfait **efface les
+remises** — on ne remise pas un prix déjà négocié (les champs sont masqués et
+mis à `undefined`).
+
+**Se pose aux deux bouts** : à la réservation (`RdvModal`) comme à l'encaissement
+(`PayAppointmentModal`). Nom libre (« Forfait » à défaut), et **deux champs liés**
+— taper le total remplit le taux, taper le taux remplit le total. Toucher au
+forfait recale le montant proposé à l'encaissement, comme le fait l'acompte.
+
+**Quand la composition bouge après la promesse**, le total tient — la Maison a
+dit un prix. Le comptoir voit alors un bandeau (« il portait sur 76 000 F, le
+rituel en vaut 91 000 F aujourd'hui ») et un bouton qui reporte le MÊME TAUX en
+un geste. C'est à quoi sert `baseXof`.
+
+**Sur la facture** : les prestations restent détaillées à leur prix plein, l'écart
+paraît en remise visible, et la note porte « <nom> · 60 000 F au lieu de
+100 000 F ». Une pièce à une seule ligne (règlement partiel, prestation unique)
+prend le nom du forfait.
+
+Vérifié sur seize scénarios (net, prix plein, remises qui ne s'empilent pas,
+séries, ventilation par geste et par maison, forfait offert, prix figé).
+
+<details><summary>La demande d'origine et son piège — conservés</summary>
 
 ### CHANTIER DEMANDÉ — forfait ponctuel à l'encaissement
 
@@ -255,6 +291,8 @@ fort reste. Chaque prestation garde donc un montant propre, cohérent avec le
 total, et toute la ventilation continue de fonctionner. La facture peut
 présenter UNE ligne à la cliente tout en gardant le détail dessous.
 
-**À décider avec Yéman** : le forfait porte-t-il un nom libre ? Se saisit-il en
-montant total ou en pourcentage de remise ? Et un forfait de caisse doit-il
-pouvoir être proposé à la réservation, ou reste-t-il un geste de comptoir ?
+**Décidé avec Yéman le 8 août** : nom libre (« Forfait » par défaut) · saisie en
+montant ET en pourcentage, l'un remplissant l'autre · posable **aussi à la
+réservation**, le total promis tenant si les prestations changent ensuite.
+
+</details>
