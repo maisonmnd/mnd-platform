@@ -8,6 +8,8 @@ import { useCategories, useProducts, useServices, priceModeOf } from '../../../.
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
 import { vitrineConfigStore } from '../../../../shared/bridges';
+import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
+import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
 import { useStore } from '../../../../shared/store';
 import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
 import './clients.css';
@@ -17,25 +19,10 @@ import './clients.css';
 
 const SCENE_LABELS = ['La rencontre', 'Un mot pour toi', 'Une question pour toi', 'Ton prochain moment'];
 
-const QUIZ_POOL: { q1: string; q1opts: [string, string][]; q2: string; q2opts: [string, string][] }[] = [
-  { q1: 'Aujourd’hui, qu’est-ce qui compte le plus pour toi ?', q1opts: [['longueur', 'La longueur'], ['eclat', 'L’éclat'], ['protection', 'La protection'], ['transformation', 'Le changement']],
-    q2: 'Et pour la suite, tu te verrais bien…', q2opts: [['garder', 'Garder ma ligne'], ['oser', 'Oser plus grand'], ['surprise', 'Me faire surprendre']] },
-  { q1: 'Si ta couronne pouvait parler, elle réclamerait…', q1opts: [['longueur', 'De pousser encore'], ['eclat', 'De briller plus'], ['protection', 'D’être protégée'], ['transformation', 'De tout changer']],
-    q2: 'Ton humeur du moment, c’est plutôt…', q2opts: [['garder', 'La continuité'], ['oser', 'L’audace'], ['surprise', 'La surprise']] },
-  { q1: 'Ce mois-ci, ton geste beauté prioritaire…', q1opts: [['longueur', 'Gagner en longueur'], ['eclat', 'Raviver l’éclat'], ['protection', 'Fortifier'], ['transformation', 'Réinventer']],
-    q2: 'Pour ta prochaine venue, tu aimerais…', q2opts: [['garder', 'Rester fidèle à mon style'], ['oser', 'Voir plus grand'], ['surprise', 'Qu’on me guide']] },
-];
-
-/* LES QUATRE ENVIES du quiz. Les prestations qui y répondent ne sont plus
-   écrites ici : elles se désignent dans la Régie, prises au catalogue. Ne
-   restent que les mots — ce que la Maison dit en proposant, et qui n'a pas de
-   prix. */
-export const ENVIES = [
-  { k: 'longueur' as const, label: 'La longueur', line: 'On nourrit la racine — c’est là que la longueur se gagne.' },
-  { k: 'eclat' as const, label: 'L’éclat', line: 'Une lumière posée sur ta couronne, rien que pour la faire chanter.' },
-  { k: 'protection' as const, label: 'La protection', line: 'On protège ce que tu as bâti, mèche après mèche.' },
-  { k: 'transformation' as const, label: 'Le changement', line: 'Le grand passage — une œuvre qui change tout.' },
-];
+/* LES MOTS DU QUIZ ONT DÉMÉNAGÉ dans `shared/quiz.ts` — questions, envies et
+   phrases. Ma Couronne pose désormais le même quiz au seuil de sa réservation :
+   deux jeux de mots, c'eussent été deux maisons. Le miroir TUTOIE (`.tu`),
+   l'application VOUVOIE. Ce qui se propose en face reste réglé à la Régie. */
 
 export default function Vitrine() {
   const [mode, setMode] = useState<'apercu' | 'couronne' | 'regie'>('apercu');
@@ -159,9 +146,22 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
      cliente — coefficient personnel compris, comme partout ailleurs dans la
      Maison. Plus de tarif inventé, plus de multiplicateur d'humeur : ce qui
      s'affiche au miroir est ce qu'elle paiera. */
-  const svcReco = q1 ? servicesTous.find((sv) => sv.id === cfgMiroir.recoParEnvie?.[q1 as 'longueur']) : undefined;
+  const svcReco = q1
+    ? recoPourEnvie(client, q1 as EnvieKey, {
+        /* Au miroir, le salon est là : le vivier est le catalogue entier, sans
+           le filtre de calibre du tunnel. La CASCADE, elle, est la même — son
+           persona, son histoire, le repli de la Maison — pour que les deux
+           écrans ne racontent jamais deux histoires à la même tête. */
+        offre: servicesTous,
+        catalogue: servicesTous,
+        personas,
+        maison: cfgMiroir.recoParEnvie,
+        appointments: appts,
+        auto: cfgMiroir.recoAuto,
+      })?.service
+    : undefined;
   const mot = ENVIES.find((e) => e.k === q1);
-  const reco = svcReco && mot ? { title: svcReco.name, line: mot.line } : null;
+  const reco = svcReco && mot ? { title: svcReco.name, line: mot.line.tu } : null;
   const recoPrice = svcReco ? personalPriceXof(svcReco, { clientCoef: client.priceCoef }) : 0;
 
   const goto = (s: number) => { setScene(s); setPlaying(false); };
@@ -214,9 +214,9 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
                       ↻ Autres questions
                     </button>
                   </div>
-                  <QuizRow label={pool.q1} opts={pool.q1opts} value={q1} onPick={setQ1} />
+                  <QuizRow label={pool.q1.tu} opts={pool.q1opts} value={q1} onPick={setQ1} />
                   <div style={{ height: 22 }} />
-                  <QuizRow label={pool.q2} opts={pool.q2opts} value={q2} onPick={setQ2} />
+                  <QuizRow label={pool.q2.tu} opts={pool.q2opts} value={q2} onPick={setQ2} />
                   {q1 && q2 && reco && (
                     <div className="trc-fade" style={{ marginTop: 30, background: 'rgba(185,122,74,.14)', border: '1px solid rgba(185,122,74,.42)', borderRadius: 4, padding: '22px 26px' }}>
                       <div className="trc-stage__eyebrow" style={{ letterSpacing: '.2em' }}>Pour toi, {client.name.split(' ')[0]}</div>
@@ -331,7 +331,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
     vitrineConfigStore.set((c) => ({ ...c, hiddenServices: c.hiddenServices.includes(id) ? c.hiddenServices.filter((x) => x !== id) : [...c.hiddenServices, id] }));
   const toggleProd = (id: string) =>
     vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: c.hiddenProducts.includes(id) ? c.hiddenProducts.filter((x) => x !== id) : [...c.hiddenProducts, id] }));
-  const setFlag = (k: 'autoplay' | 'quizEnabled', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
+  const setFlag = (k: 'autoplay' | 'quizEnabled' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
 
   const carpet = useMemo(() => {
     const s = services.filter((x) => svcVisible(x.id) && catVisible(x.categoryId)).map((x) => x.name);
@@ -379,33 +379,50 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="trc-microlabel" style={{ margin: 0 }}>Réglages de la Vitrine</div>
           <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
-          <SwitchRow label="Quiz sur-mesure (IA)" sub="Deux questions à rotation, puis une reco." on={cfg.quizEnabled} onToggle={(v) => setFlag('quizEnabled', v)} />
+          <SwitchRow
+            label="Quiz sur-mesure"
+            sub="Deux questions à rotation, puis une reco. Au miroir ET au seuil de Ma Couronne."
+            on={cfg.quizEnabled}
+            onToggle={(v) => setFlag('quizEnabled', v)}
+          />
 
           {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le
               miroir recommandait quatre rituels écrits en dur, à des prix qui
               n existaient nulle part : montrés a une cliente, ils devenaient
               une promesse que la Maison n avait jamais faite. */}
           {cfg.quizEnabled && (
-            <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                À chaque envie, la prestation que le miroir propose. Son prix sera celui de la
-                cliente, coefficient compris. Rien de choisi = le miroir ne recommande rien.
+            <>
+              <SwitchRow
+                label="Son histoire tranche"
+                sub="Parmi les prestations désignées, celle que ses rendez-vous rendent la plus juste."
+                on={!!cfg.recoAuto}
+                onToggle={(v) => setFlag('recoAuto', v)}
+              />
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                  <b style={{ fontWeight: 500 }}>Le repli de la Maison</b> — ce qui se propose quand
+                  l’archétype de la cliente n’a rien dit. La désignation qui compte se fait{' '}
+                  <b style={{ fontWeight: 500 }}>par persona</b> (CRM → Les personas). Rien nulle
+                  part = rien n’est recommandé, et le quiz ne s’ouvre pas sur son téléphone. Une
+                  prestation masquée à la Vitrine ne se propose jamais.
+                </div>
+                {ENVIES.map((e) => (
+                  <label key={e.k} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12.5 }}>{e.label}</span>
+                    <select
+                      className="sys-select"
+                      style={{ maxWidth: 230, flex: 1 }}
+                      value={cfg.recoParEnvie?.[e.k] ?? ''}
+                      onChange={(ev) => vitrineConfigStore.set((c) => ({ ...c, recoParEnvie: { ...(c.recoParEnvie ?? {}), [e.k]: ev.target.value || undefined } }))}
+                    >
+                      <option value="">— aucune —</option>
+                      {servicesRegie.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                    </select>
+                  </label>
+                ))}
               </div>
-              {ENVIES.map((e) => (
-                <label key={e.k} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12.5 }}>{e.label}</span>
-                  <select
-                    className="sys-select"
-                    style={{ maxWidth: 230, flex: 1 }}
-                    value={cfg.recoParEnvie?.[e.k] ?? ''}
-                    onChange={(ev) => vitrineConfigStore.set((c) => ({ ...c, recoParEnvie: { ...(c.recoParEnvie ?? {}), [e.k]: ev.target.value || undefined } }))}
-                  >
-                    <option value="">— aucune —</option>
-                    {servicesRegie.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
-                  </select>
-                </label>
-              ))}
-            </div>
+              <RecoResolue client={client} />
+            </>
           )}
         </div>
       </div>
@@ -470,6 +487,50 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           <Apercu client={client} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* CE QU'ELLE VERRA VRAIMENT, envie par envie — la cascade rendue lisible.
+   Désigner sur le persona d'un côté et vérifier de l'autre laisserait deviner
+   quel cran a répondu : on le dit, ici, pour la cliente qu'on regarde. */
+function RecoResolue({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
+  const [servicesTous] = useServices();
+  const [personas] = usePersonas();
+  const [cfg] = useStore(vitrineConfigStore);
+  const appts = useBranchAppointments();
+  const persona = personas.find((p) => p.id === client.persona);
+
+  return (
+    <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+      <div className="trc-microlabel" style={{ margin: '0 0 8px' }}>
+        Pour {client.name.split(' ')[0]} · {persona?.name ?? 'persona à classer'}
+      </div>
+      {ENVIES.map((e) => {
+        const r = recoPourEnvie(client, e.k, {
+          offre: servicesTous,
+          catalogue: servicesTous,
+          personas,
+          maison: cfg.recoParEnvie,
+          appointments: appts,
+          auto: cfg.recoAuto,
+        });
+        return (
+          <div key={e.k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontSize: 11.5, padding: '4px 0' }}>
+            <span style={{ color: 'var(--ink-soft)', flex: 'none' }}>{e.label}</span>
+            <span style={{ textAlign: 'right', minWidth: 0 }}>
+              {r ? (
+                <>
+                  {r.service.name}
+                  <span style={{ color: 'var(--copper-700)' }}> · {recoSourceLabel(r.source)}</span>
+                </>
+              ) : (
+                <span className="mnd-muted">rien à proposer</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

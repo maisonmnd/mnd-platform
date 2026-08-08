@@ -43,9 +43,20 @@ export type VitrineConfig = {
       On désigne donc, pour chacune des quatre envies, une prestation du
       catalogue. Son nom et son prix sont alors les vrais — le prix personnel
       de la cliente, coefficient compris. Rien n'est désigné = le miroir ne
-      recommande rien, ce qui vaut mieux qu'une recommandation fausse. */
+      recommande rien, ce qui vaut mieux qu'une recommandation fausse.
+
+      LE REPLI COMMUN, désormais. La désignation qui compte vit sur le PERSONA
+      (`Persona.recoParEnvie`) : la même réponse à une Initiée qui découvre et à
+      une Souveraine de dix ans n'en était pas une. Ce réglage-ci sert quand
+      l'archétype n'a rien dit. */
   recoParEnvie?: Partial<Record<'longueur' | 'eclat' | 'protection' | 'transformation', string>>;
   quizEnabled: boolean;
+  /** SON HISTOIRE TRANCHE. Allumé, le quiz ne prend plus la désignation de son
+      persona telle quelle : il choisit, PARMI tout ce que la Maison a désigné
+      pour cette envie, la prestation que ses rendez-vous rendent la plus juste
+      (celle qu'elle reprend, sinon la maison qu'elle fréquente). Il n'invente
+      rien — il trie. Sans histoire, son persona reprend la main. */
+  recoAuto?: boolean;
 };
 
 export const composeStore = createStore<ComposePayload | null>('mnd_couronne_compose', null);

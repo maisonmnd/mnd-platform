@@ -1,4 +1,5 @@
 import { createStore, useStore, HOUSE_BLANK } from './store';
+import { type EnvieKey } from './quiz';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -37,6 +38,13 @@ export type Client = {
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
+  /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne
+      (longueur · éclat · protection · changement). La DERNIÈRE seulement : une
+      envie est du jour, pas une étiquette qu'on empile — `envieAt` dit quand
+      elle l'a dite, pour qu'une réponse de mars ne passe pas pour celle
+      d'aujourd'hui. Écrite par la cliente, jamais par la Maison. */
+  envie?: EnvieKey;
+  envieAt?: string; // ISO
   birthday?: string; // ISO — anniversaire de la cliente
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
@@ -86,6 +94,17 @@ export type Persona = {
   name: string;
   essence: string; // une phrase — comment la maison l'accueille
   builtin: boolean;
+  /** CE QUE LE QUIZ PROPOSE AUX TÊTES DE CET ARCHÉTYPE, envie par envie.
+
+      La désignation vivait à la Régie, une seule pour toute la Maison : la même
+      réponse à une Initiée qui découvre et à une Souveraine de dix ans. Elle
+      vit ici parce qu'un persona, c'est précisément ce qui distingue une
+      cliente d'une autre — six réglages au lieu de cent quatre-vingt-six, et
+      une nouvelle cliente hérite du sien dès qu'elle est classée.
+
+      Rien de désigné = on retombe sur la Régie (`VitrineConfig.recoParEnvie`),
+      puis sur rien du tout. Voir `shared/reco.ts` pour la cascade complète. */
+  recoParEnvie?: Partial<Record<EnvieKey, string>>;
 };
 
 /* ---------- Gestion des segments — la liste ET les fiches taguées ----------

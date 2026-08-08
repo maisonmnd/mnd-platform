@@ -6,7 +6,11 @@ import { depositForServices, depositPctFor, useSettings } from '../../shared/set
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
-import { uid } from '../../shared/store';
+import { uid, useStore } from '../../shared/store';
+import { vitrineConfigStore } from '../../shared/bridges';
+import { clientsStore, usePersonas } from '../../shared/clients';
+import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
+import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, priceModeOf, type Service } from '../../shared/catalog';
@@ -17,6 +21,7 @@ import {
   QUATRE_TEMPS,
   dayLabelIso,
   ensureClient,
+  firstName,
   fmtDuration,
   freeSlots,
   pad2,
@@ -42,7 +47,23 @@ import {
    deuxième, c'est six occasions de se tromper d'un cran. Elle n'est plus
    jamais atteinte — l'objectif mène directement aux prestations.
 
-   L'acompte suit le taux de la Maison (Paramètres du Trône), non figé. */
+   L'acompte suit le taux de la Maison (Paramètres du Trône), non figé.
+
+   LE QUIZ OUVRE LE TUNNEL — 7 août 2026. Les deux questions du miroir du salon
+   se posent désormais ici, au seuil : « qu'est-ce qui compte le plus pour vous »,
+   puis la prestation que la Maison propose à cette envie — la VRAIE, prise au
+   catalogue et affichée à SON prix. Elle est contournable d'un mot (« Je sais
+   déjà ce que je veux »), et ne s'ouvre pas du tout si la Régie n'a rien à
+   proposer.
+
+   Il porte l'index QUIZ (−1) et non 0 : le tunnel garde ses sept index, dont
+   l'orphelin. Renuméroter six écrans pour en ajouter un devant, c'était six
+   occasions de se tromper d'un cran — la même raison qui a laissé le palier
+   vide à l'index 1. */
+
+/* L'écran d'envie précède tout le reste, et les tableaux de titres ne le
+   connaissent pas : il porte ses mots lui-même. */
+const QUIZ = -1;
 
 const TITLES = ['Votre objectif.', '—', 'Les prestations.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
 const EYEBROWS = [
@@ -77,7 +98,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
-  const [step, setStep] = useState(prefService ? 3 : 0);
+  /* Une prestation déjà désignée (offre instantanée, re-réservation) saute le
+     quiz ET l'objectif : on ne demande pas son envie à une cliente qui vient de
+     toucher « Réserver ce rituel ». */
+  const [step, setStep] = useState(prefService ? 3 : QUIZ);
+  /* Le quiz du seuil : la variante de questions posée, l'envie et l'élan dits. */
+  const [cfg] = useStore(vitrineConfigStore);
+  const [variante, setVariante] = useState(0);
+  const [envie, setEnvie] = useState<EnvieKey | null>(null);
+  const [elan, setElan] = useState<ElanKey | null>(null);
   const [catId, setCatId] = useState<string | null>(prefService?.categoryId ?? null);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
   const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
@@ -164,6 +193,63 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const toggleService = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  /* ---- Le quiz du seuil ----
+     LE JUGE EST AILLEURS (`shared/reco.ts`) : son persona, son histoire si la
+     Maison l'a voulu, le repli commun — le miroir du salon et cet écran doivent
+     répondre la même chose. Ici on ne fournit que le contexte.
+
+     `offre` (et non le catalogue entier) : une prestation désignée mais masquée
+     à la Vitrine, ou taillée pour un autre modèle, ne se propose pas — mieux
+     vaut ne rien promettre que promettre ce qu'elle ne pourra pas réserver deux
+     écrans plus loin. `services` reste le catalogue visible ENTIER, pour relire
+     son histoire. */
+  const [personas] = usePersonas();
+  const ctxReco: RecoContexte = {
+    offre,
+    catalogue: services,
+    personas,
+    maison: cfg.recoParEnvie,
+    appointments: appts,
+    auto: cfg.recoAuto,
+  };
+  const recoDe = (k: EnvieKey) => recoPourEnvie(client, k, ctxReco)?.service;
+  const recoSvc = envie ? recoDe(envie) : undefined;
+  const motEnvie = ENVIES.find((e) => e.k === envie);
+  const pool = QUIZ_POOL[variante % QUIZ_POOL.length];
+  /* Le quiz ne s'ouvre que s'il a quelque chose à proposer : réglage allumé au
+     Trône, et au moins une envie pourvue d'une prestation qu'elle peut vraiment
+     réserver. Rien à proposer = pas d'écran, plutôt que deux questions pour rien. */
+  const quizActif = cfg.quizEnabled && !prefService && ENVIES.some((e) => !!recoDe(e.k));
+  /* L'écran qu'on REGARDE. Le quiz s'efface s'il n'a rien à dire — l'objectif
+     prend alors sa place, sans qu'aucune navigation n'ait à le savoir (le
+     catalogue peut arriver du serveur après le premier rendu). */
+  const vue = step === QUIZ && !quizActif ? 0 : step;
+  const premierEcran = quizActif ? QUIZ : 0;
+  /* Sept écrans avec le quiz, six sans : le compte dit la vérité de CE parcours. */
+  const total = quizActif ? 7 : 6;
+  const rang = (s: number) => (s === QUIZ ? 1 : (s > 1 ? s : s + 1) + (quizActif ? 1 : 0));
+
+  /* SON ENVIE S'INSCRIT AU DOSSIER dès qu'elle la dit — la Maison la lit au
+     Trône même si la réservation n'aboutit pas. La dernière seulement : une
+     envie est du jour, pas une étiquette qu'on empile. */
+  const declareEnvie = (k: EnvieKey) => {
+    setEnvie(k);
+    if (!clientId || clientId === 'c-local') return;
+    clientsStore.set((prev) =>
+      prev.map((c) => (c.id === clientId ? { ...c, envie: k, envieAt: todayIso() } : c)),
+    );
+  };
+
+  /* La reco acceptée : retenue comme si elle l'avait cochée à l'écran des
+     prestations — même sélection, même suite. */
+  const prendreReco = () => {
+    if (!recoSvc) return;
+    setCatId(recoSvc.categoryId);
+    setSelectedIds([recoSvc.id]);
+    setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0);
+    setStep(3);
+  };
+
   /* ---- Calendrier : mois courant + suivant, disponibilité sur la durée TOTALE ---- */
   const months = useMemo(() => {
     const now = new Date();
@@ -197,7 +283,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* ---- Navigation ---- */
   const back = () => {
     if (paying) return;
-    if (step === 0) { onClose(); return; }
+    if (step === QUIZ) { onClose(); return; }
+    /* Depuis l'objectif : on retourne à l'envie quand le quiz existe — elle a pu
+       l'enjamber d'un mot, elle doit pouvoir y revenir du même geste. */
+    if (step === 0) { if (quizActif) setStep(QUIZ); else onClose(); return; }
     /* Depuis le récapitulatif : revenir programmer la dernière séance. */
     if (step === 4) {
       setSessionDates((prev) => prev.slice(0, -1));
@@ -232,6 +321,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     const finalize = () => {
       const baseNotes: string[] = [];
       if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
+      /* CE QU'ELLE EST VENUE CHERCHER, porté par le rituel : le maître le lit au
+         Calendrier avant qu'elle ne s'assoie. */
+      if (envie) baseNotes.push(`Envie · ${envieLabel(envie)}`);
       if (masterVaries) baseNotes.push(`Maîtres multiples · ${selected.map((s) => s.master).join(', ')}`);
       /* Le comptoir doit savoir COMMENT la cliente annonce avoir envoyé l'acompte —
          il le vérifiera avant de le créditer (depositConfirmed). */
@@ -400,27 +492,92 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       {/* -------- entête + progression -------- */}
       <div className="mc-flowhead">
         <div className="mc-flowhead__row">
-          {step < 6 ? (
-            <button className="mc-linkback" onClick={back}>{step === 0 ? '← Annuler' : '← Retour'}</button>
+          {vue < 6 ? (
+            <button className="mc-linkback" onClick={back}>{vue === premierEcran ? '← Annuler' : '← Retour'}</button>
           ) : <span />}
           <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
         </div>
-        {/* Six temps, et l'etape 1 n'est jamais atteinte : on la retire du
-            compte pour que la barre dise la verite. */}
-        <div className="mc-progress"><div style={{ width: `${((step > 1 ? step : step + 1) / 6) * 100}%` }} /></div>
+        {/* L'etape 1 n'est jamais atteinte et le quiz n'est pas toujours la :
+            `rang` compte les ecrans REELLEMENT traverses, pour que la barre et
+            le compteur disent la meme verite. */}
+        <div className="mc-progress"><div style={{ width: `${(rang(vue) / total) * 100}%` }} /></div>
         <div className="mc-flowhead__titles">
           <div>
-            <div className="mc-micro-eyebrow">{EYEBROWS[step]}</div>
-            <h1 className="mc-flowhead__h1">{TITLES[step]}</h1>
+            <div className="mc-micro-eyebrow">{vue === QUIZ ? 'Réserver · une question pour vous' : EYEBROWS[vue]}</div>
+            <h1 className="mc-flowhead__h1">{vue === QUIZ ? 'Dites-nous, en deux gestes.' : TITLES[vue]}</h1>
           </div>
-          <span className="mc-flowhead__count">{step + 1} / 7</span>
+          <span className="mc-flowhead__count">{rang(vue)} / {total}</span>
         </div>
       </div>
 
       <div className="mc-scroll mc-flowbody">
 
+        {/* -------- 0 · l'envie · le quiz de la Maison --------
+            LES MÊMES MOTS QU'AU MIROIR (shared/quiz.ts), dans l'adresse de
+            l'application. Ce qui se propose au bout est une prestation RÉELLE du
+            catalogue, à SON prix — jamais un rituel inventé pour la circonstance.
+            Deux questions, contournables d'un mot. */}
+        {vue === QUIZ && (
+          <div className="mc-fade">
+            <div className="mc-quizintro">
+              <span>Deux réponses, et votre prochaine couronne s’écrit déjà.</span>
+              <button
+                className="mc-quizother"
+                onClick={() => { setVariante((v) => v + 1); setEnvie(null); setElan(null); }}
+              >
+                ↻ Autres questions
+              </button>
+            </div>
+
+            <QuizRow label={pool.q1.vous} opts={pool.q1opts} value={envie} onPick={(k) => declareEnvie(k as EnvieKey)} />
+            <QuizRow label={pool.q2.vous} opts={pool.q2opts} value={elan} onPick={(k) => setElan(k as ElanKey)} />
+
+            {envie && elan && (
+              <div className="mc-quizreco mc-rise">
+                <div className="mc-quizreco__eyebrow">
+                  {client?.name ? `Pour vous, ${firstName(client.name)}` : 'Pour vous'}
+                </div>
+                {recoSvc && motEnvie ? (
+                  <>
+                    <div className="mc-quizreco__name">{recoSvc.name}</div>
+                    <div className="mc-quizreco__line">{motEnvie.line.vous}</div>
+                    <div className="mc-quizreco__meta">
+                      {priceLabel(recoSvc)} · {fmtDuration(personalDurationMin(recoSvc, pricing))}
+                      {/* « Votre tarif » ne se dit QUE si son prix diffère vraiment
+                          du catalogue — sinon c'est une flatterie, et la Maison
+                          n'en fait pas. */}
+                      {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing) !== recoSvc.priceXof
+                        ? ' · votre tarif'
+                        : ''}
+                    </div>
+                    <button className="mc-cta mc-cta--copper" onClick={prendreReco}>Réserver ce rituel</button>
+                    <button className="mc-textbtn" onClick={() => setStep(0)}>Voir toutes les prestations →</button>
+                  </>
+                ) : (
+                  /* Envie entendue, rien à proposer en face : on le dit, et on
+                     ouvre le catalogue. Une envie sans rituel désigné ne justifie
+                     pas d'inventer une recommandation. */
+                  <>
+                    <div className="mc-quizreco__line">
+                      Votre envie est notée — la maison la lira avant votre venue. Parcourez ses
+                      rituels : la maîtresse fera le reste au fauteuil.
+                    </div>
+                    <button className="mc-cta mc-cta--indigo" onClick={() => setStep(0)}>Voir les rituels</button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!(envie && elan) && (
+              <button className="mc-textbtn mc-quizskip" onClick={() => setStep(0)}>
+                Je sais déjà ce que je veux →
+              </button>
+            )}
+          </div>
+        )}
+
         {/* -------- 1 · objectif -------- */}
-        {step === 0 && (
+        {vue === 0 && (
           bookableCats.length > 0 ? (
             <div className="mc-stack mc-fade">
               {bookableCats.map((c) => (
@@ -455,7 +612,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 2 · prestations (sélection multiple) -------- */}
-        {step === 2 && (
+        {vue === 2 && (
           <div className="mc-fade">
             <div className="mc-stack">
               {stepServices.map((s) => {
@@ -508,7 +665,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 4 · créneau -------- */}
-        {step === 3 && selected.length > 0 && (
+        {vue === 3 && selected.length > 0 && (
           <div className="mc-fade">
             {(discountPct > 0 || prefService) && (
               <div className="mc-prefillnote">
@@ -620,7 +777,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 5 · récapitulatif -------- */}
-        {step === 4 && selected.length > 0 && selIso && time && (
+        {vue === 4 && selected.length > 0 && selIso && time && (
           <div className="mc-fade">
             <div className="mc-recapcard">
               {selected.map((s) => (
@@ -694,7 +851,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             sécurisé », fausse demande poussée au téléphone) : trahison de
             confiance assurée au premier passage en salon. Ne jamais le remettre —
             un écran de paiement ne s'affiche que s'il débite vraiment. */}
-        {step === 5 && selected.length > 0 && (
+        {vue === 5 && selected.length > 0 && (
           <div className="mc-fade">
             <div className="mc-depositcard">
               <div className="mc-depositcard__label">{depositPct !== null && depositPct >= 100 ? 'Prestation à régler d’avance' : 'Acompte à envoyer'}</div>
@@ -770,7 +927,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         )}
 
         {/* -------- 7 · confirmé -------- */}
-        {step === 6 && selected.length > 0 && selIso && time && (
+        {vue === 6 && selected.length > 0 && selIso && time && (
           <div className="mc-confirm mc-rise">
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <h2>Votre rituel est scellé.</h2>
@@ -823,6 +980,33 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <button className="mc-quietbtn" onClick={onClose}>Revenir à l’accueil</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* Une question, ses réponses en pastilles — la même mécanique qu'au miroir du
+   salon, aux dimensions du pouce. */
+function QuizRow({ label, opts, value, onPick }: {
+  label: string;
+  opts: [string, string][];
+  value: string | null;
+  onPick: (k: string) => void;
+}) {
+  return (
+    <div className="mc-quizq">
+      <div className="mc-quizq__label">{label}</div>
+      <div className="mc-envies">
+        {opts.map(([k, l]) => (
+          <button
+            key={k}
+            className={`mc-envie ${value === k ? 'is-on' : ''}`}
+            aria-pressed={value === k}
+            onClick={() => onPick(k)}
+          >
+            {l}
+          </button>
+        ))}
       </div>
     </div>
   );

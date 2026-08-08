@@ -10,6 +10,7 @@ import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts } from '../../../../shared/catalog';
+import { envieLabel } from '../../../../shared/quiz';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
@@ -1120,6 +1121,15 @@ function Customer360({
               {client.crownSince ? `couronnée depuis ${crownAge(client.crownSince)}` : 'naissance à renseigner'}
               {client.preferredMaster ? ` · fidèle à ${client.preferredMaster}` : ''}
             </div>
+            {/* CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne.
+                En lecture seule : une envie se déclare, elle ne se corrige pas
+                depuis le comptoir. */}
+            {client.envie && (
+              <div className="trc-crown__meta" style={{ color: 'var(--copper-700)' }}>
+                Son envie · {envieLabel(client.envie)}
+                {client.envieAt ? ` · dite le ${frShort(client.envieAt)}` : ''}
+              </div>
+            )}
             <div className="trc-crown__grid">
               <CrownStyleField
                 value={client.crownStyle ?? ''}

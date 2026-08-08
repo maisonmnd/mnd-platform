@@ -2,6 +2,8 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Input, Select, Textarea } from '../../../../ds/components';
 import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
+import { useServices } from '../../../../shared/catalog';
+import { ENVIES, type EnvieKey } from '../../../../shared/quiz';
 import { uid } from '../../../../shared/store';
 import { Avatar, useBranchClients } from './_shared';
 import './clients.css';
@@ -43,6 +45,18 @@ export default function Personas() {
 
   const setField = (id: string, field: 'name' | 'essence', value: string) =>
     personasStore.set((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+
+  /* CE QUE LE QUIZ PROPOSE AUX TÊTES DE CET ARCHÉTYPE. La désignation vivait à
+     la Régie, une seule pour toute la Maison : la même réponse à une Initiée qui
+     découvre et à une Souveraine de dix ans. Elle se fait ici — six réglages au
+     lieu de cent quatre-vingt-six, et une nouvelle cliente hérite du sien dès
+     qu'elle est classée. */
+  const [services] = useServices();
+  const servicesTries = useMemo(() => services.slice().sort((a, b) => a.name.localeCompare(b.name)), [services]);
+  const setReco = (id: string, k: EnvieKey, serviceId: string) =>
+    personasStore.set((prev) => prev.map((p) => (p.id === id
+      ? { ...p, recoParEnvie: { ...(p.recoParEnvie ?? {}), [k]: serviceId || undefined } }
+      : p)));
 
   const addPersona = () => {
     const p: Persona = { id: uid(), name: 'Nouveau persona', essence: 'Décrivez comment la maison l’accueille…', builtin: false };
@@ -161,6 +175,29 @@ export default function Personas() {
                       Supprimer
                     </button>
                   ))}
+              </div>
+
+              {/* Le quiz de la Vitrine et de Ma Couronne — quatre envies, quatre
+                  prestations RÉELLES du catalogue. Rien de désigné ici = la
+                  Régie de la Vitrine répond (repli de la Maison) ; rien nulle
+                  part = le quiz ne propose rien à ces têtes. */}
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+                <span className="trc-microlabel">Le quiz · ce qu’on propose à ces têtes</span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
+                  {ENVIES.map((e) => (
+                    <label key={e.k} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                      <span className="trc-sub">{e.label}</span>
+                      <Select
+                        value={p.recoParEnvie?.[e.k] ?? ''}
+                        onChange={(ev) => setReco(p.id, e.k, ev.target.value)}
+                        style={{ fontSize: 12, minWidth: 0 }}
+                      >
+                        <option value="">— comme la Maison —</option>
+                        {servicesTries.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                      </Select>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           );
