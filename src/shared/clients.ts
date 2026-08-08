@@ -24,12 +24,28 @@ export type Client = {
   authUserId?: string;
   city: string;
   persona: string; // id de persona
+  /** LA MAIN L'EMPORTE. Posé dès qu'une personne choisit l'archétype elle-même
+      au CRM : la lecture automatique (`shared/persona.ts`) ne recalcule plus
+      cette fiche. Sans ce verrou, l'intelligence effacerait à la nuit tombée le
+      jugement qu'un maître a porté le matin — et personne ne referait deux fois
+      un geste qu'une machine défait. Se relâche d'un clic sur la fiche. */
+  personaFige?: boolean;
   since: string; // ISO date
   photo?: string | null;
   segments: string[];
   priceCoef: number; // Le Juste Prix — coefficient personnalisé
   loyaltyPoints: number;
   notes?: string;
+  /** CE QUE LA MAISON OBSERVE D'ELLE — écrit à la main, en phrases libres.
+
+      Le carnet dit ce qu'elle a PRIS ; il ne dira jamais comment elle l'a pris :
+      si elle a demandé le prix trois fois, si elle regardait l'heure, si elle
+      repart dans trois semaines. Cela, seul quelqu'un qui l'a reçue le voit.
+
+      Lu comme un signal par `shared/persona.ts` (lexique + négation), et ce que
+      la Maison y lit s'affiche sous le champ — une lecture invisible ne se
+      corrige jamais. Distinct de `notes`, qui porte les notes de consultation. */
+  observation?: string;
   archived?: boolean;
   diaspora?: boolean;
   /* — la couronne : partagé Trône (CRM 360) ↔ Ma Couronne (statut, suivi) — */

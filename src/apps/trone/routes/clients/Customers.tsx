@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, type Client } from '../../../../shared/clients';
@@ -11,6 +11,7 @@ import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts } from '../../../../shared/catalog';
 import { envieLabel } from '../../../../shared/quiz';
+import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory } from '../../../../shared/offers';
@@ -848,10 +849,18 @@ function Customer360({
     .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
   const upcoming = upcomingAll[0];
 
+  /* CHOISIR À LA MAIN, C'EST FIGER. La lecture automatique (shared/persona.ts)
+     relit l'archétype à chaque mouvement du carnet ; sans ce verrou, elle
+     effacerait le lendemain le jugement porté ici. */
   const setPersona = (persona: string) => {
-    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, persona } : c)));
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, persona, personaFige: true } : c)));
     setPickPersona(false);
   };
+
+  /* Rendre la fiche à la lecture automatique — le prochain mouvement du carnet
+     la reclassera. */
+  const libererPersona = () =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, personaFige: undefined } : c)));
 
   /* Retrait doux — la cliente disparaît des listes sans quitter la Maison. */
   const archiveClient = () => {
@@ -1236,6 +1245,56 @@ function Customer360({
                 ))}
               </div>
             )}
+            {/* CE QUE LA MAISON OBSERVE D'ELLE. Le carnet dit ce qu'elle a pris ;
+                ceci dit comment elle l'a pris — et ce qu'on y lit s'affiche,
+                pour que la phrase se corrige quand la lecture se trompe. */}
+            <div style={{ marginTop: 14 }}>
+              <span className="trc-microlabel">Ce que la maison observe d’elle</span>
+              <Textarea
+                value={client.observation ?? ''}
+                onChange={(e) => patch({ observation: e.target.value || undefined })}
+                placeholder="Comment elle réagit au prix, son rythme pendant le rituel, ce qu’elle annonce pour la suite…"
+                style={{ minHeight: 76, resize: 'vertical', fontSize: 13, lineHeight: 1.5 }}
+              />
+              {(() => {
+                const lu = Object.entries(litObservation(client.observation));
+                if (!client.observation?.trim()) {
+                  return (
+                    <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                      Écrivez en phrases libres. La maison y lira le rapport au prix, la hâte,
+                      les séjours, un grand jour à venir, une fibre fragile — et en tiendra
+                      compte pour son archétype.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                    {lu.length === 0
+                      ? 'La maison n’y lit aucun signal — reformulez si vous en attendiez un.'
+                      : <>La maison y lit : {lu.map(([k]) => SIGNAL_NOMS[k as SignalCle]).join(' · ')}.</>}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* D'OÙ VIENT CET ARCHÉTYPE — figé par la Maison, ou relu au carnet.
+                Un rangement dont on ignore l'origine ne se corrige jamais. */}
+            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {client.personaFige ? (
+                <>
+                  Choisi par la Maison — la lecture automatique ne le corrige plus.{' '}
+                  <button
+                    type="button"
+                    className="tre-link-btn"
+                    onClick={libererPersona}
+                  >
+                    Rendre à la lecture du carnet
+                  </button>
+                </>
+              ) : (
+                'Relu à chaque mouvement du carnet — choisir ci-dessus le fige.'
+              )}
+            </div>
           </div>
 
           <div>

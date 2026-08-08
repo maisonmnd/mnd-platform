@@ -6,6 +6,7 @@ import { staffAccessStore } from '../routes/equipe/data';
 import { useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
+import { usePersonaVivant } from './usePersonaVivant';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button, toast } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
@@ -166,6 +167,9 @@ export default function Shell() {
 
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();
+  /* L'archétype de chaque cliente se relit à chaque mouvement du carnet — sauf
+     s'il a été figé à la main. Voir shared/persona.ts pour la pesée. */
+  usePersonaVivant();
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const closeSide = () => setSideOpen(false);
