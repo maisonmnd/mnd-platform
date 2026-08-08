@@ -379,3 +379,27 @@ service) ne doit JAMAIS entrer dans un commit : elle ouvre la base entière en
 écriture. Elle vit dans une variable d'environnement locale, pas dans un
 fichier du dépôt. Les JSON exportés portent noms, téléphones et e-mails de
 clientes : `.gitignore`, comme `import_v6*.sql` après la fuite du 2 août.
+
+### CHANTIER DEMANDÉ — restrictions du calendrier (8 août)
+
+**Le besoin.** Une tête très dense (350 locks et plus) ou une « pressée » doit
+fermer le calendrier plus longtemps qu'une tête ordinaire. SÍNSIN Essentielle /
+Élaborée et FÍNFÍN ne durent pas pareil d'une personne à l'autre.
+
+**Ce qui existe.** `couronne/lib.ts:336` écarte déjà les créneaux qui chevauchent
+un RDV (`busy.some(([s,e]) => m < e && m + durationMin > s)`). Le catalogue porte
+`ratePerLock`, `priceFloors`, `durationMax` ; `personalDurationMin` (pricing.ts)
+sait calculer une durée personnelle.
+
+**Les deux manques.**
+1. À la réservation en ligne, la cliente ne déclare pas sa DENSITÉ : le tunnel ne
+   peut donc utiliser que la durée nominale du catalogue, jamais la durée réelle.
+   → demander la densité en TRANCHES (pas au lock près) et brancher
+   `personalDurationMin`, le même moteur que le prix.
+2. Aucune notion de CAPACITÉ : le contrôle raisonne comme si la Maison n'avait
+   qu'un poste. Ni les maîtres en parallèle, ni un rituel qui mobilise deux
+   personnes (KLOKLO à deux, reprise à trois) ne sont modélisés.
+   → capacité dans Paramètres + postes consommés par prestation.
+
+Vérifier au passage QUELLE durée le tunnel passe réellement à `durationMin` —
+non tranché faute de contexte le 8 août.
