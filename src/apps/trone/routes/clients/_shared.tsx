@@ -108,9 +108,27 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
 };
 
 /** Total après remise du RDV : le pourcentage d'abord, puis la remise en CFA.
-    Jamais négatif — une remise en CFA supérieure au reste rend le rituel offert. */
-export const apptNetXof = (a: Appointment, byId: Map<string, Service>) =>
-  Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
+    Jamais négatif — une remise en CFA supérieure au reste rend le rituel offert.
+
+    UN FORFAIT PONCTUEL FAIT FOI et remplace tout le calcul : c'est le total que
+    la Maison a promis pour l'ensemble des gestes. Rien ne s'y ajoute — on ne
+    remise pas un prix déjà négocié. Tout ce qui ventile par prestation (mains,
+    production, seuils, commissions, Bilan) répartit ce net au prorata et suit
+    donc sans rien savoir du forfait. */
+export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
+  /* La règle des séries passe avant tout : une séance 2+ ne vaut rien, forfait
+     ou non — sinon un forfait se compterait une fois par séance. */
+  if (a.seriesIndex && a.seriesIndex > 1) return 0;
+  if (a.forfait) return Math.max(0, Math.round(a.forfait.totalXof));
+  return Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
+};
+
+/** Le nom d'un forfait ponctuel — « Forfait » quand la Maison n'en a pas donné. */
+export const forfaitLabel = (f: NonNullable<Appointment['forfait']>): string => f.nom?.trim() || 'Forfait';
+
+/** Le taux que ce forfait représente, en % du prix plein consenti ce jour-là. */
+export const forfaitTauxPct = (f: NonNullable<Appointment['forfait']>): number =>
+  f.baseXof > 0 ? Math.max(0, (1 - f.totalXof / f.baseXof) * 100) : 0;
 
 /** Facteur de remise EFFECTIF d'un RDV (0–1) — le pourcentage ET la remise en
     CFA, cette dernière répartie au prorata des prestations. À utiliser pour
@@ -436,6 +454,12 @@ export function RdvModal({
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
   const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
+  /* LE FORFAIT PONCTUEL — un total négocié pour l'ensemble des gestes. Il
+     REMPLACE les remises tant qu'il est posé : deux mécaniques sur le même
+     rituel, et plus personne ne sait ce qui a été consenti. */
+  const [forfaitOn, setForfaitOn] = useState(!!appt?.forfait);
+  const [forfaitNom, setForfaitNom] = useState(appt?.forfait?.nom ?? '');
+  const [forfaitStr, setForfaitStr] = useState(appt?.forfait ? String(appt.forfait.totalXof) : '');
   /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
   const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
   /* Ré-tarifer un rituel au tarif du jour (geste EXPLICITE) : un prix figé sous
@@ -532,7 +556,21 @@ export function RdvModal({
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé.
      Rituel couvert par l'abonnement → rien à facturer (0). */
-  const totalXof = effCovered ? 0 : Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
+  /* Le forfait : un total, et le taux qu'il représente — l'un remplit l'autre.
+     On négocie tantôt un montant rond (« les quatre pour 60 000 »), tantôt un
+     pourcentage ; le comptoir ne devrait pas avoir à faire la conversion. */
+  const forfaitNum = Math.max(0, Math.round(Number(String(forfaitStr).replace(/[^0-9]/g, '')) || 0));
+  const forfaitPose = forfaitOn && String(forfaitStr).trim() !== '';
+  const forfaitPct = effGross > 0 ? Math.round((1 - forfaitNum / effGross) * 1000) / 10 : 0;
+  const setForfaitParPct = (v: string) => {
+    const p = Math.max(0, Math.min(100, Number(String(v).replace(',', '.')) || 0));
+    setForfaitStr(String(Math.max(0, Math.round(effGross * (1 - p / 100)))));
+  };
+  const totalXof = effCovered
+    ? 0
+    : forfaitPose
+      ? forfaitNum
+      : Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
   /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
      CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
   const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
@@ -559,6 +597,20 @@ export function RdvModal({
 
   const overlapName = overlap ? clients.find((c) => c.id === overlap.clientId)?.name ?? 'une cliente' : '';
 
+  /* CE QUI S'ÉCRIT SUR LE RITUEL. `baseXof` se réaffirme à chaque enregistrement :
+     c'est le prix plein contre lequel la Maison vient de consentir ce total.
+     La date, elle, ne bouge que si le total change — rouvrir une fiche ne
+     redate pas une promesse déjà faite. */
+  const forfaitEnregistre: Appointment['forfait'] =
+    effCovered || !forfaitPose
+      ? undefined
+      : {
+          nom: forfaitNom.trim() || undefined,
+          totalXof: forfaitNum,
+          baseXof: effGross,
+          poseAt: appt?.forfait && appt.forfait.totalXof === forfaitNum ? appt.forfait.poseAt : todayISO(),
+        };
+
   const save = (chosenStatus: Appointment['status']) => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
@@ -583,8 +635,11 @@ export function RdvModal({
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
-                discountPct: effCovered ? undefined : (discountPct || undefined),
-                discountXof: effCovered ? undefined : (discountXof || undefined),
+                forfait: forfaitEnregistre,
+                /* Un forfait posé efface les remises : le total négocié EST le
+                   prix, on ne le remise pas une seconde fois. */
+                discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
+                discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
@@ -611,8 +666,9 @@ export function RdvModal({
         note: note.trim() || undefined,
         coveredBySub: effCovered || undefined,
         coverKind: effCovered ? ('abonnement' as const) : undefined,
-        discountPct: effCovered ? undefined : (discountPct || undefined),
-        discountXof: effCovered ? undefined : (discountXof || undefined),
+        forfait: forfaitEnregistre,
+        discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
+        discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
         priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossBase) : rdvPersonalized ? grossBase : undefined,
@@ -993,9 +1049,64 @@ export function RdvModal({
           </Field>
         )}
 
-        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
-            Masquée quand le rituel est couvert par l'abonnement (rien à facturer). */}
+        {/* LE FORFAIT PONCTUEL — un total pour l'ensemble des gestes. Les
+            prestations restent entières dessous : c'est leur montant qui porte
+            les mains, la production, les commissions et le Bilan. */}
         {!effCovered && !sansPrix && (
+          <Field label="Forfait — un total pour l’ensemble des gestes">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer' }}>
+              <input type="checkbox" checked={forfaitOn} onChange={(e) => setForfaitOn(e.target.checked)} />
+              Poser un forfait sur ce rituel
+            </label>
+            {forfaitOn && (
+              <>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                  <input
+                    className="mnd-input"
+                    value={forfaitNom}
+                    onChange={(e) => setForfaitNom(e.target.value)}
+                    placeholder="Forfait"
+                    style={{ flex: '1 1 150px', minWidth: 0 }}
+                    aria-label="Nom du forfait"
+                  />
+                  <input
+                    className="mnd-input"
+                    type="number"
+                    min={0}
+                    value={forfaitStr}
+                    onChange={(e) => setForfaitStr(e.target.value)}
+                    placeholder={String(effGross)}
+                    style={{ width: 128, textAlign: 'right' }}
+                    aria-label={`Total du forfait en ${currency}`}
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>soit</span>
+                  <input
+                    className="mnd-input"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={forfaitPose ? forfaitPct : ''}
+                    onChange={(e) => setForfaitParPct(e.target.value)}
+                    style={{ width: 76, textAlign: 'right' }}
+                    aria-label="Taux du forfait en pourcentage"
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>% sur {argent(effGross)}</span>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                  Les prestations restent détaillées : chacune reçoit sa part du total, au prorata de
+                  ce qu’elle vaut pour cette tête. Les mains, les primes, les commissions et le Bilan
+                  continuent de compter juste. Un forfait remplace les remises.
+                </div>
+              </>
+            )}
+          </Field>
+        )}
+
+        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
+            Masquée quand le rituel est couvert par l'abonnement (rien à facturer)
+            ou porté par un forfait (le total est déjà négocié). */}
+        {!effCovered && !sansPrix && !forfaitPose && (
         <>
         <Field label="Remise sur le rituel (%)">
           <div style={{ display: 'flex', gap: 6 }}>
@@ -1117,7 +1228,15 @@ export function RdvModal({
               </div>
             </>
           )}
-          {(discountPct > 0 || discountXof > 0) && (
+          {forfaitPose && (
+            <div className="trc-total__row">
+              <span>{forfaitNom.trim() || 'Forfait'} · au lieu de {argent(effGross)}</span>
+              <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>
+                −{argent(Math.max(0, effGross - forfaitNum))}
+              </span>
+            </div>
+          )}
+          {!forfaitPose && (discountPct > 0 || discountXof > 0) && (
             <div className="trc-total__row">
               <span>
                 Sous-total

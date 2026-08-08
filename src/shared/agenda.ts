@@ -14,6 +14,13 @@ export type ApptPayment = {
   method?: string; // espèces · Mobile Money · carte…
   cashbox?: string; // caisse créditée
   note?: string;
+  /** LA PIÈCE QUE CE VERSEMENT A FAIT NAÎTRE. Un règlement émet une facture ;
+      sans ce lien, rien ne dit LAQUELLE — le rendez-vous ne retient que la
+      dernière, et un rituel réglé en deux fois en compte deux. Le registre des
+      encaissements s'en sert pour dater la pièce au jour où l'argent est
+      vraiment entré, et la suppression d'une facture pour reprendre SES
+      versements plutôt que les plus récents. Absent sur les journaux d'avant. */
+  invoiceId?: string;
 };
 
 export type Appointment = {
@@ -73,6 +80,38 @@ export type Appointment = {
       Quand ce journal existe, il FAIT FOI ; `paidXof` reste le repli des
       rendez-vous d'avant (voir `apptPaidXof`). */
   payments?: ApptPayment[];
+  /** LE FORFAIT PONCTUEL — un total négocié pour l'ENSEMBLE des gestes de ce
+      rituel, décidé une fois, pour une cliente : « les quatre gestes pour
+      60 000 F ».
+
+      À ne pas confondre avec le forfait du catalogue (`Service.includes` +
+      `forfaitRemisePct`), qui est un produit durable qu'on réserve. Celui-ci
+      naît au comptoir, ou à la prise du rendez-vous.
+
+      IL NE TOUCHE JAMAIS AUX PRESTATIONS. Le montant par prestation porte les
+      mains et donc la production, les seuils, les primes, les commissions des
+      maîtres et la ventilation par maison du Bilan. Effondrer les lignes en une
+      seule « Forfait — 60 000 F » effacerait tout cela d'un coup. Le forfait ne
+      fixe donc que le NET du rituel : la Maison répartit ensuite ce net entre
+      les gestes au prorata de ce que chacun vaut pour cette tête
+      (`splitByWeights`), exactement comme elle le fait déjà pour une remise.
+      Rien d'autre dans la Maison n'a besoin de connaître ce champ.
+
+      Il FAIT FOI : ni le pourcentage ni la remise en CFA ne s'y ajoutent — on
+      ne remise pas un prix déjà négocié. */
+  forfait?: {
+    /** Le nom que la cliente lira sur sa facture. Vide = « Forfait ». */
+    nom?: string;
+    /** LE TOTAL VOULU, net, pour l'ensemble du rituel. */
+    totalXof: number;
+    /** Le prix plein au moment où il a été consenti. Sert à dire au comptoir
+        que la composition a changé depuis, et à reproposer le même taux : un
+        forfait posé à la réservation sur trois gestes ne dit plus rien de juste
+        quand un quatrième s'ajoute au fauteuil. */
+    baseXof: number;
+    /** Jour où il a été consenti (ISO). */
+    poseAt: string;
+  };
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
       (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */

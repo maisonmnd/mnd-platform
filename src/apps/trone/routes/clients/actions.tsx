@@ -5,7 +5,7 @@ import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
-import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
@@ -22,7 +22,7 @@ import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, apptTotalXof, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptTotalXof, forfaitTauxPct, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -128,21 +128,35 @@ export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: b
     RDV touché, ou null si la facture ne réglait aucun rituel. */
 export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: number): Appointment | null {
   restituerAvoir(invoiceId);
-  const appt = appointmentsStore.get().find((a) => a.invoiceId === invoiceId);
+  const tous = appointmentsStore.get();
+  /* LE RITUEL QUE CETTE PIÈCE RÉGLAIT. Par le lien du rendez-vous — qui ne
+     retient que sa DERNIÈRE facture — ou, à défaut, par le versement qui nomme
+     la pièce : un rituel réglé en deux fois porte deux factures, et supprimer la
+     première ne rembobinait rien du tout. */
+  const appt = tous.find((a) => a.invoiceId === invoiceId)
+    ?? tous.find((a) => (a.payments ?? []).some((p) => p.invoiceId === invoiceId));
   if (!appt) return null;
   const newPaid = Math.max(0, (appt.paidXof ?? 0) - Math.max(0, amountXof));
-  /* Le journal se rembobine du meme montant, du versement le plus recent au
-     plus ancien : la piece supprimee emporte les versements qu'elle portait. */
-  let aReprendre = Math.max(0, amountXof);
-  const journal = [...(appt.payments ?? [])];
-  while (aReprendre > 0 && journal.length) {
-    const dernier = journal[journal.length - 1];
-    if (dernier.amountXof <= aReprendre) {
-      aReprendre -= dernier.amountXof;
-      journal.pop();
-    } else {
-      journal[journal.length - 1] = { ...dernier, amountXof: dernier.amountXof - aReprendre };
-      aReprendre = 0;
+  /* LA PIÈCE EMPORTE SES PROPRES VERSEMENTS dès qu'ils la nomment. Sans ce lien
+     (journaux d'avant), on rembobine du même montant, du versement le plus
+     récent au plus ancien — ce qui reprenait l'argent de la mauvaise date. */
+  const journalInitial = appt.payments ?? [];
+  const siens = journalInitial.some((p) => p.invoiceId === invoiceId);
+  let journal: ApptPayment[];
+  if (siens) {
+    journal = journalInitial.filter((p) => p.invoiceId !== invoiceId);
+  } else {
+    journal = [...journalInitial];
+    let aReprendre = Math.max(0, amountXof);
+    while (aReprendre > 0 && journal.length) {
+      const dernier = journal[journal.length - 1];
+      if (dernier.amountXof <= aReprendre) {
+        aReprendre -= dernier.amountXof;
+        journal.pop();
+      } else {
+        journal[journal.length - 1] = { ...dernier, amountXof: dernier.amountXof - aReprendre };
+        aReprendre = 0;
+      }
     }
   }
   const fully = newPaid === 0;
@@ -152,7 +166,10 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
         ...a,
         paidXof: newPaid > 0 ? newPaid : undefined,
         payments: journal.length ? journal : undefined,
-        invoiceId: undefined,
+        /* On ne coupe le lien que si c'est BIEN cette pièce-là. Supprimer le
+           premier règlement d'un rituel qui en compte deux ne doit pas détacher
+           la facture qui, elle, existe toujours. */
+        invoiceId: a.invoiceId === invoiceId ? undefined : a.invoiceId,
         status: fully && a.status === 'honoré' ? 'confirmé' : a.status,
         ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
       }
@@ -224,7 +241,22 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const [sets] = useBandSets();
   const [categories] = useCategories();
   const pricing = pricingOf(client, bands, sets, categories);
-  const net = apptNetXof(appt, byId);
+  /* LE FORFAIT DE CAISSE — l'ensemble des gestes à un total négocié, posé ici ou
+     déjà promis à la réservation. Il ne touche pas aux prestations : chacune
+     reçoit sa part du total au prorata, et les mains, les primes, les
+     commissions et le Bilan continuent de compter juste (voir `apptNetXof`). */
+  const grossActuel = apptTotalXof(appt, byId);
+  const [forfaitOn, setForfaitOn] = useState(!!appt.forfait);
+  const [forfaitNom, setForfaitNom] = useState(appt.forfait?.nom ?? '');
+  const [forfaitStr, setForfaitStr] = useState(appt.forfait ? String(appt.forfait.totalXof) : '');
+  const forfaitNum = Math.max(0, Math.round(Number(String(forfaitStr).replace(/[^0-9]/g, '')) || 0));
+  const forfaitPose = forfaitOn && String(forfaitStr).trim() !== '';
+  const forfaitPct = grossActuel > 0 ? Math.round((1 - forfaitNum / grossActuel) * 1000) / 10 : 0;
+  const nomForfait = forfaitPose ? forfaitNom.trim() || 'Forfait' : '';
+  /* LE NET DE CET ÉCRAN. Le forfait qu'on est en train de poser prime sur celui
+     qui est enregistré — sinon le montant proposé mentirait d'un geste. Sans
+     forfait, on relit le rituel comme s'il n'en avait jamais porté. */
+  const net = forfaitPose ? forfaitNum : apptNetXof({ ...appt, forfait: undefined }, byId);
   const deposit = appt.depositXof ?? 0;
   const alreadyPaid = appt.paidXof ?? 0;
 
@@ -253,6 +285,21 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const [amountStr, setAmountStr] = useState(String(due));
   const amount = Math.max(0, Math.min(cashMax, Math.round(Number(amountStr) || 0)));
   const settleTotal = amount + avoirApplied; // ce qui solde le rituel ce coup-ci (comptant + avoir)
+
+  /* Toucher au forfait recale le montant proposé, comme le fait l'acompte : un
+     champ qui garderait l'ancien dû ferait encaisser le mauvais montant au
+     premier geste distrait. Un seul chemin, quel que soit le champ touché. */
+  const majForfait = (pose: boolean, str: string) => {
+    setForfaitOn(pose);
+    setForfaitStr(str);
+    const n = Math.max(0, Math.round(Number(String(str).replace(/[^0-9]/g, '')) || 0));
+    const nouveauNet = pose && String(str).trim() !== '' ? n : apptNetXof({ ...appt, forfait: undefined }, byId);
+    setAmountStr(String(Math.max(0, nouveauNet - alreadyPaid - (depositReceived ? deposit : 0))));
+  };
+  const majForfaitParPct = (v: string) => {
+    const p = Math.max(0, Math.min(100, Number(String(v).replace(',', '.')) || 0));
+    majForfait(true, String(Math.max(0, Math.round(grossActuel * (1 - p / 100)))));
+  };
 
   /* Cocher/décocher l'acompte recale le montant proposé sur le nouveau dû. */
   const toggleDepositReceived = () =>
@@ -359,7 +406,11 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       } else {
         lines = [{
           id: `il-${uid()}`,
-          label: fullyPaid && alreadyPaid === 0 ? apptLabel(appt, byId) : `Règlement · ${apptLabel(appt, byId)}`,
+          /* Le forfait donne son nom à la pièce : c'est ce que la cliente a
+             négocié, et c'est sous ce nom qu'elle le relira. */
+          label: fullyPaid && alreadyPaid === 0
+            ? nomForfait || apptLabel(appt, byId)
+            : `Règlement · ${nomForfait || apptLabel(appt, byId)}`,
           qty: 1, unitXof: factureTotal, discountPct: 0,
         }];
       }
@@ -367,6 +418,12 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          en mention (forClientId). */
       const avoirNote = avoirApplied > 0 ? `Réglé par avoir : ${fmtMoney(avoirApplied, currency)}${amount > 0 ? ` · comptant ${fmtMoney(amount, currency)}` : ''}` : '';
       const partialNote = fullyPaid ? '' : `Paiement partiel — reste ${fmtMoney(remainingAfter, currency)}`;
+      /* Le forfait se dit sur la pièce, avec le prix plein en regard : une
+         remise consentie et tue n'est pas un cadeau, c'est un prix qu'on
+         n'explique pas. */
+      const forfaitNote = forfaitPose
+        ? `${nomForfait} · ${fmtMoney(forfaitNum, currency)} au lieu de ${fmtMoney(grossActuel, currency)}`
+        : '';
       const inv: Invoice = {
         id: `inv-${uid()}`,
         branchId: branch.id,
@@ -386,7 +443,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         clientName: payerClient?.name ?? client?.name,
         forClientId: isFamilyPayer ? appt.clientId : undefined,
         master: appt.master,
-        note: [avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
+        note: [forfaitNote, avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
         /* Le pourboire rejoint la MÊME caisse que le paiement — traçable, mais
            toujours hors chiffre d'affaires (invoiceTotal l'exclut). Seulement s'il est
            partageable, pour que « à reverser aux maîtres » reste juste. */
@@ -418,6 +475,21 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
         ? {
             ...a,
+            /* LE FORFAIT S'INSCRIT SUR LE RITUEL, pas seulement sur la pièce :
+               c'est lui qui commande le net, donc les mains, les primes, les
+               commissions et le Bilan. `baseXof` se réaffirme ici — c'est le
+               prix plein contre lequel la Maison vient de consentir ce total.
+               Un forfait posé efface les remises : on ne remise pas un prix
+               déjà négocié. */
+            forfait: forfaitPose
+              ? {
+                  nom: forfaitNom.trim() || undefined,
+                  totalXof: forfaitNum,
+                  baseXof: grossActuel,
+                  poseAt: a.forfait && a.forfait.totalXof === forfaitNum ? a.forfait.poseAt : todayISO(),
+                }
+              : undefined,
+            ...(forfaitPose ? { discountPct: undefined, discountXof: undefined } : {}),
             invoiceId: inv.id,
             paidXof: alreadyPaid + settleTotal,
             /* LE JOURNAL DES VERSEMENTS. Une somme ne sait pas dire quand
@@ -433,6 +505,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
                   date: payDate,
                   method: pay,
                   cashbox: activeBox || undefined,
+                  /* La piece que ce versement vient d'emettre : c'est par ce lien
+                     que le registre des encaissements la datera du jour ou
+                     l'argent est entre, et non du jour du rituel. */
+                  invoiceId: inv.id,
                   ...(avoirApplied > 0 ? { note: `dont ${avoirApplied} F par avoir` } : {}),
                 },
               ],
@@ -543,8 +619,78 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="mnd-muted">Total{appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}</span>
+          <span className="mnd-muted">
+            {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
+          </span>
           <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
+        </div>
+
+        {/* LE FORFAIT — un total pour l'ensemble des gestes. Les prestations
+            restent entières dessous : c'est leur montant qui porte les mains, la
+            production, les commissions et la ventilation du Bilan. */}
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer' }}>
+            <input type="checkbox" checked={forfaitOn} onChange={(e) => majForfait(e.target.checked, forfaitStr)} />
+            Forfait — un total pour l’ensemble des gestes
+          </label>
+          {forfaitOn && (
+            <>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                <Input
+                  value={forfaitNom}
+                  onChange={(e) => setForfaitNom(e.target.value)}
+                  placeholder="Forfait"
+                  style={{ flex: '1 1 130px', minWidth: 0 }}
+                  aria-label="Nom du forfait"
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  value={forfaitStr}
+                  onChange={(e) => majForfait(true, e.target.value)}
+                  placeholder={String(grossActuel)}
+                  style={{ width: 118, textAlign: 'right' }}
+                  aria-label={`Total du forfait en ${currency}`}
+                />
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>soit</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={forfaitPose ? String(forfaitPct) : ''}
+                  onChange={(e) => majForfaitParPct(e.target.value)}
+                  style={{ width: 72, textAlign: 'right' }}
+                  aria-label="Taux du forfait en pourcentage"
+                />
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>% sur {fmtMoney(grossActuel, currency)}</span>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>
+                Chaque prestation garde son montant, au prorata de ce qu’elle vaut — mains, primes,
+                commissions et Bilan continuent de compter juste. Un forfait remplace les remises.
+              </div>
+            </>
+          )}
+          {/* LA COMPOSITION A BOUGÉ DEPUIS LA PROMESSE. Le total tient — la
+              Maison a dit un prix — mais le comptoir doit le savoir, et pouvoir
+              reporter le même taux d'un geste plutôt qu'à la calculette. */}
+          {appt.forfait && Math.round(appt.forfait.baseXof) !== Math.round(grossActuel) && (
+            <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5, marginTop: 10 }}>
+              Les prestations ont changé depuis ce forfait : il portait sur{' '}
+              <b>{fmtMoney(appt.forfait.baseXof, currency)}</b>, le rituel en vaut{' '}
+              <b>{fmtMoney(grossActuel, currency)}</b> aujourd’hui. Le total promis tient.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => majForfaitParPct(String(forfaitTauxPct(appt.forfait!)))}
+                  style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+                >
+                  Reporter le même taux (−{Math.round(forfaitTauxPct(appt.forfait) * 10) / 10} %) ·{' '}
+                  {fmtMoney(Math.round(grossActuel * (1 - forfaitTauxPct(appt.forfait) / 100)), currency)}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {deposit > 0 && depositReceived && (
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
