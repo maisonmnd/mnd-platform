@@ -440,6 +440,26 @@ export const moduleHidden = (
   m: CouronneModule,
 ): boolean => !!client?.hiddenModules?.includes(m);
 
+/** DEUX FERMETURES QUI S'ADDITIONNENT : celle de la Maison, pour toutes
+    (`VitrineConfig.modulesFermes`), et celle de la fiche, pour elle seule.
+    Aucune ne rouvre ce que l'autre a fermé — on ne rend pas à une cliente ce
+    que la Maison a fermé à tout le monde. */
+export function useModuleFerme(): (m: CouronneModule) => boolean {
+  const me = useClient();
+  const [cfg] = useStore(vitrineConfigStore);
+  return (m) => (cfg.modulesFermes ?? []).includes(m) || moduleHidden(me, m);
+}
+
+/** La porte de l'application — au-dessus des modules. */
+export function useCouronneFermee(): { fermee: boolean; mot: string } {
+  const [cfg] = useStore(vitrineConfigStore);
+  return {
+    fermee: !!cfg.couronneFermee,
+    mot: cfg.couronneMot?.trim()
+      || 'La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra.',
+  };
+}
+
 /* ---------- Réservation — pré-remplissage (offres, re-réservation) ---------- */
 
 export type BookingPrefill = {

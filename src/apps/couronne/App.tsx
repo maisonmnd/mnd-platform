@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
-import { useEnsureClient, useActivityTracker, useClientId, useClient, moduleHidden, type BookingPrefill } from './lib';
+import { useEnsureClient, useActivityTracker, useClientId, useClient, useCouronneFermee, useModuleFerme, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
@@ -56,8 +56,11 @@ function Shell() {
   /* Modules coupés par la Maison (Vitrine du Trône) : les onglets désactivés
      disparaissent ; si l'onglet courant se ferme, on revient à l'Accueil. */
   const me = useClient();
+  /* UN SEUL JUGE pour les deux fermetures — celle de la Maison et celle de sa
+     fiche. Voir `useModuleFerme`. */
+  const ferme = useModuleFerme();
   const visibleTabs = TABS.filter((t) =>
-    t.id === 'accueil' || t.id === 'profil' || !moduleHidden(me, t.id as 'suivi' | 'gamme' | 'cercle'));
+    t.id === 'accueil' || t.id === 'profil' || !ferme(t.id as 'suivi' | 'gamme' | 'cercle'));
   useEffect(() => {
     if (!visibleTabs.some((t) => t.id === tab)) setTab('accueil');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,22 +86,22 @@ function Shell() {
   /* Garde GLOBALE : réservation coupée pour cette cliente → aucun chemin
      (bouton, offre, re-réservation) n'ouvre le tunnel — un mot honnête à la place. */
   const openBooking = useCallback((prefill?: BookingPrefill) => {
-    if (moduleHidden(me, 'reserver')) {
+    if (ferme('reserver')) {
       toast('Les réservations en ligne sont fermées pour votre compte — contactez la maison.');
       return;
     }
     setNotifOpen(false);
     setRdvOpen(false);
     setBooking({ prefill });
-  }, [me, toast]);
+  }, [ferme, toast]);
 
   const openCompose = useCallback(() => {
-    if (moduleHidden(me, 'compose')) {
+    if (ferme('compose')) {
       toast('Le rituel sur-mesure est fermé pour votre compte — contactez la maison.');
       return;
     }
     setComposeOpen(true);
-  }, [me, toast]);
+  }, [ferme, toast]);
 
   const openRdv = useCallback(() => {
     setNotifOpen(false);
@@ -172,6 +175,7 @@ function Shell() {
 
 export default function App() {
   const { session, loading } = useAuth();
+  const { fermee, mot } = useCouronneFermee();
 
   /* Splash bref pendant la restauration de session. */
   if (loading) {
@@ -187,6 +191,23 @@ export default function App() {
   /* Verrou : quand l'auth est imposée et qu'aucune session n'existe → connexion.
      Sans backend (dev local), l'app s'ouvre directement. */
   const authed = !requireAuth || !!session;
+
+  /* LA PORTE EST CLOSE — la Maison a fermé Ma Couronne pour toutes. On le dit
+     AVANT la connexion : demander son mot de passe à quelqu'un pour lui montrer
+     ensuite une maison fermée, c'est lui faire perdre deux fois son temps. */
+  if (fermee) {
+    return (
+      <div className="mc-app mc-app--auth">
+        <div className="mc-viewport">
+          <div className="mc-closed">
+            <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
+            <h1 className="mc-closed__t">La maison est fermée.</h1>
+            <p className="mc-closed__s">{mot}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`mc-app mc-app--${authed ? 'shell' : 'auth'}`}>

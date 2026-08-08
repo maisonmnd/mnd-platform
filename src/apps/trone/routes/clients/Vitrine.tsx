@@ -611,7 +611,10 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   const [screen, setScreen] = useState<'accueil' | 'reserver' | 'suivi' | 'cercle'>('accueil');
 
   const hidden = client.hiddenModules ?? [];
-  const isOff = (k: string) => hidden.includes(k);
+  /* L'APERÇU DOIT DIRE LA VÉRITÉ : un module fermé pour toute la Maison est
+     fermé chez elle aussi, même si sa fiche ne dit rien. Le même juge que
+     l'application (`useModuleFerme`, couronne/lib.ts). */
+  const isOff = (k: string) => hidden.includes(k) || (cfg.modulesFermes ?? []).includes(k);
   const toggleModule = (k: string) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id
       ? { ...c, hiddenModules: (c.hiddenModules ?? []).includes(k) ? (c.hiddenModules ?? []).filter((x) => x !== k) : [...(c.hiddenModules ?? []), k] }
@@ -680,6 +683,76 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
               Tranche {bandLabel(pricing.band, bands)} · prix ×{pricing.band.coef} · durée ×{pricing.band.durCoef}
               {pricing.clientCoef !== 1 ? ` · coefficient personnel ×${pricing.clientCoef}` : ''}
+            </div>
+          )}
+        </div>
+
+        {/* LA PORTE, PUIS LES PIÈCES. Ce bloc-ci vaut pour TOUTE la Maison : une
+            décision qui n'en est qu'une ne doit pas se répéter cent
+            soixante-dix-huit fois. Celui d'en dessous ne retire qu'en plus, pour
+            une cliente. */}
+        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '18px 20px', color: 'var(--color-ivoire)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
+            Ma Couronne · pour toutes les clientes
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13 }}>L’application est ouverte</div>
+              <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
+                Fermée, personne n’entre — même pas pour se connecter. Elles lisent votre mot.
+              </div>
+            </div>
+            <button
+              className={`trc-switch ${!cfg.couronneFermee ? 'is-on' : ''}`}
+              onClick={() => vitrineConfigStore.set((c) => ({ ...c, couronneFermee: !c.couronneFermee }))}
+              aria-label="Ma Couronne ouverte"
+              style={{ flex: 'none' }}
+            />
+          </div>
+
+          {cfg.couronneFermee && (
+            <div>
+              <textarea
+                className="mnd-input"
+                value={cfg.couronneMot ?? ''}
+                onChange={(e) => vitrineConfigStore.set((c) => ({ ...c, couronneMot: e.target.value || undefined }))}
+                placeholder="La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra."
+                style={{ width: '100%', boxSizing: 'border-box', minHeight: 62, resize: 'vertical', fontSize: 12.5 }}
+                aria-label="Le mot lu par les clientes"
+              />
+              <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 5, lineHeight: 1.5 }}>
+                Laissé vide, un mot de la Maison s’affiche. Dites pourquoi et quand vous rouvrez —
+                une porte close sans explication ne se comprend pas.
+              </div>
+            </div>
+          )}
+
+          {!cfg.couronneFermee && (
+            <div style={{ borderTop: '1px solid rgba(246,241,231,.2)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--indigo-100)', lineHeight: 1.5 }}>
+                Et, dans l’application ouverte, ce que toutes voient — ou ne voient pas.
+              </div>
+              {COURONNE_MODULES.map((m) => {
+                const fermeMaison = (cfg.modulesFermes ?? []).includes(m.k);
+                return (
+                  <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: fermeMaison ? 'var(--indigo-100)' : 'var(--color-ivoire)' }}>{m.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2 }}>{m.sub}</div>
+                    </div>
+                    <button
+                      className={`trc-switch ${!fermeMaison ? 'is-on' : ''}`}
+                      onClick={() => vitrineConfigStore.set((c) => {
+                        const l = c.modulesFermes ?? [];
+                        return { ...c, modulesFermes: l.includes(m.k) ? l.filter((x) => x !== m.k) : [...l, m.k] };
+                      })}
+                      aria-label={`Module ${m.label} pour toutes`}
+                      style={{ flex: 'none' }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

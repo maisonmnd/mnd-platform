@@ -64,6 +64,26 @@ export type VitrineConfig = {
       et le retirer par surprise à une maison qui l'utilise serait pire que de
       lui demander de l'éteindre. */
   quizCouronne?: boolean;
+  /** MODULES FERMÉS POUR TOUTE LA MAISON — 'reserver' · 'compose' · 'suivi' ·
+      'gamme' · 'cercle' · 'offres'.
+
+      Les modules ne se coupaient que cliente par cliente (`Client.hiddenModules`),
+      ce qui obligeait à répéter cent soixante-dix-huit fois une décision qui
+      n'en est qu'une : « on ne prend pas de réservation en ligne ». Ce réglage-ci
+      vaut pour toutes ; celui de la fiche reste, et RETIRE en plus. Les deux
+      s'additionnent, aucun ne rouvre ce que l'autre a fermé — on ne rend pas à
+      une cliente ce que la Maison a fermé à tout le monde. */
+  modulesFermes?: string[];
+  /** MA COURONNE FERMÉE — l'application entière, pour toutes.
+
+      Un cran au-dessus des modules : la porte, pas les pièces. Sert le jour où
+      la Maison ne veut plus rien recevoir en ligne — congés, refonte du
+      catalogue, incident. La cliente qui ouvre l'app lit le mot ci-dessous
+      plutôt qu'un écran cassé ou, pire, un tunnel qui accepte une réservation
+      que personne ne lira. */
+  couronneFermee?: boolean;
+  /** Ce que lit la cliente quand la porte est close. Vide = un mot de la Maison. */
+  couronneMot?: string;
   /** SON HISTOIRE TRANCHE. Allumé, le quiz ne prend plus la désignation de son
       persona telle quelle : il choisit, PARMI tout ce que la Maison a désigné
       pour cette envie, la prestation que ses rendez-vous rendent la plus juste
