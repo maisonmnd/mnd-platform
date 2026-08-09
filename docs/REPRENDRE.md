@@ -98,9 +98,9 @@ mettre son prix à zéro vide sa part du chiffre sur les cartes du Catalogue
 
 ## Chantiers ouverts par ailleurs
 
-- **Factures de reprise** : `supabase/0018_factures_reprise.sql` est prêt,
-  jamais exécuté. 335 pièces, statut réel selon le règlement. Décision prise,
-  exécution en attente.
+- **Factures de reprise** : `supabase/0018_factures_reprise.sql` est **PASSÉ le
+  9 août 2026** — 335 pièces écrites, 15 580 400 F. Ne jamais le relancer.
+  Voir « 0018 — ÉTAPE 2 PASSÉE » plus bas.
 - **Encaissements** : le registre date les règlements de rituels par leur
   facture, pas par le journal des versements — qui existe désormais et porte sa
   propre date. `buildReceipts` doit lire ce journal pour que la caisse tombe au
@@ -224,9 +224,9 @@ Au passage, la suppression d'une facture reprend désormais SES versements (par
 n'est pas la dernière du rendez-vous, et ne coupe le lien `invoiceId` que si
 c'est bien cette pièce-là.
 
-**Toujours en attente** (inchangé) : `0027_rattachement_cliente.sql` et
-`0018_factures_reprise.sql` jamais exécutés ; barèmes YÈKPÈ Couleur et
-Manucure/Pédicure à revoir ; notification APDP de la fuite du 2 août.
+**Toujours en attente** : `0027_rattachement_cliente.sql` jamais exécuté ;
+barèmes YÈKPÈ Couleur et Manucure/Pédicure à revoir ; notification APDP de la
+fuite du 2 août. (`0018_factures_reprise.sql` est passé le 9 août.)
 Un pourboire saisi SEUL (rituel déjà soldé) reste daté par la pièce — il
 n'écrit pas au journal.
 
@@ -408,7 +408,9 @@ sait calculer une durée personnelle.
 Vérifier au passage QUELLE durée le tunnel passe réellement à `durationMin` —
 non tranché faute de contexte le 8 août.
 
-### 0018 factures de reprise — ÉTAPE 1 PASSÉE le 8 août (rien écrit)
+### 0018 factures de reprise — ✅ FAIT (exécuté dans une autre session)
+
+Chiffres de la réconciliation conservés comme TRACE de ce qui a été écrit :
 
 Résultat de l'aperçu, à ne pas refaire :
 
@@ -428,7 +430,7 @@ LONGUEURS du 6 août : leur prix figé — un DÀNDÀN Long à 28 000 F — dép
 prix de la prestation unique survivante. L'ajustement rétablit l'écart, ce qui
 est le comportement voulu : la facture doit valoir le prix réellement payé.
 
-**LA PORTE EST ICI.** Yéman doit confirmer que 15 517 600 F sur cette période
+**Porte franchie.** Yéman devait confirmer que 15 517 600 F sur cette période
 correspond à ses relevés (~1 630 000 F/mois) — elle vérifie, réponse en
 attente au 8 août. **Ne PAS lancer l'étape 2 sans ce feu vert** : dès qu'une
 facture est rattachée, le rituel compte par elle et non plus par le Carnet ; un
@@ -437,7 +439,9 @@ facture est rattachée, le rituel compte par elle et non plus par le Carnet ; un
 Si trop bas → chercher du côté des rituels écartés (séries, abonnements, RDV
 jamais marqués honorés). Si trop haut → doublons et annulés.
 
-**8 août — L'ÉTAPE 2 DE 0018 N'EXISTE PAS.** Le fichier s'arrête ligne 191 sur
+**8 août — l'étape 2 manquait alors dans le fichier ; elle a été écrite et
+exécutée dans une autre session. Historique :** *(Écrite et passée depuis, le
+9 août — voir la section suivante. Conservé pour l'historique.)* Le fichier s'arrête ligne 191 sur
 `-- pret as (` : pas d'INSERT, pas de rollback. Ne pas promettre qu'il suffit de
 « décommenter ». Ce qui existe : deux aperçus (le second, ligne ~60, est le bon —
 il gère `forfait`, `n_lignes = 0`, dates futures, et compte `deja_creees`) et la
@@ -448,12 +452,60 @@ construction des lignes avec `prixParLongueur` (`svcPriceForAppt` à l'identique
 = 17 223 100, soit **28 000 F d'écart non expliqué (0,16 %)** — probablement une
 valorisation qui diffère entre Analytics et la requête, du côté lecture.
 
-**À ÉCRIRE, avec toute l'attention :** l'INSERT dans `invoices` (série
+**Ce qu'il fallait écrire (fait) :** l'INSERT dans `invoices` (série
 MND-R-0001…, `id like 'inv-rep-%'` pour être repérable et annulable), l'UPDATE de
 `appointments.data->>'invoiceId'`, le tout dans UNE transaction, plus le rollback
 en fin de fichier. Le statut de la pièce suit `regle` (journal `payments` s'il
 existe, sinon `paidXof`, + acompte confirmé) et `acompte` se déclare en
 `depositCreditXof` pour ne pas encaisser deux fois.
+
+### 0018 — ÉTAPE 2 PASSÉE le 9 août 2026. NE JAMAIS RELANCER.
+
+**335 pièces écrites, 15 580 400 F**, du 15 oct. 2025 au 1ᵉʳ août 2026. Série
+`MND-R-0001` → `MND-R-0335`, identifiants `inv-rep-<apptId>`.
+
+| | |
+|---|---|
+| factures_creees | **335** |
+| total_des_factures | **15 580 400 F** — identique au net des rituels, au franc près |
+| payées | 308 — **14 239 400 F**, restent au chiffre d'affaires |
+| envoyées | 27 — **1 341 000 F**, partis aux impayés |
+| sans cliente au CRM | 0 |
+
+**L'invariant a tenu** : la somme des pièces égale exactement le `chiffre_couvert`
+de l'aperçu. Aucun rituel n'a changé de valeur en passant du Carnet à sa facture.
+
+**Le chiffre validé le 8 août n'est pas celui qui a été écrit — et c'est normal.**
+15 517 600 F attendus, 15 580 400 F écrits : **+62 800 F**, une seule pièce,
+**MND-R-0330 — Edwin Johnson, 31 juillet, KÒKÒ™ Suivi**. Yéman a fait passer ce
+rituel en **mi-long** entre les deux exécutions : sa valeur au Carnet a changé,
+la facture a suivi. Sans le correctif `prixParLongueur`, la requête l'aurait
+compté au prix de repli et cette correction aurait DISPARU du chiffre d'affaires.
+Vérifié après écriture : une ligne, remise de reprise à 0 — la pièce vaut le prix
+mi-long au franc près. La réconciliation d'Analytics se refait sur 15 580 400.
+
+**Quatre correctifs ont été portés avant l'écriture**, parce que 0018 datait
+d'avant les mécanismes qu'il devait respecter. Mesurés à l'aperçu :
+
+| Correctif | Lignes touchées | Sans lui |
+|---|---|---|
+| journal `payments` fait foi sur `paidXof` (`apptPaidXof`) | **20** | 20 pièces soldées seraient parties en impayés |
+| `prixParLongueur` (`svcPriceForAppt`) | **1** | −62 800 F au chiffre d'affaires |
+| `forfait.totalXof` fait foi (`apptNetXof`) | 0 | inerte ici, indispensable si 0018 est réutilisé |
+| `depositCreditXof` sur acompte confirmé | 0 | idem — l'acompte serait encaissé deux fois |
+
+Écartés sans dommage : 8 rituels à net nul, 0 sans lignes au catalogue, 0 datés
+du futur.
+
+**Conséquence attendue, à ne pas prendre pour une régression :** le registre des
+encaissements ne lit que les factures (`buildReceipts` ①). Les mois d'octobre à
+août gagnent rétroactivement les 14 239 400 F des pièces payées — cette recette
+existait, elle n'avait aucun document pour la porter. La Synthèse, elle, ne
+bouge pas d'un franc.
+
+Le rollback complet (factures + liens `invoiceId`) est en fin de
+`supabase/0018_factures_reprise.sql`. L'étape 2 y reste **commentée** : le
+fichier ne doit jamais pouvoir s'exécuter d'un copier-coller distrait.
 
 ### CHANTIER DEMANDÉ — second téléphone + diaspora automatique (9 août)
 
@@ -509,3 +561,36 @@ chantier vaut la peine.
 Le bénéfice visé n'est pas la statistique mais la RELANCE : « ta couronne a six
 semaines » envoyé à quelqu'un qui vit à Paris est du bruit, et le bruit fait
 ignorer tous les messages suivants.
+
+
+---
+
+## ▶ PRIORITÉ 1 — Les clientes de passage (décidé le 9 août)
+
+**À faire AVANT les autres chantiers.** Demande explicite de Yéman.
+
+**Le problème.** On ne peut pas ne pas les enregistrer : l'argent doit être tracé
+et la prestation doit compter dans la production du maître. Mais leur ouvrir une
+fiche pleine gonfle le CRM de poids mort — 178 têtes deviennent 400, la
+rétention s'effondre sans que rien n'ait changé dans la maison, le panier moyen
+se brouille, et les relances partent vers des gens qui ne reviendront pas.
+Le tort n'est pas de les enregistrer, c'est de les COMPTER comme des clientes.
+
+**La forme retenue.**
+1. **Une seule mécanique.** Une fiche comme les autres, marquée « de passage ».
+   Pas de registre parallèle : deux registres finissent toujours par diverger
+   (cf. les deux cartes d'horaires, 6 août).
+2. **Identité minimale** — prénom + téléphone. Rien d'autre. Demander une date de
+   naissance à qui ne reviendra pas gaspille le seul moment où elle est là.
+3. **Séparation nette dans les chiffres.** DANS le chiffre d'affaires et dans la
+   production / les seuils du maître (argent et travail réels). HORS des têtes
+   actives, de la rétention et des relances (ce n'est pas une relation).
+   Même distinction qu'entre encaisser et honorer.
+4. **Promotion automatique au 2ᵉ rendez-vous.** Elle cesse alors d'être de
+   passage. Ici la déduction EST légitime — contrairement à la diaspora — parce
+   qu'elle porte sur un fait observé (elle est revenue), pas sur une supposition
+   quant à sa vie. Rien à entretenir à la main.
+
+**À vérifier d'abord :** ce que portent déjà les PERSONAS et les segments. La
+fiche d'Edwin Johnson affiche « La Naissance » — une notion de cycle de vie
+existe donc. Un statut de passage y trouve peut-être sa place sans rien ajouter.
