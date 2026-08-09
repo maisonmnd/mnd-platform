@@ -14,7 +14,7 @@ import { envieLabel } from '../../../../shared/quiz';
 import {
   enAttente, nomPropose, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
 } from '../../../../shared/enfants';
-import { ageDe, tetesPortees } from '../../../../shared/accounts';
+import { ageDe, estMineur, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -770,6 +770,7 @@ export default function Customers() {
           client={selected}
           personaName={personaName(selected.persona)}
           onClose={() => setSelId(null)}
+          onOpen={setSelId}
           appts={apptsOf(selected.id)}
           byId={byId}
           predicted={predictNext(selected.id)}
@@ -799,11 +800,13 @@ const C360_TABS: { k: C360Tab; l: string }[] = [
 ];
 
 function Customer360({
-  client, personaName, onClose, appts, byId, predicted,
+  client, personaName, onClose, onOpen, appts, byId, predicted,
 }: {
   client: Client;
   personaName: string;
   onClose: () => void;
+  /** Passer à la fiche d'un autre membre du compte sans refermer le tiroir. */
+  onOpen: (id: string) => void;
   appts: ReturnType<typeof useBranchAppointments>;
   byId: ReturnType<typeof useServicesById>;
   predicted: Cadence;
@@ -1039,6 +1042,41 @@ function Customer360({
   const [famillesFiche] = useFamilies();
   const portees = tetesPortees(client, tetesBranche, famillesFiche, todayISO());
   const nomTete = (id: string | undefined) => tetesBranche.find((c) => c.id === id)?.name ?? 'une cliente';
+
+  /* ----- LE COMPTE FAMILLE, TEL QUE FINANCES LE TIENT -----
+     Le rattachement se décide dans Comptes & Avoirs, mais il se lit ici : c'est
+     sur la fiche qu'on se demande qui règle pour qui. On montre donc le compte
+     entier — tous ses membres, pas seulement les mineurs — avec le parent
+     payeur et l'avoir du compte, et chaque membre s'ouvre d'un clic. */
+  const membresDuCompte = useMemo(() => {
+    if (!clientFamily) return [] as Client[];
+    const payeur = clientFamily.payerClientId;
+    return tetesBranche
+      .filter((c) => c.familyId === clientFamily.id && c.id !== client.id)
+      .sort((a, b) => {
+        /* Le payeur d'abord — c'est lui qui explique le compte. Puis les aînés :
+           un foyer se lit du plus grand au plus petit. */
+        if (a.id === payeur) return -1;
+        if (b.id === payeur) return 1;
+        return (a.birthday ?? '').localeCompare(b.birthday ?? '');
+      });
+  }, [clientFamily, tetesBranche, client.id]);
+  const estLePayeur = clientFamily?.payerClientId === client.id;
+  const avoirDuCompte = clientFamily
+    ? creditBalanceOf(credits, { type: 'family', id: clientFamily.id })
+    : 0;
+
+  /* LES FACTURES DU COMPTE. Tout est réglé par le parent, mais chaque pièce
+     reste au nom de celle qu'elle concerne : la facture d'un enfant ne
+     figurait donc nulle part sur la fiche du parent, alors que c'est lui qui
+     l'a payée — et qui vient la réclamer. */
+  const documentsDuCompte = useMemo(() => {
+    if (membresDuCompte.length === 0) return [];
+    const ids = new Set(membresDuCompte.map((m) => m.id));
+    return invoices
+      .filter((i) => ids.has(i.clientId))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [invoices, membresDuCompte]);
   const payesParElle = carnetBranche.filter((a) => a.status === 'honoré' && apptPayeurId(a) === client.id);
   const offertsAElle = honored.filter((a) => a.offertPar && a.offertPar !== client.id);
   const offertsParElle = payesParElle.filter((a) => a.clientId !== client.id);
@@ -1511,41 +1549,89 @@ function Customer360({
                 ouvre directement le bon compte, ou en prépare un neuf avec elle
                 comme parent payeur. */}
             <div style={{ marginTop: 14 }}>
-              <span className="trc-microlabel">Ses enfants{portees.length ? ` · ${portees.length}` : ''}</span>
-              {portees.length === 0 && (
+              <span className="trc-microlabel">
+                {clientFamily ? clientFamily.name : 'Compte famille'}
+                {membresDuCompte.length ? ` · ${membresDuCompte.length + 1} membres` : ''}
+              </span>
+
+              {!clientFamily && (
                 <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                  Aucune tête rattachée. Un enfant a sa propre fiche et ses propres rendez-vous ;
-                  c’est le compte famille qui dit qui règle pour lui.
+                  Elle n’est rattachée à aucun compte. Un enfant a sa propre fiche et ses propres
+                  rendez-vous ; c’est le compte famille qui dit qui règle pour lui.
                 </div>
               )}
-              {portees.length > 0 && (
+
+              {clientFamily && (
                 <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 3, background: 'var(--surface-card)' }}>
-                  {portees.map((e) => {
-                    const a = ageDe(e.birthday, todayISO());
+                  {/* CE QUE FINANCES EN SAIT, dit ici : qui règle, et ce qui
+                      reste d'avance sur le compte. */}
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, padding: '10px 13px', borderBottom: '1px solid var(--hairline)' }}>
+                    <span className="trc-sub">
+                      Parent payeur · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>
+                        {estLePayeur ? 'elle-même' : (nomTete(clientFamily.payerClientId) || 'à désigner')}
+                      </b>
+                    </span>
+                    <span className="trc-sub" style={{ flex: 'none' }}>
+                      Avoir · <b style={{ fontWeight: 600, color: avoirDuCompte > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>{fmtMoney(avoirDuCompte, currency)}</b>
+                    </span>
+                  </div>
+
+                  {membresDuCompte.length === 0 && (
+                    <div className="trc-sub" style={{ padding: '10px 13px' }}>
+                      Elle est seule sur ce compte pour l’instant.
+                    </div>
+                  )}
+
+                  {/* CHAQUE MEMBRE S'OUVRE. Un compte qu'on ne peut pas parcourir
+                      oblige à refermer la fiche et à chercher le nom à la main. */}
+                  {membresDuCompte.map((m) => {
+                    const a = ageDe(m.birthday, todayISO());
+                    const mineur = estMineur(m, todayISO());
                     return (
-                      <div
-                        key={e.id}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '9px 13px', borderBottom: '1px solid var(--hairline)' }}
+                      <button
+                        type="button"
+                        key={m.id}
+                        onClick={() => onOpen(m.id)}
+                        title={`Ouvrir la fiche de ${m.name}`}
+                        style={{
+                          width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                          borderBottom: '1px solid var(--hairline)', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          gap: 10, padding: '9px 13px', font: 'inherit',
+                        }}
                       >
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13 }}>{e.name}</div>
-                          <div className="trc-sub">
-                            {a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge inconnu'}
-                            {e.lockCount ? ` · ${e.lockCount} locks` : ''}
-                          </div>
-                        </div>
-                        <span className="trc-src">Mineur</span>
-                      </div>
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ fontSize: 13, color: 'var(--color-indigo)', display: 'block' }}>{m.name}</span>
+                          <span className="trc-sub">
+                            {a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'naissance à renseigner'}
+                            {m.lockCount ? ` · ${m.lockCount} locks` : ''}
+                          </span>
+                        </span>
+                        <span className="trc-src" style={{ flex: 'none' }}>
+                          {m.id === clientFamily.payerClientId ? 'Payeur' : mineur ? 'Mineur' : 'Membre'}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
               )}
+
               {portees.length > 0 && (
                 <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
                   Elle les retrouve dans Ma Couronne et réserve pour eux. Un seul règlement, un seul
                   avoir, et un seul compteur du Cercle pour tout le foyer.
                 </div>
               )}
+              {/* LA MINORITÉ NE SE PRÉSUME PAS. Sans date de naissance, la base
+                  refuse au parent l'accès à son espace — et on ne le voit nulle
+                  part si on ne le dit pas ici. */}
+              {clientFamily && estLePayeur && membresDuCompte.some((m) => !m.birthday) && (
+                <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5, color: 'var(--copper-700)' }}>
+                  {membresDuCompte.filter((m) => !m.birthday).length} membre(s) sans date de naissance —
+                  elle ne les verra pas dans Ma Couronne tant qu’elle manque.
+                </div>
+              )}
+
               <button
                 type="button"
                 className="trc-c360-linkbtn"
@@ -1554,7 +1640,7 @@ function Customer360({
                   ? `/comptes?famille=${clientFamily.id}`
                   : `/comptes?parent=${client.id}`)}
               >
-                {clientFamily ? 'Rattacher un enfant à son compte →' : 'Ouvrir son compte famille →'}
+                {clientFamily ? 'Modifier le compte · rattacher →' : 'Ouvrir son compte famille →'}
               </button>
             </div>
 
@@ -1691,6 +1777,39 @@ function Customer360({
             </div>
           )}
         </div>
+
+        {/* LES PIÈCES DU RESTE DU COMPTE. Chaque facture reste au nom de celle
+            qu'elle concerne — c'est juste — mais elle est réglée par le parent,
+            et c'est lui qui vient la réclamer. Elle ne figurait nulle part chez
+            lui. Elles s'ouvrent d'ici comme les siennes. */}
+        {documentsDuCompte.length > 0 && (
+          <div>
+            <span className="trc-microlabel">
+              Factures du compte · {documentsDuCompte.length}
+            </span>
+            <div className="trc-sub" style={{ marginBottom: 6, lineHeight: 1.5 }}>
+              Au nom des autres membres{estLePayeur ? ', réglées par elle' : ''}.
+            </div>
+            <div className="trc-orders">
+              {documentsDuCompte.map((o) => (
+                <button
+                  type="button"
+                  className="trc-order trc-order--btn"
+                  key={o.id}
+                  title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`}
+                  onClick={() => navigate(`/factures?id=${o.id}`)}
+                >
+                  <span className="trc-order__id">
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frDay(o.date)}</span>
+                  </span>
+                  <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
+                  <span className={orderStatusClass(o.status)}>{o.status}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <span className="trc-microlabel">Points cercle · {client.loyaltyPoints ?? 0}</span>
