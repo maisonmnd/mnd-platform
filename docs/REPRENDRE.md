@@ -436,3 +436,21 @@ facture est rattachée, le rituel compte par elle et non plus par le Carnet ; un
 
 Si trop bas → chercher du côté des rituels écartés (séries, abonnements, RDV
 jamais marqués honorés). Si trop haut → doublons et annulés.
+
+**8 août — L'ÉTAPE 2 DE 0018 N'EXISTE PAS.** Le fichier s'arrête ligne 191 sur
+`-- pret as (` : pas d'INSERT, pas de rollback. Ne pas promettre qu'il suffit de
+« décommenter ». Ce qui existe : deux aperçus (le second, ligne ~60, est le bon —
+il gère `forfait`, `n_lignes = 0`, dates futures, et compte `deja_creees`) et la
+construction des lignes avec `prixParLongueur` (`svcPriceForAppt` à l'identique).
+
+**Yéman a donné son feu vert à l'écriture** après réconciliation :
+17 195 100 (Analytics) vs 1 705 500 (36 factures payées) + 15 517 600 (à créer)
+= 17 223 100, soit **28 000 F d'écart non expliqué (0,16 %)** — probablement une
+valorisation qui diffère entre Analytics et la requête, du côté lecture.
+
+**À ÉCRIRE, avec toute l'attention :** l'INSERT dans `invoices` (série
+MND-R-0001…, `id like 'inv-rep-%'` pour être repérable et annulable), l'UPDATE de
+`appointments.data->>'invoiceId'`, le tout dans UNE transaction, plus le rollback
+en fin de fichier. Le statut de la pièce suit `regle` (journal `payments` s'il
+existe, sinon `paidXof`, + acompte confirmé) et `acompte` se déclare en
+`depositCreditXof` pour ne pas encaisser deux fois.
