@@ -374,6 +374,53 @@ export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'p
   );
 }
 
+/* ---------- Les locks de la tête, dans la modale du rituel ----------
+   ILS APPARTIENNENT À LA FICHE, PAS AU RENDEZ-VOUS : une tête ne change pas de
+   nombre de locks d'un rituel à l'autre. Saisis ici, ils s'inscrivent donc sur
+   la cliente — et le rituel se retarife aussitôt, puisque le barème du modèle
+   les lit.
+
+   L'écriture attend la sortie du champ. À chaque frappe, elle partirait à la
+   base : « 3 », « 34 », « 340 » — trois écritures pour un seul chiffre. */
+function LocksDeLaTete({ client, calibre }: { client?: Client; calibre?: string }) {
+  const initial = client?.lockCount != null ? String(client.lockCount) : '';
+  const [draft, setDraft] = useState(initial);
+
+  const inscrire = () => {
+    if (!client) return;
+    const t = draft.trim();
+    if (t === '') {
+      if (client.lockCount === undefined) return;
+      clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, lockCount: undefined } : c)));
+      return;
+    }
+    const n = Math.round(Number(t.replace(/[^\d]/g, '')));
+    /* Une saisie qui n'est pas un compte ne s'écrit pas — on remet ce que la
+       fiche portait plutôt que d'effacer en silence. */
+    if (!Number.isFinite(n) || n <= 0) { setDraft(initial); return; }
+    if (n === client.lockCount) return;
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, lockCount: n } : c)));
+  };
+
+  return (
+    <Field label="Ses locks">
+      <Input
+        value={draft}
+        inputMode="numeric"
+        disabled={!client}
+        placeholder={client ? 'à compter' : '—'}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={inscrire}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+        style={{ textAlign: 'right' }}
+      />
+      <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.45 }}>
+        {!client ? 'Cliente de passage' : calibre ?? 'Sans eux, prix « dès »'}
+      </div>
+    </Field>
+  );
+}
+
 /* ---------- Tiroir latéral ----------
    LA LARGEUR SE RETIENT. Le tiroir tenait 680 px, dessiné pour un portable ; sur
    l'écran du comptoir il laissait les deux tiers de la page vides et obligeait à
@@ -822,14 +869,26 @@ export function RdvModal({
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="Tête couronnée">
-          <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
-          {membership && (
-            <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-              ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
-            </div>
-          )}
-        </Field>
+        {/* LES LOCKS SE COMPTENT AU FAUTEUIL, pas ailleurs — et c'est ici qu'on
+            ouvre le rituel. Ils commandent le barème du modèle : tant qu'ils
+            manquent, le prix s'annonce « dès », et il devient exact dès qu'on
+            les connaît. Les saisir obligeait à quitter la modale, retrouver la
+            fiche, revenir. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px', gap: 12, alignItems: 'start' }}>
+          <Field label="Tête couronnée">
+            <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
+            {membership && (
+              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
+                ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
+              </div>
+            )}
+          </Field>
+          <LocksDeLaTete
+            key={clientId}
+            client={rdvClient}
+            calibre={pricing.band ? bandLabel(pricing.band, bands) : undefined}
+          />
+        </div>
 
         <div>
           <span className="trc-microlabel">Prestations</span>
