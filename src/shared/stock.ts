@@ -74,14 +74,18 @@ export type ProduitStock = {
   actif: boolean;
   /** REVENTE seulement : la fiche Gamme qui porte le prix de vente. */
   catalogProductId?: string;
+  /** L'ingrédient du Laboratoire que cette fiche incarne — le lien qui rend la
+      réserve des formules réelle. Voir shared/laboratoire.ts. */
+  labIngredient?: string;
 };
 
-export type TypeMouvement = 'entree_achat' | 'sortie_vente' | 'sortie_service' | 'ajustement' | 'perte';
+export type TypeMouvement = 'entree_achat' | 'sortie_vente' | 'sortie_service' | 'fabrication' | 'ajustement' | 'perte';
 
 export const MOUVEMENT_NOMS: Record<TypeMouvement, string> = {
   entree_achat: 'Entrée · achat',
   sortie_vente: 'Sortie · vente',
   sortie_service: 'Sortie · service',
+  fabrication: 'Sortie · fabrication',
   ajustement: 'Ajustement',
   perte: 'Perte',
 };

@@ -1,22 +1,46 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useCategories, useProducts, type Product } from '../../../../shared/catalog';
+import { invoicesStore, nextInvoiceNumber, useInvoices, type Invoice } from '../../../../shared/finance';
+import {
+  creerProduitStock, stocksParProduit, useMouvementsStock, useProduitsStock,
+} from '../../../../shared/stock';
+import {
+  PREPARATION_NOMS, annulerFabrication, composerPreparation, coutPreparationXof,
+  delierIngredient, fabriquerPreparation, fichePourIngredient, lierIngredient,
+  manquesPourFabrication, poserFacture, remettrePreparation, stockReelDuLab,
+  supprimerPreparation, usePreparationsLab, type Preparation,
+} from '../../../../shared/laboratoire';
 import { uid } from '../../../../shared/store';
+import { ClientPicker, useBranchClients } from '../clients/_shared';
 import {
   LAB_CONCERNS, PERF_SEED, REINVENT_SEED,
-  buildFormulaView, buildMatches, composeFromStock, labPantry, isAvail, effectiveStock,
+  buildFormulaView, buildMatches, composeFromStock, labPantry, isAvail,
   type Sub, type StockMap,
 } from './lab';
 import './vente.css';
 
-/* Le Laboratoire — Gamme & stock. Le formulateur maître : besoin → formule complète,
-   substitution d'ingrédients indisponibles avec régénération ET recalibrage du protocole,
-   inventaire par ingrédients disponibles, suivi des formules performantes. */
+/* Le Laboratoire — le formulateur maître, BRANCHÉ AU RÉEL.
 
-type LabTab = 'atelier' | 'gamme' | 'perf';
+   Avant : la réserve était une liste de bascules à la main — même pas
+   persistée, un rechargement effaçait tout — et les boutons du bas ne
+   faisaient rien. Désormais :
+
+   · chaque ingrédient se LIE à une fiche d'inventaire (Stock & Achats) ; la
+     disponibilité est le stock dérivé, plus une opinion ;
+   · la composition part d'une CLIENTE et de son besoin, avec des quantités ;
+   · FABRIQUER CONSOMME le stock au journal (type `fabrication`,
+     référence `prep:<id>`) — rembobinable, comme les rituels ;
+   · la préparation se REMET (offerte) ou se FACTURE à son nom — les deux
+     existent au salon, l'argent rejoint alors les circuits communs.
+
+   L'ancien onglet « La gamme & le stock » est parti : il écrivait le stock à
+   la main, exactement le circuit que le module Stock & Achats a fermé. */
+
+type LabTab = 'atelier' | 'preparations' | 'reserve' | 'perf';
 type Mode = 'besoin' | 'ingredients';
 
 const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; accent: string }> = {
@@ -25,36 +49,48 @@ const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; 
   blue: { bg: 'var(--indigo-50)', fg: 'var(--color-indigo)', accent: 'var(--color-indigo)' },
 };
 
-type ProductForm = { id: string | null; categoryId: string; name: string; price: string; stock: string };
-const emptyProduct = (categoryId: string): ProductForm => ({ id: null, categoryId, name: '', price: '', stock: '0' });
+const jour = () => new Date().toISOString().slice(0, 10);
+const frJour = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
 export default function Laboratoire() {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
+  const clients = useBranchClients();
 
   const [tab, setTab] = useState<LabTab>('atelier');
   const [mode, setMode] = useState<Mode>('besoin');
   const [concern, setConcern] = useState('hydratation');
+  const [clientId, setClientId] = useState('');
   const [swaps, setSwaps] = useState<Record<string, Sub>>({});
-  const [stock, setStock] = useState<StockMap>({});
   const [openSub, setOpenSub] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [composer, setComposer] = useState(false);
+  const [lier, setLier] = useState<string | null>(null);
 
-  // gamme — les produits Maison du catalogue (DÒDÒ™), stock réel partagé
-  const [categories] = useCategories();
-  const [products, setProducts] = useProducts();
-  const [prodForm, setProdForm] = useState<ProductForm | null>(null);
-  const cats = useMemo(() => [...categories].sort((a, b) => a.order - b.order), [categories]);
-  const dodoId = cats.find((c) => c.id === 'dodo')?.id ?? cats[0]?.id ?? 'dodo';
-  const catLabel = (id: string) => {
-    const c = cats.find((x) => x.id === id);
-    return c ? `${c.fon} · ${c.label}` : 'Gamme & produits';
-  };
+  const [produits] = useProduitsStock();
+  const [mouvements] = useMouvementsStock();
+  const [preparations] = usePreparationsLab();
+  const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
+  const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
 
-  const view = useMemo(() => buildFormulaView(concern, swaps, stock), [concern, swaps, stock]);
-  const matches = useMemo(() => buildMatches(stock), [stock]);
   const pantry = useMemo(() => labPantry(), []);
-  const eff = effectiveStock(stock);
-  const availCount = pantry.filter((p) => isAvail(eff, p)).length;
+  /* LA RÉSERVE N'EST PLUS UNE OPINION : lié → stock dérivé positif ; jamais
+     lié → réputé disponible, et marqué « à relier » pour qu'on le voie. */
+  const stockReel: StockMap = useMemo(
+    () => stockReelDuLab(pantry, produitsBranche, mouvements),
+    [pantry, produitsBranche, mouvements],
+  );
+
+  const view = useMemo(() => buildFormulaView(concern, swaps, stockReel), [concern, swaps, stockReel]);
+  const matches = useMemo(() => buildMatches(stockReel), [stockReel]);
+  const availCount = pantry.filter((p) => isAvail(stockReel, p)).length;
+  const liesCount = pantry.filter((p) => fichePourIngredient(p, produitsBranche)).length;
+
+  const cliente = clients.find((c) => c.id === clientId);
+  const mesPreps = useMemo(
+    () => preparations.filter((p) => p.branchId === branch.id).sort((a, b) => b.composeeLe.localeCompare(a.composeeLe)),
+    [preparations, branch.id],
+  );
+  const enAttente = mesPreps.filter((p) => p.statut === 'proposee').length;
 
   const restoreAll = () =>
     setSwaps((prev) => {
@@ -68,71 +104,29 @@ export default function Laboratoire() {
     setSwaps((prev) => ({ ...prev, [key]: opt }));
     setOpenSub(null);
   };
-  const toggleStock = (name: string) =>
-    setStock((prev) => ({ ...prev, [name]: !isAvail(effectiveStock(prev), name) }));
   const compose = (k: string) => {
     setConcern(k);
     setMode('besoin');
-    setSwaps((prev) => composeFromStock(k, prev, stock));
+    setSwaps((prev) => composeFromStock(k, prev, stockReel));
     setOpenSub(null);
-    setNote(`L’intelligence a composé « ${labFormulaName(k)} » à partir de ton stock.`);
+    setNote('L’intelligence a recomposé depuis la réserve réelle — vérifie les substituts, puis compose pour une cliente.');
   };
 
   const f = view.base;
 
-  /* — gamme : lit et écrit le stock réel du catalogue (productsStore) — */
-  const gammeRows = useMemo(() => [...products].sort((a, b) => a.order - b.order), [products]);
-  const setUnits = (id: string, n: number) =>
-    setProducts((prev) => prev.map((x) => (x.id === id ? { ...x, stock: Math.max(0, n) } : x)));
-  const stockValue = gammeRows.reduce((a, p) => a + p.stock * p.priceXof, 0);
-  const totalUnits = gammeRows.reduce((a, p) => a + p.stock, 0);
-  const lowCount = gammeRows.filter((p) => p.stock <= 8).length;
-  const maxStock = Math.max(...gammeRows.map((p) => p.stock), 1);
-
-  const moveProduct = (prod: Product, dir: -1 | 1) => {
-    const idx = gammeRows.findIndex((p) => p.id === prod.id);
-    const other = gammeRows[idx + dir];
-    if (!other) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === prod.id ? { ...p, order: other.order } : p.id === other.id ? { ...p, order: prod.order } : p,
-      ),
-    );
-  };
-
-  const openProductEdit = (prod: Product) =>
-    setProdForm({ id: prod.id, categoryId: prod.categoryId, name: prod.name, price: String(prod.priceXof), stock: String(prod.stock) });
-
-  const deleteProduct = (prod: Product) => {
-    if (!window.confirm(`Retirer le produit « ${prod.name} » de la gamme ?`)) return;
-    setProducts((prev) => prev.filter((p) => p.id !== prod.id));
-  };
-
-  const saveProduct = () => {
-    if (!prodForm || !prodForm.name.trim()) return;
-    const price = parseInt(prodForm.price.replace(/[^0-9]/g, ''), 10) || 0;
-    const stockN = parseInt(prodForm.stock.replace(/[^0-9]/g, ''), 10) || 0;
-    if (prodForm.id) {
-      setProducts((prev) => prev.map((p) => (p.id === prodForm.id ? { ...p, categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock: stockN } : p)));
-    } else {
-      const maxOrder = gammeRows.reduce((m, p) => Math.max(m, p.order), 0);
-      setProducts((prev) => [...prev, { id: `pr-${uid()}`, categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock: stockN, order: maxOrder + 1 }]);
-    }
-    setProdForm(null);
-  };
-
   const TABS: { k: LabTab; l: string }[] = [
     { k: 'atelier', l: 'L’atelier' },
-    { k: 'gamme', l: 'La gamme & le stock' },
+    { k: 'preparations', l: `Préparations${enAttente ? ` · ${enAttente} à fabriquer` : ''}` },
+    { k: 'reserve', l: `La réserve · ${liesCount}/${pantry.length} reliés` },
     { k: 'perf', l: 'Performance' },
   ];
 
   return (
     <div className="mnd-rise">
       <PageHead
-        eyebrow="Gamme & stock · l’atelier des formules"
+        eyebrow="Vente · l’atelier des formules"
         title="Le Laboratoire."
-        sub="Le formulateur maître : un besoin de couronne, une formule souveraine — nom, origines, protocole. L’intelligence substitue ce qui manque et recalibre le geste."
+        sub="Une cliente, un besoin, une formule — composée depuis la réserve réelle, fabriquée en consommant le stock, remise ou facturée à son nom."
       />
 
       <div className="trv-tabs">
@@ -175,14 +169,15 @@ export default function Laboratoire() {
                 </button>
               ))}
             </div>
-            <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>
-              Pars du besoin de la cliente, ou de ce que le laboratoire a sous la main.
-            </span>
+            {/* LA CLIENTE D'ABORD : c'est pour elle qu'on formule. */}
+            <div style={{ flex: '1 1 260px', maxWidth: 380 }}>
+              <ClientPicker value={clientId} onChange={setClientId} placeholder="Pour quelle cliente ? (nom, téléphone)…" />
+            </div>
           </div>
 
           {mode === 'besoin' && (
             <div>
-              <div className="trv-sec-label">Quel est le besoin de la cliente ?</div>
+              <div className="trv-sec-label">Quel est le besoin de {cliente ? cliente.name.split(' ')[0] : 'la cliente'} ?</div>
               <div className="tr-cols" style={{ '--cols': 'repeat(6, 1fr)', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 } as CSSProperties}>
                 {LAB_CONCERNS.map((c) => (
                   <button key={c.k} className={`trv-concern ${concern === c.k ? 'is-active' : ''}`} onClick={() => setConcern(c.k)}>
@@ -213,45 +208,59 @@ export default function Laboratoire() {
                     <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15.5, lineHeight: 1.55, color: 'var(--ink)' }}>{f.description}</div>
                     <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '22px 0 12px' }}>Les origines · le meilleur du monde</div>
                     <div>
-                      {view.origins.map((o) => (
-                        <div key={o.key} className={`trv-origin ${o.rowClass}`}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
-                            <div>
-                              <div className="ing">{o.ingredient}</div>
-                              <div className="role">{o.role}</div>
+                      {view.origins.map((o) => {
+                        const fiche = fichePourIngredient(o.ingredient, produitsBranche);
+                        const reserve = fiche ? (stocks.get(fiche.id) ?? 0) : undefined;
+                        return (
+                          <div key={o.key} className={`trv-origin ${o.rowClass}`}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
+                              <div>
+                                <div className="ing">{o.ingredient}</div>
+                                <div className="role">{o.role}</div>
+                              </div>
+                              <div style={{ textAlign: 'right', flex: 'none' }}>
+                                <div className="origin">{o.origin}</div>
+                                <div className="grade">{o.grade}</div>
+                              </div>
                             </div>
-                            <div style={{ textAlign: 'right', flex: 'none' }}>
-                              <div className="origin">{o.origin}</div>
-                              <div className="grade">{o.grade}</div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 8, flexWrap: 'wrap' }}>
-                            <span className="trv-origin-status" style={{ color: o.statusFg }}>{o.statusLabel}</span>
-                            {o.swapped && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, fontStyle: 'italic', color: 'var(--ink-soft)' }}>au lieu de {o.origName}</span>}
-                            {o.subOptions.length > 0 && (
-                              <button className="trv-linkbtn" onClick={() => setOpenSub(openSub === o.key ? null : o.key)}>Remplacer ›</button>
-                            )}
-                            {o.swapped && <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => restoreOne(o.key)}>Rétablir l’original</button>}
-                          </div>
-                          {openSub === o.key && (
-                            <div className="trv-subpanel">
-                              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Substituts de même rôle · proposés par l’intelligence</div>
-                              {o.subOptions.map((opt) => (
-                                <button key={opt.ingredient} className="trv-subopt" onClick={() => pickSub(o.key, opt)}>
-                                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{opt.ingredient}</span>
-                                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)' }}>{opt.origin} · {opt.grade}</span>
-                                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: opt.stockFg, whiteSpace: 'nowrap' }}>{opt.stockLabel}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 8, flexWrap: 'wrap' }}>
+                              {/* LE VRAI CHIFFRE À CÔTÉ DU VERDICT : « En réserve · 340 ml »
+                                  se discute mieux qu'un feu vert sans preuve. */}
+                              <span className="trv-origin-status" style={{ color: o.statusFg }}>
+                                {o.statusLabel}
+                                {fiche && reserve !== undefined ? ` · ${reserve.toLocaleString('fr-FR')} ${fiche.unite}` : ''}
+                              </span>
+                              {!fiche && (
+                                <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => { setLier(o.origName); }}>
+                                  à relier au stock ›
                                 </button>
-                              ))}
+                              )}
+                              {o.swapped && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, fontStyle: 'italic', color: 'var(--ink-soft)' }}>au lieu de {o.origName}</span>}
+                              {o.subOptions.length > 0 && (
+                                <button className="trv-linkbtn" onClick={() => setOpenSub(openSub === o.key ? null : o.key)}>Remplacer ›</button>
+                              )}
+                              {o.swapped && <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => restoreOne(o.key)}>Rétablir l’original</button>}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {openSub === o.key && (
+                              <div className="trv-subpanel">
+                                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Substituts de même rôle · proposés par l’intelligence</div>
+                                {o.subOptions.map((opt) => (
+                                  <button key={opt.ingredient} className="trv-subopt" onClick={() => pickSub(o.key, opt)}>
+                                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{opt.ingredient}</span>
+                                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)' }}>{opt.origin} · {opt.grade}</span>
+                                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: opt.stockFg, whiteSpace: 'nowrap' }}>{opt.stockLabel}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
-                {/* droite — protocole */}
+                {/* droite — protocole & décision */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ background: 'var(--color-sable)', borderRadius: 5, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
@@ -277,12 +286,12 @@ export default function Laboratoire() {
 
                   <div className="tr-cols" style={{ '--cols': '1fr 1fr', '--cols-md': '1fr 1fr', '--cols-sm': '1fr', gap: 12 } as CSSProperties}>
                     <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '15px 17px' }}>
-                      <div className="mnd-eyebrow">Coût matière / unité</div>
+                      <div className="mnd-eyebrow">Coût matière indicatif</div>
                       <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--ink)', marginTop: 7 }}>{fmtMoney(f.coutMatN, currency)}</div>
                     </div>
                     <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '15px 17px' }}>
-                      <div className="mnd-eyebrow">Prix conseillé · marge</div>
-                      <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--trv-success)', marginTop: 7 }}>{fmtMoney(f.prixN, currency)} · ×{f.prixMult}</div>
+                      <div className="mnd-eyebrow">Prix conseillé</div>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--trv-success)', marginTop: 7 }}>{fmtMoney(f.prixN, currency)}</div>
                     </div>
                   </div>
 
@@ -291,10 +300,15 @@ export default function Laboratoire() {
                     <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, lineHeight: 1.5, color: 'var(--ink)', marginTop: 6 }}>{f.maitreNote}</div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <Button style={{ flex: 1 }} onClick={() => setNote(`« ${view.name} » inscrite à la gamme.`)}>Inscrire à la gamme</Button>
-                    <Button variant="ghost" onClick={() => setNote('Fiche atelier prête à imprimer.')}>Fiche atelier</Button>
-                  </div>
+                  {/* LE GESTE RÉEL — plus de bouton qui ne fait rien. */}
+                  <Button
+                    variant="copper"
+                    disabled={!cliente}
+                    title={cliente ? `Composer « ${view.name} » pour ${cliente.name}` : 'Choisissez d’abord une cliente'}
+                    onClick={() => setComposer(true)}
+                  >
+                    {cliente ? `Composer pour ${cliente.name.split(' ')[0]} ›` : 'Choisissez une cliente pour composer'}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -308,16 +322,28 @@ export default function Laboratoire() {
                   <div className="trv-sec-label" style={{ marginBottom: 0 }}>Ce que le laboratoire a en réserve</div>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{availCount}/{pantry.length}</span>
                 </div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>Allume ce que tu as, éteins ce qui manque ce matin. L’intelligence recompose en conséquence.</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>
+                  Le vrai stock parle — un ingrédient s’éteint quand sa fiche est épuisée. Cliquer ouvre sa liaison.
+                </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {pantry.map((p) => {
-                    const on = isAvail(eff, p);
+                    const fiche = fichePourIngredient(p, produitsBranche);
+                    const on = isAvail(stockReel, p);
                     return (
-                      <button key={p} className={`trv-pantry-chip ${on ? 'on' : ''}`} onClick={() => toggleStock(p)}>
-                        {p}<span style={{ fontSize: 10 }}>{on ? '✓' : ''}</span>
+                      <button
+                        key={p}
+                        className={`trv-pantry-chip ${on ? 'on' : ''}`}
+                        title={fiche ? `${fiche.code} · ${(stocks.get(fiche.id) ?? 0).toLocaleString('fr-FR')} ${fiche.unite}` : 'Pas encore relié au stock'}
+                        onClick={() => setLier(p)}
+                      >
+                        {p}
+                        <span style={{ fontSize: 10 }}>{fiche ? (on ? '✓' : '∅') : '·'}</span>
                       </button>
                     );
                   })}
+                </div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)', marginTop: 12 }}>
+                  ✓ en réserve · ∅ épuisé · « · » pas encore relié (réputé disponible)
                 </div>
               </div>
 
@@ -348,78 +374,11 @@ export default function Laboratoire() {
         </div>
       )}
 
-      {/* ===== LA GAMME & LE STOCK ===== */}
-      {tab === 'gamme' && (
-        <div>
-          <div className="tre-actions-row">
-            <div>
-              <div className="trv-sec-label" style={{ marginBottom: 4 }}>La Gamme & le stock</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>Vos produits Maison et leur stock en temps réel — partagé avec le Catalogue et la Caisse.</div>
-            </div>
-            <Button onClick={() => setProdForm(emptyProduct(dodoId))}>+ Ajouter un produit</Button>
-          </div>
+      {/* ===== LES PRÉPARATIONS ===== */}
+      {tab === 'preparations' && <OngletPreparations />}
 
-          <div className="tr-cols" style={{ '--cols': 'repeat(4, 1fr)', '--cols-md': 'repeat(2, minmax(0,1fr))', gap: 14, marginBottom: 18 } as CSSProperties}>
-            <div className="trv-kpi"><div className="l">Produits en gamme</div><div className="v">{gammeRows.length}</div><div className="c">catalogue DÒDÒ™</div></div>
-            <div className="trv-kpi"><div className="l">Unités en réserve</div><div className="v">{totalUnits > 0 ? totalUnits : '—'}</div><div className="c">tous produits confondus</div></div>
-            <div className="trv-kpi trv-kpi--copper"><div className="l">Alertes réassort</div><div className="v" style={{ color: lowCount > 0 ? 'var(--trv-warning)' : undefined }}>{lowCount}</div><div className="c">niveaux sous le seuil</div></div>
-            <div className="trv-kpi trv-kpi--copper"><div className="l">Valeur du stock</div><div className="v">{fmtMoney(stockValue, currency)}</div><div className="c">au prix catalogue</div></div>
-          </div>
-
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
-            <div className="mnd-scroll-x">
-              <table className="tre-table">
-                <thead>
-                  <tr><th>Produit Maison</th><th>Prix</th><th>Stock</th><th>État</th><th style={{ textAlign: 'right' }}>Réassort</th><th style={{ textAlign: 'right' }}>Gérer</th></tr>
-                </thead>
-                <tbody>
-                  {gammeRows.map((p, pi) => {
-                    const tagK = p.stock <= 2 ? 'error' : p.stock <= 8 ? 'warn' : 'ok';
-                    const tag = tagK === 'error' ? 'Rupture proche' : tagK === 'warn' ? 'Réassort' : 'En gamme';
-                    const sc = tagK === 'error' ? 'var(--trv-error)' : tagK === 'warn' ? 'var(--trv-warning)' : 'var(--trv-success)';
-                    return (
-                      <tr key={p.id}>
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{p.name}</div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{catLabel(p.categoryId)}</div>
-                        </td>
-                        <td>{fmtMoney(p.priceXof, currency)}</td>
-                        <td style={{ minWidth: 120 }}>
-                          <div className="trv-perf-bar"><div style={{ width: `${Math.round((p.stock / maxStock) * 100)}%`, background: sc }} /></div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: sc, marginTop: 4 }}>{p.stock} unité{p.stock > 1 ? 's' : ''}</div>
-                        </td>
-                        <td><span className={`tre-pill tre-pill--${tagK}`}>{tag}</span></td>
-                        <td>
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                            <button className="trv-sq" title="Retirer" onClick={() => setUnits(p.id, p.stock - 1)}>−</button>
-                            <button className="trv-sq" title="Ajouter" onClick={() => setUnits(p.id, p.stock + 1)}>+</button>
-                            <button className="trv-minibtn" onClick={() => setUnits(p.id, p.stock + 10)}>+ 10</button>
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                            <button className="trv-sq" title="Monter" disabled={pi === 0} onClick={() => moveProduct(p, -1)}>▲</button>
-                            <button className="trv-sq" title="Descendre" disabled={pi === gammeRows.length - 1} onClick={() => moveProduct(p, 1)}>▼</button>
-                            <button className="trv-minibtn" onClick={() => openProductEdit(p)}>Modifier</button>
-                            <button className="trv-minibtn" onClick={() => deleteProduct(p)}>Supprimer</button>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {gammeRows.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: 32, fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-                        La gamme attend son premier produit Maison — inscrivez-le, le stock vivra ici.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ===== LA RÉSERVE — les liaisons ===== */}
+      {tab === 'reserve' && <OngletReserve onLier={setLier} />}
 
       {/* ===== PERFORMANCE ===== */}
       {tab === 'perf' && (
@@ -429,29 +388,9 @@ export default function Laboratoire() {
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Rachat, résultats consignés au Carnet, satisfaction et vitesse de vente — combinés en un Indice de mérite.</div>
             {PERF_SEED.length === 0 && (
               <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '14px 0', borderTop: '1px solid var(--hairline)' }}>
-                Le palmarès se mérite — il naîtra des premières ventes, des rachats et des résultats consignés au Carnet.
+                Le palmarès se mérite — il naîtra des premières préparations remises et des résultats consignés au Carnet.
               </div>
             )}
-            {PERF_SEED.map((p, i) => {
-              const col = p.score >= 85 ? 'var(--trv-success)' : p.score >= 60 ? 'var(--copper-700)' : 'var(--trv-warning)';
-              return (
-                <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 0', borderTop: '1px solid var(--hairline)' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: i === 0 ? 'var(--color-copper)' : 'var(--ink-soft)', width: 28, flex: 'none', textAlign: 'center' }}>0{i + 1}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{p.name}</span>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 18, color: col, flex: 'none' }}>{p.score}</span>
-                    </div>
-                    <div className="trv-perf-bar" style={{ marginTop: 6 }}><div style={{ width: `${p.score}%`, background: col }} /></div>
-                    <div style={{ display: 'flex', gap: 18, marginTop: 7, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-                      <span>Rachat <span style={{ color: 'var(--ink)' }}>{p.rachat}</span></span>
-                      <span>Résultats <span style={{ color: 'var(--ink)' }}>{p.resultats}</span></span>
-                      <span>Vente <span style={{ color: 'var(--ink)' }}>{p.vitesse}</span></span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -461,7 +400,7 @@ export default function Laboratoire() {
             </div>
             {REINVENT_SEED.length === 0 && (
               <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '16px 18px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-                Rien à réinventer pour l’instant — les signaux viendront des ventes et des retours consignés au Carnet.
+                Rien à réinventer pour l’instant — les signaux viendront des remises et des retours consignés au Carnet.
               </div>
             )}
             {REINVENT_SEED.map((r) => {
@@ -481,39 +420,374 @@ export default function Laboratoire() {
         </div>
       )}
 
-      {prodForm && (
-        <Modal title={prodForm.id ? 'Le produit Maison.' : 'Nouveau produit Maison.'} onClose={() => setProdForm(null)} width={520}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Field label="Nom de la formule">
-              <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex. Le Sérum Moringa & Prêle" />
-            </Field>
-            <Field label="Catégorie ™">
-              <select className="mnd-select" value={prodForm.categoryId} onChange={(e) => setProdForm({ ...prodForm, categoryId: e.target.value })}>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>{c.fon} · {c.label}</option>
-                ))}
-              </select>
-            </Field>
-            <div className="tr-grid tr-grid--2">
-              <Field label="Prix conseillé (F CFA)">
-                <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="12 000" />
-              </Field>
-              <Field label="Stock">
-                <Input inputMode="numeric" value={prodForm.stock} onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })} placeholder="0" />
-              </Field>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <Button variant="ghost" onClick={() => setProdForm(null)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveProduct} disabled={!prodForm.name.trim()}>{prodForm.id ? 'Enregistrer le produit' : 'Inscrire à la gamme'}</Button>
-            </div>
-          </div>
-        </Modal>
+      {composer && cliente && (
+        <ComposerModal
+          cliente={{ id: cliente.id, name: cliente.name }}
+          concernK={concern}
+          nomFormule={view.name}
+          forme={f.forme}
+          prixConseille={f.prixN}
+          ingredients={view.origins.map((o) => o.ingredient)}
+          onClose={() => setComposer(false)}
+          onFait={() => { setComposer(false); setTab('preparations'); setNote(`« ${view.name} » composée pour ${cliente.name} — à fabriquer quand l’atelier est prêt.`); }}
+        />
       )}
+
+      {lier && <LierModal ingredient={lier} onClose={() => setLier(null)} />}
     </div>
   );
 }
 
-/* Nom de la formule pour un concern (usage message). */
-function labFormulaName(k: string): string {
-  return buildFormulaView(k, {}, {}).base.name;
+/* ═══════════ Composer — la formule devient une préparation ═══════════ */
+
+function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, ingredients, onClose, onFait }: {
+  cliente: { id: string; name: string };
+  concernK: string;
+  nomFormule: string;
+  forme: string;
+  prixConseille: number;
+  ingredients: string[];
+  onClose: () => void;
+  onFait: () => void;
+}) {
+  const { branch, currency } = useBranch();
+  const [produits] = useProduitsStock();
+  const [mouvements] = useMouvementsStock();
+  const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
+  const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
+  const [qtes, setQtes] = useState<Record<string, string>>({});
+  const [prix, setPrix] = useState(String(prixConseille));
+  const [notes, setNotes] = useState('');
+
+  const lignesVue = ingredients.map((nom) => {
+    const fiche = fichePourIngredient(nom, produitsBranche);
+    return { nom, fiche, stock: fiche ? (stocks.get(fiche.id) ?? 0) : undefined };
+  });
+  const coutEstime = lignesVue.reduce((s, l) => {
+    const q = parseFloat((qtes[l.nom] ?? '').replace(',', '.'));
+    return s + (l.fiche && Number.isFinite(q) ? q * l.fiche.prixAchatXof : 0);
+  }, 0);
+
+  const enregistrer = () => {
+    const lignes = lignesVue
+      .filter((l) => l.fiche)
+      .map((l) => ({ produitId: l.fiche!.id, quantite: parseFloat((qtes[l.nom] ?? '').replace(',', '.')) || 0 }));
+    const r = composerPreparation(
+      branch.id, cliente.id,
+      { concernK, nomFormule, forme, ingredientsTexte: ingredients, prixXof: parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0, notes },
+      lignes, jour(),
+    );
+    if (!r.ok) { window.alert(r.erreur); return; }
+    onFait();
+  };
+
+  return (
+    <Modal title={`Composer pour ${cliente.name}.`} onClose={onClose} width={560}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+          « {nomFormule} » — les quantités ci-dessous seront CONSOMMÉES du stock à la fabrication.
+          Un ingrédient sans fiche liée reste sur la composition écrite, mais rien ne sera décompté pour lui.
+        </div>
+
+        {lignesVue.map((l) => (
+          <div key={l.nom} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 13 }}>{l.nom}</span>
+              <span className="mnd-muted" style={{ fontSize: 10.5 }}>
+                {l.fiche
+                  ? `${l.fiche.code} · ${l.stock!.toLocaleString('fr-FR')} ${l.fiche.unite} en réserve`
+                  : 'pas de fiche liée — voir La réserve'}
+              </span>
+            </span>
+            {l.fiche ? (
+              <Input
+                inputMode="decimal"
+                placeholder={l.fiche.unite}
+                value={qtes[l.nom] ?? ''}
+                onChange={(e) => setQtes((prev) => ({ ...prev, [l.nom]: e.target.value }))}
+                style={{ width: 110, textAlign: 'right' }}
+              />
+            ) : (
+              <span className="mnd-muted" style={{ fontSize: 11, fontStyle: 'italic', flex: 'none' }}>non décomptée</span>
+            )}
+          </div>
+        ))}
+
+        <div className="tr-grid tr-grid--2">
+          <Field label="Prix (F CFA)">
+            <Input inputMode="numeric" value={prix} onChange={(e) => setPrix(e.target.value)} />
+          </Field>
+          <div>
+            <div className="mnd-eyebrow" style={{ marginBottom: 6 }}>Coût matière estimé</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--copper-700)' }}>{fmtMoney(Math.round(coutEstime), currency)}</div>
+          </div>
+        </div>
+        <Field label="Note d’atelier (facultative)">
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cuir sensible — moitié de menthe…" />
+        </Field>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="copper" onClick={enregistrer}>Composer la préparation</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════════ Les préparations — de la proposition à la remise ═══════════ */
+
+function OngletPreparations() {
+  const { branch, currency } = useBranch();
+  const navigate = useNavigate();
+  const clients = useBranchClients();
+  const [produits] = useProduitsStock();
+  const [mouvements] = useMouvementsStock();
+  const [preparations] = usePreparationsLab();
+  const [invoices] = useInvoices();
+
+  const liste = useMemo(
+    () => preparations.filter((p) => p.branchId === branch.id).sort((a, b) => b.composeeLe.localeCompare(a.composeeLe)),
+    [preparations, branch.id],
+  );
+  const nomCliente = (id: string) => clients.find((c) => c.id === id)?.name ?? 'une cliente';
+  const concernLabel = (k: string) => LAB_CONCERNS.find((c) => c.k === k)?.label ?? k;
+
+  const fabriquer = (prep: Preparation) => {
+    const manques = manquesPourFabrication(prep, produits, mouvements);
+    const detail = manques.length
+      ? `\n\nATTENTION — la réserve est courte :\n${manques.map((m) => `· ${m.produit.nom} : ${m.stock.toLocaleString('fr-FR')} ${m.produit.unite} en réserve, il en faut ${(m.stock + m.manque).toLocaleString('fr-FR')}`).join('\n')}\n\nFabriquer quand même laissera un stock négatif — qui dit la vérité.`
+      : '';
+    if (!window.confirm(`Fabriquer « ${prep.nomFormule} » pour ${nomCliente(prep.clientId)} ? Les ingrédients seront décomptés du stock.${detail}`)) return;
+    const r = fabriquerPreparation(prep, jour());
+    if (!r.ok) window.alert(r.erreur);
+  };
+
+  /* LA FACTURE REJOINT LES CIRCUITS COMMUNS : impayés, encaissements, avoirs —
+     rien de spécial au Laboratoire, c'est une facture comme les autres. */
+  const facturer = (prep: Preparation) => {
+    if (prep.invoiceId) return;
+    const inv: Invoice = {
+      id: `inv-${uid()}`,
+      branchId: branch.id,
+      kind: 'facture',
+      number: nextInvoiceNumber(invoices, 'MND'),
+      clientId: prep.clientId,
+      date: jour(),
+      lines: [{ id: uid(), label: `Préparation du Laboratoire · ${prep.nomFormule}`, qty: 1, unitXof: prep.prixXof, discountPct: 0 }],
+      globalDiscountPct: 0,
+      theme: 'Aube',
+      status: 'envoyée',
+    };
+    invoicesStore.set((prev) => [inv, ...prev]);
+    const r = poserFacture(prep, inv.id);
+    if (!r.ok) { window.alert(r.erreur); return; }
+    navigate(`/factures?id=${inv.id}`);
+  };
+
+  return (
+    <div>
+      {liste.length === 0 && (
+        <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '18px 2px' }}>
+          Aucune préparation — composez-en une depuis L’atelier : une cliente, son besoin, la formule.
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {liste.map((prep) => {
+          const cout = coutPreparationXof(prep, produits);
+          return (
+            <div key={prep.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '14px 17px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{prep.nomFormule}</span>
+                  <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 10 }}>
+                    pour <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>{nomCliente(prep.clientId)}</b>
+                    {' · '}{concernLabel(prep.concernK)} · {frJour(prep.composeeLe)}
+                  </span>
+                </span>
+                <span className="trv-origin-status" style={{ color: prep.statut === 'remise' ? 'var(--trv-success)' : prep.statut === 'fabriquee' ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>
+                  {PREPARATION_NOMS[prep.statut]}{prep.invoiceId ? ' · facturée' : ''}
+                </span>
+              </div>
+
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {prep.ingredientsTexte.join(' · ')}
+                {prep.notes ? <span style={{ fontStyle: 'italic' }}> — {prep.notes}</span> : null}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                  {fmtMoney(prep.prixXof, currency)}
+                  {cout > 0 && <> · coût matière {fmtMoney(cout, currency)}{prep.prixXof > 0 ? ` · marge ${Math.round(((prep.prixXof - cout) / prep.prixXof) * 100)} %` : ''}</>}
+                </span>
+                <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                  {prep.statut === 'proposee' && (
+                    <>
+                      <Button size="sm" variant="copper" onClick={() => fabriquer(prep)}>Fabriquer</Button>
+                      <button className="trv-minibtn" onClick={() => { if (window.confirm('Retirer cette proposition ?')) supprimerPreparation(prep); }}>Retirer</button>
+                    </>
+                  )}
+                  {prep.statut === 'fabriquee' && (
+                    <Button size="sm" variant="indigo" onClick={() => { const r = remettrePreparation(prep, jour()); if (!r.ok) window.alert(r.erreur); }}>
+                      Remettre à {nomCliente(prep.clientId).split(' ')[0]}
+                    </Button>
+                  )}
+                  {prep.statut !== 'proposee' && !prep.invoiceId && (
+                    <Button size="sm" variant="ghost" onClick={() => facturer(prep)}>Facturer</Button>
+                  )}
+                  {prep.invoiceId && (
+                    <button className="trv-minibtn" onClick={() => navigate(`/factures?id=${prep.invoiceId}`)}>Voir la facture</button>
+                  )}
+                  {prep.statut !== 'proposee' && !prep.invoiceId && (
+                    <button
+                      className="trv-minibtn"
+                      title="Retire les sorties du journal — la réserve remonte"
+                      onClick={() => { if (window.confirm('Annuler la fabrication ? Les ingrédients reviennent au stock.')) { const r = annulerFabrication(prep); if (!r.ok) window.alert(r.erreur); } }}
+                    >
+                      Annuler la fabrication
+                    </button>
+                  )}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ La réserve — chaque ingrédient tient à une fiche ═══════════ */
+
+function OngletReserve({ onLier }: { onLier: (nom: string) => void }) {
+  const { branch, currency } = useBranch();
+  const [produits] = useProduitsStock();
+  const [mouvements] = useMouvementsStock();
+  const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
+  const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
+  const pantry = useMemo(() => labPantry(), []);
+
+  return (
+    <div>
+      <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 640, marginBottom: 14 }}>
+        Chaque ingrédient des formules se lie à une fiche du module Stock &amp; Achats. Une fois lié,
+        sa disponibilité cesse d’être une opinion : c’est son stock, tenu par le journal — les achats
+        le font monter, les fabrications le font descendre. Un ingrédient jamais lié reste réputé
+        disponible.
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="tre-table">
+          <thead>
+            <tr><th>Ingrédient</th><th>Fiche liée</th><th style={{ textAlign: 'right' }}>En réserve</th><th>Prix d’achat</th><th></th></tr>
+          </thead>
+          <tbody>
+            {pantry.map((nom) => {
+              const fiche = fichePourIngredient(nom, produitsBranche);
+              const s = fiche ? (stocks.get(fiche.id) ?? 0) : undefined;
+              return (
+                <tr key={nom}>
+                  <td style={{ fontSize: 13 }}>{nom}</td>
+                  <td className="mnd-muted" style={{ fontSize: 11.5 }}>
+                    {fiche ? `${fiche.code} · ${fiche.nom}` : '— à relier'}
+                  </td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: fiche && s! <= 0 ? 'var(--trv-error)' : undefined }}>
+                    {fiche ? `${s!.toLocaleString('fr-FR')} ${fiche.unite}` : '—'}
+                  </td>
+                  <td className="mnd-muted" style={{ fontSize: 11.5 }}>{fiche ? `${fmtMoney(fiche.prixAchatXof, currency)} / ${fiche.unite}` : '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    <button className="trv-minibtn" onClick={() => onLier(nom)}>{fiche ? 'Changer' : 'Lier'}</button>
+                    {fiche && <>{' '}<button className="trv-minibtn" onClick={() => delierIngredient(nom)}>Délier</button></>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ Lier un ingrédient à une fiche — ou la créer ═══════════ */
+
+function LierModal({ ingredient, onClose }: { ingredient: string; onClose: () => void }) {
+  const { branch } = useBranch();
+  const [produits] = useProduitsStock();
+  const produitsBranche = useMemo(
+    () => produits.filter((p) => p.branchId === branch.id && p.actif && p.famille !== 'revente')
+      .sort((a, b) => a.code.localeCompare(b.code)),
+    [produits, branch.id],
+  );
+  const dejaLie = fichePourIngredient(ingredient, produitsBranche);
+  const [choix, setChoix] = useState(dejaLie?.id ?? '');
+  const [creation, setCreation] = useState(false);
+  const [unite, setUnite] = useState('ml');
+  const [prixAchat, setPrixAchat] = useState('');
+  const [stockInitial, setStockInitial] = useState('0');
+
+  const lierExistante = () => {
+    if (!choix) return;
+    lierIngredient(choix, ingredient);
+    onClose();
+  };
+
+  const creerEtLier = () => {
+    const r = creerProduitStock(branch.id, {
+      nom: ingredient, famille: 'consommable', unite,
+      prixAchatXof: parseInt(prixAchat.replace(/[^0-9]/g, ''), 10) || 0,
+    }, parseInt(stockInitial.replace(/[^0-9]/g, ''), 10) || 0, jour());
+    if (!r.ok || !r.id) { window.alert(r.erreur); return; }
+    lierIngredient(r.id, ingredient);
+    onClose();
+  };
+
+  return (
+    <Modal title={`${ingredient}.`} onClose={onClose} width={520}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {!creation && (
+          <>
+            <Field label="Lier à une fiche d’inventaire existante">
+              <Select value={choix} onChange={(e) => setChoix(e.target.value)}>
+                <option value="">—</option>
+                {produitsBranche.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} · {p.nom} ({p.unite})</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+              Une fiche ne porte qu’un ingrédient — relier ici déplace le lien si la fiche en avait un.
+              Pas de fiche qui convienne ? Créez-la : elle naîtra en Consommable, avec son
+              « Inventaire initial » au journal.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" size="sm" onClick={() => setCreation(true)}>+ Créer la fiche</Button>
+              <span style={{ display: 'inline-flex', gap: 10 }}>
+                <Button variant="ghost" onClick={onClose}>Annuler</Button>
+                <Button onClick={lierExistante} disabled={!choix}>Lier</Button>
+              </span>
+            </div>
+          </>
+        )}
+        {creation && (
+          <>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Unité (ml, g, pièce…)">
+                <Input value={unite} onChange={(e) => setUnite(e.target.value)} autoFocus />
+              </Field>
+              <Field label="Prix d’achat (F CFA / unité)">
+                <Input inputMode="numeric" value={prixAchat} onChange={(e) => setPrixAchat(e.target.value)} placeholder="20" />
+              </Field>
+            </div>
+            <Field label="Quantité en réserve aujourd’hui">
+              <Input inputMode="numeric" value={stockInitial} onChange={(e) => setStockInitial(e.target.value)} />
+            </Field>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="ghost" onClick={() => setCreation(false)}>Retour</Button>
+              <Button variant="copper" onClick={creerEtLier}>Créer et lier</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
 }

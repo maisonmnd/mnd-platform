@@ -117,6 +117,34 @@ Recettes (ce qu'un service consomme + coût matière), Mouvements (le journal).
 **Reprendre la Gamme** (crée les fiches revente liées + « Inventaire initial ») ;
 ④ saisir fournisseurs, consommables et recettes au fil de l'eau.
 
+## Le Laboratoire branché au stock — 9 août 2026, ⚠ MIGRATION 0031 À PASSER
+
+Le formulateur compose désormais POUR UNE CLIENTE, depuis la réserve réelle :
+
+- **Chaque ingrédient des formules se lie à une fiche d'inventaire** (champ
+  `labIngredient` de la fiche — pas de table de liaison). Lié → disponible si
+  stock dérivé > 0 ; jamais lié → réputé disponible, marqué « à relier ».
+  Onglet **La réserve** : lier, délier, ou créer la fiche (Consommable).
+- **La préparation** (`shared/laboratoire.ts`, table `lab_preparations`) porte
+  la cliente, le besoin, la formule figée (substitutions comprises), les
+  quantités et le prix. **Fabriquer consomme le stock** au journal (type
+  `fabrication`, réf. `prep:<id>`, idempotent) ; annuler rembobine — refusé si
+  une facture existe (l'argent d'abord). Un stock trop court prévient AVANT et
+  laisse un négatif qui dit la vérité.
+- **Facture optionnelle** : « Facturer » crée une facture MND à son nom
+  (statut envoyée) — impayés, encaissements, avoirs, tout le circuit commun.
+  Sans facture, la préparation est « remise » — offerte.
+- **L'onglet « La gamme & le stock » du Laboratoire est SUPPRIMÉ** : il écrivait
+  `product.stock` à la main, le circuit que le 0030 a fermé. La Gamme se gère
+  dans Stock & Achats. Les anciennes bascules de réserve (jamais persistées)
+  ont disparu avec lui.
+- Tests : `node scripts/verifie-laboratoire.mjs` — 32 vérifications.
+- Reste à ouvrir plus tard : montrer à la cliente « sa » préparation sur
+  Ma Couronne (demande une lecture RLS ciblée — pas avant d'en avoir besoin).
+
+**À FAIRE : passer `supabase/migrations/0031_lab_preparations.sql`** (une table,
+un seul temps) **avant de publier** — sinon pastille rouge sur le Trône.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
