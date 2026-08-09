@@ -8,7 +8,9 @@ import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
-import { clientsStore } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies } from '../../shared/clients';
+import { ageDe, tetesPortees } from '../../shared/accounts';
+import { declarationsDe, declarerEnfant, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
@@ -1008,6 +1010,125 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
 /* ================= PROFIL ================= */
 
+/* ---------- Mes enfants ----------
+   Un mineur n'a ni compte, ni e-mail, ni téléphone : c'est sa mère qui agit
+   pour lui, et c'est elle seule qui connaît sa date de naissance — une petite
+   de trois ans ne la dira pas au comptoir.
+
+   ELLE NE CRÉE POURTANT AUCUNE FICHE. Elle dépose un prénom et une date ; rien
+   dans ce qu'elle écrit ne désigne quelqu'un d'existant. La Maison regarde, et
+   c'est elle qui ouvre la tête. Sans ce détour, il suffirait de rattacher à sa
+   famille la fiche d'une autre cliente pour la lire entière. */
+function MesEnfants({ toast }: { toast: (m: string) => void }) {
+  const client = useClient();
+  const [clients] = useClients();
+  const [familles] = useFamilies();
+  const [declarations] = useEnfantsDeclares();
+  const [ouvert, setOuvert] = useState(false);
+  const [prenom, setPrenom] = useState('');
+  const [naissance, setNaissance] = useState('');
+  const [erreur, setErreur] = useState('');
+
+  if (!client) return null;
+  const aujourdhui = todayIso();
+  const mesTetes = tetesPortees(client, clients, familles, aujourdhui);
+  const mesDemandes = declarationsDe(declarations, client.id);
+  const attente = mesDemandes.filter((d) => d.statut === 'en attente');
+  const refusees = mesDemandes.filter((d) => d.statut === 'refusé');
+
+  const envoyer = () => {
+    const r = declarerEnfant(client, prenom, '', naissance, aujourdhui);
+    if (!r.ok) { setErreur(r.erreur ?? 'Cette demande n’a pas pu être envoyée.'); return; }
+    setErreur('');
+    setPrenom('');
+    setNaissance('');
+    setOuvert(false);
+    toast('Demande transmise — la maison ouvre sa fiche et vous prévient.');
+  };
+
+  return (
+    <>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Mes enfants</div>
+
+      {mesTetes.length === 0 && attente.length === 0 && (
+        <div className="mc-emptyline" style={{ lineHeight: 1.55 }}>
+          Vos enfants peuvent avoir leurs propres rendez-vous, à leur nom, avec leur suivi.
+          C’est vous qui réservez et réglez pour eux.
+        </div>
+      )}
+
+      {mesTetes.map((e) => {
+        const a = ageDe(e.birthday, aujourdhui);
+        return (
+          <div key={e.id} className="mc-crownstatus" style={{ marginTop: 8 }}>
+            <span className="mc-crownstatus__filet" />
+            <div className="mc-crownstatus__top">
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{e.name}</span>
+              <span className="mc-pillseal">{a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}</span>
+            </div>
+          </div>
+        );
+      })}
+
+      {attente.map((d) => (
+        <div key={d.id} className="mc-crownstatus" style={{ marginTop: 8, opacity: .75 }}>
+          <span className="mc-crownstatus__filet" style={{ background: 'var(--color-argile)' }} />
+          <div className="mc-crownstatus__top">
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{d.prenom}</span>
+            <span className="mc-pillseal">En attente de la maison</span>
+          </div>
+        </div>
+      ))}
+
+      {/* UN REFUS SE LIT. Une demande qui disparaît sans un mot se redépose
+          indéfiniment, et personne ne comprend pourquoi. */}
+      {refusees.slice(0, 2).map((d) => (
+        <div key={d.id} className="mc-emptyline" style={{ marginTop: 8, lineHeight: 1.55 }}>
+          {d.prenom} — la maison n’a pas retenu cette demande.
+          {d.motif ? ` « ${d.motif} »` : ' Passez au salon, on en parle.'}
+        </div>
+      ))}
+
+      {ouvert ? (
+        <div style={{ marginTop: 12 }}>
+          <div className="mc-field-label">Son prénom</div>
+          <input
+            className="mnd-input"
+            value={prenom}
+            onChange={(e) => setPrenom(e.target.value)}
+            placeholder="Mahoussi"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          />
+          <div className="mc-field-label" style={{ marginTop: 12 }}>Sa date de naissance</div>
+          <input
+            className="mnd-input"
+            type="date"
+            value={naissance}
+            max={aujourdhui}
+            onChange={(e) => setNaissance(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          />
+          <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
+            Elle nous sert à tenir son suivi, et c’est elle qui vous donne accès à son espace
+            jusqu’à ses dix-huit ans.
+          </div>
+          {erreur && <div className="mc-form-err">{erreur}</div>}
+          <button className="mc-cta mc-cta--indigo" style={{ marginTop: 14 }} onClick={envoyer}>
+            Envoyer à la maison
+          </button>
+          <button className="mc-textbtn" style={{ marginTop: 8 }} onClick={() => { setOuvert(false); setErreur(''); }}>
+            Annuler
+          </button>
+        </div>
+      ) : (
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 12 }} onClick={() => setOuvert(true)}>
+          + Ajouter un enfant
+        </button>
+      )}
+    </>
+  );
+}
+
 export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const clientId = useClientId();
@@ -1081,6 +1202,12 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
         </div>
       </div>
+
+      {/* MES ENFANTS. C'est le parent qui écrit la date de naissance — une petite
+          de trois ans ne la dira jamais au comptoir, et la Maison ne la devine
+          pas. Il ne crée pas de fiche pour autant : il dépose un prénom et une
+          date, la Maison ouvre la tête. */}
+      <MesEnfants toast={toast} />
 
       {pstate !== 'unsupported' && (
         <>
