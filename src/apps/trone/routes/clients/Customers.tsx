@@ -7,16 +7,20 @@ import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
-import { appointmentsStore, apptPayeurId, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, apptPayeurId, venuesHonorees, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts } from '../../../../shared/catalog';
 import { envieLabel } from '../../../../shared/quiz';
+import {
+  enAttente, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
+} from '../../../../shared/enfants';
+import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
-import { usePointsHistory } from '../../../../shared/offers';
+import { usePointsHistory, cercleSeuilStore, estDuCercle } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
-import { uid } from '../../../../shared/store';
+import { uid, useStore } from '../../../../shared/store';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
@@ -36,6 +40,110 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
 const GRID = '2.1fr 1fr 0.95fr 0.9fr 0.5fr 96px 84px';
 
 type SortKey = 'nom' | 'visite' | 'depense' | 'points';
+
+/* ---------- La file des enfants déclarés ----------
+   Le parent a écrit un prénom et une date de naissance depuis Ma Couronne. Il
+   n'a désigné personne : rien dans sa demande ne pointe une fiche existante.
+   C'est ici, et seulement ici, qu'une tête naît — et avec elle l'accès du
+   parent à son suivi.
+
+   ON MONTRE CE QU'ON S'APPRÊTE À CRÉER. Valider sans voir le nom complet, l'âge
+   et le compte qui va s'ouvrir, c'est signer sans lire. */
+function FileEnfants({ onClose }: { onClose: () => void }) {
+  const { branch } = useBranch();
+  const [declarations] = useEnfantsDeclares();
+  const clients = useBranchClients();
+  const [familles] = useFamilies();
+  const today = todayISO();
+  const [refusFor, setRefusFor] = useState<string | null>(null);
+  const [motif, setMotif] = useState('');
+
+  const file = enAttente(declarations, branch.id);
+  const parentDe = (d: EnfantDeclare) => clients.find((c) => c.id === d.clientId);
+
+  return (
+    <Modal title="Enfants déclarés" onClose={onClose} width={620}>
+      <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.55 }}>
+        Un parent ne peut pas créer une fiche : il dépose un prénom et une date de naissance.
+        C’est vous qui ouvrez la tête — et c’est ce geste qui lui donne accès au suivi de son enfant.
+      </div>
+
+      {file.length === 0 && <div className="trc-empty">Plus rien n’attend.</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {file.map((d) => {
+          const parent = parentDe(d);
+          const patronyme = parent?.name.trim().split(/\s+/).slice(-1)[0] ?? '';
+          const nomComplet = [d.prenom, d.nom ?? patronyme].filter(Boolean).join(' ');
+          const age = ageDe(d.birthday, today);
+          const fam = parent?.familyId ? familles.find((f) => f.id === parent.familyId) : undefined;
+          return (
+            <div
+              key={d.id}
+              style={{
+                border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)',
+                borderRadius: 3, background: 'var(--surface-card)', padding: '14px 16px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>
+                    {nomComplet}
+                  </div>
+                  <div className="trc-sub" style={{ marginTop: 3 }}>
+                    {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · née le ${frShort(d.birthday)}` : frShort(d.birthday)}
+                    {' · déclaré par '}{parent?.name ?? 'une cliente inconnue'}
+                    {' le '}{frShort(d.declareLe)}
+                  </div>
+                </div>
+                <span className="trc-src">En attente</span>
+              </div>
+
+              <div className="trc-sub" style={{ marginTop: 10, lineHeight: 1.55 }}>
+                {fam
+                  ? <>Rejoindra <b style={{ fontWeight: 600 }}>{fam.name}</b>{fam.payerClientId === parent?.id ? '' : ' — attention, le parent payeur de ce compte est quelqu’un d’autre'}.</>
+                  : <>Ouvrira un compte famille au nom de <b style={{ fontWeight: 600 }}>{parent?.name ?? '—'}</b>, qui en sera le payeur.</>}
+                {' '}Fiche sans e-mail ni mot de passe — un mineur n’a pas de compte.
+              </div>
+
+              {refusFor === d.id ? (
+                <div style={{ marginTop: 12 }}>
+                  <Field label="Pourquoi ce refus ? (le parent le lira)">
+                    <Input
+                      value={motif}
+                      onChange={(e) => setMotif(e.target.value)}
+                      placeholder="Sa fiche existe déjà au comptoir…"
+                    />
+                  </Field>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <Button size="sm" variant="copper" onClick={() => { refuserEnfant(d, motif, today); setRefusFor(null); setMotif(''); }}>
+                      Confirmer le refus
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setRefusFor(null); setMotif(''); }}>Annuler</Button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  <Button
+                    size="sm"
+                    variant="indigo"
+                    onClick={() => {
+                      const r = validerEnfant(d, today);
+                      if (!r.ok) window.alert(r.erreur ?? 'Impossible de valider cette demande.');
+                    }}
+                  >
+                    Ouvrir sa fiche
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setRefusFor(d.id)}>Refuser</Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
 
 /* Prédiction du prochain rendez-vous — cadence analysée + gabarit à dupliquer. */
 type Cadence = {
@@ -193,7 +301,7 @@ function CrownStyleField({ value, onChange }: { value: string; onChange: (v: str
 }
 
 export default function Customers() {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
   const clients = useBranchClients();
   const appts = useBranchAppointments();
   const [invoices] = useInvoices();
@@ -209,6 +317,10 @@ export default function Customers() {
   const [selId, setSelId] = useState<string | null>(null);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
+  /* La file des enfants declares depuis Ma Couronne, en attente de la Maison. */
+  const [fileEnfants, setFileEnfants] = useState(false);
+  const [declarations] = useEnfantsDeclares();
+  const aValider = enAttente(declarations, branch.id);
 
   /* ----- Registres — La Maison, la Diaspora, les clientes de passage ----- */
   const [view, setView] = useState<'maison' | 'diaspora' | 'passage'>('maison');
@@ -406,6 +518,35 @@ export default function Customers() {
         title="Têtes couronnées."
         actions={<Button variant="indigo" onClick={() => setIntake(true)}>+ Nouvelle cliente</Button>}
       />
+
+      {/* LES ENFANTS QUI ATTENDENT. Un parent a déclaré depuis Ma Couronne ; tant
+          que la Maison n'a pas regardé, l'enfant n'existe pas et n'ouvre aucun
+          accès. Une file qu'on ne voit pas est une file qu'on ne traite pas —
+          elle s'annonce donc en haut de l'écran des clientes, pas dans un tiroir. */}
+      {aValider.length > 0 && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 14, flexWrap: 'wrap', marginBottom: 16,
+            background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+            borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)',
+            padding: '13px 16px',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+              {aValider.length === 1
+                ? 'Un enfant déclaré attend votre accord.'
+                : `${aValider.length} enfants déclarés attendent votre accord.`}
+            </div>
+            <div className="trc-sub" style={{ marginTop: 2 }}>
+              Tant que vous n’avez pas regardé, aucune fiche n’est créée et le parent n’a accès à rien.
+            </div>
+          </div>
+          <Button variant="copper" size="sm" onClick={() => setFileEnfants(true)}>Examiner</Button>
+        </div>
+      )}
+      {fileEnfants && <FileEnfants onClose={() => setFileEnfants(false)} />}
 
       {/* Indicateurs de la maison */}
       <div className="trc-kpis">
@@ -850,7 +991,13 @@ function Customer360({
      ce que compte `usePassageVivant` pour lever la marque ; la fiche doit dire
      le même chiffre, sinon le comptoir voit « 2 séances » et s'étonne qu'elle
      soit encore de passage. */
-  const venues = new Set(honored.map((a) => a.date)).size;
+  const venues = venuesHonorees(appts, client.id);
+  /* Le Cercle, lui, compte par la PAYEUSE — la même clé que les points. Il faut
+     donc TOUT le carnet de la branche : un rituel qu'elle a offert à une autre
+     ne figure pas dans `appts`, qui ne porte que ceux où elle s'est assise. */
+  const branchAppts = useBranchAppointments();
+  const [seuilCercle] = useStore(cercleSeuilStore);
+  const venuesCercle = venuesHonorees(branchAppts, client.id, true);
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
   /* Bilan de séance — le Carnet de Suivi remis à la cliente. On pré-remplit depuis
@@ -881,6 +1028,9 @@ function Customer360({
      rendez-vous à elle. On relit donc tout le carnet de la branche. */
   const carnetBranche = useBranchAppointments();
   const tetesBranche = useBranchClients();
+  /* Les têtes qu'elle porte — ses mineurs, si elle est le parent payeur. */
+  const [famillesFiche] = useFamilies();
+  const portees = tetesPortees(client, tetesBranche, famillesFiche, todayISO());
   const nomTete = (id: string | undefined) => tetesBranche.find((c) => c.id === id)?.name ?? 'une cliente';
   const payesParElle = carnetBranche.filter((a) => a.status === 'honoré' && apptPayeurId(a) === client.id);
   const offertsAElle = honored.filter((a) => a.offertPar && a.offertPar !== client.id);
@@ -1344,6 +1494,40 @@ function Customer360({
                 ))}
               </div>
             )}
+            {/* LES TÊTES QU'ELLE PORTE. Elles n'apparaissent que si elle est le
+                PARENT PAYEUR du compte : un membre de la famille qui ne règle
+                pas ne porte personne. Et un enfant en sort le jour de ses
+                dix-huit ans — ses données lui appartiennent alors. */}
+            {portees.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <span className="trc-microlabel">Ses enfants · {portees.length}</span>
+                <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 3, background: 'var(--surface-card)' }}>
+                  {portees.map((e) => {
+                    const a = ageDe(e.birthday, todayISO());
+                    return (
+                      <div
+                        key={e.id}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '9px 13px', borderBottom: '1px solid var(--hairline)' }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13 }}>{e.name}</div>
+                          <div className="trc-sub">
+                            {a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge inconnu'}
+                            {e.lockCount ? ` · ${e.lockCount} locks` : ''}
+                          </div>
+                        </div>
+                        <span className="trc-src">Mineur</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                  Elle les retrouve dans Ma Couronne et réserve pour eux. Un seul règlement, un seul
+                  avoir, et un seul compteur du Cercle pour tout le foyer.
+                </div>
+              </div>
+            )}
+
             {/* CE QUE LA MAISON OBSERVE D'ELLE. Le carnet dit ce qu'elle a pris ;
                 ceci dit comment elle l'a pris — et ce qu'on y lit s'affiche,
                 pour que la phrase se corrige quand la lecture se trompe. */}
@@ -1422,6 +1606,13 @@ function Customer360({
               {estDePassage(client)
                 ? `Son argent et son travail comptent ; elle reste hors des têtes couronnées, de la rétention et des relances. La marque se lèvera d’elle-même dès sa 2ᵉ venue honorée — ${venues === 0 ? 'aucune pour l’instant' : `${venues} à ce jour`}.`
                 : 'Elle compte comme relation : têtes couronnées, rétention, relances.'}
+            </div>
+            {/* LE CERCLE SE GAGNE AU 3ᵉ PASSAGE — et le comptoir doit pouvoir le
+                dire au fauteuil, plutôt que d'expliquer un solde à zéro. */}
+            <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+              {estDuCercle(venuesCercle, seuilCercle)
+                ? `Du Cercle depuis son ${seuilCercle}ᵉ passage · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
+                : `Pas encore du Cercle — il s’ouvre au ${seuilCercle}ᵉ passage, elle en a ${venuesCercle}. Aucun point ne lui est attribué d’ici là.`}
             </div>
           </div>
 
