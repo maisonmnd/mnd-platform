@@ -89,6 +89,27 @@ catalogue courant : **déplacer une prestation reclasse tout l'historique**, et
 mettre son prix à zéro vide sa part du chiffre sur les cartes du Catalogue
 (le total du rituel, lui, ne bouge pas s'il est figé).
 
+## Publier : `node scripts/publie.mjs` — jamais à la main
+
+`dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
+synchroniser**. Le 9 août 2026, une copie manuelle a perdu un morceau partagé du
+Trône — celui que presque tous les autres importent — et la publication est
+partie quand même : site cassé en ligne, aucune commande en erreur. La
+publication efface d'abord tout (`git rm -r .`), donc **un fichier manqué à la
+copie disparaît aussi de la version en ligne** : il n'y a pas d'ancienne version
+pour rattraper.
+
+`scripts/publie.mjs` réessaie sur fichier verrouillé, puis **compare chaque
+fichier par empreinte avant de pousser**. Un seul écart et le site n'est pas
+publié du tout — l'ancienne version, elle, fonctionnait.
+
+```bash
+node scripts/build-sites.mjs
+node scripts/publie.mjs trone couronne      # ou sans argument : les quatre
+```
+
+Le compte GitHub est lu depuis l'origine du dépôt — aucun domaine en dur.
+
 ## Deux barèmes à revoir, sans urgence
 
 - **YÈKPÈ™ Couleur · La Révélation Végétale** — saute de 15 000 à 65 000 F entre
