@@ -4,10 +4,10 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
-import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, apptPayeurId, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts } from '../../../../shared/catalog';
 import { envieLabel } from '../../../../shared/quiz';
@@ -210,8 +210,8 @@ export default function Customers() {
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
 
-  /* ----- Registre Diaspora ----- */
-  const [view, setView] = useState<'maison' | 'diaspora'>('maison');
+  /* ----- Registres — La Maison, la Diaspora, les clientes de passage ----- */
+  const [view, setView] = useState<'maison' | 'diaspora' | 'passage'>('maison');
   const [diaQ, setDiaQ] = useState('');
 
   /* Le segment « Diaspora » doit exister dans la liste proposée aux fiches et à la
@@ -227,10 +227,23 @@ export default function Customers() {
   const removeFromDiaspora = (c: Client) =>
     clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, segments: x.segments.filter((s) => s.trim().toLowerCase() !== 'diaspora') } : x)));
 
-  /* Les deux registres sont DISJOINTS : une cliente Diaspora quitte entièrement
-     la liste de La Maison (nom compris) — elle ne vit que dans son registre. */
-  const maisonClients = useMemo(() => clients.filter((c) => !isDiaspora(c)), [clients]);
-  const diasporaCount = clients.length - maisonClients.length;
+  /* LES REGISTRES SONT DISJOINTS : une cliente Diaspora quitte entièrement la
+     liste de La Maison (nom compris) — elle ne vit que dans son registre. Une
+     cliente de passage aussi, et pour une raison plus forte encore : elle n'est
+     pas une relation, et tant qu'elle figure parmi les têtes de la Maison, tout
+     ce qui se compte par tête ment un peu plus à chaque venue.
+
+     LA MARQUE PRIME SUR LA DIASPORA — une passante étrangère est d'abord une
+     passante ; l'inverse la ferait relancer comme une cliente installée. */
+  const passageClients = useMemo(() => clients.filter(estDePassage), [clients]);
+  const maisonClients = useMemo(
+    () => clients.filter((c) => !estDePassage(c) && !isDiaspora(c)),
+    [clients],
+  );
+  const passageCount = passageClients.length;
+  const diasporaCount = clients.length - maisonClients.length - passageCount;
+  /* Les têtes qui comptent comme relation — le carnet vivant de la Maison. */
+  const tetesCount = clients.length - passageCount;
 
   /* Candidates à l'ajout : clientes de la maison PAS encore dans la liste. */
   const diaCandidates = useMemo(() => {
@@ -238,7 +251,7 @@ export default function Customers() {
     if (!t) return [];
     const td = digitsOf(t);
     return clients
-      .filter((c) => !isDiaspora(c))
+      .filter((c) => !isDiaspora(c) && !estDePassage(c))
       .filter((c) => c.name.toLowerCase().includes(t) || (td !== '' && digitsOf(c.phone).includes(td)))
       .slice(0, 8);
   }, [clients, diaQ]);
@@ -267,6 +280,15 @@ export default function Customers() {
       .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time))[0];
     if (upcoming) return { ...none, iso: upcoming.date, predicted: false };
+
+    /* ON NE PRÉDIT PAS LE RETOUR DE QUI N'A PAS DE RELATION. Une venue unique
+       donnait déjà une cadence par défaut à 30 jours et « la maison anticipe sa
+       cadence — proposez le fauteuil » : c'est exactement la relance qui part
+       vers quelqu'un qui ne reviendra pas, et qui fait ignorer les suivantes.
+       Un RDV DÉJÀ PRIS, lui, s'affiche toujours — ci-dessus : c'est un fait,
+       pas une prédiction. */
+    const cliente = clients.find((c) => c.id === id);
+    if (cliente && estDePassage(cliente)) return none;
 
     const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
     if (honored.length === 0) return none;
@@ -307,10 +329,14 @@ export default function Customers() {
     const m = new Map<string, { spend: number; lastISO: string | null }>();
     for (const c of clients) m.set(c.id, { spend: 0, lastISO: null });
     for (const a of appts) {
-      const s = m.get(a.clientId);
-      if (!s || a.status !== 'honoré') continue;
-      s.spend += apptNetXof(a, byId);
-      if (!s.lastISO || a.date > s.lastISO) s.lastISO = a.date;
+      if (a.status !== 'honoré') continue;
+      /* LA DÉPENSE SUIT L'ARGENT, LA VISITE SUIT LA TÊTE. Un rituel offert
+         compte dans la dépense de celle qui l'a payé, mais la dernière venue
+         reste celle de la cliente qui s'est assise — c'est son parcours. */
+      const paye = m.get(apptPayeurId(a));
+      if (paye) paye.spend += apptNetXof(a, byId);
+      const vue = m.get(a.clientId);
+      if (vue && (!vue.lastISO || a.date > vue.lastISO)) vue.lastISO = a.date;
     }
     for (const inv of invoices) {
       const s = m.get(inv.clientId);
@@ -331,11 +357,16 @@ export default function Customers() {
     return set;
   }, [sessions, tick]);
 
-  /* Indicateurs de tête de page. */
+  /* Indicateurs de tête de page. Ils comptent des TÊTES : les clientes de
+     passage en sont exclues, sans quoi « Nouvelles ce mois » monterait à chaque
+     inconnue reçue et ne dirait plus rien de ce que la Maison a gagné. Leur
+     argent et leur travail comptent ailleurs — Synthèse, Bilan, production. */
   const monthKey = today.slice(0, 7);
-  const newThisMonth = clients.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
-  const bdaySoonCount = clients.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30).length;
+  const tetes = useMemo(() => clients.filter((c) => !estDePassage(c)), [clients]);
+  const newThisMonth = tetes.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
+  const bdaySoonCount = tetes.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30).length;
   const onlineCount = clients.filter((c) => onlineIds.has(c.id)).length;
+  const passageThisMonth = passageClients.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
 
   /* Chips de segments de La Maison : comptées HORS Diaspora (registres disjoints). */
   const segments = useMemo(() => {
@@ -345,7 +376,11 @@ export default function Customers() {
   }, [maisonClients]);
 
   const filtered = useMemo(() => {
-    const base = view === 'diaspora' ? clients.filter(isDiaspora) : maisonClients;
+    const base = view === 'passage'
+      ? passageClients
+      : view === 'diaspora'
+        ? clients.filter((c) => isDiaspora(c) && !estDePassage(c))
+        : maisonClients;
     let list = view === 'maison' && seg !== 'Tous' ? base.filter((c) => c.segments.includes(seg)) : base;
     if (q) {
       const qd = digitsOf(q);
@@ -360,7 +395,7 @@ export default function Customers() {
     else if (sort === 'depense') arr.sort((a, b) => (st(b.id)?.spend ?? 0) - (st(a.id)?.spend ?? 0));
     else if (sort === 'points') arr.sort((a, b) => (b.loyaltyPoints ?? 0) - (a.loyaltyPoints ?? 0));
     return arr;
-  }, [clients, maisonClients, seg, q, sort, stats, view]);
+  }, [clients, maisonClients, passageClients, seg, q, sort, stats, view]);
 
   const selected = clients.find((c) => c.id === selId) ?? null;
 
@@ -374,7 +409,7 @@ export default function Customers() {
 
       {/* Indicateurs de la maison */}
       <div className="trc-kpis">
-        <div className="trc-kpi"><b>{clients.length}</b><span>Têtes couronnées</span></div>
+        <div className="trc-kpi"><b>{tetesCount}</b><span>Têtes couronnées</span></div>
         <div className="trc-kpi"><b>{newThisMonth}</b><span>Nouvelles ce mois</span></div>
         <div className="trc-kpi"><b>{bdaySoonCount}</b><span>{'Anniversaires sous 30 j'}</span></div>
         <div className={`trc-kpi ${onlineCount > 0 ? 'trc-kpi--live' : ''}`}>
@@ -382,7 +417,7 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* Registres — la Maison entière, et la liste à part de la Diaspora. */}
+      {/* Registres — la Maison, la Diaspora, et celles qui ne font que passer. */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <button
           className={`trc-chip ${view === 'maison' ? 'is-active' : ''}`}
@@ -398,7 +433,24 @@ export default function Customers() {
         >
           Diaspora <span className="count">{diasporaCount}</span>
         </button>
+        <button
+          className={`trc-chip ${view === 'passage' ? 'is-active' : ''}`}
+          onClick={() => setView('passage')}
+          style={{ fontSize: 12, padding: '9px 18px' }}
+        >
+          De passage <span className="count">{passageCount}</span>
+        </button>
       </div>
+
+      {view === 'passage' && (
+        <div className="trc-passage-banner">
+          Elles sont venues une fois. Leur rituel compte au chiffre d’affaires et
+          à la production du maître ; elles restent hors des têtes couronnées, de
+          la rétention et des relances. La marque se lève d’elle-même à leur
+          2ᵉ venue — ou d’un geste sur leur fiche.
+          {passageThisMonth > 0 && ` ${passageThisMonth} reçue${passageThisMonth > 1 ? 's' : ''} ce mois-ci.`}
+        </div>
+      )}
 
       {/* Recherche & tri */}
       <div className="trc-toolbar">
@@ -473,7 +525,11 @@ export default function Customers() {
         </div>
         {filtered.length === 0 && (
           <div className="trc-empty">
-            {view === 'diaspora'
+            {view === 'passage'
+              ? q
+                ? `Aucune cliente de passage ne répond à « ${query.trim()} ».`
+                : 'Aucune cliente de passage — elles s’enregistrent au fauteuil ou à la caisse, en deux champs.'
+              : view === 'diaspora'
               ? q
                 ? `Aucune cliente Diaspora ne répond à « ${query.trim()} ».`
                 : 'La liste Diaspora est vide — cherchez une cliente ci-dessus et ajoutez-la d’un geste.'
@@ -499,6 +555,7 @@ export default function Customers() {
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                     <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    {estDePassage(c) && <span className="trc-passage-tag">De passage</span>}
                     {bd && bd.daysUntil <= 30 && (
                       <span className="trc-bday-chip">{bd.daysUntil === 0 ? 'Anniv. aujourd’hui' : `Anniv. J−${bd.daysUntil}`}</span>
                     )}
@@ -789,6 +846,11 @@ function Customer360({
 
   /* ----- Fiche financière ----- */
   const honored = appts.filter((a) => a.status === 'honoré');
+  /* VENUES, PAS LIGNES — deux rituels le même jour font une seule visite. C'est
+     ce que compte `usePassageVivant` pour lever la marque ; la fiche doit dire
+     le même chiffre, sinon le comptoir voit « 2 séances » et s'étonne qu'elle
+     soit encore de passage. */
+  const venues = new Set(honored.map((a) => a.date)).size;
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
   /* Bilan de séance — le Carnet de Suivi remis à la cliente. On pré-remplit depuis
@@ -813,9 +875,19 @@ function Customer360({
     i.kind === 'facture' && i.status === 'payée' && !linkedIds.has(i.id)
     && !i.lines.some((l) => l.label.startsWith('Règlement ·')),
   );
-  const spend = honored.reduce((s, a) => s + apptNetXof(a, byId), 0)
+  /* CE QU'ELLE A DÉPENSÉ, ET NON CE QU'ELLE A REÇU. Un rituel qu'on lui a
+     offert ne compte pas dans sa dépense ; un rituel qu'elle a offert à une
+     autre, si — et il ne figure pas dans `appts`, qui ne contient que ses
+     rendez-vous à elle. On relit donc tout le carnet de la branche. */
+  const carnetBranche = useBranchAppointments();
+  const tetesBranche = useBranchClients();
+  const nomTete = (id: string | undefined) => tetesBranche.find((c) => c.id === id)?.name ?? 'une cliente';
+  const payesParElle = carnetBranche.filter((a) => a.status === 'honoré' && apptPayeurId(a) === client.id);
+  const offertsAElle = honored.filter((a) => a.offertPar && a.offertPar !== client.id);
+  const offertsParElle = payesParElle.filter((a) => a.clientId !== client.id);
+  const spend = payesParElle.reduce((s, a) => s + apptNetXof(a, byId), 0)
     + paidExtras.reduce((s, i) => s + invoiceTotal(i), 0);
-  const basketCount = honored.length + paidExtras.length;
+  const basketCount = payesParElle.length + paidExtras.length;
   const basket = basketCount > 0 ? Math.round(spend / basketCount) : 0;
 
   /* Solde dû — tout RDV non annulé dont il reste à encaisser. */
@@ -898,6 +970,14 @@ function Customer360({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
+            {/* LA MARQUE SE VOIT AVANT TOUT LE RESTE. Une fiche qui ne compte pas
+                comme les autres doit le DIRE : sinon on cherche pendant des mois
+                pourquoi le total du CRM ne tombe pas juste. */}
+            {estDePassage(client) && (
+              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 2, padding: '3px 11px' }}>
+                De passage · hors têtes actives et relances
+              </div>
+            )}
             {membership && (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
                 ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle ?? 'mensuel'}
@@ -1018,6 +1098,25 @@ function Customer360({
             <div className="trc-ministat"><b>{basket > 0 ? fmtMoney(basket, currency) : '—'}</b><span>Panier moyen</span></div>
             <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
             <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>
+          </div>
+          {/* LES DEUX CÔTÉS DU GESTE. Sans ces lignes, la fiche d'Ahmed montre
+              une séance sans dépense — on la croit impayée — et celle de Rhanda
+              une dépense sans séance — on la croit fausse. */}
+          <div className="trc-finrow" style={{ display: 'block' }}>
+            {offertsAElle.length > 0 && (
+              <div className="trc-sub" style={{ lineHeight: 1.55 }}>
+                {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} —{' '}
+                {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShort(a.date)}`).join(' · ')}.
+                Ces montants comptent dans la dépense de qui les a réglés, pas dans la sienne.
+              </div>
+            )}
+            {offertsParElle.length > 0 && (
+              <div className="trc-sub" style={{ lineHeight: 1.55, marginTop: offertsAElle.length > 0 ? 6 : 0 }}>
+                Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} —{' '}
+                {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShort(a.date)}`).join(' · ')}.
+                Compté dans sa dépense et ses points.
+              </div>
+            )}
           </div>
           {due > 0 && (
             <div className="trc-due">
@@ -1294,6 +1393,35 @@ function Customer360({
               ) : (
                 'Relu à chaque mouvement du carnet — choisir ci-dessus le fige.'
               )}
+            </div>
+          </div>
+
+          {/* CE QU'ELLE EST POUR LA MAISON — une relation, ou un passage.
+              Distinct de l'archétype juste au-dessus : le persona dit son GOÛT,
+              ceci dit son STATUT. Les confondre reviendrait à choisir entre
+              savoir ce qu'elle aime et savoir si elle revient. */}
+          <div>
+            <span className="trc-microlabel">Sa place à la Maison</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`trc-chip ${!estDePassage(client) ? 'is-active' : ''}`}
+                onClick={() => patch({ dePassage: undefined })}
+              >
+                Tête couronnée
+              </button>
+              <button
+                type="button"
+                className={`trc-chip ${estDePassage(client) ? 'is-active' : ''}`}
+                onClick={() => patch({ dePassage: true })}
+              >
+                De passage
+              </button>
+            </div>
+            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {estDePassage(client)
+                ? `Son argent et son travail comptent ; elle reste hors des têtes couronnées, de la rétention et des relances. La marque se lèvera d’elle-même dès sa 2ᵉ venue honorée — ${venues === 0 ? 'aucune pour l’instant' : `${venues} à ce jour`}.`
+                : 'Elle compte comme relation : têtes couronnées, rétention, relances.'}
             </div>
           </div>
 

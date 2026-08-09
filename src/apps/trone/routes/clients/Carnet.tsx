@@ -273,6 +273,17 @@ export default function Carnet() {
         <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{apptLabel(a, byId)}</span>
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
+          {/* LE GESTE SE VOIT AU CARNET. Un rituel offert lu sans sa mention
+              donne une cliente qui semble ne jamais payer. */}
+          {a.offertPar && (
+            <span
+              className="trc-src"
+              style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+              title={`Réglé par ${clientOf(a.offertPar)?.name ?? 'une autre cliente'} — la dépense et les points lui reviennent`}
+            >
+              offert par {clientOf(a.offertPar)?.name?.split(' ')[0] ?? 'une autre'}
+            </span>
+          )}
           <SourceBadge source={a.source} />
         </span>
         <span className="trc-carnet__amount" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>

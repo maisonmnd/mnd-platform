@@ -80,6 +80,28 @@ export type Appointment = {
       Quand ce journal existe, il FAIT FOI ; `paidXof` reste le repli des
       rendez-vous d'avant (voir `apptPaidXof`). */
   payments?: ApptPayment[];
+  /** QUI A OFFERT CE RITUEL — l'identifiant de celle qui l'a payé pour une
+      autre.
+
+      Rhanda, belle-sœur d'Ahmed, lui a offert sa première visite : 110 000 F, le
+      2 mai 2026. La Maison savait déjà dire « payé par X, pour Y » — mais
+      seulement par un COMPTE FAMILLE, un lien permanent. Une belle-sœur qui
+      offre une fois ne doit pas devenir son payeur à vie.
+
+      Le geste vit sur le RENDEZ-VOUS, et non sur la facture : le rendez-vous
+      est ce que tout le monde relit — le Carnet, sa fiche, la Vitrine. Une
+      facture, personne ne la rouvre.
+
+      CE QUE CE CHAMP DÉPLACE : la dépense et les points de fidélité vont à
+      celle qui a payé (`apptPayeurId`) — c'est elle qui a sorti l'argent, c'est
+      elle que la Maison reconnaît. Le rituel, lui, reste au parcours de celle
+      qui a été soignée.
+
+      CE QU'IL NE DÉPLACE PAS : un franc de la caisse. Le chiffre d'affaires, le
+      Bilan, le registre des encaissements et les commissions somment les
+      rendez-vous sans regarder à qui ils appartiennent — nommer un geste ne
+      réécrit pas la comptabilité. */
+  offertPar?: string;
   /** LE FORFAIT PONCTUEL — un total négocié pour l'ENSEMBLE des gestes de ce
       rituel, décidé une fois, pour une cliente : « les quatre gestes pour
       60 000 F ».
@@ -155,6 +177,44 @@ export type Appointment = {
       des séances antérieures à son enregistrement, et le lien explicite les
       rattache quand une fenêtre de dates les aurait perdues. */
   subId?: string;
+};
+
+/** QUI PORTE CE RITUEL AU COMPTE — celle qui a payé quand quelqu'un l'a offert,
+    la cliente sinon. Un seul juge : la dépense de la fiche, les points de
+    fidélité et le nom porté par la facture doivent désigner la même personne,
+    sans quoi la Maison remercierait l'une et facturerait l'autre. */
+export const apptPayeurId = (a: Pick<Appointment, 'offertPar' | 'clientId'>): string =>
+  a.offertPar || a.clientId;
+
+/** COMBIEN DE FOIS ELLE EST VENUE — des VENUES, jamais des lignes.
+
+    Deux rituels le même jour font une seule visite : la Maison a coiffé et posé
+    une couleur dans la foulée. Compter les lignes ferait « revenir » quelqu'un
+    qui n'est jamais reparti. Et seulement l'HONORÉ : un rendez-vous pris puis
+    manqué ne dit rien d'une relation.
+
+    Un seul compteur pour toute la Maison, parce que deux seuils s'y adossent —
+    la marque « de passage » qui se lève au 2ᵉ passage, et l'entrée au Cercle au
+    3ᵉ. S'ils comptaient chacun à leur façon, la fiche dirait deux chiffres pour
+    la même personne et personne ne saurait lequel croire.
+
+    `parPayeur` juge par celle qui PAIE (`apptPayeurId`) plutôt que par celle qui
+    s'assied : c'est la clé des points de fidélité, et l'entrée au Cercle doit se
+    compter avec la même — sinon on ouvrirait le Cercle à l'une et on
+    créditerait l'autre. */
+export const venuesHonorees = (
+  appts: readonly Appointment[],
+  clientId: string,
+  parPayeur = false,
+): number => {
+  if (!clientId) return 0;
+  const jours = new Set<string>();
+  for (const a of appts) {
+    if (a.status !== 'honoré') continue;
+    if ((parPayeur ? apptPayeurId(a) : a.clientId) !== clientId) continue;
+    jours.add(a.date);
+  }
+  return jours.size;
 };
 
 /** Total réellement encaissé au salon sur un rendez-vous. Le journal fait foi dès

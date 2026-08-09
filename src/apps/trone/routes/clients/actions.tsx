@@ -5,7 +5,7 @@ import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
-import { appointmentsStore, type Appointment, type ApptPayment } from '../../../../shared/agenda';
+import { appointmentsStore, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
@@ -14,7 +14,7 @@ import {
 } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
-import { pointsRateStore, pointsHistoryStore, pointsEnabledStore } from '../../../../shared/offers';
+import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
@@ -47,10 +47,30 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
   return pts;
 }
 
-/** Passe un RDV à « honoré » et attribue les points Cercle une seule fois. */
+/** Passe un RDV à « honoré » et attribue les points Cercle une seule fois.
+
+    LE CERCLE SE GAGNE AU 3ᵉ PASSAGE. Un passage ne l'ouvre pas : ce qui se donne
+    à tout le monde ne récompense personne. On compte donc ses venues AVANT
+    d'écrire — celle-ci comprise, puisqu'elle a lieu — et on n'attribue rien tant
+    que le seuil n'est pas atteint. Les deux premières venues ne sont pas
+    créditées après coup : elle entre au 3ᵉ passage, elle gagne à partir de là. */
 export function honorAppointment(appt: Appointment, byId: Map<string, Service>): number {
   const total = apptNetXof(appt, byId);
-  const awarded = appt.pointsAwarded ? 0 : awardLoyalty(appt.clientId, total, `Rituel honoré · ${frShort(appt.date)}`);
+  /* LES POINTS SUIVENT L'ARGENT. Un rituel offert reconnaît celle qui l'a payé,
+     pas celle qui s'est assise : c'est elle qui a sorti les 110 000 F. Le rituel
+     reste au parcours de la soignée — seule la reconnaissance change de main. */
+  const beneficiaire = apptPayeurId(appt);
+  /* Le rendez-vous n'est pas encore « honoré » dans le magasin : on compte les
+     venues déjà acquises et on ajoute celle-ci, sauf si un autre rituel du même
+     jour l'a déjà comptée (deux gestes le même jour = une seule venue). */
+  const acquises = appointmentsStore.get();
+  const dejaCeJour = acquises.some((a) =>
+    a.id !== appt.id && a.status === 'honoré' && a.date === appt.date && apptPayeurId(a) === beneficiaire);
+  const venues = venuesHonorees(acquises, beneficiaire, true) + (dejaCeJour ? 0 : 1);
+
+  const awarded = appt.pointsAwarded || !estDuCercle(venues)
+    ? 0
+    : awardLoyalty(beneficiaire, total, `Rituel honoré · ${frShort(appt.date)}`);
   appointmentsStore.set((prev) =>
     prev.map((a) => (a.id === appt.id ? { ...a, status: 'honoré', pointsAwarded: true } : a)),
   );
@@ -65,23 +85,26 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
 /** Reprend les points Cercle attribués à l'honneur du RDV, si on retrouve
     l'attribution exacte dans l'historique. Renvoie les points repris (0 sinon). */
 function reverseHonorPoints(appt: Appointment): number {
-  if (!appt.pointsAwarded || !appt.clientId) return 0;
+  /* On reprend LÀ OÙ ON A DONNÉ — chez la payeuse quand le rituel était offert.
+     Viser la soignée retirerait des points à quelqu'un qui n'en a jamais reçu. */
+  const beneficiaire = apptPayeurId(appt);
+  if (!appt.pointsAwarded || !beneficiaire) return 0;
   const label = `Rituel honoré · ${frShort(appt.date)}`;
-  const entry = pointsHistoryStore.get().find((e) => e.clientId === appt.clientId && e.label === label && e.pts > 0);
+  const entry = pointsHistoryStore.get().find((e) => e.clientId === beneficiaire && e.label === label && e.pts > 0);
   if (!entry) return 0;
   clientsStore.set((prev) =>
-    prev.map((c) => (c.id === appt.clientId ? { ...c, loyaltyPoints: Math.max(0, (c.loyaltyPoints ?? 0) - entry.pts) } : c)),
+    prev.map((c) => (c.id === beneficiaire ? { ...c, loyaltyPoints: Math.max(0, (c.loyaltyPoints ?? 0) - entry.pts) } : c)),
   );
   pointsHistoryStore.set((prev) => [
-    { id: `pt-${uid()}`, clientId: appt.clientId, clientName: entry.clientName, label: `Encaissement annulé · ${frShort(appt.date)}`, pts: -entry.pts, at: new Date().toISOString() },
+    { id: `pt-${uid()}`, clientId: beneficiaire, clientName: entry.clientName, label: `Encaissement annulé · ${frShort(appt.date)}`, pts: -entry.pts, at: new Date().toISOString() },
     ...prev,
   ]);
   return entry.pts;
 }
 
-/** Annule l'encaissement d'un rituel : le RDV redevient impayé (honoré →
-    confirmé), sa facture liée repasse « envoyée » (émise, impayée), et les
-    points de l'honneur sont repris quand on retrouve leur attribution. */
+/** Annule l'encaissement d'un rituel : le RDV redevient impayé et les pièces
+    émises pour ce règlement sont supprimées. IL NE TOUCHE NI À L'HONNEUR NI AUX
+    POINTS — voir la note dans le corps de la fonction. */
 /* RENDRE L'AVOIR CONSOMME PAR UNE FACTURE. Sans ce geste, annuler ou supprimer
    un encaissement remettait le rituel « impaye » tout en laissant le compte de
    la cliente debite : elle payait deux fois, une fois avec son credit detruit,
@@ -94,17 +117,42 @@ function restituerAvoir(invoiceId: string): void {
   creditMovementsStore.set((prev) => prev.filter((m) => !ids.has(m.id)));
 }
 
-export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: boolean; pointsReversed: number } {
-  let invoiceUpdated = false;
-  if (appt.invoiceId) {
-    invoicesStore.set((prev) => prev.map((i) => {
-      if (i.id !== appt.invoiceId || i.status !== 'payée') return i;
-      invoiceUpdated = true;
-      return { ...i, status: 'envoyée' as const };
-    }));
-  }
-  if (appt.invoiceId) restituerAvoir(appt.invoiceId);
-  const pointsReversed = reverseHonorPoints(appt);
+export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: number } {
+  /* TOUTES LES PIÈCES QUE CET ENCAISSEMENT A PRODUITES, pas seulement la
+     dernière. Le rendez-vous ne retient qu'un `invoiceId` ; un rituel réglé en
+     plusieurs fois porte autant de factures que de versements, et chacune se
+     nomme dans le journal. Or l'annulation efface le journal ENTIER (`payments`
+     et `paidXof` repartent à zéro) : ne traiter que la dernière laissait les
+     précédentes « payée » et détachées — elles continuaient de compter au
+     chiffre d'affaires pendant que le rituel, lui, redevenait impayé. */
+  const ids = new Set<string>();
+  if (appt.invoiceId) ids.add(appt.invoiceId);
+  for (const p of appt.payments ?? []) if (p.invoiceId) ids.add(p.invoiceId);
+
+  /* ON SUPPRIME LA PIÈCE, ON NE L'ABANDONNE PAS. Elle repassait « envoyée » et
+     restait dans la base, détachée de son rituel : une créance fantôme qui
+     gonflait les impayés, alertait sans fin dans le tiroir, et s'offrait au
+     « Solder par l'avoir » que les pièces liées, elles, refusent. Le 8 août, un
+     même rituel repris cinq fois au comptoir en avait laissé quatre derrière
+     lui, pour 212 000 F d'impayés qui n'existaient pas. Une facture atteste un
+     paiement : le paiement annulé, elle n'a plus d'objet.
+     L'avoir consommé est rendu d'abord — sinon le compte de la cliente reste
+     débité d'un crédit détruit avec la pièce. */
+  for (const id of ids) restituerAvoir(id);
+  const invoicesRemoved = invoicesStore.get().filter((i) => ids.has(i.id)).length;
+  if (invoicesRemoved > 0) invoicesStore.set((prev) => prev.filter((i) => !ids.has(i.id)));
+  /* ANNULER UN ENCAISSEMENT N'EFFACE QUE DE L'ARGENT. Ce geste faisait aussi
+     retomber le rituel de « honoré » à « confirmé » et reprenait les points de
+     l'honneur — il défaisait un geste qu'il n'avait jamais posé. Encaisser
+     n'honore pas (c'est écrit plus bas : on encaisse d'avance un rituel qui n'a
+     pas encore eu lieu) ; annuler ne doit donc pas dés-honorer. Un rituel a eu
+     lieu ou non — que la cliente ait payé ne change rien à ce fait.
+     Le prix de cette confusion : le rituel dé-honoré ne comptait PLUS NULLE PART
+     (`apptRev` ne retient que les honorés sans facture, `invRev` que les pièces
+     payées — et la pièce venait d'être supprimée). Le chiffre d'affaires perdait
+     le montant en silence. Il revient désormais au Carnet, et le rituel rejoint
+     les impayés, ce qu'il est. Dés-honorer reste possible au Carnet, à la main,
+     quand c'est bien l'honneur qui était faux. */
   appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
     ? {
         ...a,
@@ -114,18 +162,15 @@ export function cancelAppointmentPayment(appt: Appointment): { invoiceUpdated: b
            affichee — un argent rendu qui continuait de figurer comme recu. */
         payments: undefined,
         invoiceId: undefined,
-        status: a.status === 'honoré' ? 'confirmé' : a.status,
-        /* Points repris → une future ré-attribution redevient légitime. Pas
-           retrouvés → on garde le verrou pour ne jamais les doubler. */
-        ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
       }
     : a)));
-  return { invoiceUpdated, pointsReversed };
+  return { invoicesRemoved };
 }
 
-/** À la SUPPRESSION d'une facture : rembobine le rituel qu'elle réglait
-    (déduit le montant ; à zéro, dés-honore et reprend les points). Renvoie le
-    RDV touché, ou null si la facture ne réglait aucun rituel. */
+/** À la SUPPRESSION d'une facture : rembobine le rituel qu'elle réglait — le
+    montant seul. L'honneur et les points ne bougent pas (même raison que dans
+    `cancelAppointmentPayment`). Renvoie le RDV touché, ou null si la facture ne
+    réglait aucun rituel. */
 export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: number): Appointment | null {
   restituerAvoir(invoiceId);
   const tous = appointmentsStore.get();
@@ -159,8 +204,10 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
       }
     }
   }
-  const fully = newPaid === 0;
-  const pointsReversed = fully ? reverseHonorPoints(appt) : 0;
+  /* SUPPRIMER UNE PIÈCE N'EFFACE QUE DE L'ARGENT — comme l'annulation, et pour
+     la même raison : un rituel a eu lieu ou non, le sort de sa facture n'y
+     change rien. Le dés-honorer le faisait sortir de TOUS les chiffres à la
+     fois, faute d'être encore compté ni par le Carnet ni par une pièce. */
   appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
     ? {
         ...a,
@@ -170,8 +217,6 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
            premier règlement d'un rituel qui en compte deux ne doit pas détacher
            la facture qui, elle, existe toujours. */
         invoiceId: a.invoiceId === invoiceId ? undefined : a.invoiceId,
-        status: fully && a.status === 'honoré' ? 'confirmé' : a.status,
-        ...(pointsReversed > 0 ? { pointsAwarded: false } : {}),
       }
     : a)));
   return appt;
@@ -230,9 +275,13 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      payeur de la facture est le parent quand la cliente est rattachée à une famille. */
   const account: CreditHolder = client ? holderOf(client, families) : { type: 'client', id: appt.clientId };
   const avoirBal = creditBalanceOf(credits, account);
-  const payerId = client ? payerClientIdOf(client, families) : appt.clientId;
+  /* QUI EST FACTURÉ. Un rituel OFFERT se facture à celle qui l'offre — sans
+     quoi la pièce nommerait l'une et la fiche remercierait l'autre. Le geste
+     ponctuel prime sur le compte famille : il est plus précis, et il a été posé
+     sur ce rendez-vous-là. */
+  const payerId = appt.offertPar || (client ? payerClientIdOf(client, families) : appt.clientId);
   const payerClient = clients.find((c) => c.id === payerId);
-  const isFamilyPayer = payerId !== appt.clientId;
+  const isFamilyPayer = payerId !== appt.clientId; // payeur distinct : famille OU rituel offert
 
   const services = apptServices(appt, byId);
   /* Contexte tarifaire de la cliente — la facture ventile chaque prestation selon
@@ -725,15 +774,16 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             onClick={() => {
               if (!window.confirm(
                 `Annuler l'encaissement de ${fmtMoney(alreadyPaid, currency)} ?\n\n` +
-                `Le rituel redevient impayé (honoré → confirmé), sa facture liée repasse ` +
-                `« envoyée » (impayée), et les points Cercle attribués sont repris quand ` +
-                `on retrouve leur attribution. Cette action se voit dans l'historique.`,
+                `Le rituel redevient impayé et la ou les factures émises pour ce règlement ` +
+                `sont SUPPRIMÉES : une pièce atteste un paiement, le paiement annulé elle ` +
+                `n'a plus d'objet. L'avoir consommé est rendu au compte.\n\n` +
+                `Le rituel reste HONORÉ et garde ses points : ce geste n'efface que de ` +
+                `l'argent. S'il n'a pas eu lieu, dés-honorez-le au Carnet.\n\n` +
+                `La suppression des pièces est irréversible.`,
               )) return;
               const r = cancelAppointmentPayment(appt);
-              toast(
-                `Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoiceUpdated ? ' · facture repassée en impayée' : ''}` +
-                `${r.pointsReversed > 0 ? ` · ${r.pointsReversed} points repris` : ''}`,
-              );
+              const pieces = r.invoicesRemoved > 1 ? `${r.invoicesRemoved} factures supprimées` : 'facture supprimée';
+              toast(`Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoicesRemoved > 0 ? ` · ${pieces}` : ''}`);
               onClose();
             }}
           >

@@ -4,7 +4,9 @@ import { Bell, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients, type Client } from '../../../../shared/clients';
+import {
+  clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, type Client,
+} from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
   type Appointment, type ReminderKind,
@@ -460,6 +462,8 @@ export function RdvModal({
   const [forfaitOn, setForfaitOn] = useState(!!appt?.forfait);
   const [forfaitNom, setForfaitNom] = useState(appt?.forfait?.nom ?? '');
   const [forfaitStr, setForfaitStr] = useState(appt?.forfait ? String(appt.forfait.totalXof) : '');
+  /* Qui a offert ce rituel — vide dans l'immense majorité des cas. */
+  const [offertPar, setOffertPar] = useState(appt?.offertPar ?? '');
   /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
   const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
   /* Ré-tarifer un rituel au tarif du jour (geste EXPLICITE) : un prix figé sous
@@ -611,6 +615,11 @@ export function RdvModal({
           poseAt: appt?.forfait && appt.forfait.totalXof === forfaitNum ? appt.forfait.poseAt : todayISO(),
         };
 
+  const nomDe = (id: string) => clients.find((c) => c.id === id)?.name ?? 'cette cliente';
+  /* On ne s'offre pas son propre rituel : la mention n'aurait aucun sens et
+     ferait compter la dépense deux fois au même compte. */
+  const offertRetenu = offertPar && offertPar !== clientId ? offertPar : undefined;
+
   const save = (chosenStatus: Appointment['status']) => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
@@ -635,6 +644,7 @@ export function RdvModal({
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
+                offertPar: offertRetenu,
                 forfait: forfaitEnregistre,
                 /* Un forfait posé efface les remises : le total négocié EST le
                    prix, on ne le remise pas une seconde fois. */
@@ -666,6 +676,7 @@ export function RdvModal({
         note: note.trim() || undefined,
         coveredBySub: effCovered || undefined,
         coverKind: effCovered ? ('abonnement' as const) : undefined,
+        offertPar: offertRetenu,
         forfait: forfaitEnregistre,
         discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
         discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
@@ -747,7 +758,7 @@ export function RdvModal({
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Tête couronnée">
-          <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente (nom, téléphone)…" />
+          <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
           {membership && (
             <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
               ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
@@ -1103,6 +1114,32 @@ export function RdvModal({
           </Field>
         )}
 
+        {/* CE RITUEL EST-IL OFFERT ? Le geste vit sur le rendez-vous, et non sur
+            la facture : c'est le rendez-vous que tout le monde relit. Rhanda a
+            offert à Ahmed sa première visite — 110 000 F, le 2 mai 2026 — et la
+            Maison n'avait aucun endroit où l'inscrire, sinon un compte famille
+            qui l'aurait faite payeuse à vie. */}
+        {!effCovered && !sansPrix && (
+          <Field label="Rituel offert par une autre cliente">
+            <ClientPicker
+              value={offertPar}
+              onChange={setOffertPar}
+              placeholder="Personne — elle règle elle-même"
+            />
+            {offertPar && offertPar !== clientId && (
+              <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                La dépense et les points de fidélité iront à {nomDe(offertPar)} — c’est elle qui
+                paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
+              </div>
+            )}
+            {offertPar && offertPar === clientId && (
+              <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
+                Elle ne peut pas s’offrir son propre rituel — laissez vide.
+              </div>
+            )}
+          </Field>
+        )}
+
         {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
             Masquée quand le rituel est couvert par l'abonnement (rien à facturer)
             ou porté par un forfait (le total est déjà négocié). */}
@@ -1303,21 +1340,35 @@ export function RdvModal({
   );
 }
 
-/* ---------- Sélecteur de cliente — recherche par nom / téléphone ---------- */
+/* ---------- Sélecteur de cliente — recherche par nom / téléphone ----------
+
+   `allowWalkIn` : la vente ANONYME au comptoir (un flacon vendu à quelqu'un qui
+   passe). Aucune fiche, aucun nom — et c'est légitime, personne n'a à décliner
+   son identité pour acheter un sérum.
+
+   `allowPassage` : la cliente DE PASSAGE, qui elle reçoit un geste. Son rituel
+   doit compter dans la production du maître, donc il lui faut une fiche — mais
+   deux champs suffisent, et le comptoir ne doit pas quitter son écran pour les
+   saisir. Voir `Client.dePassage`. */
 export function ClientPicker({
   value,
   onChange,
   placeholder = 'Rechercher une cliente…',
   allowWalkIn = false,
+  allowPassage = false,
 }: {
   value: string;
   onChange: (id: string) => void;
   placeholder?: string;
   allowWalkIn?: boolean;
+  allowPassage?: boolean;
 }) {
   const clients = useBranchClients();
+  const { branch } = useBranch();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  /* null = menu ; objet = le petit formulaire de passage, ouvert par-dessus. */
+  const [passage, setPassage] = useState<{ name: string; phone: string } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const selected = clients.find((c) => c.id === value);
@@ -1340,13 +1391,44 @@ export function ClientPicker({
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { setOpen(false); setPassage(null); }
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  const display = open ? query : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Cliente de passage' : '');
+  /* Ce qui est déjà tapé n'est pas perdu : des chiffres remplissent le
+     téléphone, des lettres le prénom. Le comptoir a commencé à chercher — il
+     ne recommence pas parce que la fiche n'existait pas. */
+  const ouvrePassage = () => {
+    const chiffres = digits(q);
+    setPassage({
+      name: chiffres === q ? '' : q,
+      phone: chiffres.length >= 4 ? q.trim() : `${branch.dial} `,
+    });
+  };
+
+  const enregistrePassage = () => {
+    const nom = (passage?.name ?? '').trim();
+    if (!nom) return;
+    const c = clienteDePassage({
+      branchId: branch.id,
+      name: nom,
+      phone: passage?.phone,
+      city: branch.city,
+      since: todayISO(),
+      /* Elle entre par le seuil comme les autres — le persona dit son goût, pas
+         son statut ; les deux notions ne se remplacent pas. */
+      persona: ensureInitiePersona(),
+    });
+    clientsStore.set((prev) => [...prev, c]);
+    onChange(c.id);
+    setPassage(null);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const display = open ? query : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Vente au comptoir' : '');
 
   return (
     <div className="trc-clientpick" ref={wrapRef}>
@@ -1357,18 +1439,59 @@ export function ClientPicker({
         onFocus={() => { setOpen(true); setQuery(''); }}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
       />
-      {open && (
+      {open && passage && (
+        <div className="trc-clientpick__menu trc-passage" role="dialog" aria-label="Cliente de passage">
+          <div className="trc-passage__head">
+            Cliente de passage — prénom et téléphone, rien de plus.
+          </div>
+          <input
+            className="mnd-input"
+            autoFocus
+            value={passage.name}
+            placeholder="Prénom"
+            aria-label="Prénom de la cliente de passage"
+            onChange={(e) => setPassage({ ...passage, name: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enregistrePassage(); } }}
+          />
+          <input
+            className="mnd-input"
+            value={passage.phone}
+            placeholder="Téléphone"
+            inputMode="tel"
+            aria-label="Téléphone de la cliente de passage"
+            onChange={(e) => setPassage({ ...passage, phone: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enregistrePassage(); } }}
+          />
+          <div className="trc-passage__foot">
+            <button type="button" className="trc-passage__cancel" onClick={() => setPassage(null)}>Annuler</button>
+            <Button variant="copper" onClick={enregistrePassage} disabled={!passage.name.trim()}>Enregistrer</Button>
+          </div>
+          <div className="trc-passage__note">
+            Son rituel comptera au chiffre et à la production du maître. Elle
+            restera hors des têtes actives et des relances jusqu’à sa 2ᵉ venue.
+          </div>
+        </div>
+      )}
+      {open && !passage && (
         <div className="trc-clientpick__menu" role="listbox">
+          {allowPassage && (
+            <button type="button" className="trc-clientpick__opt" onClick={ouvrePassage}>
+              <span className="trc-clientpick__n">＋ Cliente de passage</span>
+              <span className="trc-clientpick__m">prénom + téléphone</span>
+            </button>
+          )}
           {allowWalkIn && (
             <button type="button" className="trc-clientpick__opt" onClick={() => { onChange('walkin'); setOpen(false); }}>
-              <span className="trc-clientpick__n">Cliente de passage</span>
-              <span className="trc-clientpick__m">walk-in</span>
+              <span className="trc-clientpick__n">Vente au comptoir</span>
+              <span className="trc-clientpick__m">sans fiche</span>
             </button>
           )}
           {results.map((c) => (
             <button key={c.id} type="button" className="trc-clientpick__opt" onClick={() => { onChange(c.id); setOpen(false); }}>
               <span className="trc-clientpick__n">{c.name}</span>
-              <span className="trc-clientpick__m">{c.phone || c.city}</span>
+              <span className="trc-clientpick__m">
+                {estDePassage(c) ? 'de passage · ' : ''}{c.phone || c.city}
+              </span>
             </button>
           ))}
           {results.length === 0 && (
