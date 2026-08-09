@@ -39,7 +39,22 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
 
 const GRID = '2.1fr 1fr 0.95fr 0.9fr 0.5fr 96px 84px';
 
-type SortKey = 'nom' | 'visite' | 'depense' | 'points';
+type SortKey = 'nom' | 'visite' | 'depense' | 'points' | 'anniversaire';
+
+/* LES INDICATEURS SONT DES PORTES. Ils annonçaient trois chiffres sans donner
+   les noms qui les composent : « 3 anniversaires sous 30 j » n'aide personne si
+   retrouver les trois têtes demande de fouiller le carnet une fiche à la fois.
+
+   Un focus IGNORE les registres et les segments, et compte sur la même
+   population que la carte. C'est ce qui garantit que le chiffre annoncé et le
+   nombre de lignes affichées sont le même nombre — un compteur qui ne mène pas
+   exactement à ce qu'il compte fait douter des autres. */
+type Focus = 'aucun' | 'nouvelles' | 'anniversaires' | 'enligne';
+const FOCUS_LABEL: Record<Exclude<Focus, 'aucun'>, string> = {
+  nouvelles: 'Nouvelles ce mois',
+  anniversaires: 'Anniversaires sous 30 j',
+  enligne: 'En ligne · Ma Couronne',
+};
 
 /* ---------- La file des enfants déclarés ----------
    Le parent a écrit un prénom et une date de naissance depuis Ma Couronne. Il
@@ -321,6 +336,16 @@ export default function Customers() {
   const [query, setQuery] = useState('');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<SortKey>('nom');
+  const [focus, setFocus] = useState<Focus>('aucun');
+  /* Un second clic sur la même carte referme — sinon il faudrait chercher par où
+     revenir. Et les anniversaires se rangent d'office du plus proche au plus
+     lointain : sur cette liste-là, c'est la seule question qu'on se pose. Le
+     tri reste visible dans le sélecteur, donc modifiable. */
+  const ouvrirFocus = (f: Exclude<Focus, 'aucun'>) => {
+    setFocus((prev) => (prev === f ? 'aucun' : f));
+    if (f === 'anniversaires' && focus !== 'anniversaires') setSort('anniversaire');
+    else if (focus === 'anniversaires' && sort === 'anniversaire') setSort('nom');
+  };
   const [selId, setSelId] = useState<string | null>(null);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
@@ -482,9 +507,22 @@ export default function Customers() {
      argent et leur travail comptent ailleurs — Synthèse, Bilan, production. */
   const monthKey = today.slice(0, 7);
   const tetes = useMemo(() => clients.filter((c) => !estDePassage(c)), [clients]);
-  const newThisMonth = tetes.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
-  const bdaySoonCount = tetes.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30).length;
-  const onlineCount = clients.filter((c) => onlineIds.has(c.id)).length;
+  /* UNE SEULE SOURCE POUR LE CHIFFRE ET POUR LA LISTE. La carte compte, le clic
+     filtre : si les deux s'écrivaient séparément, ils finiraient par diverger, et
+     un compteur qui ne mène pas exactement à ce qu'il compte fait douter de tous
+     les autres. On garde donc les TÊTES, pas leur nombre. */
+  const tetesNouvelles = useMemo(
+    () => tetes.filter((c) => (c.since ?? '').slice(0, 7) === monthKey),
+    [tetes, monthKey],
+  );
+  const tetesAnniversaire = useMemo(
+    () => tetes.filter((c) => c.birthday && bdayInfo(c.birthday).daysUntil <= 30),
+    [tetes],
+  );
+  const tetesEnLigne = useMemo(() => clients.filter((c) => onlineIds.has(c.id)), [clients, onlineIds]);
+  const newThisMonth = tetesNouvelles.length;
+  const bdaySoonCount = tetesAnniversaire.length;
+  const onlineCount = tetesEnLigne.length;
   const passageThisMonth = passageClients.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
 
   /* Chips de segments de La Maison : comptées HORS Diaspora (registres disjoints). */
@@ -495,12 +533,23 @@ export default function Customers() {
   }, [maisonClients]);
 
   const filtered = useMemo(() => {
-    const base = view === 'passage'
-      ? passageClients
-      : view === 'diaspora'
-        ? clients.filter((c) => isDiaspora(c) && !estDePassage(c))
-        : maisonClients;
-    let list = view === 'maison' && seg !== 'Tous' ? base.filter((c) => c.segments.includes(seg)) : base;
+    /* LE FOCUS PASSE AVANT LES REGISTRES. Il reprend exactement la population de
+       la carte cliquée — sans quoi « 3 anniversaires » afficherait deux lignes
+       parce que la troisième est de la Diaspora, et le chiffre mentirait. */
+    const base = focus === 'nouvelles'
+      ? tetesNouvelles
+      : focus === 'anniversaires'
+        ? tetesAnniversaire
+        : focus === 'enligne'
+          ? tetesEnLigne
+          : view === 'passage'
+            ? passageClients
+            : view === 'diaspora'
+              ? clients.filter((c) => isDiaspora(c) && !estDePassage(c))
+              : maisonClients;
+    let list = focus === 'aucun' && view === 'maison' && seg !== 'Tous'
+      ? base.filter((c) => c.segments.includes(seg))
+      : base;
     if (q) {
       const qd = digitsOf(q);
       list = list.filter((c) =>
@@ -513,8 +562,15 @@ export default function Customers() {
     else if (sort === 'visite') arr.sort((a, b) => (st(b.id)?.lastISO ?? '').localeCompare(st(a.id)?.lastISO ?? ''));
     else if (sort === 'depense') arr.sort((a, b) => (st(b.id)?.spend ?? 0) - (st(a.id)?.spend ?? 0));
     else if (sort === 'points') arr.sort((a, b) => (b.loyaltyPoints ?? 0) - (a.loyaltyPoints ?? 0));
+    /* Le plus proche d'abord : sur une liste d'anniversaires, c'est la seule
+       question qu'on se pose. Une tête sans date part à la fin. */
+    else if (sort === 'anniversaire') {
+      arr.sort((a, b) => (a.birthday ? bdayInfo(a.birthday).daysUntil : 9999)
+        - (b.birthday ? bdayInfo(b.birthday).daysUntil : 9999));
+    }
     return arr;
-  }, [clients, maisonClients, passageClients, seg, q, sort, stats, view]);
+  }, [clients, maisonClients, passageClients, tetesNouvelles, tetesAnniversaire, tetesEnLigne,
+    focus, seg, q, sort, stats, view]);
 
   const selected = clients.find((c) => c.id === selId) ?? null;
 
@@ -558,12 +614,55 @@ export default function Customers() {
       {/* Indicateurs de la maison */}
       <div className="trc-kpis">
         <div className="trc-kpi"><b>{tetesCount}</b><span>Têtes couronnées</span></div>
-        <div className="trc-kpi"><b>{newThisMonth}</b><span>Nouvelles ce mois</span></div>
-        <div className="trc-kpi"><b>{bdaySoonCount}</b><span>{'Anniversaires sous 30 j'}</span></div>
-        <div className={`trc-kpi ${onlineCount > 0 ? 'trc-kpi--live' : ''}`}>
+        {/* TROIS INDICATEURS SONT DES PORTES. Ils annonçaient un chiffre sans
+            donner les noms : « 3 anniversaires sous 30 j » n'aide personne si
+            retrouver les trois têtes demande de fouiller le carnet. Un clic
+            ouvre la liste exacte, un second la referme. « Têtes couronnées »
+            reste un total — c'est déjà ce que le carnet montre au repos. */}
+        <button
+          type="button"
+          className={`trc-kpi trc-kpi--porte ${focus === 'nouvelles' ? 'is-on' : ''}`}
+          aria-pressed={focus === 'nouvelles'}
+          title={focus === 'nouvelles' ? 'Revenir au carnet entier' : 'Voir les têtes ouvertes ce mois'}
+          onClick={() => ouvrirFocus('nouvelles')}
+        >
+          <b>{newThisMonth}</b><span>Nouvelles ce mois</span>
+        </button>
+        <button
+          type="button"
+          className={`trc-kpi trc-kpi--porte ${focus === 'anniversaires' ? 'is-on' : ''}`}
+          aria-pressed={focus === 'anniversaires'}
+          title={focus === 'anniversaires' ? 'Revenir au carnet entier' : 'Voir qui fête bientôt, du plus proche au plus lointain'}
+          onClick={() => ouvrirFocus('anniversaires')}
+        >
+          <b>{bdaySoonCount}</b><span>{'Anniversaires sous 30 j'}</span>
+        </button>
+        <button
+          type="button"
+          className={`trc-kpi trc-kpi--porte ${onlineCount > 0 ? 'trc-kpi--live' : ''} ${focus === 'enligne' ? 'is-on' : ''}`}
+          aria-pressed={focus === 'enligne'}
+          title={focus === 'enligne' ? 'Revenir au carnet entier' : 'Voir qui est sur Ma Couronne en ce moment'}
+          onClick={() => ouvrirFocus('enligne')}
+        >
           <b>{onlineCount}</b><span>En ligne · Ma Couronne</span>
-        </div>
+        </button>
       </div>
+
+      {/* CE QU'ON REGARDE SE DIT, ET SE REFERME. Une liste filtrée qui ne
+          s'annonce pas se prend pour le carnet entier — et on croit avoir perdu
+          des clientes. */}
+      {focus !== 'aucun' && (
+        <div className="trc-focus">
+          <span>
+            {FOCUS_LABEL[focus]} · <b style={{ fontWeight: 600 }}>{filtered.length}</b>
+            {filtered.length > 1 ? ' têtes' : ' tête'}
+            {q ? ', recherche en cours' : ''} — registres et segments mis de côté.
+          </span>
+          <button type="button" className="trc-focus__x" onClick={() => setFocus('aucun')}>
+            Voir tout le carnet
+          </button>
+        </div>
+      )}
 
       {/* Registres — la Maison, la Diaspora, et celles qui ne font que passer. */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -615,6 +714,7 @@ export default function Customers() {
           <option value="visite">Tri · Dernière visite</option>
           <option value="depense">Tri · Dépensé</option>
           <option value="points">Tri · Points</option>
+          <option value="anniversaire">Tri · Anniversaire</option>
         </Select>
       </div>
 

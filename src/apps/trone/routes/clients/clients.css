@@ -249,6 +249,61 @@
 .trc-drawer.is-large .trc-c360-tabs { padding: 0 30px; }
 .trc-drawer.is-large .trc-drawer__cover { padding: 18px 30px; }
 
+/* TROIS INDICATEURS SONT DEVENUS DES PORTES. Ils annonçaient un chiffre sans
+   donner les noms : « 3 anniversaires sous 30 j » n'aide personne si retrouver
+   les trois têtes demande de fouiller le carnet. Ils doivent donc se voir
+   cliquables — et se voir enfoncés quand la liste est filtrée. */
+/* Sélecteurs à DEUX classes, volontairement : `.trc-kpi` est déclaré plus bas
+   dans ce fichier et écraserait sinon toute propriété qu'on ajouterait ici un
+   jour — le fond, la bordure, le rayon. La règle ne dépend plus de l'ordre. */
+.trc-kpi.trc-kpi--porte {
+  cursor: pointer;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  transition: border-color var(--dur-fast, 0.12s) var(--ease-soft),
+              background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-kpi.trc-kpi--porte:hover { border-color: var(--copper-300); background: var(--hover-veil); }
+.trc-kpi.trc-kpi--porte.is-on {
+  border-color: var(--color-copper);
+  background: var(--copper-50);
+}
+.trc-kpi.trc-kpi--porte.is-on b { color: var(--copper-700); }
+
+/* Ce qu'on regarde se dit, et se referme. Une liste filtrée qui ne s'annonce pas
+   se prend pour le carnet entier — et on croit avoir perdu des clientes. */
+.trc-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 9px 14px;
+  border: 1px solid var(--copper-300);
+  border-left: 3px solid var(--color-copper);
+  border-radius: 3px;
+  background: var(--copper-50);
+  font-size: 12px;
+  color: var(--ink);
+}
+.trc-focus__x {
+  flex: none;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-pill);
+  color: var(--copper-700);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-focus__x:hover { background: rgba(185, 122, 74, 0.14); }
+
 /* La carte du compte famille mène à Comptes & Avoirs : elle doit se comporter
    comme ce qu'elle est devenue, un bouton. */
 .trc-compte-lien {
