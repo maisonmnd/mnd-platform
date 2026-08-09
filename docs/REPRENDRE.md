@@ -454,3 +454,33 @@ MND-R-0001…, `id like 'inv-rep-%'` pour être repérable et annulable), l'UPDA
 en fin de fichier. Le statut de la pièce suit `regle` (journal `payments` s'il
 existe, sinon `paidXof`, + acompte confirmé) et `acompte` se déclare en
 `depositCreditXof` pour ne pas encaisser deux fois.
+
+### CHANTIER DEMANDÉ — second téléphone + diaspora automatique (9 août)
+
+1. **Deux numéros par cliente.** `Client.phone` + `phone2`. Les deux doivent
+   servir au rapprochement (import, reprise Firebase, recherche du Carnet) :
+   normaliser AVANT de comparer, sinon on recrée des doublons.
+2. **Numéro étranger → Diaspora.** Bénin = `+229`. Tout autre indicatif classe
+   la fiche en diaspora. Vaut pour la saisie ET pour l'import.
+3. **Repasser sur le CRM existant** (178 têtes) pour reclasser les fiches déjà
+   saisies avec un numéro étranger.
+
+**LE PIÈGE À NE PAS IGNORER.** « Diaspora » n'est pas une propriété du numéro
+mais de la personne. Une cliente installée à Cotonou peut garder un numéro
+français ; une cliente de Paris peut avoir gardé son 229. La déduction doit
+donc rester **une suggestion écrasable** : marquer la fiche `diasporaAuto: true`
+tant que personne n'a tranché à la main, et ne JAMAIS réécrire un classement
+posé manuellement. Sinon la reclassification de masse effacera le travail de
+Yéman à chaque import — c'est la même faute que l'attribution en masse des 406
+RDV, retirée le 7 août.
+
+Prévoir un aperçu avant écriture (combien de fiches basculent, lesquelles), au
+même titre que 0018.
+
+### ⚠ SYNCHRO EN ÉCHEC, de nouveau (9 août)
+Vu sur la capture : `academy_applications`, `branches`, `client_sessions`, et
+d'autres tronquées. Tables DIFFÉRENTES de celles corrigées le 6 août (la cause
+racine d'alors — hydratation avant restauration de session — est réglée).
+À diagnostiquer AVANT toute nouvelle fonctionnalité : tant que la pastille est
+rouge, une saisie peut ne pas partir. Regarder d'abord si ce sont des refus RLS
+(`estRefusDeDroit`) sur des tables sans politique pour ce rôle.
