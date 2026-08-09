@@ -16,3 +16,9 @@ dist-sites/
 supabase/import_v6*.sql
 supabase/verif_clientes_intruses.sql
 supabase/repare_telephones.sql
+
+# LES FORMULES MAÎTRES DE L'ATELIER — secret de fabrique (« usage exclusif
+# Brice & Yéman »). Le dépôt est PUBLIC et le bundle JS se télécharge sans
+# compte : les formules réelles ne vivent qu'en BASE, sous is_staff(), jamais
+# dans le code. Ce fichier les insère ; il ne se commit JAMAIS.
+supabase/import_formules_maitres.sql

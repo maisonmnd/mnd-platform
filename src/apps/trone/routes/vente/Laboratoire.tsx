@@ -15,6 +15,7 @@ import {
   supprimerPreparation, usePreparationsLab, type Preparation,
 } from '../../../../shared/laboratoire';
 import { uid } from '../../../../shared/store';
+import { ingredientsDesFormules, parCollection, useFormulesLab, type FormuleLab } from '../../../../shared/formules';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import {
   LAB_CONCERNS, PERF_SEED, REINVENT_SEED,
@@ -40,7 +41,7 @@ import './vente.css';
    L'ancien onglet « La gamme & le stock » est parti : il écrivait le stock à
    la main, exactement le circuit que le module Stock & Achats a fermé. */
 
-type LabTab = 'atelier' | 'preparations' | 'reserve' | 'perf';
+type LabTab = 'atelier' | 'formules' | 'preparations' | 'reserve' | 'perf';
 type Mode = 'besoin' | 'ingredients';
 
 const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; accent: string }> = {
@@ -64,15 +65,24 @@ export default function Laboratoire() {
   const [openSub, setOpenSub] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [composer, setComposer] = useState(false);
+  const [composerFormule, setComposerFormule] = useState<FormuleLab | null>(null);
   const [lier, setLier] = useState<string | null>(null);
 
   const [produits] = useProduitsStock();
   const [mouvements] = useMouvementsStock();
   const [preparations] = usePreparationsLab();
+  const [formules] = useFormulesLab();
   const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
   const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
 
-  const pantry = useMemo(() => labPantry(), []);
+  /* La réserve rassemble les DEUX bibliothèques : les formules vitrine du code,
+     et les formules maîtres venues de la base. Un même nom canonique — une
+     seule fiche, où qu'il apparaisse. */
+  const pantry = useMemo(() => {
+    const noms = labPantry();
+    for (const n of ingredientsDesFormules(formules)) if (!noms.includes(n)) noms.push(n);
+    return noms;
+  }, [formules]);
   /* LA RÉSERVE N'EST PLUS UNE OPINION : lié → stock dérivé positif ; jamais
      lié → réputé disponible, et marqué « à relier » pour qu'on le voie. */
   const stockReel: StockMap = useMemo(
@@ -116,6 +126,7 @@ export default function Laboratoire() {
 
   const TABS: { k: LabTab; l: string }[] = [
     { k: 'atelier', l: 'L’atelier' },
+    { k: 'formules', l: `Formules maîtres · ${formules.length}` },
     { k: 'preparations', l: `Préparations${enAttente ? ` · ${enAttente} à fabriquer` : ''}` },
     { k: 'reserve', l: `La réserve · ${liesCount}/${pantry.length} reliés` },
     { k: 'perf', l: 'Performance' },
@@ -374,6 +385,20 @@ export default function Laboratoire() {
         </div>
       )}
 
+      {/* ===== LES FORMULES MAÎTRES ===== */}
+      {tab === 'formules' && (
+        <OngletFormules
+          cliente={cliente ? { id: cliente.id, name: cliente.name } : undefined}
+          clientPicker={
+            <div style={{ maxWidth: 380 }}>
+              <ClientPicker value={clientId} onChange={setClientId} placeholder="Pour quelle cliente ? (nom, téléphone)…" />
+            </div>
+          }
+          onComposer={setComposerFormule}
+          onLier={setLier}
+        />
+      )}
+
       {/* ===== LES PRÉPARATIONS ===== */}
       {tab === 'preparations' && <OngletPreparations />}
 
@@ -427,9 +452,24 @@ export default function Laboratoire() {
           nomFormule={view.name}
           forme={f.forme}
           prixConseille={f.prixN}
-          ingredients={view.origins.map((o) => o.ingredient)}
+          ingredients={view.origins.map((o) => ({ nom: o.ingredient }))}
           onClose={() => setComposer(false)}
           onFait={() => { setComposer(false); setTab('preparations'); setNote(`« ${view.name} » composée pour ${cliente.name} — à fabriquer quand l’atelier est prêt.`); }}
+        />
+      )}
+
+      {/* Composer depuis une formule maître : les QUANTITÉS DU CLASSEUR sont
+          pré-remplies — le maître ajuste, il ne ressaisit pas. */}
+      {composerFormule && cliente && (
+        <ComposerModal
+          cliente={{ id: cliente.id, name: cliente.name }}
+          concernK={`${composerFormule.collection}${composerFormule.niveau ? ` · ${composerFormule.niveau}` : ''}`}
+          nomFormule={`${composerFormule.nom} · ${composerFormule.code}`}
+          forme={composerFormule.usage ?? composerFormule.collection}
+          prixConseille={0}
+          ingredients={composerFormule.ingredients.map((x) => ({ nom: x.nom, qte: x.qte, unite: x.unite }))}
+          onClose={() => setComposerFormule(null)}
+          onFait={() => { const nomF = composerFormule.nom; setComposerFormule(null); setTab('preparations'); setNote(`« ${nomF} » composée pour ${cliente.name} — à fabriquer quand l’atelier est prêt.`); }}
         />
       )}
 
@@ -446,7 +486,9 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
   nomFormule: string;
   forme: string;
   prixConseille: number;
-  ingredients: string[];
+  /** Avec `qte`, la quantité du classeur est pré-remplie — on ajuste, on ne
+      ressaisit pas. Sans elle, le champ attend le maître. */
+  ingredients: { nom: string; qte?: number; unite?: string }[];
   onClose: () => void;
   onFait: () => void;
 }) {
@@ -455,11 +497,12 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
   const [mouvements] = useMouvementsStock();
   const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
   const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
-  const [qtes, setQtes] = useState<Record<string, string>>({});
+  const [qtes, setQtes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ingredients.filter((x) => x.qte !== undefined).map((x) => [x.nom, String(x.qte)])));
   const [prix, setPrix] = useState(String(prixConseille));
   const [notes, setNotes] = useState('');
 
-  const lignesVue = ingredients.map((nom) => {
+  const lignesVue = ingredients.map(({ nom }) => {
     const fiche = fichePourIngredient(nom, produitsBranche);
     return { nom, fiche, stock: fiche ? (stocks.get(fiche.id) ?? 0) : undefined };
   });
@@ -474,7 +517,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
       .map((l) => ({ produitId: l.fiche!.id, quantite: parseFloat((qtes[l.nom] ?? '').replace(',', '.')) || 0 }));
     const r = composerPreparation(
       branch.id, cliente.id,
-      { concernK, nomFormule, forme, ingredientsTexte: ingredients, prixXof: parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0, notes },
+      { concernK, nomFormule, forme, ingredientsTexte: ingredients.map((x) => x.nom), prixXof: parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0, notes },
       lignes, jour(),
     );
     if (!r.ok) { window.alert(r.erreur); return; }
@@ -532,6 +575,182 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
         </div>
       </div>
     </Modal>
+  );
+}
+
+/* ═══════════ Les formules maîtres — le classeur, vivant ═══════════ */
+
+/* AUCUN CONTENU ICI. Les formules réelles vivent en base (`lab_formules`,
+   personnel seul) et arrivent par la synchronisation — le dépôt est public,
+   le bundle se télécharge sans compte, et un secret de fabrique écrit dans le
+   code n'en serait plus un. Ce composant ne sait que les AFFICHER. */
+function OngletFormules({ cliente, clientPicker, onComposer, onLier }: {
+  cliente?: { id: string; name: string };
+  clientPicker: React.ReactNode;
+  onComposer: (f: FormuleLab) => void;
+  onLier: (nom: string) => void;
+}) {
+  const { branch } = useBranch();
+  const [formules] = useFormulesLab();
+  const [produits] = useProduitsStock();
+  const [mouvements] = useMouvementsStock();
+  const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
+  const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
+  const [selId, setSelId] = useState<string | null>(null);
+
+  const groupes = useMemo(() => parCollection(formules), [formules]);
+  const sel = formules.find((x) => x.id === selId) ?? [...groupes.values()][0]?.[0];
+
+  if (formules.length === 0) {
+    return (
+      <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.7, color: 'var(--ink-soft)', padding: '18px 2px', maxWidth: 640 }}>
+        La bibliothèque est vide. Les formules maîtres ne vivent qu’en base, réservées au personnel —
+        collez le fichier local <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, fontStyle: 'normal' }}>supabase/import_formules_maitres.sql</span> dans
+        l’éditeur SQL, et elles apparaîtront ici à la prochaine synchronisation.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        {clientPicker}
+        <span className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          Confidentiel · réservé au personnel — jamais dans le dépôt
+        </span>
+      </div>
+
+      <div className="tr-cols" style={{ '--cols': '0.62fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
+        {/* ── la table des matières ── */}
+        <div>
+          {[...groupes.entries()].map(([collection, liste]) => (
+            <section key={collection} style={{ marginBottom: 18 }}>
+              <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 8 }}>{collection}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {liste.map((fm) => (
+                  <button
+                    key={fm.id}
+                    type="button"
+                    onClick={() => setSelId(fm.id)}
+                    style={{
+                      textAlign: 'left', cursor: 'pointer', font: 'inherit', width: '100%',
+                      background: sel?.id === fm.id ? 'var(--indigo-50)' : 'var(--surface-card)',
+                      border: '1px solid var(--hairline)',
+                      borderLeft: `3px solid ${sel?.id === fm.id ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                      borderRadius: 3, padding: '9px 12px',
+                    }}
+                  >
+                    <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-indigo)', minWidth: 0 }}>{fm.nom}</span>
+                      <span className="mnd-muted" style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, whiteSpace: 'nowrap' }}>{fm.code}</span>
+                    </span>
+                    <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5, marginTop: 2 }}>
+                      {[fm.niveau, fm.externe ? 'formulé en externe' : null].filter(Boolean).join(' · ') || fm.usage}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        {/* ── la fiche ouverte ── */}
+        {sel && (
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, overflow: 'hidden' }}>
+            <div className="trv-formula-band" style={{ background: 'var(--color-indigo)' }}>
+              <div className="eyebrow" style={{ color: 'var(--copper-200)' }}>
+                {sel.collection}{sel.niveau ? ` · ${sel.niveau}` : ''} · {sel.code}
+              </div>
+              <div className="name" style={{ color: 'var(--color-ivoire)' }}>{sel.nom}</div>
+              {sel.usage && <div className="forme" style={{ color: 'rgba(244,240,232,.72)' }}>{sel.usage}</div>}
+            </div>
+            <div style={{ padding: '18px 22px 22px' }}>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6 }}>
+                {[
+                  sel.fabricant,
+                  sel.externe && sel.referenceExterne ? `réf. ${sel.referenceExterne}` : null,
+                  sel.rendement ? `rendement ${sel.rendement}` : null,
+                  sel.conservation,
+                  sel.phCible ? `pH cible ${sel.phCible}` : null,
+                ].filter(Boolean).join(' · ')}
+              </div>
+
+              <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '16px 0 8px' }}>La formule</div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tre-table">
+                  <thead>
+                    <tr><th>Code</th><th>Ingrédient</th><th style={{ textAlign: 'right' }}>Qté</th><th>Rôle</th><th>Réserve</th></tr>
+                  </thead>
+                  <tbody>
+                    {sel.ingredients.map((ing) => {
+                      const fiche = fichePourIngredient(ing.nom, produitsBranche);
+                      const s = fiche ? (stocks.get(fiche.id) ?? 0) : undefined;
+                      return (
+                        <tr key={ing.ord}>
+                          <td style={{ fontFamily: 'var(--font-sans)', fontSize: 10, whiteSpace: 'nowrap' }}>{ing.code ?? '—'}</td>
+                          <td style={{ fontSize: 12.5 }}>{ing.nom}</td>
+                          <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontSize: 12 }}>
+                            {ing.qte !== undefined ? `${ing.qte} ${ing.unite ?? ''}` : 'selon profil'}
+                            {ing.temp ? <span className="mnd-muted" style={{ fontSize: 10 }}> · {ing.temp}</span> : null}
+                          </td>
+                          <td className="mnd-muted" style={{ fontSize: 10.5 }}>{ing.role ?? ing.categorie ?? ''}</td>
+                          <td style={{ whiteSpace: 'nowrap', fontSize: 10.5 }}>
+                            {fiche
+                              ? <span style={{ color: s! > 0 ? 'var(--trv-success)' : 'var(--trv-error)' }}>{s!.toLocaleString('fr-FR')} {fiche.unite}</span>
+                              : <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => onLier(ing.nom)}>lier ›</button>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '18px 0 8px' }}>Protocole de réalisation</div>
+              {sel.protocole.map((p) => (
+                <div key={p.n} className="trv-proto-step">
+                  <div className="n">{p.n}</div>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>{p.titre}</span>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)', marginTop: 3 }}>{p.detail}</div>
+                  </div>
+                </div>
+              ))}
+
+              {sel.controle.length > 0 && (
+                <>
+                  <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '18px 0 8px' }}>
+                    {sel.controleTitre ?? 'Contrôle qualité avant conditionnement'}
+                  </div>
+                  {sel.controle.map((c, ix) => (
+                    <div key={ix} className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6, paddingLeft: 12, borderLeft: '2px solid var(--copper-300)', marginBottom: 6 }}>{c}</div>
+                  ))}
+                </>
+              )}
+
+              {sel.notes && sel.notes.length > 0 && (
+                <>
+                  <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '18px 0 8px' }}>Notes du classeur</div>
+                  {sel.notes.map((n, ix) => (
+                    <div key={ix} style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', marginBottom: 6 }}>{n}</div>
+                  ))}
+                </>
+              )}
+
+              <Button
+                variant="copper"
+                style={{ marginTop: 16, width: '100%' }}
+                disabled={!cliente}
+                title={cliente ? `Composer « ${sel.nom} » pour ${cliente.name} — quantités du classeur pré-remplies` : 'Choisissez d’abord une cliente en haut de l’onglet'}
+                onClick={() => onComposer(sel)}
+              >
+                {cliente ? `Composer pour ${cliente.name.split(' ')[0]} ›` : 'Choisissez une cliente pour composer'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -663,9 +882,15 @@ function OngletReserve({ onLier }: { onLier: (nom: string) => void }) {
   const { branch, currency } = useBranch();
   const [produits] = useProduitsStock();
   const [mouvements] = useMouvementsStock();
+  const [formules] = useFormulesLab();
   const produitsBranche = useMemo(() => produits.filter((p) => p.branchId === branch.id), [produits, branch.id]);
   const stocks = useMemo(() => stocksParProduit(mouvements), [mouvements]);
-  const pantry = useMemo(() => labPantry(), []);
+  /* Vitrine ET formules maîtres — un nom canonique, une fiche. */
+  const pantry = useMemo(() => {
+    const noms = labPantry();
+    for (const n of ingredientsDesFormules(formules)) if (!noms.includes(n)) noms.push(n);
+    return noms;
+  }, [formules]);
 
   return (
     <div>

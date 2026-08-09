@@ -145,6 +145,26 @@ Le formulateur compose désormais POUR UNE CLIENTE, depuis la réserve réelle :
 **À FAIRE : passer `supabase/migrations/0031_lab_preparations.sql`** (une table,
 un seul temps) **avant de publier** — sinon pastille rouge sur le Trône.
 
+## Les formules maîtres — 9 août 2026, EN BASE, JAMAIS DANS LE CODE
+
+Le classeur « Protocoles maîtres » (Shampoing Ritual 3 niveaux, Color Locks,
+Aqua Locks Ritual — 14 formules, codebook d'ingrédients) vit dans la table
+`lab_formules`, **réservée au personnel**. RÈGLE ABSOLUE : le dépôt est public
+et le bundle JS se télécharge sans compte — **aucune formule réelle n'entre
+jamais dans le code**, ni dans un commit. Elles s'insèrent par
+`supabase/import_formules_maitres.sql`, fichier LOCAL et GITIGNORÉ (patron des
+imports de clientes) ; se regénère par le script de session si perdu.
+
+- Migration `0032_lab_formules.sql` (structure seule) : PASSÉE le 9 août.
+- Le Laboratoire a un onglet **Formules maîtres** : fiche complète (ingrédients
+  codés + quantités + températures, protocole, contrôle qualité, notes),
+  liaison au stock par nom canonique du codebook, et **Composer pour une
+  cliente** avec les quantités du classeur pré-remplies.
+- Les six formules « vitrine » de `lab.ts` restent dans le code : elles ne
+  portent aucun secret.
+- Aqua Locks Ritual porte ses tarifs en notes ; s'il doit devenir réservable,
+  c'est une prestation du Catalogue (prix par longueur) — chantier séparé.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
