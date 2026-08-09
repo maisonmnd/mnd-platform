@@ -36,6 +36,15 @@ export default function Cercle() {
   const [tierEditId, setTierEditId] = useState<string | null>(null);
   const [tierForm, setTierForm] = useState<TierForm>({ pts: '', serviceId: services[0]?.id ?? '', desc: '' });
   const [adjust, setAdjust] = useState<Record<string, string>>({});
+  /* LE REGISTRE ÉTAIT UN MUR. Une carte par tête, deux par ligne : cinq membres
+     et cent cinquante-deux têtes aux portes faisaient cinq mille pixels de
+     défilement pour ajuster un solde. On cherche une tête par son nom, on ne la
+     croise pas en descendant. D'où la recherche, les deux registres séparés, et
+     les gestes repliés sous la ligne qui les concerne. */
+  const [recherche, setRecherche] = useState('');
+  const [vue, setVue] = useState<'membres' | 'portes'>('membres');
+  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [montre, setMontre] = useState(20);
 
   /* LE CERCLE N'EST PAS LE CARNET. « Têtes dans le Cercle » comptait TOUTES les
      clientes de la branche : un registre qui dit « 186 membres » d'un programme
@@ -247,98 +256,142 @@ export default function Cercle() {
         </div>
       )}
 
-      {tab === 'membres' && (
-        <div className="tr-grid tr-grid--2">
-          {members.map((c) => {
-            const next = nextTierFor(c.loyaltyPoints);
-            const best = bestTierFor(c.loyaltyPoints);
-            const progressPct = next ? Math.round((c.loyaltyPoints / next.pts) * 100) : 100;
-            return (
-              <Card key={c.id} style={{ padding: '16px 18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="tre-avatar">{c.name.slice(0, 1)}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{c.name}</div>
-                    <div className="mnd-muted" style={{ fontSize: 10.5 }}>{c.segments.join(' · ') || c.city}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}>{c.loyaltyPoints.toLocaleString('fr-FR')}</div>
-                    <div className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>points</div>
-                  </div>
+      {tab === 'membres' && (() => {
+        const q = recherche.trim().toLowerCase();
+        /* Un numéro se tape comme on le lit — « 60 16 » doit trouver
+           « +229 01 60 16 32 46 ». On compare donc les deux sans leurs espaces. */
+        const qTel = q.replace(/\s/g, '');
+        const cherche = (l: Client[]) => (q
+          ? l.filter((c) => c.name.toLowerCase().includes(q)
+            || (qTel !== '' && (c.phone ?? '').replace(/\s/g, '').includes(qTel)))
+          : l);
+        const mbr = cherche(members);
+        const portes = cherche(auxPortes);
+        /* AUX PORTES, ON N'AFFICHE PAS TOUT D'UN COUP — cent cinquante-deux
+           lignes ne se lisent pas, elles se cherchent. Le reste s'ouvre à la
+           demande, et le compte est dit pour qu'on sache ce qui reste dessous. */
+        const visibles = vue === 'membres' ? mbr : portes.slice(0, montre);
+        const caches = vue === 'portes' ? Math.max(0, portes.length - visibles.length) : 0;
+
+        return (
+          <div>
+            <div className="tre-reg__barre">
+              <Input
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder="Chercher une tête (nom, téléphone)…"
+                style={{ flex: '1 1 240px', minWidth: 0 }}
+              />
+              {/* DEUX REGISTRES, PAS UNE PILE. Un membre et une tête aux portes
+                  n'appellent pas le même geste : l'un se récompense, l'autre
+                  s'attend. Les mêler obligeait à faire le tri de l'œil. */}
+              <button
+                className={`tre-chip ${vue === 'membres' ? 'is-on' : ''}`}
+                onClick={() => { setVue('membres'); setOuvert(null); }}
+              >
+                Membres <span style={{ opacity: .6, marginLeft: 4 }}>{mbr.length}</span>
+              </button>
+              <button
+                className={`tre-chip ${vue === 'portes' ? 'is-on' : ''}`}
+                onClick={() => { setVue('portes'); setOuvert(null); }}
+              >
+                Aux portes <span style={{ opacity: .6, marginLeft: 4 }}>{portes.length}</span>
+              </button>
+            </div>
+
+            {visibles.length === 0 && (
+              <Card className="tre-empty">
+                <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
+                <div className="tre-empty__title">
+                  {q ? 'Aucune tête à ce nom.' : vue === 'membres' ? 'Personne n’est encore entré.' : 'Aucune tête en approche.'}
                 </div>
-
-                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Bar pct={progressPct} />
-                  <span className="mnd-muted" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                    {next
-                      ? `${(next.pts - c.loyaltyPoints).toLocaleString('fr-FR')} pts avant « ${serviceName(next.serviceId)} »`
-                      : 'Tous les honneurs de points sont mérités.'}
-                  </span>
-                </div>
-
-                {best && (
-                  <Button size="sm" variant="copper" style={{ width: '100%', marginTop: 12 }} onClick={() => redeem(c, best)}>
-                    Offrir « {serviceName(best.serviceId)} » · −{best.pts.toLocaleString('fr-FR')} pts
-                  </Button>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
-                  <span className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', flex: 'none' }}>Ajustement</span>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="pts"
-                    value={adjust[c.id] ?? ''}
-                    onChange={(e) => setAdjust((prev) => ({ ...prev, [c.id]: e.target.value.replace(/[^0-9]/g, '') }))}
-                    style={{ width: 82, padding: '6px 9px', fontSize: 12 }}
-                  />
-                  <button className="tre-chip" onClick={() => applyAdjust(c, 1)}>+ Accorder</button>
-                  <button className="tre-chip" onClick={() => applyAdjust(c, -1)}>− Retirer</button>
+                <div className="tre-empty__sub">
+                  {q
+                    ? 'Cherchez sur une autre orthographe, ou changez de registre.'
+                    : `Le Cercle s’ouvre au ${seuil}ᵉ passage${vue === 'membres' && auxPortes.length > 0 ? ` — ${auxPortes.length} tête${auxPortes.length > 1 ? 's' : ''} en approche, registre voisin.` : '.'}`}
                 </div>
               </Card>
-            );
-          })}
-          {members.length === 0 && (
-            <Card className="tre-empty" style={{ gridColumn: '1 / -1' }}>
-              <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
-              <div className="tre-empty__title">Personne n’est encore entré.</div>
-              <div className="tre-empty__sub">
-                Le Cercle s’ouvre au {seuil}ᵉ passage — {auxPortes.length > 0
-                  ? `${auxPortes.length} tête${auxPortes.length > 1 ? 's' : ''} en approche, ci-dessous.`
-                  : 'aucune tête n’en est encore proche.'}
-              </div>
-            </Card>
-          )}
+            )}
 
-          {/* AUX PORTES — celles qu'il ne faut pas confondre avec des membres,
-              mais qu'il serait sot de cacher : c'est là que se lit ce que la
-              fidélité est en train de gagner, et de quoi parler au fauteuil. */}
-          {auxPortes.length > 0 && (
-            <>
-              <div style={{ gridColumn: '1 / -1', marginTop: 8, fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                Aux portes du Cercle · {auxPortes.length}
-              </div>
-              {auxPortes.map((c) => {
-                const v = venuesDe.get(c.id) ?? 0;
-                const reste = Math.max(1, seuil - v);
-                return (
-                  <Card key={c.id} style={{ padding: '14px 18px', opacity: 0.9 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span className="tre-avatar">{c.name.slice(0, 1)}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{c.name}</div>
-                        <div className="mnd-muted" style={{ fontSize: 10.5 }}>
-                          {v} venue{v > 1 ? 's' : ''} · encore {reste} avant le Cercle
-                        </div>
+            {visibles.length > 0 && (
+              <div className="tre-reg">
+                {visibles.map((c) => {
+                  const membre = vue === 'membres';
+                  const next = membre ? nextTierFor(c.loyaltyPoints) : null;
+                  const best = membre ? bestTierFor(c.loyaltyPoints) : null;
+                  const v = venuesDe.get(c.id) ?? 0;
+                  const reste = Math.max(1, seuil - v);
+                  const pct = membre
+                    ? (next ? Math.round((c.loyaltyPoints / next.pts) * 100) : 100)
+                    : Math.round((v / Math.max(1, seuil)) * 100);
+                  const deplie = ouvert === c.id;
+                  return (
+                    <div key={c.id}>
+                      <div className={`tre-reg__row ${deplie ? 'is-open' : ''}`}>
+                        <span className="tre-avatar" style={{ width: 26, height: 26, fontSize: 11 }}>{c.name.slice(0, 1)}</span>
+                        <span className="tre-reg__ident">
+                          <span className="tre-reg__nom">{c.name}</span>
+                          <span className="tre-reg__meta">
+                            {membre
+                              ? (next
+                                ? `${(next.pts - c.loyaltyPoints).toLocaleString('fr-FR')} pts avant « ${serviceName(next.serviceId)} »`
+                                : 'Tous les honneurs de points sont mérités.')
+                              : `${v} venue${v > 1 ? 's' : ''} · encore ${reste} avant le Cercle`}
+                          </span>
+                        </span>
+                        <span className="tre-reg__jauge"><Bar pct={pct} /></span>
+                        <span className="tre-reg__pts">
+                          {membre ? c.loyaltyPoints.toLocaleString('fr-FR') : `${v}/${seuil}`}
+                        </span>
+                        {membre ? (
+                          <button
+                            className="tre-reg__plus"
+                            title={deplie ? 'Replier' : 'Offrir un soin, ajuster ses points'}
+                            aria-expanded={deplie}
+                            onClick={() => setOuvert(deplie ? null : c.id)}
+                          >
+                            {deplie ? '−' : '+'}
+                          </button>
+                        ) : <span />}
                       </div>
-                      <Bar pct={Math.round((v / Math.max(1, seuil)) * 100)} />
+
+                      {/* LES GESTES SOUS LA LIGNE QUI LES CONCERNE. Offrir un
+                          soin et retirer des points sont des actes rares : les
+                          afficher cent cinquante fois allongeait la page sans
+                          rien rendre plus accessible. */}
+                      {deplie && (
+                        <div className="tre-reg__panel">
+                          {best && (
+                            <Button size="sm" variant="copper" onClick={() => redeem(c, best)}>
+                              Offrir « {serviceName(best.serviceId)} » · −{best.pts.toLocaleString('fr-FR')} pts
+                            </Button>
+                          )}
+                          <span className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', flex: 'none' }}>Ajustement</span>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="pts"
+                            value={adjust[c.id] ?? ''}
+                            onChange={(e) => setAdjust((prev) => ({ ...prev, [c.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+                            style={{ width: 82, padding: '6px 9px', fontSize: 12 }}
+                          />
+                          <button className="tre-chip" onClick={() => applyAdjust(c, 1)}>+ Accorder</button>
+                          <button className="tre-chip" onClick={() => applyAdjust(c, -1)}>− Retirer</button>
+                        </div>
+                      )}
                     </div>
-                  </Card>
-                );
-              })}
-            </>
-          )}
-        </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+
+            {caches > 0 && (
+              <button className="tre-chip" style={{ marginTop: 12 }} onClick={() => setMontre((n) => n + 40)}>
+                Afficher {Math.min(40, caches)} tête{Math.min(40, caches) > 1 ? 's' : ''} de plus · {caches} restante{caches > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {tab === 'offrandes' && (
         <div>

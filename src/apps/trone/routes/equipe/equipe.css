@@ -208,6 +208,92 @@
 .tre-chip:hover { border-color: var(--color-indigo); }
 .tre-chip.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
 
+/* ---------- Registre des soldes — une liste, plus un mur ----------
+   Une carte par tête, deux par ligne : cinq membres et cent cinquante-deux têtes
+   aux portes faisaient cinq mille pixels de défilement pour ajuster un solde.
+   La ligne tient en 42 px ; les gestes se déplient sous celle qui les concerne. */
+.tre-reg__barre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tre-reg {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+.tre-reg__row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 92px 78px 28px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--hairline);
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.tre-reg > div:last-child .tre-reg__row { border-bottom: none; }
+.tre-reg__row:hover { background: var(--hover-veil); }
+.tre-reg__row.is-open { background: var(--hover-veil); }
+.tre-reg__ident { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tre-reg__nom {
+  font-size: 13px;
+  color: var(--color-indigo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tre-reg__meta {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* La jauge n'est pas dans un contexte flex ici : on lui donne la largeur de sa
+   cellule explicitement, plutôt que de compter sur le `flex: 1` de `.tre-bar`. */
+.tre-reg__jauge { display: block; min-width: 0; }
+.tre-reg__jauge .tre-bar { width: 100%; }
+.tre-reg__pts {
+  text-align: right;
+  font-family: var(--font-serif);
+  font-weight: var(--weight-light);
+  font-size: 16px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}
+.tre-reg__plus {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: var(--transition-base);
+}
+.tre-reg__plus:hover { border-color: var(--color-copper); color: var(--copper-700); }
+.tre-reg__panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px 13px 52px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+}
+
+/* Écran étroit : la jauge cède la place, le nom et le solde restent. */
+@media (max-width: 860px) {
+  .tre-reg__row { grid-template-columns: 26px minmax(0, 1fr) 70px 28px; }
+  .tre-reg__jauge { display: none; }
+  .tre-reg__panel { padding-left: 14px; }
+}
+
 /* ---------- Paliers du Cercle ---------- */
 .tre-tier { text-align: center; padding: 18px; }
 .tre-tier__seal {
