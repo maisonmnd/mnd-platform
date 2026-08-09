@@ -249,6 +249,14 @@
 .trc-drawer.is-large .trc-c360-tabs { padding: 0 30px; }
 .trc-drawer.is-large .trc-drawer__cover { padding: 18px 30px; }
 
+/* La carte du compte famille mène à Comptes & Avoirs : elle doit se comporter
+   comme ce qu'elle est devenue, un bouton. */
+.trc-compte-lien {
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft),
+              border-color var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-compte-lien:hover { background: rgba(185, 122, 74, 0.14); border-color: var(--color-copper); }
+
 .trc-drawer__wide {
   position: absolute;
   top: 14px;

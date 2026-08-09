@@ -1322,18 +1322,29 @@ function Customer360({
               <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
             </div>
           )}
+          {/* LE COMPTE S'OUVRE D'ICI. La carte annonçait un compte et un avoir
+              sans y mener : pour verser un avoir, changer le payeur ou rattacher
+              une tête, il fallait deviner que tout cela vit dans Finances. */}
           {(clientFamily || avoirBal > 0) && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}>
+            <button
+              type="button"
+              title={clientFamily ? `Ouvrir ${clientFamily.name} dans Comptes & Avoirs` : 'Ouvrir Comptes & Avoirs'}
+              onClick={() => navigate(clientFamily ? `/comptes?famille=${clientFamily.id}` : '/comptes')}
+              className="trc-compte-lien"
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer', border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}
+            >
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 12.5, color: 'var(--color-indigo)' }}>
                   {clientFamily ? `Compte ${clientFamily.name}` : 'Avoir de la cliente'}
+                  <span aria-hidden style={{ color: 'var(--copper-700)', marginLeft: 6 }}>→</span>
                 </span>
                 <span className="trc-sub" style={{ fontSize: 11 }}>
                   {clientFamily ? `Réglé par ${clientPayerName}` : 'crédit prépayé'} · avoir disponible
+                  {clientFamily && membresDuCompte.length > 0 && ` · ${membresDuCompte.length + 1} membres`}
                 </span>
               </span>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: avoirBal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{fmtMoney(avoirBal, currency)}</span>
-            </div>
+            </button>
           )}
         </div>
 
