@@ -405,6 +405,53 @@ export const TIME_SLOTS: string[] = (() => {
 })();
 
 /* ---------- Modale rendez-vous — création & modification ---------- */
+/* UNE PASTILLE DE CHOIX — la même partout dans la modale de rendez-vous.
+
+   Elle porte son style AVEC ELLE, et c'est tout l'objet : les pastilles
+   utilisaient `trv-palier-chip`, une classe qui vit dans `vente.css`. Cette
+   feuille n'est chargée que sur les écrans de Vente — jamais sur le Carnet, le
+   Calendrier ni le Tableau de bord, qui ouvrent pourtant la même modale. Les
+   pastilles y restaient brutes et « actif » ne peignait rien : on désignait des
+   mains et une longueur sans jamais voir lesquelles étaient retenues, alors
+   qu'elles commandent la commission, la prime et le prix.
+
+   Une modale partagée par quatre écrans ne peut pas dépendre de la feuille d'un
+   domaine. */
+function ChipChoix({ actif, onClick, title, children, petit }: {
+  actif: boolean;
+  onClick: () => void;
+  title?: string;
+  children: React.ReactNode;
+  petit?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={actif}
+      onClick={onClick}
+      style={{
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        background: actif ? 'var(--color-copper)' : 'var(--surface-card)',
+        color: actif ? 'var(--color-ivoire)' : 'var(--color-indigo)',
+        border: `1px solid ${actif ? 'var(--color-copper)' : 'var(--hairline)'}`,
+        borderRadius: 4,
+        padding: petit ? '4px 11px' : '10px 14px',
+        fontFamily: petit ? 'var(--font-sans)' : 'var(--font-serif)',
+        fontSize: petit ? 11.5 : 15,
+        transition: 'var(--transition-base)',
+      }}
+    >
+      {actif && <span aria-hidden="true" style={{ fontSize: petit ? 10 : 12 }}>✓</span>}
+      {children}
+    </button>
+  );
+}
+
 export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | 'date' | 'time' | 'master' | 'note'>>;
 
 const RDV_STATUSES: Appointment['status'][] = ['en attente', 'confirmé', 'honoré', 'annulé'];
@@ -871,15 +918,9 @@ export function RdvModal({
                     const pos = serviceIds.indexOf(sv.id);
                     const on = mainsDe(pos).includes(m.id);
                     return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className={`trv-palier-chip ${on ? 'is-active' : ''}`}
-                        style={{ fontSize: 11.5, padding: '3px 10px' }}
-                        onClick={() => basculeMain(pos, m.id)}
-                      >
+                      <ChipChoix key={m.id} actif={on} petit onClick={() => basculeMain(pos, m.id)}>
                         {m.name}
-                      </button>
+                      </ChipChoix>
                     );
                   })}
                   {mainsDe(serviceIds.indexOf(sv.id)).length === 0 && (
@@ -932,21 +973,32 @@ export function RdvModal({
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', marginBottom: 8 }}>
               Longueur travaillée
             </div>
+            {/* LE CHOIX DOIT SE VOIR. Ces pastilles portaient `trv-palier-chip`,
+                une classe qui vit dans `vente.css` — jamais chargée sur le
+                Carnet, qui n'a que `clients.css`. Les trois boutons restaient
+                donc bruts et « actif » ne peignait rien : on choisissait une
+                longueur sans jamais savoir laquelle était retenue, alors qu'elle
+                commande le prix. Le style est ici, avec le composant : une
+                modale partagée par quatre écrans ne peut pas dépendre de la
+                feuille d'un domaine. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {LONGUEURS.map((l) => (
-                <button
+                <ChipChoix
                   key={l.id}
-                  type="button"
-                  className={`trv-palier-chip ${longueur === l.id ? 'is-active' : ''}`}
+                  actif={longueur === l.id}
                   title={l.hint}
                   onClick={() => setLongueur(l.id)}
                 >
                   {l.label}
-                </button>
+                </ChipChoix>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 7, lineHeight: 1.5 }}>
-              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services))}`).join(' — ')}
+            {/* CE QUE LA LONGUEUR CHOISIE COÛTE, en clair — c'est la seule raison
+                pour laquelle on la demande. */}
+            <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginTop: 9, lineHeight: 1.55 }}>
+              <b style={{ fontWeight: 600 }}>{LONGUEURS.find((l) => l.id === longueur)?.label}</b>
+              {' — '}
+              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services))}`).join(' · ')}
             </div>
           </div>
         )}
@@ -1525,7 +1577,7 @@ export function DrillModal({ drill, onClose }: { drill: Drill; onClose: () => vo
     <Modal title={drill.title} onClose={onClose} width={620}>
       {drill.sub && <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>{drill.sub}</div>}
       {drill.rows.length === 0 ? (
-        <div className="trp-empty">Rien à montrer ici.</div>
+        <div className="trc-empty">Rien à montrer ici.</div>
       ) : (
         <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
           {drill.rows.map((r, i) => {
