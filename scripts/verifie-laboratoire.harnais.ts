@@ -9,7 +9,7 @@ import {
   preparationsLabStore, fichePourIngredient, lierIngredient, delierIngredient,
   stockReelDuLab, composerPreparation, coutPreparationXof, fabriquerPreparation,
   annulerFabrication, remettrePreparation, poserFacture, supprimerPreparation,
-  manquesPourFabrication,
+  manquesPourFabrication, detacherFacture,
 } from '../src/shared/laboratoire';
 import { isAvail } from '../src/apps/trone/routes/vente/lab';
 
@@ -95,6 +95,15 @@ dit('facturer pose le lien', true, poserFacture(prep(), 'inv-001').ok);
 dit('refacturer est refusé', false, poserFacture(prep(), 'inv-002').ok);
 dit('ANNULER UNE FABRICATION FACTURÉE EST REFUSÉ — l’argent d’abord', false, annulerFabrication(prep()).ok);
 dit('… le stock n’a pas bougé', 200, stock(aloes.id!));
+
+/* ── LA FACTURE SUPPRIMÉE LIBÈRE LA PRÉPARATION — plus de préparation murée ── */
+dit('détacher libère la préparation', 1, detacherFacture(['inv-001']));
+dit('… l’identifiant ne pendouille plus', undefined, prep().invoiceId);
+dit('… et l’annulation redevient possible', true, annulerFabrication(prep()).ok);
+dit('… le stock remonte enfin', 400, stock(aloes.id!));
+fabriquerPreparation(prep(), J);
+remettrePreparation(prep(), J);
+dit('… et refacturer aussi', true, poserFacture(prep(), 'inv-003').ok);
 
 /* ── LA SUPPRESSION — jamais d'une fabriquée ── */
 dit('supprimer une fabriquée est refusé', false, supprimerPreparation(prep()).ok);

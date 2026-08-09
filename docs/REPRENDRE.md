@@ -165,6 +165,35 @@ imports de clientes) ; se regénère par le script de session si perdu.
 - Aqua Locks Ritual porte ses tarifs en notes ; s'il doit devenir réservable,
   c'est une prestation du Catalogue (prix par longueur) — chantier séparé.
 
+## Revue à dix angles du 10 août — corrigée en bloc, ⚠ 0034 À PASSER
+
+Une revue multi-agents a relu Stock & Achats + Laboratoire. Corrigé :
+
+- **`0034_realtime_stock_lab.sql` À PASSER** : les 9 tables de 0028/0030–0032
+  n'étaient pas dans la publication Realtime — inter-postes muet, fenêtres de
+  double consommation. Sans elle l'app marche, mais un seul poste à la fois est
+  sûr.
+- **Le miroir suit le journal d'où qu'il change** (abonnement débounce 250 ms +
+  recalcul ciblé aux écritures locales). `ecrireMouvements`/`retirerParReferences`
+  sont les seules portes du journal — le Laboratoire les emprunte.
+- **Rembobinage par référence partout** : facture supprimée (Caisse produits),
+  annulation d'encaissement, reset, RDV dés-honoré/annulé/supprimé via la
+  modale. `detacherFacture` libère les préparations d'une pièce disparue.
+- **Le +/− des écrans Gamme est un DELTA** (`bougerStockGamme`) ; la cible du
+  formulaire s'écrit contre le stock dérivé, jamais le miroir. Résolution
+  fiche↔Gamme **par branche** et fiches actives seules.
+- **`litQuantite`** partout : « 2,5 » et « 1 900 » se lisent enfin ; signe
+  conservé ; stocks arrondis à 3 décimales (plus de 5e-17) ; `delaiJours: 0`
+  survit ; `add()` de la Caisse garde le montant sur devis ; « Facturer » une
+  préparation est verrouillé anti double-clic (garde côté magasin).
+- Dates locales (plus d'UTC qui coupe la nuit comptable), numéros BC ancrés,
+  garde anti-suppression de sync assouplie pour `stock_mouvements` (rembobinage
+  légitime ≥ 10 lignes), marque remise (rayons 2–4, `--font-serif`, fmtMoney,
+  icône Camera au lieu de l'émoji).
+- Reste ouvert, documenté : fenêtre d'avant-hydratation (vente/reprise sur un
+  poste froid), unification des 4 constructions de facture, mémoïsations des
+  onglets. Harnais : 63 + 42 vérifications.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le

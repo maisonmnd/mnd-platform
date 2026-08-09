@@ -8,7 +8,7 @@ import {
   type CatalogCategory, type Product,
 } from '../../../../shared/catalog';
 import {
-  FAMILLES, MOUVEMENT_NOMS, COMMANDE_NOMS,
+  FAMILLES, MOUVEMENT_NOMS, COMMANDE_NOMS, bougerStockGamme, litQuantite,
   useFournisseurs, useProduitsStock, useMouvementsStock, useCommandesAchat, useLignesAchat, useConsommations,
   produitsStockStore, fournisseursStore, commandesAchatStore,
   creerFournisseur, creerProduitStock, creerCommande, ajouterLigneCommande, retirerLigneCommande,
@@ -16,9 +16,10 @@ import {
   ajusterStock, declarerPerte, corrigerStockGamme, reprendreGamme,
   stocksParProduit, margePct, prixVenteDe, coutMatiereXof, reappro, reliquat, statutLigne,
   totalCommande, totalRecu, coutLigne, poserRecette, retirerRecette, aCommander,
-  type CommandeFournisseur, type FamilleProduit, type Fournisseur, type ProduitStock,
+  type CommandeFournisseur, type FamilleProduit, type ProduitStock,
 } from '../../../../shared/stock';
 import { uid } from '../../../../shared/store';
+import { frDay, todayISO } from '../clients/_shared';
 import './vente.css';
 
 /* STOCK & ACHATS — le compagnon du catalogue, sur l'écran qui portait la Gamme.
@@ -35,8 +36,9 @@ import './vente.css';
 const LIGNES_FONDATRICES = ['home-rituals', 'meches'];
 const estLigne = (c: CatalogCategory) => c.produits === true || LIGNES_FONDATRICES.includes(c.id);
 const SEUIL = SEUIL_REASSORT;
-const jour = () => new Date().toISOString().slice(0, 10);
-const frJour = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+/* Les dates de la maison, pas celles d'UTC — voir clients/_shared. */
+const jour = todayISO;
+const frJour = frDay;
 
 const codeDe = (fon: string): string =>
   (fon.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)) || 'LGN';
@@ -125,7 +127,7 @@ type Form = { id: string | null; categoryId: string; name: string; price: string
 type LigneForm = { id: string | null; fon: string; label: string };
 
 function OngletGamme() {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
   const [categories] = useCategories();
   const [products, setProducts] = useProducts();
   const [form, setForm] = useState<Form | null>(null);
@@ -149,18 +151,27 @@ function OngletGamme() {
   const patch = (id: string, next: Partial<Product>) =>
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...next } : p)));
 
-  /* LE +/− PASSE PAR LE JOURNAL dès que la fiche d'inventaire existe : le geste
-     devient un ajustement tracé. Sans fiche (Gamme pas encore reprise), on garde
-     l'ancien compteur — rien ne casse. */
+  /* LE +/− EST UN DELTA, PAS UNE CIBLE : viser `miroir ± 1` écrivait, quand le
+     miroir était en retard d'une synchronisation, un écart de ±4 pour un clic.
+     Sans fiche (Gamme pas encore reprise), l'ancien compteur continue — SANS
+     borner à zéro : le négatif dit la vérité, ici comme au journal. */
+  const bouge = (p: Product, delta: number) => {
+    if (bougerStockGamme(p.id, delta, 'Correction Gamme', jour(), branch.id)) return;
+    patch(p.id, { stock: p.stock + delta });
+  };
+  /* La quantité CONSTATÉE du formulaire, elle, reste une cible — l'écart
+     s'écrit contre le stock dérivé de la fiche, jamais contre le miroir. */
   const corrige = (p: Product, nouvelle: number) => {
-    if (corrigerStockGamme(p.id, nouvelle, 'Correction Gamme', jour())) return;
-    patch(p.id, { stock: Math.max(0, nouvelle) });
+    if (corrigerStockGamme(p.id, nouvelle, 'Correction Gamme', jour(), branch.id)) return;
+    patch(p.id, { stock: nouvelle });
   };
 
   const save = () => {
     if (!form || !form.name.trim()) return;
     const price = parseInt(form.price.replace(/[^0-9]/g, ''), 10) || 0;
-    const stock = parseInt(form.stock.replace(/[^0-9]/g, ''), 10) || 0;
+    /* `litQuantite` garde le signe : un stock négatif (survendu) ne doit pas
+       devenir positif en passant par le formulaire. */
+    const stock = Math.round(litQuantite(form.stock) || 0);
     if (form.id) {
       patch(form.id, { name: form.name.trim(), priceXof: price, categoryId: form.categoryId });
       const avant = products.find((p) => p.id === form.id)?.stock ?? 0;
@@ -244,7 +255,7 @@ function OngletGamme() {
         return (
           <section key={cat.id} style={{ marginTop: 26 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', paddingBottom: 8, borderBottom: '2px solid var(--line)' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.04em' }}>{cat.fon}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, letterSpacing: '.04em' }}>{cat.fon}</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>{cat.label}</span>
               <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
                 {list.length} références · {fmtMoney(val, currency)} en stock
@@ -303,9 +314,9 @@ function OngletGamme() {
                   {/* Le geste le plus fréquent de la journée — désormais TRACÉ
                       dès que l'inventaire connaît la fiche. */}
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
-                    <button className="trv-sq" title="Retirer une unité" onClick={() => corrige(p, p.stock - 1)}>−</button>
+                    <button className="trv-sq" title="Retirer une unité" onClick={() => bouge(p, -1)}>−</button>
                     <span style={{ minWidth: 34, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{p.stock}</span>
-                    <button className="trv-sq" title="Ajouter une unité" onClick={() => corrige(p, p.stock + 1)}>+</button>
+                    <button className="trv-sq" title="Ajouter une unité" onClick={() => bouge(p, 1)}>+</button>
                   </span>
                   <span style={{ flex: 'none', display: 'flex', gap: 6 }}>
                     <button
@@ -418,7 +429,7 @@ function OngletInventaire() {
 
   const enregistrer = () => {
     if (!fiche) return;
-    const nombre = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
+    const nombre = (s: string) => Math.round(litQuantite(s) || 0);
     if (fiche.id) {
       produitsStockStore.set((prev) => prev.map((p) => (p.id === fiche.id ? {
         ...p,
@@ -441,7 +452,7 @@ function OngletInventaire() {
       prixAchatXof: nombre(fiche.prixAchat), fournisseurId: fiche.fournisseurId || undefined,
       seuilAlerte: nombre(fiche.seuil), stockCible: nombre(fiche.cible),
       emplacement: fiche.emplacement || undefined,
-    }, nombre(fiche.stockInitial), jour());
+    }, litQuantite(fiche.stockInitial) || 0, jour());
     if (!r.ok) { window.alert(r.erreur); return; }
     setFiche(null);
   };
@@ -501,7 +512,7 @@ function OngletInventaire() {
         return (
           <section key={fam} style={{ marginTop: 24 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>{FAMILLES[fam].nom}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16 }}>{FAMILLES[fam].nom}</span>
               <span className="mnd-muted" style={{ fontSize: 11.5 }}>{FAMILLES[fam].dit}</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -720,13 +731,14 @@ function OngletAchats() {
       fournisseursStore.set((prev) => prev.map((f) => (f.id === ff.id ? {
         ...f, nom: ff.nom.trim() || f.nom, telephone: ff.telephone.trim() || undefined,
         produitsFournis: ff.produitsFournis.trim() || undefined,
-        delaiJours: parseInt(ff.delai, 10) || undefined,
+        /* `|| undefined` gommait le zéro : livrer le jour même est un délai. */
+        delaiJours: Number.isFinite(parseInt(ff.delai, 10)) ? parseInt(ff.delai, 10) : undefined,
         conditionsPaiement: ff.conditions.trim() || undefined,
       } : f)));
     } else {
       const r = creerFournisseur(branch.id, {
         nom: ff.nom, telephone: ff.telephone, produitsFournis: ff.produitsFournis,
-        delaiJours: parseInt(ff.delai, 10) || undefined, conditionsPaiement: ff.conditions,
+        delaiJours: Number.isFinite(parseInt(ff.delai, 10)) ? parseInt(ff.delai, 10) : undefined, conditionsPaiement: ff.conditions,
       });
       if (!r.ok) { window.alert(r.erreur); return; }
     }
@@ -739,7 +751,7 @@ function OngletAchats() {
     <>
       {/* ── Le réapprovisionnement — la liste de courses se fait seule ── */}
       <section style={{ marginTop: 16 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
           À racheter
         </div>
         {groupes.size === 0 && (
@@ -776,7 +788,7 @@ function OngletAchats() {
       {/* ── Les bons de commande ── */}
       <section style={{ marginTop: 26 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>Bons de commande</span>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16 }}>Bons de commande</span>
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
             <Select value={nouveauBc} onChange={(e) => setNouveauBc(e.target.value)} style={{ minWidth: 180 }}>
               <option value="">Nouveau bon chez…</option>
@@ -831,7 +843,7 @@ function OngletAchats() {
       {/* ── Les fournisseurs ── */}
       <section style={{ marginTop: 26 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>Fournisseurs</span>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16 }}>Fournisseurs</span>
           <Button size="sm" variant="ghost" onClick={() => setFf({ id: null, nom: '', telephone: '', produitsFournis: '', delai: '', conditions: '' })}>
             + Fournisseur
           </Button>
@@ -946,7 +958,7 @@ function BonOuvert({ commande, recus, setRecus }: {
                     <Button
                       size="sm" variant="copper"
                       onClick={() => {
-                        const q = parseInt((recus[l.id] ?? '').replace(/[^0-9]/g, ''), 10);
+                        const q = litQuantite(recus[l.id] ?? '');
                         const r = recevoirLigne(l, q, jour());
                         if (!r.ok) { window.alert(r.erreur); return; }
                         setRecus((prev) => ({ ...prev, [l.id]: '' }));
@@ -982,7 +994,7 @@ function BonOuvert({ commande, recus, setRecus }: {
             onClick={() => {
               const p = produit(ajout.produitId);
               if (!p) return;
-              const r = ajouterLigneCommande(commande, p, parseInt(ajout.qte, 10) || 0);
+              const r = ajouterLigneCommande(commande, p, litQuantite(ajout.qte) || 0);
               if (!r.ok) { window.alert(r.erreur); return; }
               setAjout({ produitId: '', qte: '' });
             }}
@@ -1060,7 +1072,7 @@ function OngletRecettes() {
       {service && (
         <div style={{ marginTop: 16, maxWidth: 640 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', paddingBottom: 7, borderBottom: '2px solid var(--line)' }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>{service.name}</span>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16 }}>{service.name}</span>
             <span className="mnd-muted" style={{ fontSize: 12 }}>
               Coût matière : <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>{fmtMoney(cout, currency)}</b>
               {service.priceXof > 0 && cout > 0 && ` · ${Math.round((cout / service.priceXof) * 100)} % du prix de repli`}
@@ -1105,7 +1117,7 @@ function OngletRecettes() {
               onClick={() => {
                 const p = produit(ajout.produitId);
                 if (!p || !serviceId) return;
-                const r = poserRecette(branch.id, serviceId, p, parseFloat(ajout.qte) || 0);
+                const r = poserRecette(branch.id, serviceId, p, litQuantite(ajout.qte) || 0);
                 if (!r.ok) { window.alert(r.erreur); return; }
                 setAjout({ produitId: '', qte: '' });
               }}

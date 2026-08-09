@@ -7,9 +7,10 @@ import {
   creerFournisseur, creerProduitStock, creerCommande, ajouterLigneCommande,
   envoyerCommande, annulerCommande, recevoirLigne, lignesDe,
   venteGamme, consommerPourRituel, rembobinerRituel,
-  ajusterStock, declarerPerte, corrigerStockGamme, reprendreGamme,
+  ajusterStock, declarerPerte, corrigerStockGamme, bougerStockGamme, reprendreGamme,
   stockDe, margePct, coutMatiereXof, reappro, reliquat, statutLigne,
   totalCommande, poserRecette,
+  litQuantite, fichePourGamme, retirerParReferences, ecrireMouvements, prochainNumeroBC,
 } from '../src/shared/stock';
 import { productsStore } from '../src/shared/catalog';
 
@@ -149,6 +150,42 @@ dit('ajuster à l’identique est refusé', false, ajusterStock(p(henne.id!), 12
 dit('la perte se déclare', true, declarerPerte(p(henne.id!), 2, 'Pot renversé', J).ok);
 dit('… stock', 10, stock(henne.id!));
 dit('une perte nulle est refusée', false, declarerPerte(p(henne.id!), 0, '', J).ok);
+
+/* ── LES QUANTITÉS SE LISENT COMME ON LES ÉCRIT ── */
+dit('« 2,5 » vaut deux et demi', 2.5, litQuantite('2,5'));
+dit('« 1 900 » vaut mille neuf cents', 1900, litQuantite('1 900'));
+dit('le signe survit', -3, litQuantite('-3'));
+dit('le vide est NaN, pas zéro', true, Number.isNaN(litQuantite('')));
+
+/* ── LES FLOTTANTS NE MENTENT PLUS ── */
+const he = creerProduitStock(BR, { nom: 'HE Menthe', famille: 'consommable', unite: 'ml', prixAchatXof: 500 }, 0.3, J);
+ecrireMouvements([1, 2, 3].map(() => ({ branchId: BR, date: J, type: 'fabrication' as const, produitId: he.id!, quantite: -0.1 })));
+dit('0,3 − 3 × 0,1 vaut ZÉRO, pas 5e-17', 0, stock(he.id!));
+
+/* ── LE CLIC EST UN DELTA, LA RÉSOLUTION CONNAÎT LA BRANCHE ── */
+dit('bouger +2 écrit un delta', true, bougerStockGamme('g1', 2, 'essai', J));
+dit('… stock', 12, stock(fiches[0].id));
+dit('bouger sans fiche rend la main', false, bougerStockGamme('g-inconnu', 1, '', J));
+dit('la fiche de MA branche d’abord', fiches[0].id, fichePourGamme('g1', BR)?.id);
+produitsStockStore.set((prev) => prev.map((p) => (p.id === fiches[0].id ? { ...p, actif: false } : p)));
+dit('une fiche désactivée ne reçoit plus rien', undefined, fichePourGamme('g1', BR)?.id);
+produitsStockStore.set((prev) => prev.map((p) => (p.id === fiches[0].id ? { ...p, actif: true } : p)));
+
+/* ── LE REMBOBINAGE PAR RÉFÉRENCE — la primitive commune ── */
+ecrireMouvements([
+  { branchId: BR, date: J, type: 'sortie_vente', produitId: fiches[0].id, quantite: -1, reference: 'F-TEST-1' },
+  { branchId: BR, date: J, type: 'sortie_vente', produitId: fiches[1].id, quantite: -2, reference: 'F-TEST-1' },
+  { branchId: BR, date: J, type: 'sortie_vente', produitId: fiches[0].id, quantite: -1, reference: 'F-TEST-2' },
+]);
+const avantRembobinage = stock(fiches[0].id);
+dit('une référence emporte SES mouvements, pas les autres', 2, retirerParReferences(['F-TEST-1']));
+dit('… le stock remonte', avantRembobinage + 1, stock(fiches[0].id));
+dit('… et le miroir suit', stock(fiches[0].id), productsStore.get().find((g) => g.id === 'g1')?.stock);
+retirerParReferences(['F-TEST-2']);
+
+/* ── LES NUMÉROS ANCRÉS — « BC-2026-001-bis » ne nourrit pas le compteur ── */
+dit('un code suffixé est ignoré', 'BC-2026-001',
+  prochainNumeroBC([{ numero: 'BC-2026-001-bis', branchId: BR } as never], BR, '2026'));
 
 /* ── LA RÈGLE D'OR, PAR CONSTRUCTION ── */
 dit('AUCUNE fiche ne porte de champ « stock »', false,

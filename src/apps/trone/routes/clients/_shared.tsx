@@ -14,6 +14,7 @@ import { apptPaidXof,
 import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
+import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
@@ -772,6 +773,14 @@ export function RdvModal({
             : x,
         ),
       );
+      /* LE STOCK SUIT LE STATUT, quel que soit le chemin. Le bouton du Carnet
+         n'était pas le seul à écrire « honoré » : ce sélecteur aussi — et il
+         contournait la consommation comme le rembobinage. */
+      if (chosenStatus === 'honoré' && appt.status !== 'honoré') {
+        consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds }, todayISO());
+      } else if (chosenStatus !== 'honoré' && appt.status === 'honoré') {
+        rembobinerRituel(appt.id);
+      }
     } else {
       const created: Appointment = {
         id: uid(),
@@ -849,6 +858,9 @@ export function RdvModal({
   const remove = () => {
     if (!appt) return;
     if (!window.confirm('Supprimer ce rendez-vous ? Cette action est définitive.')) return;
+    /* Un rituel honoré a consommé sa recette : le supprimer sans rembobiner
+       laissait des mouvements orphelins pointant vers un rendez-vous disparu. */
+    rembobinerRituel(appt.id);
     appointmentsStore.set((prev) => prev.filter((x) => x.id !== appt.id));
     onClose();
   };
@@ -863,6 +875,9 @@ export function RdvModal({
       : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre — il restera visible, barré, au Carnet.';
     if (!window.confirm(msg)) return;
     appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
+    /* S'il avait été honoré, sa recette revient au stock — un rituel annulé
+       n'a rien consommé. Sans mouvement : geste muet. */
+    rembobinerRituel(appt.id);
     onClose();
   };
 

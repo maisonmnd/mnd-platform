@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { invoicesStore, nextInvoiceNumber, useInvoices, type Invoice } from '../../../../shared/finance';
 import {
-  creerProduitStock, stocksParProduit, useMouvementsStock, useProduitsStock,
+  creerProduitStock, litQuantite, stocksParProduit, useMouvementsStock, useProduitsStock,
 } from '../../../../shared/stock';
 import {
   PREPARATION_NOMS, annulerFabrication, composerPreparation, coutPreparationXof,
@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/laboratoire';
 import { uid } from '../../../../shared/store';
 import { ingredientsDesFormules, parCollection, useFormulesLab, type FormuleLab } from '../../../../shared/formules';
-import { ClientPicker, useBranchClients } from '../clients/_shared';
+import { ClientPicker, frDay, todayISO, useBranchClients } from '../clients/_shared';
 import {
   LAB_CONCERNS, PERF_SEED, REINVENT_SEED,
   buildFormulaView, buildMatches, composeFromStock, labPantry, isAvail,
@@ -50,8 +50,10 @@ const REINVENT_TONE: Record<'red' | 'amber' | 'blue', { bg: string; fg: string; 
   blue: { bg: 'var(--indigo-50)', fg: 'var(--color-indigo)', accent: 'var(--color-indigo)' },
 };
 
-const jour = () => new Date().toISOString().slice(0, 10);
-const frJour = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+/* Les dates de la maison, pas celles d'UTC : entre minuit et une heure à
+   Cotonou, toISOString datait la veille — la nuit comptable se coupait en deux. */
+const jour = todayISO;
+const frJour = frDay;
 
 export default function Laboratoire() {
   const { branch, currency } = useBranch();
@@ -209,7 +211,7 @@ export default function Laboratoire() {
 
               <div className="tr-cols" style={{ '--cols': '1.05fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
                 {/* gauche — identité + origines */}
-                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
                   <div className="trv-formula-band" style={{ background: f.band.bg }}>
                     <div className="eyebrow" style={{ color: f.band.eyebrow }}>Formule souveraine · {f.concernLabel}</div>
                     <div className="name" style={{ color: f.band.title }}>{view.name}</div>
@@ -242,7 +244,9 @@ export default function Laboratoire() {
                                 {fiche && reserve !== undefined ? ` · ${reserve.toLocaleString('fr-FR')} ${fiche.unite}` : ''}
                               </span>
                               {!fiche && (
-                                <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => { setLier(o.origName); }}>
+                                /* On lie l'ingrédient AFFICHÉ — après substitution, viser
+                                   l'original créait une fiche pour le mauvais nom. */
+                                <button className="trv-linkbtn trv-linkbtn--muted" onClick={() => { setLier(o.ingredient); }}>
                                   à relier au stock ›
                                 </button>
                               )}
@@ -273,7 +277,7 @@ export default function Laboratoire() {
 
                 {/* droite — protocole & décision */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ background: 'var(--color-sable)', borderRadius: 5, padding: '18px 20px' }}>
+                  <div style={{ background: 'var(--color-sable)', borderRadius: 4, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                       <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 0 }}>Le protocole · de l’atelier au cuir</div>
                       {view.protoChanged && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--color-ivoire)', background: 'var(--color-copper)', borderRadius: 999, padding: '2px 9px' }}>Recalibré</span>}
@@ -328,7 +332,7 @@ export default function Laboratoire() {
           {/* ===== PAR INGRÉDIENTS DISPONIBLES ===== */}
           {mode === 'ingredients' && (
             <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 20, alignItems: 'start' } as CSSProperties}>
-              <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, padding: '20px 22px' }}>
+              <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '20px 22px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                   <div className="trv-sec-label" style={{ marginBottom: 0 }}>Ce que le laboratoire a en réserve</div>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{availCount}/{pantry.length}</span>
@@ -363,7 +367,7 @@ export default function Laboratoire() {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>Classé par couverture du stock — elle substitue d’elle-même ce qui manque.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                   {matches.map((m) => (
-                    <div key={m.k} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, padding: '15px 17px' }}>
+                    <div key={m.k} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '15px 17px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
                         <div>
                           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{m.name}</div>
@@ -419,7 +423,7 @@ export default function Laboratoire() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ background: 'var(--color-indigo)', borderRadius: 5, padding: '20px 22px' }}>
+            <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '20px 22px' }}>
               <div className="mnd-eyebrow" style={{ color: 'var(--copper-200)' }}>À réinventer · l’atelier ne dort jamais</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-ivoire)', marginTop: 7, lineHeight: 1.35 }}>Une grande formule cesse de l’être le jour où on la croit finie.</div>
             </div>
@@ -507,14 +511,14 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
     return { nom, fiche, stock: fiche ? (stocks.get(fiche.id) ?? 0) : undefined };
   });
   const coutEstime = lignesVue.reduce((s, l) => {
-    const q = parseFloat((qtes[l.nom] ?? '').replace(',', '.'));
+    const q = litQuantite(qtes[l.nom] ?? '');
     return s + (l.fiche && Number.isFinite(q) ? q * l.fiche.prixAchatXof : 0);
   }, 0);
 
   const enregistrer = () => {
     const lignes = lignesVue
       .filter((l) => l.fiche)
-      .map((l) => ({ produitId: l.fiche!.id, quantite: parseFloat((qtes[l.nom] ?? '').replace(',', '.')) || 0 }));
+      .map((l) => ({ produitId: l.fiche!.id, quantite: litQuantite(qtes[l.nom] ?? '') || 0 }));
     const r = composerPreparation(
       branch.id, cliente.id,
       { concernK, nomFormule, forme, ingredientsTexte: ingredients.map((x) => x.nom), prixXof: parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0, notes },
@@ -656,7 +660,7 @@ function OngletFormules({ cliente, clientPicker, onComposer, onLier }: {
 
         {/* ── la fiche ouverte ── */}
         {sel && (
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
             <div className="trv-formula-band" style={{ background: 'var(--color-indigo)' }}>
               <div className="eyebrow" style={{ color: 'var(--copper-200)' }}>
                 {sel.collection}{sel.niveau ? ` · ${sel.niveau}` : ''} · {sel.code}
@@ -784,24 +788,34 @@ function OngletPreparations() {
 
   /* LA FACTURE REJOINT LES CIRCUITS COMMUNS : impayés, encaissements, avoirs —
      rien de spécial au Laboratoire, c'est une facture comme les autres. */
+  /* LA GARDE D'ABORD, LA PIÈCE ENSUITE. L'ordre inverse laissait, au double
+     clic, une facture orpheline au même numéro — le fantôme d'impayés que les
+     rituels avaient déjà coûté 212 000 F. `poserFacture` se garde contre le
+     magasin ; le verrou local coupe la rafale du même doigt. */
+  const facturationEnCours = useRef(false);
   const facturer = (prep: Preparation) => {
-    if (prep.invoiceId) return;
-    const inv: Invoice = {
-      id: `inv-${uid()}`,
-      branchId: branch.id,
-      kind: 'facture',
-      number: nextInvoiceNumber(invoices, 'MND'),
-      clientId: prep.clientId,
-      date: jour(),
-      lines: [{ id: uid(), label: `Préparation du Laboratoire · ${prep.nomFormule}`, qty: 1, unitXof: prep.prixXof, discountPct: 0 }],
-      globalDiscountPct: 0,
-      theme: 'Aube',
-      status: 'envoyée',
-    };
-    invoicesStore.set((prev) => [inv, ...prev]);
-    const r = poserFacture(prep, inv.id);
-    if (!r.ok) { window.alert(r.erreur); return; }
-    navigate(`/factures?id=${inv.id}`);
+    if (facturationEnCours.current) return;
+    facturationEnCours.current = true;
+    try {
+      const inv: Invoice = {
+        id: `inv-${uid()}`,
+        branchId: branch.id,
+        kind: 'facture',
+        number: nextInvoiceNumber(invoices, 'MND'),
+        clientId: prep.clientId,
+        date: jour(),
+        lines: [{ id: uid(), label: `Préparation du Laboratoire · ${prep.nomFormule}`, qty: 1, unitXof: prep.prixXof, discountPct: 0 }],
+        globalDiscountPct: 0,
+        theme: 'Aube',
+        status: 'envoyée',
+      };
+      const r = poserFacture(prep, inv.id);
+      if (!r.ok) { window.alert(r.erreur); return; }
+      invoicesStore.set((prev) => [inv, ...prev]);
+      navigate(`/factures?id=${inv.id}`);
+    } finally {
+      facturationEnCours.current = false;
+    }
   };
 
   return (
@@ -957,10 +971,12 @@ function LierModal({ ingredient, onClose }: { ingredient: string; onClose: () =>
   };
 
   const creerEtLier = () => {
+    /* « 2,5 » restait « 25 » : le parseInt concaténait les chiffres en
+       arrachant la virgule — l'inventaire initial gonflait de dix fois. */
     const r = creerProduitStock(branch.id, {
       nom: ingredient, famille: 'consommable', unite,
-      prixAchatXof: parseInt(prixAchat.replace(/[^0-9]/g, ''), 10) || 0,
-    }, parseInt(stockInitial.replace(/[^0-9]/g, ''), 10) || 0, jour());
+      prixAchatXof: Math.round(litQuantite(prixAchat) || 0),
+    }, litQuantite(stockInitial) || 0, jour());
     if (!r.ok || !r.id) { window.alert(r.erreur); return; }
     lierIngredient(r.id, ingredient);
     onClose();

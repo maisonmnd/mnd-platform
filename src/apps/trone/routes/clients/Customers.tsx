@@ -25,6 +25,7 @@ import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
 import { useNavigate } from 'react-router-dom';
+import { Camera } from 'lucide-react';
 import {
   Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
@@ -1257,7 +1258,7 @@ function Customer360({
                 ouvre le sélecteur de fichier. Le badge appareil le signale. */}
             <label className="trc-avatar-edit" title={photoBusy ? 'Traitement…' : client.photo ? 'Changer la photo' : 'Ajouter une photo'}>
               <Avatar client={client} size={64} />
-              <span className="trc-avatar-edit__badge" aria-hidden>{photoBusy ? '…' : '📷'}</span>
+              <span className="trc-avatar-edit__badge" aria-hidden>{photoBusy ? '…' : <Camera size={12} strokeWidth={1.6} aria-hidden />}</span>
               <input type="file" accept="image/*" style={{ display: 'none' }} disabled={photoBusy} onChange={(e) => void onPhoto(e.target.files?.[0])} />
             </label>
             {onlineNow && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}

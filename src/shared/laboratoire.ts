@@ -1,9 +1,13 @@
 import { createStore, useStore, uid } from './store';
 import {
-  mouvementsStockStore, produitsStockStore, stockDe, stocksParProduit,
+  ecrireMouvements, mouvementsStockStore, produitsStockStore, retirerParReferences,
+  stockDe, stocksParProduit,
   type MouvementStock, type ProduitStock,
 } from './stock';
-import type { StockMap } from '../apps/trone/routes/vente/lab';
+
+/* Le même contrat que la vitrine du formulateur (lab.ts) — déclaré CÔTÉ
+   PARTAGÉ : shared ne doit jamais dépendre d'un fichier de route. */
+export type StockMap = Record<string, boolean>;
 
 /* LE LABORATOIRE, BRANCHÉ AU RÉEL.
 
@@ -158,11 +162,12 @@ export function fabriquerPreparation(prep: Preparation, date: string): { ok: boo
   if (prep.statut !== 'proposee') return { ok: false, erreur: 'Cette préparation est déjà fabriquée.' };
   const ref = REF_PREP(prep.id);
   if (!mouvementsStockStore.get().some((m) => m.reference === ref)) {
-    const nouveaux: MouvementStock[] = prep.lignes.map((l) => ({
-      id: `mvt-${uid()}`, branchId: prep.branchId, date, type: 'fabrication' as const,
+    /* Par la porte commune du journal (ecrireMouvements) : une seule écriture,
+       et le miroir de la vitrine suit — l'écriture directe l'oubliait. */
+    ecrireMouvements(prep.lignes.map((l) => ({
+      branchId: prep.branchId, date, type: 'fabrication' as const,
       produitId: l.produitId, quantite: -l.quantite, reference: ref,
-    }));
-    mouvementsStockStore.set((prev) => [...prev, ...nouveaux]);
+    })));
   }
   preparationsLabStore.set((prev) => prev.map((p) => (
     p.id === prep.id ? { ...p, statut: 'fabriquee', fabriqueeLe: date } : p
@@ -177,8 +182,7 @@ export function annulerFabrication(prep: Preparation): { ok: boolean; erreur?: s
   if (prep.invoiceId) {
     return { ok: false, erreur: 'Elle porte une facture — annulez la facture d’abord, la fabrication ensuite.' };
   }
-  const ref = REF_PREP(prep.id);
-  mouvementsStockStore.set((prev) => prev.filter((m) => m.reference !== ref));
+  retirerParReferences([REF_PREP(prep.id)]);
   preparationsLabStore.set((prev) => prev.map((p) => (
     p.id === prep.id ? { ...p, statut: 'proposee', fabriqueeLe: undefined, remiseLe: undefined } : p
   )));
@@ -198,12 +202,32 @@ export function remettrePreparation(prep: Preparation, date: string): { ok: bool
 /** « Facturer » pose le lien — la facture elle-même se crée côté écran, avec
     le numéroteur des factures. Un seul lien : refacturer est refusé. */
 export function poserFacture(prep: Preparation, invoiceId: string): { ok: boolean; erreur?: string } {
-  if (prep.statut === 'proposee') return { ok: false, erreur: 'Fabriquez-la avant de la facturer.' };
-  if (prep.invoiceId) return { ok: false, erreur: 'Elle est déjà facturée.' };
+  /* LA VÉRITÉ EST AU MAGASIN, pas dans l'argument : un rendu périmé (double
+     clic, second poste) passait la garde et frappait un second numéro. */
+  const courant = preparationsLabStore.get().find((p) => p.id === prep.id);
+  if (!courant) return { ok: false, erreur: 'Cette préparation est introuvable.' };
+  if (courant.statut === 'proposee') return { ok: false, erreur: 'Fabriquez-la avant de la facturer.' };
+  if (courant.invoiceId) return { ok: false, erreur: 'Elle est déjà facturée.' };
   preparationsLabStore.set((prev) => prev.map((p) => (
     p.id === prep.id ? { ...p, invoiceId } : p
   )));
   return { ok: true };
+}
+
+/** UNE FACTURE SUPPRIMÉE LIBÈRE SES PRÉPARATIONS. Sans cela, l'identifiant
+    pendouillait sur une pièce disparue : « annulez la facture d'abord » sur une
+    facture qui n'existe plus, refacturer refusé, « Voir la facture » vers le
+    vide — la préparation était murée. À appeler partout où une facture meurt. */
+export function detacherFacture(invoiceIds: string[]): number {
+  const cibles = new Set(invoiceIds.filter(Boolean));
+  if (!cibles.size) return 0;
+  let n = 0;
+  preparationsLabStore.set((prev) => prev.map((p) => {
+    if (!p.invoiceId || !cibles.has(p.invoiceId)) return p;
+    n++;
+    return { ...p, invoiceId: undefined };
+  }));
+  return n;
 }
 
 export function supprimerPreparation(prep: Preparation): { ok: boolean; erreur?: string } {

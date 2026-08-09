@@ -260,7 +260,14 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       const structurelle = SANS_SUPPRESSION.has(table);
       const videTout = prev.size > 0 && deletes.length >= prev.size;
       const enMasse = deletes.length >= 10 && deletes.length * 4 >= prev.size;
-      const massive = structurelle || videTout || enMasse;
+      /* LE JOURNAL DES MOUVEMENTS SE REMBOBINE PAR RÉFÉRENCE : annuler une
+         fabrication à douze ingrédients ou la suppression d'une facture retire
+         d'un bloc une grappe de lignes — un geste LÉGITIME qui, dans un journal
+         encore jeune, ressemble au seuil de masse. Pour cette table, seul
+         « vider tout » reste interdit : le rembobinage laisse toujours le
+         journal debout. */
+      const journalRembobinable = table === 'stock_mouvements';
+      const massive = structurelle || videTout || (enMasse && !journalRembobinable);
       if (massive) {
         const motif = structurelle
           ? 'table structurelle — une suppression ne peut venir que du SQL'

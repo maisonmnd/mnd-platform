@@ -161,17 +161,33 @@ export const useCommandesAchat = () => useStore(commandesAchatStore);
 export const useLignesAchat = () => useStore(lignesAchatStore);
 export const useConsommations = () => useStore(consommationsStore);
 
+/* ---------- Lire une quantité comme on l'écrit au Bénin ---------- */
+
+/** « 2,5 » vaut 2,5 et « 1 900 » vaut 1900. `parseFloat` s'arrêtait à la
+    virgule comme à l'espace des milliers : le Bain Détox se composait avec
+    1 ml d'eau au lieu de 1 900, sans un mot. NaN si rien de lisible. */
+export const litQuantite = (s: string): number => {
+  const n = parseFloat(s.replace(/[\s  ]/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : NaN;
+};
+
 /* ---------- Le stock se DÉRIVE ---------- */
+
+/** Les quantités fractionnaires (0,5 ml d'huile essentielle) s'accumulent en
+    flottants : sans arrondi, 0,3 − 3×0,1 rend 5,5e-17 — « En réserve ✓ » sur
+    un affichage à 0. Trois décimales suffisent à tous les gestes du salon. */
+const arrondiStock = (x: number): number => Math.round(x * 1000) / 1000;
 
 /** Tous les stocks d'un coup — une passe sur le journal, à mémoïser à l'écran. */
 export function stocksParProduit(mouvements: MouvementStock[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const mv of mouvements) m.set(mv.produitId, (m.get(mv.produitId) ?? 0) + mv.quantite);
+  for (const [k, v] of m) m.set(k, arrondiStock(v));
   return m;
 }
 
 export const stockDe = (produitId: string, mouvements: MouvementStock[]): number =>
-  mouvements.reduce((s, m) => (m.produitId === produitId ? s + m.quantite : s), 0);
+  arrondiStock(mouvements.reduce((s, m) => (m.produitId === produitId ? s + m.quantite : s), 0));
 
 /** Le prix de vente d'une fiche d'inventaire — celui de sa fiche Gamme liée. */
 export const prixVenteDe = (p: ProduitStock, gamme: Product[]): number | undefined => {
@@ -261,12 +277,18 @@ export function coutMatiereXof(
 
 /* ---------- Codes & numéros — stables, jamais renumérotés ---------- */
 
-const numeroSuivant = (codes: string[], prefixe: string): number =>
-  codes.reduce((m, c) => {
-    if (!c.startsWith(`${prefixe}-`)) return m;
-    const n = parseInt(c.slice(prefixe.length + 1), 10);
+/* ANCRÉ DE BOUT EN BOUT : « BC-2026-001-bis » ou tout code suffixé ne nourrit
+   pas le compteur — la leçon des numéros de facture dupliqués, réapprise ici
+   plutôt que revécue. */
+const numeroSuivant = (codes: string[], prefixe: string): number => {
+  const motif = new RegExp(`^${prefixe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`);
+  return codes.reduce((m, c) => {
+    const trouve = motif.exec(c);
+    if (!trouve) return m;
+    const n = parseInt(trouve[1], 10);
     return Number.isFinite(n) && n > m ? n : m;
   }, 0) + 1;
+};
 
 export const prochainCodeProduit = (famille: FamilleProduit, produits: ProduitStock[], branchId: string): string => {
   const prefixe = FAMILLES[famille].code;
@@ -287,29 +309,76 @@ export const prochainNumeroBC = (commandes: CommandeFournisseur[], branchId: str
 
 /* ---------- Le miroir de la vitrine ---------- */
 
-/** Réécrit le champ `stock` des fiches Gamme liées depuis le journal. Si demain
-    une seconde branche stocke le même produit Gamme, la vitrine — qui n'a pas
-    de branche — montre la SOMME des deux réserves. */
-function refleteVersGamme(produitIds: string[]): void {
+/** Réécrit le champ `stock` des fiches Gamme liées depuis le journal — la
+    SOMME de toutes les fiches liées, toutes branches : la vitrine n'a pas de
+    branche. `cibles` restreint aux produits Gamme touchés ; absent, tout le
+    miroir est recalculé. */
+function recalculeMiroir(cibles?: Set<string>): void {
   const produits = produitsStockStore.get();
-  const touches = new Set(
-    produits.filter((p) => produitIds.includes(p.id) && p.catalogProductId).map((p) => p.catalogProductId!),
-  );
-  if (!touches.size) return;
-  const mouvements = mouvementsStockStore.get();
-  const stocks = stocksParProduit(mouvements);
-  productsStore.set((prev) => prev.map((g) => {
-    if (!touches.has(g.id)) return g;
-    const total = produits
-      .filter((p) => p.catalogProductId === g.id)
-      .reduce((s, p) => s + (stocks.get(p.id) ?? 0), 0);
-    return g.stock === total ? g : { ...g, stock: total };
-  }));
+  const lies = produits.filter((p) => p.catalogProductId && (!cibles || cibles.has(p.catalogProductId)));
+  if (!lies.length) return;
+  const stocks = stocksParProduit(mouvementsStockStore.get());
+  const totaux = new Map<string, number>();
+  for (const p of lies) {
+    totaux.set(p.catalogProductId!, arrondiStock((totaux.get(p.catalogProductId!) ?? 0) + (stocks.get(p.id) ?? 0)));
+  }
+  productsStore.set((prev) => {
+    let change = false;
+    const next = prev.map((g) => {
+      const total = totaux.get(g.id);
+      if (total === undefined || g.stock === total) return g;
+      change = true;
+      return { ...g, stock: total };
+    });
+    return change ? next : prev;
+  });
 }
 
-const ecrireMouvement = (m: Omit<MouvementStock, 'id'>): void => {
-  mouvementsStockStore.set((prev) => [...prev, { id: `mvt-${uid()}`, ...m }]);
-  refleteVersGamme([m.produitId]);
+const catalogDe = (produitIds: Iterable<string>): Set<string> => {
+  const voulus = new Set(produitIds);
+  const s = new Set<string>();
+  for (const p of produitsStockStore.get()) {
+    if (p.catalogProductId && voulus.has(p.id)) s.add(p.catalogProductId);
+  }
+  return s;
+};
+
+/** ÉCRITURE EN LOT — un seul passage au magasin, une seule poussée de synchro,
+    et le miroir recalculé pour les produits touchés. C'est la SEULE porte
+    d'écriture du journal : le Laboratoire l'emprunte aussi, au lieu de pousser
+    lui-même et d'oublier le miroir. */
+export function ecrireMouvements(liste: Omit<MouvementStock, 'id'>[]): void {
+  if (!liste.length) return;
+  mouvementsStockStore.set((prev) => [...prev, ...liste.map((m) => ({ id: `mvt-${uid()}`, ...m }))]);
+  recalculeMiroir(catalogDe(liste.map((m) => m.produitId)));
+}
+
+const ecrireMouvement = (m: Omit<MouvementStock, 'id'>): void => ecrireMouvements([m]);
+
+/** LE REMBOBINAGE PAR RÉFÉRENCE — la primitive commune. Un rituel dés-honoré
+    (`rdv:<id>`), une fabrication annulée (`prep:<id>`), une facture supprimée
+    (son numéro) : trois gestes, une seule mécanique, et le miroir suit. Rend
+    le nombre de mouvements retirés. */
+export function retirerParReferences(refs: string[]): number {
+  const cibles = new Set(refs.filter(Boolean));
+  if (!cibles.size) return 0;
+  const avant = mouvementsStockStore.get();
+  const vises = avant.filter((m) => m.reference && cibles.has(m.reference));
+  if (!vises.length) return 0;
+  mouvementsStockStore.set(() => avant.filter((m) => !m.reference || !cibles.has(m.reference)));
+  recalculeMiroir(catalogDe(vises.map((m) => m.produitId)));
+  return vises.length;
+}
+
+/* LE MIROIR SUIT LE JOURNAL, D'OÙ QUE LE JOURNAL CHANGE. Les écritures locales
+   passent par les primitives ci-dessus ; mais le journal bouge AUSSI par la
+   synchronisation — hydratation, refetch, Realtime — et le miroir restait
+   alors figé sur le compte de l'autre poste. Un recalcul complet, décalé d'un
+   souffle pour absorber les rafales. */
+let miroirPrevu: ReturnType<typeof setTimeout> | undefined;
+const replanifieMiroir = (): void => {
+  if (miroirPrevu !== undefined) clearTimeout(miroirPrevu);
+  miroirPrevu = setTimeout(() => { miroirPrevu = undefined; recalculeMiroir(); }, 250);
 };
 
 /* ---------- Fiches — création & corrections ---------- */
@@ -364,6 +433,9 @@ export function creerProduitStock(
     emplacement: champs.emplacement?.trim() || undefined,
     actif: true,
     catalogProductId: champs.catalogProductId || undefined,
+    /* Le lien Laboratoire se pose aussi à la création — le perdre en route
+       obligeait à lier en deux temps, et seul le modal y pensait. */
+    labIngredient: champs.labIngredient || undefined,
   }]);
   /* L'inventaire initial est un mouvement comme les autres : le journal raconte
      l'histoire entière, y compris son premier jour. */
@@ -413,38 +485,81 @@ export function declarerPerte(
     Idempotente — relancée, elle ne crée rien. */
 export function reprendreGamme(branchId: string, date: string): number {
   const gamme = productsStore.get();
-  const dejaLies = new Set(produitsStockStore.get().map((p) => p.catalogProductId).filter(Boolean));
-  let crees = 0;
-  for (const g of gamme) {
-    if (dejaLies.has(g.id)) continue;
-    const r = creerProduitStock(
-      branchId,
-      { nom: g.name, famille: 'revente', unite: 'pièce', catalogProductId: g.id, seuilAlerte: 3, stockCible: Math.max(g.stock, 6) },
-      g.stock,
-      date,
-    );
-    if (r.ok) crees++;
-  }
-  return crees;
+  const existants = produitsStockStore.get();
+  const dejaLies = new Set(existants.map((p) => p.catalogProductId).filter(Boolean));
+  const orphelins = gamme.filter((g) => !dejaLies.has(g.id));
+  if (!orphelins.length) return 0;
+
+  /* EN LOT : la version en boucle refaisait, par produit, une réécriture du
+     magasin, un scan de code et un recalcul du miroir — des centaines
+     d'écritures pour un clic. Ici : deux écritures et un recalcul. */
+  let n = numeroSuivant(existants.filter((p) => p.branchId === branchId).map((p) => p.code), FAMILLES.revente.code) - 1;
+  const fiches: ProduitStock[] = orphelins.map((g) => ({
+    id: `stk-${uid()}`,
+    branchId,
+    code: `${FAMILLES.revente.code}-${String(++n).padStart(2, '0')}`,
+    nom: g.name,
+    famille: 'revente',
+    unite: 'pièce',
+    prixAchatXof: 0,
+    seuilAlerte: 3,
+    stockCible: Math.max(g.stock, 6),
+    actif: true,
+    catalogProductId: g.id,
+  }));
+  produitsStockStore.set((prev) => [...prev, ...fiches]);
+  ecrireMouvements(fiches
+    .map((f, ix) => ({ fiche: f, stock: orphelins[ix].stock }))
+    .filter((x) => x.stock > 0)
+    .map((x) => ({
+      branchId, date, type: 'ajustement' as const, produitId: x.fiche.id,
+      quantite: x.stock, note: 'Inventaire initial',
+    })));
+  recalculeMiroir(new Set(fiches.map((f) => f.catalogProductId!)));
+  return fiches.length;
 }
 
-/** Le geste +/− des écrans Gamme, quand une fiche liée existe : il devient un
-    ajustement TRACÉ. Rend faux si la fiche n'existe pas encore — l'appelant
-    garde alors l'ancien chemin. */
-export function corrigerStockGamme(catalogProductId: string, nouvelleQuantite: number, note: string, date: string): boolean {
-  const fiche = produitsStockStore.get().find((p) => p.catalogProductId === catalogProductId);
+/** Poser une quantité constatée depuis un écran Gamme : l'écart s'écrit contre
+    le stock DÉRIVÉ de la fiche — jamais contre le miroir, qui peut être en
+    retard d'une synchronisation. Rend faux si la fiche n'existe pas encore —
+    l'appelant garde alors l'ancien chemin. */
+export function corrigerStockGamme(catalogProductId: string, nouvelleQuantite: number, note: string, date: string, branchId?: string): boolean {
+  const fiche = fichePourGamme(catalogProductId, branchId);
   if (!fiche) return false;
   ajusterStock(fiche, nouvelleQuantite, note, date);
   return true;
 }
 
+/** LE +/− DES ÉCRANS GAMME. Un clic dit « une pièce de plus » — un DELTA, pas
+    une cible : viser `miroir ± 1` écrivait, quand le miroir était périmé d'une
+    synchronisation, un écart de ±4 pour un seul clic. Rend faux sans fiche. */
+export function bougerStockGamme(catalogProductId: string, delta: number, note: string, date: string, branchId?: string): boolean {
+  if (!delta) return false;
+  const fiche = fichePourGamme(catalogProductId, branchId);
+  if (!fiche) return false;
+  ecrireMouvement({
+    branchId: fiche.branchId, date, type: 'ajustement', produitId: fiche.id,
+    quantite: Math.round(delta), note: note.trim() || 'Correction Gamme',
+  });
+  return true;
+}
+
 /* ---------- Comportement B — la vente d'un produit Gamme ---------- */
+
+/** LA FICHE D'UN PRODUIT GAMME, VUE D'UNE BRANCHE. La fiche de la branche
+    demandeuse d'abord — vendre au Studio ne doit jamais drainer la réserve de
+    l'Atelier — puis n'importe quelle fiche active en repli (une seule branche
+    aujourd'hui). Les fiches désactivées ne reçoivent plus rien. */
+export const fichePourGamme = (catalogProductId: string, branchId?: string): ProduitStock | undefined => {
+  const fiches = produitsStockStore.get().filter((p) => p.catalogProductId === catalogProductId && p.actif);
+  return (branchId ? fiches.find((p) => p.branchId === branchId) : undefined) ?? fiches[0];
+};
 
 /** Rend vrai si le mouvement a été écrit ; faux quand la fiche liée n'existe pas
     encore — la Caisse décrémente alors l'ancien compteur, comme avant. */
-export function venteGamme(catalogProductId: string, quantite: number, reference: string, date: string): boolean {
+export function venteGamme(catalogProductId: string, quantite: number, reference: string, date: string, branchId?: string): boolean {
   if (quantite <= 0) return false;
-  const fiche = produitsStockStore.get().find((p) => p.catalogProductId === catalogProductId);
+  const fiche = fichePourGamme(catalogProductId, branchId);
   if (!fiche) return false;
   /* On ne borne pas à zéro : un stock négatif dit qu'on a vendu plus que ce qui
      était compté, et cette information vaut mieux qu'un zéro rassurant. */
@@ -481,25 +596,19 @@ export function consommerPourRituel(
     }
   }
   if (!besoins.size) return 0;
-  const nouveaux: MouvementStock[] = [...besoins].map(([produitId, quantite]) => ({
-    id: `mvt-${uid()}`, branchId: appt.branchId, date, type: 'sortie_service' as const,
+  const nouveaux = [...besoins].map(([produitId, quantite]) => ({
+    branchId: appt.branchId, date, type: 'sortie_service' as const,
     produitId, quantite: -quantite, reference: ref,
   }));
-  mouvementsStockStore.set((prev) => [...prev, ...nouveaux]);
-  refleteVersGamme(nouveaux.map((m) => m.produitId));
+  ecrireMouvements(nouveaux);
   return nouveaux.length;
 }
 
-/** L'annulation d'un encaissement rembobine aussi le stock : les sorties du
-    rituel disparaissent du journal, la réserve remonte. Sans cela, annuler puis
-    ré-encaisser décompterait la recette deux fois. */
+/** DÉS-HONORER REMBOBINE. Les sorties du rituel disparaissent du journal, la
+    réserve remonte — sinon annuler puis ré-honorer décompterait la recette
+    deux fois, et un rituel supprimé laisserait des mouvements orphelins. */
 export function rembobinerRituel(apptId: string): number {
-  const ref = REF_RDV(apptId);
-  const vises = mouvementsStockStore.get().filter((m) => m.reference === ref);
-  if (!vises.length) return 0;
-  mouvementsStockStore.set((prev) => prev.filter((m) => m.reference !== ref));
-  refleteVersGamme(vises.map((m) => m.produitId));
-  return vises.length;
+  return retirerParReferences([REF_RDV(apptId)]);
 }
 
 /* ---------- Comportements A & cycle d'achat ---------- */
@@ -631,3 +740,8 @@ bindCollection(mouvementsStockStore, 'stock_mouvements');
 bindCollection(commandesAchatStore, 'achats_commandes');
 bindCollection(lignesAchatStore, 'achats_lignes');
 bindCollection(consommationsStore, 'consommations');
+
+/* Après la liaison : le miroir écoute le journal ET les fiches — y compris
+   quand c'est la synchronisation qui les change. */
+mouvementsStockStore.subscribe(replanifieMiroir);
+produitsStockStore.subscribe(replanifieMiroir);

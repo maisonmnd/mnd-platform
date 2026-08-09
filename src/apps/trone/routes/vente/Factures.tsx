@@ -15,6 +15,8 @@ import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
+import { retirerParReferences } from '../../../../shared/stock';
+import { detacherFacture } from '../../../../shared/laboratoire';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -302,6 +304,10 @@ export default function Factures() {
     if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
     if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
     setInvoices((prev) => prev.filter((i) => i.id !== id));
+    /* La pièce emporte ses ventes de produits (sorties référencées sur son
+       numéro) et libère la préparation du Laboratoire qu'elle réglait. */
+    if (doc) retirerParReferences([doc.number]);
+    detacherFacture([id]);
     if (editing?.draft.id === id) setEditing(null);
     if (selectedId === id) setSelectedId(null);
   };

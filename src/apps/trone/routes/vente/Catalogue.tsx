@@ -13,10 +13,10 @@ import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type S
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
-import { apptNetXof, useServicesById, DrillModal, dayOf, type Drill } from '../clients/_shared';
+import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
 import { scalesWithModel, useModelBands, bandRange, sortedBands } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
-import { corrigerStockGamme } from '../../../../shared/stock';
+import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
 
 /* Catalogue — double nomenclature fon™. Catégories réordonnables, activables,
@@ -180,7 +180,7 @@ export default function Catalogue() {
   /* Détail ouvert sur le chiffre d'une prestation. */
   const [drill, setDrill] = useState<Drill | null>(null);
   const usage = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     /* `rows` garde le DÉTAIL derrière chaque total : sans lui, deux prestations
        de même nom affichent deux chiffres d'affaires sans qu'on puisse voir ce
        qui les compose — un chiffre qu'on ne peut pas ouvrir n'est pas un chiffre,
@@ -655,12 +655,19 @@ export default function Catalogue() {
        le champ `stock` d'ici n'est plus qu'un miroir que le journal réécrit.
        Sans fiche, l'ancien compteur continue — rien ne casse. */
     if (patch.stock !== undefined
-      && corrigerStockGamme(id, patch.stock, 'Correction Catalogue', new Date().toISOString().slice(0, 10))) {
+      && corrigerStockGamme(id, patch.stock, 'Correction Catalogue', todayISO(), branch.id)) {
       const { stock: _stock, ...reste } = patch;
       if (!Object.keys(reste).length) return;
       patch = reste;
     }
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  };
+
+  /* Un clic est un DELTA — voir bougerStockGamme. Sans fiche, l'ancien
+     compteur continue, sans borner : le négatif dit la vérité. */
+  const bougeProd = (p: Product, delta: number) => {
+    if (bougerStockGamme(p.id, delta, 'Correction Catalogue', todayISO(), branch.id)) return;
+    setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, stock: x.stock + delta } : x)));
   };
 
   const openProdEdit = (prod: Product) =>
@@ -669,7 +676,7 @@ export default function Catalogue() {
   const saveProd = () => {
     if (!prodForm || !prodForm.name.trim()) return;
     const price = parseInt(prodForm.price.replace(/[^0-9]/g, ''), 10) || 0;
-    const stock = parseInt(prodForm.stock.replace(/[^0-9]/g, ''), 10) || 0;
+    const stock = Math.round(litQuantite(prodForm.stock) || 0);
     if (prodForm.id) {
       patchProd(prodForm.id, { categoryId: prodForm.categoryId, name: prodForm.name.trim(), priceXof: price, stock });
     } else {
@@ -765,7 +772,7 @@ export default function Catalogue() {
               >
                 ⇅
               </button>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.04em' }}>{g.titre}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, letterSpacing: '.04em' }}>{g.titre}</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>{g.sous}</span>
               <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
                 {cats.filter((c) => groupeDe(c).k === g.k).length} catégories ·{' '}
@@ -1041,9 +1048,9 @@ export default function Catalogue() {
                   </div>
                   <div className="trv-svc__foot">
                     <span className="trv-stepper">
-                      <button className="trv-sq" title="Retirer une unité" onClick={() => patchProd(p.id, { stock: Math.max(0, p.stock - 1) })}>−</button>
+                      <button className="trv-sq" title="Retirer une unité" onClick={() => bougeProd(p, -1)}>−</button>
                       <span className="val">{p.stock}</span>
-                      <button className="trv-sq" title="Ajouter une unité" onClick={() => patchProd(p.id, { stock: p.stock + 1 })}>+</button>
+                      <button className="trv-sq" title="Ajouter une unité" onClick={() => bougeProd(p, 1)}>+</button>
                       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>en stock</span>
                     </span>
                     <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
@@ -1371,7 +1378,7 @@ export default function Catalogue() {
               /* REPLIE, LE BLOC DIT CE QU'IL CONTIENT : rien ne se cache
                  derriere un titre muet. */
               const resume = [
-                svcForm.rate.trim() ? `${num(svcForm.rate)?.toLocaleString('fr-FR')} F le lock` : null,
+                svcForm.rate.trim() ? `${fmtMoney(num(svcForm.rate) ?? 0, currency)} le lock` : null,
                 Object.values(svcForm.floors).filter((v) => v?.trim()).length
                   ? `${Object.values(svcForm.floors).filter((v) => v?.trim()).length} planchers` : null,
                 longueurPosee ? 'prix par longueur' : null,
@@ -1404,7 +1411,7 @@ export default function Catalogue() {
               />
               {svcForm.rate && (
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  250 locks → {(250 * (num(svcForm.rate) ?? 0)).toLocaleString('fr-FR')} F, sauf plancher plus élevé.
+                  250 locks → {fmtMoney(250 * (num(svcForm.rate) ?? 0), currency)}, sauf plancher plus élevé.
                 </div>
               )}
             </Field>

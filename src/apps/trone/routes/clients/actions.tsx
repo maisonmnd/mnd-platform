@@ -18,7 +18,8 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } 
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
+import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
+import { detacherFacture } from '../../../../shared/laboratoire';
 import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -145,8 +146,18 @@ export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: 
      L'avoir consommé est rendu d'abord — sinon le compte de la cliente reste
      débité d'un crédit détruit avec la pièce. */
   for (const id of ids) restituerAvoir(id);
-  const invoicesRemoved = invoicesStore.get().filter((i) => ids.has(i.id)).length;
-  if (invoicesRemoved > 0) invoicesStore.set((prev) => prev.filter((i) => !ids.has(i.id)));
+  const aSupprimer = invoicesStore.get().filter((i) => ids.has(i.id));
+  const invoicesRemoved = aSupprimer.length;
+  if (invoicesRemoved > 0) {
+    invoicesStore.set((prev) => prev.filter((i) => !ids.has(i.id)));
+    /* LA PIÈCE EMPORTE SES VENTES DE PRODUITS : les sorties de stock
+       référencées sur son numéro se rembobinent — ré-encaisser réécrira les
+       siennes, sinon chaque cycle de correction décomptait une fois de plus.
+       Et si une préparation du Laboratoire pointait cette pièce, elle est
+       libérée plutôt que murée sur une facture disparue. */
+    retirerParReferences(aSupprimer.map((i) => i.number));
+    detacherFacture(aSupprimer.map((i) => i.id));
+  }
   /* ANNULER UN ENCAISSEMENT N'EFFACE QUE DE L'ARGENT. Ce geste faisait aussi
      retomber le rituel de « honoré » à « confirmé » et reprenait les points de
      l'honneur — il défaisait un geste qu'il n'avait jamais posé. Encaisser
@@ -264,8 +275,12 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
     creditMovementsStore.set((prev) => prev.filter((m) => !usageIds.has(m.id)));
   }
 
-  /* Suppression des factures payées (les numéros repartiront de zéro). */
+  /* Suppression des factures payées (les numéros repartiront de zéro) — et
+     avec elles, d'un seul geste, toutes les sorties de stock qu'elles
+     référencent, plus les préparations qu'elles tenaient. */
   invoicesStore.set((prev) => prev.filter((i) => !paidIds.has(i.id)));
+  retirerParReferences(paid.map((i) => i.number));
+  detacherFacture(paid.map((i) => i.id));
 
   return { invoices: paid.length, appts: linked.length, avoirsRestored: usages.length };
 }

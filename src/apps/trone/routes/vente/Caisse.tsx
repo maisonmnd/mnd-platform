@@ -208,7 +208,9 @@ export default function Caisse() {
     setCollapsed((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const add = (key: string) =>
-    setCart((c) => ({ ...c, [key]: { qty: (c[key]?.qty ?? 0) + 1, disc: c[key]?.disc ?? 0 } }));
+    /* On GARDE la ligne existante : recomposer {qty, disc} à nu effaçait le
+       montant convenu d'une prestation sur devis au premier « + ». */
+    setCart((c) => ({ ...c, [key]: { ...c[key], qty: (c[key]?.qty ?? 0) + 1, disc: c[key]?.disc ?? 0 } }));
   const dec = (key: string) =>
     setCart((c) => {
       const cur = c[key];
@@ -316,7 +318,13 @@ export default function Caisse() {
        qui etait compte, et cette information vaut mieux qu'un zero rassurant. */
     const vendus = lines.filter((l) => l.kind === 'product');
     if (vendus.length) {
-      const sansFiche = vendus.filter((l) => !venteGamme(l.key.slice(2), l.qty, inv.number, todayIso()));
+      /* Boucle EXPLICITE : écrire au journal est un geste, pas l'effet de bord
+         d'un prédicat de filtre. Et la vente porte SA branche — vendre au
+         Studio ne draine pas la réserve de l'Atelier. */
+      const sansFiche: typeof vendus = [];
+      for (const l of vendus) {
+        if (!venteGamme(l.key.slice(2), l.qty, inv.number, todayIso(), branch.id)) sansFiche.push(l);
+      }
       if (sansFiche.length) {
         productsStore.set((prev) => prev.map((prod) => {
           const l = sansFiche.find((x) => x.key === `p:${prod.id}`);
@@ -803,7 +811,7 @@ export default function Caisse() {
                 role="button"
                 tabIndex={0}
               >
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
                 <span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(i.date)}</span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{i.time ?? '—'}</span>
