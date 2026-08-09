@@ -12,7 +12,7 @@ import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps }
 import { useProducts } from '../../../../shared/catalog';
 import { envieLabel } from '../../../../shared/quiz';
 import {
-  enAttente, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
+  enAttente, nomPropose, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
 } from '../../../../shared/enfants';
 import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
@@ -57,6 +57,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
   const today = todayISO();
   const [refusFor, setRefusFor] = useState<string | null>(null);
   const [motif, setMotif] = useState('');
+  /* Le nom tel qu'il sera écrit sur la fiche. Le parent l'a donné, le comptoir
+     le relit — une faute de frappe sur un nom d'enfant le suit partout. */
+  const [noms, setNoms] = useState<Record<string, string>>({});
 
   const file = enAttente(declarations, branch.id);
   const parentDe = (d: EnfantDeclare) => clients.find((c) => c.id === d.clientId);
@@ -73,8 +76,7 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {file.map((d) => {
           const parent = parentDe(d);
-          const patronyme = parent?.name.trim().split(/\s+/).slice(-1)[0] ?? '';
-          const nomComplet = [d.prenom, d.nom ?? patronyme].filter(Boolean).join(' ');
+          const nomComplet = noms[d.id] ?? nomPropose(d);
           const age = ageDe(d.birthday, today);
           const fam = parent?.familyId ? familles.find((f) => f.id === parent.familyId) : undefined;
           return (
@@ -86,11 +88,16 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>
-                    {nomComplet}
-                  </div>
-                  <div className="trc-sub" style={{ marginTop: 3 }}>
+                <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+                  {/* LE NOM SE RELIT AVANT D'ÊTRE ÉCRIT. L'enfant porte le nom de
+                      son père, et la maman est souvent inscrite sous son nom de
+                      jeune fille : rien ne se déduit d'elle. */}
+                  <Input
+                    value={nomComplet}
+                    onChange={(e) => setNoms((p) => ({ ...p, [d.id]: e.target.value }))}
+                    style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}
+                  />
+                  <div className="trc-sub" style={{ marginTop: 5 }}>
                     {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · née le ${frShort(d.birthday)}` : frShort(d.birthday)}
                     {' · déclaré par '}{parent?.name ?? 'une cliente inconnue'}
                     {' le '}{frShort(d.declareLe)}
@@ -128,7 +135,7 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
                     size="sm"
                     variant="indigo"
                     onClick={() => {
-                      const r = validerEnfant(d, today);
+                      const r = validerEnfant(d, today, nomComplet);
                       if (!r.ok) window.alert(r.erreur ?? 'Impossible de valider cette demande.');
                     }}
                   >

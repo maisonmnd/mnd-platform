@@ -10,7 +10,7 @@ import { useAppointments, venuesHonorees, type Appointment } from '../../shared/
 import { useServices } from '../../shared/catalog';
 import { clientsStore, useClients, useFamilies } from '../../shared/clients';
 import { ageDe, tetesPortees } from '../../shared/accounts';
-import { declarationsDe, declarerEnfant, useEnfantsDeclares } from '../../shared/enfants';
+import { declarationsDe, declarerEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
@@ -1026,6 +1026,10 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   const [declarations] = useEnfantsDeclares();
   const [ouvert, setOuvert] = useState(false);
   const [prenom, setPrenom] = useState('');
+  /* SON NOM À LUI, demandé — jamais déduit du vôtre. L'enfant porte le nom de
+     son père, et beaucoup de mamans sont inscrites sous leur nom de jeune
+     fille : le déduire de la déclarante écrivait un nom faux sur sa fiche. */
+  const [nom, setNom] = useState('');
   const [naissance, setNaissance] = useState('');
   const [erreur, setErreur] = useState('');
 
@@ -1037,10 +1041,11 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   const refusees = mesDemandes.filter((d) => d.statut === 'refusé');
 
   const envoyer = () => {
-    const r = declarerEnfant(client, prenom, '', naissance, aujourdhui);
+    const r = declarerEnfant(client, prenom, nom, naissance, aujourdhui);
     if (!r.ok) { setErreur(r.erreur ?? 'Cette demande n’a pas pu être envoyée.'); return; }
     setErreur('');
     setPrenom('');
+    setNom('');
     setNaissance('');
     setOuvert(false);
     toast('Demande transmise — la maison ouvre sa fiche et vous prévient.');
@@ -1074,7 +1079,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
         <div key={d.id} className="mc-crownstatus" style={{ marginTop: 8, opacity: .75 }}>
           <span className="mc-crownstatus__filet" style={{ background: 'var(--color-argile)' }} />
           <div className="mc-crownstatus__top">
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{d.prenom}</span>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{nomPropose(d)}</span>
             <span className="mc-pillseal">En attente de la maison</span>
           </div>
         </div>
@@ -1099,6 +1104,17 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             placeholder="Mahoussi"
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
+          <div className="mc-field-label" style={{ marginTop: 12 }}>Son nom de famille</div>
+          <input
+            className="mnd-input"
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Houngbédji"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          />
+          <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
+            Le sien, tel qu’il est écrit à l’état civil — il peut être différent du vôtre.
+          </div>
           <div className="mc-field-label" style={{ marginTop: 12 }}>Sa date de naissance</div>
           <input
             className="mnd-input"

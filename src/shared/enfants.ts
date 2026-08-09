@@ -32,7 +32,11 @@ export type EnfantDeclare = {
   clientId: string;
   /** Ce qu'il a écrit. Rien d'autre : aucun identifiant, aucune fiche visée. */
   prenom: string;
-  nom?: string;
+  /** SON NOM À LUI — demandé, jamais déduit du parent. Les enfants portent le
+      nom de leur père, et bien des mamans sont inscrites sous leur nom de jeune
+      fille : hériter du nom de la déclarante écrivait un nom faux sur la fiche.
+      Le carnet le montre déjà — Christelle Vlavonou porte Enora Hounsounou. */
+  nom: string;
   /** OBLIGATOIRE. Sans elle, la minorité ne se prouve pas — et la minorité est
       ce qui ouvre l'accès du parent. Voir `estMineur`. */
   birthday: string;
@@ -58,10 +62,22 @@ export const declarationsDe = (l: EnfantDeclare[], parentId: string): EnfantDecl
     .slice()
     .sort((a, b) => b.declareLe.localeCompare(a.declareLe));
 
+/** Le nom que la demande propose. Le comptoir le voit, et peut le corriger
+    avant d'ouvrir la fiche — c'est lui qui tient le carnet. */
+export const nomPropose = (d: Pick<EnfantDeclare, 'prenom' | 'nom'>): string =>
+  /* `?? ''` : une demande déposée avant que le nom soit demandé n'en porte pas.
+     Le comptoir doit pouvoir la lire et la compléter, pas tomber dessus. */
+  [(d.prenom ?? '').trim(), (d.nom ?? '').trim()].filter(Boolean).join(' ');
+
 /** Le parent dépose sa demande. AUCUNE FICHE N'EST CRÉÉE ICI. */
 export function declarerEnfant(parent: Client, prenom: string, nom: string, birthday: string, aujourdhui: string): { ok: boolean; erreur?: string } {
   const p = prenom.trim();
+  const n = nom.trim();
   if (!p) return { ok: false, erreur: 'Il manque son prénom.' };
+  /* ON LE DEMANDE PLUTÔT QUE DE LE DEVINER. Le nom de l'enfant est celui de son
+     père ; celui de la maman peut être son nom de jeune fille. Le déduire d'elle
+     écrivait un nom faux sur la fiche de l'enfant, et ce nom la suit partout. */
+  if (!n) return { ok: false, erreur: 'Il manque son nom de famille.' };
   if (!birthday) return { ok: false, erreur: 'Il manque sa date de naissance.' };
   if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
   /* La Maison ne prend en charge que des mineurs par ce chemin : un majeur
@@ -72,7 +88,8 @@ export function declarerEnfant(parent: Client, prenom: string, nom: string, birt
   /* Deux fois le même enfant : on ne fait pas la queue deux fois. */
   const deja = enfantsDeclaresStore.get().some(
     (e) => e.clientId === parent.id && e.statut === 'en attente'
-      && e.prenom.trim().toLowerCase() === p.toLowerCase() && e.birthday === birthday,
+      && e.prenom.trim().toLowerCase() === p.toLowerCase()
+      && (e.nom ?? '').trim().toLowerCase() === n.toLowerCase() && e.birthday === birthday,
   );
   if (deja) return { ok: false, erreur: 'Cette demande est déjà en attente.' };
 
@@ -83,7 +100,7 @@ export function declarerEnfant(parent: Client, prenom: string, nom: string, birt
       branchId: parent.branchId,
       clientId: parent.id,
       prenom: p,
-      nom: nom.trim() || undefined,
+      nom: n,
       birthday,
       declareLe: aujourdhui,
       statut: 'en attente',
@@ -95,12 +112,22 @@ export function declarerEnfant(parent: Client, prenom: string, nom: string, birt
 /** LA MAISON VALIDE — et c'est seulement ici qu'une fiche naît.
 
     Elle crée la tête, ouvre le compte famille s'il n'existe pas encore, et
-    désigne le parent comme payeur. Le nom de famille du parent sert de repli :
-    un enfant déclaré « Mahoussi » devient « Mahoussi Adamon ». */
-export function validerEnfant(dec: EnfantDeclare, aujourdhui: string): { ok: boolean; erreur?: string } {
+    désigne le parent comme payeur.
+
+    LE NOM NE SE DÉDUIT PAS DU PARENT. Il venait autrefois du patronyme de la
+    déclarante : un enfant déclaré « Mahoussi » par Awa Adamon devenait
+    « Mahoussi Adamon ». C'est faux deux fois — l'enfant porte le nom de son
+    père, et la maman est souvent inscrite sous son nom de jeune fille. Le carnet
+    le disait déjà : Christelle Vlavonou porte Enora Hounsounou, Jocelyne
+    Satchivi porte Anasthasia Yenoussi. Le nom est donc demandé au parent, et le
+    comptoir peut le corriger ici — `nomComplet` est ce qu'il a sous les yeux au
+    moment de valider. */
+export function validerEnfant(dec: EnfantDeclare, aujourdhui: string, nomComplet?: string): { ok: boolean; erreur?: string } {
   if (dec.statut !== 'en attente') return { ok: false, erreur: 'Cette demande est déjà traitée.' };
   const parent = clientsStore.get().find((c) => c.id === dec.clientId);
   if (!parent) return { ok: false, erreur: 'La fiche du parent est introuvable.' };
+  const nom = (nomComplet ?? nomPropose(dec)).trim().replace(/\s+/g, ' ');
+  if (!nom) return { ok: false, erreur: 'Il faut un nom pour ouvrir sa fiche.' };
 
   /* Le compte famille : celui du parent s'il en a un, sinon on l'ouvre — et le
      parent en devient le payeur, ce qui est déjà la vérité du comptoir. */
@@ -120,15 +147,13 @@ export function validerEnfant(dec: EnfantDeclare, aujourdhui: string): { ok: boo
     familiesStore.set((prev) => prev.map((f) => (f.id === existante.id ? { ...f, payerClientId: parent.id } : f)));
   }
 
-  const patronyme = parent.name.trim().split(/\s+/).slice(-1)[0] ?? '';
-  const nomComplet = [dec.prenom.trim(), (dec.nom ?? patronyme).trim()].filter(Boolean).join(' ');
   const enfantId = `enf-${uid()}`;
   clientsStore.set((prev) => [
     ...prev,
     {
       id: enfantId,
       branchId: dec.branchId,
-      name: nomComplet,
+      name: nom,
       phone: '',
       city: parent.city ?? '',
       /* NI COMPTE NI ADRESSE : un mineur n'en a pas, et lui en inventer une
