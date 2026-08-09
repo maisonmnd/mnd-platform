@@ -6,11 +6,11 @@ import { enablePush, disablePush, pushState, type PushState } from '../../shared
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
-import { useAppointments, type Appointment } from '../../shared/agenda';
+import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { clientsStore } from '../../shared/clients';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
-import { useTiers } from '../../shared/offers';
+import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
@@ -78,6 +78,23 @@ function useUpcomingAppointments(): Appointment[] {
 
 function useNextAppointment(): Appointment | undefined {
   return useUpcomingAppointments()[0];
+}
+
+/** OÙ ELLE EN EST DU CERCLE. On y entre au N-ième passage (réglé au Trône) : une
+    cliente qui n'y est pas encore ne doit pas lire « 0 point » sans comprendre —
+    c'est ainsi qu'un programme de fidélité passe pour cassé. Elle voit donc le
+    chemin qu'il lui reste, pas une porte close. */
+function useCercle(): { venues: number; seuil: number; membre: boolean; reste: number } {
+  const [appts] = useAppointments();
+  const clientId = useClientId();
+  const [seuil] = useStore(cercleSeuilStore);
+  return useMemo(() => {
+    /* Par la PAYEUSE, comme les points : un rituel qu'on lui a offert ne la fait
+       pas entrer — c'est celle qui a payé que la Maison reconnaît. */
+    const venues = venuesHonorees(appts, clientId, true);
+    const membre = estDuCercle(venues, seuil);
+    return { venues, seuil, membre, reste: Math.max(0, seuil - venues) };
+  }, [appts, clientId, seuil]);
 }
 
 /* ---------- devis — le pont Factures du Trône ---------- */
@@ -174,6 +191,7 @@ export function HomeTab({
   const nextTier = ladder.find((t) => points < t.pts);
   const attained = ladder.filter((t) => t.pts <= points);
   const tierPct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
+  const cercle = useCercle();
 
   /* Recommandation : le produit choisi par la maison sur la fiche (Carnet de
      Suivi personnalisé) prime ; sinon repli sur la suggestion générique. */
@@ -246,11 +264,25 @@ export function HomeTab({
             <div className="mc-crownstatus__id">
               <span className="mc-crownstatus__style">{client?.crownStyle ?? 'Votre couronne'}</span>
             </div>
-            {attained.length > 0 && (
+            {cercle.membre && attained.length > 0 && (
               <span className="mc-pillseal">Palier {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
             )}
           </div>
-          {ladder.length > 0 && (
+          {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
+              barre de paliers figée à zéro à qui n'y a pas encore droit fait
+              croire que rien ne compte — alors que ses venues, elles, comptent. */}
+          {!cercle.membre ? (
+            <div className="mc-crownstatus__progress">
+              <div className="mc-bar">
+                <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
+              </div>
+              <span>
+                {cercle.venues === 0
+                  ? `Le Cercle s’ouvre au ${cercle.seuil}ᵉ passage`
+                  : `Encore ${cercle.reste} passage${cercle.reste > 1 ? 's' : ''} avant le Cercle`}
+              </span>
+            </div>
+          ) : ladder.length > 0 && (
             <div className="mc-crownstatus__progress">
               <div className="mc-bar"><div style={{ width: `${tierPct}%` }} /></div>
               <span>
@@ -885,6 +917,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
   const [tiers] = useTiers();
   const [services] = useServices();
   const points = client?.loyaltyPoints ?? 0;
+  const cercle = useCercle();
 
   /* Les paliers sont ceux définis au Trône (Cercle) — la prestation offerte
      vient du catalogue partagé. */
@@ -897,28 +930,53 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
       <div className="mc-micro-eyebrow">Le Cercle MND · transmettre</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>Votre lignée.</h1>
 
-      {/* points de reconnaissance */}
-      <div className="mc-pointscard">
-        <div className="mc-pointscard__watermark" aria-hidden="true" />
-        <div className="mc-pointscard__inner">
-          <div className="mc-pointscard__label">Reconnaissance de la maison</div>
-          <div className="mc-pointscard__row">
-            <span className="mc-pointscard__big">{points.toLocaleString('fr-FR')}</span>
-            <span className="mc-pointscard__unit">points de reconnaissance</span>
+      {/* LE SEUIL, DIT AVANT LES POINTS. Un compteur à zéro sans un mot se lit
+          comme une panne ; le chemin restant se lit comme une invitation. */}
+      {!cercle.membre ? (
+        <div className="mc-pointscard">
+          <div className="mc-pointscard__watermark" aria-hidden="true" />
+          <div className="mc-pointscard__inner">
+            <div className="mc-pointscard__label">Le Cercle s’ouvre au {cercle.seuil}ᵉ passage</div>
+            <div className="mc-pointscard__row">
+              <span className="mc-pointscard__big">{cercle.venues}</span>
+              <span className="mc-pointscard__unit">
+                {cercle.venues > 1 ? 'passages' : 'passage'} sur {cercle.seuil}
+              </span>
+            </div>
+            <div className="mc-bar mc-bar--invert">
+              <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
+            </div>
+            <div className="mc-pointscard__hint">
+              {cercle.venues === 0
+                ? `Votre lignée commence à votre première venue. Le Cercle vous accueillera au ${cercle.seuil}ᵉ passage.`
+                : `Encore ${cercle.reste} passage${cercle.reste > 1 ? 's' : ''} et la maison vous accueille dans son Cercle.`}
+            </div>
           </div>
-          <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
-          <div className="mc-pointscard__hint">
-            {nextTier
-              ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
-              : ladder.length > 0
-                ? 'Tous les paliers sont honorés — la maison vous salue.'
-                : 'Chaque rituel honoré nourrit votre reconnaissance.'}
-          </div>
-          <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
-            Introduire par WhatsApp
-          </button>
         </div>
-      </div>
+      ) : (
+        /* points de reconnaissance */
+        <div className="mc-pointscard">
+          <div className="mc-pointscard__watermark" aria-hidden="true" />
+          <div className="mc-pointscard__inner">
+            <div className="mc-pointscard__label">Reconnaissance de la maison</div>
+            <div className="mc-pointscard__row">
+              <span className="mc-pointscard__big">{points.toLocaleString('fr-FR')}</span>
+              <span className="mc-pointscard__unit">points de reconnaissance</span>
+            </div>
+            <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
+            <div className="mc-pointscard__hint">
+              {nextTier
+                ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
+                : ladder.length > 0
+                  ? 'Tous les paliers sont honorés — la maison vous salue.'
+                  : 'Chaque rituel honoré nourrit votre reconnaissance.'}
+            </div>
+            <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
+              Introduire par WhatsApp
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* paliers de reconnaissance — définis au Trône */}
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>

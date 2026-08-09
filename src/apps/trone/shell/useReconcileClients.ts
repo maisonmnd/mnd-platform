@@ -42,7 +42,11 @@ export function useReconcileClients(): void {
       name: string | undefined,
       date: string | undefined,
     ) => {
-      if (!clientId || clientId === 'c-local' || known.has(clientId)) return;
+      /* `walkin` est un marqueur d'écran (vente anonyme au comptoir), jamais un
+         identifiant : le laisser passer ouvrait UNE fiche fourre-tout où toutes
+         les ventes sans cliente venaient s'empiler. Les deux écrans qui le
+         produisent le traduisent maintenant en amont — ceci est la ceinture. */
+      if (!clientId || clientId === 'c-local' || clientId === 'walkin' || known.has(clientId)) return;
       const prev = missing.get(clientId);
       const since = date || new Date().toISOString().slice(0, 10);
       // Garde le nom le plus informatif et la branche associée.

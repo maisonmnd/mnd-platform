@@ -6,7 +6,7 @@ import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '..
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
-  useClients, useSegments, addSegment, renameSegment, removeSegment,
+  useClients, useSegments, addSegment, renameSegment, removeSegment, estDePassage,
 } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { useServices } from '../../../../shared/catalog';
@@ -132,7 +132,12 @@ export default function Marketing() {
      Un segment orphelin (porté par des fiches mais absent de la liste) est
      montré quand même — le taire reviendrait à cacher des clientes. */
   const audienceRows = useMemo(() => {
-    const inBranch = clients.filter((c) => c.branchId === branch.id && !c.archived);
+    /* UNE AUDIENCE EST UNE LISTE DE GENS À QUI L'ON ÉCRIT. Les clientes de
+       passage n'en font pas partie : leur écrire, c'est du bruit — et le bruit
+       fait ignorer tous les messages suivants, y compris ceux qui comptent.
+       Elles gonfleraient aussi la taille et fausseraient la valeur moyenne du
+       segment. Voir `Client.dePassage`. */
+    const inBranch = clients.filter((c) => c.branchId === branch.id && !c.archived && !estDePassage(c));
     const size = new Map<string, number>();
     const spend = new Map<string, number>();
     inBranch.forEach((c) => {

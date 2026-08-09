@@ -479,7 +479,7 @@ export default function Caisse() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottom: '1px solid var(--hairline)' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Cliente</span>
                 <div style={{ flex: 1 }}>
-                  <ClientPicker value={clientId} onChange={setClientId} allowWalkIn />
+                  <ClientPicker value={clientId} onChange={setClientId} allowWalkIn allowPassage />
                 </div>
               </div>
 

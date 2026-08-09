@@ -7,6 +7,7 @@ import { useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
+import { usePassageVivant } from './usePassageVivant';
 import { useBranch } from '../../../shared/branches';
 import { Seal, Button, toast } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
@@ -24,16 +25,31 @@ function SyncDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
   if (!s.enabled) return null;
   const mode = !s.online ? 'off' : s.failed > 0 ? 'err' : s.pending > 0 ? 'wait' : 'ok';
-  /* EN ÉCHEC, ON NOMME. Une pastille qui dit « en échec » sans dire de quoi
-     oblige à ouvrir la console du navigateur pour diagnostiquer — ce qui n'est
-     pas une chose qu'on demande à un comptoir en pleine journée. */
+  /* EN ÉCHEC, ON NOMME — ET ON DIT POURQUOI. Nommer les tables (6 août) a évité
+     d'ouvrir la console pour savoir LESQUELLES ; le 9 août il a fallu la rouvrir
+     pour savoir POURQUOI. Or la cause change tout : une migration jamais collée
+     se répare en trente secondes, un réseau coupé s'attend. Les causes se
+     regroupent — trois tables absentes font une phrase, pas trois.
+     `supabase/audit_synchro.sql` confirme en base ce que cette phrase avance. */
+  const parRaison = new Map<string, string[]>();
+  for (const f of s.failedWhy) {
+    const l = parRaison.get(f.raison);
+    if (l) l.push(f.table);
+    else parRaison.set(f.raison, [f.table]);
+  }
+  const causes = [...parRaison.entries()].map(([raison, tables]) => `${tables.join(', ')} — ${raison}`);
+  const premiere = [...parRaison.entries()][0];
   const label = mode === 'off' ? 'Hors ligne'
-    : mode === 'err' ? `Synchro en échec · ${s.failedNames.join(', ') || '?'}`
+    : mode === 'err'
+      ? (premiere
+          ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')} — ${premiere[0]}`
+          : 'Synchro en échec')
     : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
   const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne — les écritures restent sur ce poste et partiront au retour du réseau.'
-    : mode === 'err' ? `Refusé par le serveur : ${s.failedNames.join(', ') || '—'}. Vérifiez la connexion, puis refaites une modification pour relancer.`
+    : mode === 'err'
+      ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne. Refaites une modification pour relancer.`
     : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
     : 'Toutes les écritures sont sur le serveur.';
   return (
@@ -170,6 +186,9 @@ export default function Shell() {
   /* L'archétype de chaque cliente se relit à chaque mouvement du carnet — sauf
      s'il a été figé à la main. Voir shared/persona.ts pour la pesée. */
   usePersonaVivant();
+  /* Une cliente de passage cesse de l'être dès sa 2ᵉ venue — le seul geste de ce
+     hook est de RETIRER la marque, jamais d'en poser une. */
+  usePassageVivant();
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const closeSide = () => setSideOpen(false);

@@ -269,7 +269,15 @@ export default function Factures() {
   /* Enregistre : ajoute (création) ou remplace par id (modification). */
   const saveDraft = () => {
     if (!editing) return;
-    const d = editing.draft;
+    /* LE FANTÔME NE TRAVERSE PAS. « walkin » est un marqueur d'écran, pas une
+       cliente : écrit tel quel dans la pièce, `useReconcileClients` le prenait
+       pour un identifiant orphelin et ouvrait UNE fiche « walkin » où toutes
+       les ventes au comptoir venaient s'empiler. La Caisse, elle, le traduit
+       depuis toujours (`clientId: ''` + `clientName`) — on fait pareil ici.
+       Une cliente de passage, elle, a désormais une vraie fiche. */
+    const d = editing.draft.clientId === 'walkin'
+      ? { ...editing.draft, clientId: '', clientName: editing.draft.clientName ?? 'Walk-in' }
+      : editing.draft;
     if (editing.mode === 'new') setInvoices((prev) => [d, ...prev]);
     else setInvoices((prev) => prev.map((i) => (i.id === d.id ? d : i)));
     setSelectedId(d.id);
@@ -289,7 +297,7 @@ export default function Factures() {
     const doc = invoices.find((i) => i.id === id);
     const linked = doc ? appointmentsStore.get().find((a) => a.invoiceId === id) : undefined;
     const warn = linked
-      ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement — le rituel redevient impayé et les points Cercle attribués sont repris.`
+      ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement — le rituel redevient impayé. Il reste HONORÉ et garde ses points : supprimer une pièce n'efface que de l'argent.`
       : '';
     if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
     if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
@@ -527,7 +535,7 @@ export default function Factures() {
               <div>
                 <div className="trv-sec-label">Tête couronnée & maître</div>
                 <div className="tr-grid tr-grid--2" style={{ gap: 8 }}>
-                  <ClientPicker value={draft.clientId} onChange={(id) => patchDraft({ clientId: id })} allowWalkIn />
+                  <ClientPicker value={draft.clientId} onChange={(id) => patchDraft({ clientId: id })} allowWalkIn allowPassage />
                   <Select value={draft.master ?? ''} onChange={(e) => patchDraft({ master: e.target.value })} style={{ fontSize: 12 }}>
                     {[...new Set([draft.master ?? '', ...branch.masters])].filter(Boolean).map((m) => (
                       <option key={m} value={m}>{m}</option>

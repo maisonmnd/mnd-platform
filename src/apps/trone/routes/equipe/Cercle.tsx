@@ -4,9 +4,11 @@ import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients, clientsStore, type Client } from '../../../../shared/clients';
+import { useClients, clientsStore, estDePassage, type Client } from '../../../../shared/clients';
+import { useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
+import { cercleSeuilStore, estDuCercle } from '../../../../shared/offers';
 import {
   pointsHistoryStore, pointsRateStore, pointsEnabledStore, useTiers,
   type PointsEvent, type RewardTier,
@@ -23,6 +25,7 @@ type TierForm = { pts: string; serviceId: string; desc: string };
 export default function Cercle() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
+  const [appts] = useAppointments();
   const [services] = useServices();
   const [tiers, setTiers] = useTiers();
   const [rate, setRate] = useStore(pointsRateStore);
@@ -34,9 +37,34 @@ export default function Cercle() {
   const [tierForm, setTierForm] = useState<TierForm>({ pts: '', serviceId: services[0]?.id ?? '', desc: '' });
   const [adjust, setAdjust] = useState<Record<string, string>>({});
 
-  const members = useMemo(
-    () => clients.filter((c) => c.branchId === branch.id && !c.archived).sort((a, b) => b.loyaltyPoints - a.loyaltyPoints),
+  /* LE CERCLE N'EST PAS LE CARNET. « Têtes dans le Cercle » comptait TOUTES les
+     clientes de la branche : un registre qui dit « 186 membres » d'un programme
+     où personne n'est encore entré ne récompense plus rien, il décrit le carnet.
+     On y entre au 3ᵉ passage — les autres sont AUX PORTES, et se voient aussi,
+     parce que c'est là que se lit ce que la fidélité est en train de gagner. */
+  const [seuil, setSeuil] = useStore(cercleSeuilStore);
+  const venuesDe = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of clients) m.set(c.id, venuesHonorees(appts, c.id, true));
+    return m;
+  }, [clients, appts]);
+
+  const branchClients = useMemo(
+    () => clients.filter((c) => c.branchId === branch.id && !c.archived)
+      .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints),
     [clients, branch.id],
+  );
+  const members = useMemo(
+    () => branchClients.filter((c) => estDuCercle(venuesDe.get(c.id) ?? 0, seuil)),
+    [branchClients, venuesDe, seuil],
+  );
+  /* Aux portes — il leur manque une venue ou deux. Une passante n'y figure pas :
+     elle n'a pas encore de relation à faire mûrir. */
+  const auxPortes = useMemo(
+    () => branchClients
+      .filter((c) => !estDuCercle(venuesDe.get(c.id) ?? 0, seuil) && !estDePassage(c) && (venuesDe.get(c.id) ?? 0) > 0)
+      .sort((a, b) => (venuesDe.get(b.id) ?? 0) - (venuesDe.get(a.id) ?? 0)),
+    [branchClients, venuesDe, seuil],
   );
   const sortedTiers = useMemo(() => [...tiers].sort((a, b) => a.pts - b.pts), [tiers]);
 
@@ -124,7 +152,9 @@ export default function Cercle() {
         <Card filet="copper" style={{ padding: 18 }}>
           <div className="mnd-stat__label">Têtes dans le Cercle</div>
           <div className="mnd-stat__value" style={{ fontSize: 32 }}>{members.length}</div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>membres de la branche</div>
+          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+            entrées au {seuil}ᵉ passage{auxPortes.length > 0 ? ` · ${auxPortes.length} aux portes` : ''}
+          </div>
         </Card>
         <Card filet="indigo" style={{ padding: 18 }}>
           <div className="mnd-stat__label">Points en circulation</div>
@@ -159,17 +189,38 @@ export default function Cercle() {
                   Chaque dépense élève la couronne — jamais de date d’expiration, jamais de petits caractères.
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 12px' }}>
-                <span className="mnd-muted" style={{ fontSize: 10 }}>1 point /</span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={rate}
-                  onChange={(e) => { const n = parseInt(e.target.value, 10); setRate(n > 0 ? n : 1); }}
-                  style={{ width: 72, textAlign: 'center', padding: '5px 7px' }}
-                />
-                <span className="mnd-muted" style={{ fontSize: 10 }}>F dépensés</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 12px' }}>
+                  <span className="mnd-muted" style={{ fontSize: 10 }}>on entre au</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={seuil}
+                    onChange={(e) => { const n = parseInt(e.target.value, 10); setSeuil(n > 0 ? n : 1); }}
+                    style={{ width: 62, textAlign: 'center', padding: '5px 7px' }}
+                    aria-label="Nombre de passages pour entrer au Cercle"
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 10 }}>ᵉ passage</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 12px' }}>
+                  <span className="mnd-muted" style={{ fontSize: 10 }}>1 point /</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={rate}
+                    onChange={(e) => { const n = parseInt(e.target.value, 10); setRate(n > 0 ? n : 1); }}
+                    style={{ width: 72, textAlign: 'center', padding: '5px 7px' }}
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 10 }}>F dépensés</span>
+                </div>
               </div>
+            </div>
+            {/* LA RÈGLE SE DIT, sinon un comptoir qui ne voit aucun point tomber
+                croit à une panne et finit par en ajouter à la main. */}
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+              Un passage ne donne pas le Cercle. Les {seuil > 1 ? `${seuil - 1} premier${seuil > 2 ? 's' : ''} passage${seuil > 2 ? 's' : ''} n’attribue${seuil > 2 ? 'nt' : ''} aucun point` : 'points sont attribués dès la première venue'} —
+              la reconnaissance commence au {seuil}ᵉ, et rien n’est crédité après coup pour les venues d’avant.
+              Une venue = un jour où un rituel a été honoré ; deux gestes le même jour ne comptent qu’une fois.
             </div>
           </Card>
 
@@ -249,9 +300,42 @@ export default function Cercle() {
           {members.length === 0 && (
             <Card className="tre-empty" style={{ gridColumn: '1 / -1' }}>
               <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
-              <div className="tre-empty__title">Aucune tête couronnée ici.</div>
-              <div className="tre-empty__sub">Le Cercle de cette branche attend ses premières fidèles.</div>
+              <div className="tre-empty__title">Personne n’est encore entré.</div>
+              <div className="tre-empty__sub">
+                Le Cercle s’ouvre au {seuil}ᵉ passage — {auxPortes.length > 0
+                  ? `${auxPortes.length} tête${auxPortes.length > 1 ? 's' : ''} en approche, ci-dessous.`
+                  : 'aucune tête n’en est encore proche.'}
+              </div>
             </Card>
+          )}
+
+          {/* AUX PORTES — celles qu'il ne faut pas confondre avec des membres,
+              mais qu'il serait sot de cacher : c'est là que se lit ce que la
+              fidélité est en train de gagner, et de quoi parler au fauteuil. */}
+          {auxPortes.length > 0 && (
+            <>
+              <div style={{ gridColumn: '1 / -1', marginTop: 8, fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                Aux portes du Cercle · {auxPortes.length}
+              </div>
+              {auxPortes.map((c) => {
+                const v = venuesDe.get(c.id) ?? 0;
+                const reste = Math.max(1, seuil - v);
+                return (
+                  <Card key={c.id} style={{ padding: '14px 18px', opacity: 0.9 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span className="tre-avatar">{c.name.slice(0, 1)}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{c.name}</div>
+                        <div className="mnd-muted" style={{ fontSize: 10.5 }}>
+                          {v} venue{v > 1 ? 's' : ''} · encore {reste} avant le Cercle
+                        </div>
+                      </div>
+                      <Bar pct={Math.round((v / Math.max(1, seuil)) * 100)} />
+                    </div>
+                  </Card>
+                );
+              })}
+            </>
           )}
         </div>
       )}

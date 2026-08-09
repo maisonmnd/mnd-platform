@@ -477,7 +477,7 @@ de l'aperçu. Aucun rituel n'a changé de valeur en passant du Carnet à sa fact
 
 **Le chiffre validé le 8 août n'est pas celui qui a été écrit — et c'est normal.**
 15 517 600 F attendus, 15 580 400 F écrits : **+62 800 F**, une seule pièce,
-**MND-R-0330 — Edwin Johnson, 31 juillet, KÒKÒ™ Suivi**. Yéman a fait passer ce
+**MND-R-0330 — 31 juillet, KÒKÒ™ Suivi**. Yéman a fait passer ce
 rituel en **mi-long** entre les deux exécutions : sa valeur au Carnet a changé,
 la facture a suivi. Sans le correctif `prixParLongueur`, la requête l'aurait
 compté au prix de repli et cette correction aurait DISPARU du chiffre d'affaires.
@@ -507,6 +507,114 @@ Le rollback complet (factures + liens `invoiceId`) est en fin de
 `supabase/0018_factures_reprise.sql`. L'étape 2 y reste **commentée** : le
 fichier ne doit jamais pouvoir s'exécuter d'un copier-coller distrait.
 
+#### Les 27 impayés — examinés le 9 août, DÉCISION PRISE : ne rien changer
+
+Dispersés sur dix mois, aucun schéma répété : **ce ne sont pas des lacunes de
+saisie de l'ancien ERP, ce sont des cas individuels.** Pas de solde en masse —
+la question a été posée et tranchée, ne pas la rouvrir.
+
+**Cinq rituels ont reçu un acompte au comptoir — 155 000 F — qui ne compte plus
+nulle part**, et c'est assumé. Le revenu se lit `apptRev` (rituels SANS facture)
++ `invRev` (factures **payées**) : une pièce `envoyée` ne compte ni au chiffre ni
+à la caisse, même pour la part déjà versée. Ces 155 000 F reviendront quand le
+comptoir soldera chaque rituel à la main — datés de ce jour-là, pas du rituel.
+Proposition de scinder en deux pièces (une `payée` du reçu, une `envoyée` du
+reste, comme le fait la Caisse) **écartée par Yéman**.
+
+*(Dépôt PUBLIC : les pièces se désignent par leur NUMÉRO, jamais par le nom de
+la cliente. La jointure `invoices` → `appointments` → `clients` le rend en une
+requête, au comptoir, là où c'est légitime.)*
+
+| Pièce | Dû | Reçu | Reste |
+|---|---|---|---|
+| MND-R-0220 | 92 000 | 50 000 | 42 000 |
+| MND-R-0271 | 75 000 | 45 000 | 30 000 |
+| MND-R-0252 | 42 000 | 30 000 | 12 000 |
+| MND-R-0134 | 16 000 | 15 000 | 1 000 |
+| MND-R-0232 | 16 000 | 15 000 | 1 000 |
+
+L'affichage, lui, est juste : Dashboard et Comptes passent par `apptDueXof`
+(net − encaissé − acompte) et montrent le RESTE, jamais le net plein. Aucun
+risque de relancer sur un mauvais montant. Reste réellement dû : **1 186 000 F**.
+
+**Quatre choses à vérifier avant toute relance** (aucune n'est faite) :
+
+- **MND-R-0118 et MND-R-0121** — même cliente, même jour (20 mars), même montant
+  (30 000). Doublon probable ; `supabase/audit_duplicate_appointments.sql`.
+- **MND-R-0003, 0004 et 0005** — trois têtes d'une même famille le 19 décembre
+  2025, **151 500 F**. Un payeur pour trois, réglé une fois et inscrit sur
+  personne : c'est le motif classique, et les comptes famille existent au Trône.
+- **MND-R-0170, 0208 et 0273** — une même cliente, trois rituels (avril, mai,
+  juin), 132 000 F, pas un franc inscrit.
+- **MND-R-0134 et MND-R-0232** — 15 000 versés sur 16 000, deux fois. Ce n'est
+  pas une dette de 1 000 F, c'est un prix consenti à 15 000 que l'ancien ERP ne
+  savait pas écrire.
+
+**MND-R-0330, 313 000 F au 31 juillet**, pèse à elle seule 23 % des impayés.
+C'est le rituel repassé en mi-long ci-dessus ; neuf jours d'ancienneté, sans
+doute simplement pas encore réglé.
+
+### Annuler un encaissement SUPPRIME sa pièce — corrigé le 9 août 2026
+
+`cancelAppointmentPayment` (clients/actions.tsx) laissait deux fuites derrière
+elle. Découvertes sur une fiche cliente qui portait **neuf factures pour trois
+rituels**.
+
+**① La pièce était abandonnée, pas supprimée.** L'annulation la basculait de
+`payée` à `envoyée` et la laissait dans la base, détachée de son rituel. Résultat :
+une créance fantôme qui gonfle les impayés, alerte sans fin dans le tiroir, et
+s'offre au « Solder par l'avoir » que les pièces liées, elles, refusent. Un même
+rituel repris **cinq fois** au comptoir le 8 août avait laissé quatre pièces
+derrière lui — **212 000 F d'impayés qui n'existaient pas**.
+
+**② Elle ne traitait que la DERNIÈRE facture.** Le rendez-vous ne retient qu'un
+`invoiceId`, mais l'annulation efface le journal ENTIER (`payments` et `paidXof`
+à zéro). Sur un rituel réglé en plusieurs fois, les pièces précédentes restaient
+donc `payée` **et** orphelines : elles continuaient de compter au chiffre
+d'affaires pendant que le rituel redevenait impayé. Jamais observé en vrai, mais
+armé et prêt à partir.
+
+Corrigé : toutes les pièces nommées par `invoiceId` **et** par
+`payments[].invoiceId` sont supprimées, les avoirs consommés rendus d'abord.
+La confirmation et le message le disent — la suppression est irréversible.
+
+**Comment reconnaître les résidus déjà en base.** La série `F-AAAA-NNNN` n'est
+émise que par la Caisse (`actions.tsx`, deux endroits), et la Caisse écrit
+**toujours** `status: 'payée'`. Une pièce `F-` à l'état `envoyée` ne peut donc
+être qu'un encaissement annulé ; orpheline de surcroît, c'est un résidu. La
+requête de balayage est dans l'historique de la session du 9 août. **Le filtre
+`F-%` est essentiel** : une `MND-AAAA-NNNN` en `envoyée` est une vraie facture en
+attente, créée à la main depuis l'écran Factures.
+
+Deux séries à ne pas confondre avec des doublons : **`MND-V-…` vient de l'ancien
+ERP** (voir `nextInvoiceNumber`, finance.ts) — ventes au comptoir, sans rituel
+par nature ; et `MND-R-…`, les 335 pièces de reprise du 9 août.
+
+Le chiffre d'affaires n'a jamais été faussé par ① : `invRev` ne compte que les
+`payée`. Ce sont les impayés, les notifications et la confiance qui l'étaient.
+
+**③ Annuler un encaissement DÉS-HONORAIT le rituel** (honoré → confirmé) et
+reprenait les points du Cercle. Il défaisait un geste qu'il n'avait jamais posé :
+**encaisser n'honore pas** — c'est écrit dans la Caisse, on encaisse d'avance un
+rituel qui n'a pas encore eu lieu, et l'honneur se donne par le geste dédié du
+Carnet. L'annulation ne doit donc pas dés-honorer : un rituel a eu lieu ou non,
+que la cliente ait payé n'y change rien.
+
+Le prix de cette confusion était lourd et silencieux : le rituel dé-honoré ne
+comptait **plus nulle part** — `apptRev` ne retient que les honorés SANS facture,
+`invRev` que les pièces payées, et la pièce venait d'être supprimée. Le chiffre
+d'affaires perdait le montant sans rien dire. Il revient désormais au Carnet, et
+le rituel rejoint les impayés, ce qu'il est. Dés-honorer reste possible au
+Carnet, à la main, quand c'est bien l'honneur qui était faux.
+
+Même correction dans `rewindPaymentForDeletedInvoice` (suppression d'une pièce
+depuis l'écran Factures) : mêmes causes, même remède. `resetAllPaidInvoices` est
+laissée telle quelle — c'est une remise à zéro assumée, qui veut justement tout
+rembobiner pour ressaisir chaque paiement à la main.
+
+Les deux confirmations à l'écran disent maintenant ce qui se passe vraiment, y
+compris que **le rituel reste honoré et garde ses points**.
+
 ### CHANTIER DEMANDÉ — second téléphone + diaspora automatique (9 août)
 
 1. **Deux numéros par cliente.** `Client.phone` + `phone2`. Les deux doivent
@@ -529,7 +637,85 @@ RDV, retirée le 7 août.
 Prévoir un aperçu avant écriture (combien de fiches basculent, lesquelles), au
 même titre que 0018.
 
-### ⚠ SYNCHRO EN ÉCHEC, de nouveau (9 août)
+### Synchro en échec — instrumentée le 9 août, cause à confirmer en base
+
+**La pastille dit désormais POURQUOI.** Nommer les tables (6 août) évitait
+d'ouvrir la console pour savoir *lesquelles* ; le 9 août il a fallu la rouvrir
+pour savoir *pourquoi*. Or la cause change tout : une migration jamais collée se
+répare en trente secondes, un réseau coupé s'attend. `SyncState.failedWhy` porte
+maintenant, par table, le message brut du serveur et sa traduction — table
+absente · colonne manquante · contrainte · serveur injoignable · session
+expirée. Les tables sont **groupées par cause** : trois tables absentes font une
+phrase, pas trois.
+
+**Rappel à ne pas perdre :** un refus de DROIT n'allume PAS le rouge
+(`estRefusDeDroit` → `horsPortee`). Ce qui s'affiche est donc une vraie panne —
+table absente, colonne absente, contrainte, réseau. C'est ce qui rend le
+diagnostic possible : la cause est dans cette courte liste.
+
+**`supabase/audit_synchro.sql`** — lecture seule, relançable. Pour les 33 tables
+liées : existe-t-elle · a-t-elle `data` / `branch_id` / `updated_at` · RLS active
+sans aucune politique (= tout refusé) · dans la publication Realtime · combien de
+lignes CE compte voit · et ce que `is_staff()` répond pour lui. **À lancer avec
+le compte qui voit le rouge.** Le verdict est écrit en clair sur chaque ligne.
+
+Piste la plus probable, à confirmer : `academy_applications` vient de
+`0013_payroll_academy.sql`, dont rien n'atteste le passage dans ce document —
+alors que `0026` (qui suppose `attendance`, créée par 0013) est notée passée.
+
+#### Deux documents que Ma Couronne lisait sans en avoir le droit
+
+Trouvés en tirant ce fil — **`supabase/migrations/0029_documents_lisibles_couronne.sql`**
+(**PASSÉE le 9 août**, sous le nom 0028 : une autre session écrivait au même
+moment `0028_comptes_enfants.sql`, et deux 0028 dans le dossier auraient fini par
+en faire sauter un. Renumérotée après coup, contenu inchangé, idempotente),
+à coller. La liste blanche `docs_pub_read` (8 clés en 0006, 9 en 0011) en oubliait
+deux :
+
+- **`mnd_model_band_sets` — les barèmes par atelier.** Lu par la réservation de
+  Ma Couronne (`useBandSets` → `pricingOf`). Son défaut de code n'est PAS vide :
+  il porte `VEKPE_BANDS_SEED`. Une cliente ne lisait donc pas « rien », elle
+  lisait **les coefficients d'origine**. C'est le bogue que 0011 a réparé pour
+  `mnd_model_bands` ; celui-ci est né après, la liste n'a pas suivi.
+- **`mnd_cercle_seuil`** — le seuil d'entrée au Cercle, lu par Ma Couronne pour
+  dire « encore N passages ».
+
+**VÉRIFIÉ, ET SANS DOMMAGE — 9 août.** La divergence était réelle : le serveur
+porte VÈKPÈ™ Jumbo à coef 0,8 / durCoef 0,8 et Medium à 1,47 / 1,8, quand le seed
+dit 0,53 / 0,74 et 1 / 1. Mini, Micro, Nano et Galaxy sont identiques.
+
+Mais elle n'a **rien déplacé**, pour deux raisons qu'il faut retenir :
+
+1. **Le coefficient ne touche pas le prix d'une création.** `personalPriceXof`
+   n'utilise `bande.coef` qu'en DERNIER recours (pricing.ts:370-377) : une
+   prestation qui porte un `ratePerLock` — VÈKPÈ™, 1 100 F le lock — se tarife
+   avant, par le comptage ou par le plancher de son calibre. Pour le prix, seule
+   compte l'IDENTITÉ de la tranche, donc les `maxLocks` — inchangés.
+2. **La durée, elle, était bien sous-estimée** (`personalDurationMin` applique
+   `durCoef` toujours, quel que soit le mode de tarif) : une création Medium
+   réservée en ligne bloquait le fauteuil 1 fois la durée nominale au lieu de
+   1,8. **Mais aucune n'a été réservée** : `audit_vekpe_couronne.sql` ④ rend
+   **0 rendez-vous, 0 journée** depuis le 3 août. Les créations se prennent au
+   comptoir, pas en ligne.
+
+Rien à re-facturer, aucun créneau à reprendre. `supabase/audit_vekpe_couronne.sql`
+est conservé : il se relancera tel quel si le doute revient.
+
+**Ce que cet épisode apprend, et qui vaut au-delà :** `durCoef` agit sur TOUTES
+les prestations, `coef` seulement sur celles qui n'ont ni tarif au lock ni
+grille par calibre. Un écart de barème se lit donc d'abord au CALENDRIER, pas à
+la caisse. À garder en tête pour le chantier « restrictions du calendrier »
+(8 août), qui demandait précisément quelle durée le tunnel passe à `durationMin` :
+la formule est bonne, c'est le barème qui ne lui parvenait pas.
+
+**LE PIÈGE DE CETTE FAMILLE, à retenir :** la RLS ne rend pas d'erreur sur une
+LECTURE, elle rend **zéro ligne**. Rien ne casse, la pastille reste verte, la
+console est muette — le magasin garde sa valeur par défaut et l'écran l'affiche
+avec le même aplomb que la vraie. Toute clé ajoutée à `documents` et lue côté
+cliente doit entrer dans `docs_pub_read`, sans quoi elle ment en silence.
+La section ⑤ de `audit_synchro.sql` liste la liste blanche courante.
+
+### ⚠ SYNCHRO EN ÉCHEC, de nouveau (9 août) — constat d'origine
 Vu sur la capture : `academy_applications`, `branches`, `client_sessions`, et
 d'autres tronquées. Tables DIFFÉRENTES de celles corrigées le 6 août (la cause
 racine d'alors — hydratation avant restauration de session — est réglée).
@@ -565,7 +751,133 @@ ignorer tous les messages suivants.
 
 ---
 
-## ▶ PRIORITÉ 1 — Les clientes de passage (décidé le 9 août)
+## ▶ PRIORITÉ 1 — Les clientes de passage — ✅ CONSTRUIT le 9 août 2026
+
+**Un champ, `Client.dePassage`, et un seul prédicat**, `estDePassage`
+(shared/clients.ts). Pas un segment : un segment se renomme et s'efface depuis
+la liste, et le prédicat casserait en silence — c'est déjà la fêlure de la
+Diaspora, où `isDiaspora` lit le SEGMENT tandis que `litSignaux` lit le CHAMP
+`diaspora`. Deux vérités pour une notion ; ici il n'y en a qu'une. Aucun SQL :
+les fiches sont du JSONB `data`.
+
+**La coupure, écran par écran.** DANS l'argent et le travail — Synthèse, Bilan,
+registre, production, seuils, commissions : rien n'a bougé, et c'est voulu.
+HORS des têtes : « Têtes couronnées » et « Nouvelles ce mois » (Customers),
+« Têtes actives » et son dénominateur (Analytics), `heads` et `nouvelles`
+(Bilan mensuel), les tailles et valeurs d'audience (Marketing), la prédiction de
+cadence sur la fiche — celle qui disait « proposez le fauteuil » à qui n'avait
+qu'une venue. Un RDV DÉJÀ PRIS s'affiche toujours : c'est un fait, pas une
+prédiction.
+
+**Le panier moyen n'était pas en cause** — il se calcule par rituel honoré, pas
+par tête ; des fiches en plus ne le touchent pas. Ce qui se brouillait, c'est la
+rétention et le rapport têtes actives / carnet.
+
+**La saisie tient dans le sélecteur de cliente** (`ClientPicker`, deux nouveaux
+drapeaux) : « ＋ Cliente de passage » ouvre deux champs — prénom, téléphone — et
+reprend ce qui était déjà tapé (des chiffres vont au téléphone, des lettres au
+prénom). Posé au RDV, à la Caisse et aux Factures. Troisième registre au CRM à
+côté de La Maison et de la Diaspora, avec son bandeau qui dit sa propre règle.
+Les registres sont disjoints et **la marque prime sur la Diaspora** — une
+passante étrangère est d'abord une passante.
+
+**La promotion se fait seule** (`usePassageVivant`, shell), verrous repris de
+`usePersonaVivant` : sans session on n'écrit rien, rien de chargé = on attend, et
+**le geste est à sens unique** — ce hook ne sait que RETIRER la marque, jamais en
+poser une. Il compte les JOURS distincts honorés, pas les lignes : deux rituels
+le même jour sont une seule visite, et un RDV manqué ne dit rien d'une relation.
+La fiche affiche le même chiffre, sinon le comptoir voit « 2 séances » et
+s'étonne qu'elle soit encore de passage.
+
+**Le persona ne pouvait pas la porter**, vérifié avant d'écrire : `Client.persona`
+est un slot unique qui dit un GOÛT (les dix archétypes sont tous des lectures du
+*quoi*) ; il alimente le cran ② de `shared/reco.ts` ; et `usePersonaVivant` le
+réécrit à chaque mouvement du carnet — le figer aurait gelé la lecture **à vie**.
+Le statut vit donc à côté de l'archétype, sur la fiche, sous « Sa place à la
+Maison ».
+
+**« La Naissance » n'était pas une notion de cycle de vie.** La fiche affiche
+`personaName(c.persona)` — donc un persona créé à la main. Le seul « La
+Naissance » du code est le libellé de la catégorie `atl-i-vekpe` ; le seul
+archétype voisin, `naissante`, se gagne sur `joursCouronne` — l'âge des LOCKS,
+pas l'ancienneté de la cliente. L'import n'a semé qu'« Initiée ». Il n'y avait
+rien à réutiliser.
+
+### Le fantôme « walkin » — trouvé et refermé au passage
+
+`ClientPicker` posait `clientId: 'walkin'`, un marqueur d'écran. La Caisse le
+traduisait depuis toujours (`clientId: ''` + `clientName`), **mais pas les
+Factures** : la pièce partait avec `walkin` en identifiant, et
+`useReconcileClients` — qui ne sautait que `c-local` — y voyait un identifiant
+orphelin et ouvrait **UNE fiche fourre-tout** où toutes les ventes sans cliente
+venaient s'empiler. Corrigé aux deux bouts (traduction dans `saveDraft`, garde
+dans `consider`).
+
+L'option anonyme reste, et s'appelle désormais **« Vente au comptoir · sans
+fiche »** : personne n'a à décliner son identité pour acheter un flacon. Elle ne
+se confond plus avec la cliente de passage, qui reçoit un geste et doit donc
+compter dans la production du maître.
+
+### RESTE À FAIRE
+
+- **Rien n'a été reclassé rétroactivement.** Les 178 fiches existantes sont
+  intactes ; aucune ne devient « de passage » toute seule, et c'est le bon
+  choix — la marque se pose au comptoir, au moment où on la reçoit. Si Yéman
+  veut relire les fiches à une seule venue, ce sera une LISTE À TRANCHER, comme
+  pour la diaspora, jamais une écriture en masse.
+*(La question des points Cercle a été tranchée le 9 août — voir juste en dessous.)*
+
+### Le Cercle se gagne au 3ᵉ passage — 9 août 2026
+
+**Décision de Yéman : un passage ne donne pas accès au Cercle. On y entre à
+partir du 3ᵉ passage à la Maison MND.** Ce qui se donne à tout le monde ne
+récompense personne.
+
+**Le seuil est un réglage, pas une constante** : `cercleSeuilStore` (shared/
+offers.ts), 3 par défaut, corrigé d'un champ au Trône → Le Cercle → Les paliers,
+à côté du taux de points. Toute la Maison le lit par `estDuCercle(venues, seuil)`.
+
+**À PARTIR DU 3ᵉ, sans rattrapage.** Les deux premières venues n'attribuent
+aucun point et ne sont pas créditées après coup : elle entre ce jour-là et gagne
+à partir de là. C'est aussi ce qui se dit le plus simplement au fauteuil — « le
+Cercle s'ouvre à votre troisième venue ». *(Si la Maison préfère créditer les
+trois d'un coup à l'entrée, c'est une seule ligne dans `honorAppointment`.)*
+
+**La porte est à l'endroit exact où les points s'écrivent** (`honorAppointment`,
+clients/actions.tsx) : on compte ses venues AVANT d'écrire — celle en cours
+comprise, puisqu'elle a lieu — et on n'attribue rien sous le seuil. Rien
+n'accumule en coulisses. `awardLoyalty` reste le bas niveau, et les ajustements
+à la main du gérant ne sont pas bridés : c'est un geste, il répond de son geste.
+
+**Un seul compteur de venues pour la Maison** : `venuesHonorees` (shared/
+agenda.ts) — des JOURS distincts, et seulement de l'honoré. Deux gestes le même
+jour font une visite ; un rendez-vous manqué n'en fait aucune. Les deux seuils
+s'y adossent, et c'est pour cela qu'il est partagé : s'ils comptaient chacun à
+leur façon, la fiche dirait deux chiffres pour la même personne.
+
+**Deux seuils, et c'est voulu.** 2ᵉ venue → elle cesse d'être de passage (la
+Maison la reconnaît comme une relation). 3ᵉ venue → elle entre au Cercle. Être
+une cliente et être reconnue ne se gagnent pas au même prix.
+
+**Le Cercle compte par la PAYEUSE** (`apptPayeurId`), la marque de passage par
+celle qui S'EST ASSISE. C'est la même clé que les points : un rituel qu'on lui a
+offert ne la fait pas entrer, sinon la Maison ouvrirait le Cercle à l'une et
+créditerait l'autre.
+
+**Ce que les écrans montrent désormais.** « Têtes dans le Cercle » comptait TOUTES
+les clientes de la branche — un registre qui annonçait 186 membres d'un programme
+où personne n'était entré. Il ne compte plus que les membres, et le registre des
+soldes gagne une section **« Aux portes du Cercle »** (venues acquises, ce qu'il
+reste), parce que c'est là que se lit ce dont on peut parler au fauteuil. Sur Ma
+Couronne, une non-membre voit son chemin — « 1 passage sur 3 » — et non une barre
+de paliers figée à zéro, qui se lit comme une panne. La fiche du Trône le dit
+aussi, sous « Sa place à la Maison ».
+
+**Sans effet sur les données** : `pointsEnabledStore` est encore à `false` — le
+programme n'a jamais attribué un point, et Shell a déjà remis les soldes à zéro
+(`points_reset_2026_07`). La règle s'appliquera dès le lancement.
+
+<details><summary>La demande d'origine — conservée</summary>
 
 **À faire AVANT les autres chantiers.** Demande explicite de Yéman.
 
@@ -592,5 +904,10 @@ Le tort n'est pas de les enregistrer, c'est de les COMPTER comme des clientes.
    quant à sa vie. Rien à entretenir à la main.
 
 **À vérifier d'abord :** ce que portent déjà les PERSONAS et les segments. La
-fiche d'Edwin Johnson affiche « La Naissance » — une notion de cycle de vie
+fiche d'une cliente affiche « La Naissance » — une notion de cycle de vie
 existe donc. Un statut de passage y trouve peut-être sa place sans rien ajouter.
+
+*(Vérifié le 9 août : non. « La Naissance » est un persona posé à la main, et les
+dix archétypes disent un goût, pas un cycle de vie — voir plus haut.)*
+
+</details>

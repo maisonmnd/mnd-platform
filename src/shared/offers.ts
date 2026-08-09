@@ -60,6 +60,28 @@ export const useTiers = () => useStore(tiersStore);
 /** 1 point / N F dépensés. */
 export const pointsRateStore = createStore<number>('mnd_points_rate', 100);
 
+/** LE CERCLE SE GAGNE — on y entre au 3ᵉ passage à la Maison MND.
+
+    Un passage ne donne pas le Cercle. Une cliente qui vient une fois n'est pas
+    une lignée, et lui ouvrir la reconnaissance dès la première visite vide le
+    mot de son sens : ce qui se donne à tout le monde ne récompense personne.
+    Trois venues, et la Maison la reconnaît.
+
+    « À PARTIR DU 3ᵉ » — le 3ᵉ passage compte, les deux premiers non. Elle entre
+    ce jour-là et gagne ses points ce jour-là ; on ne lui crédite pas après coup
+    des passages faits avant d'être membre. C'est aussi ce qui se dit le plus
+    simplement au fauteuil : « le Cercle s'ouvre à votre troisième venue. »
+
+    Un seuil, pas une constante : la Maison le corrige d'un champ (Le Cercle →
+    Les points) sans qu'on redéploie. Les VENUES se comptent par
+    `venuesHonorees` (shared/agenda.ts), par la payeuse — la même clé que les
+    points. */
+export const cercleSeuilStore = createStore<number>('mnd_cercle_seuil', 3);
+
+/** Est-elle du Cercle ? `venues` vient de `venuesHonorees(appts, id, true)`. */
+export const estDuCercle = (venues: number, seuil = cercleSeuilStore.get()): boolean =>
+  venues >= Math.max(1, seuil);
+
 /** Attribution des points Cercle — COUPÉE tant que la maison ne l'active pas
     (Cercle MND) : aucune écriture de points à l'encaissement/honneur avant que
     le programme ne soit officiellement lancé. */
@@ -80,5 +102,6 @@ export const usePointsHistory = () => useStore(pointsHistoryStore);
 bindDocument(offersStore, 'mnd_offers');
 bindDocument(tiersStore, 'mnd_cercle_tiers');
 bindDocument(pointsRateStore, 'mnd_points_rate');
+bindDocument(cercleSeuilStore, 'mnd_cercle_seuil');
 bindDocument(pointsEnabledStore, 'mnd_points_enabled');
 bindDocument(pointsHistoryStore, 'mnd_points_history');

@@ -1,4 +1,4 @@
-import { createStore, useStore, HOUSE_BLANK } from './store';
+import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { type EnvieKey } from './quiz';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
@@ -48,6 +48,28 @@ export type Client = {
   observation?: string;
   archived?: boolean;
   diaspora?: boolean;
+  /** LA CLIENTE DE PASSAGE — venue une fois, sans relation engagée.
+
+      On ne peut pas ne pas l'enregistrer : l'argent doit être tracé et le geste
+      doit compter dans la production du maître. Mais la COMPTER comme une
+      cliente fausse tout le reste — 178 têtes deviennent 400, la rétention
+      s'effondre sans que rien n'ait changé dans la maison, et les relances
+      partent vers des gens qui ne reviendront pas. Le tort n'est pas de les
+      enregistrer, c'est de les compter.
+
+      D'où la coupure, la même qu'entre encaisser et honorer :
+      DANS le chiffre d'affaires et dans la production / les seuils du maître ;
+      HORS des têtes actives, de la rétention et des relances.
+
+      UN CHAMP, PAS UN SEGMENT. Un segment se renomme et s'efface depuis la
+      liste — et le prédicat casserait en silence, comme il a failli le faire
+      pour la Diaspora (`isDiaspora` lit le segment, `litSignaux` lit le champ
+      `diaspora` : deux vérités pour une notion). Ici il n'y en a qu'une.
+
+      Se lève tout seul au 2ᵉ passage (`usePassageVivant`) : là, la déduction
+      est légitime — elle porte sur un fait observé, elle est revenue, et non
+      sur une supposition quant à sa vie. */
+  dePassage?: boolean;
   /* — la couronne : partagé Trône (CRM 360) ↔ Ma Couronne (statut, suivi) — */
   crownStyle?: string; // Microlocks, Locks fines, Sisterlocks…
   lockCount?: number; // nombre de locks
@@ -194,6 +216,43 @@ export function ensureInitiePersona(): string {
   if (existing) return existing;
   personasStore.set((prev) => [...prev, INITIE_PERSONA]);
   return INITIE_PERSONA.id;
+}
+
+/* ---------- Les clientes de passage ----------
+   Un seul prédicat pour toute la Maison. Chaque écran qui compte des TÊTES
+   (têtes couronnées, têtes actives, nouvelles du mois, audience d'une relance)
+   passe par lui ; aucun écran qui compte de l'ARGENT ou du TRAVAIL ne le
+   regarde — le rituel d'une passante vaut exactement celui d'une autre. */
+
+export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassage === true;
+
+/** IDENTITÉ MINIMALE — prénom et téléphone, rien d'autre.
+
+    Demander une date de naissance à qui ne reviendra pas gaspille le seul
+    moment où elle est là. Les champs absents ne sont pas vides par oubli :
+    ils sont vides parce qu'on n'a pas le droit de retenir le comptoir pour
+    les remplir. Ils se complètent d'eux-mêmes si elle revient. */
+export function clienteDePassage(input: {
+  branchId: string;
+  name: string;
+  phone?: string;
+  city?: string;
+  since: string;
+  persona: string;
+}): Client {
+  return {
+    id: uid(),
+    branchId: input.branchId,
+    name: input.name.trim(),
+    phone: (input.phone ?? '').trim(),
+    city: (input.city ?? '').trim(),
+    persona: input.persona,
+    since: input.since,
+    segments: [],
+    priceCoef: 1,
+    loyaltyPoints: 0,
+    dePassage: true,
+  };
 }
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */

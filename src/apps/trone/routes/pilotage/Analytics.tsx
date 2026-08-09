@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useApprenants } from '../equipe/data';
-import { useClients } from '../../../../shared/clients';
+import { estDePassage, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
@@ -82,9 +82,21 @@ export default function Analytics() {
     () => appointments.filter((a) => (scope === 'toutes' ? true : a.branchId === scope)),
     [appointments, scope],
   );
+  /* LES CLIENTES DE PASSAGE NE SONT PAS DES TÊTES. Elles restent dans tout ce
+     qui compte de l'ARGENT (leur rituel est du chiffre d'affaires plein) et du
+     TRAVAIL (la production du maître), mais elles sortent de tout ce qui compte
+     des TÊTES : sans quoi « Têtes actives » et sa part du carnet mesureraient la
+     fréquentation du comptoir, jamais la fidélité de la Maison — et la rétention
+     s'effondrerait sans que rien n'ait changé. Voir `Client.dePassage`. */
   const scopedClients = useMemo(
-    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope)),
+    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope) && !estDePassage(c)),
     [clients, scope],
+  );
+  /* Qui ne compte pas comme tête — pour retirer ses venues de « Têtes actives »
+     sans jamais toucher au revenu qu'elle a laissé. */
+  const passageIds = useMemo(
+    () => new Set(clients.filter(estDePassage).map((c) => c.id)),
+    [clients],
   );
   const scopedPaidInvoices = useMemo(
     () => invoices.filter((i) => (scope === 'toutes' ? true : i.branchId === scope) && i.kind === 'facture' && i.status === 'payée'),
@@ -126,7 +138,9 @@ export default function Analytics() {
       .filter((pm) => { const j = payISOLocal(pm.date); return j >= periodStart && j <= today; })
       .reduce((s2, pm) => s2 + pm.amountXof, 0);
     const revenue = revInv + revRit + revForm;
-    const heads = new Set(inWindow.map((a) => a.clientId)).size;
+    /* Des TÊTES, pas des venues : la passante a laissé son argent au-dessus,
+       elle ne gonfle pas le compte des clientes de la Maison. */
+    const heads = new Set(inWindow.filter((a) => !passageIds.has(a.clientId)).map((a) => a.clientId)).size;
     const basket = honored.length > 0 ? Math.round(honoredXof / honored.length) : 0;
     const maxTicket = honored.reduce((m, a) => Math.max(m, apptNetXof(a, byId)), 0);
     return {
@@ -134,7 +148,7 @@ export default function Analytics() {
       heads, basket, maxTicket,
       hasLife: revenue > 0 || inWindow.length > 0,
     };
-  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today, apprenants]);
+  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today, apprenants, passageIds]);
 
   const nameOf = (id: string) => clientNameById.get(id) ?? 'Cliente';
 
@@ -247,7 +261,7 @@ export default function Analytics() {
     {
       l: 'Têtes actives',
       v: life.heads > 0 ? String(life.heads) : '—',
-      cap: `${scopedClients.length} au carnet de la maison`,
+      cap: `${scopedClients.length} au carnet de la maison${passageIds.size > 0 ? ` · ${passageIds.size} de passage à part` : ''}`,
       up: false,
       a: 'var(--copper-600)',
       pct: scopedClients.length > 0 ? Math.min(100, Math.round((life.heads / scopedClients.length) * 100)) : 0,

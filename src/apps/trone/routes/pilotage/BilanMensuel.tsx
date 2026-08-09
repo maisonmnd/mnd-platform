@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useApprenants } from '../equipe/data';
-import { useClients } from '../../../../shared/clients';
+import { estDePassage, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor, apptPayState, apptDueXof,
@@ -85,8 +85,16 @@ export default function BilanMensuel() {
     const honoredCount = monthAppts.filter((a) => a.status === 'honoré').length;
     const totalRdv = monthAppts.length;
     const basket = honoredValue.length > 0 ? Math.round(honoredNet / honoredValue.length) : 0;
-    const heads = new Set(monthAppts.map((a) => a.clientId)).size;
-    const nouvelles = clients.filter((c) => c.branchId === branch.id && (c.since ?? '').slice(0, 7) === month).length;
+    /* DES TÊTES, PAS DES VENUES. Le revenu ci-dessus compte la passante au franc
+       près — c'est son argent, il est réel. Ces deux compteurs-ci disent la
+       clientèle : « 12 clientes · 4 nouvelles » ne doit pas monter parce que
+       quatre inconnues sont passées, sinon le mois d'après paraît en chute.
+       Voir `Client.dePassage`. */
+    const passage = new Set(clients.filter(estDePassage).map((c) => c.id));
+    const heads = new Set(monthAppts.filter((a) => !passage.has(a.clientId)).map((a) => a.clientId)).size;
+    const nouvelles = clients.filter((c) =>
+      c.branchId === branch.id && !estDePassage(c) && (c.since ?? '').slice(0, 7) === month).length;
+    const dePassage = new Set(monthAppts.filter((a) => passage.has(a.clientId)).map((a) => a.clientId)).size;
 
     /* — revenu jour par jour du mois — */
     const dim = daysInMonth(month);
@@ -124,7 +132,7 @@ export default function BilanMensuel() {
 
     return {
       paidInv, honoredNoInv, monthAppts, honoredValue,
-      revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles,
+      revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles, dePassage,
       days, dayMax, topClients, cliMax, services, svcCountMax, svcTotalCount,
     };
   }, [appts, invoices, branch.id, month, byId, clients, apprenants]);
@@ -198,7 +206,7 @@ export default function BilanMensuel() {
   };
 
   const kpis = [
-    { l: 'Rendez-vous du mois', v: String(d.totalRdv), cap: `${d.heads} cliente${d.heads > 1 ? 's' : ''} · ${d.nouvelles} nouvelle${d.nouvelles > 1 ? 's' : ''}`, a: 'var(--color-indigo)', pct: d.totalRdv > 0 ? Math.round((d.honoredCount / d.totalRdv) * 100) : 0, open: d.totalRdv > 0 ? openTotalRdv : undefined },
+    { l: 'Rendez-vous du mois', v: String(d.totalRdv), cap: `${d.heads} cliente${d.heads > 1 ? 's' : ''} · ${d.nouvelles} nouvelle${d.nouvelles > 1 ? 's' : ''}${d.dePassage > 0 ? ` · ${d.dePassage} de passage` : ''}`, a: 'var(--color-indigo)', pct: d.totalRdv > 0 ? Math.round((d.honoredCount / d.totalRdv) * 100) : 0, open: d.totalRdv > 0 ? openTotalRdv : undefined },
     { l: 'Rituels honorés', v: String(d.honoredCount), cap: d.totalRdv > 0 ? `${Math.round((d.honoredCount / d.totalRdv) * 100)} % des rendez-vous` : 'aucun rituel honoré', a: 'var(--copper-600)', pct: d.totalRdv > 0 ? Math.round((d.honoredCount / d.totalRdv) * 100) : 0, open: undefined },
     { l: 'Revenu du mois', v: d.revenue > 0 ? fmtMoney(d.revenue, currency) : '—', cap: d.revenue > 0 ? 'factures payées + rituels honorés' : 'en attente d’encaissement', a: 'var(--color-copper)', pct: d.revenue > 0 ? Math.round((d.revRit / d.revenue) * 100) : 0, open: d.revenue > 0 ? openRevenueMonth : undefined },
     { l: 'Panier moyen', v: d.basket > 0 ? fmtMoney(d.basket, currency) : '—', cap: d.basket > 0 ? 'par rituel honoré' : 'se calcule à l’usage', a: 'var(--indigo-400)', pct: d.basket > 0 && d.revenue > 0 ? Math.min(100, Math.round((d.basket / (d.revenue || 1)) * 100)) : 0, open: undefined },

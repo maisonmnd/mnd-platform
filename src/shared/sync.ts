@@ -24,7 +24,46 @@ const PUSH_DEBOUNCE_MS = 250;
    savait jamais qu'une facture n'existait que sur son poste. On suit les tables
    « en attente » (écriture locale pas encore poussée) et « en échec », plus
    l'état réseau — le Shell affiche une pastille d'un mot. */
-export type SyncState = { enabled: boolean; online: boolean; pending: number; failed: number; failedNames: string[]; lastOkAt: number | null };
+export type SyncState = {
+  enabled: boolean; online: boolean; pending: number; failed: number;
+  failedNames: string[];
+  /** Ce qui a été refusé, et POURQUOI — une entrée par table en échec. */
+  failedWhy: { table: string; raison: string; brut: string }[];
+  lastOkAt: number | null;
+};
+
+/* LA RAISON, PAS SEULEMENT LE NOM — 9 août 2026.
+
+   Le 6 août, la pastille ne disait que « des écritures n'ont pas pu être
+   poussées » : il a fallu ouvrir la console pour apprendre lesquelles, et on a
+   ajouté les noms. Le 9 août, la pastille nommait bien trois tables — et il a
+   fallu ouvrir la console pour apprendre pourquoi. Le nom seul ne distingue pas
+   une migration jamais collée d'un réseau coupé, alors que l'un se répare en
+   trente secondes et l'autre s'attend.
+
+   On traduit donc l'erreur du serveur en une phrase que le comptoir peut lire,
+   et on garde le message brut pour qui saura le lire. `supabase/audit_synchro.sql`
+   confirme en base ce que cette phrase avance. */
+function raisonLisible(msg: string | undefined): string {
+  const m = (msg ?? '').toLowerCase();
+  /* PostgREST ne trouve pas la table : la migration n'a pas été collée. */
+  if (m.includes('pgrst205') || m.includes('does not exist') || m.includes('schema cache')) {
+    return 'table absente en base — une migration n’a pas été collée';
+  }
+  if (m.includes('pgrst204') || m.includes('column')) {
+    return 'colonne manquante — le schéma de la table ne correspond pas';
+  }
+  if (m.includes('violates foreign key') || m.includes('violates check') || m.includes('duplicate key')) {
+    return 'écriture refusée par une contrainte de la base';
+  }
+  if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('timeout')) {
+    return 'serveur injoignable';
+  }
+  if (m.includes('jwt') || m.includes('expired')) {
+    return 'session expirée — reconnectez-vous';
+  }
+  return msg?.trim() || 'refus du serveur, sans message';
+}
 const syncListeners = new Set<() => void>();
 const dirtyTables = new Set<string>();
 /* UN REFUS DE DROIT N'EST PAS UNE PANNE.
@@ -45,12 +84,14 @@ const estRefusDeDroit = (msg: string | undefined): boolean => {
   const m = (msg ?? '').toLowerCase();
   return m.includes('row-level security') || m.includes('permission denied') || m.includes('42501');
 };
-const failedTables = new Set<string>();
+/** Les tables en échec ET le message brut du serveur, table → message. */
+const failedTables = new Map<string, string>();
 let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   failedNames: [],
+  failedWhy: [],
   pending: 0,
   failed: 0,
   lastOkAt: null,
@@ -59,10 +100,16 @@ function bumpSync(): void {
   /* LES NOMS, PAS SEULEMENT LE NOMBRE. « Des écritures n'ont pas pu être
      poussées » n'aide personne : il a fallu ouvrir la console du navigateur
      pour apprendre laquelle, le 6 août, pendant que la Maison tournait. */
+  const noms = [...failedTables.keys()].sort();
   syncSnapshot = {
     enabled: !!supabase, online: navigator.onLine,
     pending: dirtyTables.size, failed: failedTables.size,
-    failedNames: [...failedTables].sort(), lastOkAt,
+    failedNames: noms,
+    failedWhy: noms.map((t) => {
+      const brut = failedTables.get(t) ?? '';
+      return { table: t, raison: raisonLisible(brut), brut };
+    }),
+    lastOkAt,
   };
   syncListeners.forEach((f) => f());
 }
@@ -78,7 +125,9 @@ if (typeof window !== 'undefined') {
 const syncMark = {
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
   ok(t: string) { dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now(); bumpSync(); },
-  fail(t: string) { dirtyTables.delete(t); failedTables.add(t); bumpSync(); },
+  /* Le message du serveur voyage avec l'échec : sans lui, la pastille nomme une
+     table et laisse deviner la cause — ce qui envoie ouvrir la console. */
+  fail(t: string, msg?: string) { dirtyTables.delete(t); failedTables.set(t, msg ?? ''); bumpSync(); },
   /* La table sort du décompte ET des tentatives : une fois pour la session. */
   horsPortee(t: string) {
     dirtyTables.delete(t);
@@ -134,6 +183,9 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it });
 
   const pushDiff = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]) => {
+    /* Le premier refus rencontré porte l'explication qui remontera à la
+       pastille — un échec sans son message renvoie le comptoir à la console. */
+    let refus: string | undefined;
     const upserts = items.filter((it) => prev.get(it.id) !== next.get(it.id)).map(rowOf);
     const deletes: string[] = [];
     for (const id of prev.keys()) if (!next.has(id)) deletes.push(id);
@@ -181,7 +233,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       }
       const { error } = await sb.from(table).upsert(upserts);
       if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
-      if (error) { ok = false; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
+      if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
       /* GARDE-FOU des suppressions (incident du 23-07 : 28 prestations effacées
@@ -234,10 +286,10 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       } else {
         const { error } = await sb.from(table).delete().in('id', deletes);
         if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
-        if (error) { ok = false; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
+        if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
-    if (ok) syncMark.ok(table); else syncMark.fail(table);
+    if (ok) syncMark.ok(table); else syncMark.fail(table, refus);
     return ok;
   };
 
@@ -265,7 +317,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
          absente, RLS, reseau au demarrage. */
       if (estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return; }
       console.warn(`[mnd-sync] ${table} hydrate:`, error.message);
-      syncMark.fail(table);
+      syncMark.fail(table, error.message);
       return;
     }
     if (data && data.length) {
@@ -471,7 +523,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       lastPushed = j;
       const { error } = await upsert(val);
       if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
-      if (error) { syncMark.fail(`doc:${key}`); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); }
+      if (error) { syncMark.fail(`doc:${key}`, error.message); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); }
       else syncMark.ok(`doc:${key}`);
     }, PUSH_DEBOUNCE_MS);
   });

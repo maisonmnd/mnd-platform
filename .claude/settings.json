@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typecheck.mjs\"",
+            "shell": "bash",
+            "timeout": 120,
+            "statusMessage": "Vérification TypeScript…"
+          }
+        ]
+      }
+    ]
+  }
+}
