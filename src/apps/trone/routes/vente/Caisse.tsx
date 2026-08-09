@@ -7,6 +7,7 @@ import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useCategories, useServices, useProducts, productsStore, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
+import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
@@ -306,19 +307,22 @@ export default function Caisse() {
       appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle ? { ...a, invoiceId: inv.id } : a)));
     }
 
-    /* LE STOCK SUIT LA VENTE. Il ne bougeait jusqu'ici que si quelqu'un pensait
-       a cliquer « − » sur l'ecran Produits : « Valeur du stock », les alertes de
-       reassort et les notifications reposaient donc sur un compteur mort, qui
-       divergeait du reel des la premiere journee.
+    /* LE STOCK SUIT LA VENTE — par le JOURNAL. La vente écrit un mouvement de
+       sortie sur la fiche d'inventaire liée (référence : le n° de la facture),
+       et le miroir de la vitrine suit tout seul. Un produit dont la Gamme n'a
+       pas encore été reprise garde l'ancien compteur — rien ne casse.
 
        On ne borne pas a zero : un stock negatif dit qu'on a vendu plus que ce
        qui etait compte, et cette information vaut mieux qu'un zero rassurant. */
     const vendus = lines.filter((l) => l.kind === 'product');
     if (vendus.length) {
-      productsStore.set((prev) => prev.map((prod) => {
-        const l = vendus.find((x) => x.key === `p:${prod.id}`);
-        return l ? { ...prod, stock: prod.stock - l.qty } : prod;
-      }));
+      const sansFiche = vendus.filter((l) => !venteGamme(l.key.slice(2), l.qty, inv.number, todayIso()));
+      if (sansFiche.length) {
+        productsStore.set((prev) => prev.map((prod) => {
+          const l = sansFiche.find((x) => x.key === `p:${prod.id}`);
+          return l ? { ...prod, stock: prod.stock - l.qty } : prod;
+        }));
+      }
     }
 
     /* Avoir consommé : écriture d'usage sur le compte porteur. */

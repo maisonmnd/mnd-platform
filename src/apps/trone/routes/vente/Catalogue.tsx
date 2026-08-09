@@ -16,6 +16,7 @@ import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, type Drill } from '../clients/_shared';
 import { scalesWithModel, useModelBands, bandRange, sortedBands } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
+import { corrigerStockGamme } from '../../../../shared/stock';
 import './vente.css';
 
 /* Catalogue — double nomenclature fon™. Catégories réordonnables, activables,
@@ -648,8 +649,19 @@ export default function Catalogue() {
       ),
     );
   };
-  const patchProd = (id: string, patch: Partial<Product>) =>
+  const patchProd = (id: string, patch: Partial<Product>) => {
+    /* UNE CORRECTION DE STOCK PASSE PAR LE JOURNAL dès que la fiche d'inventaire
+       existe (module Stock & Achats) : le geste devient un ajustement tracé, et
+       le champ `stock` d'ici n'est plus qu'un miroir que le journal réécrit.
+       Sans fiche, l'ancien compteur continue — rien ne casse. */
+    if (patch.stock !== undefined
+      && corrigerStockGamme(id, patch.stock, 'Correction Catalogue', new Date().toISOString().slice(0, 10))) {
+      const { stock: _stock, ...reste } = patch;
+      if (!Object.keys(reste).length) return;
+      patch = reste;
+    }
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  };
 
   const openProdEdit = (prod: Product) =>
     setProdForm({ id: prod.id, categoryId: prod.categoryId, name: prod.name, price: String(prod.priceXof), stock: String(prod.stock) });

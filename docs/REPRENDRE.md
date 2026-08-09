@@ -89,6 +89,34 @@ catalogue courant : **déplacer une prestation reclasse tout l'historique**, et
 mettre son prix à zéro vide sa part du chiffre sur les cartes du Catalogue
 (le total du rituel, lui, ne bouge pas s'il est figé).
 
+## Stock & Achats — construit le 9 août 2026, ⚠ MIGRATION 0030 À PASSER
+
+La page Produits (`/home-rituals`) est devenue le module **Stock & Achats** :
+cinq onglets — La Gamme (inchangée), Inventaire (4 familles : revente,
+consommable, mèches, jetable), Achats (réappro → bons de commande → réception),
+Recettes (ce qu'un service consomme + coût matière), Mouvements (le journal).
+
+**Les règles qui ne bougent pas :**
+- **Le stock ne se stocke pas.** Aucun champ « stock actuel » : la quantité est
+  la somme des mouvements du journal (`shared/stock.ts`), l'inventaire initial
+  est lui-même un mouvement. Le champ `stock` de `catalog_products` n'est plus
+  qu'un **miroir** que le journal réécrit — Ma Couronne (« Dernières pièces »)
+  et l'écran Gamme le lisent, personne ne l'écrit à la main.
+- **Le prix d'achat ne vit jamais dans `catalog_products`** (lisible par les
+  clientes) : l'inventaire est sous `is_staff()`, une fiche REVENTE pointe vers
+  sa fiche Gamme qui garde seule le prix de vente.
+- **La vente à la Caisse** écrit un `sortie_vente` (réf. facture) ; **le rituel
+  honoré** consomme sa recette (`sortie_service`, réf. `rdv:<id>`, idempotent) ;
+  **l'annulation d'encaissement rembobine** aussi le stock. Les +/− du Catalogue
+  et de la Gamme deviennent des ajustements tracés dès que la fiche liée existe.
+- Tests : `node scripts/verifie-stock.mjs` — 58 vérifications sur la boucle.
+
+**À FAIRE, dans l'ordre :** ① passer `supabase/migrations/0030_stock_achats.sql`
+(six tables, un seul temps) — **sans elle la pastille du Trône vire au rouge** ;
+② publier le Trône ; ③ dans Inventaire, attendre « Synchronisé » puis cliquer
+**Reprendre la Gamme** (crée les fiches revente liées + « Inventaire initial ») ;
+④ saisir fournisseurs, consommables et recettes au fil de l'eau.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le

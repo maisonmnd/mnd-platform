@@ -18,6 +18,7 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } 
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
@@ -74,6 +75,11 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
   appointmentsStore.set((prev) =>
     prev.map((a) => (a.id === appt.id ? { ...a, status: 'honoré', pointsAwarded: true } : a)),
   );
+  /* LE STOCK SUIT LE GESTE. La recette des services consommés s'écrit au journal
+     des mouvements (référence rdv:<id>) — une seule fois : ré-honorer un rituel
+     déjà consommé ne reconsomme rien. Un service sans recette ne décrémente
+     rien, sans erreur. Voir shared/stock.ts. */
+  consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds: appt.serviceIds }, todayISO());
   return awarded;
 }
 
@@ -236,7 +242,13 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
 
   /* Rituels réglés par ces factures (lien invoiceId) → rembobinés d'un bloc. */
   const linked = appointmentsStore.get().filter((a) => a.invoiceId && paidIds.has(a.invoiceId));
-  for (const a of linked) reverseHonorPoints(a); // reprise best-effort avant de couper le lien
+  for (const a of linked) {
+    reverseHonorPoints(a); // reprise best-effort avant de couper le lien
+    /* Le stock rembobine avec l'encaissement : les sorties de la recette
+       disparaissent du journal, la réserve remonte. Sans cela, annuler puis
+       ré-encaisser consommerait la recette deux fois. */
+    rembobinerRituel(a.id);
+  }
   if (linked.length) {
     const linkedIds = new Set(linked.map((a) => a.id));
     appointmentsStore.set((prev) => prev.map((a) => (linkedIds.has(a.id)
