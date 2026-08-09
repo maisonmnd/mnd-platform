@@ -484,3 +484,28 @@ racine d'alors — hydratation avant restauration de session — est réglée).
 À diagnostiquer AVANT toute nouvelle fonctionnalité : tant que la pastille est
 rouge, une saisie peut ne pas partir. Regarder d'abord si ce sont des refus RLS
 (`estRefusDeDroit`) sur des tables sans politique pour ce rôle.
+
+**DIASPORA — approche retenue avec Yéman (9 août).** Ne rien déduire
+automatiquement. Le système ne sait presque rien : l'indicatif dit d'où vient la
+ligne, pas où vit la personne, et `city` est vide sur la quasi-totalité des 178
+fiches. Compteur « Diaspora 0 » aujourd'hui.
+
+Le seul signal fort n'est pas dans les champs mais dans le RYTHME : la diaspora
+vient en rafale (2-3 RDV en dix jours, parfois consécutifs), puis disparaît 6 à
+12 mois, et réserve longtemps à l'avance. Cotonou revient toutes les 4-8
+semaines. Ce dessin est déjà dans les 393 rendez-vous.
+
+Donc : (1) DEMANDER — une question à la réservation Ma Couronne « Tu vis au
+Bénin ou à l'étranger ? » et un bouton à deux états sur la fiche ; répondu une
+fois, réglé pour toujours. (2) Les signaux ne servent qu'à dresser une LISTE À
+RELIRE, jamais à écrire : un écran « ces N fiches ressemblent à de la diaspora »
+que Yéman tranche en N clics, une fois.
+
+**PREMIER PAS CONVENU, sans rien écrire :** sortir cette liste depuis l'agenda
+(numéro étranger OU visites en rafale espacées de plus de 6 mois) pour voir
+combien des 178 têtes portent la signature du voyage — et décider ensuite si le
+chantier vaut la peine.
+
+Le bénéfice visé n'est pas la statistique mais la RELANCE : « ta couronne a six
+semaines » envoyé à quelqu'un qui vit à Paris est du bruit, et le bruit fait
+ignorer tous les messages suivants.
