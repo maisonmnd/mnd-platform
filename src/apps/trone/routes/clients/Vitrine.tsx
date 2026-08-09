@@ -3,7 +3,9 @@ import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { usePersonas, clientsStore } from '../../../../shared/clients';
+import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
+import { ageDe, tetesPortees } from '../../../../shared/accounts';
+import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
 import { useCategories, useProducts, useServices, priceModeOf } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
@@ -620,7 +622,19 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   const byId = useServicesById();
   const today = todayISO();
 
-  const [screen, setScreen] = useState<'accueil' | 'reserver' | 'suivi' | 'cercle'>('accueil');
+  const [screen, setScreen] = useState<'accueil' | 'reserver' | 'suivi' | 'cercle' | 'profil'>('accueil');
+
+  /* LE PROFIL EST SIMULÉ LUI AUSSI. Il ne l'était pas, et la barre du bas en
+     montrait pourtant l'icône : on croyait voir toute son application alors
+     qu'un écran manquait — celui, justement, où vivent ses enfants. Un aperçu
+     incomplet ment par omission. */
+  const [familles] = useFamilies();
+  const tetesBranche = useBranchClients();
+  const [declarations] = useEnfantsDeclares();
+  const portees = tetesPortees(client, tetesBranche, familles, today);
+  const mesDemandes = declarationsDe(declarations, client.id);
+  const enAttenteDElle = mesDemandes.filter((d) => d.statut === 'en attente');
+  const refuseesDElle = mesDemandes.filter((d) => d.statut === 'refusé');
 
   const hidden = client.hiddenModules ?? [];
   /* L'APERÇU DOIT DIRE LA VÉRITÉ : un module fermé pour toute la Maison est
@@ -869,7 +883,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
       {/* ----- Colonne droite : le téléphone ----- */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {([['accueil', 'Accueil'], ['reserver', 'Réserver'], ['suivi', 'Suivi'], ['cercle', 'Cercle']] as const).map(([k, l]) => (
+          {([['accueil', 'Accueil'], ['reserver', 'Réserver'], ['suivi', 'Suivi'], ['cercle', 'Cercle'], ['profil', 'Profil']] as const).map(([k, l]) => (
             <button key={k} className="trc-chip" style={screen === k ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined} onClick={() => setScreen(k)}>
               {l}{((k === 'reserver' && isOff('reserver')) || (k === 'suivi' && isOff('suivi')) || (k === 'cercle' && isOff('cercle'))) ? ' · coupé' : ''}
             </button>
@@ -1016,6 +1030,81 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                 })}
               </div>
             ))}
+
+            {/* ======= PROFIL =======
+                L'Accueil et le Profil restent toujours ouverts : aucun module ne
+                les coupe. C'est ici qu'elle déclare ses enfants et retrouve les
+                têtes qu'elle porte. */}
+            {screen === 'profil' && (
+              <div style={{ padding: 14 }}>
+                <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Son identité</div>
+                <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '11px 13px', marginTop: 7 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{client.name}</div>
+                  <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 3 }}>
+                    {client.phone || 'téléphone à renseigner'} · {client.email || 'adresse à renseigner'}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', marginTop: 16 }}>
+                  Mes enfants{portees.length ? ` · ${portees.length}` : ''}
+                </div>
+
+                {portees.length === 0 && enAttenteDElle.length === 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 7, lineHeight: 1.5 }}>
+                    Vos enfants peuvent avoir leurs propres rendez-vous, à leur nom, avec leur suivi.
+                    C’est vous qui réservez et réglez pour eux.
+                  </div>
+                )}
+
+                {portees.map((e) => {
+                  const a = ageDe(e.birthday, today);
+                  return (
+                    <div key={e.id} style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, background: 'var(--surface-card)', padding: '10px 13px', marginTop: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{e.name}</span>
+                      <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)', flex: 'none' }}>
+                        {a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {enAttenteDElle.map((d) => (
+                  <div key={d.id} style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-argile, var(--hairline))', borderRadius: 4, background: 'var(--surface-card)', padding: '10px 13px', marginTop: 7, opacity: .75, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{nomPropose(d)}</span>
+                    <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>En attente</span>
+                  </div>
+                ))}
+
+                {refuseesDElle.slice(0, 2).map((d) => (
+                  <div key={d.id} className="mnd-muted" style={{ fontSize: 11, marginTop: 7, lineHeight: 1.5 }}>
+                    {nomPropose(d)} — demande non retenue.{d.motif ? ` « ${d.motif} »` : ''}
+                  </div>
+                ))}
+
+                <div style={{ border: '1px solid var(--color-indigo)', color: 'var(--color-indigo)', textAlign: 'center', borderRadius: 3, padding: '11px 10px', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', marginTop: 10 }}>
+                  + Ajouter un enfant
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 10, marginTop: 6, lineHeight: 1.5 }}>
+                  Elle y écrit son prénom, son nom et sa date de naissance. Aucune fiche n’est créée :
+                  la demande arrive au comptoir, et c’est la maison qui ouvre la tête.
+                </div>
+
+                {/* CE QUE LE COMPTOIR DOIT SAVOIR, et qu'elle ne verra jamais :
+                    sans date de naissance, la tête reste invisible chez elle. */}
+                {(() => {
+                  const fam = client.familyId ? familles.find((f) => f.id === client.familyId) : undefined;
+                  if (!fam || fam.payerClientId !== client.id) return null;
+                  const muettes = tetesBranche.filter((c) => c.familyId === fam.id && c.id !== client.id && !c.birthday && !c.archived);
+                  if (muettes.length === 0) return null;
+                  return (
+                    <div style={{ border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 10.5, lineHeight: 1.5, padding: '10px 12px', marginTop: 10 }}>
+                      {muettes.map((m) => m.name).join(', ')} — rattachée(s) au compte mais SANS date de naissance :
+                      elle ne les voit pas ici. À renseigner sur leur fiche.
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Barre d'onglets du téléphone — les modules coupés n'y figurent pas. */}
