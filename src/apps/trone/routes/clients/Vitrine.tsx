@@ -379,21 +379,16 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="trc-microlabel" style={{ margin: 0 }}>Réglages de la Vitrine</div>
           <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
-          {/* DEUX SURFACES, DEUX INTERRUPTEURS. Au fauteuil la maîtresse est là
-              pour expliquer ce que le miroir propose ; sur son téléphone, la
-              cliente est seule. Ce ne sont pas les mêmes conditions, ça ne
-              s'éteint pas ensemble. */}
+          {/* DEUX SURFACES, DEUX INTERRUPTEURS — et chacun là où il commande.
+              Celui-ci compose le miroir du salon ; celui de Ma Couronne vit dans
+              l'onglet Ma Couronne, avec le reste de ce qui gouverne son
+              application. Au fauteuil la maîtresse est là pour expliquer, sur
+              le téléphone la cliente est seule : ça ne s'éteint pas ensemble. */}
           <SwitchRow
             label="Quiz au miroir du salon"
             sub="La scène « une question pour toi », pendant le rituel."
             on={cfg.quizEnabled}
             onToggle={(v) => setFlag('quizEnabled', v)}
-          />
-          <SwitchRow
-            label="Quiz sur Ma Couronne"
-            sub="Les deux mêmes questions au seuil de sa réservation, sur son téléphone."
-            on={cfg.quizCouronne !== false}
-            onToggle={(v) => setFlag('quizCouronne', v)}
           />
 
           {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le
@@ -421,6 +416,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                         Le quiz est éteint sur Ma Couronne
                       </b>{' '}
                       — ces désignations ne servent donc plus qu’au miroir du salon.
+                      Son interrupteur est dans l’onglet <b style={{ fontWeight: 500 }}>Ma Couronne</b>.
                     </>
                   )}
                 </div>
@@ -733,6 +729,31 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
               <div style={{ fontSize: 11, color: 'var(--indigo-100)', lineHeight: 1.5 }}>
                 Et, dans l’application ouverte, ce que toutes voient — ou ne voient pas.
               </div>
+
+              {/* LE QUIZ EST UN RÉGLAGE DE MA COURONNE, il se commande donc ici
+                  — et non à la Régie, qui compose le miroir du salon. Celui du
+                  miroir garde le sien : au fauteuil la maîtresse est là pour
+                  expliquer, sur le téléphone la cliente est seule. */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13 }}>Le quiz au seuil de la réservation</div>
+                  <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
+                    Deux questions avant « Votre objectif », puis une prestation proposée à son prix.
+                    {(cfg.modulesFermes ?? []).includes('reserver')
+                      ? ' Sans effet : la réservation est fermée pour toutes.'
+                      : ENVIES.every((e) => !cfg.recoParEnvie?.[e.k])
+                        && ' Rien n’est désigné en repli — il ne s’ouvrira que pour les têtes dont le persona propose quelque chose.'}
+                  </div>
+                </div>
+                <button
+                  className={`trc-switch ${cfg.quizCouronne !== false ? 'is-on' : ''}`}
+                  onClick={() => vitrineConfigStore.set((c) => ({ ...c, quizCouronne: c.quizCouronne === false }))}
+                  aria-label="Quiz sur Ma Couronne"
+                  style={{ flex: 'none' }}
+                />
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(246,241,231,.14)' }} />
               {COURONNE_MODULES.map((m) => {
                 const fermeMaison = (cfg.modulesFermes ?? []).includes(m.k);
                 return (
