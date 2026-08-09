@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -53,6 +54,28 @@ export default function Comptes() {
   const activeCount = branchFamilies.filter((f) => famBalance(f) > 0).length + soloAvoirs.length;
 
   const [famModal, setFamModal] = useState<Family | 'new' | null>(null);
+  /* La cliente d'où l'on vient, quand on arrive depuis sa fiche : elle devient
+     membre et parent payeur du compte qui s'ouvre. */
+  const [prefill, setPrefill] = useState<Client | null>(null);
+
+  /* ARRIVÉE DEPUIS UNE FICHE. Le lien « Rattacher un enfant » y mène ici avec le
+     compte visé — sinon il faudrait le retrouver parmi tous, et le geste se
+     perdrait en route. Le paramètre est effacé aussitôt : recharger la page ne
+     doit pas rouvrir une modale qu'on vient de fermer. */
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const fid = params.get('famille');
+    const pid = params.get('parent');
+    if (!fid && !pid) return;
+    const famille = fid ? branchFamilies.find((f) => f.id === fid) : undefined;
+    const parent = pid ? branchClients.find((c) => c.id === pid) : undefined;
+    /* Ni l'un ni l'autre trouvé : les données ne sont peut-être pas encore
+       chargées. On ne touche à rien, l'effet repassera. */
+    if (!famille && !parent) return;
+    if (famille) setFamModal(famille);
+    else { setFamModal('new'); setPrefill(parent ?? null); }
+    setParams({}, { replace: true });
+  }, [params, branchFamilies, branchClients, setParams]);
   const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement' } | null>(null);
   const [ledgerHolder, setLedgerHolder] = useState<CreditHolder | null>(null);
   /* Impayés d'un compte (RDV dus + factures envoyées de ses membres) — pour les
@@ -203,11 +226,12 @@ export default function Comptes() {
       {famModal && (
         <FamilyModal
           family={famModal === 'new' ? null : famModal}
+          parent={famModal === 'new' ? prefill : null}
           branchId={branch.id}
           clients={branchClients}
           credits={credits}
           currency={currency}
-          onClose={() => setFamModal(null)}
+          onClose={() => { setFamModal(null); setPrefill(null); }}
         />
       )}
       {deposit && (
@@ -311,16 +335,22 @@ export default function Comptes() {
 
 /* ---------- Créer / modifier un compte famille ---------- */
 function FamilyModal({
-  family, branchId, clients, credits, currency, onClose,
+  family, parent, branchId, clients, credits, currency, onClose,
 }: {
   family: Family | null;
+  /* La cliente d'où l'on vient, quand le compte s'ouvre depuis sa fiche. */
+  parent?: Client | null;
   branchId: string;
   clients: Client[];
   credits: CreditMovement[];
   currency: string;
   onClose: () => void;
 }) {
-  const [name, setName] = useState(family?.name ?? '');
+  /* Le libellé part de son nom À ELLE — c'est son compte, et il se corrige juste
+     au-dessus. Les enfants, eux, portent le nom de leur père : rien ici ne
+     nomme personne d'autre. */
+  const nomDeFamille = parent?.name.trim().split(/\s+/).slice(-1)[0] ?? '';
+  const [name, setName] = useState(family?.name ?? (nomDeFamille ? `Famille ${nomDeFamille}` : ''));
   const [note, setNote] = useState(family?.note ?? '');
   /* L'avoir du compte, visible et AJUSTABLE ici même : saisir le solde voulu écrit
      une écriture de correction (dépôt ou remboursement de la différence) — jamais
@@ -338,9 +368,11 @@ function FamilyModal({
     }]);
     setBalDraft('');
   };
-  const initMembers = family ? clients.filter((c) => c.familyId === family.id).map((c) => c.id) : [];
+  const initMembers = family
+    ? clients.filter((c) => c.familyId === family.id).map((c) => c.id)
+    : (parent ? [parent.id] : []);
   const [memberIds, setMemberIds] = useState<string[]>(initMembers);
-  const [payerId, setPayerId] = useState(family?.payerClientId ?? '');
+  const [payerId, setPayerId] = useState(family?.payerClientId ?? parent?.id ?? '');
   const [pick, setPick] = useState('');
 
   const addMember = (id: string) => {

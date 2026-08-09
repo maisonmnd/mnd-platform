@@ -1505,9 +1505,20 @@ function Customer360({
                 PARENT PAYEUR du compte : un membre de la famille qui ne règle
                 pas ne porte personne. Et un enfant en sort le jour de ses
                 dix-huit ans — ses données lui appartiennent alors. */}
-            {portees.length > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <span className="trc-microlabel">Ses enfants · {portees.length}</span>
+            {/* LE RATTACHEMENT SE FAIT AILLEURS, ET ON LE DIT. Les enfants
+                s'accrochent au compte famille, dans Finances › Comptes & Avoirs.
+                Rien ne l'indiquait ici — or c'est ici qu'on les cherche. Le lien
+                ouvre directement le bon compte, ou en prépare un neuf avec elle
+                comme parent payeur. */}
+            <div style={{ marginTop: 14 }}>
+              <span className="trc-microlabel">Ses enfants{portees.length ? ` · ${portees.length}` : ''}</span>
+              {portees.length === 0 && (
+                <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                  Aucune tête rattachée. Un enfant a sa propre fiche et ses propres rendez-vous ;
+                  c’est le compte famille qui dit qui règle pour lui.
+                </div>
+              )}
+              {portees.length > 0 && (
                 <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 3, background: 'var(--surface-card)' }}>
                   {portees.map((e) => {
                     const a = ageDe(e.birthday, todayISO());
@@ -1528,12 +1539,24 @@ function Customer360({
                     );
                   })}
                 </div>
+              )}
+              {portees.length > 0 && (
                 <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
                   Elle les retrouve dans Ma Couronne et réserve pour eux. Un seul règlement, un seul
                   avoir, et un seul compteur du Cercle pour tout le foyer.
                 </div>
-              </div>
-            )}
+              )}
+              <button
+                type="button"
+                className="trc-c360-linkbtn"
+                style={{ marginTop: 8 }}
+                onClick={() => navigate(clientFamily
+                  ? `/comptes?famille=${clientFamily.id}`
+                  : `/comptes?parent=${client.id}`)}
+              >
+                {clientFamily ? 'Rattacher un enfant à son compte →' : 'Ouvrir son compte famille →'}
+              </button>
+            </div>
 
             {/* CE QUE LA MAISON OBSERVE D'ELLE. Le carnet dit ce qu'elle a pris ;
                 ceci dit comment elle l'a pris — et ce qu'on y lit s'affiche,
