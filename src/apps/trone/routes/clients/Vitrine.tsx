@@ -71,7 +71,15 @@ export default function Vitrine() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <span className="trc-microlabel" style={{ margin: 0 }}>Qui est devant le miroir ?</span>
+          {/* LE SÉLECTEUR DIT CE QU'IL SÉLECTIONNE. « Qui est devant le miroir ? »
+              n'a de sens qu'à l'Aperçu : dans les deux autres onglets, on ne
+              choisit pas une tête devant un écran, on en choisit une à régler ou
+              à prévisualiser. */}
+          <span className="trc-microlabel" style={{ margin: 0 }}>
+            {mode === 'apercu' ? 'Qui est devant le miroir ?'
+              : mode === 'couronne' ? 'Quelle cliente prévisualiser ?'
+              : 'Quelle cliente régler ?'}
+          </span>
           <input
             className="mnd-input"
             value={query}
@@ -351,16 +359,19 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
     <div className="tr-cols" style={{ '--cols': '340px 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
       {/* Colonne gauche · la cliente + réglages globaux */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '22px', color: 'var(--color-ivoire)' }}>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>La cliente devant la régie</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14 }}>
-            <Avatar client={client} size={52} />
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, lineHeight: 1 }}>{client.name.split(' ')[0]}</div>
-              <div style={{ fontSize: 11, color: 'var(--copper-200)', marginTop: 5 }}>{persona?.name ?? 'À classer'}</div>
+        {/* CETTE CLIENTE — en clair. L'indigo est réservé à ce qui vaut pour
+            TOUTE la Maison ; le clair dit « cette tête-là ». Deux surfaces
+            indigo de portées différentes ne disaient plus rien de leur portée. */}
+        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '16px 18px' }}>
+          <div className="trc-microlabel" style={{ margin: 0 }}>La cliente devant la régie</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
+            <Avatar client={client} size={46} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--color-indigo)', lineHeight: 1 }}>{client.name.split(' ')[0]}</div>
+              <div className="trc-sub" style={{ marginTop: 4 }}>{persona?.name ?? 'À classer'}</div>
             </div>
           </div>
-          {persona && <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 14, lineHeight: 1.5 }}>{persona.essence}</div>}
+          {persona && <div className="trc-sub" style={{ marginTop: 10, lineHeight: 1.5 }}>{persona.essence}</div>}
         </div>
 
         <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px' }}>
@@ -376,8 +387,13 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="trc-microlabel" style={{ margin: 0 }}>Réglages de la Vitrine</div>
+        {/* LA PORTÉE SE LIT AU FILET. Cuivre = cette cliente ; indigo = toute la
+            Maison. Ces réglages-ci valaient pour toutes mais s'affichaient comme
+            les siens, sous sa fiche — on croyait régler son miroir à elle.
+            Le fond reste clair : ces cartes portent des champs et des listes,
+            que l'indigo rendrait illisibles. */}
+        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="trc-microlabel" style={{ margin: 0 }}>Le miroir · pour toutes les clientes</div>
           <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
           {/* DEUX SURFACES, DEUX INTERRUPTEURS — et chacun là où il commande.
               Celui-ci compose le miroir du salon ; celui de Ma Couronne vit dans
@@ -660,156 +676,195 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
     </div>
   ) : null);
 
+  /* Ce que la Maison a fermé pour tout le monde — lu deux fois ci-dessous. */
+  const fermeMaison = (k: string) => (cfg.modulesFermes ?? []).includes(k);
+  const ouvertsMaison = COURONNE_MODULES.filter((m) => !fermeMaison(m.k)).length;
+  /* Ce que SA fiche retire EN PLUS de la Maison — le seul chiffre qui la
+     concerne. Compter les modules fermés par la Maison dans son total ferait
+     croire que quelqu'un a décidé quelque chose pour elle. */
+  const retiresPourElle = COURONNE_MODULES.filter((m) => hidden.includes(m.k) && !fermeMaison(m.k)).length;
+
   return (
-    <div className="tr-cols" style={{ '--cols': 'minmax(300px, 360px) 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
-      {/* ----- Colonne gauche : les modules de la cliente ----- */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: 22, color: 'var(--color-ivoire)' }}>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>Son application Ma Couronne</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14 }}>
-            <Avatar client={client} size={52} />
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, lineHeight: 1 }}>{first}</div>
-              <div style={{ fontSize: 11, color: 'var(--copper-200)', marginTop: 5 }}>
-                {client.lockCount ? `Modèle · ${client.lockCount} locks` : 'Modèle à renseigner (Clientes · colonne Locks)'}
-              </div>
+    <>
+      {/* ═══ ① LA MAISON — en tête et pleine largeur, parce que ça vaut pour
+           TOUTES. Sous la fiche d'une cliente, ces interrupteurs se lisaient
+           comme les siens : on croyait fermer une porte à Lutgarde alors qu'on
+           la fermait à cent soixante-dix-huit têtes. ═══ */}
+      <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '20px 22px', color: 'var(--color-ivoire)', marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
+              Ma Couronne · la Maison
+            </div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, marginTop: 3 }}>
+              Ce qui vaut pour toutes les clientes.
             </div>
           </div>
-          {pricing.band && (
-            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
-              Tranche {bandLabel(pricing.band, bands)} · prix ×{pricing.band.coef} · durée ×{pricing.band.durCoef}
-              {pricing.clientCoef !== 1 ? ` · coefficient personnel ×${pricing.clientCoef}` : ''}
-            </div>
-          )}
+          <span style={{ fontSize: 11, color: 'var(--indigo-100)' }}>
+            {cfg.couronneFermee ? 'Application fermée' : `${ouvertsMaison}/${COURONNE_MODULES.length} modules ouverts`}
+          </span>
         </div>
 
-        {/* LA PORTE, PUIS LES PIÈCES. Ce bloc-ci vaut pour TOUTE la Maison : une
-            décision qui n'en est qu'une ne doit pas se répéter cent
-            soixante-dix-huit fois. Celui d'en dessous ne retire qu'en plus, pour
-            une cliente. */}
-        <div style={{ background: 'var(--color-indigo)', borderRadius: 4, padding: '18px 20px', color: 'var(--color-ivoire)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
-            Ma Couronne · pour toutes les clientes
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13 }}>L’application est ouverte</div>
-              <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
-                Fermée, personne n’entre — même pas pour se connecter. Elles lisent votre mot.
-              </div>
+        {/* LA PORTE. */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 18 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5 }}>L’application est ouverte</div>
+            <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
+              Fermée, personne n’entre — même pas pour se connecter. Elles lisent votre mot.
             </div>
-            <button
-              className={`trc-switch ${!cfg.couronneFermee ? 'is-on' : ''}`}
-              onClick={() => vitrineConfigStore.set((c) => ({ ...c, couronneFermee: !c.couronneFermee }))}
-              aria-label="Ma Couronne ouverte"
-              style={{ flex: 'none' }}
+          </div>
+          <button
+            className={`trc-switch ${!cfg.couronneFermee ? 'is-on' : ''}`}
+            onClick={() => vitrineConfigStore.set((c) => ({ ...c, couronneFermee: !c.couronneFermee }))}
+            aria-label="Ma Couronne ouverte"
+            style={{ flex: 'none' }}
+          />
+        </div>
+
+        {cfg.couronneFermee ? (
+          <div style={{ marginTop: 14 }}>
+            <textarea
+              className="mnd-input"
+              value={cfg.couronneMot ?? ''}
+              onChange={(e) => vitrineConfigStore.set((c) => ({ ...c, couronneMot: e.target.value || undefined }))}
+              placeholder="La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra."
+              style={{ width: '100%', boxSizing: 'border-box', minHeight: 62, resize: 'vertical', fontSize: 12.5 }}
+              aria-label="Le mot lu par les clientes"
             />
-          </div>
-
-          {cfg.couronneFermee && (
-            <div>
-              <textarea
-                className="mnd-input"
-                value={cfg.couronneMot ?? ''}
-                onChange={(e) => vitrineConfigStore.set((c) => ({ ...c, couronneMot: e.target.value || undefined }))}
-                placeholder="La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra."
-                style={{ width: '100%', boxSizing: 'border-box', minHeight: 62, resize: 'vertical', fontSize: 12.5 }}
-                aria-label="Le mot lu par les clientes"
-              />
-              <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 5, lineHeight: 1.5 }}>
-                Laissé vide, un mot de la Maison s’affiche. Dites pourquoi et quand vous rouvrez —
-                une porte close sans explication ne se comprend pas.
-              </div>
+            <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 5, lineHeight: 1.5 }}>
+              Laissé vide, un mot de la Maison s’affiche. Dites pourquoi et quand vous rouvrez —
+              une porte close sans explication ne se comprend pas.
             </div>
-          )}
-
-          {!cfg.couronneFermee && (
-            <div style={{ borderTop: '1px solid rgba(246,241,231,.2)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 11, color: 'var(--indigo-100)', lineHeight: 1.5 }}>
-                Et, dans l’application ouverte, ce que toutes voient — ou ne voient pas.
-              </div>
-
-              {/* LE QUIZ EST UN RÉGLAGE DE MA COURONNE, il se commande donc ici
-                  — et non à la Régie, qui compose le miroir du salon. Celui du
-                  miroir garde le sien : au fauteuil la maîtresse est là pour
-                  expliquer, sur le téléphone la cliente est seule. */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13 }}>Le quiz au seuil de la réservation</div>
-                  <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
-                    Deux questions avant « Votre objectif », puis une prestation proposée à son prix.
-                    {(cfg.modulesFermes ?? []).includes('reserver')
-                      ? ' Sans effet : la réservation est fermée pour toutes.'
-                      : ENVIES.every((e) => !cfg.recoParEnvie?.[e.k])
-                        && ' Rien n’est désigné en repli — il ne s’ouvrira que pour les têtes dont le persona propose quelque chose.'}
-                  </div>
-                </div>
-                <button
-                  className={`trc-switch ${cfg.quizCouronne !== false ? 'is-on' : ''}`}
-                  onClick={() => vitrineConfigStore.set((c) => ({ ...c, quizCouronne: c.quizCouronne === false }))}
-                  aria-label="Quiz sur Ma Couronne"
-                  style={{ flex: 'none' }}
-                />
-              </div>
-
-              <div style={{ borderTop: '1px solid rgba(246,241,231,.14)' }} />
-              {COURONNE_MODULES.map((m) => {
-                const fermeMaison = (cfg.modulesFermes ?? []).includes(m.k);
-                return (
-                  <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: fermeMaison ? 'var(--indigo-100)' : 'var(--color-ivoire)' }}>{m.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2 }}>{m.sub}</div>
-                    </div>
-                    <button
-                      className={`trc-switch ${!fermeMaison ? 'is-on' : ''}`}
-                      onClick={() => vitrineConfigStore.set((c) => {
-                        const l = c.modulesFermes ?? [];
-                        return { ...c, modulesFermes: l.includes(m.k) ? l.filter((x) => x !== m.k) : [...l, m.k] };
-                      })}
-                      aria-label={`Module ${m.label} pour toutes`}
-                      style={{ flex: 'none' }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Modules · rien que pour elle</div>
-            <span className="mnd-muted" style={{ fontSize: 10.5 }}>{COURONNE_MODULES.length - hidden.length}/{COURONNE_MODULES.length} ouverts</span>
           </div>
-          {COURONNE_MODULES.map((m) => (
-            <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        ) : (
+          <>
+            {/* LE QUIZ — un réglage de Ma Couronne, donc ici. Celui du miroir du
+                salon reste à la Régie : au fauteuil la maîtresse explique, sur
+                le téléphone la cliente est seule. */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(246,241,231,.2)' }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: isOff(m.k) ? 'var(--ink-soft)' : 'var(--ink)' }}>{m.label}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{m.sub}</div>
+                <div style={{ fontSize: 13.5 }}>Le quiz au seuil de la réservation</div>
+                <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
+                  Deux questions avant « Votre objectif », puis une prestation proposée à son prix.
+                  {fermeMaison('reserver')
+                    ? ' Sans effet : la réservation est fermée pour toutes.'
+                    : ENVIES.every((e) => !cfg.recoParEnvie?.[e.k])
+                      && ' Rien n’est désigné en repli — il ne s’ouvrira que pour les têtes dont le persona propose quelque chose.'}
+                </div>
               </div>
-              <button className={`trc-switch ${!isOff(m.k) ? 'is-on' : ''}`} onClick={() => toggleModule(m.k)} aria-label={`Module ${m.label}`} title={isOff(m.k) ? 'Module coupé — cliquer pour l’ouvrir' : 'Module ouvert — cliquer pour le couper'} />
+              <button
+                className={`trc-switch ${cfg.quizCouronne !== false ? 'is-on' : ''}`}
+                onClick={() => vitrineConfigStore.set((c) => ({ ...c, quizCouronne: c.quizCouronne === false }))}
+                aria-label="Quiz sur Ma Couronne"
+                style={{ flex: 'none' }}
+              />
             </div>
-          ))}
-          <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5 }}>
-            Coupé = l'onglet disparaît de SON application (et les gestes associés se ferment avec un mot honnête).
-            L'Accueil et le Profil restent toujours ouverts. Réglage synchronisé — effet immédiat sur son téléphone.
-          </div>
-        </div>
 
-        <a
-          className="mnd-btn mnd-btn--ghost"
-          style={{ textAlign: 'center', textDecoration: 'none' }}
-          /* Chemin relatif à l'origine (même compte GitHub que Le Trône) : marche
-             sur yemanb.github.io comme sur maisonmnd.github.io, sans domaine figé. */
-          href="/couronne/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Ouvrir Ma Couronne →
-        </a>
+            {/* LES SIX PIÈCES, en grille : une liste de six lignes empilées
+                donnait une colonne interminable pour six interrupteurs. */}
+            <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: '18px 0 10px' }}>
+              Les onglets de son application
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px 26px' }}>
+              {COURONNE_MODULES.map((m) => (
+                <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: fermeMaison(m.k) ? 'var(--indigo-200)' : 'var(--color-ivoire)' }}>{m.label}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 2 }}>{m.sub}</div>
+                  </div>
+                  <button
+                    className={`trc-switch ${!fermeMaison(m.k) ? 'is-on' : ''}`}
+                    onClick={() => vitrineConfigStore.set((c) => {
+                      const l = c.modulesFermes ?? [];
+                      return { ...c, modulesFermes: l.includes(m.k) ? l.filter((x) => x !== m.k) : [...l, m.k] };
+                    })}
+                    aria-label={`Module ${m.label} pour toutes`}
+                    style={{ flex: 'none' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* ═══ ② UNE CLIENTE — et seulement elle. ═══ */}
+      <div className="trc-microlabel" style={{ color: 'var(--copper-700)', marginBottom: 10 }}>
+        Rien que pour {first}
+      </div>
+
+      <div className="tr-cols" style={{ '--cols': 'minmax(300px, 360px) 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
+        {/* ----- Colonne gauche : sa fiche et ce qu'on lui retire ----- */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Sa carte d'identité — CLAIRE, et non plus indigo : l'indigo dit
+              désormais « la Maison », le clair dit « cette tête-là ». Deux blocs
+              indigo côte à côte ne disaient plus rien de leur portée. */}
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Avatar client={client} size={46} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--color-indigo)', lineHeight: 1 }}>{first}</div>
+                <div className="trc-sub" style={{ marginTop: 4 }}>
+                  {client.lockCount ? `Modèle · ${client.lockCount} locks` : 'Modèle à renseigner (Clientes · colonne Locks)'}
+                </div>
+              </div>
+            </div>
+            {pricing.band && (
+              <div className="trc-sub" style={{ marginTop: 10, lineHeight: 1.5 }}>
+                Tranche {bandLabel(pricing.band, bands)} · prix ×{pricing.band.coef} · durée ×{pricing.band.durCoef}
+                {pricing.clientCoef !== 1 ? ` · coefficient personnel ×${pricing.clientCoef}` : ''}
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>Ce qu’on lui retire en plus</div>
+              <span className="mnd-muted" style={{ fontSize: 10.5 }}>{retiresPourElle || 'aucun'}</span>
+            </div>
+            {COURONNE_MODULES.map((m) => {
+              /* CE QUE LA MAISON A FERMÉ NE SE ROUVRE PAS ICI. L'interrupteur
+                 se tait plutôt que de laisser croire le contraire. */
+              const parLaMaison = fermeMaison(m.k);
+              return (
+                <div key={m.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, opacity: parLaMaison ? 0.5 : 1 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: isOff(m.k) ? 'var(--ink-soft)' : 'var(--ink)' }}>{m.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+                      {parLaMaison ? 'Fermé pour toutes — voir ci-dessus' : m.sub}
+                    </div>
+                  </div>
+                  <button
+                    className={`trc-switch ${!isOff(m.k) ? 'is-on' : ''}`}
+                    onClick={() => !parLaMaison && toggleModule(m.k)}
+                    disabled={parLaMaison}
+                    aria-label={`Module ${m.label}`}
+                    title={parLaMaison
+                      ? 'Fermé pour toute la Maison — se rouvre en haut de page'
+                      : isOff(m.k) ? 'Coupé pour elle — cliquer pour l’ouvrir' : 'Ouvert — cliquer pour le couper'}
+                    style={{ flex: 'none', cursor: parLaMaison ? 'not-allowed' : 'pointer' }}
+                  />
+                </div>
+              );
+            })}
+            <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5 }}>
+              Coupé = l'onglet disparaît de SON application (et les gestes associés se ferment avec un mot honnête).
+              L'Accueil et le Profil restent toujours ouverts. Réglage synchronisé — effet immédiat sur son téléphone.
+            </div>
+          </div>
+
+          <a
+            className="mnd-btn mnd-btn--ghost"
+            style={{ textAlign: 'center', textDecoration: 'none' }}
+            /* Chemin relatif à l'origine (même compte GitHub que Le Trône) : marche
+               sur yemanb.github.io comme sur maisonmnd.github.io, sans domaine figé. */
+            href="/couronne/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ouvrir Ma Couronne →
+          </a>
+        </div>
 
       {/* ----- Colonne droite : le téléphone ----- */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
@@ -981,7 +1036,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
           Aperçu calculé sur les mêmes données que son application : catalogue visible, barème des modèles,
           paliers du Cercle, rendez-vous et recommandation. Ce qu'elle verra, sans se connecter à sa place.
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
