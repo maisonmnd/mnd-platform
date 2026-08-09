@@ -98,8 +98,11 @@ as $$
         on f.id = enfant.data->>'familyId'
       where enfant.id = cible
         and f.data->>'payerClientId' = (auth.uid())::text
-        and enfant.data->>'birthday' is not null
-        and (enfant.data->>'birthday')::date > (current_date - interval '18 years')
+        -- `nullif` AVANT le cast : une date vide ('') ferait echouer la
+        -- conversion, et une erreur DANS UNE POLITIQUE bloque la lecture de
+        -- toute la table — pour tout le monde, d'un coup.
+        and nullif(enfant.data->>'birthday', '') is not null
+        and (nullif(enfant.data->>'birthday', ''))::date > (current_date - interval '18 years')
         and coalesce((enfant.data->>'archived')::boolean, false) = false
     );
 $$;
@@ -145,11 +148,11 @@ end $$;
 select p.data->>'name'                          as parent,
        f.name                                   as compte,
        e.data->>'name'                           as tete_portee,
-       e.data->>'birthday'                       as naissance,
-       date_part('year', age((e.data->>'birthday')::date))::int as age,
+       nullif(e.data->>'birthday', '')            as naissance,
+       date_part('year', age((nullif(e.data->>'birthday', ''))::date))::int as age,
        case
-         when e.data->>'birthday' is null then 'INVISIBLE — pas de date de naissance'
-         when (e.data->>'birthday')::date <= (current_date - interval '18 years') then 'INVISIBLE — majeur'
+         when nullif(e.data->>'birthday', '') is null then 'INVISIBLE — pas de date de naissance'
+         when (nullif(e.data->>'birthday', ''))::date <= (current_date - interval '18 years') then 'INVISIBLE — majeur'
          else 'visible par le parent'
        end                                       as verdict
   from public.clients p
