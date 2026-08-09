@@ -13,7 +13,7 @@ import { apptPaidXof,
 } from '../../../../shared/agenda';
 import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
-import { uid } from '../../../../shared/store';
+import { createStore, uid, useStore } from '../../../../shared/store';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
 import './clients.css';
@@ -374,8 +374,16 @@ export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'p
   );
 }
 
-/* ---------- Tiroir latéral ---------- */
+/* ---------- Tiroir latéral ----------
+   LA LARGEUR SE RETIENT. Le tiroir tenait 680 px, dessiné pour un portable ; sur
+   l'écran du comptoir il laissait les deux tiers de la page vides et obligeait à
+   faire défiler une fiche qui aurait tenu d'un coup d'œil. Le choix est gardé
+   d'une fiche à l'autre : le régler à chaque ouverture, ce serait ne pas l'avoir
+   réglé. */
+export const ficheElargieStore = createStore<boolean>('mnd_fiche_elargie', false);
+
 export function Drawer({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const [elargi, setElargi] = useStore(ficheElargieStore);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -386,7 +394,17 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   return (
     <>
       <div className="trc-drawer-veil" onClick={onClose} />
-      <div className="trc-drawer">{children}</div>
+      <div className={`trc-drawer${elargi ? ' is-large' : ''}`}>
+        <button
+          type="button"
+          className="trc-drawer__wide"
+          onClick={() => setElargi((v) => !v)}
+          title={elargi ? 'Revenir au tiroir étroit' : 'Occuper toute la largeur de l’écran'}
+        >
+          {elargi ? 'Réduire' : 'Élargir'}
+        </button>
+        {children}
+      </div>
     </>
   );
 }

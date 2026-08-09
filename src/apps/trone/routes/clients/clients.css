@@ -237,6 +237,48 @@
 }
 @keyframes trc-slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
+/* LA FICHE ÉLARGIE. 680 px suffisaient sur un portable ; devant l'écran du
+   comptoir ils laissaient les deux tiers de la page vides et imposaient un
+   défilement pour lire une identité de quatre champs. La largeur se garde d'une
+   fiche à l'autre (voir `ficheElargieStore`). */
+.trc-drawer.is-large { width: min(1240px, 96vw); }
+/* Et on s'en sert : les champs passent de deux à trois colonnes plutôt que de
+   s'étirer. Un champ « Ville » large de 550 px n'est pas plus lisible. */
+.trc-drawer.is-large .trc-crown__grid { grid-template-columns: repeat(3, 1fr); }
+.trc-drawer.is-large .trc-c360-panel { padding: 22px 30px 36px; }
+.trc-drawer.is-large .trc-c360-tabs { padding: 0 30px; }
+.trc-drawer.is-large .trc-drawer__cover { padding: 18px 30px; }
+
+.trc-drawer__wide {
+  position: absolute;
+  top: 14px;
+  right: 52px;
+  z-index: 5;
+  background: rgba(20, 20, 27, 0.4);
+  border: none;
+  cursor: pointer;
+  color: var(--color-ivoire);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-drawer__wide:hover { background: rgba(20, 20, 27, 0.62); }
+/* Sur un écran étroit le tiroir occupe déjà presque tout : l'élargir n'a pas de
+   sens, et un choix pris au comptoir ne doit pas suivre sur le téléphone. */
+@media (max-width: 900px) {
+  .trc-drawer__wide { display: none; }
+  .trc-drawer.is-large { width: min(680px, 96vw); }
+  .trc-drawer.is-large .trc-crown__grid { grid-template-columns: 1fr 1fr; }
+  .trc-drawer.is-large .trc-c360-panel { padding: 20px 24px 32px; }
+  .trc-drawer.is-large .trc-c360-tabs { padding: 0 24px; }
+  .trc-drawer.is-large .trc-drawer__cover { padding: 18px 24px; }
+}
+
 .trc-drawer__cover {
   position: relative;
   min-height: 132px;
@@ -1291,10 +1333,10 @@
 
 /* Tiroir fiche 360 : plein écran sur téléphone. */
 @media (max-width: 620px) {
-  .trc-drawer { width: 100vw; }
-  .trc-drawer__cover { min-height: 112px; padding: 16px; }
+  .trc-drawer, .trc-drawer.is-large { width: 100vw; }
+  .trc-drawer__cover, .trc-drawer.is-large .trc-drawer__cover { min-height: 112px; padding: 16px; }
   .trc-idgrid { grid-template-columns: 1fr; }
-  .trc-crown__grid { grid-template-columns: 1fr; }
+  .trc-crown__grid, .trc-drawer.is-large .trc-crown__grid { grid-template-columns: 1fr; }
   .trc-persona { grid-template-columns: 1fr; gap: 14px; }
   .trc-next__date { font-size: 19px; }
   .trc-timeline { gap: 10px; }
