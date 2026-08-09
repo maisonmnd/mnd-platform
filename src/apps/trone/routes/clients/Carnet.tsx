@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
@@ -14,7 +14,7 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import { honorAppointment, PayAppointmentModal } from './actions';
 
@@ -135,7 +135,7 @@ export default function Carnet() {
 
   const clientOf = (id: string) => clients.find((c) => c.id === id);
 
-  const { upcoming, past, comptes } = useMemo(() => {
+  const { upcoming, past, comptes, totaux } = useMemo(() => {
     /* Recherche par nom de cliente — taper les premières lettres suffit
        (insensible aux accents : « agnes » trouve « Agnès ») ; le nom porté par
        le RDV sert de repli pour les têtes de passage sans fiche. */
@@ -164,6 +164,23 @@ export default function Carnet() {
       comptes[v] = base.filter((a) => VUES[v].garde(a, byId, aVenir)).length;
     }
 
+    /* LES DEUX TOTAUX NE SE MÉLANGENT PAS. Ce qu'une cliente doit pour un rituel
+       DÉJÀ RENDU est une créance : cet argent aurait dû être encaissé. Ce
+       qu'annonce un rendez-vous à venir n'est rien encore — le geste n'a pas eu
+       lieu, elle peut annuler, et le montant peut changer au fauteuil. Les
+       additionner ferait un chiffre que personne ne pourrait aller chercher.
+
+       Les annulés sortent des deux : personne n'encaissera jamais un rituel qui
+       n'a pas eu lieu. */
+    const vivants = base.filter((a) => a.status !== 'annulé');
+    const rendus = vivants.filter((a) => !aVenir(a));
+    const totaux = {
+      creanceN: rendus.filter((a) => apptDueXof(a, byId) > 0).length,
+      creanceXof: rendus.reduce((n, a) => n + apptDueXof(a, byId), 0),
+      avenirN: vivants.filter(aVenir).length,
+      avenirXof: vivants.filter(aVenir).reduce((n, a) => n + apptNetXof(a, byId), 0),
+    };
+
     const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir);
     const upcoming = base
       .filter((a) => aVenir(a) && garde(a))
@@ -173,7 +190,7 @@ export default function Carnet() {
     const past = vue === 'avenir' ? [] : base
       .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
-    return { upcoming, past, comptes };
+    return { upcoming, past, comptes, totaux };
   }, [appts, today, query, clients, maison, categories, byId, vue]);
 
   const setStatus = (id: string, status: Appointment['status']) =>
@@ -406,6 +423,43 @@ export default function Carnet() {
             </FiltreChip>
           ))}
       </div>
+
+      {/* LES DEUX CHIFFRES QU'ON VIENT CHERCHER, sous les yeux sans cliquer.
+          Ils se lisent sur ce que la recherche et la maison laissent passer —
+          comme les comptes des pastilles — et non sur le filtre courant : un
+          total qui changerait à chaque vue n'annoncerait plus rien.
+
+          Ils ne s'additionnent pas, et c'est voulu. Une créance est un argent
+          qui aurait dû être encaissé ; un rendez-vous à venir n'est rien encore
+          — le geste n'a pas eu lieu, elle peut annuler, le montant peut changer
+          au fauteuil. Les mettre dans le même chiffre, c'est annoncer une somme
+          que personne ne peut aller chercher. */}
+      {!sansPrix && (
+        <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--copper-700)', lineHeight: 1.1 }}>
+              {fmtMoney(totaux.creanceXof, currency)}
+            </div>
+            <div className="trc-sub">
+              {totaux.creanceN === 0
+                ? 'Rien à recouvrer — tout est réglé.'
+                : `sur ${totaux.creanceN} rituel${totaux.creanceN > 1 ? 's' : ''} déjà rendu${totaux.creanceN > 1 ? 's' : ''}`}
+            </div>
+          </div>
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · rendez-vous à venir</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
+              {fmtMoney(totaux.avenirXof, currency)}
+            </div>
+            <div className="trc-sub">
+              {totaux.avenirN === 0
+                ? 'Le carnet est libre.'
+                : `sur ${totaux.avenirN} rendez-vous — rien n’est encore acquis`}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="trc-sheet trc-carnet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
