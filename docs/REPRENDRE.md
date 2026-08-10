@@ -408,8 +408,15 @@ validée ; recherche sourcée dans l'artifact « MND — Recherche UX & directio
   (état, indigo) d'abord, Encaisser (argent, cuivre) ferme la ligne à l'écart,
   cibles majorées.
 
-**Reste des P1 : maquette du tunnel de réservation** (récapitulatif persistant,
-5–10 choix par temps, « avec sa maîtresse habituelle », acompte expliqué).
+La Caisse au pouce est PUBLIÉE le 10 août (`f97b5e1`, trone seul — rien de
+partagé). **Maquette du tunnel FAITE** (écran 4 de l'artifact maquettes, soir
+du 10 août) : récapitulatif persistant en barre indigo (prestations + durée +
+total, « Continuer » dedans), 5–10 choix par écran, « Avec Brice — comme à
+votre dernier passage » (SEULE mécanique nouvelle — aujourd'hui la maîtresse
+découle de la prestation ; À VALIDER), acompte qui dit son pourquoi. Déjà
+conforme, validé par la recherche : la progression « 2/6 », les prix
+personnalisés dès le choix, le quiz contournable. **En attente de validation
+de Yéman avant construction.**
 
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
