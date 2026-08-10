@@ -1,79 +1,85 @@
 -- ═══════════════════════════════════════════════════════════════════
--- RÉPARATION — LA BRANCHE FANTÔME « maison » (10 août 2026, soir)
---         Supabase → SQL Editor. Relançable ; aperçu d'abord.
+-- RÉPARATION v2 — LA BRANCHE FANTÔME « maison » (10 août 2026, soir)
+--         Supabase → SQL Editor. Relançable ; TOUT s'affiche en résultat
+--         (la v1 parlait en NOTICE — invisibles dans l'éditeur).
 --
--- La table `branches` portait DEUX lignes : la vraie (L'atelier MND) et la
--- semence par défaut du code (`maison` · « Ma Maison »), résidu de l'incident
--- du 8 août. Les fiches nées d'un téléphone froid se rangeaient sur la
--- fantôme — et `repare_branches_orphelines.sql` ne les voyait pas : leur
--- branche EXISTAIT. Ce script-ci :
---   ① balaie TOUTES les tables à `branch_id` et déplace ce qui vit sur
---     `maison` vers la première branche réelle (≠ maison) ;
---   ② retire la ligne fantôme — plus rien ne pourra s'y ranger.
--- Le code, lui, est déjà corrigé : une fiche n'attend plus que la première
--- lecture des branches, et se réaligne si sa branche est inconnue.
+-- `branches` porte deux lignes : la vraie (L'atelier MND) et la semence du
+-- code (`maison`). Ce script déménage tout ce qui vit sur la fantôme vers la
+-- branche réelle, TABLE PAR TABLE en notant échecs et restes, puis retire la
+-- fantôme si plus rien ne la référence. Le rapport final dit tout.
 -- ═══════════════════════════════════════════════════════════════════
 
--- ── ÉTAPE 1 · APERÇU — ce qui vit sur la fantôme, table par table ──
-do $$
-declare t record; n bigint;
-begin
-  for t in
-    select table_name from information_schema.columns
-     where table_schema = 'public' and column_name = 'branch_id'
-       and table_name <> 'branches'
-  loop
-    execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
-    if n > 0 then raise notice 'sur la fantôme : % — % ligne(s)', t.table_name, n; end if;
-  end loop;
-end $$;
+create temp table if not exists _rapport (etape text, tbl text, detail text);
+truncate _rapport;
 
--- ── ÉTAPE 2 · ÉCRITURE — tout déménage, puis la fantôme disparaît ──
 do $$
-declare t record; cible text;
+declare t record; cible text; n bigint;
 begin
   select id into cible from public.branches where id <> 'maison' order by id limit 1;
   if cible is null then
-    raise exception 'Aucune branche réelle — rien n''est touché.';
+    insert into _rapport values ('ABANDON', '—', 'aucune branche réelle');
+    return;
   end if;
 
+  -- ① Le déménagement, table par table — échecs notés, jamais silencieux.
   for t in
-    select table_name from information_schema.columns
-     where table_schema = 'public' and column_name = 'branch_id'
-       and table_name <> 'branches'
+    select c.table_name
+      from information_schema.columns c
+      join information_schema.tables it
+        on it.table_schema = 'public' and it.table_name = c.table_name
+       and it.table_type = 'BASE TABLE'
+     where c.table_schema = 'public' and c.column_name = 'branch_id'
+       and c.table_name <> 'branches'
   loop
     begin
-      execute format(
-        'update public.%I set branch_id = %L,
-                data = case when data ? ''branchId'' then jsonb_set(data, ''{branchId}'', to_jsonb(%L::text)) else data end,
-                updated_at = now()
-          where branch_id = ''maison''',
-        t.table_name, cible, cible);
+      execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
+      if n > 0 then
+        execute format(
+          'update public.%I set branch_id = %L,
+                  data = case when data ? ''branchId'' then jsonb_set(data, ''{branchId}'', to_jsonb(%L::text)) else data end,
+                  updated_at = now()
+            where branch_id = ''maison''',
+          t.table_name, cible, cible);
+        insert into _rapport values ('déménagé', t.table_name, n || ' ligne(s) → ' || cible);
+      end if;
     exception when others then
-      raise notice 'table % sautée : %', t.table_name, sqlerrm;
+      insert into _rapport values ('ÉCHEC', t.table_name, sqlerrm);
     end;
   end loop;
-end $$;
 
--- La fantôme ne part que si plus rien ne la référence.
-do $$
-declare t record; n bigint; total bigint := 0;
-begin
+  -- ② Ce qui RESTE sur la fantôme après le passage.
   for t in
-    select table_name from information_schema.columns
-     where table_schema = 'public' and column_name = 'branch_id'
-       and table_name <> 'branches'
+    select c.table_name
+      from information_schema.columns c
+      join information_schema.tables it
+        on it.table_schema = 'public' and it.table_name = c.table_name
+       and it.table_type = 'BASE TABLE'
+     where c.table_schema = 'public' and c.column_name = 'branch_id'
+       and c.table_name <> 'branches'
   loop
-    execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
-    total := total + n;
+    begin
+      execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
+      if n > 0 then insert into _rapport values ('RESTE', t.table_name, n || ' ligne(s)'); end if;
+    exception when others then
+      insert into _rapport values ('ÉCHEC (compte)', t.table_name, sqlerrm);
+    end;
   end loop;
-  if total = 0 then
-    delete from public.branches where id = 'maison';
-    raise notice 'Branche fantôme « maison » retirée.';
+
+  -- ③ La fantôme ne part que si le champ est libre.
+  if not exists (select 1 from _rapport where etape in ('RESTE', 'ÉCHEC', 'ÉCHEC (compte)')) then
+    begin
+      delete from public.branches where id = 'maison';
+      insert into _rapport values ('SUPPRIMÉE', 'branches', 'la fantôme « maison » est retirée');
+    exception when others then
+      insert into _rapport values ('ÉCHEC (suppression)', 'branches', sqlerrm);
+    end;
   else
-    raise notice 'ENCORE % ligne(s) sur la fantôme — elle reste, relancez l''aperçu.', total;
+    insert into _rapport values ('CONSERVÉE', 'branches', 'des restes ou des échecs ci-dessus la retiennent');
   end if;
 end $$;
 
--- ── CONTRÔLE — une seule branche, plus rien sur « maison » ──
-select id, data->>'name' as nom from public.branches;
+-- ── LE RAPPORT, puis l'état des branches ──
+select * from _rapport
+union all
+select 'branche restante', id, data->>'name' from public.branches
+order by 1;
