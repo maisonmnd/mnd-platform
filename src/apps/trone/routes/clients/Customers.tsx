@@ -28,7 +28,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera } from 'lucide-react';
 import {
   Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
+  addDaysISO, apptDueXof, apptLabel, apptNetXof, cadenceLabel, frLong, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
@@ -169,16 +169,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* Prédiction du prochain rendez-vous — le juge vit dans `_shared.tsx`
-   (`predictNextVisit`) : le tableau de bord le lit aussi, et deux copies
-   finiraient par dire deux dates pour la même tête. */
-
-/** Lecture éditoriale d'un intervalle : « toutes les ~5 semaines », « ~9 j ». */
-const cadenceLabel = (days: number): string => {
-  if (days >= 60) return `toutes les ~${Math.round(days / 30)} mois`;
-  if (days >= 14) return `toutes les ~${Math.round(days / 7)} semaines`;
-  return `tous les ~${days} j`;
-};
+/* Prédiction du prochain rendez-vous — le juge vit dans `shared/cadence.ts`
+   (via `_shared`) : le tableau de bord et l'accueil de Ma Couronne le lisent
+   aussi, et deux copies finiraient par dire deux dates pour la même tête. */
 
 /** Chiffres seulement — pour wa.me et la recherche téléphone. */
 const digitsOf = (s: string) => s.replace(/\D/g, '');

@@ -357,8 +357,36 @@ paie → Équipe) — c'est lui que salue le tableau de bord.
   (`?pointer=1`, défilement, paramètre retiré de l'adresse comme le `code`).
   Le gérant garde sa barre latérale, même en mobilité.
 
-**Reste : ④ accueil Ma Couronne** (prénom vrai, prochaine séance prédite +
-réserver, Cercle en chiffres, bilan de séance, reco re-désignée à la Régie).
+**④ FAIT — l'accueil de Ma Couronne** (Tabs.tsx, HomeTab) :
+- **Le prénom vrai, jamais un login** : un prénom ne porte ni chiffre ni
+  arobase — « Yemanboya1 » rend « Bonjour. » tout court, sobre vaut mieux que
+  faux. (Le vrai remède reste la fiche : son nom au CRM est le login.)
+- **La séance prédite quand rien n'est pris** : « ≈ vendredi 28 août — d'après
+  votre rythme, toutes les ~5 semaines · à confirmer ensemble » + « Réserver ce
+  rituel » pré-rempli du dernier rituel honoré. LE JUGE A DÉMÉNAGÉ dans
+  `shared/cadence.ts` (une vérité pour les trois écrans : fiche Trône, tableau
+  de bord, accueil Couronne) — `trone/clients/_shared` ne fait que ré-exporter.
+  Sous RLS la cliente ne voit que SES rendez-vous : c'est ce que la cadence
+  regarde.
+- **Le Cercle en chiffres** : « 5 passages sur 7 », un point cuivre par venue
+  (barre conservée au-delà de dix points), et la phrase du reste. Plus de barre
+  muette contre un seuil abstrait.
+- **La reco n'invente plus** : l'ancien bloc repliait sur `products[0]` — le
+  premier flacon de la Gamme (« Cheveux naturels ») se présentait en
+  recommandation de la maison. Désormais : une PRESTATION désignée par le juge
+  du quiz (`shared/reco.ts`, envie de la fiche + offre au calibre), au prix
+  personnalisé, flèche = réserver ; le produit PRESCRIT sur la fiche
+  (`recoProductId`) garde sa carte « Du Carnet de Suivi » ; sans désignation,
+  RIEN. La carte ne paraît donc que si l'envie est connue (quiz répondu) et
+  qu'une prestation est désignée (persona ou Régie).
+- Non fait, assumé : la carte « dernier bilan de séance » attend un vrai
+  registre des bilans remis (aujourd'hui le bilan est un lien généré au
+  comptoir, rien n'atteste sa remise) — chantier données/produit, pas un
+  affichage à inventer.
+
+**LA REFONTE VALIDÉE EST COMPLÈTE (①②③④).** Publier trone + couronne ensemble
+(cadence partagée). Restent au fil de l'eau : renommer « Yeman » → « Yéman »
+(Personnel), désigner les recos à la Régie, dates de naissance des 7 têtes.
 
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 

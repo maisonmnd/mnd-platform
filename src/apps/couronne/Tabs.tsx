@@ -7,8 +7,13 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
-import { useServices } from '../../shared/catalog';
-import { clientsStore, useClients, useFamilies } from '../../shared/clients';
+import { useCategories, useServices } from '../../shared/catalog';
+import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
+import { vitrineConfigStore } from '../../shared/bridges';
+import { recoPourEnvie } from '../../shared/reco';
+import { envieLabel } from '../../shared/quiz';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService } from '../../shared/pricing';
+import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { ageDe, tetesPortees } from '../../shared/accounts';
 import { declarationsDe, declarerEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
@@ -195,10 +200,51 @@ export function HomeTab({
   const tierPct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
   const cercle = useCercle();
 
-  /* Recommandation : le produit choisi par la maison sur la fiche (Carnet de
-     Suivi personnalisé) prime ; sinon repli sur la suggestion générique. */
+  /* LE PRÉNOM VRAI — jamais un identifiant (chantier ④). « Yemanboya1 » est
+     un login, pas elle : un prénom ne porte ni chiffre ni arobase. À défaut,
+     « Bonjour. » tout court — sobre vaut mieux que faux. */
+  const brut = (client?.name ?? '').trim().split(/\s+/)[0] ?? '';
+  const prenom = brut && !/[0-9@_.]/.test(brut) ? brut : '';
+
+  /* LA PROCHAINE SÉANCE, PRÉDITE quand rien n'est pris — le MÊME juge que la
+     fiche du Trône (shared/cadence.ts) : deux surfaces qui calculeraient
+     chacune la leur diraient deux dates à la même tête. La RLS ne montre ici
+     que SES rendez-vous — exactement ce que la cadence regarde. */
+  const clientAppts = useClientAppointments();
+  const cadence = useMemo(
+    () => (client ? predictNextVisit(clientAppts, [client], client.id, todayIso()) : null),
+    [clientAppts, client],
+  );
+  const predite = !next && cadence?.predicted && cadence.iso ? cadence : null;
+
+  /* LA RECOMMANDATION EST UNE PRESTATION DÉSIGNÉE, jamais un produit inventé.
+     L'ancien bloc repliait sur `products[0]` : la Gamme d'abord — « Cheveux
+     naturels » — se présentait en recommandation de la maison. Le juge est
+     celui du quiz (shared/reco.ts), l'envie est la sienne (Client.envie),
+     l'offre est la vraie (catalogue visible, à son calibre). Sans envie ou
+     sans désignation : RIEN — mieux qu'une recommandation fausse. Le produit
+     PRESCRIT sur sa fiche (recoProductId) garde sa carte, lui : c'est un
+     choix de la maison, pas un repli. */
   const chosenReco = products.find((p) => p.id === client?.recoProductId);
-  const reco = chosenReco ?? products.find((p) => p.id === 'pr-serum-racines') ?? products[0];
+  const [personas] = usePersonas();
+  const [cats] = useCategories();
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const pricing = pricingOf(client ?? undefined, bands, sets, cats);
+  const cfgVitrine = useStore(vitrineConfigStore)[0];
+  const recoPresta = useMemo(() => {
+    if (!client?.envie) return undefined;
+    const offre = services.filter((s) => servesBand(s, bandForService(s, pricing)));
+    return recoPourEnvie(client, client.envie, {
+      offre,
+      catalogue: services,
+      personas,
+      maison: cfgVitrine.recoParEnvie,
+      appointments: clientAppts,
+      auto: cfgVitrine.recoAuto,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, services, personas, cfgVitrine, clientAppts, bands, sets, cats]);
 
   /* Rituel sous 48 h : bannière discrète + une notification locale, une seule fois. */
   const soon = useMemo(() => {
@@ -237,7 +283,7 @@ export function HomeTab({
         </button>
         <div className="mc-homehero__text">
           <div className="mc-micro-eyebrow">Votre couronne</div>
-          <div className="mc-homehero__greet">Bonjour, {firstName(client?.name)}.</div>
+          <div className="mc-homehero__greet">{prenom ? `Bonjour, ${prenom}.` : 'Bonjour.'}</div>
         </div>
       </div>
 
@@ -274,14 +320,29 @@ export function HomeTab({
               barre de paliers figée à zéro à qui n'y a pas encore droit fait
               croire que rien ne compte — alors que ses venues, elles, comptent. */}
           {!cercle.membre ? (
+            /* LE CERCLE EN CHIFFRES (chantier ④). La barre muette disait
+               « presque » sans dire où l'on en est ; les points se comptent
+               d'un regard — un par passage, remplis au fil des venues. Au-delà
+               de dix, la barre reprend : trente points ne se lisent plus. */
             <div className="mc-crownstatus__progress">
-              <div className="mc-bar">
-                <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
-              </div>
+              {cercle.seuil <= 10 ? (
+                <div className="mc-dots" aria-hidden="true">
+                  {Array.from({ length: cercle.seuil }, (_, i) => (
+                    <i key={i} className={i < Math.min(cercle.venues, cercle.seuil) ? 'is-fait' : ''} />
+                  ))}
+                </div>
+              ) : (
+                <div className="mc-bar">
+                  <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
+                </div>
+              )}
               <span>
+                {`${cercle.venues} passage${cercle.venues > 1 ? 's' : ''} sur ${cercle.seuil}`}
                 {cercle.venues === 0
-                  ? `Le Cercle s’ouvre au ${cercle.seuil}ᵉ passage`
-                  : `Encore ${cercle.reste} passage${cercle.reste > 1 ? 's' : ''} avant le Cercle`}
+                  ? ` — le Cercle s’ouvre au ${cercle.seuil}ᵉ`
+                  : cercle.reste > 0
+                    ? ` — encore ${cercle.reste} avant le Cercle`
+                    : ''}
               </span>
             </div>
           ) : ladder.length > 0 && (
@@ -338,6 +399,25 @@ export function HomeTab({
                 <span className="mc-nextrdv__seal">{next.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(next.depositXof, currency)}</span>
               )}
             </>
+          ) : predite ? (
+            /* RIEN N'EST PRIS, MAIS LA MAISON SAIT — l'écran propose au lieu
+               d'annoncer un vide. Même juge que la fiche du Trône ; le ≈ dit
+               l'estimation, la phrase dit le rythme, le geste réserve. */
+            <>
+              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}</div>
+              <div className="mc-nextrdv__when">
+                d’après votre rythme{predite.avgDays ? ` — ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
+              </div>
+              {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
+                <button
+                  className="mc-nextrdv__manage"
+                  style={{ marginRight: 8 }}
+                  onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0] })}
+                >
+                  Réserver ce rituel →
+                </button>
+              )}
+            </>
           ) : (
             <>
               <div className="mc-nextrdv__service">Aucun rituel à venir</div>
@@ -362,8 +442,33 @@ export function HomeTab({
           </button>
         )}
 
-        {/* recommandation du moment — seulement si la gamme existe */}
-        {reco && (
+        {/* LA MAISON RECOMMANDE — une PRESTATION désignée (le juge du quiz),
+            au prix de la cliente, et la flèche RÉSERVE. Le produit prescrit
+            sur sa fiche garde sa carte. Sans désignation : rien du tout —
+            l'ancien repli sur `products[0]` présentait le premier flacon de
+            la Gamme en recommandation de la maison. */}
+        {recoPresta ? (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>
+            <div className="mc-recocard">
+              <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
+              <div className="mc-recocard__body">
+                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                  {client?.envie ? `Pour votre envie · ${envieLabel(client.envie)}` : 'Choisie pour votre couronne'}
+                </div>
+                <div className="mc-recocard__name">{recoPresta.service.name}</div>
+                <div className="mc-recocard__line">
+                  {recoPresta.service.hidePrice
+                    ? 'Prix au fauteuil — la maison vous dira'
+                    : (() => { const p = personalPriceXof(recoPresta.service, pricing); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
+                </div>
+              </div>
+              {!moduleHidden(client, 'reserver') && (
+                <button className="mc-arrowbtn" aria-label="Réserver cette prestation" onClick={() => onOpenBooking({ serviceId: recoPresta.service.id })}>→</button>
+              )}
+            </div>
+          </>
+        ) : chosenReco ? (
           <>
             <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Du Carnet de Suivi</div>
             <div className="mc-recocard">
@@ -372,15 +477,15 @@ export function HomeTab({
                 <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
                   {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
                 </div>
-                <div className="mc-recocard__name">{reco.name}</div>
+                <div className="mc-recocard__name">{chosenReco.name}</div>
                 <div className="mc-recocard__line">
-                  {chosenReco ? productMeta(chosenReco.id).line : 'Pour densifier d’ici le resserrage'} · {fmtMoney(reco.priceXof, currency)}
+                  {productMeta(chosenReco.id).line} · {fmtMoney(chosenReco.priceXof, currency)}
                 </div>
               </div>
               <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
             </div>
           </>
-        )}
+        ) : null}
         <div style={{ height: 26 }} />
       </div>
     </div>

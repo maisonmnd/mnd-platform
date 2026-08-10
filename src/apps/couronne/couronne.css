@@ -2123,3 +2123,15 @@
   transition: transform 0.2s var(--ease-soft, ease);
 }
 .mc-switch.is-on .mc-switch__knob { transform: translateX(20px); }
+
+/* Le Cercle en chiffres — un point par passage (chantier ④). Rempli = venue
+   honorée ; creux = ce qui reste avant le Cercle. Au-delà de dix, la barre
+   d'origine reprend le relais. */
+.mc-dots { display: flex; gap: 7px; margin: 3px 0 7px; }
+.mc-dots i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-copper, #B97A4A);
+}
+.mc-dots i.is-fait { background: var(--color-copper, #B97A4A); }
