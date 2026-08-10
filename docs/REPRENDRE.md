@@ -490,13 +490,35 @@ Corrigé :
   (`tablePrete('branches')`) avant de créer la fiche — plus jamais de branche
   devinée ; et une fiche existante dont la branche est INCONNUE du référentiel
   se réaligne d'elle-même sur la première branche réelle.
-- **`supabase/repare_branches_orphelines.sql` — PASSÉ, mais son 0·0 était un
-  FAUX CALME** : la table `branches` portait DEUX lignes — la vraie et la
-  semence du code (`maison` · « Ma Maison », résidu du 8 août). Les fiches du
-  froid vivaient sur la fantôme, qui « existait » donc au sens du prédicat.
-  **`repare_branche_fantome.sql`** fait la vraie réparation : balaie toutes
-  les tables à `branch_id`, déménage vers la branche réelle, retire la
-  fantôme quand plus rien ne la référence.
+- **La saga de la branche fantôme — RÉSOLUE le 10 août au soir (v4).**
+  `branches` portait DEUX lignes : la vraie et la semence du code (« maison »,
+  résidu du 8 août) ; les fiches du froid s'y rangeaient. Quatre scripts pour
+  en venir à bout, chaque échec ayant sa leçon :
+  ① `repare_branches_orphelines` : 0·0 = FAUX CALME (la fantôme « existait »,
+  son prédicat ne la voyait pas) ; ② v2 : rapport en RAISE NOTICE — invisibles
+  dans l'éditeur Supabase, TOUJOURS rapporter en lignes de résultat ; ③ v3 :
+  collision de clé sur `staff_branches` (le souverain déjà lié à la vraie
+  branche) qui ANNULAIT toute la transaction — les « réussites » des rapports
+  précédents n'avaient jamais été commitées ; ④ v4 : le vrai gardien était
+  **`clients_protege_tarif`**, un DÉCLENCHEUR serveur qui réimposait les
+  champs sensibles à tout écrivain non-staff — et `auth.uid()` est VIDE dans
+  l'éditeur SQL, donc les réparations elles-mêmes étaient « suspectes ».
+  L'éditeur n'affiche que le DERNIER résultat d'un script — une requête de
+  diagnostic à la fois.
+
+**⚠ TROIS DÉCLENCHEURS SERVEUR VIVENT HORS DES MIGRATIONS DU DÉPÔT** (posés
+via l'assistant Supabase, découverts à la dure) :
+- `clients_protege_tarif` (clients) — réimpose les champs sensibles (locks,
+  coef…) aux écrivains non-staff. **DÉTACHÉ par la v4** pour libérer les
+  fiches ; À RÉARMER corrigé (0037 : `auth.uid() is null` = confiance) — la
+  fonction existe encore, seul le déclencheur est tombé.
+- `avoir_solde_suffisant` (credit_movements) — refuse un usage d'avoir
+  au-delà du solde. À GARDER.
+- `invoice_trace_modif` (invoices) — trace toute modification d'une facture
+  PAYÉE dans `invoice_audit` (table hors patron : pas de colonne `data`).
+  À GARDER. Les scripts génériques qui balaient « toutes les tables à
+  branch_id » doivent compter seulement, jamais écrire, sur les tables hors
+  patron.
 
 Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
 « Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
