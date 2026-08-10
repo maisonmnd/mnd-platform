@@ -1,19 +1,30 @@
 -- ═══════════════════════════════════════════════════════════════════
--- RÉPARATION v2 — LA BRANCHE FANTÔME « maison » (10 août 2026, soir)
---         Supabase → SQL Editor. Relançable ; TOUT s'affiche en résultat
---         (la v1 parlait en NOTICE — invisibles dans l'éditeur).
+-- RÉPARATION v3 — LA BRANCHE FANTÔME « maison » (10 août 2026, soir)
 --
--- `branches` porte deux lignes : la vraie (L'atelier MND) et la semence du
--- code (`maison`). Ce script déménage tout ce qui vit sur la fantôme vers la
--- branche réelle, TABLE PAR TABLE en notant échecs et restes, puis retire la
--- fantôme si plus rien ne la référence. Le rapport final dit tout.
+-- ⚠ AVANT DE COLLER : FERMEZ les onglets du Trône et de Ma Couronne (tous les
+--   postes, le téléphone aussi). La v2 a vu ses lignes REVENIR pendant la
+--   réparation — très probablement une poussée locale d'un poste ouvert qui a
+--   réécrit son cache par-dessus l'UPDATE. Portes fermées, rien ne repousse.
+--
+-- Ce que fait la v3 :
+--   ① `staff_branches` (table hors patron, sans colonne `data`) se répare
+--     à part — c'était l'ÉCHEC de la v2 ;
+--   ② le balayage général repasse TROIS fois, et rapporte chaque passe ;
+--   ③ si des lignes résistent encore, elles sont MONTRÉES (id + branches)
+--     au lieu d'un simple compte ;
+--   ④ la fantôme n'est retirée que champ libre.
 -- ═══════════════════════════════════════════════════════════════════
 
 create temp table if not exists _rapport (etape text, tbl text, detail text);
 truncate _rapport;
 
+-- ① La table hors patron : elle n'a que (user_id, branch_id).
+update public.staff_branches set branch_id = b.id
+  from (select id from public.branches where id <> 'maison' order by id limit 1) b
+ where staff_branches.branch_id = 'maison';
+
 do $$
-declare t record; cible text; n bigint;
+declare t record; cible text; n bigint; passe int;
 begin
   select id into cible from public.branches where id <> 'maison' order by id limit 1;
   if cible is null then
@@ -21,33 +32,36 @@ begin
     return;
   end if;
 
-  -- ① Le déménagement, table par table — échecs notés, jamais silencieux.
-  for t in
-    select c.table_name
-      from information_schema.columns c
-      join information_schema.tables it
-        on it.table_schema = 'public' and it.table_name = c.table_name
-       and it.table_type = 'BASE TABLE'
-     where c.table_schema = 'public' and c.column_name = 'branch_id'
-       and c.table_name <> 'branches'
-  loop
-    begin
-      execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
-      if n > 0 then
+  -- ② Trois passes : si une poussée concurrente réécrit entre deux, la
+  --    suivante la rattrape — et le rapport montre si ça se reproduit.
+  for passe in 1..3 loop
+    for t in
+      select c.table_name
+        from information_schema.columns c
+        join information_schema.tables it
+          on it.table_schema = 'public' and it.table_name = c.table_name
+         and it.table_type = 'BASE TABLE'
+       where c.table_schema = 'public' and c.column_name = 'branch_id'
+         and c.table_name not in ('branches', 'staff_branches')
+    loop
+      begin
         execute format(
           'update public.%I set branch_id = %L,
                   data = case when data ? ''branchId'' then jsonb_set(data, ''{branchId}'', to_jsonb(%L::text)) else data end,
                   updated_at = now()
             where branch_id = ''maison''',
           t.table_name, cible, cible);
-        insert into _rapport values ('déménagé', t.table_name, n || ' ligne(s) → ' || cible);
-      end if;
-    exception when others then
-      insert into _rapport values ('ÉCHEC', t.table_name, sqlerrm);
-    end;
+        get diagnostics n = row_count;
+        if n > 0 then
+          insert into _rapport values ('passe ' || passe, t.table_name, n || ' ligne(s) déplacée(s)');
+        end if;
+      exception when others then
+        insert into _rapport values ('ÉCHEC passe ' || passe, t.table_name, sqlerrm);
+      end;
+    end loop;
   end loop;
 
-  -- ② Ce qui RESTE sur la fantôme après le passage.
+  -- ③ Ce qui résiste encore : MONTRÉ, pas seulement compté.
   for t in
     select c.table_name
       from information_schema.columns c
@@ -58,28 +72,32 @@ begin
        and c.table_name <> 'branches'
   loop
     begin
-      execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
-      if n > 0 then insert into _rapport values ('RESTE', t.table_name, n || ' ligne(s)'); end if;
+      execute format(
+        'insert into _rapport
+           select ''RÉSISTE'', %L, id || '' · data.branchId='' || coalesce(data->>''branchId'', ''—'')
+             from public.%I where branch_id = ''maison''',
+        t.table_name, t.table_name);
     exception when others then
-      insert into _rapport values ('ÉCHEC (compte)', t.table_name, sqlerrm);
+      -- staff_branches n'a pas de data : montrer l'identifiant seul.
+      begin
+        execute format(
+          'insert into _rapport select ''RÉSISTE'', %L, user_id::text from public.%I where branch_id = ''maison''',
+          t.table_name, t.table_name);
+      exception when others then null;
+      end;
     end;
   end loop;
 
-  -- ③ La fantôme ne part que si le champ est libre.
-  if not exists (select 1 from _rapport where etape in ('RESTE', 'ÉCHEC', 'ÉCHEC (compte)')) then
-    begin
-      delete from public.branches where id = 'maison';
-      insert into _rapport values ('SUPPRIMÉE', 'branches', 'la fantôme « maison » est retirée');
-    exception when others then
-      insert into _rapport values ('ÉCHEC (suppression)', 'branches', sqlerrm);
-    end;
+  -- ④ La fantôme ne part que champ libre.
+  if not exists (select 1 from _rapport where etape like 'RÉSISTE%' or etape like 'ÉCHEC%') then
+    delete from public.branches where id = 'maison';
+    insert into _rapport values ('SUPPRIMÉE', 'branches', 'la fantôme « maison » est retirée');
   else
-    insert into _rapport values ('CONSERVÉE', 'branches', 'des restes ou des échecs ci-dessus la retiennent');
+    insert into _rapport values ('CONSERVÉE', 'branches', 'voir les lignes RÉSISTE / ÉCHEC');
   end if;
 end $$;
 
--- ── LE RAPPORT, puis l'état des branches ──
 select * from _rapport
 union all
 select 'branche restante', id, data->>'name' from public.branches
-order by 1;
+order by 1, 2;
