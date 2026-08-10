@@ -18,7 +18,15 @@
 create temp table if not exists _rapport (etape text, tbl text, detail text);
 truncate _rapport;
 
--- ① La table hors patron : elle n'a que (user_id, branch_id).
+-- ① La table hors patron : elle n'a que (user_id, branch_id) — clé primaire
+--    sur la paire. Un utilisateur DÉJÀ lié à la vraie branche ne se déplace
+--    pas (collision de clé — c'est ce qui a fait dérailler la v3 entière,
+--    transaction comprise) : son lien fantôme se SUPPRIME. Les autres se
+--    déplacent.
+delete from public.staff_branches sb
+ where sb.branch_id = 'maison'
+   and exists (select 1 from public.staff_branches sb2
+                where sb2.user_id = sb.user_id and sb2.branch_id <> 'maison');
 update public.staff_branches set branch_id = b.id
   from (select id from public.branches where id <> 'maison' order by id limit 1) b
  where staff_branches.branch_id = 'maison';
