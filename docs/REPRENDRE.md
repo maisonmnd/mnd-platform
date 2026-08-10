@@ -455,6 +455,19 @@ Désormais :
   la maquette, enfin allumé) + lecteur en surimpression (jauges, points,
   Quatre Temps, prochaine visite, signature). RLS : elle ne lit que les siens.
 
+## La modale RDV simplifiée — 10 août au soir (`cdaaa58`)
+
+Retour d'écran de Yéman : forfait, remise % et remise manuelle s'empilaient
+comme trois réglages CUMULABLES — alors qu'un forfait EFFACE les remises
+(règle du 8 août) — et le « rituel offert » s'étalait à chaque RDV pour un
+cas d'exception. Corrigé dans `RdvModal` (clients/_shared) :
+- **« Le prix » : UN choix, trois modes exclusifs** — Prix plein / Remise /
+  Forfait. Choisir Forfait remet les remises à zéro ; Remise regroupe le % et
+  les francs (cumulables entre eux, comme avant). Aucune donnée ne change de
+  forme — `discountPct`/`discountXof`/`forfait` restent tels quels.
+- **L'offert derrière un interrupteur** : décoché par défaut, décocher vide
+  le champ. La règle payeuse/parcours ne bouge pas.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
