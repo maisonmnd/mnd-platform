@@ -8,7 +8,8 @@ import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '..
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { clientsStore, usePersonas } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
+import { tetesPortees } from '../../shared/accounts';
 import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
@@ -94,6 +95,16 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [appts] = useAppointments();
   const clientId = useClientId();
   const client = useClient();
+  /* LES TÊTES QU'ELLE PORTE — réserver POUR un enfant (TEMPS 2 des comptes
+     enfants, 0036). Le sélecteur ne paraît que si la Maison a validé des
+     mineurs sur son compte famille. Le prix de l'enfant se calcule comme le
+     sien : il hérite de son coefficient à la validation et n'a pas de modèle
+     au dossier — mêmes chiffres, honnêtement. */
+  const [tousClients] = useClients();
+  const [familles] = useFamilies();
+  const tetes = client ? tetesPortees(client, tousClients, familles, todayIso()) : [];
+  const [pourId, setPourId] = useState('');
+  const beneficiaire = tetes.find((t) => t.id === pourId);
   const { session } = useAuth();
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
@@ -345,6 +356,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         client?.name ??
         (session?.user?.email ? session.user.email.split('@')[0] : undefined) ??
         'Cliente Ma Couronne';
+      /* POUR QUI : le rendez-vous se pose au nom de la TÊTE choisie — c'est
+         son parcours qui le porte (TEMPS 2 : la RLS accepte l'écriture du
+         parent payeur pour ses mineurs). */
+      const cibleId = beneficiaire?.id ?? clientId;
+      const cibleNom = beneficiaire?.name ?? clientName;
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
@@ -356,8 +372,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
              serveur relie le paiement à cette réservation. */
           id: i === 0 && online ? online.apptId : uid(),
           branchId: branch.id,
-          clientId,
-          clientName,
+          clientId: cibleId,
+          clientName: cibleNom,
           serviceIds: [...selectedIds],
           date: sd.iso,
           time: sd.time,
@@ -389,7 +405,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
         online?.confirmed ? 'Réservation payée · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
-        `${clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
+        `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
       setPaying(false);
@@ -519,6 +535,28 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody">
+
+        {/* POUR QUI ? — le sélecteur de tête (TEMPS 2). Ne paraît que si la
+            Maison a validé des mineurs sur son compte : réserver pour Keli est
+            un geste, pas un détour. */}
+        {tetes.length > 0 && (vue === 0 || vue === 2) && (
+          <div className="mc-pourqui">
+            <span className="mc-pourqui__lb">Pour</span>
+            <button type="button" className={`mc-pourqui__chip ${!pourId ? 'is-on' : ''}`} onClick={() => setPourId('')}>
+              Moi
+            </button>
+            {tetes.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`mc-pourqui__chip ${pourId === t.id ? 'is-on' : ''}`}
+                onClick={() => setPourId(t.id)}
+              >
+                {t.name.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* -------- 0 · l'envie · le quiz de la Maison --------
             LES MÊMES MOTS QU'AU MIROIR (shared/quiz.ts), dans l'adresse de

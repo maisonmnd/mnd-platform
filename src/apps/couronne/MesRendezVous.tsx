@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
+import { useClients, useFamilies } from '../../shared/clients';
+import { tetesPortees } from '../../shared/accounts';
 import { useServices } from '../../shared/catalog';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify } from '../../shared/push';
@@ -35,14 +37,26 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   const [services] = useServices();
   const [appts] = useAppointments();
   const clientId = useClientId();
+  /* LE FOYER ENTIER (TEMPS 2) : les rendez-vous des têtes qu'elle porte se
+     lisent ici aussi — réserver pour Keli puis ne plus la voir serait pire
+     que ne rien ouvrir. La RLS (0036) ne montre que les mineurs de SA famille. */
+  const [tousClients] = useClients();
+  const [familles] = useFamilies();
+  const moi = tousClients.find((c) => c.id === clientId);
+  const tetes = useMemo(
+    () => (moi ? tetesPortees(moi, tousClients, familles, todayIso()) : []),
+    [moi, tousClients, familles],
+  );
 
   const mine = useMemo(
-    () =>
-      appts
-        .filter((a) => a.clientId === clientId)
+    () => {
+      const miens = new Set([clientId, ...tetes.map((t) => t.id)]);
+      return appts
+        .filter((a) => miens.has(a.clientId))
         .slice()
-        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)),
-    [appts, clientId]
+        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+    },
+    [appts, clientId, tetes]
   );
 
   const now = new Date();
@@ -55,9 +69,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   const upcoming = mine.filter(isUpcoming);
   const past = mine.filter((a) => !isUpcoming(a)).slice(-6).reverse();
 
-  const names = (a: Appointment) =>
-    a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') ||
-    'Rituel de la maison';
+  const names = (a: Appointment) => {
+    const base = a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') ||
+      'Rituel de la maison';
+    /* Le rituel d'une tête portée se nomme : « — pour Keli ». */
+    const tete = a.clientId !== clientId ? tetes.find((t) => t.id === a.clientId) : undefined;
+    return tete ? `${base} — pour ${tete.name.split(' ')[0]}` : base;
+  };
 
   const durationOf = (a: Appointment) => {
     const t = a.serviceIds.reduce((n, id) => n + (services.find((s) => s.id === id)?.durationMin ?? 60), 0);

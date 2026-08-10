@@ -499,6 +499,25 @@ Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
 « Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
 apparaîtra après la réparation.
 
+## TEMPS 2 des comptes enfants — CONSTRUIT ET OUVERT le 10 août au soir
+
+Le chantier n° 1 de la liste du matin, bouclé le soir même :
+- **`0036_acces_parents_temps2.sql` — PASSÉE** (le bloc commenté de 0028,
+  sorti mot pour mot dans sa propre migration ; 0028 y renvoie). `est_ma_tete`
+  ouvre au parent PAYEUR la lecture de ses MINEURS (clients, appointments,
+  invoices, client_sessions) et l'écriture de leurs rendez-vous. Sans date de
+  naissance : fermé — la minorité se prouve.
+- **Ma Couronne** : sélecteur « Pour : Moi · Keli » dans le tunnel (visible
+  seulement si la Maison a validé des mineurs sur le compte) — le RDV se pose
+  au nom de l'enfant, le personnel est notifié « Keli · par Valerie ». « Mes
+  rendez-vous » liste le FOYER entier (« — pour Keli » sur les rituels des
+  têtes). Le prix de l'enfant = même calcul que le parent (coefficient hérité
+  à la validation, pas de modèle au dossier).
+- **Le contrôle de 0036** (relançable) a rendu l'état réel : 13 têtes
+  rattachées, 4 visibles, **9 INVISIBLES sans date de naissance** — la liste
+  nominative est au contrôle, pas ici (dépôt public). À réparer au comptoir :
+  fiche → anniversaire, au fil des passages.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le

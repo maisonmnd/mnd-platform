@@ -2247,3 +2247,36 @@
   font-size: 13.5px;
   color: var(--ink-soft);
 }
+
+/* Le sélecteur de tête — « Pour : Moi · Keli » (TEMPS 2 des comptes enfants). */
+.mc-pourqui {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 0 14px;
+}
+.mc-pourqui__lb {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.mc-pourqui__chip {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 9px 16px;
+  font-family: var(--font-serif);
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.mc-pourqui__chip.is-on {
+  background: var(--color-indigo);
+  border-color: var(--color-indigo);
+  color: var(--color-ivoire);
+}
+.mc-pourqui__chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

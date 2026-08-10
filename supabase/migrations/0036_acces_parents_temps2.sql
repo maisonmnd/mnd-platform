@@ -1,74 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════
--- 0028 — LES COMPTES ENFANTS
---        (à coller dans Supabase → SQL Editor). EN DEUX TEMPS.
+-- 0036 — L'ACCÈS DES PARENTS : le TEMPS 2 de 0028, enfin prêt.
+--        (à coller dans Supabase → SQL Editor). UN SEUL TEMPS.
 --
--- Les enfants ont besoin de rendez-vous à leur nom : une couronne de neuf ans
--- n'est pas celle de sa mère, et son suivi non plus. Mais un mineur n'a ni
--- compte, ni e-mail, ni téléphone — c'est le parent qui agit pour lui.
+-- Ma Couronne porte désormais le sélecteur de tête (réserver POUR un enfant)
+-- et la liste des rendez-vous du foyer : le code est prêt, la lecture peut
+-- s'ouvrir. C'est le bloc commenté de `0028_comptes_enfants.sql`, mot pour
+-- mot — sorti dans sa propre migration pour être collé sans découpage.
 --
--- ── CE QUE CE FICHIER FAIT, ET DANS QUEL ORDRE ────────────────────
---   TEMPS 1 : la table des déclarations. À passer MAINTENANT — Le Trône ne
---             peut pas se synchroniser sans elle.
---   TEMPS 2 : l'accès du parent aux têtes qu'il porte. À passer quand Ma
---             Couronne sera prête, PAS AVANT : elle ouvre une lecture, et une
---             lecture ouverte trop tôt ne se referme pas d'elle-même.
---             → SORTI DANS `0036_acces_parents_temps2.sql` (10 août au soir,
---             Ma Couronne prête) : coller 0036, pas le bloc commenté d'ici.
---
--- Le contrôle du bas est en LECTURE SEULE : il dit qui verrait quoi, sans rien
--- écrire. À lire avant le temps 2.
--- ═══════════════════════════════════════════════════════════════════
-
-
--- ═══════════════════════════ TEMPS 1 ═══════════════════════════════
--- La file des déclarations. Le parent y dépose un prénom et une date de
--- naissance — RIEN QUI DÉSIGNE UNE FICHE EXISTANTE. C'est tout l'objet : s'il
--- pouvait écrire dans `clients`, il lui suffirait de rattacher à sa famille la
--- fiche d'une autre pour la lire entière.
-
-create table if not exists public.enfants_declares (
-  id         text primary key,
-  branch_id  text,
-  data       jsonb not null,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.enfants_declares enable row level security;
-
-drop policy if exists dev_all  on public.enfants_declares;
-drop policy if exists own_sel  on public.enfants_declares;
-drop policy if exists own_ins  on public.enfants_declares;
-drop policy if exists own_upd  on public.enfants_declares;
-drop policy if exists own_del  on public.enfants_declares;
-
--- Exactement le patron des rendez-vous : la ligne porte l'identifiant du
--- parent, il voit les siennes, le personnel voit tout.
-create policy own_sel on public.enfants_declares for select to authenticated
-  using (public.is_staff() or data->>'clientId' = (auth.uid())::text);
-create policy own_ins on public.enfants_declares for insert to authenticated
-  with check (public.is_staff() or data->>'clientId' = (auth.uid())::text);
--- LA MISE À JOUR EST RÉSERVÉE AU PERSONNEL : accepter ou refuser est un geste
--- de la Maison. Un parent qui pourrait écrire « accepté » sur sa propre demande
--- se donnerait à lui-même l'accès qu'elle est censée lui accorder.
-create policy own_upd on public.enfants_declares for update to authenticated
-  using (public.is_staff()) with check (public.is_staff());
-create policy own_del on public.enfants_declares for delete to authenticated
-  using (public.is_staff() or data->>'clientId' = (auth.uid())::text);
-
-create index if not exists enfants_declares_parent_idx
-  on public.enfants_declares ((data->>'clientId'));
-
--- Contrôle du temps 1 :
-select 'enfants_declares' as table_creee,
-       (select count(*) from public.enfants_declares) as lignes;
-
-
--- ═══════════════════════════ TEMPS 2 ═══════════════════════════════
--- L'ACCÈS DU PARENT. À NE PASSER QUE QUAND MA COURONNE EST PRÊTE.
---
--- Aujourd'hui la base dit : une cliente ne voit que sa fiche, et que ses
--- documents. Un parent ne peut donc lire ni la fiche de son enfant, ni son
--- carnet — l'écran n'aurait rien à afficher.
+-- ⚠ À PASSER AVANT de réserver pour un enfant depuis Ma Couronne : sans ces
+--   politiques, l'écriture du rendez-vous d'un enfant est REFUSÉE par la RLS.
 --
 -- ── TROIS PRÉCAUTIONS, ÉCRITES DANS LA FONCTION ───────────────────
 --  ① Elle interroge `clients`, qui est elle-même sous cette règle : sans
@@ -79,8 +19,7 @@ select 'enfants_declares' as table_creee,
 --    pas seulement l'écran.
 --  ③ Sans date de naissance, elle refuse. La minorité ouvre l'accès aux
 --    données de quelqu'un — elle ne se présume pas. La règle échoue fermée.
-
-/*  ─── DÉCOMMENTER POUR PASSER LE TEMPS 2 ───
+-- ═══════════════════════════════════════════════════════════════════
 
 create or replace function public.est_ma_tete(cible text)
 returns boolean
@@ -140,18 +79,15 @@ begin
   end loop;
 end $$;
 
-    ─── FIN DU TEMPS 2 ─── */
-
-
 -- ═══════════════════ CONTRÔLE — LECTURE SEULE ══════════════════════
--- Qui verrait quoi, si le temps 2 était passé. À lire AVANT de le passer :
--- une ligne inattendue ici est une porte qu'on s'apprêtait à ouvrir.
+-- Qui voit quoi, maintenant que le temps 2 est passé. Une tête « INVISIBLE —
+-- pas de date de naissance » se répare au CRM (fiche → anniversaire) : la
+-- minorité se prouve, elle ne se présume pas.
 
 select p.data->>'name'                          as parent,
        f.name                                   as compte,
        e.data->>'name'                           as tete_portee,
        nullif(e.data->>'birthday', '')            as naissance,
-       date_part('year', age((nullif(e.data->>'birthday', ''))::date))::int as age,
        case
          when nullif(e.data->>'birthday', '') is null then 'INVISIBLE — pas de date de naissance'
          when (nullif(e.data->>'birthday', ''))::date <= (current_date - interval '18 years') then 'INVISIBLE — majeur'
