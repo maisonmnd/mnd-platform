@@ -384,9 +384,32 @@ paie → Équipe) — c'est lui que salue le tableau de bord.
   comptoir, rien n'atteste sa remise) — chantier données/produit, pas un
   affichage à inventer.
 
-**LA REFONTE VALIDÉE EST COMPLÈTE (①②③④).** Publier trone + couronne ensemble
-(cadence partagée). Restent au fil de l'eau : renommer « Yeman » → « Yéman »
-(Personnel), désigner les recos à la Régie, dates de naissance des 7 têtes.
+**LA REFONTE VALIDÉE EST COMPLÈTE (①②③④)** — publiée le 10 août (`4b06f34`).
+Restent au fil de l'eau : renommer « Yeman » → « Yéman » (Personnel), désigner
+les recos à la Régie, dates de naissance des 7 têtes.
+
+**P1 RECHERCHE — LA CAISSE AU POUCE, construite le 10 août** (maquette écran 3
+validée ; recherche sourcée dans l'artifact « MND — Recherche UX & direction ») :
+- **Le total ancré en zone du pouce** (`trv-totalbar`, téléphone seul — sous
+  1 100 px le ticket passait SOUS tout le catalogue) : net + remises déduites
+  + moyen retenu + Encaisser (mêmes gardes que le bouton du ticket). Cohabite
+  avec la barre de l'équipe (posée au-dessus quand `tr-shell--barre`).
+- **« Les gestes de la maison »** : les ≤ 6 prestations les plus travaillées
+  (carnet, 90 jours, hors annulés) épinglées en tête de l'offre ; n'apparaît
+  qu'à partir de 3 candidates. Le catalogue se REPLIE alors par défaut, une
+  fois, à l'arrivée (« Tout déplier » le rouvre).
+- **Cibles au pouce** : − / + à 44 px (avant : ~4 mm), pills et chips de
+  longueur majorées (`pointer: coarse` ou ≤ 1 100 px). Bureau inchangé.
+- **La remise se replie dans la ligne** (au téléphone) : toucher la ligne
+  ouvre les chips ; la remise active se lit dans la légende (« · remise
+  −5 % ») ; la barre ancrée dit « remises −N F ». Bureau : chips visibles,
+  comme avant.
+- **La paire dangereuse du carnet du jour séparée** (Dashboard) : Honorer
+  (état, indigo) d'abord, Encaisser (argent, cuivre) ferme la ligne à l'écart,
+  cibles majorées.
+
+**Reste des P1 : maquette du tunnel de réservation** (récapitulatif persistant,
+5–10 choix par temps, « avec sa maîtresse habituelle », acompte expliqué).
 
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 

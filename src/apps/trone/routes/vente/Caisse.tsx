@@ -118,6 +118,10 @@ export default function Caisse() {
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
   const [waHint, setWaHint] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  /* La remise d'une ligne se replie DANS la ligne au téléphone : les chips
+     s'ouvrent au toucher de la ligne, la remise active se lit dans sa légende.
+     Au bureau, les chips restent visibles (CSS) — rien ne change à la souris. */
+  const [discFor, setDiscFor] = useState<string | null>(null);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -201,6 +205,38 @@ export default function Caisse() {
     return map;
   }, [groups]);
 
+  /* LES GESTES DE LA MAISON — les prestations les plus travaillées ces 90
+     derniers jours, épinglées en tête de l'offre : le quotidien à UN tap
+     (maquette du 10 août, patron « smart grid » de Shopify POS). Le compte se
+     fait sur le carnet — ce que la maison FAIT — et seuls les gestes encore au
+     catalogue de la Caisse se proposent. */
+  const gestes = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    const depuis = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const compte = new Map<string, number>();
+    for (const a of carnet) {
+      if (a.date < depuis || a.status === 'annulé') continue;
+      for (const id of a.serviceIds) compte.set(id, (compte.get(id) ?? 0) + 1);
+    }
+    return [...compte.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => ({ key: `s:${id}`, it: flat[`s:${id}`] }))
+      .filter((x): x is { key: string; it: NonNullable<typeof x.it> } => !!x.it)
+      .slice(0, 6);
+  }, [carnet, flat]);
+
+  /* Le catalogue entier se REPLIE sous les gestes, une fois, à l'arrivée —
+     la règle des trois taps : cliente → geste épinglé → Encaisser. « Tout
+     déplier » le rouvre d'un geste ; une maison sans historique garde tout
+     ouvert, comme avant. */
+  const repliInitial = useRef(false);
+  useEffect(() => {
+    if (repliInitial.current || groups.length === 0) return;
+    repliInitial.current = true;
+    if (gestes.length >= 3) setCollapsed(new Set(groups.map((g) => g.key)));
+  }, [groups, gestes]);
+
   /* Repli des catégories — la liste des prestations peut être longue. */
   const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.key));
   const toggleAllGroups = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.key)));
@@ -253,6 +289,9 @@ export default function Caisse() {
   /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
      sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
+  /* Ce que les remises retirent au ticket, toutes confondues (lignes + globale
+     + manuelle) — la barre ancrée le dit en clair à côté du net. */
+  const remisesXof = Math.max(0, Math.round(lines.reduce((s, l) => s + l.unit * l.qty, 0)) - netXof);
   /* Avoir : porté par le compte de la cliente choisie (famille du parent payeur,
      ou solo). Applicable jusqu'au net ; le comptant couvre le reste. La part avoir
      est du revenu mais hors caisse (avoirXof — routée par la Synthèse). */
@@ -437,6 +476,26 @@ export default function Caisse() {
         <div className="trv-pos-grid">
           {/* — l'offre — */}
           <div>
+            {/* Les gestes de la maison — le quotidien à un tap, le catalogue dessous. */}
+            {gestes.length >= 3 && (
+              <div style={{ marginBottom: 20 }}>
+                <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '0 0 10px' }}>Les gestes de la maison</div>
+                <div className="tr-grid tr-grid--2">
+                  {gestes.map((g) => (
+                    <button key={`g-${g.key}`} className="trv-pick" onClick={() => add(g.key)}>
+                      <div className="n">{g.it.n}</div>
+                      <div className="p">
+                        {g.it.mode === 'devis'
+                          ? 'sur devis — montant à saisir au ticket'
+                          : g.it.mode === 'variable'
+                            ? `dès ${fmtMoney(g.it.priceXof, currency)}`
+                            : fmtMoney(g.it.priceXof, currency)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div className="trv-sec-label trv-sec-label--copper" style={{ margin: 0 }}>Services & produits</div>
               {groups.length > 0 && (
@@ -541,7 +600,11 @@ export default function Caisse() {
               {lines.map((l) => (
                 <div key={l.key} className="trv-line">
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ flex: 1 }}>
+                    <div
+                      style={{ flex: 1, cursor: 'pointer' }}
+                      onClick={() => setDiscFor((cur) => (cur === l.key ? null : l.key))}
+                      title="Remise de ligne — toucher pour ouvrir"
+                    >
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--ink)' }}>{l.n}</div>
                       {l.mode === 'devis' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -564,6 +627,7 @@ export default function Caisse() {
                       ) : (
                         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
                           {fmtMoney(l.unit, currency)} · {l.kind === 'product' ? 'produit' : l.kind === 'formation' ? 'formation' : 'service'}
+                          {l.disc > 0 && <span style={{ color: 'var(--copper-700)' }}> · remise −{l.disc} %</span>}
                         </div>
                       )}
                     </div>
@@ -576,7 +640,10 @@ export default function Caisse() {
                       {fmtMoney(Math.round(l.netXof), currency)}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 11, flexWrap: 'wrap' }}>
+                  {/* Au téléphone, cette rangée se replie dans la ligne (CSS) et
+                      s'ouvre au toucher — la remise active reste lisible dans la
+                      légende de la ligne. Au bureau, rien ne change. */}
+                  <div className={`trv-line__disc ${discFor === l.key ? 'is-open' : ''}`}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Remise ligne</span>
                     <span className="trv-disc-badge">{l.disc}</span>
                     {[5, 10, 15, 20].map((pct) => (
@@ -743,6 +810,31 @@ export default function Caisse() {
               </div>
             </div>
           </div>
+
+          {/* LE TOTAL ANCRÉ EN ZONE DU POUCE — téléphone seulement (CSS). Sous
+              1 100 px le ticket passe sous tout le catalogue : « Net à payer »
+              et « Encaisser » vivaient au fond du défilement. La barre dit le
+              net, les remises déduites et le moyen retenu ; le bouton est le
+              MÊME geste que celui du ticket, mêmes gardes. */}
+          {lines.length > 0 && (
+            <div className="trv-totalbar">
+              <div className="trv-totalbar__info">
+                <span className="lb">Net à payer</span>
+                <span className="v">{fmtMoney(netXof, currency)}</span>
+                <span className="m">
+                  {posCashDue === 0 && posAvoir > 0 ? 'par avoir' : pay}
+                  {remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}
+                </span>
+              </div>
+              <button
+                className="trv-totalbar__go"
+                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && posCashDue > 0 && (!hasCashbox || fxAmount <= 0))}
+                onClick={() => void checkout()}
+              >
+                Encaisser
+              </button>
+            </div>
+          )}
         </div>
       )}
 

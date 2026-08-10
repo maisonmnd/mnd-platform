@@ -860,3 +860,71 @@
   outline: 2px solid var(--copper-600);
   outline-offset: 2px;
 }
+
+/* ═══════════ La Caisse au pouce (maquette validée du 10 août) ═══════════
+   L'écran d'un POS se lit à ~80 cm et une erreur coûte ×10 (Creative Navy) ;
+   debout, la cible juste est 2 × 2 cm (NN/g). Au bureau, rien ne change. */
+
+/* La remise de ligne : visible au bureau, repliée dans la ligne au téléphone. */
+.trv-line__disc { display: flex; align-items: center; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+
+@media (max-width: 1100px), (pointer: coarse) {
+  .trv-line__disc { display: none; }
+  .trv-line__disc.is-open { display: flex; }
+
+  /* − / + à 44 px — fini les cibles de 4 mm. */
+  .trv-qty { gap: 0; padding: 0; overflow: hidden; }
+  .trv-qty button { width: 44px; height: 44px; font-size: 20px; padding: 0; }
+  .trv-qty .q { min-width: 30px; }
+  .trv-pill { padding: 10px 14px; font-size: 12.5px; }
+  .trv-palier-chip { padding: 10px 16px; font-size: 13px; }
+  .trv-pay { min-height: 54px; }
+  .trv-pick { min-height: 60px; }
+}
+
+/* Le total ancré en zone du pouce — n'existe qu'au téléphone. */
+.trv-totalbar { display: none; }
+@media (max-width: 1100px) {
+  .trv-totalbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 130;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface-card);
+    border-top: 2px solid var(--color-copper);
+    padding: 9px 16px calc(9px + env(safe-area-inset-bottom, 0));
+    box-shadow: 0 -8px 24px rgba(20, 20, 27, 0.10);
+  }
+  .trv-totalbar__info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .trv-totalbar__info .lb {
+    font-family: var(--font-sans); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .trv-totalbar__info .v {
+    font-family: var(--font-serif); font-weight: 400; font-size: 29px;
+    color: var(--color-indigo); font-variant-numeric: tabular-nums; line-height: 1.12;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .trv-totalbar__info .m {
+    font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .trv-totalbar__go {
+    flex: none; cursor: pointer; border: 0; border-radius: 3px;
+    background: var(--color-copper); color: var(--color-ivoire);
+    font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; padding: 16px 22px;
+  }
+  .trv-totalbar__go:disabled { opacity: 0.45; cursor: default; }
+  .trv-totalbar__go:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+  /* Le ticket respire au-dessus de la barre. */
+  .trv-pos-grid { padding-bottom: 92px; }
+  /* Un maître qui a la Caisse ouverte porte AUSSI la barre de gestes : le
+     total se pose au-dessus d'elle, jamais dessous. */
+  .tr-shell--barre .trv-totalbar { bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
+}

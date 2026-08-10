@@ -563,22 +563,15 @@ export default function Dashboard() {
                 <PayStatusPill a={a} byId={byId} />
                 <StatusPill status={a.status} />
                 <ReminderBell appt={a} client={c} byId={byId} />
-                <button
-                  onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
-                  title="Encaisser ce rituel"
-                  style={{
-                    cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '8px 12px',
-                    fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
-                    background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
-                  }}
-                >
-                  Encaisser
-                </button>
+                {/* LA PAIRE DANGEREUSE, SÉPARÉE (maquette du 10 août). « Honorer »
+                    (un ÉTAT, indigo) vient d'abord ; « Encaisser » (de l'ARGENT,
+                    cuivre) ferme la ligne, à l'écart — NN/g : deux actions
+                    opposées qui se touchent, au pouce, c'est l'erreur assurée. */}
                 {a.status !== 'honoré' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); advance(a); }}
                     style={{
-                      cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '8px 12px',
+                      cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px',
                       fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
                       background: a.status === 'en attente' ? 'var(--color-copper)' : 'transparent',
                       color: a.status === 'en attente' ? 'var(--color-ivoire)' : 'var(--color-indigo)',
@@ -588,6 +581,17 @@ export default function Dashboard() {
                     {a.status === 'en attente' ? 'Confirmer' : 'Honorer'}
                   </button>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
+                  title="Encaisser — paiement partiel ou total"
+                  style={{
+                    cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px', marginLeft: 12,
+                    fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
+                    background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
+                  }}
+                >
+                  Encaisser
+                </button>
               </div>
             );
           })}
