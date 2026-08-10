@@ -490,10 +490,13 @@ Corrigé :
   (`tablePrete('branches')`) avant de créer la fiche — plus jamais de branche
   devinée ; et une fiche existante dont la branche est INCONNUE du référentiel
   se réaligne d'elle-même sur la première branche réelle.
-- **`supabase/repare_branches_orphelines.sql` — PASSÉ le 10 août au soir**
-  (contrôle : 0 client orphelin, 0 déclaration orpheline). Relançable sans
-  danger si le doute revient. Hypothèse assumée : UNE branche réelle — à ne
-  plus utiliser tel quel si multi-branches un jour.
+- **`supabase/repare_branches_orphelines.sql` — PASSÉ, mais son 0·0 était un
+  FAUX CALME** : la table `branches` portait DEUX lignes — la vraie et la
+  semence du code (`maison` · « Ma Maison », résidu du 8 août). Les fiches du
+  froid vivaient sur la fantôme, qui « existait » donc au sens du prédicat.
+  **`repare_branche_fantome.sql`** fait la vraie réparation : balaie toutes
+  les tables à `branch_id`, déménage vers la branche réelle, retire la
+  fantôme quand plus rien ne la référence.
 
 Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
 « Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
