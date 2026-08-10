@@ -13,6 +13,7 @@ import {
 import { vitrineConfigStore } from '../../shared/bridges';
 import { clientsStore, initiePersonaId, useClients, type Client } from '../../shared/clients';
 import { branchesStore, useBranch } from '../../shared/branches';
+import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin } from '../../shared/settings';
 import { useOffers, offerLiveNow } from '../../shared/offers';
@@ -55,8 +56,15 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
   const mail = (email ?? '').trim() || undefined;
   const existing = clientsStore.get().find((c) => c.id === clientId);
   if (existing) {
-    /* Réaligne la branche si besoin, et complète l'e-mail s'il manque encore. */
-    const needBranch = !!branchId && existing.branchId !== branchId;
+    /* Réaligne la branche si besoin, et complète l'e-mail s'il manque encore.
+       UNE BRANCHE INCONNUE DU RÉFÉRENTIEL SE RÉPARE AUSSI : la fiche de
+       Valerie Ahouansou (10 août) était née sur la branche par défaut du code
+       — un téléphone pas encore hydraté — et le Trône, qui filtre par la
+       vraie, ne la voyait pas. Dès que les branches sont là, on la range. */
+    const connues = branchesStore.get();
+    const brancheInconnue = connues.length > 0 && !connues.some((b) => b.id === existing.branchId);
+    const cibleBranche = branchId ?? (brancheInconnue ? connues[0]?.id : undefined);
+    const needBranch = !!cibleBranche && existing.branchId !== cibleBranche;
     const needMail = !!mail && !existing.email;
     /* L'ADOPTION S'INSCRIT UNE FOIS. Reconnue par son adresse, la fiche garde
        desormais le compte : si la cliente change d'adresse au Profil, le lien
@@ -66,7 +74,7 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
       clientsStore.set((prev) =>
         prev.map((c) =>
           c.id === clientId
-            ? { ...c, ...(needBranch ? { branchId } : {}), ...(needMail ? { email: mail } : {}), ...(needCompte ? { authUserId } : {}) }
+            ? { ...c, ...(needBranch ? { branchId: cibleBranche } : {}), ...(needMail ? { email: mail } : {}), ...(needCompte ? { authUserId } : {}) }
             : c,
         ),
       );
@@ -106,9 +114,18 @@ export function useEnsureClient(): string {
   const clientId = useClientId();
   const uid = session?.user?.id;
   const metaName = (session?.user?.user_metadata as { name?: string } | undefined)?.name;
+  /* Se ré-exécute quand les branches ARRIVENT — c'est le moment où la fiche
+     peut naître (ou se ranger) sur la vraie branche. */
+  const [branches] = useStore(branchesStore);
   useEffect(() => {
+    /* PAS DE FICHE SUR UNE BRANCHE DEVINÉE. Un téléphone neuf s'inscrit AVANT
+       d'avoir hydraté le référentiel : créer la fiche à cet instant la rangeait
+       sur la branche par défaut du code — invisible du Trône, qui filtre par la
+       vraie (Valerie Ahouansou, 10 août 2026). On attend la première lecture
+       des branches ; sans backend, tout est prêt d'emblée. */
+    if (!tablePrete('branches')) return;
     ensureClient(clientId, session?.user?.email, undefined, metaName, uid);
-  }, [clientId, session?.user?.email, metaName, uid]);
+  }, [clientId, session?.user?.email, metaName, uid, branches]);
   return clientId;
 }
 

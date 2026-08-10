@@ -476,6 +476,28 @@ cas d'exception. Corrigé dans `RdvModal` (clients/_shared) :
   aujourd'hui), elles ne s'ouvrent que si on les change. La règle — c'est le
   PAIEMENT qui range le mois — tient en une phrase, dans le champ ouvert.
 
+## La fiche née sur une branche fantôme — trouvé et corrigé le 10 août au soir
+
+Premier vrai test d'inscription (Valerie Ahouansou, yemanboya2@) : la fiche et
+sa déclaration d'enfant n'apparaissaient PAS au Trône. Cause :
+`ensureClient` (couronne/lib) posait `branchesStore.get()[0]?.id ?? 'maison'` —
+sur un téléphone PAS ENCORE HYDRATÉ, c'est la branche par défaut du code, pas
+« L'atelier MND ». Le Trône filtre par la vraie : lignes en base, invisibles.
+La déclaration d'enfant héritait du même branchId (celui du parent).
+
+Corrigé :
+- `useEnsureClient` ATTEND la première lecture des branches
+  (`tablePrete('branches')`) avant de créer la fiche — plus jamais de branche
+  devinée ; et une fiche existante dont la branche est INCONNUE du référentiel
+  se réaligne d'elle-même sur la première branche réelle.
+- **`supabase/repare_branches_orphelines.sql`** (relançable, aperçu d'abord) :
+  reclasse les clients et déclarations déjà mal rangés. Hypothèse assumée :
+  UNE branche réelle — à ne plus utiliser tel quel si multi-branches un jour.
+
+Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
+« Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
+apparaîtra après la réparation.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
