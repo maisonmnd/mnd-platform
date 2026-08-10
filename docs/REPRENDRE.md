@@ -468,6 +468,14 @@ cas d'exception. Corrigé dans `RdvModal` (clients/_shared) :
 - **L'offert derrière un interrupteur** : décoché par défaut, décocher vide
   le champ. La règle payeuse/parcours ne bouge pas.
 
+**Même cure à l'ENCAISSEMENT** (`PayAppointmentModal`, publié `686a34e`) :
+- Le forfait n'encadre plus chaque encaissement — une ligne à cocher, le
+  détail au geste ; le bandeau « la composition a bougé » reste.
+- **Les deux dates se replient en une ligne** (« Facture au 20 août · argent
+  entré le 10 août — Modifier ») : justes par défaut (jour du rituel /
+  aujourd'hui), elles ne s'ouvrent que si on les change. La règle — c'est le
+  PAIEMENT qui range le mois — tient en une phrase, dans le champ ouvert.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le
