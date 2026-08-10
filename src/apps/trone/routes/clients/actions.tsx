@@ -353,6 +353,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      juillet un rituel du 8 aout : forcer les deux a la meme date rangeait ses
      68 000 F dans les encaissements d'aout, ou ils ne sont jamais entres. */
   const [payDate, setPayDate] = useState(todayISO());
+  /* Les deux dates sont JUSTES par défaut (facture = jour du rituel, paiement =
+     aujourd'hui) : elles se replient en une ligne, « Modifier » les rouvre. */
+  const [datesOuvertes, setDatesOuvertes] = useState(false);
   /* Avoir appliqué à ce règlement — plafonné au solde ET au reste dû. Le comptant
      ne couvre alors que ce qui reste après l'avoir. */
   const [avoirStr, setAvoirStr] = useState('0');
@@ -692,13 +695,15 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
         </div>
 
-        {/* LE FORFAIT — un total pour l'ensemble des gestes. Les prestations
-            restent entières dessous : c'est leur montant qui porte les mains, la
-            production, les commissions et la ventilation du Bilan. */}
-        <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer' }}>
+        {/* LE FORFAIT — un total négocié pour l'ensemble des gestes. DISCRET :
+            une ligne quand il n'est pas posé (retour d'écran du 10 août — le
+            cadre permanent pesait sur chaque encaissement), le détail ne
+            s'ouvre qu'au geste. Les prestations restent entières dessous :
+            leur montant porte les mains, la production, les commissions. */}
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
             <input type="checkbox" checked={forfaitOn} onChange={(e) => majForfait(e.target.checked, forfaitStr)} />
-            Forfait — un total pour l’ensemble des gestes
+            Poser un forfait — un total négocié pour l’ensemble
           </label>
           {forfaitOn && (
             <>
@@ -821,9 +826,30 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             ))}
           </div>
         )}
-        <Field label="Date de la facture (jour du rituel)">
-          <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
-        </Field>
+        {/* LES DEUX DATES, REPLIÉES EN UNE LIGNE : justes par défaut (facture =
+            jour du rituel, paiement = aujourd'hui), elles n'occupent l'écran
+            que si on les change. La règle reste vraie : c'est la date du
+            PAIEMENT qui range l'encaissement dans le bon mois. */}
+        {!datesOuvertes ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12 }}>
+            <span className="mnd-muted">
+              Facture au {frShort(invDate)} (jour du rituel) · argent entré le {frShort(payDate)}
+            </span>
+            <button type="button" className="tre-link-btn" onClick={() => setDatesOuvertes(true)}>Modifier</button>
+          </div>
+        ) : (
+          <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
+            <Field label="Facture (jour du rituel)">
+              <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
+            </Field>
+            <Field label="Paiement (l’argent entre)">
+              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                C’est elle qui range l’encaissement dans le bon mois.
+              </div>
+            </Field>
+          </div>
+        )}
         {avoirBal > 0 && (
           <Field label={`Régler par l'avoir · disponible ${fmtMoney(avoirBal, currency)}`}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -835,14 +861,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             </div>
           </Field>
         )}
-        <Field label="Date du paiement (jour où l’argent entre)">
-          <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
-            Distincte de la date de la facture : celle-ci porte le jour du rituel, celle-là le jour où
-            la somme est réellement remise. C’est elle qui range l’encaissement dans le bon mois.
-          </div>
-        </Field>
-        <Field label="Montant encaissé maintenant (comptant)">
+        <Field label="Encaissé maintenant (comptant)">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
             <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Tout</button>
