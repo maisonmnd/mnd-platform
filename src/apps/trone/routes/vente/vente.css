@@ -928,3 +928,66 @@
      total se pose au-dessus d'elle, jamais dessous. */
   .tr-shell--barre .trv-totalbar { bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
 }
+
+/* ═══════════ L'en-tête de la Caisse — la cliente d'abord (maquette écran 3) ═══════════ */
+.trv-poshead {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 4px 16px;
+  margin-bottom: 16px;
+}
+.trv-poshead__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  flex-wrap: wrap;
+}
+.trv-poshead__row + .trv-poshead__row { border-top: 1px solid var(--hairline); }
+.trv-poshead__lb {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  flex: none;
+  min-width: 72px;
+}
+.trv-poshead__chip {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border-radius: 3px;
+  padding: 8px 14px;
+}
+
+/* La ligne « Tout le catalogue — N prestations · Déplier » */
+.trv-catall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 12px 2px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: left;
+}
+.trv-catall:hover { color: var(--ink); }
+.trv-catall__go {
+  flex: none;
+  color: var(--copper-700);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

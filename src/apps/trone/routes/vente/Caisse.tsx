@@ -122,6 +122,9 @@ export default function Caisse() {
      s'ouvrent au toucher de la ligne, la remise active se lit dans sa légende.
      Au bureau, les chips restent visibles (CSS) — rien ne change à la souris. */
   const [discFor, setDiscFor] = useState<string | null>(null);
+  /* La cliente choisie se dit en CHIP + « Changer » (maquette écran 3) — le
+     sélecteur ne se rouvre que si on le demande, l'écran reste calme au rush. */
+  const [changeCliente, setChangeCliente] = useState(false);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -236,6 +239,9 @@ export default function Caisse() {
     repliInitial.current = true;
     if (gestes.length >= 3) setCollapsed(new Set(groups.map((g) => g.key)));
   }, [groups, gestes]);
+
+  /* La ligne du catalogue dit COMBIEN — prestations et produits confondus. */
+  const nbOffre = groups.reduce((s, g) => s + g.items.length, 0);
 
   /* Repli des catégories — la liste des prestations peut être longue. */
   const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.key));
@@ -440,7 +446,7 @@ export default function Caisse() {
   return (
     <div className="mnd-rise">
       <PageHead
-        eyebrow="Point de vente · Encaissement"
+        eyebrow={`Caisse · ${branch.name}`}
         title="Caisse."
         actions={
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
@@ -473,6 +479,46 @@ export default function Caisse() {
       </div>
 
       {tab === 'encaisser' && (
+        <>
+        {/* LA CLIENTE ET LA LONGUEUR EN TÊTE (maquette écran 3) : le rush
+            commence par QUI, pas par le catalogue. La cliente choisie se dit
+            en chip ; « Changer » rouvre le sélecteur. La longueur — quand une
+            prestation du ticket s'y facture — commande le prix : elle se
+            choisit AVANT, pas au fond de la colonne. */}
+        <div className="trv-poshead">
+          <div className="trv-poshead__row">
+            <span className="trv-poshead__lb">Cliente</span>
+            {posClient && !changeCliente ? (
+              <>
+                <span className="trv-poshead__chip">{posClient.name}</span>
+                <button className="trv-minibtn" onClick={() => setChangeCliente(true)}>Changer</button>
+              </>
+            ) : (
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <ClientPicker value={clientId} onChange={(v) => { setClientId(v); setChangeCliente(false); }} allowWalkIn allowPassage />
+              </div>
+            )}
+          </div>
+          {longueurUtile && (
+            <div className="trv-poshead__row">
+              <span className="trv-poshead__lb">Longueur</span>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {LONGUEURS.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    className={`trv-palier-chip ${longueur === l.id ? 'is-active' : ''}`}
+                    title={l.hint}
+                    onClick={() => setLongueur(l.id)}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="trv-pos-grid">
           {/* — l'offre — */}
           <div>
@@ -496,12 +542,14 @@ export default function Caisse() {
                 </div>
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div className="trv-sec-label trv-sec-label--copper" style={{ margin: 0 }}>Services & produits</div>
-              {groups.length > 0 && (
-                <button className="trv-minibtn" onClick={toggleAllGroups}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</button>
-              )}
-            </div>
+            {/* LA LIGNE DU CATALOGUE (maquette écran 3) : une seule phrase qui
+                dit combien, et un geste qui ouvre ou referme tout. */}
+            {groups.length > 0 && (
+              <button className="trv-catall" onClick={toggleAllGroups} aria-expanded={!allCollapsed}>
+                <span>Tout le catalogue — {nbOffre} prestation{nbOffre > 1 ? 's' : ''} & produits</span>
+                <span className="trv-catall__go">{allCollapsed ? 'Déplier ▾' : 'Replier ▴'}</span>
+              </button>
+            )}
             {groups.map((g, gi) => {
               const [fon, ...rest] = g.label.split(' · ');
               const open = !collapsed.has(g.key);
@@ -541,35 +589,8 @@ export default function Caisse() {
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{activeCashbox || 'Caisse principale'}</span>
             </div>
             <div style={{ padding: '18px 22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottom: '1px solid var(--hairline)' }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Cliente</span>
-                <div style={{ flex: 1 }}>
-                  <ClientPicker value={clientId} onChange={setClientId} allowWalkIn allowPassage />
-                </div>
-              </div>
-
-              {/* LA LONGUEUR TRAVAILLEE — elle commande le prix des prestations
-                  qui s'y facturent. Elle ne parait que si le catalogue en porte :
-                  une maison qui ne facture pas a la longueur n'a pas a la voir. */}
-              {longueurUtile && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Longueur</span>
-                  <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {LONGUEURS.map((l) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        className={`trv-palier-chip ${longueur === l.id ? 'is-active' : ''}`}
-                        title={l.hint}
-                        onClick={() => setLongueur(l.id)}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+              {/* La cliente et la longueur vivent désormais EN TÊTE d'écran
+                  (trv-poshead) — le ticket commence au rituel du jour. */}
               {rituelsDuJour.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>Rituel</span>
@@ -836,6 +857,7 @@ export default function Caisse() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {tab === 'journal' && (
