@@ -433,6 +433,28 @@ l'affaire de la maison — la cliente ne choisit NI ne voit qui officie). Fait :
 - **L'acompte dit son pourquoi** : « Il tient votre créneau — et se déduit le
   jour même. » (masqué si prix au salon ou règlement intégral).
 
+## Le registre des bilans de séance — construit le 10 août au soir, ⚠ 0035 À PASSER
+
+Le bilan n'était qu'une PAPETERIE (`bilan.html`) : pré-rempli par l'URL,
+imprimé, oublié — aucun registre, rien à relire, rien pour Ma Couronne.
+Désormais :
+
+- **`supabase/migrations/0035_bilans.sql` — À PASSER AVANT LA PROCHAINE
+  PUBLICATION** (les deux apps se lient à la table `bilans` : sans elle,
+  pastille rouge). RLS : personnel tout, la cliente LIT les siens
+  (`clientId = auth.uid()`, patron des factures). Realtime inclus.
+- **`shared/bilans.ts`** : le modèle (jauges, points clés, les Quatre Temps,
+  prochaine visite), série ancrée `MND-BS-AAAA-NNNN`, `remettreBilan`,
+  `dernierBilanDe`.
+- **Le Trône** : la fiche cliente ouvre `BilanModal` — rédiger (pré-rempli du
+  bilan PRÉCÉDENT : la couronne s'évalue dans la continuité), « Remettre »
+  ENREGISTRE, « Imprimer / PDF » ouvre la papeterie qui porte exactement le
+  contenu remis (nouveau param `b` de bilan.html — un lien abîmé retombe sur
+  les semences). Le bouton dit la date du dernier remis.
+- **Ma Couronne** : carte « Votre dernier bilan » sur l'accueil (repère 4 de
+  la maquette, enfin allumé) + lecteur en surimpression (jauges, points,
+  Quatre Temps, prochaine visite, signature). RLS : elle ne lit que les siens.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le

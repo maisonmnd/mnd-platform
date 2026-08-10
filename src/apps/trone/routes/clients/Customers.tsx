@@ -19,6 +19,8 @@ import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory, cercleSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
+import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
+import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { pushToClient } from '../../../../shared/push';
@@ -1056,18 +1058,13 @@ function Customer360({
   const venuesCercle = venuesHonorees(branchAppts, client.id, true);
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
-  /* Bilan de séance — le Carnet de Suivi remis à la cliente. On pré-remplit depuis
-     la dernière séance honorée (service, date, praticien) quand elle existe. */
-  const bilanHref = useMemo(() => {
-    const p = new URLSearchParams({ client: client.name });
-    const last = [...honored].sort((a, b) => b.date.localeCompare(a.date))[0];
-    if (last) {
-      p.set('service', apptLabel(last, byId));
-      p.set('date', last.date);
-      if (last.master) p.set('praticien', last.master);
-    }
-    return `${asset('/bilan.html')}?${p.toString()}`;
-  }, [client.name, honored, byId]);
+  /* Bilan de séance — le Carnet de Suivi se RÉDIGE et se REMET depuis la
+     modale (BilanModal) : la remise s'enregistre au registre, la cliente le
+     lit sur Ma Couronne, l'impression reste. L'ancien lien direct vers la
+     papeterie amnésique est parti avec elle. */
+  const [bilanOpen, setBilanOpen] = useState(false);
+  const [tousBilans] = useBilans();
+  const dernierBilan = dernierBilanDe(tousBilans, client.id);
   const linkedIds = useMemo(() => {
     const set = new Set<string>();
     for (const a of appts) if (a.invoiceId) set.add(a.invoiceId);
@@ -1413,8 +1410,13 @@ function Customer360({
         </div>
 
         <div className="trc-c360-actions">
-          <a className="trc-c360-linkbtn" href={bilanHref} target="_blank" rel="noreferrer" title="Bilan de séance à remettre à la cliente">Bilan de séance à remettre →</a>
+          <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
+            {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
+          </button>
         </div>
+        {bilanOpen && (
+          <BilanModal client={client} honored={honored} byId={byId} branchId={client.branchId} onClose={() => setBilanOpen(false)} />
+        )}
         </>
         )}
 

@@ -14,6 +14,7 @@ import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel } from '../../shared/quiz';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
+import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees } from '../../shared/accounts';
 import { declarationsDe, declarerEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
@@ -45,6 +46,60 @@ type OpenBooking = (prefill?: BookingPrefill) => void;
    rang dans l'échelle triée, le champ g des anciens paliers restant prioritaire. */
 const ROMANS = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ'];
 const tierGlyph = (t: { g: string }, idx: number) => t.g || ROMANS[idx] || '✦';
+
+/* Le lecteur du bilan — la cliente relit ce que la maison a remis : jauges,
+   points clés, les Quatre Temps, la prochaine visite. En surimpression,
+   sobre ; la signature du praticien reste — un bilan est un document signé. */
+function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void }) {
+  return (
+    <div className="mc-bilanveil" onClick={onClose} role="dialog" aria-label="Bilan de séance">
+      <div className="mc-bilancard" onClick={(e) => e.stopPropagation()}>
+        <div className="mc-micro-eyebrow">Le Carnet de Suivi · {bilan.numero}</div>
+        <h2 className="mc-serif-title" style={{ margin: '6px 0 2px' }}>Bilan de séance.</h2>
+        <div className="mc-bilanmeta">
+          Séance du {dayLabelIso(bilan.date)}
+          {bilan.prestation ? ` · ${bilan.prestation}` : ''}
+          {bilan.duree ? ` · ${bilan.duree}` : ''}
+        </div>
+
+        <div className="mc-bilansec">L’état de la couronne</div>
+        {bilan.jauges.map((j) => (
+          <div key={j.nom} className="mc-bilanjauge">
+            <span className="n">{j.nom}</span>
+            <span className="dots" role="img" aria-label={`${j.valeur} sur 5`}>
+              {[1, 2, 3, 4, 5].map((v) => <i key={v} className={v <= j.valeur ? 'on' : ''} />)}
+            </span>
+            <span className="note">{j.note}</span>
+          </div>
+        ))}
+
+        {bilan.points.length > 0 && (
+          <>
+            <div className="mc-bilansec">Les points clés de la séance</div>
+            <ul className="mc-bilanpoints">
+              {bilan.points.map((p, i) => <li key={i}>{p}</li>)}
+            </ul>
+          </>
+        )}
+
+        <div className="mc-bilansec">Le rituel à domicile</div>
+        {bilan.rituel.map((t) => (
+          <div key={t.nom} className="mc-bilantemps">
+            <div className="n">{t.nom} <span>· {t.cadence}</span></div>
+            <p>{t.texte}</p>
+          </div>
+        ))}
+
+        {bilan.prochaineVisite && (
+          <div className="mc-bilannext">Prochaine visite conseillée — {bilan.prochaineVisite}</div>
+        )}
+        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · mi nyɔ́ ɖɛkpɛ</div>}
+
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={onClose}>Fermer</button>
+      </div>
+    </div>
+  );
+}
 
 /* ---------- rituels de la cliente — lus dans l'agenda partagé ---------- */
 
@@ -226,6 +281,11 @@ export function HomeTab({
      PRESCRIT sur sa fiche (recoProductId) garde sa carte, lui : c'est un
      choix de la maison, pas un repli. */
   const chosenReco = products.find((p) => p.id === client?.recoProductId);
+  /* LE DERNIER BILAN REMIS (maquette écran 2, repère 4) — la raison de revenir
+     entre deux passages. Sous RLS la cliente ne lit que LES SIENS (0035). */
+  const [bilans] = useBilans();
+  const monBilan = client ? dernierBilanDe(bilans, client.id) : undefined;
+  const [lireBilan, setLireBilan] = useState(false);
   const [personas] = usePersonas();
   const [cats] = useCategories();
   const [bands] = useModelBands();
@@ -441,6 +501,24 @@ export function HomeTab({
             ✦ Composez votre rituel sur-mesure
           </button>
         )}
+
+        {/* VOTRE DERNIER BILAN — le Carnet de Suivi remis par la maison. */}
+        {monBilan && (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Votre dernier bilan</div>
+            <button className="mc-recocard" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--hairline)', background: 'var(--surface-card)' }} onClick={() => setLireBilan(true)}>
+              <div className="mc-recocard__body">
+                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>Le Carnet de Suivi</div>
+                <div className="mc-recocard__name">Séance du {dayLabelIso(monBilan.date)}</div>
+                <div className="mc-recocard__line">
+                  {monBilan.prestation ?? 'Rituel de la maison'} — l’état de votre couronne, geste par geste.
+                </div>
+              </div>
+              <span className="mc-arrowbtn" aria-hidden="true">→</span>
+            </button>
+          </>
+        )}
+        {lireBilan && monBilan && <BilanLecteur bilan={monBilan} onClose={() => setLireBilan(false)} />}
 
         {/* LA MAISON RECOMMANDE — une PRESTATION désignée (le juge du quiz),
             au prix de la cliente, et la flèche RÉSERVE. Le produit prescrit

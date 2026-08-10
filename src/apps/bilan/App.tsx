@@ -27,10 +27,40 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+type Gauge = { name: string; note: string; value: number };
+type TempsPage = { name: string; cadence: string; txt: string };
+type ContenuUrl = { jauges?: Gauge[]; points?: string[]; rituel?: TempsPage[] };
+
+const GAUGES_SEED: Gauge[] = [
+  { name: 'Cuir chevelu', note: 'apaisé', value: 4 },
+  { name: 'Racines', note: 'reprises', value: 3 },
+  { name: 'Hydratation', note: 'bonne', value: 4 },
+  { name: 'Densité & tenue', note: 'excellente', value: 5 },
+];
+const POINTS_SEED: string[] = [
+  'Resserrage complet des racines sur l\'ensemble de la couronne ; la zone temporale gauche, plus fine, a été travaillée en tension douce pour préserver le bulbe.',
+  'Le cuir chevelu ne présente plus d\'irritation depuis la dernière visite — le rituel d\'apaisement recommandé a porté ses fruits.',
+  'Trois locks de la nuque ont été consolidées en prévention ; à surveiller lors de la prochaine séance, sans intervention nécessaire d\'ici là.',
+];
+const RITUEL_SEED: TempsPage[] = [
+  { name: 'Purifier', cadence: 'chaque semaine', txt: 'Un lavage doux par semaine, en pressant sans frotter. Rincer longuement, à l\'eau tiède.' },
+  { name: 'Nourrir', cadence: 'deux fois par semaine', txt: 'Quelques gouttes d\'huile légère sur le cuir chevelu, en massage lent du bout des doigts.' },
+  { name: 'Sceller', cadence: 'après chaque lavage', txt: 'Sécher entièrement avant de nouer. Jamais de couronne humide sous le foulard.' },
+  { name: 'Couronner', cadence: 'chaque nuit', txt: 'Foulard ou taie en satin pour la nuit — la friction du coton défait le travail des racines.' },
+];
+
 function initFromUrl() {
   const q = new URLSearchParams(window.location.search);
   const g = (k: string) => q.get(k)?.trim() || '';
   const dateParam = g('date');
+  /* LE CONTENU VOYAGE AUSSI (param `b`, JSON) : le registre des bilans du
+     Trône imprime EXACTEMENT ce qui a été remis — jauges, points, rituel.
+     Un lien abîmé n'empêche pas la papeterie : on retombe sur les semences. */
+  let contenu: ContenuUrl = {};
+  const brut = q.get('b');
+  if (brut) {
+    try { contenu = JSON.parse(brut) as ContenuUrl; } catch { contenu = {}; }
+  }
   return {
     client: g('client') || 'Vioutou Raimath Bonou',
     service: g('service') || SERVICES[1],
@@ -39,16 +69,9 @@ function initFromUrl() {
     duree: g('duree') || '2 h 30',
     next: g('next') || '',
     num: g('num') || `MND-BS-${new Date().getFullYear()}-0001`,
+    contenu,
   };
 }
-
-type Gauge = { name: string; note: string; value: number };
-const GAUGES_SEED: Gauge[] = [
-  { name: 'Cuir chevelu', note: 'apaisé', value: 4 },
-  { name: 'Racines', note: 'reprises', value: 3 },
-  { name: 'Hydratation', note: 'bonne', value: 4 },
-  { name: 'Densité & tenue', note: 'excellente', value: 5 },
-];
 
 export default function App() {
   const [init] = useState(initFromUrl);
@@ -59,7 +82,9 @@ export default function App() {
   const [duree, setDuree] = useState(init.duree);
   const [next, setNext] = useState(init.next);
   const [num, setNum] = useState(init.num);
-  const [gauges, setGauges] = useState<Gauge[]>(GAUGES_SEED);
+  const [gauges, setGauges] = useState<Gauge[]>(init.contenu.jauges?.length ? init.contenu.jauges : GAUGES_SEED);
+  const [points] = useState<string[]>(init.contenu.points?.length ? init.contenu.points : POINTS_SEED);
+  const [rituel] = useState<TempsPage[]>(init.contenu.rituel?.length ? init.contenu.rituel : RITUEL_SEED);
 
   /* Le service reçu par l'ERP peut ne pas figurer au catalogue par défaut : on
      l'ajoute à la liste plutôt que d'imposer autre chose. Idem pour le praticien. */
@@ -181,11 +206,7 @@ export default function App() {
             <section className="section">
               <div className="s-head"><h3 className="s-title">Les points clés de la séance</h3><div className="s-line" aria-hidden="true" /></div>
               <ul className="points">
-                {[
-                  'Resserrage complet des racines sur l\'ensemble de la couronne ; la zone temporale gauche, plus fine, a été travaillée en tension douce pour préserver le bulbe.',
-                  'Le cuir chevelu ne présente plus d\'irritation depuis la dernière visite — le rituel d\'apaisement recommandé a porté ses fruits.',
-                  'Trois locks de la nuque ont été consolidées en prévention ; à surveiller lors de la prochaine séance, sans intervention nécessaire d\'ici là.',
-                ].map((txt, i) => (
+                {points.map((txt, i) => (
                   <li key={i}>
                     <span className="pt-dot" aria-hidden="true" />
                     <p contentEditable suppressContentEditableWarning>{txt}</p>
@@ -198,12 +219,7 @@ export default function App() {
             <section className="section">
               <div className="s-head"><h3 className="s-title">Le rituel à domicile</h3><div className="s-line" aria-hidden="true" /></div>
               <div className="rituel">
-                {[
-                  { name: 'Purifier', cadence: 'chaque semaine', txt: 'Un lavage doux par semaine, en pressant sans frotter. Rincer longuement, à l\'eau tiède.' },
-                  { name: 'Nourrir', cadence: 'deux fois par semaine', txt: 'Quelques gouttes d\'huile légère sur le cuir chevelu, en massage lent du bout des doigts.' },
-                  { name: 'Sceller', cadence: 'après chaque lavage', txt: 'Sécher entièrement avant de nouer. Jamais de couronne humide sous le foulard.' },
-                  { name: 'Couronner', cadence: 'chaque nuit', txt: 'Foulard ou taie en satin pour la nuit — la friction du coton défait le travail des racines.' },
-                ].map((t) => (
+                {rituel.map((t) => (
                   <div className="temps" key={t.name}>
                     <p className="t-name">{t.name} <span>{t.cadence}</span></p>
                     <p contentEditable suppressContentEditableWarning>{t.txt}</p>
