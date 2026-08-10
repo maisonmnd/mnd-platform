@@ -1,7 +1,7 @@
 # Reprendre — état de la Maison
 
 État au 10 août 2026 (soir). À lire en premier dans une nouvelle session.
-Déployé et vérifié : Le Trône et Ma Couronne servent `4b06f34` — la refonte
+Déployé et vérifié : Le Trône et Ma Couronne servent `f8982cd` — bilans, Caisse maquette, tunnel, la refonte
 validée est COMPLÈTE (①②③④), plus les factures unifiées et la fenêtre
 d'avant-hydratation. Portail et LOKAA n'ont pas été republiés (rien de
 fonctionnel pour eux). TOUTES les migrations jusqu'à 0034 sont PASSÉES, ainsi
@@ -433,16 +433,16 @@ l'affaire de la maison — la cliente ne choisit NI ne voit qui officie). Fait :
 - **L'acompte dit son pourquoi** : « Il tient votre créneau — et se déduit le
   jour même. » (masqué si prix au salon ou règlement intégral).
 
-## Le registre des bilans de séance — construit le 10 août au soir, ⚠ 0035 À PASSER
+## Le registre des bilans de séance — construit le 10 août au soir, 0035 PASSÉE
 
 Le bilan n'était qu'une PAPETERIE (`bilan.html`) : pré-rempli par l'URL,
 imprimé, oublié — aucun registre, rien à relire, rien pour Ma Couronne.
 Désormais :
 
-- **`supabase/migrations/0035_bilans.sql` — À PASSER AVANT LA PROCHAINE
-  PUBLICATION** (les deux apps se lient à la table `bilans` : sans elle,
-  pastille rouge). RLS : personnel tout, la cliente LIT les siens
-  (`clientId = auth.uid()`, patron des factures). Realtime inclus.
+- **`supabase/migrations/0035_bilans.sql` — PASSÉE le 10 août au soir**
+  (contrôle : `bilans · 0 lignes`). Ne pas relancer. RLS : personnel tout,
+  la cliente LIT les siens (`clientId = auth.uid()`, patron des factures).
+  Realtime inclus. Les deux sites publiés dans la foulée (`f8982cd`).
 - **`shared/bilans.ts`** : le modèle (jauges, points clés, les Quatre Temps,
   prochaine visite), série ancrée `MND-BS-AAAA-NNNN`, `remettreBilan`,
   `dernierBilanDe`.
