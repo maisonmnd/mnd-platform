@@ -1,38 +1,25 @@
 -- ═══════════════════════════════════════════════════════════════════
--- RÉPARATION v3 — LA BRANCHE FANTÔME « maison » (10 août 2026, soir)
+-- RÉPARATION v4 — LA BRANCHE FANTÔME « maison » : le déclencheur caché
+--         Supabase → SQL Editor, onglets des apps fermés. Relançable.
 --
--- ⚠ AVANT DE COLLER : FERMEZ les onglets du Trône et de Ma Couronne (tous les
---   postes, le téléphone aussi). La v2 a vu ses lignes REVENIR pendant la
---   réparation — très probablement une poussée locale d'un poste ouvert qui a
---   réécrit son cache par-dessus l'UPDATE. Portes fermées, rien ne repousse.
+-- ACQUIS des passages précédents (commités) : les déclarations d'enfants et
+-- le lien du personnel sont DÉJÀ sur la vraie branche. Restent : 3 fiches
+-- clientes dont la colonne `branch_id` REVIENT à « maison » à chaque UPDATE
+-- — la signature d'un DÉCLENCHEUR posé hors de nos migrations (les nôtres ne
+-- font que toucher `updated_at`) — et la ligne fantôme elle-même.
 --
--- Ce que fait la v3 :
---   ① `staff_branches` (table hors patron, sans colonne `data`) se répare
---     à part — c'était l'ÉCHEC de la v2 ;
---   ② le balayage général repasse TROIS fois, et rapporte chaque passe ;
---   ③ si des lignes résistent encore, elles sont MONTRÉES (id + branches)
---     au lieu d'un simple compte ;
---   ④ la fantôme n'est retirée que champ libre.
+-- La v4 : ① inventorie TOUS les déclencheurs non standards (dans le rapport,
+-- source comprise) ; ② RETIRE ceux de `clients` — aucun n'est légitime, et
+-- celui-ci vient de faire échouer trois réparations ; ③ déplace les fiches ;
+-- ④ vérifie table par table (comptage seul — les tables hors patron passent) ;
+-- ⑤ retire la fantôme champ libre.
 -- ═══════════════════════════════════════════════════════════════════
 
 create temp table if not exists _rapport (etape text, tbl text, detail text);
 truncate _rapport;
 
--- ① La table hors patron : elle n'a que (user_id, branch_id) — clé primaire
---    sur la paire. Un utilisateur DÉJÀ lié à la vraie branche ne se déplace
---    pas (collision de clé — c'est ce qui a fait dérailler la v3 entière,
---    transaction comprise) : son lien fantôme se SUPPRIME. Les autres se
---    déplacent.
-delete from public.staff_branches sb
- where sb.branch_id = 'maison'
-   and exists (select 1 from public.staff_branches sb2
-                where sb2.user_id = sb.user_id and sb2.branch_id <> 'maison');
-update public.staff_branches set branch_id = b.id
-  from (select id from public.branches where id <> 'maison' order by id limit 1) b
- where staff_branches.branch_id = 'maison';
-
 do $$
-declare t record; cible text; n bigint; passe int;
+declare t record; cible text; n bigint;
 begin
   select id into cible from public.branches where id <> 'maison' order by id limit 1;
   if cible is null then
@@ -40,36 +27,43 @@ begin
     return;
   end if;
 
-  -- ② Trois passes : si une poussée concurrente réécrit entre deux, la
-  --    suivante la rattrape — et le rapport montre si ça se reproduit.
-  for passe in 1..3 loop
-    for t in
-      select c.table_name
-        from information_schema.columns c
-        join information_schema.tables it
-          on it.table_schema = 'public' and it.table_name = c.table_name
-         and it.table_type = 'BASE TABLE'
-       where c.table_schema = 'public' and c.column_name = 'branch_id'
-         and c.table_name not in ('branches', 'staff_branches')
-    loop
-      begin
-        execute format(
-          'update public.%I set branch_id = %L,
-                  data = case when data ? ''branchId'' then jsonb_set(data, ''{branchId}'', to_jsonb(%L::text)) else data end,
-                  updated_at = now()
-            where branch_id = ''maison''',
-          t.table_name, cible, cible);
-        get diagnostics n = row_count;
-        if n > 0 then
-          insert into _rapport values ('passe ' || passe, t.table_name, n || ' ligne(s) déplacée(s)');
-        end if;
-      exception when others then
-        insert into _rapport values ('ÉCHEC passe ' || passe, t.table_name, sqlerrm);
-      end;
-    end loop;
+  -- ① L'inventaire : tout déclencheur qui n'est pas un simple horodatage.
+  for t in
+    select c.relname as table_, tr.tgname, p.proname,
+           left(pg_get_functiondef(p.oid), 400) as src
+      from pg_trigger tr
+      join pg_class c on c.oid = tr.tgrelid
+      join pg_namespace ns on ns.oid = c.relnamespace and ns.nspname = 'public'
+      join pg_proc p on p.oid = tr.tgfoid
+     where not tr.tgisinternal and p.proname <> 'touch_updated_at'
+  loop
+    insert into _rapport values ('DÉCLENCHEUR', t.table_, t.tgname || ' → ' || t.proname || ' · ' || t.src);
   end loop;
 
-  -- ③ Ce qui résiste encore : MONTRÉ, pas seulement compté.
+  -- ② Ceux de `clients` se retirent : rien de légitime ne vit là, et l'un
+  --    d'eux réécrit branch_id — il a fait échouer trois réparations.
+  for t in
+    select tr.tgname
+      from pg_trigger tr
+      join pg_class c on c.oid = tr.tgrelid
+      join pg_namespace ns on ns.oid = c.relnamespace and ns.nspname = 'public'
+      join pg_proc p on p.oid = tr.tgfoid
+     where c.relname = 'clients' and not tr.tgisinternal and p.proname <> 'touch_updated_at'
+  loop
+    execute format('drop trigger %I on public.clients', t.tgname);
+    insert into _rapport values ('RETIRÉ', 'clients', 'déclencheur ' || t.tgname);
+  end loop;
+
+  -- ③ Les fiches captives déménagent — enfin sans gardien.
+  update public.clients
+     set branch_id = cible,
+         data = case when data ? 'branchId' then jsonb_set(data, '{branchId}', to_jsonb(cible)) else data end,
+         updated_at = now()
+   where branch_id = 'maison';
+  get diagnostics n = row_count;
+  insert into _rapport values ('déménagé', 'clients', n || ' ligne(s) → ' || cible);
+
+  -- ④ Vérification globale, COMPTAGE SEUL — les tables hors patron passent.
   for t in
     select c.table_name
       from information_schema.columns c
@@ -79,29 +73,16 @@ begin
      where c.table_schema = 'public' and c.column_name = 'branch_id'
        and c.table_name <> 'branches'
   loop
-    begin
-      execute format(
-        'insert into _rapport
-           select ''RÉSISTE'', %L, id || '' · data.branchId='' || coalesce(data->>''branchId'', ''—'')
-             from public.%I where branch_id = ''maison''',
-        t.table_name, t.table_name);
-    exception when others then
-      -- staff_branches n'a pas de data : montrer l'identifiant seul.
-      begin
-        execute format(
-          'insert into _rapport select ''RÉSISTE'', %L, user_id::text from public.%I where branch_id = ''maison''',
-          t.table_name, t.table_name);
-      exception when others then null;
-      end;
-    end;
+    execute format('select count(*) from public.%I where branch_id = ''maison''', t.table_name) into n;
+    if n > 0 then insert into _rapport values ('RESTE', t.table_name, n || ' ligne(s)'); end if;
   end loop;
 
-  -- ④ La fantôme ne part que champ libre.
-  if not exists (select 1 from _rapport where etape like 'RÉSISTE%' or etape like 'ÉCHEC%') then
+  -- ⑤ La fantôme ne part que champ libre.
+  if not exists (select 1 from _rapport where etape = 'RESTE') then
     delete from public.branches where id = 'maison';
     insert into _rapport values ('SUPPRIMÉE', 'branches', 'la fantôme « maison » est retirée');
   else
-    insert into _rapport values ('CONSERVÉE', 'branches', 'voir les lignes RÉSISTE / ÉCHEC');
+    insert into _rapport values ('CONSERVÉE', 'branches', 'voir les lignes RESTE');
   end if;
 end $$;
 
