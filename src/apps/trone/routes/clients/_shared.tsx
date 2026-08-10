@@ -580,8 +580,17 @@ export function RdvModal({
   const [forfaitOn, setForfaitOn] = useState(!!appt?.forfait);
   const [forfaitNom, setForfaitNom] = useState(appt?.forfait?.nom ?? '');
   const [forfaitStr, setForfaitStr] = useState(appt?.forfait ? String(appt.forfait.totalXof) : '');
-  /* Qui a offert ce rituel — vide dans l'immense majorité des cas. */
+  /* Qui a offert ce rituel — vide dans l'immense majorité des cas. C'est
+     pourquoi le champ vit derrière un INTERRUPTEUR : un cas d'exception ne
+     s'affiche pas en pleine lumière à chaque rendez-vous. */
   const [offertPar, setOffertPar] = useState(appt?.offertPar ?? '');
+  const [offertOn, setOffertOn] = useState(!!appt?.offertPar);
+  /* LE PRIX, UN SEUL CHOIX — plein, remisé, ou forfait. Les trois s'excluent :
+     un forfait est un prix négocié, on ne le remise pas (règle du 8 août) ;
+     les afficher côte à côte les faisait passer pour cumulables. */
+  const [prixMode, setPrixMode] = useState<'plein' | 'remise' | 'forfait'>(
+    () => (appt?.forfait ? 'forfait' : (appt?.discountPct || appt?.discountXof ? 'remise' : 'plein')),
+  );
   /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
   const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
   /* Ré-tarifer un rituel au tarif du jour (geste EXPLICITE) : un prix figé sous
@@ -1209,16 +1218,76 @@ export function RdvModal({
           </Field>
         )}
 
-        {/* LE FORFAIT PONCTUEL — un total pour l'ensemble des gestes. Les
-            prestations restent entières dessous : c'est leur montant qui porte
-            les mains, la production, les commissions et le Bilan. */}
+        {/* LE PRIX — UN SEUL CHOIX. Plein, remisé, ou forfait : trois modes
+            exclusifs sous une seule étiquette. Avant, « Forfait », « Remise % »
+            et « Remise manuelle » s'empilaient comme trois réglages cumulables —
+            alors qu'un forfait EFFACE les remises (un prix négocié ne se remise
+            pas). Le choix dit la règle. */}
         {!effCovered && !sansPrix && (
-          <Field label="Forfait — un total pour l’ensemble des gestes">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={forfaitOn} onChange={(e) => setForfaitOn(e.target.checked)} />
-              Poser un forfait sur ce rituel
-            </label>
-            {forfaitOn && (
+          <Field label="Le prix">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {([
+                { m: 'plein' as const, t: 'Prix plein' },
+                { m: 'remise' as const, t: 'Remise' },
+                { m: 'forfait' as const, t: 'Forfait' },
+              ]).map(({ m, t }) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`trc-disc ${prixMode === m ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setPrixMode(m);
+                    if (m !== 'forfait') setForfaitOn(false);
+                    if (m === 'forfait') { setForfaitOn(true); setDiscountPct(0); setDiscountXof(0); }
+                    if (m === 'plein') { setDiscountPct(0); setDiscountXof(0); }
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            {prixMode === 'remise' && (
+              <>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                  {[5, 10, 15, 20].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
+                      onClick={() => setDiscountPct(p)}
+                    >
+                      −{p}%
+                    </button>
+                  ))}
+                  <input
+                    className="mnd-input"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discountPct}
+                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))))}
+                    style={{ width: 68, textAlign: 'right' }}
+                    aria-label="Remise en pourcentage"
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>% · ou</span>
+                  <input
+                    className="mnd-input"
+                    type="number"
+                    min={0}
+                    value={discountXof}
+                    onChange={(e) => setDiscountXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                    style={{ width: 120, textAlign: 'right' }}
+                    placeholder="0"
+                    aria-label={`Remise en ${currency}`}
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>{currency}</span>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                  Le pourcentage d’abord, les francs ensuite — les deux se cumulent.
+                </div>
+              </>
+            )}
+            {prixMode === 'forfait' && (
               <>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
                   <input
@@ -1256,7 +1325,7 @@ export function RdvModal({
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                   Les prestations restent détaillées : chacune reçoit sa part du total, au prorata de
                   ce qu’elle vaut pour cette tête. Les mains, les primes, les commissions et le Bilan
-                  continuent de compter juste. Un forfait remplace les remises.
+                  continuent de compter juste.
                 </div>
               </>
             )}
@@ -1267,72 +1336,42 @@ export function RdvModal({
             la facture : c'est le rendez-vous que tout le monde relit. Rhanda a
             offert à Ahmed sa première visite — 110 000 F, le 2 mai 2026 — et la
             Maison n'avait aucun endroit où l'inscrire, sinon un compte famille
-            qui l'aurait faite payeuse à vie. */}
+            qui l'aurait faite payeuse à vie. DERRIÈRE UN INTERRUPTEUR : un cas
+            d'exception ne s'étale pas à chaque rendez-vous. */}
         {!effCovered && !sansPrix && (
-          <Field label="Rituel offert par une autre cliente">
-            <ClientPicker
-              value={offertPar}
-              onChange={setOffertPar}
-              placeholder="Personne — elle règle elle-même"
-            />
-            {offertPar && offertPar !== clientId && (
-              <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                La dépense et les points de fidélité iront à {nomDe(offertPar)} — c’est elle qui
-                paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              <input
+                type="checkbox"
+                checked={offertOn}
+                onChange={(e) => {
+                  setOffertOn(e.target.checked);
+                  if (!e.target.checked) setOffertPar('');
+                }}
+              />
+              Ce rituel est offert par une autre cliente — cas exceptionnel
+            </label>
+            {offertOn && (
+              <div style={{ marginTop: 10 }}>
+                <ClientPicker
+                  value={offertPar}
+                  onChange={setOffertPar}
+                  placeholder="Qui l’offre ?"
+                />
+                {offertPar && offertPar !== clientId && (
+                  <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                    La dépense et les points de fidélité iront à {nomDe(offertPar)} — c’est elle qui
+                    paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
+                  </div>
+                )}
+                {offertPar && offertPar === clientId && (
+                  <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
+                    Elle ne peut pas s’offrir son propre rituel — laissez vide.
+                  </div>
+                )}
               </div>
             )}
-            {offertPar && offertPar === clientId && (
-              <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
-                Elle ne peut pas s’offrir son propre rituel — laissez vide.
-              </div>
-            )}
-          </Field>
-        )}
-
-        {/* Remise — accessible à la prise de RDV (tableau de bord, carnet, calendrier).
-            Masquée quand le rituel est couvert par l'abonnement (rien à facturer)
-            ou porté par un forfait (le total est déjà négocié). */}
-        {!effCovered && !sansPrix && !forfaitPose && (
-        <>
-        <Field label="Remise sur le rituel (%)">
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[0, 5, 10, 15, 20].map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
-                onClick={() => setDiscountPct(p)}
-              >
-                {p === 0 ? 'Aucune' : `−${p}%`}
-              </button>
-            ))}
-            <input
-              className="mnd-input"
-              type="number"
-              min={0}
-              max={100}
-              value={discountPct}
-              onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))))}
-              style={{ width: 68, textAlign: 'right' }}
-              aria-label="Remise personnalisée"
-            />
           </div>
-        </Field>
-
-        {/* Remise en CFA — geste de comptoir, retranchée après le pourcentage. */}
-        <Field label={`Remise manuelle (${currency})`}>
-          <input
-            className="mnd-input"
-            type="number"
-            min={0}
-            value={discountXof}
-            onChange={(e) => setDiscountXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
-            style={{ width: 140, textAlign: 'right' }}
-            placeholder="0"
-            aria-label={`Remise manuelle en ${currency}`}
-          />
-        </Field>
-        </>
         )}
 
         {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
