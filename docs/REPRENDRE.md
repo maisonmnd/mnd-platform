@@ -1,9 +1,11 @@
 # Reprendre — état de la Maison
 
-État au 10 août 2026. À lire en premier dans une nouvelle session.
-Déployé et vérifié : Le Trône et Ma Couronne servent le même commit ; TOUTES les
-migrations jusqu'à 0034 sont PASSÉES, ainsi que l'import local des formules
-maîtres. Ne relancer aucune migration.
+État au 10 août 2026 (soir). À lire en premier dans une nouvelle session.
+Déployé et vérifié : Le Trône et Ma Couronne servent `550659c` (refonte ①②③ +
+factures unifiées + fenêtre d'avant-hydratation). Portail et LOKAA n'ont pas
+été republiés (rien de fonctionnel pour eux dans ce lot). TOUTES les migrations
+jusqu'à 0034 sont PASSÉES, ainsi que l'import local des formules maîtres. Ne
+relancer aucune migration.
 
 ## L'équipe — construit le 6 août
 
