@@ -490,9 +490,10 @@ Corrigé :
   (`tablePrete('branches')`) avant de créer la fiche — plus jamais de branche
   devinée ; et une fiche existante dont la branche est INCONNUE du référentiel
   se réaligne d'elle-même sur la première branche réelle.
-- **`supabase/repare_branches_orphelines.sql`** (relançable, aperçu d'abord) :
-  reclasse les clients et déclarations déjà mal rangés. Hypothèse assumée :
-  UNE branche réelle — à ne plus utiliser tel quel si multi-branches un jour.
+- **`supabase/repare_branches_orphelines.sql` — PASSÉ le 10 août au soir**
+  (contrôle : 0 client orphelin, 0 déclaration orpheline). Relançable sans
+  danger si le doute revient. Hypothèse assumée : UNE branche réelle — à ne
+  plus utiliser tel quel si multi-branches un jour.
 
 Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
 « Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
