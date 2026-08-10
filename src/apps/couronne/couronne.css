@@ -1811,10 +1811,21 @@
   }
   .mc-app--shell .mc-nav__signout:hover { background: var(--hover-veil); color: var(--color-indigo); }
 
-  /* Contenu : colonne centrée confortable qui remplit l'espace. */
-  .mc-appbody { padding: 0 0 40px; }
-  .mc-appbody > * { width: 100%; max-width: 760px; margin: 0 auto; }
+  /* Contenu : colonne centrée confortable qui remplit l'espace.
+     640 px, pas 760 : les cartes sont dessinées au téléphone — plus larges,
+     elles s'étirent et le bureau perd la tenue du mobile. Le luxe, c'est la
+     marge autour, pas la carte qui s'allonge. */
+  .mc-appbody { padding: 0 0 48px; }
+  .mc-appbody > * { width: 100%; max-width: 640px; margin: 0 auto; }
   .mc-appbody > .mc-page--wide { max-width: 1040px; }
+
+  /* Le héros d'accueil devient un PORTRAIT ENCADRÉ sur bureau — comme la
+     maquette : marges autour, coins doux, jamais une bannière étirée. */
+  .mc-app--shell .mc-homehero {
+    margin: 28px 0 0;
+    border-radius: 5px;
+    overflow: hidden;
+  }
 
   /* Plus d'air : rythme et respiration agrandis sur les pages internes. */
   .mc-pagepad { padding: 32px 40px 0; }
