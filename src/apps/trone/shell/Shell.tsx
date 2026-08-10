@@ -1,10 +1,19 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
-import { NAV, peutVoir, accueilDe } from '../routes/index';
+import { NAV, peutVoir, accueilDe, type TroneRoute } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
-import { useStore } from '../../../shared/store';
+import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
+import Trouver from './Trouver';
+import BarreEquipe from './BarreEquipe';
+
+/* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les cinq gestes du
+   comptoir — reste toujours déplié ; le reste se replie, et s'en souvient
+   PAR POSTE (jamais synchronisé : l'habitude d'un écran n'est pas une donnée
+   de la Maison). */
+const QUOTIDIEN = ['/', '/calendrier', '/caisse', '/customers', '/factures'];
+const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
@@ -193,8 +202,29 @@ export default function Shell() {
   const [sideOpen, setSideOpen] = useState(false);
   const closeSide = () => setSideOpen(false);
 
+  /* Le menu à deux étages ne s'impose que s'il fait gagner quelque chose :
+     un menu déjà court (un maître, deux écrans) se rend à plat. Le groupe de
+     l'écran OUVERT se déplie de lui-même — arriver par Trouver ne doit pas
+     cacher où l'on est. */
+  const [deplies, setDeplies] = useStore(menuDeplieStore);
+  const visibles = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
+    .filter((g) => g.items.length > 0);
+  const deuxEtages = visibles.reduce((s, g) => s + g.items.length, 0) > 8;
+  const quotidien = QUOTIDIEN
+    .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
+    .filter((it): it is TroneRoute => !!it);
+  const replies = visibles
+    .map((g) => ({ ...g, items: g.items.filter((it) => !QUOTIDIEN.includes(it.path)) }))
+    .filter((g) => g.items.length > 0);
+  const lien = (it: TroneRoute) => (
+    <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item" onClick={closeSide}>
+      <it.icon />
+      {it.label}
+    </NavLink>
+  );
+
   return (
-    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''}`}>
+    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${staff?.role === 'maitre' ? 'tr-shell--barre' : ''}`}>
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
         <div className="tr-side__brand">
@@ -228,19 +258,37 @@ export default function Shell() {
           {/* CHAQUE ROLE NE VOIT QUE CE QU'IL OUVRE. Un groupe dont tous les
               ecrans sont fermes disparait avec eux : un titre seul ne dit rien
               d'autre que ce qu'on ne peut pas atteindre. */}
-          {NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
-            .filter((g) => g.items.length > 0)
-            .map((g) => (
-            <div key={g.group}>
-              <div className="tr-nav__group">{g.group}</div>
-              {g.items.map((it) => (
-                <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item" onClick={closeSide}>
-                  <it.icon />
-                  {it.label}
-                </NavLink>
-              ))}
-            </div>
-          ))}
+          {!deuxEtages ? (
+            visibles.map((g) => (
+              <div key={g.group}>
+                <div className="tr-nav__group">{g.group}</div>
+                {g.items.map(lien)}
+              </div>
+            ))
+          ) : (
+            <>
+              <div>
+                <div className="tr-nav__group">Le quotidien</div>
+                {quotidien.map(lien)}
+              </div>
+              {replies.map((g) => {
+                const ouvert = deplies[g.group] === true || g.items.some((it) => emplacement.pathname === it.path);
+                return (
+                  <div key={g.group}>
+                    <button
+                      className="tr-nav__fold"
+                      aria-expanded={ouvert}
+                      onClick={() => setDeplies((prev) => ({ ...prev, [g.group]: !(prev[g.group] === true) }))}
+                    >
+                      <span>{g.group}</span>
+                      <ChevronDown size={13} className={`tr-nav__chev ${ouvert ? 'is-open' : ''}`} />
+                    </button>
+                    {ouvert && g.items.map(lien)}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </nav>
       </aside>
 
@@ -252,6 +300,8 @@ export default function Shell() {
           <div className="tr-top__trail">
             Le Trône · {branch.city} · {fmtDate(today)}
           </div>
+          {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
+          <Trouver />
           <SyncDot />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
@@ -278,6 +328,9 @@ export default function Shell() {
           </div>
         </main>
       </div>
+
+      {/* La barre de gestes de l'équipe — téléphone seulement, rôle maître seulement. */}
+      <BarreEquipe />
     </div>
   );
 }

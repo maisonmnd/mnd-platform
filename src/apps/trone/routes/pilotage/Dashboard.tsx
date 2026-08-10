@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -12,9 +12,10 @@ import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
-  timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
+import { reappro, useMouvementsStock, useProduitsStock } from '../../../../shared/stock';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
@@ -66,6 +67,14 @@ export default function Dashboard() {
   const thisMonth = monthKey(today);
   const prevMonth = monthKey(addDaysISO(`${thisMonth}-01`, -1));
   const prevMonthName = fromISO(`${prevMonth}-15`).toLocaleDateString('fr-FR', { month: 'long' });
+  /* LA COMPARAISON LOYALE — À JOUR ÉGAL. Comparer dix jours d'août à juillet
+     PLEIN affichait « ▼ 91 % » tous les débuts de mois : une alarme fictive
+     permanente, qui apprend à ne plus croire le rouge. On borne donc le mois
+     précédent au même jour (clampé à sa longueur), et on le dit sous le
+     chiffre. */
+  const jourDuMois = Number(today.slice(8, 10));
+  const finPrev = new Date(Number(prevMonth.slice(0, 4)), Number(prevMonth.slice(5, 7)), 0).getDate();
+  const cutPrev = `${prevMonth}-${String(Math.min(jourDuMois, finPrev)).padStart(2, '0')}`;
 
   const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts, revMaison } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
@@ -78,18 +87,25 @@ export default function Dashboard() {
     const realizedAppts = appts.filter(realized);
     const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée');
 
-    const apptRev = (mk: string) => realizedAppts.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const invRev = (mk: string) => paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0);
-    const exp = (mk: string) =>
+    /* `cut` : borne haute du jour (comparaison à jour égal) — absent, le mois entier. */
+    const apptRev = (mk: string, cut?: string) => realizedAppts
+      .filter((a) => monthKey(a.date) === mk && (!cut || a.date <= cut))
+      .reduce((s, a) => s + apptNetXof(a, byId), 0);
+    const invRev = (mk: string, cut?: string) => paidInv
+      .filter((i) => monthKey(i.date) === mk && (!cut || i.date <= cut))
+      .reduce((s, i) => s + invoiceTotal(i), 0);
+    const exp = (mk: string, cut?: string) =>
       expenses
-        .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped)
+        .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped && (!cut || e.date <= cut))
         .reduce((s, e) => s + expenseTotal(e), 0);
 
     // Règlements de formation (Académie) — revenu réel de la Maison (hors branche).
     const formPays = apprenants.flatMap((ap) =>
       (ap.payments ?? []).map((p) => ({ amount: p.amountXof, mk: payMonthKey(p.date), iso: payISO(p.date) })),
     );
-    const formRev = (mk: string) => formPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
+    const formRev = (mk: string, cut?: string) => formPays
+      .filter((p) => p.mk === mk && (!cut || p.iso <= cut))
+      .reduce((s, p) => s + p.amount, 0);
 
     /* Revenu réel d'un jour — MÊMES composantes que le mois (carnet non encaissé
        + factures payées + formation) : le graphe 7 jours reste cohérent avec le KPI. */
@@ -124,16 +140,17 @@ export default function Dashboard() {
     return {
       revMaison,
       revenue: apptRev(thisMonth) + invRev(thisMonth) + formRev(thisMonth),
-      prevRevenue: apptRev(prevMonth) + invRev(prevMonth) + formRev(prevMonth),
+      /* À JOUR ÉGAL : le mois précédent s'arrête au même jour que nous. */
+      prevRevenue: apptRev(prevMonth, cutPrev) + invRev(prevMonth, cutPrev) + formRev(prevMonth, cutPrev),
       spent: exp(thisMonth),
-      prevSpent: exp(prevMonth),
+      prevSpent: exp(prevMonth, cutPrev),
       rev7,
       todayRows: appts
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
       stockAlerts: products.filter((p) => p.stock <= SEUIL_REASSORT),
     };
-  }, [appts, byId, invoices, expenses, products, apprenants, branch.id, today, thisMonth, prevMonth]);
+  }, [appts, byId, invoices, expenses, products, apprenants, branch.id, today, thisMonth, prevMonth, cutPrev]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
@@ -207,31 +224,81 @@ export default function Dashboard() {
     };
   }, [appts, byId, today]);
 
+  /* ---------- Ce qui presse — des gestes, pas des constats ---------- */
+  const [produitsStock] = useProduitsStock();
+  const [mouvementsStock] = useMouvementsStock();
+  const unpaidRef = useRef<HTMLDivElement>(null);
+  const presseStock = useMemo(() => {
+    type Row = { k: string; label: string; sub: string; action: string; go: () => void };
+    const rows: Row[] = [];
+    /* Le réassort se lit sur les FICHES (stock dérivé, seuil par fiche) dès que
+       l'inventaire existe ; l'ancien compteur de la Gamme reste le repli d'une
+       maison qui n'a pas repris son inventaire. */
+    const aDesFiches = produitsStock.some((p) => p.branchId === branch.id && p.actif);
+    if (aDesFiches) {
+      const manque = [...reappro(produitsStock, mouvementsStock, branch.id).values()].flat()
+        .sort((a, b) => (a.stock - a.produit.seuilAlerte) - (b.stock - b.produit.seuilAlerte))
+        .slice(0, 4);
+      for (const l of manque) {
+        rows.push({
+          k: `stk-${l.produit.id}`, label: l.produit.nom,
+          sub: `sous le seuil — ${l.stock.toLocaleString('fr-FR')} ${l.produit.unite} en réserve`,
+          action: 'Préparer le bon', go: () => navigate('/home-rituals'),
+        });
+      }
+    } else {
+      for (const p of stockAlerts.slice(0, 4)) {
+        rows.push({ k: `leg-${p.id}`, label: p.name, sub: `${p.stock} restants — réassort`, action: 'Voir la gamme', go: () => navigate('/home-rituals') });
+      }
+    }
+    return rows;
+  }, [produitsStock, mouvementsStock, stockAlerts, branch.id, navigate]);
+  const presseRows = [
+    ...presseStock,
+    ...(unpaid.overdue.rows.length > 0 ? [{
+      k: 'impayes',
+      label: `${unpaid.overdue.rows.length} impayé${unpaid.overdue.rows.length > 1 ? 's' : ''} échu${unpaid.overdue.rows.length > 1 ? 's' : ''}`,
+      sub: `${fmtMoney(unpaid.overdue.total, currency)} dus`,
+      action: 'Voir', go: () => unpaidRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    }] : []),
+  ];
+
+  /* Les relances d'un carnet libre — le MÊME juge que la fiche cliente
+     (`predictNextVisit`) : une couronne dont la date estimée est passée, sans
+     rendez-vous pris. Compté seulement quand le carnet du jour est vide. */
+  const relances = useMemo(() => {
+    if (todayRows.length > 0) return 0;
+    return clients.filter((c) => !c.archived).filter((c) => {
+      const r = predictNextVisit(appts, clients, c.id, today);
+      return r.predicted && r.iso !== null && r.iso <= today;
+    }).length;
+  }, [clients, appts, today, todayRows.length]);
+
   const net = revenue - spent;
   const prevNet = prevRevenue - prevSpent;
 
+  /* La tendance ne parle que quand la comparaison est LOYALE — et elle dit sa
+     règle en toutes lettres. Un rouge qu'on peut croire vaut mieux qu'un rouge
+     permanent qu'on apprend à ignorer. */
   const trend = (cur: number, prev: number): { t: string; down: boolean } => {
-    if (prev === 0) return { t: 'premier mois suivi', down: false };
+    if (prev === 0) return { t: `rien à comparer en ${prevMonthName}`, down: false };
     const pct = Math.round(((cur - prev) / Math.abs(prev)) * 100);
-    return { t: `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)} % vs ${prevMonthName}`, down: pct < 0 };
+    return { t: `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)} % vs ${jourDuMois} ${prevMonthName} · à jour égal`, down: pct < 0 };
   };
 
   const kpis = [
-    { label: 'Revenus réels du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue), action: () => setBreakOpen(true) },
-    { label: 'Dépenses réelles du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)', trend: trend(spent, prevSpent), action: () => navigate('/depenses') },
-    { label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)', trend: trend(net, prevNet), action: () => navigate('/synthese') },
-  ];
-
-  const revTrend = trend(revenue, prevRevenue);
-  const tiles = [
-    { label: 'Revenu mois', value: fmtMoney(revenue, currency), cap: revTrend.t, up: !revTrend.down },
-    { label: 'RDV aujourd’hui', value: String(todayRows.length), cap: 'au carnet de la branche', up: false },
-    { label: 'Têtes couronnées', value: String(clients.length), cap: 'rattachées à cette branche', up: false },
+    { label: 'Revenus du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue), action: () => setBreakOpen(true) },
     {
-      label: 'Alertes stock',
-      value: String(stockAlerts.length),
-      cap: stockAlerts.length ? `${stockAlerts.map((p) => p.name).slice(0, 2).join(' · ')} — réassort` : 'gamme au complet',
-      up: false,
+      label: 'Dépenses du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)',
+      /* Zéro dépense saisie n'est pas « ▼ 100 % » : c'est un registre vide, et
+         il vaut mieux le dire que faire croire à une économie. */
+      trend: spent === 0 ? { t: 'rien de saisi ce mois', down: false } : trend(spent, prevSpent),
+      action: () => navigate('/depenses'),
+    },
+    {
+      label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)',
+      trend: spent === 0 ? { t: '= revenus — aucune dépense saisie', down: false } : trend(net, prevNet),
+      action: () => navigate('/synthese'),
     },
   ];
 
@@ -432,26 +499,49 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      <div className="tr-grid tr-grid--4" style={{ marginTop: 14 }}>
-        {tiles.map((t) => (
-          <div className="trp-tile" key={t.label}>
-            <div className="trp-tile__label">{t.label}</div>
-            <div className="trp-tile__value">{t.value}</div>
-            <div className={`trp-tile__cap ${t.up ? 'trp-tile__cap--up' : ''}`}>{t.cap}</div>
-          </div>
-        ))}
+      {/* Ce qui presse — chaque alerte porte son GESTE : réassort → le bon,
+          impayés échus → la section qui les encaisse. L'ancienne tuile
+          « Alertes stock : 5 » constatait ; ici l'écran tend la main. */}
+      <div className="trp-panel" style={{ marginTop: 14 }}>
+        <div className="trp-panel__title">Ce qui presse</div>
+        {presseRows.length === 0
+          ? <div className="trp-empty">Rien ne presse — la réserve est au complet, aucun impayé n'est échu.</div>
+          : presseRows.map((r, i) => (
+            <div
+              key={r.k}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontWeight: 500 }}>{r.label}</span>
+                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>{r.sub}</span>
+              </div>
+              <button className="trp-pay__cta" onClick={r.go}>{r.action}</button>
+            </div>
+          ))}
       </div>
 
       {/* Carnet du jour + revenu 7 jours */}
       <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
         <div className="trp-day">
           <div className="trp-day__head">
-            <span className="trp-day__title">Le carnet du jour</span>
+            <span className="trp-day__title">Le carnet du jour{todayRows.length > 0 ? ` · ${todayRows.length}` : ''}</span>
             <button className="trp-kpi__link" onClick={() => navigate('/carnet')}>
               Tout voir →
             </button>
           </div>
-          {todayRows.length === 0 && <div className="trp-day__empty">Le carnet est libre aujourd’hui.</div>}
+          {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est
+              l'occasion de relancer les couronnes qui ont passé leur cadence. */}
+          {todayRows.length === 0 && (
+            relances > 0 ? (
+              <div className="trp-day__empty">
+                Le carnet est libre — {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
+                {' '}
+                <button className="trp-kpi__link" onClick={() => navigate('/customers')}>Voir les relances →</button>
+              </div>
+            ) : (
+              <div className="trp-day__empty">Le carnet est libre aujourd’hui.</div>
+            )
+          )}
           {todayRows.map((a) => {
             const c = clientOf(a.clientId);
             return (
@@ -503,6 +593,7 @@ export default function Dashboard() {
           })}
         </div>
 
+        <div>
         <div className="trp-rev">
           <button className="trp-rev__open" onClick={openWeek} title="Voir le détail des 7 jours">
             <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
@@ -532,10 +623,17 @@ export default function Dashboard() {
             <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
           </button>
         </div>
+        <div className="trp-tile" style={{ marginTop: 12 }}>
+          <div className="trp-tile__label">Têtes couronnées</div>
+          <div className="trp-tile__value">{clients.length}</div>
+          <div className="trp-tile__cap">rattachées à cette branche</div>
+        </div>
+        </div>
       </div>
 
-      {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total */}
-      <div className="tr-grid tr-grid--2" style={{ marginTop: 18, alignItems: 'start' }}>
+      {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total.
+          `unpaidRef` : la ligne « impayés échus » de Ce qui presse descend ici. */}
+      <div ref={unpaidRef} className="tr-grid tr-grid--2" style={{ marginTop: 18, alignItems: 'start' }}>
         {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu — rien en retard.')}
         {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
       </div>

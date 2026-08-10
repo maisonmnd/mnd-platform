@@ -362,6 +362,11 @@ const ecrireMouvement = (m: Omit<MouvementStock, 'id'>): void => ecrireMouvement
 export function retirerParReferences(refs: string[]): number {
   const cibles = new Set(refs.filter(Boolean));
   if (!cibles.size) return 0;
+  /* POSTE FROID : le journal local peut ignorer des mouvements que le serveur
+     porte déjà sous ces références. On retire ce qu'on voit, ET on se note de
+     REPASSER après la première lecture — sinon le rembobinage laisse des
+     lignes orphelines que plus rien ne viendra jamais chercher. */
+  if (journalFroid()) mettreEnAttente({ k: 'retrait', refs: [...cibles] });
   const avant = mouvementsStockStore.get();
   const vises = avant.filter((m) => m.reference && cibles.has(m.reference));
   if (!vises.length) return 0;
@@ -453,6 +458,13 @@ export function ajusterStock(
   date: string,
 ): { ok: boolean; erreur?: string } {
   if (!Number.isFinite(nouvelleQuantite)) return { ok: false, erreur: 'Ce n’est pas une quantité.' };
+  /* POSTE FROID : une CIBLE s'écrit en écart contre le stock dérivé, et un
+     journal à moitié relu rendrait un écart faux. La quantité CONSTATÉE, elle,
+     reste vraie — on la garde et on écrit l'écart après la première lecture. */
+  if (journalFroid()) {
+    mettreEnAttente({ k: 'cible', produitId: produit.id, quantite: Math.round(nouvelleQuantite), note, date });
+    return { ok: true };
+  }
   const actuel = stockDe(produit.id, mouvementsStockStore.get());
   const ecart = Math.round(nouvelleQuantite) - actuel;
   if (ecart === 0) return { ok: false, erreur: 'Le stock est déjà à cette quantité.' };
@@ -560,7 +572,17 @@ export const fichePourGamme = (catalogProductId: string, branchId?: string): Pro
 export function venteGamme(catalogProductId: string, quantite: number, reference: string, date: string, branchId?: string): boolean {
   if (quantite <= 0) return false;
   const fiche = fichePourGamme(catalogProductId, branchId);
-  if (!fiche) return false;
+  if (!fiche) {
+    /* POSTE FROID sans fiche en cache : elle existe peut-être au serveur. On
+       diffère la sortie ; rendre VRAI évite à la Caisse d'écrire l'ancien
+       compteur, que le miroir effacerait au premier recalcul. Le repli d'une
+       Gamme jamais reprise se rejoue au même endroit (voir `rejoueAttente`). */
+    if (!tablePrete('stock_produits')) {
+      mettreEnAttente({ k: 'vente', catalogProductId, quantite, reference, date, branchId });
+      return true;
+    }
+    return false;
+  }
   /* On ne borne pas à zéro : un stock négatif dit qu'on a vendu plus que ce qui
      était compté, et cette information vaut mieux qu'un zéro rassurant. */
   ecrireMouvement({
@@ -585,6 +607,14 @@ export function consommerPourRituel(
   date: string,
 ): number {
   const ref = REF_RDV(appt.id);
+  /* POSTE FROID : l'idempotence se vérifie contre le journal — froid, il ne
+     peut pas dire si un autre poste a déjà consommé ce rituel. Écrire quand
+     même doublerait la sortie ; le geste se diffère jusqu'à la première
+     lecture, où le contrôle redevient sûr. */
+  if (journalFroid()) {
+    mettreEnAttente({ k: 'rituel', appt: { id: appt.id, branchId: appt.branchId, serviceIds: [...appt.serviceIds] }, date });
+    return 0;
+  }
   if (mouvementsStockStore.get().some((m) => m.reference === ref)) return 0;
   const recettes = consommationsStore.get().filter((c) => c.branchId === appt.branchId);
   /* Deux fois le même geste dans un rituel = deux fois sa recette. */
@@ -733,7 +763,7 @@ export function retirerRecette(c: Consommation): void {
 
 /* ---------- Synchronisation ---------- */
 
-import { bindCollection } from './sync';
+import { bindCollection, tablePrete, quandTablePrete } from './sync';
 bindCollection(fournisseursStore, 'fournisseurs');
 bindCollection(produitsStockStore, 'stock_produits');
 bindCollection(mouvementsStockStore, 'stock_mouvements');
@@ -745,3 +775,70 @@ bindCollection(consommationsStore, 'consommations');
    quand c'est la synchronisation qui les change. */
 mouvementsStockStore.subscribe(replanifieMiroir);
 produitsStockStore.subscribe(replanifieMiroir);
+
+/* ---------- La fenêtre d'avant-hydratation — 10 août 2026 ----------
+
+   Le stock ne se stocke pas : il se DÉRIVE du journal. Or sur un poste FROID
+   — ouvert à l'instant, le journal pas encore relu — toute dérivation ment :
+   l'idempotence de `consommerPourRituel` ne voit pas ce qu'un autre poste a
+   écrit, `retirerParReferences` ne trouve pas les mouvements que le serveur
+   porte, une cible d'inventaire calcule un écart faux, et la vente d'un
+   produit dont la fiche n'est pas en cache retombe sur l'ancien compteur que
+   le miroir efface. La couche sync préserve désormais les ÉCRITURES du froid
+   (voir sync.ts) ; ici on diffère les gestes qui LISENT le journal, jusqu'à
+   ce que la première lecture soit résolue — réussie, refusée ou échouée.
+
+   La file est PERSISTÉE PAR POSTE (jamais synchronisée) : un onglet fermé
+   avant l'hydratation rejoue ses gestes à la prochaine ouverture. */
+
+type GesteEnAttente =
+  | { k: 'retrait'; refs: string[] }
+  | { k: 'rituel'; appt: { id: string; branchId: string; serviceIds: string[] }; date: string }
+  | { k: 'vente'; catalogProductId: string; quantite: number; reference: string; date: string; branchId?: string }
+  | { k: 'cible'; produitId: string; quantite: number; note: string; date: string };
+
+const attenteStockStore = createStore<GesteEnAttente[]>('mnd_stock_attente', []);
+
+function journalFroid(): boolean {
+  return !tablePrete('stock_mouvements');
+}
+
+function mettreEnAttente(g: GesteEnAttente): void {
+  attenteStockStore.set((prev) => [...prev, g]);
+}
+
+/** Rejoue les gestes différés, dans l'ordre où ils ont été posés. Chaque geste
+    repasse par sa primitive : l'idempotence et le miroir jouent normalement. */
+function rejoueAttente(): void {
+  if (!tablePrete('stock_mouvements') || !tablePrete('stock_produits')) return;
+  const gestes = attenteStockStore.get();
+  if (!gestes.length) return;
+  attenteStockStore.set(() => []);
+  for (const g of gestes) {
+    if (g.k === 'retrait') {
+      retirerParReferences(g.refs);
+    } else if (g.k === 'rituel') {
+      consommerPourRituel(g.appt, g.date);
+    } else if (g.k === 'cible') {
+      /* La fiche a pu disparaître entre-temps — un geste sur un fantôme ne
+         s'écrit pas. */
+      const fiche = produitsStockStore.get().find((p) => p.id === g.produitId);
+      if (fiche) ajusterStock(fiche, g.quantite, g.note, g.date);
+    } else {
+      const fiche = fichePourGamme(g.catalogProductId, g.branchId);
+      if (fiche) {
+        ecrireMouvement({
+          branchId: fiche.branchId, date: g.date, type: 'sortie_vente',
+          produitId: fiche.id, quantite: -Math.round(g.quantite), reference: g.reference,
+        });
+      } else {
+        /* Gamme jamais reprise : l'ancien compteur, comme l'aurait fait la
+           Caisse si la fiche avait manqué sur un poste chaud. */
+        productsStore.set((prev) => prev.map((p) => (p.id === g.catalogProductId ? { ...p, stock: p.stock - g.quantite } : p)));
+      }
+    }
+  }
+}
+
+quandTablePrete('stock_mouvements', rejoueAttente);
+quandTablePrete('stock_produits', rejoueAttente);

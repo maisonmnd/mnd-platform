@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
 import { appointmentsStore } from '../../../../shared/agenda';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nextInvoiceNumber, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
@@ -277,29 +277,23 @@ export default function Caisse() {
     submitting.current = true;
     try {
     const client = branchClients.find((c) => c.id === clientId);
-    const now = new Date();
     const grossXof = lines.reduce((s, l) => s + l.unit * l.qty, 0);
-    const inv: Invoice = {
-      id: uid(),
+    const inv: Invoice = nouvelleFacture({
       branchId: branch.id,
-      kind: 'facture',
-      number: nextInvoiceNumber(invoices, 'MND'),
+      serie: 'MND',
+      status: 'payée',
       /* Compte famille : facture au nom du PARENT PAYEUR, cliente soignée en mention. */
       clientId: posPayerId || client?.id || '',
       clientName: client ? undefined : 'Walk-in',
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
-      date: todayIso(),
-      time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      lines: lines.map((l) => ({ id: uid(), label: l.n, qty: l.qty, unitXof: l.unit, discountPct: l.disc })),
+      lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.disc)),
       globalDiscountPct: globalDisc,
       globalDiscountXof: globalDiscXof || undefined,
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
-      theme: 'Aube',
-      status: 'payée',
       payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
       avoirXof: posAvoir > 0 ? posAvoir : undefined,
-    };
+    });
     setInvoices((prev) => [inv, ...prev]);
 
     /* LE RITUEL SOLDE PORTE DESORMAIS SA FACTURE : les ecrans de chiffre

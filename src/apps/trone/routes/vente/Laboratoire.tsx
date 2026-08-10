@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { invoicesStore, nextInvoiceNumber, useInvoices, type Invoice } from '../../../../shared/finance';
+import { invoicesStore, nouvelleFacture, ligneFacture, type Invoice } from '../../../../shared/finance';
 import {
   creerProduitStock, litQuantite, stocksParProduit, useMouvementsStock, useProduitsStock,
 } from '../../../../shared/stock';
@@ -767,7 +767,6 @@ function OngletPreparations() {
   const [produits] = useProduitsStock();
   const [mouvements] = useMouvementsStock();
   const [preparations] = usePreparationsLab();
-  const [invoices] = useInvoices();
 
   const liste = useMemo(
     () => preparations.filter((p) => p.branchId === branch.id).sort((a, b) => b.composeeLe.localeCompare(a.composeeLe)),
@@ -797,18 +796,13 @@ function OngletPreparations() {
     if (facturationEnCours.current) return;
     facturationEnCours.current = true;
     try {
-      const inv: Invoice = {
-        id: `inv-${uid()}`,
+      const inv: Invoice = nouvelleFacture({
         branchId: branch.id,
-        kind: 'facture',
-        number: nextInvoiceNumber(invoices, 'MND'),
-        clientId: prep.clientId,
-        date: jour(),
-        lines: [{ id: uid(), label: `Préparation du Laboratoire · ${prep.nomFormule}`, qty: 1, unitXof: prep.prixXof, discountPct: 0 }],
-        globalDiscountPct: 0,
-        theme: 'Aube',
+        serie: 'MND',
         status: 'envoyée',
-      };
+        clientId: prep.clientId,
+        lines: [ligneFacture(`Préparation du Laboratoire · ${prep.nomFormule}`, prep.prixXof)],
+      });
       const r = poserFacture(prep, inv.id);
       if (!r.ok) { window.alert(r.erreur); return; }
       invoicesStore.set((prev) => [inv, ...prev]);

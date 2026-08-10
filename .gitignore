@@ -22,3 +22,9 @@ supabase/repare_telephones.sql
 # compte : les formules réelles ne vivent qu'en BASE, sous is_staff(), jamais
 # dans le code. Ce fichier les insère ; il ne se commit JAMAIS.
 supabase/import_formules_maitres.sql
+
+# LES PRIX D'ACHAT ET FOURNISSEURS — la marge de la Maison. Même règle que les
+# formules : le dépôt est public, ces chiffres ne vivent qu'en base
+# (stock_produits, sous is_staff()). Le gabarit se regénère depuis la liste de
+# l'audit (supabase/audit_saisie_stock_lab.sql, section ④).
+supabase/import_prix_achats.sql

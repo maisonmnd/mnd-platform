@@ -141,6 +141,38 @@ const syncMark = {
   estHorsPortee: (t: string) => horsPortee.has(t),
 };
 
+/* ---------- La fenêtre d'avant-hydratation — 10 août 2026 ----------
+
+   Entre l'ouverture du poste et la PREMIÈRE lecture d'une table, le magasin
+   local n'est que le cache d'hier : ce qui s'y écrivait n'était pas poussé
+   (`lu` est faux), puis la lecture arrivait et REMPLAÇAIT tout — la vente
+   tapée dans cette fenêtre disparaissait sans un mot, facture comprise.
+   La fenêtre se referme en deux temps : `bindCollection` rejoue les écritures
+   du froid sur l'état du serveur (voir `premiereLecture`), et les modules qui
+   DÉRIVENT du journal (le stock) demandent ici où en est la table pour
+   différer leurs gestes (voir shared/stock.ts).
+
+   « Prête » = la première lecture est RÉSOLUE : réussie, refusée par les
+   droits, ou échouée (poste hors ligne — le cache est alors tout ce qu'on a,
+   et le comptoir doit vivre). Sans backend, tout est prêt d'emblée. */
+const tablesResolues = new Set<string>();
+const attentesLecture = new Map<string, Array<() => void>>();
+const marqueTableResolue = (t: string): void => {
+  if (tablesResolues.has(t)) return;
+  tablesResolues.add(t);
+  const fns = attentesLecture.get(t);
+  attentesLecture.delete(t);
+  fns?.forEach((f) => f());
+};
+export const tablePrete = (t: string): boolean => !supabase || tablesResolues.has(t);
+/** Appelle `fn` dès que la table est prête — tout de suite si elle l'est déjà. */
+export function quandTablePrete(t: string, fn: () => void): void {
+  if (tablePrete(t)) { fn(); return; }
+  const fns = attentesLecture.get(t) ?? [];
+  fns.push(fn);
+  attentesLecture.set(t, fns);
+}
+
 type WithId = { id: string; branchId?: string };
 
 /* TABLES DONT UNE LIGNE NE SE SUPPRIME JAMAIS DEPUIS UN POSTE — 8 août 2026.
@@ -179,6 +211,16 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     for (const it of items) m.set(it.id, JSON.stringify(it));
     return m;
   };
+
+  /* LES ÉCRITURES DU FROID. Tant que la première lecture n'est pas arrivée,
+     chaque geste local s'enregistre ici — dernière valeur par id, suppressions
+     par id — pour être REJOUÉ sur l'état du serveur au lieu d'être effacé par
+     lui. Le repère `vuFroid` part du cache : seuls les gestes de CETTE session
+     comptent, jamais les lignes d'hier (qui, elles, cèdent devant le serveur). */
+  let vuFroid = snapshot(store.get());
+  const froidModifies = new Map<string, string>();
+  const froidSupprimes = new Set<string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it });
 
@@ -300,6 +342,56 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     return ok;
   };
 
+  /* La poussée locale, coalescée — un seul chemin, que l'écriture vienne d'un
+     écran ou du rejeu de la fenêtre froide. */
+  const planifiePoussee = (): void => {
+    syncMark.dirty(table);
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      /* `timer` DOIT etre libere ici. Il n'etait jusqu'ici que `clearTimeout`e,
+         jamais remis a undefined : le garde `if (timer) return` de refetch()
+         restait donc vrai a vie des la premiere ecriture locale de la session,
+         et TOUS les rattrapages — focus, retour d'onglet, changement de session —
+         sortaient sans rien faire. Le filet de fraicheur n'existait plus. */
+      timer = undefined;
+      const items = store.get();
+      const next = snapshot(items);
+      const prev = lastPushed;
+      /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
+         poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
+         diff futur : l'ecriture etait perdue sans retour possible, et le
+         rechargement suivant l'effacait. */
+      void pushDiff(prev, next, items).then((ok) => {
+        if (ok) lastPushed = next;
+      });
+    }, PUSH_DEBOUNCE_MS);
+  };
+
+  /* LA PREMIÈRE LECTURE NE REMPLACE PLUS — ELLE REJOUE. Le serveur fait foi
+     sur tout ce que ce poste n'a pas touché dans cette session ; les gestes
+     posés pendant la fenêtre froide (une vente, un rembobinage) se
+     réappliquent par-dessus, puis repartent par la poussée normale.
+     `lastPushed` reste l'état SERVEUR : c'est le diff qui porte les gestes. */
+  const premiereLecture = (serverItems: T[]): void => {
+    const aRejouer = froidModifies.size > 0 || froidSupprimes.size > 0;
+    let items = serverItems;
+    if (aRejouer) {
+      const parId = new Map<string, T>(serverItems.map((it) => [it.id, it]));
+      for (const id of froidSupprimes) parId.delete(id);
+      for (const [id, j] of froidModifies) parId.set(id, JSON.parse(j) as T);
+      items = [...parId.values()];
+    }
+    applyingRemote = true;
+    store.set(items);
+    applyingRemote = false;
+    lastPushed = snapshot(serverItems);
+    lu = true;
+    froidModifies.clear();
+    froidSupprimes.clear();
+    marqueTableResolue(table);
+    if (aRejouer) planifiePoussee();
+  };
+
   // 1. Hydratation — MAIS PAS AVANT QUE LA SESSION SOIT LÀ.
   void (async () => {
     /* SANS SESSION, « zéro ligne » NE VEUT PAS DIRE « serveur vide ».
@@ -321,19 +413,17 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     if (error) {
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
          sur un poste qui travaillait en realite sur son seul cache local — table
-         absente, RLS, reseau au demarrage. */
-      if (estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return; }
+         absente, RLS, reseau au demarrage. Dans les deux cas la table est
+         RÉSOLUE : ce poste n'attendra pas mieux, les gestes différés partent
+         sur ce qu'il a. */
+      if (estRefusDeDroit(error.message)) { syncMark.horsPortee(table); marqueTableResolue(table); return; }
       console.warn(`[mnd-sync] ${table} hydrate:`, error.message);
       syncMark.fail(table, error.message);
+      marqueTableResolue(table);
       return;
     }
     if (data && data.length) {
-      const items = data.map((r) => (r as { data: T }).data);
-      applyingRemote = true;
-      store.set(items);
-      applyingRemote = false;
-      lastPushed = snapshot(items);
-      lu = true;
+      premiereLecture(data.map((r) => (r as { data: T }).data));
     } else {
       /* Table serveur VIDE — ET LE SERVEUR FAIT FOI. On aligne le magasin local
          sur ce vide, sans rien pousser.
@@ -347,15 +437,13 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
 
          Le prix, assumé : une Maison vraiment neuve démarre sans catégories de
          départ (SERVICES_SEED et PRODUCTS_SEED étaient déjà vides — « tout naît
-         de l'usage »). Et si un poste avait des lignes créées hors ligne que le
-         serveur n'a jamais reçues, elles cèdent devant lui. C'est le sens de
-         « le serveur fait foi » : une seule vérité, la même pour tous les
-         appareils, qu'on peut effacer pour de bon. */
-      applyingRemote = true;
-      store.set([] as unknown as T[]);
-      applyingRemote = false;
-      lastPushed = new Map();
-      lu = true;
+         de l'usage »). Et si un poste avait des lignes d'HIER que le serveur
+         n'a jamais reçues, elles cèdent devant lui. C'est le sens de « le
+         serveur fait foi » : une seule vérité, la même pour tous les
+         appareils, qu'on peut effacer pour de bon. Seuls les gestes de CETTE
+         session — la fenêtre froide — se rejouent par-dessus : posés il y a
+         quelques secondes, ils ne peuvent pas être périmés. */
+      premiereLecture([]);
     }
   })();
 
@@ -372,15 +460,16 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     const { data, error } = await sb.from(table).select('id,data');
     if (error || !data) return;
     const items = data.map((r) => (r as { data: T }).data);
+    /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
+       quand la session arrive apres le chargement du module — et il rejoue
+       alors les gestes de la fenêtre froide comme l'hydratation. */
+    if (!lu) { premiereLecture(items); return; }
     const next = snapshot(items);
     const cur = snapshot(store.get());
     const same = next.size === cur.size && [...next].every(([k, v]) => cur.get(k) === v);
     if (same) return;
     applyingRemote = true;
     store.set(items);
-    /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
-       quand la session arrive apres le chargement du module. */
-    lu = true;
     applyingRemote = false;
     lastPushed = next;
   };
@@ -404,29 +493,28 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   });
 
   // 2. Poussée des changements locaux (coalescée).
-  let timer: ReturnType<typeof setTimeout> | undefined;
   store.subscribe(() => {
-    if (applyingRemote || !lu) return;
-    syncMark.dirty(table);
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      /* `timer` DOIT etre libere ici. Il n'etait jusqu'ici que `clearTimeout`e,
-         jamais remis a undefined : le garde `if (timer) return` de refetch()
-         restait donc vrai a vie des la premiere ecriture locale de la session,
-         et TOUS les rattrapages — focus, retour d'onglet, changement de session —
-         sortaient sans rien faire. Le filet de fraicheur n'existait plus. */
-      timer = undefined;
-      const items = store.get();
-      const next = snapshot(items);
-      const prev = lastPushed;
-      /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
-         poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
-         diff futur : l'ecriture etait perdue sans retour possible, et le
-         rechargement suivant l'effacait. */
-      void pushDiff(prev, next, items).then((ok) => {
-        if (ok) lastPushed = next;
-      });
-    }, PUSH_DEBOUNCE_MS);
+    if (applyingRemote) {
+      /* Écriture DISTANTE (Realtime) pendant la fenêtre froide : le repère
+         suit, pour ne pas prendre ces lignes pour des gestes locaux. */
+      if (!lu) vuFroid = snapshot(store.get());
+      return;
+    }
+    if (!lu) {
+      /* LA FENÊTRE D'AVANT-HYDRATATION : l'écriture ne s'abandonne plus — elle
+         s'enregistre, id par id, pour être rejouée sur l'état du serveur à la
+         première lecture (voir `premiereLecture`). */
+      const cur = snapshot(store.get());
+      for (const [id, j] of cur) {
+        if (vuFroid.get(id) !== j) { froidModifies.set(id, j); froidSupprimes.delete(id); }
+      }
+      for (const id of vuFroid.keys()) {
+        if (!cur.has(id)) { froidSupprimes.add(id); froidModifies.delete(id); }
+      }
+      vuFroid = cur;
+      return;
+    }
+    planifiePoussee();
   });
 
   // 3. Application des changements distants (Realtime).

@@ -1,4 +1,4 @@
-import { createStore, useStore } from './store';
+import { createStore, useStore, uid } from './store';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -193,6 +193,104 @@ export function nextInvoiceNumber(invoices: Invoice[], prefix: 'MND' | 'MND-D' |
     num = `${prefix}-${year}-${String(n).padStart(4, '0')}`;
   }
   return num;
+}
+
+/* ═══════ LA PIÈCE SE CONSTRUIT ICI, ET NULLE PART AILLEURS ═══════
+
+   Quatre écrans émettaient chacun leur facture à la main — la Caisse,
+   l'encaissement d'un rituel (deux pièces), l'écran Factures et le
+   Laboratoire. Quatre copies des mêmes défauts possibles : un numéro tiré
+   d'une liste de rendu périmée, une heure formatée autrement, un « walkin »
+   écrit tel quel dans la pièce. Le constructeur ci-dessous est le seul
+   chemin ; chaque écran ne dit plus que ce qui lui est propre.
+
+   MA COURONNE N'EMPRUNTE PAS CE CHEMIN, et c'est voulu : sous RLS une
+   cliente ne voit que SES pièces — un compteur de série calculé chez elle
+   répéterait les numéros des autres. Sa commande de la Gamme tire un numéro
+   aléatoire dans sa propre série (CMD-…, couronne/Tabs.tsx). */
+
+/** La série dit le circuit d'origine, et c'est un DIAGNOSTIC : `F` n'est
+    émise que par l'encaissement de rituel, toujours payée — une pièce F
+    « envoyée » ne peut être qu'un résidu d'annulation (9 août). `MND` vient
+    du comptoir (Caisse, Factures, Laboratoire), `MND-D` des devis. */
+export type SerieFacture = 'MND' | 'MND-D' | 'F';
+
+export type FactureNeuve = {
+  branchId: string;
+  clientId?: string;
+  /** Nom libre quand la cliente n'est pas au CRM. */
+  clientName?: string;
+  forClientId?: string;
+  /** Défaut : le jour LOCAL — entre minuit et une heure à Cotonou,
+      toISOString daterait la veille et couperait la nuit comptable en deux. */
+  date?: string;
+  lines?: InvoiceLine[];
+  globalDiscountPct?: number;
+  globalDiscountXof?: number;
+  fx?: Invoice['fx'];
+  theme?: Invoice['theme'];
+  payment?: PaymentMethod;
+  cashbox?: string;
+  master?: string;
+  note?: string;
+  tipXof?: number;
+  avoirXof?: number;
+  depositCreditXof?: number;
+} & (
+  /* La série F est TOUJOURS payée — le type l'impose, pour que la lecture
+     des résidus (une F « envoyée » = un encaissement annulé) reste vraie. */
+  | { serie: 'F'; status?: 'payée' }
+  | { serie: 'MND' | 'MND-D'; status: Invoice['status'] }
+);
+
+const jourLocal = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Une ligne de pièce — le même identifiant d'un circuit à l'autre. */
+export const ligneFacture = (label: string, unitXof: number, qty = 1, discountPct = 0): InvoiceLine =>
+  ({ id: `il-${uid()}`, label, qty, unitXof, discountPct });
+
+export function nouvelleFacture(f: FactureNeuve): Invoice {
+  /* LE NUMÉRO SE TIRE DU MAGASIN, jamais d'une liste de rendu : la valeur
+     qu'un composant tient en main date de son dernier rendu, et un numéro
+     tiré d'elle peut répéter celui qu'un autre poste vient d'écrire. Le
+     magasin, lui, est à jour à l'instant du geste. Résiduel accepté : deux
+     appareils HORS LIGNE peuvent encore se croiser (voir nextInvoiceNumber). */
+  const number = nextInvoiceNumber(invoicesStore.get(), f.serie);
+  /* LE FANTÔME NE TRAVERSE PAS : « walkin » est un marqueur d'écran, pas une
+     cliente — écrit tel quel dans une pièce, il ouvrait une fiche fourre-tout
+     au CRM (useReconcileClients). La traduction vaut pour tous les circuits. */
+  const walkin = f.clientId === 'walkin';
+  const clientId = walkin ? '' : f.clientId ?? '';
+  const clientName = walkin ? f.clientName ?? 'Walk-in' : f.clientName;
+  const status: Invoice['status'] = f.serie === 'F' ? 'payée' : f.status;
+  return {
+    id: `inv-${uid()}`,
+    branchId: f.branchId,
+    kind: f.serie === 'MND-D' ? 'devis' : 'facture',
+    number,
+    clientId,
+    date: f.date ?? jourLocal(),
+    lines: f.lines ?? [],
+    globalDiscountPct: f.globalDiscountPct ?? 0,
+    theme: f.theme ?? 'Aube',
+    status,
+    /* L'heure n'a de sens que sur un encaissement — c'est le journal de caisse. */
+    ...(status === 'payée' ? { time: new Date().toTimeString().slice(0, 5) } : {}),
+    ...(clientName ? { clientName } : {}),
+    ...(f.forClientId ? { forClientId: f.forClientId } : {}),
+    ...(f.globalDiscountXof ? { globalDiscountXof: f.globalDiscountXof } : {}),
+    ...(f.fx ? { fx: f.fx } : {}),
+    ...(f.payment ? { payment: f.payment } : {}),
+    ...(f.cashbox ? { cashbox: f.cashbox } : {}),
+    ...(f.master ? { master: f.master } : {}),
+    ...(f.note ? { note: f.note } : {}),
+    ...(f.tipXof ? { tipXof: f.tipXof } : {}),
+    ...(f.avoirXof ? { avoirXof: f.avoirXof } : {}),
+    ...(f.depositCreditXof ? { depositCreditXof: f.depositCreditXof } : {}),
+  };
 }
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */

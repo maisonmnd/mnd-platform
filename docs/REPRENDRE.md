@@ -1,6 +1,9 @@
 # Reprendre — état de la Maison
 
-État au 6 août 2026. À lire en premier dans une nouvelle session.
+État au 10 août 2026. À lire en premier dans une nouvelle session.
+Déployé et vérifié : Le Trône et Ma Couronne servent le même commit ; TOUTES les
+migrations jusqu'à 0034 sont PASSÉES, ainsi que l'import local des formules
+maîtres. Ne relancer aucune migration.
 
 ## L'équipe — construit le 6 août
 
@@ -89,7 +92,7 @@ catalogue courant : **déplacer une prestation reclasse tout l'historique**, et
 mettre son prix à zéro vide sa part du chiffre sur les cartes du Catalogue
 (le total du rituel, lui, ne bouge pas s'il est figé).
 
-## Stock & Achats — construit le 9 août 2026, ⚠ MIGRATION 0030 À PASSER
+## Stock & Achats — construit le 9 août 2026, migration 0030 PASSÉE
 
 La page Produits (`/home-rituals`) est devenue le module **Stock & Achats** :
 cinq onglets — La Gamme (inchangée), Inventaire (4 familles : revente,
@@ -111,13 +114,13 @@ Recettes (ce qu'un service consomme + coût matière), Mouvements (le journal).
   et de la Gamme deviennent des ajustements tracés dès que la fiche liée existe.
 - Tests : `node scripts/verifie-stock.mjs` — 58 vérifications sur la boucle.
 
-**À FAIRE, dans l'ordre :** ① passer `supabase/migrations/0030_stock_achats.sql`
-(six tables, un seul temps) — **sans elle la pastille du Trône vire au rouge** ;
-② publier le Trône ; ③ dans Inventaire, attendre « Synchronisé » puis cliquer
-**Reprendre la Gamme** (crée les fiches revente liées + « Inventaire initial ») ;
-④ saisir fournisseurs, consommables et recettes au fil de l'eau.
+**État du 10 août :** ①② FAITS — `0030_stock_achats.sql` est PASSÉE et le Trône
+publié. ③ **Reprendre la Gamme** (Inventaire) : à vérifier si pas déjà fait.
+④ fournisseurs, consommables et recettes se saisissent au fil de l'eau —
+c'est un chantier de DONNÉES, toujours ouvert ; la liste de ce qui manque
+sort de `supabase/audit_saisie_stock_lab.sql` (10 août).
 
-## Le Laboratoire branché au stock — 9 août 2026, ⚠ MIGRATION 0031 À PASSER
+## Le Laboratoire branché au stock — 9 août 2026, migration 0031 PASSÉE
 
 Le formulateur compose désormais POUR UNE CLIENTE, depuis la réserve réelle :
 
@@ -142,8 +145,8 @@ Le formulateur compose désormais POUR UNE CLIENTE, depuis la réserve réelle :
 - Reste à ouvrir plus tard : montrer à la cliente « sa » préparation sur
   Ma Couronne (demande une lecture RLS ciblée — pas avant d'en avoir besoin).
 
-**À FAIRE : passer `supabase/migrations/0031_lab_preparations.sql`** (une table,
-un seul temps) **avant de publier** — sinon pastille rouge sur le Trône.
+**FAIT : `0031_lab_preparations.sql` est PASSÉE** (état du 10 août) — ne pas la
+relancer.
 
 ## Les formules maîtres — 9 août 2026, EN BASE, JAMAIS DANS LE CODE
 
@@ -154,6 +157,7 @@ et le bundle JS se télécharge sans compte — **aucune formule réelle n'entre
 jamais dans le code**, ni dans un commit. Elles s'insèrent par
 `supabase/import_formules_maitres.sql`, fichier LOCAL et GITIGNORÉ (patron des
 imports de clientes) ; se regénère par le script de session si perdu.
+**Exécuté : les 14 formules sont en base (état du 10 août).**
 
 - Migration `0032_lab_formules.sql` (structure seule) : PASSÉE le 9 août.
 - Le Laboratoire a un onglet **Formules maîtres** : fiche complète (ingrédients
@@ -165,14 +169,13 @@ imports de clientes) ; se regénère par le script de session si perdu.
 - Aqua Locks Ritual porte ses tarifs en notes ; s'il doit devenir réservable,
   c'est une prestation du Catalogue (prix par longueur) — chantier séparé.
 
-## Revue à dix angles du 10 août — corrigée en bloc, ⚠ 0034 À PASSER
+## Revue à dix angles du 10 août — corrigée en bloc, 0034 PASSÉE
 
 Une revue multi-agents a relu Stock & Achats + Laboratoire. Corrigé :
 
-- **`0034_realtime_stock_lab.sql` À PASSER** : les 9 tables de 0028/0030–0032
-  n'étaient pas dans la publication Realtime — inter-postes muet, fenêtres de
-  double consommation. Sans elle l'app marche, mais un seul poste à la fois est
-  sûr.
+- **`0034_realtime_stock_lab.sql` — PASSÉE le 10 août** : les 9 tables de
+  0028/0030–0032 sont dans la publication Realtime ; l'inter-postes est
+  rétabli, les fenêtres de double consommation refermées.
 - **Le miroir suit le journal d'où qu'il change** (abonnement débounce 250 ms +
   recalcul ciblé aux écritures locales). `ecrireMouvements`/`retirerParReferences`
   sont les seules portes du journal — le Laboratoire les emprunte.
@@ -190,9 +193,170 @@ Une revue multi-agents a relu Stock & Achats + Laboratoire. Corrigé :
   garde anti-suppression de sync assouplie pour `stock_mouvements` (rembobinage
   légitime ≥ 10 lignes), marque remise (rayons 2–4, `--font-serif`, fmtMoney,
   icône Camera au lieu de l'émoji).
-- Reste ouvert, documenté : fenêtre d'avant-hydratation (vente/reprise sur un
-  poste froid), unification des 4 constructions de facture, mémoïsations des
-  onglets. Harnais : 63 + 42 vérifications.
+- Reste ouvert, documenté : mémoïsations des onglets. Harnais : 63 + 42
+  vérifications. *(L'unification des factures et la fenêtre d'avant-hydratation
+  sont FAITES le 10 août — sections suivantes.)*
+
+## La facture se construit à un seul endroit — 10 août 2026
+
+`nouvelleFacture` + `ligneFacture` (shared/finance.ts). La Caisse, l'encaissement
+de rituel (ses deux pièces — règlement et pourboire seul), le brouillon de
+l'écran Factures et le Laboratoire ne composent plus leur pièce à la main :
+chaque écran ne dit que ce qui lui est propre, le constructeur impose le reste.
+
+**Ce qu'il impose, partout :**
+
+- **Le numéro se tire du magasin** (`invoicesStore.get()`), jamais d'une liste
+  de rendu — la Caisse et le Laboratoire tiraient le leur d'une valeur qui
+  datait de leur dernier rendu, et pouvait répéter le numéro qu'un autre poste
+  venait d'écrire. Même correction sur la conversion devis→facture (Factures),
+  qui renumérote une pièce existante.
+- **La série F est toujours « payée »** — c'est le TYPE qui l'impose
+  (`FactureNeuve`). La lecture des résidus (une F « envoyée » = un encaissement
+  annulé, 9 août) reste vraie par construction.
+- **« walkin » ne traverse aucun circuit** (traduit en `clientId: ''` +
+  `clientName`) ; la garde de `saveDraft` reste pour les pièces ÉDITÉES.
+- L'heure ne se pose que sur une pièce qui naît payée (c'est le journal de
+  caisse) ; la date par défaut est LOCALE (la nuit comptable ne se coupe pas) ;
+  identifiants uniformes (`inv-…`, lignes `il-…`).
+
+**Ma Couronne reste à part, et c'est voulu** : sous RLS une cliente ne voit que
+SES pièces — un compteur de série calculé chez elle répéterait les numéros des
+autres. Sa commande de la Gamme garde sa série `CMD-` à numéro aléatoire
+(couronne/Tabs.tsx).
+
+Changements assumés, inertes à l'affichage : identifiants de pièce désormais
+`inv-…` partout (opaques ; la reprise 0018 filtre sur `inv-rep-`, qu'un tirage
+`inv-<uid>` ne peut pas produire — uid est sans tiret) ; `cashbox: ''` ne
+s'écrit plus (`cashboxLabel` rendait déjà « Autres »). Typecheck 0 erreur,
+harnais 63 + 42 verts.
+
+## La fenêtre d'avant-hydratation est refermée — 10 août 2026
+
+Entre l'ouverture d'un poste et la PREMIÈRE lecture d'une table, le magasin
+local n'était que le cache d'hier : une écriture faite là n'était pas poussée
+(`lu` faux), puis l'hydratation REMPLAÇAIT tout — une vente tapée dans cette
+fenêtre disparaissait sans un mot, facture comprise ; une reprise
+« réussissait » à l'écran puis la pièce revenait du serveur. Refermée en deux
+couches :
+
+**① sync.ts — la première lecture ne remplace plus, elle REJOUE.** Les gestes
+locaux du froid s'enregistrent (dernière valeur par id, suppressions par id) et
+se réappliquent sur l'état du serveur à la première lecture, puis partent par
+la poussée normale (`premiereLecture`). Le serveur fait toujours foi sur les
+lignes d'HIER — le cache cède, comme avant ; seuls les gestes de CETTE session
+survivent : posés il y a quelques secondes, ils ne peuvent pas être périmés.
+S'ajoutent `tablePrete(table)` et `quandTablePrete(table, fn)` : « prête » =
+première lecture RÉSOLUE — réussie, refusée par les droits, ou échouée (un
+poste hors ligne vit sur son cache). Sans backend, tout est prêt d'emblée.
+
+**② stock.ts — les gestes qui DÉRIVENT du journal se diffèrent.** File
+persistée PAR POSTE (`mnd_stock_attente`, jamais synchronisée), rejouée dès que
+`stock_mouvements` et `stock_produits` sont prêtes — même après fermeture de
+l'onglet :
+
+- `retirerParReferences` retire ce qu'il voit ET repasse après la lecture — le
+  serveur peut porter des mouvements sous ces références que le cache ignorait ;
+- `consommerPourRituel` se diffère en bloc : son idempotence ne se vérifie pas
+  contre un journal froid, écrire quand même doublerait la sortie ;
+- `venteGamme` sans fiche en cache se diffère et rend VRAI — la Caisse n'écrit
+  plus l'ancien compteur que le miroir aurait effacé ; le repli d'une Gamme
+  jamais reprise se rejoue au même endroit ;
+- `ajusterStock` (une CIBLE) garde la quantité constatée et écrit l'écart après
+  la lecture — un écart contre un journal à moitié relu serait faux.
+
+**Limite honnête :** les harnais tournent SANS backend (`tablePrete` y est
+toujours vrai) — les chemins froids ne sont pas couverts par les 63 + 42
+vérifications ; ils sont courts et repassent tous par les primitives testées.
+
+## La saisie au fil de l'eau a sa liste — 10 août 2026
+
+`supabase/audit_saisie_stock_lab.sql` — lecture seule, relançable, à lancer
+avec un compte du personnel. Quatre listes : les compteurs de saisie · les
+ingrédients des formules maîtres À RELIER (tant que non liés, ils sont réputés
+disponibles et la fabrication ne décompte rien) · les services travaillés sur
+90 jours SANS recette, les plus fréquents d'abord — l'ordre de saisie qui
+rapporte le plus vite · les fiches sans prix d'achat ou sans fournisseur. La
+saisie elle-même se fait à l'écran : Stock & Achats → Inventaire / Recettes,
+Laboratoire → La réserve.
+
+La section ④ lancée le 10 août a rendu **17 fiches revente** (toute la Gamme
+reprise — trace normale de la bascule) sans prix d'achat ni fournisseur. Pour
+les remplir en une passe : `supabase/import_prix_achats.sql`, fichier LOCAL et
+GITIGNORÉ (il porte la marge de la Maison) — aperçu en étape 1, écriture
+relançable en étape 2, fournisseurs créés au passage, et un prix déjà en base
+ne s'écrase jamais par un 0. Doublon probable à trancher AVANT la saisie :
+`Vapo Hydra Mist 1` / `2` / `350 ml`, trois fiches pour ce qui n'est peut-être
+qu'un produit.
+
+## Refonte UX validée — le tableau de bord est FAIT (10 août 2026)
+
+Revue des deux interfaces + maquettes avant/après validées par Yéman
+(artifact « MND — Maquettes avant / après »). Ordre convenu : ① tableau de
+bord honnête → ② recherche globale → ③ menu à deux étages + posture mobile
+de l'équipe (barre 4 gestes) → ④ accueil Ma Couronne (prénom vrai, prochaine
+séance prédite + réserver, Cercle en chiffres, bilan de séance, reco réparée).
+
+**① FAIT :**
+- **Comparaisons À JOUR ÉGAL** : le mois précédent se borne au même jour
+  (« ▲ 12 % vs 10 juillet · à jour égal »), fini le « ▼ 91 % » d'un mois
+  entamé contre un mois plein. Dépenses à 0 → « rien de saisi ce mois » ;
+  net sans dépense → « = revenus » — jamais un pourcentage fictif.
+- **Une tuile par vérité** : la tuile « Revenu mois » (doublon) est retirée ;
+  « RDV aujourd'hui » vit dans le titre du carnet ; « Têtes couronnées » sous
+  le graphe 7 jours.
+- **« Ce qui presse »** remplace la tuile « Alertes stock » : réassort lu sur
+  les FICHES (stock dérivé + seuil par fiche, repli ancien compteur si la
+  Gamme n'est pas reprise) avec « Préparer le bon », et une ligne « N impayés
+  échus » qui descend à la section qui les encaisse.
+- **L'état vide du carnet PROPOSE** : « N couronnes ont dépassé leur cadence —
+  Voir les relances ». Le juge de cadence est extrait dans
+  `clients/_shared.tsx` (`predictNextVisit`) — la fiche ET le tableau de bord
+  lisent le même ; deux copies auraient fini par dire deux dates.
+- **« Points cercle » de la fiche cliente** ne paraît que si `pointsEnabled`
+  est allumé — un zéro d'un programme éteint se lit comme une panne.
+
+**Décisions de Yéman à retenir :** le seuil du Cercle à 7 est un CHOIX D'ESSAI
+(réglage, pas une erreur) ; des NIVEAUX d'appartenance au Cercle viendront
+plus tard (chantier futur, rien à coder aujourd'hui). La reco de Ma Couronne
+désigne bien une fiche d'inventaire (« Cheveux naturels ») — à re-désigner à
+la Régie vers une prestation réelle au moment du chantier ④, pas avant.
+À corriger en DONNÉES : le prénom du staff « Yeman » sans accent (Personnel &
+paie → Équipe) — c'est lui que salue le tableau de bord.
+
+**② FAIT — « Trouver », la recherche globale** (`shell/Trouver.tsx`) :
+- Ctrl K (ou le bouton topbar — loupe seule au téléphone) depuis n'importe quel
+  écran ; palette au clavier (flèches, Entrée, Échap), cinq résultats par
+  groupe : Clientes · Factures & devis · Prestations · Écrans.
+- **Les accès sont respectés groupe par groupe** — les MÊMES juges que la
+  barre (`peutVoir`) et que les montants (`voitLesPrix`) : un maître sans
+  domaine ouvert ne voit ni clientes, ni factures, ni prix. Chercher n'est
+  pas une porte dérobée (et la vraie barrière reste la RLS).
+- Accents et casse aplatis (« Aicha » trouve Aïcha), téléphone dès 4 chiffres ;
+  les écrans hors menu (Comptoir) se retrouvent — joignables sans être affichés.
+- **`?id=` ouvre la fiche à l'arrivée** : appris à Clientes (patron Factures),
+  et les DEUX écrans réagissent désormais au changement du paramètre — chercher
+  une pièce quand on est déjà sur Factures l'ouvre aussi (la lecture unique à
+  l'état initial l'ignorait).
+- Prestations : atterrissage sur le Catalogue (pas d'ouverture ciblée — l'écran
+  ne lit pas de paramètre ; à faire si le besoin se sent).
+
+**③ FAIT — le menu à deux étages + la posture mobile de l'équipe :**
+- **« Le quotidien »** (Tableau de bord, Calendrier, Caisse, Clientes,
+  Factures) toujours déplié ; les autres groupes REPLIÉS, mémorisés PAR POSTE
+  (`mnd_trone_menu_deplie`, jamais synchronisé — l'habitude d'un écran n'est
+  pas une donnée de la Maison). Le groupe de l'écran ouvert se déplie seul :
+  arriver par Trouver ne cache pas où l'on est. Un menu déjà court (un
+  maître : deux écrans) se rend À PLAT — le pli ne s'impose que s'il fait
+  gagner quelque chose (seuil : > 8 entrées visibles).
+- **`BarreEquipe`** (shell) : rôle `maitre` + téléphone (≤ 900 px) → barre
+  basse de grandes cibles — Mon mois · Calendrier · Pointer · Caisse (si le
+  domaine est ouvert). « Pointer » mène à la carte Aujourd'hui de Mon mois
+  (`?pointer=1`, défilement, paramètre retiré de l'adresse comme le `code`).
+  Le gérant garde sa barre latérale, même en mobilité.
+
+**Reste : ④ accueil Ma Couronne** (prénom vrai, prochaine séance prédite +
+réserver, Cercle en chiffres, bilan de séance, reco re-désignée à la Régie).
 
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 

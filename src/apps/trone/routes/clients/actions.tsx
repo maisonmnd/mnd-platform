@@ -8,7 +8,7 @@ import { useClients, clientsStore, useFamilies } from '../../../../shared/client
 import { appointmentsStore, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
-  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nextInvoiceNumber,
+  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf,
   type Invoice, type InvoiceLine, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
@@ -475,20 +475,19 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       const detailRemise = detailed && grossSum > settleTotal ? grossSum - settleTotal : 0;
       let lines: InvoiceLine[];
       if (detailed && grossSum >= settleTotal) {
-        lines = services.map((sv, idx) => ({ id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: svcWeights[idx], discountPct: 0 }));
+        lines = services.map((sv, idx) => ligneFacture(sv.name, svcWeights[idx]));
       } else if (detailed) {
         const shares = splitByWeights(settleTotal, svcWeights);
-        lines = services.map((sv, idx) => ({ id: `il-${uid()}`, label: sv.name, qty: 1, unitXof: shares[idx], discountPct: 0 }));
+        lines = services.map((sv, idx) => ligneFacture(sv.name, shares[idx]));
       } else {
-        lines = [{
-          id: `il-${uid()}`,
-          /* Le forfait donne son nom à la pièce : c'est ce que la cliente a
-             négocié, et c'est sous ce nom qu'elle le relira. */
-          label: fullyPaid && alreadyPaid === 0
+        /* Le forfait donne son nom à la pièce : c'est ce que la cliente a
+           négocié, et c'est sous ce nom qu'elle le relira. */
+        lines = [ligneFacture(
+          fullyPaid && alreadyPaid === 0
             ? nomForfait || apptLabel(appt, byId)
             : `Règlement · ${nomForfait || apptLabel(appt, byId)}`,
-          qty: 1, unitXof: factureTotal, discountPct: 0,
-        }];
+          factureTotal,
+        )];
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
          en mention (forClientId). */
@@ -500,22 +499,19 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       const forfaitNote = forfaitPose
         ? `${nomForfait} · ${fmtMoney(forfaitNum, currency)} au lieu de ${fmtMoney(grossActuel, currency)}`
         : '';
-      const inv: Invoice = {
-        id: `inv-${uid()}`,
+      const inv: Invoice = nouvelleFacture({
         branchId: branch.id,
-        kind: 'facture',
-        number: nextInvoiceNumber(invoicesStore.get(), 'F'),
+        /* Série F : l'encaissement de rituel. Le constructeur la force « payée » —
+           c'est ce qui garde vraie la lecture des résidus (F + envoyée = annulé). */
+        serie: 'F',
         clientId: payerId,
         date: invDate,
         lines,
-        globalDiscountPct: 0,
         /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé. */
         globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
         theme: 'Rose',
-        status: 'payée',
         payment: amount > 0 ? pay : 'Avoir',
         cashbox: activeBox,
-        time: new Date().toTimeString().slice(0, 5),
         clientName: payerClient?.name ?? client?.name,
         forClientId: isFamilyPayer ? appt.clientId : undefined,
         master: appt.master,
@@ -533,7 +529,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         /* Ce qui a été REÇU au comptoir — règlement COMPTANT + pourboire (l'avoir
            n'est pas une devise étrangère). Le rituel reste chiffré en {currency}. */
         fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
-      };
+      });
       invoicesStore.set((prev) => [inv, ...prev]);
       /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
       if (avoirApplied > 0) {
@@ -599,25 +595,20 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
          (invoiceTotal=0 → aucun chiffre d'affaires) portant le pourboire, pour qu'il
          reste tracé dans la caisse et reversable au maître. */
-      const inv: Invoice = {
-        id: `inv-${uid()}`,
+      const inv: Invoice = nouvelleFacture({
         branchId: branch.id,
-        kind: 'facture',
-        number: nextInvoiceNumber(invoicesStore.get(), 'F'),
+        serie: 'F',
         clientId: appt.clientId,
         date: invDate,
-        lines: [{ id: `il-${uid()}`, label: `Pourboire · ${appt.master}`, qty: 1, unitXof: 0, discountPct: 0 }],
-        globalDiscountPct: 0,
+        lines: [ligneFacture(`Pourboire · ${appt.master}`, 0)],
         theme: 'Rose',
-        status: 'payée',
         payment: pay,
         cashbox: activeBox,
-        time: new Date().toTimeString().slice(0, 5),
         clientName: client?.name,
         master: appt.master,
         note: 'Pourboire',
         tipXof: tip,
-      };
+      });
       invoicesStore.set((prev) => [inv, ...prev]);
     }
 

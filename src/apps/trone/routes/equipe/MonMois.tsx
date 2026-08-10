@@ -96,6 +96,17 @@ export default function MonMois() {
     setParams(p, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeScanne]);
+  /* « Pointer » depuis la barre de gestes (téléphone) : on amène la carte
+     Aujourd'hui en vue — le pointage vit là, avec sa preuve. Le paramètre se
+     retire aussitôt, comme le code : l'adresse ne garde pas les gestes. */
+  useEffect(() => {
+    if (!params.get('pointer')) return;
+    document.getElementById('mm-pointage')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const p = new URLSearchParams(params);
+    p.delete('pointer');
+    setParams(p, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
@@ -358,7 +369,8 @@ export default function MonMois() {
 
       {moi && monBilan && (
         <>
-          {/* ── AUJOURD'HUI ─────────────────────────────────────────── */}
+          {/* ── AUJOURD'HUI ── cible du geste « Pointer » de la barre mobile. */}
+          <div id="mm-pointage">
           <Card style={{ padding: '18px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
               <span className="tre-rates__title">Aujourd’hui</span>
@@ -444,6 +456,7 @@ export default function MonMois() {
               );
             })()}
           </Card>
+          </div>
 
           {/* ── MON COMPTE DU MOIS ──────────────────────────────────── */}
           <div className="tr-grid tr-grid--4" style={{ marginTop: 14 }}>

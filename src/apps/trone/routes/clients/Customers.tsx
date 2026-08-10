@@ -18,18 +18,19 @@ import { ageDe, estMineur, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
-import { usePointsHistory, cercleSeuilStore, estDuCercle } from '../../../../shared/offers';
+import { usePointsHistory, cercleSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera } from 'lucide-react';
 import {
   Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptNetXof, frLong, frShort, frDay,
-  fromISO, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  type Cadence,
 } from './_shared';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
@@ -168,23 +169,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* Prédiction du prochain rendez-vous — cadence analysée + gabarit à dupliquer. */
-type Cadence = {
-  iso: string | null;
-  predicted: boolean; // true = estimé, false = vrai RDV à venir
-  avgDays: number | null; // intervalle médian de revisite
-  confidence: 'haute' | 'moyenne' | 'faible' | null;
-  overdueDays: number; // > 0 si la date estimée est déjà passée
-  sample: number; // nombre d'intervalles analysés
-  template: Appointment | null; // dernier rituel honoré, à dupliquer
-};
-
-/** Médiane entière — robuste aux visites exceptionnelles. */
-const median = (xs: number[]): number => {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
-};
+/* Prédiction du prochain rendez-vous — le juge vit dans `_shared.tsx`
+   (`predictNextVisit`) : le tableau de bord le lit aussi, et deux copies
+   finiraient par dire deux dates pour la même tête. */
 
 /** Lecture éditoriale d'un intervalle : « toutes les ~5 semaines », « ~9 j ». */
 const cadenceLabel = (days: number): string => {
@@ -348,6 +335,15 @@ export default function Customers() {
     else if (focus === 'anniversaires' && sort === 'anniversaire') setSort('nom');
   };
   const [selId, setSelId] = useState<string | null>(null);
+  /* `?id=` ouvre une fiche précise depuis ailleurs — la recherche globale
+     (Trouver), demain d'autres écrans. On réagit au CHANGEMENT du paramètre,
+     jamais à chaque rendu : les clics de la liste gardent la main, et une
+     nouvelle navigation vers le même écran rouvre bien la fiche demandée. */
+  const [params] = useSearchParams();
+  useEffect(() => {
+    const pid = params.get('id');
+    if (pid) setSelId(pid);
+  }, [params]);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
   /* La file des enfants declares depuis Ma Couronne, en attente de la Maison. */
@@ -418,52 +414,7 @@ export default function Customers() {
 
   const apptsOf = (id: string) => appts.filter((a) => a.clientId === id);
 
-  const predictNext = (id: string): Cadence => {
-    const none: Cadence = { iso: null, predicted: false, avgDays: null, confidence: null, overdueDays: 0, sample: 0, template: null };
-    const mine = apptsOf(id);
-    const upcoming = mine
-      .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
-      .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time))[0];
-    if (upcoming) return { ...none, iso: upcoming.date, predicted: false };
-
-    /* ON NE PRÉDIT PAS LE RETOUR DE QUI N'A PAS DE RELATION. Une venue unique
-       donnait déjà une cadence par défaut à 30 jours et « la maison anticipe sa
-       cadence — proposez le fauteuil » : c'est exactement la relance qui part
-       vers quelqu'un qui ne reviendra pas, et qui fait ignorer les suivantes.
-       Un RDV DÉJÀ PRIS, lui, s'affiche toujours — ci-dessus : c'est un fait,
-       pas une prédiction. */
-    const cliente = clients.find((c) => c.id === id);
-    if (cliente && estDePassage(cliente)) return none;
-
-    const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
-    if (honored.length === 0) return none;
-    const template = honored[honored.length - 1]; // le dernier rituel — à dupliquer
-
-    const daysBetween = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
-    // Cadence de revisite : une série multi-séances compte pour une seule visite.
-    const visits = honored.filter((a) => !(a.seriesIndex && a.seriesIndex > 1));
-
-    if (visits.length >= 2) {
-      const gaps: number[] = [];
-      for (let i = 1; i < visits.length; i++) gaps.push(daysBetween(visits[i - 1].date, visits[i].date));
-      const use = gaps.filter((g) => g > 0);
-      const sample = use.length || gaps.length;
-      const med = Math.max(14, median(use.length ? use : gaps));
-      // Confiance : régularité (écart-type / moyenne) pondérée par le nombre d'intervalles.
-      const base = use.length ? use : gaps;
-      const mean = base.reduce((s, g) => s + g, 0) / base.length;
-      const variance = base.reduce((s, g) => s + (g - mean) ** 2, 0) / base.length;
-      const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
-      const confidence: Cadence['confidence'] =
-        sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
-      const iso = addDaysISO(visits[visits.length - 1].date, med);
-      return { iso, predicted: true, avgDays: med, confidence, overdueDays: Math.max(0, daysBetween(iso, today)), sample, template };
-    }
-
-    // Une seule visite : cadence par défaut, confiance faible.
-    const iso = addDaysISO(template.date, 30);
-    return { iso, predicted: true, avgDays: 30, confidence: 'faible', overdueDays: Math.max(0, daysBetween(iso, today)), sample: 0, template };
-  };
+  const predictNext = (id: string): Cadence => predictNextVisit(appts, clients, id, today);
 
   /* Chiffres de la maison par cliente : dépense à vie (rituels honorés au net
      + factures payées hors règlements de RDV, pour ne rien compter deux fois)
@@ -1108,6 +1059,7 @@ function Customer360({
      ne figure pas dans `appts`, qui ne porte que ceux où elle s'est assise. */
   const branchAppts = useBranchAppointments();
   const [seuilCercle] = useStore(cercleSeuilStore);
+  const [pointsOn] = useStore(pointsEnabledStore);
   const venuesCercle = venuesHonorees(branchAppts, client.id, true);
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
@@ -1393,7 +1345,10 @@ function Customer360({
             <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Total dépensé</span></div>
             <div className="trc-ministat"><b>{basket > 0 ? fmtMoney(basket, currency) : '—'}</b><span>Panier moyen</span></div>
             <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
-            <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>
+            {/* Les points ne paraissent que si le programme est ALLUMÉ : un zéro
+                d'un programme éteint se lit comme une panne — l'absence est une
+                décision, pas un oubli. */}
+            {pointsOn && <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>}
           </div>
           {/* LES DEUX CÔTÉS DU GESTE. Sans ces lignes, la fiche d'Ahmed montre
               une séance sans dépense — on la croit impayée — et celle de Rhanda

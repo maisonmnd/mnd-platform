@@ -10,7 +10,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, frDay } from '../clients/_shared';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
-import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber } from '../../../../shared/finance';
+import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
@@ -54,11 +54,6 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
 const DISC_OPTIONS = [0, 5, 10, 15, 20, 25, 30];
 const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
 
-const todayIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
 const fmtDateFr = (iso: string) => {
   const d = new Date(iso + 'T00:00:00');
   const s = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -86,10 +81,16 @@ export default function Factures() {
      ni majuscule : on compare des chaînes aplaties, sinon « Aicha » ne trouve rien. */
   const [q, setQ] = useState('');
   /* `?id=` ouvre une facture précise depuis ailleurs — Tableau de bord, Analytics,
-     mouvements d'une caisse. On ne lit le paramètre qu'UNE fois (état initial) :
-     le relire à chaque rendu reprendrait la main sur les clics de la liste. */
+     mouvements d'une caisse, la recherche globale (Trouver). On réagit au
+     CHANGEMENT du paramètre, jamais à chaque rendu : les clics de la liste
+     gardent la main, et chercher une pièce QUAND ON EST DÉJÀ ICI l'ouvre
+     aussi — la lecture unique à l'état initial l'ignorait. */
   const [params] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('id'));
+  useEffect(() => {
+    const pid = params.get('id');
+    if (pid) setSelectedId(pid);
+  }, [params]);
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
@@ -234,22 +235,20 @@ export default function Factures() {
      qui cassait au-dela de 9999 (« MND-2026-10000 » redonnait 0, donc un numero
      deja remis a une cliente). `nextInvoiceNumber` tient un compteur par serie
      et saute les numeros deja pris. */
+  /* Ne sert plus qu'à RENUMÉROTER une pièce existante (devis → facture) — la
+     création passe par `nouvelleFacture`. Le magasin en direct, jamais une
+     liste de rendu qui peut dater. */
   const nextNumber = (kind: Invoice['kind']) =>
-    nextInvoiceNumber(invoices, kind === 'devis' ? 'MND-D' : 'MND');
+    nextInvoiceNumber(invoicesStore.get(), kind === 'devis' ? 'MND-D' : 'MND');
 
-  const blankDraft = (kind: Invoice['kind']): Invoice => ({
-    id: uid(),
-    branchId: branch.id,
-    kind,
-    number: nextNumber(kind),
-    clientId: branchClients[0]?.id ?? '',
-    date: todayIso(),
-    lines: [],
-    globalDiscountPct: 0,
-    theme: 'Aube',
-    status: 'brouillon',
-    master: branch.masters[0],
-  });
+  const blankDraft = (kind: Invoice['kind']): Invoice =>
+    nouvelleFacture({
+      branchId: branch.id,
+      serie: kind === 'devis' ? 'MND-D' : 'MND',
+      status: 'brouillon',
+      clientId: branchClients[0]?.id ?? '',
+      master: branch.masters[0],
+    });
 
   /* Ouvre l’éditeur — mode création (document neuf, non enregistré). */
   const openNew = (kind: Invoice['kind']) => {
@@ -320,12 +319,12 @@ export default function Factures() {
   const addServiceLine = (svcId: string) => {
     const svc = services.find((s) => s.id === svcId);
     if (!svc) return;
-    patchLines((ls) => [...ls, { id: uid(), label: svc.name, qty: 1, unitXof: svc.priceXof, discountPct: 0 }]);
+    patchLines((ls) => [...ls, ligneFacture(svc.name, svc.priceXof)]);
   };
   const addFreeLine = () => {
     const amt = parseInt(freeAmount.replace(/[^0-9]/g, ''), 10) || 0;
     if (!freeLabel.trim() || amt <= 0) return;
-    patchLines((ls) => [...ls, { id: uid(), label: freeLabel.trim(), qty: 1, unitXof: amt, discountPct: 0 }]);
+    patchLines((ls) => [...ls, ligneFacture(freeLabel.trim(), amt)]);
     setFreeLabel('');
     setFreeAmount('');
   };
