@@ -415,8 +415,23 @@ total, « Continuer » dedans), 5–10 choix par écran, « Avec Brice — comme
 votre dernier passage » (SEULE mécanique nouvelle — aujourd'hui la maîtresse
 découle de la prestation ; À VALIDER), acompte qui dit son pourquoi. Déjà
 conforme, validé par la recherche : la progression « 2/6 », les prix
-personnalisés dès le choix, le quiz contournable. **En attente de validation
-de Yéman avant construction.**
+personnalisés dès le choix, le quiz contournable. **VALIDÉE puis CONSTRUITE le
+10 août au soir — SANS le repère ③** (décision de Yéman : les mains sont
+l'affaire de la maison — la cliente ne choisit NI ne voit qui officie). Fait :
+- **BOGUE TROUVÉ ET CORRIGÉ en construisant** : le bouton d'objectif ne posait
+  jamais `setCatId` — qui n'arrivait ni du quiz ni d'une offre pré-remplie
+  tombait sur une liste de prestations VIDE. La réservation « Voir les
+  rituels » n'a probablement jamais marché pour ce chemin.
+- **La maîtresse retirée PARTOUT du tunnel** (7 mentions : cartes, créneaux,
+  récapitulatif, confirmation, calendrier ICS). Le RDV, lui, porte toujours
+  son maître côté Trône — rien ne change au Calendrier ni aux mains.
+- **La barre-récap est indigo, COLLANTE, et suit la cliente** : prestations,
+  durée, total (« Prix en salon » si masqué), « Continuer » cuivre dedans ;
+  variante info (sans bouton) au créneau.
+- **Poignées de choix** : au-delà de dix prestations, huit d'abord + « Voir
+  les N autres » ; description sur UNE ligne (clamp CSS).
+- **L'acompte dit son pourquoi** : « Il tient votre créneau — et se déduit le
+  jour même. » (masqué si prix au salon ou règlement intégral).
 
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 

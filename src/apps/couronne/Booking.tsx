@@ -108,6 +108,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [envie, setEnvie] = useState<EnvieKey | null>(null);
   const [elan, setElan] = useState<ElanKey | null>(null);
   const [catId, setCatId] = useState<string | null>(prefService?.categoryId ?? null);
+  /* Une poignée de choix à la fois (Zenoti : 5–10 idéal) — au-delà de dix, la
+     liste se coupe à huit et « Voir les N autres » la rouvre d'un geste. */
+  const [voirTout, setVoirTout] = useState(false);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
   const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
   const [monthIdx, setMonthIdx] = useState(0);
@@ -459,7 +462,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     const events: IcsEvent[] = sessionDates.map((sd, i) => ({
       title: `Maison MND · ${names}`,
       description:
-        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · avec ${master}` : `Avec ${master}`,
+        /* Les mains sont l'affaire de la maison — le calendrier de la cliente
+           dit le rituel, pas qui le donne (décision du 10 août). */
+        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · Maison MND` : 'Maison MND — la maison vous attend.',
       location: branch.name,
       dateIso: sd.iso,
       time: sd.time,
@@ -588,7 +593,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   key={c.id}
                   className="mc-rowcard"
                   onClick={() => {
-/* Le palier n'est plus demandé : l'objectif mène aux prestations. */
+                    /* Le palier n'est plus demandé : l'objectif mène aux
+                       prestations. `setCatId` est OBLIGATOIRE ici : sans lui,
+                       qui n'arrivait ni du quiz ni d'une offre trouvait une
+                       liste VIDE — l'objectif ne désignait jamais sa catégorie. */
+                    setCatId(c.id);
+                    setVoirTout(false);
                     setStep(2);
                   }}
                 >
@@ -618,7 +628,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === 2 && (
           <div className="mc-fade">
             <div className="mc-stack">
-              {stepServices.map((s) => {
+              {(voirTout || stepServices.length <= 10 ? stepServices : stepServices.slice(0, 8)).map((s) => {
                 const on = selectedIds.includes(s.id);
                 return (
                   <button
@@ -631,10 +641,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       <div className="mc-svccard__name">{s.name}</div>
                       <span className="mc-svccard__box" aria-hidden />
                     </div>
+                    {/* LA MAÎTRESSE NE SE DIT PAS ICI — décision du 10 août : les
+                        mains sont l'affaire de la maison, la cliente choisit un
+                        rituel. La description se tient sur UNE ligne (~20 % du
+                        texte est lu) — le poème vit ailleurs. */}
                     <div className="mc-svccard__meta">
-                      {priceLabel(s)} · {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · avec {s.master}
+                      {priceLabel(s)} · {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''}
                     </div>
-                    {s.description && <div className="mc-svccard__meta">{s.description}</div>}
+                    {s.description && <div className="mc-svccard__meta mc-svccard__desc">{s.description}</div>}
                     {s.sessions > 1 && (
                       <span className="mc-pillseal">Série · {s.sessions} séances · prix unique</span>
                     )}
@@ -642,6 +656,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 );
               })}
             </div>
+            {/* Une poignée à la fois : au-delà de dix, huit d'abord — celles déjà
+                choisies hors de la coupe restent comptées dans la barre. */}
+            {!voirTout && stepServices.length > 10 && (
+              <button className="mc-textbtn" style={{ marginTop: 12 }} onClick={() => setVoirTout(true)}>
+                Voir les {stepServices.length - 8} autres prestations →
+              </button>
+            )}
 
             {stepServices.length > 0 && (
               <div className="mc-multibar">
@@ -656,7 +677,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   </span>
                 </div>
                 <button
-                  className="mc-cta mc-cta--indigo mc-multibar__cta"
+                  className="mc-cta mc-cta--copper mc-multibar__cta"
                   disabled={selectedIds.length === 0}
                   onClick={() => { setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
                 >
@@ -673,7 +694,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             {(discountPct > 0 || prefService) && (
               <div className="mc-prefillnote">
                 {summaryLabel}
-                {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ` · avec ${master}`}
+                {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ` · ${fmtDuration(totalDuration)}`}
               </div>
             )}
             {totalSessions > 1 && (
@@ -767,7 +788,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     >
                       <div>
                         <div className="mc-slotcard__time">{t}</div>
-                        <div className="mc-slotcard__who">avec {master}{masterVaries ? ' +' : ''} · {fmtDuration(totalDuration)}</div>
+                        <div className="mc-slotcard__who">{fmtDuration(totalDuration)}</div>
                       </div>
                       <span className="mc-slotcard__free">Libre</span>
                     </button>
@@ -776,6 +797,16 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 </div>
               </div>
             )}
+
+            {/* LE PANIER SUIT LA CLIENTE (maquette écran 4) : au créneau aussi,
+                prestations, durée et total restent sous les yeux — le prix
+                découvert tard fait fuir, le prix qui accompagne rassure. */}
+            <div className="mc-multibar mc-multibar--info">
+              <div className="mc-multibar__info">
+                <span className="mc-multibar__count">{summaryLabel}</span>
+                <span className="mc-multibar__meta">{totalLabel} · {fmtDuration(totalDuration)}</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -787,7 +818,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <div key={s.id} className="mc-recapcard__svcline">
                   <div>
                     <div className="mc-recapcard__svcname">{s.name}</div>
-                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)} · avec {s.master}</div>
+                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)}</div>
                   </div>
                   <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct)}</div>
                 </div>
@@ -803,7 +834,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <span>{totalLabel}</span>
               </div>
               <div className="mc-recapcard__meta">
-                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}
+                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
               </div>
               {personalized && pricing.band && client?.lockCount ? (
                 <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
@@ -866,6 +897,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     ? 'Montant intégral de la prestation'
                     : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
               </div>
+              {/* L'ACOMPTE DIT SON POURQUOI (maquette écran 4) : sans cette
+                  ligne, le prélèvement se lit comme un péage. Une promesse,
+                  pas une caution. */}
+              {!allHidden && !(depositPct !== null && depositPct >= 100) && (
+                <div className="mc-depositcard__why">Il tient votre créneau — et se déduit le jour même.</div>
+              )}
             </div>
             {/* VOIE EN LIGNE — n'apparaît que si les rails KkiaPay sont branchés
                 (clé publique au build). Sans eux, l'écran reste exactement celui
@@ -944,7 +981,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
               <div className="mc-recapcard__name">{summaryLabel}</div>
               <div className="mc-recapcard__meta">
-                {totalSessions > 1 ? `${totalSessions} séances liées` : `${dayLabelIso(selIso)} · ${time}`} · {fmtDuration(totalDuration)} · avec {master}{masterVaries ? ' +' : ''}
+                {totalSessions > 1 ? `${totalSessions} séances liées` : `${dayLabelIso(selIso)} · ${time}`} · {fmtDuration(totalDuration)}
               </div>
               <div className="mc-hairline" />
               {totalSessions > 1 &&

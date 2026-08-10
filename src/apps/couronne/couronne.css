@@ -1270,21 +1270,30 @@
 }
 
 /* Barre de synthèse — total vivant + « Continuer », responsive (revient à la ligne). */
+/* LA BARRE-RÉCAP DU TUNNEL (maquette écran 4, validée le 10 août) : indigo,
+   COLLANTE au bas de l'écran — le panier suit la cliente, prestations + durée
+   + total, et « Continuer » vit dedans, en zone du pouce. */
 .mc-multibar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
+  position: sticky;
+  bottom: 10px;
+  z-index: 30;
   margin-top: 18px;
   padding: 14px 16px;
-  background: var(--color-sable);
-  border: 1px solid var(--copper-300);
+  background: var(--color-indigo);
+  border: 1px solid var(--color-indigo);
+  box-shadow: 0 10px 28px rgba(12, 13, 32, 0.28);
   border-radius: 4px;
 }
 .mc-multibar__info { flex: 1 1 160px; min-width: 0; }
-.mc-multibar__count { display: block; font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); line-height: 1.1; }
-.mc-multibar__meta { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
+.mc-multibar__count { display: block; font-family: var(--font-serif); font-size: 18px; color: var(--color-ivoire); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-multibar__meta { display: block; font-size: 12px; font-weight: 400; color: var(--indigo-200); margin-top: 2px; }
+/* Variante INFO (créneau) : le panier reste sous les yeux, sans bouton. */
+.mc-multibar--info { justify-content: flex-start; }
 .mc-multibar__cta { width: auto; flex: 0 1 auto; min-width: 150px; padding: 14px 22px; }
 .mc-multibar__cta:disabled { opacity: 0.4; cursor: default; }
 
@@ -2135,3 +2144,21 @@
   border: 1.5px solid var(--color-copper, #B97A4A);
 }
 .mc-dots i.is-fait { background: var(--color-copper, #B97A4A); }
+
+/* La description d'une prestation tient sur UNE ligne dans le tunnel —
+   ~20 % du texte est lu ; le poème vit ailleurs. */
+.mc-svccard__desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* L'acompte dit son pourquoi — une promesse, pas une caution. */
+.mc-depositcard__why {
+  margin-top: 9px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--copper-700);
+}
