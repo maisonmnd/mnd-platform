@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import qrcode from 'qrcode-generator';
 import { useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
@@ -54,11 +54,16 @@ export function qrMatrice(valeur: string): { path: string; n: number } {
   return { path, n };
 }
 
-export function QrSvg({ valeur }: { valeur: string }) {
+/* `style` : OBLIGATOIRE hors du Comptoir. La classe `cpt__qrsvg` voyage avec
+   ce module (l'import tire equipe.css) et impose PARTOUT la taille pensée pour
+   l'écran du salon — clamp(180px, 34vh, 380px). Posé dans la boîte de 92 px de
+   la Vitrine, le code débordait sous le texte (12 août). Un appelant d'un
+   autre écran écrase donc la taille ici même, en style inline. */
+export function QrSvg({ valeur, style }: { valeur: string; style?: CSSProperties }) {
   const d = useMemo(() => qrMatrice(valeur), [valeur]);
 
   return (
-    <svg viewBox={`-2 -2 ${d.n + 4} ${d.n + 4}`} className="cpt__qrsvg" role="img" aria-label="Code du jour à scanner">
+    <svg viewBox={`-2 -2 ${d.n + 4} ${d.n + 4}`} className="cpt__qrsvg" style={style} role="img" aria-label="Code du jour à scanner">
       <rect x={-2} y={-2} width={d.n + 4} height={d.n + 4} fill="#f6f1e8" />
       <path d={d.path} fill="#1b1f3b" shapeRendering="crispEdges" />
     </svg>

@@ -91,8 +91,15 @@ export default function Vitrine() {
             style={{ flex: '1 1 220px', maxWidth: 320 }}
           />
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 152, overflowY: 'auto', paddingRight: 4 }}>
-          {filtered.map((c) => (
+        {/* SANS RECHERCHE, LA LISTE SE TIENT (12 août) : 90 pastilles faisaient
+            un mur de prénoms à double ascenseur. Deux rangées suffisent — la
+            tête choisie d'abord, toujours visible, et le compteur dit le reste ;
+            la recherche est le vrai chemin vers une tête précise. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 152, overflowY: 'auto', paddingRight: 4, alignItems: 'center' }}>
+          {(query.trim()
+            ? filtered
+            : [client, ...filtered.filter((c) => c.id !== client.id)].slice(0, 16)
+          ).map((c) => (
             <button
               key={c.id}
               className="trc-chip"
@@ -102,6 +109,11 @@ export default function Vitrine() {
               {c.name.split(' ')[0]}
             </button>
           ))}
+          {!query.trim() && filtered.length > 16 && (
+            <span className="mnd-muted" style={{ fontSize: 12 }}>
+              … et {filtered.length - 16} autres — cherchez par nom ou téléphone.
+            </span>
+          )}
           {filtered.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune cliente ne correspond.</span>}
         </div>
       </div>
@@ -176,18 +188,21 @@ function InvitationCouronne() {
   };
 
   return (
-    <div className="tr-card" style={{ padding: '16px 20px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-      <div style={{ width: 92, height: 92, flex: 'none' }}>
-        <QrSvg valeur={lienCouronne} />
+    <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+      {/* La taille EN STYLE, pas par la classe : `cpt__qrsvg` arrive avec le
+          module du Comptoir et imposait ses 340 px d'écran de salon — le code
+          débordait sous le texte (12 août). */}
+      <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
+        <QrSvg valeur={lienCouronne} style={{ width: '100%', height: '100%', display: 'block' }} />
       </div>
-      <div style={{ flex: 1, minWidth: 220 }}>
+      <div style={{ flex: 1, minWidth: 240 }}>
         <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
           Inviter les clientes sur Ma Couronne.
         </div>
-        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55, maxWidth: '64ch' }}>
-          Ce code ouvre {lienCouronne} — scannée, l’app se crée un compte et s’installe sur
-          l’écran d’accueil (« Ajouter à l’écran d’accueil »). Imprimez la carte pour le
-          comptoir et le miroir, ou envoyez le lien par WhatsApp depuis la fiche d’une cliente.
+        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
+          Scanné, ce code ouvre Ma Couronne : la cliente se crée un compte, puis
+          « Ajouter à l’écran d’accueil » l’installe comme une application. Imprimez la
+          carte pour le comptoir et le miroir, ou envoyez le lien par WhatsApp depuis sa fiche.
         </div>
       </div>
       <button type="button" className="mnd-btn mnd-btn--copper" onClick={imprimer} style={{ flex: 'none' }}>
