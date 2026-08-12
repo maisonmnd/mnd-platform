@@ -1246,6 +1246,17 @@ Appliqué le 10 août : un doublon de comptoir (`MND-JTUG`, une seule pièce —
 devis brouillon) fusionné vers sa fiche d'import Firebase (`gvCbf…`) ; 1 pièce
 reportée, doublon supprimé, plus rien ne le fait renaître.
 
+### Retouches Post Reprise — créée le 12 août
+
+L'atelier GBÈJÍ a reçu sa retouche, sur le patron de ses sœurs (VÈKPÈ ·
+« Après une création », FÍNFÍN · « Après une restauration ») : famille
+`cat-retouches-gbeji` « Retouches · Après une reprise » + prestation
+`sv-retouches-post-reprise` « Retouches Post Reprise », calquée PAR CHOIX de
+Yéman sur `sv-plt-50-ret-r-c` (Post Restauration) : 12 000 F · 45 min ·
+Fondation. Script local gitignoré `local_retouche_post_reprise.sql` —
+ancrages par identifiants, aperçu avant écriture (deux modèles existaient,
+le limit 1 aurait choisi au hasard).
+
 ### Le sur-mesure boucle enfin — 12 août
 
 « Vous composez » (Ma Couronne) transmettait au pont `mnd_couronne_compose`
