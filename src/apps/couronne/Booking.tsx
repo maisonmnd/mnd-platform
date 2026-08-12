@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings } from '../../shared/settings';
-import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
+import { appointmentsStore, useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
@@ -14,8 +14,8 @@ import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../.
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
-import { useCategories, priceModeOf, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, servesBand, bandForService, prixFerme } from '../../shared/pricing';
+import { useCategories, useProducts, priceModeOf, longueurLabel, type Service } from '../../shared/catalog';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -92,6 +92,8 @@ type Props = {
 export default function Booking({ prefill, onClose, toast }: Props) {
   const { branch, currency } = useBranch();
   const { cats, services } = useVisibleCatalog();
+  /* Les produits de la Gamme — une composition de forfait peut en porter. */
+  const [produits] = useProducts();
   const [appts] = useAppointments();
   const clientId = useClientId();
   const client = useClient();
@@ -105,6 +107,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const tetes = client ? tetesPortees(client, tousClients, familles, todayIso()) : [];
   const [pourId, setPourId] = useState('');
   const beneficiaire = tetes.find((t) => t.id === pourId);
+  /* LA TÊTE POUR QUI L'ON RÉSERVE (12 août) : tout — seuil de venues, tarif,
+     longueur, durée, acompte — se calcule sur ELLE, pas sur le compte
+     connecté. Avant, une mère à 2 venues ouvrait le forfait « dès la 3ᵉ » à
+     la PREMIÈRE venue de sa fille, et le rendez-vous de l'enfant se figeait
+     au barème et à la longueur de la mère. */
+  const cible = beneficiaire ?? client;
   const { session } = useAuth();
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
@@ -155,12 +163,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Les barèmes par atelier : VÈKPÈ™ a les siens, la création ne progresse pas
      comme le resserrage. */
   const [sets] = useBandSets();
-  const pricing = pricingOf(client ?? undefined, bands, sets, cats);
+  const pricing = pricingOf(cible ?? undefined, bands, sets, cats);
   const personalized = isPersonalized(pricing);
   const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricing), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
   const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
-  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + personalPriceXof(s, pricing), 0);
+  /* `services` + `produits` en arguments : sans eux, un FORFAIT COMPOSÉ ne
+     résolvait jamais sa composition ici — Ma Couronne annonçait son priceXof
+     stocké (souvent 0 F) au lieu du prix réel de la tête (12 août). */
+  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0);
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
@@ -176,7 +187,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const priced = selected.filter((s) => !s.hidePrice);
   /* L'acompte se calcule sur les prix PERSONNALISÉS — le pourcentage de la
      maison s'applique à ce que la cliente paiera vraiment. */
-  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: personalPriceXof(s, pricing) })), discountPct);
+  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: personalPriceXof(s, pricing, services, produits) })), discountPct);
   const hasDeposit = deposit > 0;
   /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
      pourcentage que s'il est unique — sinon le montant parle seul. */
@@ -184,7 +195,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
   /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
   const depositBase = Math.round(
-    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + personalPriceXof(s, pricing), 0) * (1 - discountPct / 100),
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0) * (1 - discountPct / 100),
   );
 
   /* CE QUI LA CONCERNE, ELLE. Les créations existent en cinq versions, une par
@@ -195,8 +206,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
      `selected` (plus haut) lit toujours le catalogue entier : une prestation
      déjà choisie ne doit pas s'évaporer d'un panier parce que le modèle a
-     changé entre-temps. */
-  const offre = services.filter((s) => servesBand(s, bandForService(s, pricing)));
+     changé entre-temps.
+
+     LES PRESTATIONS À SEUIL DE VENUES s'ouvrent ici comme au comptoir : le
+     forfait GBÈJÍ™ Fidélité paraît à la 3ᵉ venue honorée, pas avant. Sous
+     RLS, la cliente ne lit que SES rendez-vous (et ceux de ses mineurs) —
+     c'est précisément ce que le compteur regarde : les venues de la tête
+     pour qui l'on réserve, celle dont `pricing` porte déjà le tarif. */
+  const venuesTete = cible ? venuesHonorees(appts, cible.id) : 0;
+  const offre = services.filter((s) => estProposable(s, pricing, venuesTete));
 
   /* Catégories réservables : au moins une prestation visible. */
   const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id));
@@ -396,6 +414,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           ...(i === 0 && personalized && !anyHidden && !anyVariable
             ? { priceXof: knownTotal, ...(discountPct > 0 ? { discountPct } : {}) }
             : {}),
+          /* LA LONGUEUR QUI A FAIT CE PRIX se fige avec lui (11 août) : c'est
+             celle de la fiche, héritée par `pricingOf`. Sans elle, le comptoir
+             rouvrirait le rituel à SA longueur du jour et retarifierait ce que
+             la cliente a vu. Si la fiche est muette, rien ne se fige — le
+             fauteuil constatera. */
+          ...(pricing.longueur ? { longueur: pricing.longueur } : {}),
           source: 'couronne',
           note: notes.length ? notes.join(' · ') : undefined,
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
@@ -495,7 +519,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
-    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing) * (1 - pct / 100)), currency);
+    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, services, produits) * (1 - pct / 100)), currency);
     return mode === 'variable' ? `à partir de ${amount}` : amount;
   };
 
@@ -592,7 +616,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       {/* « Votre tarif » ne se dit QUE si son prix diffère vraiment
                           du catalogue — sinon c'est une flatterie, et la Maison
                           n'en fait pas. */}
-                      {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing) !== recoSvc.priceXof
+                      {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing, services, produits) !== recoSvc.priceXof
                         ? ' · votre tarif'
                         : ''}
                     </div>
@@ -874,9 +898,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-recapcard__meta">
                 {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
               </div>
-              {personalized && pricing.band && client?.lockCount ? (
+              {(personalized && pricing.band && cible?.lockCount) || pricing.longueur ? (
+                /* Une phrase qui dit D'OÙ viennent ces prix — locks et longueur
+                   de fiche (11 août) : personnaliser en silence, c'est laisser
+                   la cliente croire à une erreur quand le tarif diffère. La
+                   couronne décrite est celle de la TÊTE servie (12 août). */
                 <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
-                  Vos prix — établis pour votre couronne de {client.lockCount} locks.
+                  {beneficiaire ? `Ses prix — établis pour la couronne de ${beneficiaire.name}` : 'Vos prix — établis pour votre couronne'}
+                  {personalized && pricing.band && cible?.lockCount ? ` de ${cible.lockCount} locks` : ''}
+                  {pricing.longueur ? ` · longueur ${longueurLabel(pricing.longueur)}` : ''}.
                 </div>
               ) : null}
               {anyHidden && !allHidden && (

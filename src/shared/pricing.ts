@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import type { CatalogCategory, LongueurId, Service } from './catalog';
+import { priceModeOf, type CatalogCategory, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
@@ -160,6 +160,11 @@ export type PersonalPricing = {
   band?: ModelBand;
   clientCoef: number;
   lockCount?: number;
+  /** SES PRIX FERMES, prestation par prestation (voir `Client.prixFixes`).
+      Portés dans le contexte pour que `personalPriceXof` les applique sans
+      qu'aucun appelant ait à le savoir — la réservation, la Caisse, la Vitrine
+      et Ma Couronne passent tous par lui. */
+  prixFixes?: Record<string, number>;
   /** Barèmes par atelier, s'il y en a. Portés ici pour que `personalPriceXof`
       choisisse la bonne tranche SANS que chaque appelant ait à le savoir. */
   sets?: Record<string, ModelBand[]>;
@@ -167,10 +172,10 @@ export type PersonalPricing = {
       bareme est attache a l'ATELIER : sans cette remontee, une prestation
       rangee sous SINSIN cesserait de suivre le bareme de GBEJI. */
   cats?: Pick<CatalogCategory, 'id' | 'parentId'>[];
-  /** LA LONGUEUR TRAVAILLÉE — choisie à la réservation, jamais portée par la
-      fiche. Elle ne vient donc pas de `pricingOf` comme le reste du contexte :
-      l'écran qui réserve la pose, et le rendez-vous la fige. Absente, une
-      prestation à prix par longueur retombe sur son prix catalogue. */
+  /** LA LONGUEUR TRAVAILLÉE. Depuis le 11 août, la fiche porte un DÉFAUT que
+      `pricingOf` hérite (Ma Couronne montre ainsi SES prix) ; l'écran qui
+      réserve pose la sienne par-dessus, et le rendez-vous la fige. Absente,
+      une prestation à prix par longueur retombe sur son prix catalogue. */
   longueur?: LongueurId;
 };
 
@@ -182,7 +187,7 @@ export const prixDeBase = (sv: Pick<Service, 'priceXof' | 'prixParLongueur'>, p:
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
 export const pricingOf = (
-  client: Pick<Client, 'lockCount' | 'priceCoef'> | undefined,
+  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur'> | undefined,
   bands: ModelBand[],
   sets?: Record<string, ModelBand[]>,
   /* L'arbre des categories : sans lui, une prestation rangee sous une famille
@@ -193,9 +198,22 @@ export const pricingOf = (
   band: bandOf(client?.lockCount, bands),
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
   lockCount: client?.lockCount,
+  prixFixes: client?.prixFixes,
+  /* SA longueur par défaut — les écrans qui posent la leur (modale RDV,
+     Caisse) l'écrasent par l'étalement `{ ...pricingOf(...), longueur }` ;
+     Ma Couronne, qui n'a pas de sélecteur, montre ainsi SES prix. */
+  longueur: client?.longueur,
   sets,
   cats,
 });
+
+/** Le prix ferme convenu avec CETTE cliente pour CETTE prestation, s'il existe.
+    Zéro et les valeurs négatives ne comptent pas : un rituel offert se dit
+    « offert » sur le rendez-vous, il ne se déguise pas en prix fixe à 0 F. */
+export const prixFixeDe = (sv: Pick<Service, 'id'>, p: PersonalPricing): number | undefined => {
+  const v = p.prixFixes?.[sv.id];
+  return typeof v === 'number' && v > 0 ? Math.round(v) : undefined;
+};
 
 /** La tranche qui s'applique À CETTE prestation : celle de son atelier si
     l'atelier a son barème, sinon celle de la Maison déjà calculée. */
@@ -211,8 +229,13 @@ export const bandForService = (sv: Pick<Service, 'categoryId'>, p: PersonalPrici
   return p.band;
 };
 
-/** Y a-t-il quelque chose à personnaliser (modèle connu ou Juste Prix ≠ 1) ? */
-export const isPersonalized = (p: PersonalPricing): boolean => !!p.band || p.clientCoef !== 1;
+/** Y a-t-il quelque chose à personnaliser — modèle connu, Juste Prix ≠ 1, ou un
+    PRIX FERME convenu avec elle ? Ce dernier a failli manquer : une cliente
+    sans modèle ni coefficient n'était pas « personnalisée », le rendez-vous
+    retombait sur le prix catalogue, et l'accord écrit sur sa fiche restait
+    lettre morte au moment précis où il devait s'appliquer. */
+export const isPersonalized = (p: PersonalPricing): boolean =>
+  !!p.band || p.clientCoef !== 1 || Object.keys(p.prixFixes ?? {}).length > 0;
 
 /** Prix AU LOCK — `lockCount × ratePerLock`, sans borne. Rend undefined si la
     prestation n'est pas au lock ou si le modèle est inconnu : l'appelant retombe
@@ -265,12 +288,24 @@ export const bandIdOf = (sv: Pick<Service, 'bandId' | 'priceFloors'>): string | 
     planchers = elle sert exactement ceux-là, et pas les autres — c'est ce qui
     permet d'étendre une création au-delà de son calibre d'origine sans la
     proposer à tout le monde. Aucun plancher = elle sert tout le monde. */
-export const servesBand = (sv: Pick<Service, 'bandId' | 'priceFloors'>, band: ModelBand | undefined): boolean => {
+export const servesBand = (sv: Pick<Service, 'bandId' | 'bandIds' | 'priceFloors'>, band: ModelBand | undefined): boolean => {
+  /* PLUSIEURS CALIBRES, EXPLICITES : le forfait GBÈJÍ™ Fidélité sert Micro ET
+     Nano. Quand la liste est posée, elle fait foi — et un modèle INCONNU ne
+     passe pas : une prestation réservée à des calibres ne se propose pas à
+     une tête qu'on n'a pas encore mesurée. */
+  if (sv.bandIds?.length) return !!band && sv.bandIds.includes(band.id);
   if (!band) return true;
   if (sv.bandId) return sv.bandId === band.id;
   const cles = Object.keys(sv.priceFloors ?? {});
   return cles.length === 0 || cles.includes(band.id);
 };
+
+/** La prestation est-elle OUVERTE à cette tête, vu ses venues honorées ?
+    `desVenue: 3` s'ouvre quand elle a DÉJÀ 2 venues — celle qu'on réserve est
+    la 3ᵉ. Sans fiche cliente (vente au comptoir), une prestation à seuil ne
+    se propose pas : on ne sait pas compter les venues de personne. */
+export const ouverteDesVenue = (sv: Pick<Service, 'desVenue'>, venuesAcquises: number): boolean =>
+  !sv.desVenue || venuesAcquises >= sv.desVenue - 1;
 
 /** Qui commande le prix de cette prestation — le comptage ou la tranche.
     Sans choix explicite, on garde le comportement historique : le tarif au lock
@@ -286,9 +321,37 @@ export const tarifModeOf = (sv: Pick<Service, 'tarifMode' | 'ratePerLock'>): 'lo
     afficher le montant ferme, pas « des X F » — annoncer une fourchette sur un
     prix qu'on sait calculer fait ressaisir a la main un montant deja connu. */
 export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
+  /* Un prix convenu avec elle est le plus ferme de tous : l'écran ne doit
+     jamais l'annoncer « dès X F », ni réclamer un montant au fauteuil. */
+  if (prixFixeDe(sv, p) !== undefined) return true;
+  /* UNE PRESTATION « SUR DEVIS » OU « VARIABLE » N'EST JAMAIS FERME (12 août).
+     Le repli `!scalesWithModel` ci-dessous est vrai pour tout service sans
+     l'interrupteur — dont « Création Microlocks sur mesure » (devis, 0 F) :
+     déclarée ferme, la modale RDV n'ouvrait plus son champ de montant et la
+     Caisse la basculait en « fixe » en contournant le garde devisMissing —
+     rituel réservé ET facturé à 0 F. Le mode du Catalogue prime : seul un
+     prix FIXE peut être exactement connu ; devis et variable se conviennent
+     au fauteuil (sauf prix convenu sur la fiche, jugé au-dessus). */
+  if (priceModeOf(sv) !== 'fixe') return false;
   if (isFixedPrice(sv)) return true;
   const bande = bandForService(sv, p);
-  if (tarifModeOf(sv) === 'calibre') return !!bande && sv.priceFloors?.[bande.id] !== undefined;
+  if (tarifModeOf(sv) === 'calibre') {
+    if (!!bande && sv.priceFloors?.[bande.id] !== undefined) return true;
+    /* SANS grille par calibre NI tarif au lock, le prix ne dépend de rien
+       d'inconnu : c'est `prixDeBase × coef de tranche × Juste Prix`, que
+       `personalPriceXof` rend au franc près. Le déclarer « pas ferme »
+       faisait RÉCLAMER un montant pour un shampoing à 10 000 F affiché en
+       clair — la caissière ressaisissait un prix que l'écran connaissait déjà
+       (11 août : « un prix fixe est fixe »). Ferme dès que le
+       coefficient est connu : modèle renseigné, ou prestation qui ne suit
+       pas le modèle du tout. */
+    /* Une grille par longueur est un prix SAISI — et elle NEUTRALISE le
+       modèle (voir personalPriceXof) : le prix est connu quel que soit le
+       comptage. */
+    if (sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0) return true;
+    if (!sv.ratePerLock) return !scalesWithModel(sv) || !!bande;
+    return false;
+  }
   return !!p.lockCount;
 };
 
@@ -303,6 +366,13 @@ export const forfaitPriceXof = (
   sv: Service,
   p: PersonalPricing,
   catalogue: readonly Service[],
+  /* LES PRODUITS DE LA COMPOSITION (12 août). Le moteur les sautait en silence
+     (`serviceId: ''` → find raté → continue) pendant que l'aperçu du Catalogue
+     les comptait : le composeur voyait un prix qu'aucune caisse ne sonnait —
+     9 600 F d'écart par vente sur un flacon à 12 000 F remisé 20 %. Le modèle
+     de données a toujours dit qu'ils comptent (« il se compte dans la valeur
+     du forfait ») ; leur prix est ferme, aucune personnalisation à faire. */
+  produits?: readonly { id: string; priceXof: number }[],
   profondeur = 0,
 ): number | undefined => {
   if (!sv.includes?.length || profondeur > 2) return undefined;
@@ -314,20 +384,45 @@ export const forfaitPriceXof = (
   if (remise === undefined) return undefined;
   let somme = 0;
   for (const inc of sv.includes) {
+    if (inc.productId) {
+      const pr = produits?.find((x) => x.id === inc.productId);
+      if (pr) somme += pr.priceXof;
+      continue;
+    }
     const cible = inc.categoryId
       ? catalogue.find((x) => x.categoryId === inc.categoryId && servesBand(x, bandForService(x, p)))
       : catalogue.find((x) => x.id === inc.serviceId);
     if (!cible) continue;
-    somme += forfaitPriceXof(cible, p, catalogue, profondeur + 1) ?? personalPriceXof(cible, p);
+    somme += forfaitPriceXof(cible, p, catalogue, produits, profondeur + 1) ?? personalPriceXof(cible, p);
   }
   if (somme <= 0) return undefined;
   return Math.max(0, Math.round(somme * (1 - remise / 100)));
 };
 
-export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[]): number => {
+/** LA PRESTATION EST-ELLE PROPOSABLE À CETTE TÊTE ? Le juge UNIQUE de
+    l'éligibilité — calibre servi ET seuil de venues atteint. Quatre surfaces
+    le composaient chacune à la main (modale RDV, Caisse, tunnel et reco
+    Ma Couronne) et la reco avait oublié le seuil : le forfait « dès la 3ᵉ
+    venue » se recommandait — et se réservait — à la première visite. */
+export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number): boolean =>
+  servesBand(sv, bandForService(sv, p)) && ouverteDesVenue(sv, venuesAcquises);
+
+export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[], produits?: readonly { id: string; priceXof: number }[]): number => {
+  /* SON PRIX FERME PASSE AVANT TOUT — avant le forfait, le calibre, le tarif au
+     lock, le plancher, la longueur et le Juste Prix. C'est le sens même d'un
+     prix convenu avec quelqu'un : rien de ce que la Maison recalcule ensuite
+     n'a le droit de le déplacer. Le laisser passer après le coefficient, par
+     exemple, l'aurait multiplié — et le montant écrit sur la fiche n'aurait
+     plus été celui qu'elle paie. */
+  const ferme = prixFixeDe(sv, p);
+  if (ferme !== undefined) return ferme;
   if (catalogue) {
-    const forfait = forfaitPriceXof(sv, p, catalogue);
-    if (forfait !== undefined) return p.clientCoef === 1 ? forfait : roundPrice(forfait * p.clientCoef);
+    const forfait = forfaitPriceXof(sv, p, catalogue, produits);
+    /* PAS de Juste Prix ici : la composition est DÉJÀ au prix de la cliente
+       (`forfaitPriceXof` somme des `personalPriceXof`, qui l'appliquent).
+       Le multiplier encore l'appliquait DEUX FOIS — une cliente à ×0,5
+       payait le quart au lieu de la moitié (attrapé par le harnais, 11 août). */
+    if (forfait !== undefined) return forfait;
   }
   if (isFixedPrice(sv)) return sv.priceXof; // hors Juste Prix — prix catalogue ferme
   /* Hors de son calibre : on rend le prix catalogue, sans personnalisation.
@@ -367,13 +462,23 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi
      ne revient que si le Juste Prix personnel entre en jeu et produit une décimale. */
   if (auLock !== undefined) return p.clientCoef === 1 ? auLock : roundPrice(auLock * p.clientCoef);
-  const modelCoef = scalesWithModel(sv) && bande ? bande.coef : 1;
-  /* PRIX PAR LONGUEUR — un prix SAISI, pas un calcul. Tant que ni le modèle ni
-     le Juste Prix ne le modulent, il sort au franc près : l'arrondi commercial
-     au 500 F a du sens sur un produit de multiplication, aucun sur un montant
-     que la Maison a écrit elle-même. */
+  /* UNE GRILLE PAR LONGUEUR REMPLACE LE MODÈLE (11 août 2026). WÈWÈ™ La
+     Purification porte 25 000 F en Mi-Long — et l'interrupteur « suit le
+     modèle » : pour une tête Nano (coef 2,5), l'écran annonçait 62 500 F.
+     Deux graduations de taille s'empilaient, alors que la grille par longueur
+     EST déjà celle de ce soin : trois prix SAISIS par la Maison, pas une base
+     à multiplier. Dès qu'une prestation porte cette grille, le coefficient de
+     tranche ne s'applique plus — ni sur le prix de la longueur choisie, ni
+     sur le prix de repli quand la longueur n'est pas encore connue. Le Juste
+     Prix personnel, lui, reste : c'est un accord par CLIENTE, pas une taille. */
+  const grilleLongueur = !!sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0;
+  const modelCoef = !grilleLongueur && scalesWithModel(sv) && bande ? bande.coef : 1;
+  /* PRIX PAR LONGUEUR — un prix SAISI, pas un calcul. Tant que le Juste Prix
+     ne le module pas, il sort au franc près : l'arrondi commercial au 500 F a
+     du sens sur un produit de multiplication, aucun sur un montant que la
+     Maison a écrit elle-même. */
   const parLongueur = p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined;
-  if (parLongueur !== undefined && modelCoef === 1 && p.clientCoef === 1) return parLongueur;
+  if (parLongueur !== undefined && p.clientCoef === 1) return parLongueur;
   return roundPrice(prixDeBase(sv, p) * modelCoef * p.clientCoef);
 };
 

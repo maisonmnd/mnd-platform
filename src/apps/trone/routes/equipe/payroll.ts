@@ -1,5 +1,6 @@
 import { createStore, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
+import type { Expense } from '../../../../shared/finance';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Paie · moteur de calcul (règles béninoises) — LA SOURCE DE VÉRITÉ.
@@ -25,6 +26,19 @@ export type PayrollParameters = {
   cnssPatronalePensionPct: number;   // pension, part patronale (départ 6,4 %)
   cnssPatronaleFamillePct: number;   // prestations familiales (départ 9 %)
   cnssPatronaleRisquePct: number;    // risques professionnels (1–4 % selon activité)
+  /** LA CNSS S'ÉTEINT TANT QUE PERSONNE N'EST DÉCLARÉ. Retenir une cotisation
+      sur un salaire qu'aucune caisse ne reçoit, c'est prélever pour rien : le
+      bulletin annoncerait un net inférieur à ce que l'employé touche vraiment.
+      Éteinte, les DEUX parts tombent à zéro — on ne déclare pas à moitié.
+      ABSENT = ALLUMÉE : c'est l'état dans lequel le moteur est né, et une
+      cotisation ne doit jamais disparaître par l'effet d'un champ manquant.
+      Les taux, eux, restent saisis : les rallumer les retrouve intacts. */
+  cnssActive?: boolean;
+  /** L'ITS S'ÉTEINT SÉPARÉMENT. C'est un IMPÔT, pas une cotisation : rien ne
+      lie son sort à celui de la CNSS, et confondre les deux dans un seul
+      interrupteur ferait tomber l'un en croyant éteindre l'autre. Le barème
+      reste saisi ; ABSENT = APPLIQUÉ, comme pour la CNSS. */
+  itsActive?: boolean;
   /** Congés payés : jours ouvrables acquis par mois de service (référence Bénin : 2). */
   congesJoursParMois: number;
   its: ItsBracket[];                 // barème progressif ITS (mensuel)
@@ -139,14 +153,77 @@ export function computeIts(brut: number, brackets: ItsBracket[]): number {
   return round(tax);
 }
 
+/** La CNSS est-elle appliquée ? Absent = OUI (l'état d'origine du moteur). */
+export const cnssEstActive = (p: PayrollParameters): boolean => p.cnssActive !== false;
+
+/** Le taux salarial RÉELLEMENT appliqué — zéro quand la CNSS est éteinte.
+    C'est ce taux-là que le bulletin doit recevoir, sinon la page refait le
+    calcul avec 3,6 % et imprime un net que personne n'a versé. */
+export const tauxCnssSalarial = (p: PayrollParameters): number =>
+  cnssEstActive(p) ? p.cnssSalarialePct : 0;
+
+/** L'ITS est-il appliqué ? Absent = OUI (l'état d'origine du moteur). */
+export const itsEstActif = (p: PayrollParameters): boolean => p.itsActive !== false;
+
+/** LA CLÉ DE LA CHARGE « SALAIRES » DANS LES DÉPENSES — une par personne et
+    par mois. DEUX chemins l'écrivent : « Confirmer le règlement » (Personnel &
+    paie) et le run marqué payé (Paie). Elle vit ICI, à un seul endroit : deux
+    copies de cette formule auraient fini par diverger, et chaque divergence
+    aurait compté un salaire deux fois dans le résultat du salon. */
+export const chargeSalaireId = (mois: string, employeeId: string): string =>
+  `exp-paie-${mois}-${employeeId}`;
+
+/** LE JOUR LOCAL d'un horodatage — jamais `toISOString().slice(0,10)` : à
+    Cotonou (UTC+1), 00 h 20 locales le 1ᵉʳ du mois sont encore la veille en
+    UTC, et la masse salariale entière basculait dans le mois précédent des
+    Dépenses, de la Synthèse et du Partage (« jamais UTC », doctrine cadence). */
+export const jourLocalDe = (stamp?: string): string => {
+  const d = stamp ? new Date(stamp) : new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+export const SALAIRES_CATEGORIE = 'Salaires';
+
+/** Période lisible d'une clé de mois — « juillet 2026 ». UN formateur : Paie
+    et Personnel écrivaient chacun le leur (juillet/Juillet) sur la même ligne. */
+export const periodeLisible = (mois: string): string =>
+  new Date(`${mois}-01T00:00:00`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+/** LA LIGNE DE CHARGE SALAIRE — un SEUL constructeur pour les deux chemins.
+    Chacun bâtissait la sienne : libellés différents, dates UTC, et surtout
+    `cashbox: l.paiement` — les coordonnées MoMo PERSONNELLES de l'employé
+    devenaient un nom de caisse (fantôme, jamais débitée, numéro dans le CSV
+    d'un dépôt déjà victime d'une fuite). Sans caisse, la ligne va à « Sans
+    caisse · Autres » ; le souverain l'affecte en l'éditant s'il le veut.
+    `source` dit qui a écrit en dernier — voir `Expense.source`. */
+export const chargeSalaire = (o: {
+  mois: string; employeeId: string; branchId: string; nom: string;
+  netXof: number; stamp?: string; source: 'run' | 'confirm';
+}): Expense => ({
+  id: chargeSalaireId(o.mois, o.employeeId),
+  branchId: o.branchId,
+  label: `Salaire · ${o.nom} — ${periodeLisible(o.mois)}`,
+  amountXof: o.netXof,
+  date: jourLocalDe(o.stamp),
+  cashbox: '',
+  category: SALAIRES_CATEGORIE,
+  source: o.source,
+});
+
 /** Le calcul complet d'une ligne de paie, dans l'ordre de la spec. */
 export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParameters): PayResult {
   const brut = round(gains.base + gains.heuresSup + gains.prime + gains.pourboires + gains.commission + gains.indemnites);
-  const cnssSalariale = round(brut * p.cnssSalarialePct / 100);
-  const its = computeIts(brut, p.its);
+  const actif = cnssEstActive(p);
+  const cnssSalariale = actif ? round(brut * p.cnssSalarialePct / 100) : 0;
+  const its = itsEstActif(p) ? computeIts(brut, p.its) : 0;
   const retenues = round(ded.avance + ded.autresRetenues);
   const net = brut - cnssSalariale - its - retenues;
-  const cnssPatronale = round(brut * (p.cnssPatronalePensionPct + p.cnssPatronaleFamillePct + p.cnssPatronaleRisquePct) / 100);
+  /* Éteinte, la part patronale tombe aussi : sans déclaration, l'employeur ne
+     doit rien non plus, et un coût employeur gonflé fausserait la décision. */
+  const cnssPatronale = actif
+    ? round(brut * (p.cnssPatronalePensionPct + p.cnssPatronaleFamillePct + p.cnssPatronaleRisquePct) / 100)
+    : 0;
   const coutEmployeur = brut + cnssPatronale;
   return { brut, cnssSalariale, its, retenues, net, cnssPatronale, coutEmployeur };
 }
@@ -513,12 +590,19 @@ export type BulletinLink = {
   periode: string; // AAAA-MM
   base: number; hs?: number; prime?: number; pourboires?: number; commission?: number;
   avance?: number; retenue?: number; paiement?: string;
+  /** Taux salarial CNSS à appliquer — 0 quand la cotisation est éteinte.
+      SANS LUI, LA PAGE RETOMBE SUR SES 3,6 % PAR DÉFAUT et imprime un net
+      inférieur à celui que l'ERP a calculé et que l'employé a reçu. */
+  cnssPct?: number;
+  /** L'ITS est-il appliqué ? Même raison que `cnssPct` : la page porte son
+      propre barème et le déroulerait quoi qu'il arrive. */
+  itsActif?: boolean;
 };
 
 /** Lien vers bulletin.html pré-rempli — noms de paramètres EXACTS attendus par la
     page (nom, poste, matricule, cnssnum, periode, base, hs, prime, pourboires,
-    commission, avance, retenue, paiement). L'ERP passe les ENTRÉES ; la page
-    réaffiche le calcul, qui retombe sur le même net que computePay. */
+    commission, avance, retenue, paiement, cnss). L'ERP passe les ENTRÉES ; la
+    page réaffiche le calcul, qui retombe sur le même net que computePay. */
 export function bulletinHref(base: string, b: BulletinLink): string {
   const q = new URLSearchParams();
   q.set('nom', b.nom);
@@ -534,6 +618,10 @@ export function bulletinHref(base: string, b: BulletinLink): string {
   if (b.avance) q.set('avance', String(b.avance));
   if (b.retenue) q.set('retenue', String(b.retenue));
   if (b.paiement) q.set('paiement', b.paiement);
+  /* `!= null` et non `if (b.cnssPct)` : zéro est précisément la valeur qu'il
+     faut transmettre — c'est elle qui éteint la retenue sur le bulletin. */
+  if (b.cnssPct != null) q.set('cnss', String(b.cnssPct));
+  if (b.itsActif != null) q.set('its', b.itsActif ? '1' : '0');
   return `${base}?${q.toString()}`;
 }
 

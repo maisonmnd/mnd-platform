@@ -14,7 +14,7 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
-import { scalesWithModel, useModelBands, bandRange, sortedBands } from '../../../../shared/pricing';
+import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, type PersonalPricing } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
@@ -149,6 +149,9 @@ export default function Catalogue() {
   /* Les calibres, triés : ils commandent la saisie des planchers du tarif au lock. */
   const [rawBands] = useModelBands();
   const bands = sortedBands(rawBands);
+  /* Les barèmes par atelier — l'aperçu du prix d'un forfait PAR MODÈLE doit
+     traverser les mêmes coefficients que la réservation (VÈKPÈ a les siens). */
+  const [bandSets] = useBandSets();
 
   const [svcForm, setSvcForm] = useState<SvcForm | null>(null);
   /* LE BLOC DES LONGUEURS EST REPLIE PAR DEFAUT. Une trentaine de prestations
@@ -570,6 +573,41 @@ export default function Catalogue() {
     ? Math.round(inclusValeurHaute * (1 - remisePct / 100))
     : inclusSaisi;
   const inclusEcart = inclusValeur - inclusPrix;
+
+  /* LE PRIX PAR MODÈLE — se lit ICI, pas en allant le découvrir à la
+     réservation (Yéman, 11 août). Pour chaque calibre : la composition au prix
+     de ce modèle, barrée, puis le prix du forfait après remise. C'est le
+     MOTEUR qui répond (`forfaitPriceXof` — le même juge que la modale RDV et
+     Ma Couronne), avec une tête type par calibre : son plafond de locks
+     traverse les barèmes par atelier comme une vraie cliente. Les PRODUITS de
+     la composition passent AUSSI par le moteur (12 août) — l'aperçu les
+     additionnait à la main pendant que le moteur les sautait, et le composeur
+     voyait un prix qu'aucune caisse ne sonnait. Le tableau ne paraît que si
+     une remise est posée (sans elle le prix est LE MÊME pour toutes) et que
+     les montants diffèrent vraiment. Mémoïsé : chaque frappe du formulaire
+     relançait tranches × includes × catalogue de recherches. */
+  const cleForm = svcForm
+    ? `${svcForm.id}|${svcForm.includes.map((i) => i.serviceId || (i.categoryId ? `c:${i.categoryId}` : i.productId ? `p:${i.productId}` : '')).join(',')}|${svcForm.forfaitRemise}`
+    : '';
+  const prixParModele = useMemo(() => {
+    if (!svcForm || remisePct === undefined) return [];
+    const incs = svcForm.includes.filter((i) => i.serviceId || i.categoryId || i.productId);
+    if (!incs.length || bands.length === 0) return [];
+    const virtuel = {
+      id: svcForm.id || 'apercu-forfait', name: '', categoryId: '',
+      priceXof: 0, durationMin: 0, includes: incs,
+    } as unknown as Service;
+    const rows = bands.map((b, i) => {
+      const rep = b.maxLocks ?? ((bands[i - 1]?.maxLocks ?? 0) + 1);
+      const p: PersonalPricing = { band: b, lockCount: rep, clientCoef: 1, sets: bandSets, cats: categories };
+      const compo = forfaitPriceXof(virtuel, p, services, products);
+      if (compo === undefined) return { b, valeur: 0, prix: null as number | null };
+      return { b, valeur: compo, prix: Math.round(compo * (1 - remisePct / 100)) };
+    });
+    /* Un seul montant distinct = rien à tabuler ; le récapitulatif suffit. */
+    return new Set(rows.filter((r) => r.prix != null).map((r) => r.prix)).size > 1 ? rows : [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleForm, remisePct, bands, bandSets, categories, services, products]);
 
   /* LA DUREE SE RECALCULE QUAND LA COMPOSITION CHANGE — pas a l'ouverture de la
      fiche, sinon on ecraserait en silence une duree posee a la main. La cle
@@ -1293,7 +1331,30 @@ export default function Catalogue() {
                       <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(val as number, currency)}</span>
                     </div>
                   ))}
-                  {inclusFamilles > 0 && inclusValeurHaute > inclusValeur && (
+                  {prixParModele.length > 0 ? (
+                    <div style={{ margin: '2px 0 8px', paddingTop: 6, borderTop: '1px solid var(--line)' }}>
+                      <div className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+                        Le prix par modèle
+                      </div>
+                      {prixParModele.map(({ b, valeur, prix }) => (
+                        <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: 'var(--font-sans)', fontSize: 12, marginBottom: 3 }}>
+                          <span className="mnd-muted">{b.name ?? bandRange(b, bands)}</span>
+                          {prix == null ? (
+                            <span className="mnd-muted" title="Aucune prestation de la composition ne sert ce calibre.">—</span>
+                          ) : (
+                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              <span className="mnd-muted" style={{ textDecoration: 'line-through', marginRight: 8 }}>{fmtMoney(valeur, currency)}</span>
+                              {fmtMoney(prix, currency)}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, marginTop: 4 }}>
+                        Tête type au plafond de chaque calibre — une prestation comptée au lock suit
+                        le comptage exact de la cliente au moment de réserver.
+                      </div>
+                    </div>
+                  ) : inclusFamilles > 0 && inclusValeurHaute > inclusValeur && (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginBottom: 6, lineHeight: 1.5 }}>
                       {inclusFamilles} prestation{inclusFamilles > 1 ? 's' : ''} varie{inclusFamilles > 1 ? 'nt' : ''} avec
                       la densité — la valeur va de {fmtMoney(inclusValeur, currency)} à

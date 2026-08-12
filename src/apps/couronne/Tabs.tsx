@@ -7,12 +7,12 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
-import { useCategories, useServices } from '../../shared/catalog';
+import { useCategories, useProducts, useServices } from '../../shared/catalog';
 import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel } from '../../shared/quiz';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees } from '../../shared/accounts';
@@ -288,13 +288,19 @@ export function HomeTab({
   const [lireBilan, setLireBilan] = useState(false);
   const [personas] = usePersonas();
   const [cats] = useCategories();
+  const [produits] = useProducts();
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const pricing = pricingOf(client ?? undefined, bands, sets, cats);
   const cfgVitrine = useStore(vitrineConfigStore)[0];
   const recoPresta = useMemo(() => {
     if (!client?.envie) return undefined;
-    const offre = services.filter((s) => servesBand(s, bandForService(s, pricing)));
+    /* LE MÊME JUGE QUE LE TUNNEL (12 août) : calibre servi ET seuil de venues.
+       Sans le seuil, l'accueil recommandait — bouton « Réserver » compris —
+       le forfait « dès la 3ᵉ venue » à une première visite, et le prefill
+       entrait dans le tunnel APRÈS l'unique garde de l'étape 2. */
+    const venuesTete = venuesHonorees(clientAppts, client.id);
+    const offre = services.filter((s) => estProposable(s, pricing, venuesTete));
     return recoPourEnvie(client, client.envie, {
       offre,
       catalogue: services,
@@ -538,7 +544,7 @@ export function HomeTab({
                 <div className="mc-recocard__line">
                   {recoPresta.service.hidePrice
                     ? 'Prix au fauteuil — la maison vous dira'
-                    : (() => { const p = personalPriceXof(recoPresta.service, pricing); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
+                    : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
                 </div>
               </div>
               {!moduleHidden(client, 'reserver') && (
@@ -1234,11 +1240,30 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
     toast('Demande transmise — la maison ouvre sa fiche et vous prévient.');
   };
 
+  /* LE PROFIL NE PROPOSE PLUS UN ENFANT À TOUT LE MONDE.
+     La section entière — titre, phrase d'invitation, bouton « + Ajouter un
+     enfant » — s'affichait sur CHAQUE profil, y compris ceux qui n'ont pas
+     d'enfant à inscrire : on demandait quelque chose de très intime à des
+     clientes qui n'avaient rien demandé.
+     Elle ne paraît donc en entier que pour un PARENT CONNU — une tête déjà
+     ouverte par la Maison, une demande en cours, ou un refus à lire. Pour les
+     autres, la porte reste ouverte mais discrète : une seule ligne, sans
+     titre ni exposé, qui déplie le formulaire si on la touche. */
+  const parenteConnue = mesTetes.length > 0 || attente.length > 0 || refusees.length > 0;
+
+  if (!parenteConnue && !ouvert) {
+    return (
+      <button className="mc-textbtn" style={{ marginTop: 18 }} onClick={() => setOuvert(true)}>
+        Un enfant à inscrire ?
+      </button>
+    );
+  }
+
   return (
     <>
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Mes enfants</div>
+      {parenteConnue && <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Mes enfants</div>}
 
-      {mesTetes.length === 0 && attente.length === 0 && (
+      {parenteConnue && mesTetes.length === 0 && attente.length === 0 && (
         <div className="mc-emptyline" style={{ lineHeight: 1.55 }}>
           Vos enfants peuvent avoir leurs propres rendez-vous, à leur nom, avec leur suivi.
           C’est vous qui réservez et réglez pour eux.
@@ -1320,9 +1345,13 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
           </button>
         </div>
       ) : (
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 12 }} onClick={() => setOuvert(true)}>
-          + Ajouter un enfant
-        </button>
+        /* Le bouton plein ne s'offre qu'à un parent connu : pour les autres,
+           c'est la ligne discrète du dessus qui a ouvert ce formulaire. */
+        parenteConnue && (
+          <button className="mc-cta mc-cta--outline" style={{ marginTop: 12 }} onClick={() => setOuvert(true)}>
+            + Ajouter un enfant
+          </button>
+        )
       )}
     </>
   );

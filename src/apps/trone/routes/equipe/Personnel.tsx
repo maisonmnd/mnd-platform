@@ -5,7 +5,7 @@ import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../.
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
-import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore } from '../../../../shared/finance';
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
@@ -15,7 +15,7 @@ import { sameName } from '../../../../shared/text';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk, ordonneEquipe, staffStore } from './data';
-import { useBaremePoints, type BaremePoints } from './payroll';
+import { useBaremePoints, chargeSalaire, type BaremePoints } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import TempsAbsences from './TempsAbsences';
@@ -568,13 +568,16 @@ export default function Personnel() {
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
     if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve, et la charge s'inscrira dans les Dépenses.`)) return;
     const paidAt = new Date().toISOString();
-    const expId = `exp-paie-${month}-${m.id}`;
-    // La charge « Salaires » remonte dans les Dépenses & la Synthèse (résultat).
-    const charge: Expense = {
-      id: expId, branchId: m.branchId,
-      label: `Salaire · ${m.name} — ${cap(monthTitle(month))}`,
-      amountXof, date: paidAt.slice(0, 10), cashbox: method, category: SALAIRE_CATEGORY,
-    };
+    /* MÊME CLÉ ET MÊME CONSTRUCTEUR QUE LE RUN DE PAIE (payroll.ts) : les deux
+       chemins écrivent LA MÊME ligne — libellé, catégorie et jour LOCAL
+       identiques, jamais les coordonnées de paiement en guise de caisse.
+       Ce clic est un geste EXPLICITE : il reprend la main même sur une ligne
+       écrite par un run (`source: 'confirm'`). */
+    const charge = chargeSalaire({
+      mois: month, employeeId: m.id, branchId: m.branchId,
+      nom: m.name, netXof: amountXof, stamp: paidAt, source: 'confirm',
+    });
+    const expId = charge.id;
     expensesStore.set((prev) => (prev.some((e) => e.id === expId) ? prev.map((e) => (e.id === expId ? charge : e)) : [charge, ...prev]));
     expenseCategoriesStore.set((prev) => (prev.some((c) => c.name === SALAIRE_CATEGORY) ? prev : [...prev, { id: 'ec-salaires', name: SALAIRE_CATEGORY, subs: [] }]));
     setConfirms((prev) => ({
@@ -614,7 +617,13 @@ export default function Personnel() {
     if (Object.keys(confUpdates).length) {
       setConfirms((prev) => ({ ...prev, ...confUpdates }));
       if (expUpdates.size) {
-        expensesStore.set((prev) => prev.map((e) => (expUpdates.has(e.id) ? { ...e, amountXof: expUpdates.get(e.id)! } : e)));
+        /* UNE LIGNE ÉCRITE PAR UN RUN NE SE FAIT PAS RÉÉCRIRE SANS GESTE
+           (12 août). Les deux chemins partagent la même clé mais pas la même
+           formule de net : ce resync automatique écrasait le montant d'un run
+           payé — voire clôturé — à la simple OUVERTURE de cet écran, dès
+           qu'une commission recalculait. `source: 'run'` la protège ; seul le
+           clic explicite « Confirmer le règlement » reprend la main. */
+        expensesStore.set((prev) => prev.map((e) => (expUpdates.has(e.id) && e.source !== 'run' ? { ...e, amountXof: expUpdates.get(e.id)! } : e)));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

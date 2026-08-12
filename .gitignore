@@ -28,3 +28,7 @@ supabase/import_formules_maitres.sql
 # (stock_produits, sous is_staff()). Le gabarit se regénère depuis la liste de
 # l'audit (supabase/audit_saisie_stock_lab.sql, section ④).
 supabase/import_prix_achats.sql
+
+# Scripts SQL PONCTUELS écrits en session — ils peuvent porter des noms de
+# clientes (le dépôt est public). Motif générique : tout local_*.sql reste ici.
+supabase/local_*.sql

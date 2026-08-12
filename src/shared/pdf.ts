@@ -15,9 +15,42 @@ const SOFT = '#6b6b73';
    espace normale sur CHAQUE texte tracé, pour tous les documents. */
 const PDF_BAD_CODES = [0x00a0, 0x202f, 0x2007, 0x2008, 0x2009, 0x2060, 0x3000, 0xfeff];
 const PDF_BAD_SPACES = new RegExp('[' + PDF_BAD_CODES.map((c) => String.fromCharCode(c)).join('') + ']', 'g');
+
+/* LES LETTRES FON N'EXISTENT PAS EN WinAnsi — et jsPDF ne dégrade pas un
+   caractère, il dégrade LA LIGNE : un seul « Ɔ » dans « KLƆKLƆ™ » bascule tout
+   le texte en 16 bits et l'objet d'un reçu sortait en
+   « &K&L&†&K&L&†&™& » (11 août). Sur le papier, on translittère : KLƆKLƆ™
+   s'imprime KLOKLO™ — lisible et assumé, la graphie fon vit à l'écran. */
+const PDF_TRANSLIT: Record<string, string> = {
+  'Ɔ': 'O', 'ɔ': 'o', 'Ɖ': 'D', 'ɖ': 'd', 'Ɛ': 'E', 'ɛ': 'e',
+  'Ŋ': 'N', 'ŋ': 'n', 'Ʋ': 'V', 'ʋ': 'v',
+  /* Ponctuation typographique hors table : le signe moins de la remise
+     (« − 18 000 F ») sortait en « ? » — un tiret dit la même chose. */
+  '−': '-', '‑': '-',
+};
+/* Ce que WinAnsi sait tracer : Latin-1 entier, plus ses quelques extras. */
+const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+const winAnsiOk = (ch: string): boolean => ch.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(ch);
+
+function pdfSafe(s: string): string {
+  let t = s.normalize('NFC').replace(PDF_BAD_SPACES, ' ');
+  /* Translittérer PUIS recomposer : « ɔ́ » (ɔ + accent flottant) devient
+     « o + accent », que NFC referme en « ó » — un vrai glyphe WinAnsi. */
+  t = t.replace(/[ƆɔƉɖƐɛŊŋƲʋ−‑]/g, (c) => PDF_TRANSLIT[c]).normalize('NFC');
+  /* Dernier filet, caractère par caractère : perdre l'accent plutôt que la
+     ligne ; « ? » quand on ne sait vraiment pas — une perte qui se voit vaut
+     mieux qu'une ligne entière de charabia. */
+  return [...t].map((ch) => {
+    if (winAnsiOk(ch)) return ch;
+    const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
+    if (bare === '') return '';
+    return [...bare].every(winAnsiOk) ? bare : '?';
+  }).join('');
+}
+
 function normalizeSpaces(doc: { text: (...args: any[]) => any }): void {
   const orig = doc.text.bind(doc);
-  const fix = (s: unknown) => (typeof s === 'string' ? s.replace(PDF_BAD_SPACES, ' ') : s);
+  const fix = (s: unknown) => (typeof s === 'string' ? pdfSafe(s) : s);
   doc.text = ((text: any, ...rest: any[]) =>
     orig(Array.isArray(text) ? text.map(fix) : fix(text), ...rest)) as any;
 }
@@ -57,6 +90,10 @@ export type InvoicePdfData = {
   total: string;
   deposit?: string;
   reste?: string;
+  /** Pourboire remis avec le règlement — HORS total : il appartient aux
+      maîtres, pas au chiffre de la Maison. Affiché pour que la pièce dise
+      tout ce qui a été remis (demande de Yéman, 11 août). */
+  tip?: string;
   payment?: string;
   status?: string;
   note?: string;
@@ -166,6 +203,9 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   row('Total', d.total, true);
   if (d.deposit) row('Acompte', d.deposit, false, COPPER);
   if (d.reste) row('Reste à régler', d.reste);
+  /* Le pourboire se dit APRÈS le total — il ne s'y additionne pas : c'est un
+     merci aux mains, pas une ligne de la Maison. */
+  if (d.tip) row('Pourboire — merci', d.tip, false, COPPER);
   if (d.payment) row('Règlement', d.payment);
   if (d.status) row('Statut', d.status);
 

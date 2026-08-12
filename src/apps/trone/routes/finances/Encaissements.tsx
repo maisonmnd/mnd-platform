@@ -36,6 +36,7 @@ const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
   { k: 'formation', l: 'Formations' },
   { k: 'abonnement', l: 'Abonnements' },
   { k: 'avoir', l: 'Avoirs' },
+  { k: 'pourboire', l: 'Pourboires' },
 ];
 
 const frDay = (iso: string): string =>
@@ -113,7 +114,10 @@ export default function Encaissements() {
     setBusy(r.id);
     try {
       await receiptPdf({
-        number: `R-${r.date.replace(/-/g, '')}-${r.id.slice(-6).toUpperCase()}`,
+        /* La ligne pourboire d'une facture partage ses 6 derniers caractères
+           avec la ligne de la facture (même pièce d'origine) : sans le préfixe
+           « RP », les deux reçus porteraient le MÊME numéro. */
+        number: `${r.kind === 'pourboire' ? 'RP' : 'R'}-${r.date.replace(/-/g, '')}-${r.id.slice(-6).toUpperCase()}`,
         houseName: 'Maison MND',
         houseSub: `${branch.name} · ${branch.city}`,
         date: new Date(`${r.date}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
@@ -277,7 +281,8 @@ export default function Encaissements() {
 
       <p className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.6 }}>
         Un acompte figure au jour où il est reçu ; la facture qui le solde n’encaisse alors que le reste.
-        Le pourboire est compté (il passe par le tiroir), l’avoir ne l’est pas (c’est un crédit, pas des billets) —
+        Le pourboire a sa propre ligne, créditée à la caisse Pourboires — l’argent des mains, jamais celui
+        de la facture. L’avoir n’est pas compté (c’est un crédit, pas des billets) —
         d’où l’écart normal avec le chiffre d’affaires de la Synthèse.
       </p>
     </div>

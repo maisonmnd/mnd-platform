@@ -1,0 +1,458 @@
+import { createStore, uid, useStore } from './store';
+import { bindCollection } from './sync';
+import { coffreStore, type CoffreMovement } from './finance';
+import type { Receipt } from './receipts';
+
+/* ═══════ SALON & FOYER — la séparation entreprise / foyer ═══════
+
+   Le problème que ce module corrige : 100 % des revenus du salon partaient
+   dans les dépenses du foyer, rien ne se mettait de côté. Deux principes :
+
+   ① LA RÈGLE DU PARTAGE — les charges du salon se paient d'abord, à leur
+      montant RÉEL ; ce qui RESTE (le bénéfice) se répartit en trois selon
+      des pourcentages configurés (total = 100) : Réinvestissement · Réserve
+      fiscale & imprévus · Prélèvement Associés. (Jusqu'au 11 août 2026 le
+      partage portait sur l'encaissé, avec une quatrième enveloppe de
+      charges qui n'était qu'un budget — voir plus bas.)
+
+   ② LE PRÉLÈVEMENT N'EST PAS UNE CHARGE — c'est une distribution de
+      bénéfice, tenue dans une ANNEXE, jamais mélangée aux dépenses
+      d'exploitation. Bénéfice réel du salon = revenu − charges salon.
+
+   Ce que le module RÉUTILISE, sans rien ressaisir :
+   - le revenu du mois se lit au registre des ENCAISSEMENTS (receipts.ts) —
+     la trésorerie réelle, datée par le journal des versements — HORS
+     pourboires : ils transitent par le tiroir mais appartiennent aux
+     maîtres, pas à la Maison (voir `revenuPartageDuMois`) ;
+   - les charges salon SONT le registre Dépenses existant (finance.ts) —
+     un second registre de dépenses aurait fini par diverger.
+
+   RIEN NE S'ÉCRIT TOUT SEUL. Le Partage CALCULE et PROPOSE (enveloppes du
+   mois, dotation des réserves, conversion d'un dépassement en prêt) ; le
+   souverain INSCRIT. Les identifiants déterministes (`dotationId`,
+   `pretDepassementId`) rendent l'inscription idempotente — deux clics ne
+   font qu'une ligne, comme la marque `seuil:<regle>:<mois>` des primes.
+
+   ACCÈS : réservé au SOUVERAIN — décision du 10 août 2026. La vraie
+   barrière est la RLS (`is_souverain()`, migration 0038) ; l'écran n'est
+   qu'une garde. Pour tout autre compte, l'hydratation rend zéro ligne en
+   silence et les magasins restent vides.
+
+   Les caisses Succession et Devises sont des MONDES ÉTANCHES : leurs
+   tables ne sont lues par AUCUN autre écran — ni revenu, ni charges, ni
+   bénéfice, ni totaux. L'étanchéité est structurelle (personne ne les
+   importe), pas un filtre d'affichage. */
+
+/* ---------- La règle du Partage ---------- */
+
+export type PartageConfig = {
+  id: string; // `pc-<branchId>` — une règle par branche
+  branchId: string;
+  /** Pourcentages ENTIERS ; leur somme doit faire 100. */
+  pctCharges: number;
+  pctReinvest: number;
+  pctReserve: number;
+  pctPrelevement: number;
+  /** Ce que chaque enveloppe recouvre, dans les mots de la Maison. Une clé
+      absente ou vide retombe sur la phrase de départ (`PARTAGE_DITS`). */
+  dits?: Partial<Record<CleEnveloppe, string>>;
+};
+
+/** Défauts de départ — à ajuster aux vrais chiffres après quelques mois.
+    `pctCharges` n'est plus une enveloppe (voir ci-dessous) : c'est le REPÈRE
+    de charges, la part du revenu que la Maison vise à ne pas dépasser. */
+export const PARTAGE_DEFAUT = { pctCharges: 45, pctReinvest: 20, pctReserve: 20, pctPrelevement: 60 } as const;
+
+/* ═══ LE PARTAGE SE FAIT SUR LE BÉNÉFICE, PAS SUR L'ENCAISSÉ ═══
+   (décision de Yéman, 11 août 2026)
+
+   Le premier modèle répartissait le REVENU en quatre enveloppes, dont une
+   « Charges Salon » qui n'était qu'un BUDGET : on partageait un argent dont
+   une partie était déjà partie payer le loyer et les salaires. Quand les
+   charges réelles dépassaient leur enveloppe — 230 000 F pour un repère de
+   75 000 F en août — le foyer se voyait promettre un budget que le salon
+   n'avait pas.
+
+   Désormais : les charges se paient d'abord, à leur montant RÉEL, et c'est
+   ce qui RESTE qui se partage en trois — Réinvestissement, Réserve fiscale,
+   Prélèvement. La somme de ces trois-là doit faire 100.
+
+   BÉNÉFICE NUL OU NÉGATIF : les trois enveloppes valent ZÉRO, jamais un
+   nombre négatif. On ne partage pas une perte — on la constate, et tout
+   retrait du foyer ce mois-là est un PRÊT, ce que l'écran dit en toutes
+   lettres.
+
+   `pctCharges` survit comme REPÈRE : il ne prend plus part au partage, il
+   sert à dire « vos charges pèsent 123 % du revenu, votre repère est 40 % ».
+   Le garder évite de perdre l'objectif que la Maison s'était fixé. */
+
+/* LES QUATRE ENVELOPPES SE NOMMENT ET SE DÉFINISSENT.
+
+   Ces phrases étaient écrites en dur : le poste « Divers » d'une maison n'est
+   pas celui d'une autre, et une enveloppe dont personne n'a écrit le contenu
+   finit par tout accueillir. Elles se modifient donc à l'écran, par branche,
+   et vivent avec la règle qu'elles expliquent. Vider le champ rend la phrase
+   de départ — on ne peut pas se retrouver avec une définition muette. */
+
+export type CleEnveloppe = 'charges' | 'reinvest' | 'reserve' | 'prelevement';
+
+export const ENVELOPPE_LABELS: Record<CleEnveloppe, string> = {
+  charges: 'Charges Salon',
+  reinvest: 'Réinvestissement',
+  reserve: 'Réserve fiscale & imprévus',
+  prelevement: 'Prélèvement Associés',
+};
+
+export const PARTAGE_DITS: Record<CleEnveloppe, string> = {
+  charges: 'loyer, produits, salaires employés, eau & électricité, banque — payées avant tout partage',
+  reinvest: 'épargne de croissance : matériel, expansion, formation — intouchable',
+  reserve: 'impôts, mois creux, pannes, urgences',
+  prelevement: 'le budget maison du foyer — il vit là-dessus, pas plus',
+};
+
+export const CLES_ENVELOPPES: CleEnveloppe[] = ['charges', 'reinvest', 'reserve', 'prelevement'];
+
+/** Ce que dit une enveloppe : les mots de la Maison, sinon ceux du départ. */
+export const ditEnveloppe = (c: PartageConfig, k: CleEnveloppe): string =>
+  (c.dits?.[k] ?? '').trim() || PARTAGE_DITS[k];
+
+export const partageConfigStore = createStore<PartageConfig[]>('mnd_partage_config', []);
+export const usePartageConfigs = () => useStore(partageConfigStore);
+
+/** La règle de la branche — les défauts tant que rien n'est configuré. */
+export const partageDe = (configs: PartageConfig[], branchId: string): PartageConfig =>
+  configs.find((c) => c.branchId === branchId)
+  ?? { id: `pc-${branchId}`, branchId, ...PARTAGE_DEFAUT };
+
+/** Les TROIS enveloppes du bénéfice doivent faire 100. Le repère de charges
+    n'en fait pas partie : il ne consomme rien. */
+export type TroisParts = Pick<PartageConfig, 'pctReinvest' | 'pctReserve' | 'pctPrelevement'>;
+
+export const partageValide = (c: TroisParts): boolean =>
+  [c.pctReinvest, c.pctReserve, c.pctPrelevement].every((p) => Number.isFinite(p) && p >= 0)
+  && c.pctReinvest + c.pctReserve + c.pctPrelevement === 100;
+
+/** Les trois parts RAMENÉES À 100, en gardant leurs proportions.
+    Les règles écrites avant le 11 août portaient quatre parts dont une de
+    charges (40 · 15 · 10 · 35) : leurs trois parts restantes ne font que 60.
+    Les lire telles quelles amputerait le partage d'un tiers en silence — on
+    les renormalise donc, ce qui préserve exactement l'intention. */
+export const partageNormalise = (c: TroisParts): { reinvest: number; reserve: number; prelevement: number } => {
+  const total = c.pctReinvest + c.pctReserve + c.pctPrelevement;
+  if (total === 100) return { reinvest: c.pctReinvest, reserve: c.pctReserve, prelevement: c.pctPrelevement };
+  /* Une règle vide ne peut pas rendre NaN : tout au prélèvement, qui est le
+     poste par défaut du foyer. */
+  if (!(total > 0)) return { reinvest: 0, reserve: 0, prelevement: 100 };
+  const reinvest = Math.round((c.pctReinvest * 100) / total);
+  const reserve = Math.round((c.pctReserve * 100) / total);
+  return { reinvest, reserve, prelevement: 100 - reinvest - reserve };
+};
+
+/** Le bénéfice réel du salon : ce qui reste une fois les charges RÉELLES
+    payées. C'est lui, et lui seul, qui se partage. */
+export const beneficeReel = (revenuXof: number, chargesXof: number): number => revenuXof - chargesXof;
+
+/** Les trois enveloppes du BÉNÉFICE, en XOF entiers. Les deux premières
+    s'arrondissent, la dernière prend LE RESTE : la somme vaut toujours
+    exactement le bénéfice — pas un franc perdu aux arrondis.
+    Un bénéfice nul ou négatif ne se partage pas : trois zéros. */
+export const enveloppesDuMois = (beneficeXof: number, c: PartageConfig) => {
+  if (!(beneficeXof > 0)) return { reinvest: 0, reserve: 0, prelevement: 0 };
+  const parts = partageNormalise(c);
+  const reinvest = Math.round((beneficeXof * parts.reinvest) / 100);
+  const reserve = Math.round((beneficeXof * parts.reserve) / 100);
+  return { reinvest, reserve, prelevement: beneficeXof - reinvest - reserve };
+};
+
+/** Le poids réel des charges dans le revenu — à comparer au repère.
+    Sans revenu, la question n'a pas de sens : on rend `null` plutôt qu'un
+    infini ou un zéro trompeur. */
+export const poidsDesCharges = (revenuXof: number, chargesXof: number): number | null =>
+  revenuXof > 0 ? Math.round((chargesXof / revenuXof) * 100) : null;
+
+/* ---------- Le revenu que le Partage répartit ---------- */
+
+/** Somme des encaissements du mois, HORS pourboires. Depuis le 11 août, le
+    registre porte le pourboire sur SA propre ligne (`kind: 'pourboire'`,
+    caisse Pourboires) : il suffit de l'écarter — c'est l'argent des maîtres,
+    la Maison ne se le partage pas. (L'ancienne version soustrayait `tipXof`
+    de la ligne de la facture ; la garder aurait retiré le pourboire DEUX fois.) */
+export const revenuPartageDuMois = (receipts: Receipt[], mk: string): number =>
+  receipts
+    .filter((r) => r.date.slice(0, 7) === mk && r.kind !== 'pourboire')
+    .reduce((s, r) => s + r.amountXof, 0);
+
+/* ---------- Prélèvements associés — l'annexe du foyer ---------- */
+
+export type Prelevement = {
+  id: string;
+  branchId: string;
+  date: string; // ISO AAAA-MM-JJ
+  beneficiaire: string; // Foyer · Brice · Yéman
+  motif: string;
+  note?: string;
+  amountXof: number; // toujours positif
+};
+
+/** Listes du modèle — des suggestions de saisie, pas des enums : une valeur
+    libre reste possible et rien ne casse si la Maison invente un motif. */
+export const BENEFICIAIRES = ['Foyer', 'Brice', 'Yéman'] as const;
+export const MOTIFS_PRELEVEMENT = ['Maison', 'Nourriture', 'École', 'Santé', 'Transport', 'Personnel', 'Divers'] as const;
+
+export const prelevementsStore = createStore<Prelevement[]>('mnd_prelevements', []);
+export const usePrelevements = () => useStore(prelevementsStore);
+
+export const prelevesDuMois = (l: Prelevement[], branchId: string, mk: string): Prelevement[] =>
+  l.filter((p) => p.branchId === branchId && p.date.slice(0, 7) === mk);
+
+/* ---------- Prêts associés — le dépassement devient une dette ---------- */
+
+export type PretAssocie = {
+  id: string;
+  branchId: string;
+  date: string;
+  type: 'pret' | 'remboursement';
+  associe: string;
+  motif: string;
+  amountXof: number; // toujours positif ; le SENS vient du type
+};
+
+export const pretsStore = createStore<PretAssocie[]>('mnd_prets_associes', []);
+export const usePrets = () => useStore(pretsStore);
+
+export const pretSigneXof = (p: PretAssocie): number =>
+  p.type === 'pret' ? p.amountXof : -p.amountXof;
+
+/** Dette en cours des associés envers le salon — jamais négative à l'écran :
+    un trop-remboursé est une erreur de saisie, pas une dette du salon. */
+export const detteEnCours = (l: PretAssocie[], branchId: string): number =>
+  Math.max(0, l.filter((p) => p.branchId === branchId).reduce((s, p) => s + pretSigneXof(p), 0));
+
+/** Identifiant déterministe de la conversion « dépassement du mois → prêt » :
+    la convertir deux fois ne crée qu'une ligne (upsert par id).
+    LA BRANCHE EST DANS L'IDENTIFIANT (12 août) : l'id est la clé primaire de
+    synchronisation — sans elle, deux branches en dépassement le même mois se
+    seraient écrasé mutuellement le prêt (celle de B effaçait la dette de A). */
+export const pretDepassementId = (branchId: string, mk: string): string => `pret-dep-${branchId}-${mk}`;
+/** L'ancien identifiant, sans branche — encore en base pour les mois déjà convertis. */
+export const pretDepassementIdLegacy = (mk: string): string => `pret-dep-${mk}`;
+
+/* ---------- Réserves — l'argent qui fait grandir le salon ----------
+
+   UN SEUL REGISTRE D'ÉPARGNE, ET C'EST LE COFFRE-FORT.
+
+   Il y en a eu deux pendant une demi-journée : le Coffre-fort (0009 — épargne
+   verrouillée, seule sortie un virement bancaire) et une table de réserves
+   propre au Partage, reliées par un virement en trois gestes — inscrire la
+   dotation, puis la verser, puis la relire à deux endroits. Deux registres
+   pour une même notion finissent toujours par dire deux chiffres, et trois
+   gestes pour une seule décision finissent par ne pas être faits.
+
+   Les deux enveloppes ne sont donc plus un registre : ce sont une ÉTIQUETTE
+   sur les lignes du coffre (`origine: 'reserve'`, `enveloppe`). Mettre de
+   côté, c'est déposer au coffre — une seule étape, et l'argent est à l'abri
+   au moment même où on décide de l'épargner. « Les Réserves » ne sont plus
+   qu'une LECTURE du coffre, par enveloppe.
+
+   Ces lignes-là sont réservées au souverain côté serveur (0040) ; le reste du
+   coffre demeure lisible par le personnel. */
+
+export type EnveloppeReserve = NonNullable<CoffreMovement['enveloppe']>;
+
+export const RESERVE_LABELS: Record<EnveloppeReserve, string> = {
+  reinvestissement: 'Réinvestissement',
+  fiscale: 'Fiscale & imprévus',
+};
+
+export const ENVELOPPES_RESERVE: EnveloppeReserve[] = ['reinvestissement', 'fiscale'];
+
+/** Les lignes d'épargne du Partage, éventuellement d'une seule enveloppe. */
+export const mvtsEnveloppe = (
+  l: CoffreMovement[], branchId: string, env?: EnveloppeReserve,
+): CoffreMovement[] =>
+  l.filter((m) => m.branchId === branchId && m.origine === 'reserve' && (!env || m.enveloppe === env))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+/** Ce que porte une enveloppe (ou les deux) DANS le coffre. Un dépôt ajoute,
+    un virement retire — le coffre n'a pas d'autre sortie. */
+export const soldeEnveloppe = (
+  l: CoffreMovement[], branchId: string, env?: EnveloppeReserve,
+): number =>
+  mvtsEnveloppe(l, branchId, env)
+    .reduce((s, m) => s + (m.kind === 'depot' ? m.amountXof : -m.amountXof), 0);
+
+/** Identifiant déterministe de la dotation mensuelle — inscrire deux fois le
+    même mois ne fait qu'UNE ligne, et la réinscrire l'ajuste.
+    LA BRANCHE EST DANS L'IDENTIFIANT (12 août) : le coffre est PARTAGÉ entre
+    branches et l'id est la clé primaire de synchro — sans elle, la branche B
+    inscrivant août effaçait la dotation d'août de la branche A. */
+export const dotationId = (branchId: string, env: EnveloppeReserve, mk: string): string =>
+  `dot-${branchId}-${env}-${mk}`;
+/** L'ancien identifiant, sans branche — encore en base pour les mois déjà dotés. */
+export const dotationIdLegacy = (env: EnveloppeReserve, mk: string): string => `dot-${env}-${mk}`;
+
+/** La dotation d'un mois, si elle est déjà au coffre — celle de CETTE branche.
+    L'ENVELOPPE EST VÉRIFIÉE, pas seulement l'identifiant, et l'ancien id sans
+    branche reste reconnu (les dotations d'avant le 12 août le portent). */
+export const dotationDuMois = (
+  l: CoffreMovement[], branchId: string, env: EnveloppeReserve, mk: string,
+): CoffreMovement | undefined =>
+  l.find((m) => (m.id === dotationId(branchId, env, mk)
+    || (m.id === dotationIdLegacy(env, mk) && m.branchId === branchId))
+    && m.enveloppe === env);
+
+/** Corriger une ligne d'épargne — elle vit au coffre, elle s'y modifie.
+    L'ENVELOPPE D'UNE DOTATION NE SE RE-LIBELLE PAS (12 août) : son identifiant
+    la porte, et la lecture (`dotationDuMois`) vérifie les deux. Re-libeller
+    faisait dire « rien d'inscrit » au panneau, dont le bouton détruisait alors
+    la ligne re-libellée — 100 000 F disparaissaient de l'autre enveloppe sans
+    trace. Pour changer d'enveloppe : retirer la dotation, re-doter l'autre. */
+export const modifieLigneEpargne = (
+  id: string,
+  patch: Partial<Pick<CoffreMovement, 'date' | 'enveloppe' | 'kind' | 'amountXof' | 'note'>>,
+): void => {
+  const sain = id.startsWith('dot-') ? (({ enveloppe: _e, ...reste }) => reste)(patch) : patch;
+  coffreStore.set((prev) => prev.map((m) => (m.id === id ? { ...m, ...sain } : m)));
+};
+
+/** METTRE DE CÔTÉ — une seule étape : la dotation entre directement au coffre.
+    Le remplacement ne touche que LA ligne de CETTE branche (nouvel id, ou
+    ancien id si c'est elle qui l'avait écrit) — jamais celle d'une autre. */
+export function doterAuCoffre(p: {
+  branchId: string; enveloppe: EnveloppeReserve; mois: string; amountXof: number; date: string;
+}): void {
+  const montant = Math.round(p.amountXof);
+  if (!(montant > 0)) return;
+  const id = dotationId(p.branchId, p.enveloppe, p.mois);
+  const legacy = dotationIdLegacy(p.enveloppe, p.mois);
+  coffreStore.set((prev) => [...prev.filter((m) => !(m.id === id || (m.id === legacy && m.branchId === p.branchId))), {
+    id, branchId: p.branchId, kind: 'depot', amountXof: montant, date: p.date,
+    note: `Réserve · ${RESERVE_LABELS[p.enveloppe]} · dotation du mois`,
+    origine: 'reserve', enveloppe: p.enveloppe,
+  }]);
+}
+
+/** Un versement libre dans une enveloppe — hors dotation mensuelle. */
+export function verserDansEnveloppe(p: {
+  branchId: string; enveloppe: EnveloppeReserve; amountXof: number; date: string; note?: string;
+}): void {
+  const montant = Math.round(p.amountXof);
+  if (!(montant > 0)) return;
+  coffreStore.set((prev) => [...prev, {
+    id: `cof-res-${uid()}`, branchId: p.branchId, kind: 'depot', amountXof: montant, date: p.date,
+    note: p.note?.trim() || `Réserve · ${RESERVE_LABELS[p.enveloppe]}`,
+    origine: 'reserve', enveloppe: p.enveloppe,
+  }]);
+}
+
+/** SORTIR de l'épargne — un virement, la seule sortie que le coffre autorise.
+    On ne retire jamais plus que l'enveloppe ne porte. */
+export function retirerDeEnveloppe(p: {
+  branchId: string; enveloppe: EnveloppeReserve; amountXof: number; date: string;
+  destination?: string; note?: string;
+}): { ok: true } | { ok: false; erreur: string } {
+  const montant = Math.round(p.amountXof);
+  if (!(montant > 0)) return { ok: false, erreur: 'Un retrait porte sur un montant positif.' };
+  const dispo = soldeEnveloppe(coffreStore.get(), p.branchId, p.enveloppe);
+  if (montant > dispo) {
+    return {
+      ok: false,
+      erreur: `L'enveloppe ${RESERVE_LABELS[p.enveloppe]} ne porte que ${dispo} — on ne retire pas ce qu'on n'a pas mis de côté.`,
+    };
+  }
+  coffreStore.set((prev) => [...prev, {
+    id: `cof-res-${uid()}`, branchId: p.branchId, kind: 'virement', amountXof: montant, date: p.date,
+    bank: p.destination?.trim() || undefined,
+    note: p.note?.trim() || `Réserve · ${RESERVE_LABELS[p.enveloppe]} · retrait`,
+    origine: 'reserve', enveloppe: p.enveloppe,
+  }]);
+  return { ok: true };
+}
+
+/** Retirer une ligne d'épargne — elle vit dans le coffre, elle s'en retire. */
+export const supprimeLigneEpargne = (id: string): void =>
+  coffreStore.set((prev) => prev.filter((m) => m.id !== id));
+
+/* ---------- Les caisses indépendantes — autant de mondes étanches ----------
+
+   Il n'y en avait que DEUX, écrites en dur : Succession et Devises. Une
+   limite arbitraire — une maison peut tenir une caisse par héritage, par
+   projet, par personne, et rien ne justifiait de choisir à sa place. Une
+   caisse se crée donc, se nomme, et emporte son registre.
+
+   CE QUI NE CHANGE PAS, ET NE DOIT JAMAIS CHANGER : ces caisses ne
+   participent à AUCUN calcul MND — ni revenu, ni charges, ni bénéfice, ni
+   totaux. L'étanchéité est structurelle : aucun autre écran n'importe ces
+   deux magasins. */
+
+export type CaisseIndep = {
+  id: string;
+  branchId: string;
+  nom: string;
+  /** Devise physiquement détenue. Absente = la devise de la maison. Une caisse
+      en devise garde des billets étrangers : son solde se compte dans SA
+      devise et ne se reconvertit jamais — sinon le compte ne tomberait plus
+      juste avec le tiroir. Même règle que les caisses du comptoir
+      (`Cashbox.currency`), et elle se FIGE dès le premier mouvement. */
+  devise?: string;
+  /** À quoi elle sert, dans les mots de la Maison. */
+  dit?: string;
+  ordre?: number;
+};
+
+export type MouvementCaisseIndep = {
+  id: string;
+  branchId: string;
+  caisseId: string;
+  date: string;
+  sens: 'entree' | 'sortie';
+  label: string;
+  /** Montant DANS LA DEVISE DE LA CAISSE, toujours positif (décimales
+      permises) ; le SENS porte le signe. */
+  montant: number;
+  /** 1 unité de la devise en monnaie de la maison, au taux saisi CE JOUR-LÀ.
+      La contre-valeur est INDICATIVE : elle n'entre dans aucun total MND et
+      ne se recalcule jamais à un taux du jour. Absent quand la caisse tient
+      la devise de la maison. */
+  taux?: number;
+};
+
+/** Devises proposées à la création — la saisie reste libre. */
+export const DEVISES_CAISSE = ['EUR', 'USD', 'GBP', 'CAD'] as const;
+
+export const caissesIndepStore = createStore<CaisseIndep[]>('mnd_caisses_indep', []);
+export const useCaissesIndep = () => useStore(caissesIndepStore);
+
+export const mouvementsCaisseStore = createStore<MouvementCaisseIndep[]>('mnd_caisses_indep_mvts', []);
+export const useMouvementsCaisse = () => useStore(mouvementsCaisseStore);
+
+/** Les caisses d'une branche, dans l'ordre voulu puis alphabétique. */
+export const caissesDe = (l: CaisseIndep[], branchId: string): CaisseIndep[] =>
+  l.filter((c) => c.branchId === branchId)
+    .sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0) || a.nom.localeCompare(b.nom, 'fr'));
+
+/** La devise d'une caisse — celle de la maison par défaut. */
+export const deviseDeCaisse = (c: CaisseIndep, deviseMaison: string): string => c.devise || deviseMaison;
+
+/** Solde d'une caisse, DANS SA DEVISE. Arrondi à 2 décimales : une caisse en
+    euros compte des centimes, et 0.1 + 0.2 ne doit pas rendre 0.30000000000004. */
+export const soldeCaisse = (l: MouvementCaisseIndep[], caisseId: string): number =>
+  Math.round(
+    l.filter((m) => m.caisseId === caisseId)
+      .reduce((s, m) => s + (m.sens === 'entree' ? m.montant : -m.montant), 0) * 100,
+  ) / 100;
+
+export const mouvementsDe = (l: MouvementCaisseIndep[], caisseId: string): MouvementCaisseIndep[] =>
+  l.filter((m) => m.caisseId === caisseId)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+/* ---------- Synchronisation — tables sous `is_souverain()` (0038, 0039) ---------- */
+
+bindCollection(partageConfigStore, 'partage_config');
+bindCollection(prelevementsStore, 'prelevements');
+bindCollection(pretsStore, 'prets_associes');
+/* `reserves_mouvements` (0038) n'est PLUS liée : l'épargne vit au coffre
+   depuis 0041, qui a repris ses lignes. La table reste en base comme retour
+   en arrière — c'est le patron des `repli_0023_`. */
+bindCollection(caissesIndepStore, 'caisses_indep');
+bindCollection(mouvementsCaisseStore, 'caisses_indep_mouvements');

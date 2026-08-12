@@ -92,8 +92,24 @@ export default function BilanMensuel() {
        Voir `Client.dePassage`. */
     const passage = new Set(clients.filter(estDePassage).map((c) => c.id));
     const heads = new Set(monthAppts.filter((a) => !passage.has(a.clientId)).map((a) => a.clientId)).size;
-    const nouvelles = clients.filter((c) =>
-      c.branchId === branch.id && !estDePassage(c) && (c.since ?? '').slice(0, 7) === month).length;
+    /* UNE NOUVELLE EST UNE TÊTE DONT LA PREMIÈRE VENUE HONORÉE TOMBE CE
+       MOIS-CI (12 août). Deux versions fausses avant celle-ci : compter les
+       fiches ouvertes (les comptes Ma Couronne jamais venus gonflaient), puis
+       « couronnée ET fiche ouverte ce mois » — or la fiche du comptoir naît
+       « de passage » (levée à la 2ᵉ venue) : le mois courant lisait ~0
+       nouvelle, le chiffre se remplissait rétroactivement au retour, et une
+       tête venue une seule fois ne comptait dans AUCUN mois. La première
+       venue honorée est un fait stable : ni le statut de passage ni le mois
+       d'ouverture de la fiche ne le déplacent. */
+    const branchClientIds = new Set(clients.filter((c) => c.branchId === branch.id).map((c) => c.id));
+    const premiereVenue = new Map<string, string>();
+    for (const a of appts) {
+      if (a.status !== 'honoré' || !a.clientId) continue;
+      const cur = premiereVenue.get(a.clientId);
+      if (!cur || a.date < cur) premiereVenue.set(a.clientId, a.date);
+    }
+    const nouvelles = [...premiereVenue.entries()]
+      .filter(([id, date]) => branchClientIds.has(id) && date.slice(0, 7) === month).length;
     const dePassage = new Set(monthAppts.filter((a) => passage.has(a.clientId)).map((a) => a.clientId)).size;
 
     /* — revenu jour par jour du mois — */

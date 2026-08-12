@@ -202,6 +202,24 @@ export const apptPayeurId = (a: Pick<Appointment, 'offertPar' | 'clientId'>): st
     s'assied : c'est la clé des points de fidélité, et l'entrée au Cercle doit se
     compter avec la même — sinon on ouvrirait le Cercle à l'une et on
     créditerait l'autre. */
+/** LES TÊTES QUE LA MAISON A RÉELLEMENT COURONNÉES — celles qui se sont assises
+    au moins une fois. Un SET, construit d'une passe : la question se pose pour
+    tout le CRM à la fois (têtes couronnées, têtes actives, audiences), et
+    interroger `venuesHonorees` par cliente relirait le carnet entier à chaque
+    fiche.
+
+    POURQUOI CE COMPTEUR EXISTE (11 août 2026). Ouvrir un compte sur Ma Couronne
+    créait une fiche pleine (`ensureClient`) : des inconnus qui n'étaient jamais
+    venus comptaient parmi les têtes couronnées, et chaque inscription faussait
+    un peu plus la rétention. « Tête couronnée » ne veut plus dire « fiche
+    existante » mais « venue au moins une fois » — ce qui ne demande aucun
+    champ, aucun entretien, et se corrige tout seul le jour où elle s'assied. */
+export const tetesVenues = (appts: readonly Appointment[]): Set<string> => {
+  const s = new Set<string>();
+  for (const a of appts) if (a.status === 'honoré' && a.clientId) s.add(a.clientId);
+  return s;
+};
+
 export const venuesHonorees = (
   appts: readonly Appointment[],
   clientId: string,

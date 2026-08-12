@@ -411,6 +411,7 @@ export default function Calendrier() {
                     <span className="trc-agenda__client">
                       {clientName(a.clientId)}
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                      {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
                     </span>
                     <span className="trc-agenda__svc">{apptLabel(a, byId)} · {a.master}</span>
                   </span>
@@ -498,6 +499,11 @@ export default function Calendrier() {
                       <div className="trc-cal__appt-title">
                         {a.time} · {clientName(a.clientId)}
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                        {/* L'INDIGO SE DIT EN TOUTES LETTRES. La couleur seule
+                            voulait dire « au fauteuil en ce moment » — et il
+                            fallait le savoir pour la comprendre (question de
+                            Yéman, 11 août). */}
+                        {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
                       </div>
                       <div className="trc-cal__appt-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apptLabel(a, byId)}</span>

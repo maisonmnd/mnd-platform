@@ -392,7 +392,7 @@
         </div>
         <table class="lignes">
           <tr><td class="lib">CNSS — part salariale</td><td class="det" id="d-tauxcnss">3,6 % du brut</td><td class="mnt" id="m-cnssv"></td></tr>
-          <tr><td class="lib">ITS — impôt sur les traitements et salaires</td><td class="det">barème progressif</td><td class="mnt" id="m-its"></td></tr>
+          <tr><td class="lib">ITS — impôt sur les traitements et salaires</td><td class="det" id="d-detits">barème progressif</td><td class="mnt" id="m-its"></td></tr>
           <tr id="l-avance"><td class="lib">Avance sur salaire</td><td class="det">remboursement</td><td class="mnt" id="m-avance"></td></tr>
           <tr id="l-autre"><td class="lib">Autre retenue</td><td class="det"></td><td class="mnt" id="m-autre"></td></tr>
           <tr class="subtotal"><td class="lib">Total des retenues</td><td class="det"></td><td class="mnt" id="m-retenues"></td></tr>
@@ -462,6 +462,11 @@
     document.getElementById(id).classList.toggle('hidden', amount <= 0);
   }
 
+  // L'ITS suit l'ERP : tant que les employes n'y sont pas assujettis, il est
+  // suspendu (parametre ?its=0). Sans ce drapeau la page deroulerait son
+  // bareme et imprimerait un net inferieur a celui reellement verse.
+  var ITS_ACTIF = true;
+
   function calcITS(brut){
     var its = 0, plancher = 0;
     for (var i = 0; i < ITS_TRANCHES.length; i++){
@@ -513,11 +518,16 @@
     // Retenues
     var tauxCnss = num('p-cnss') / 100;
     var cnss = brut * tauxCnss;
-    var its = calcITS(brut);
+    var its = ITS_ACTIF ? calcITS(brut) : 0;
     var avance = num('r-avance'), autre = num('r-autre');
     var retenues = cnss + its + avance + autre;
 
-    set('d-tauxcnss', String(num('p-cnss')).replace('.',',') + ' % du brut');
+    // Le bulletin DIT ce qui n'a pas ete applique : un zero sans explication se
+    // lit comme un oubli, et l'employe doit pouvoir verifier son net.
+    set('d-detits', ITS_ACTIF ? 'barème progressif' : 'suspendu — non appliqué');
+    set('d-tauxcnss', tauxCnss > 0
+      ? String(num('p-cnss')).replace('.',',') + ' % du brut'
+      : 'suspendue — non appliquée');
     set('m-cnssv', fcfa(cnss));
     set('m-its', fcfa(its));
     set('m-avance', fcfa(avance)); row('l-avance', avance);
@@ -526,7 +536,10 @@
 
     // Net + employeur
     set('m-net', fcfa(brut - retenues));
-    var patronal = brut * CNSS_PATRONAL;
+    // Taux salarial a zero = personne n'est declare : l'employeur ne doit rien
+    // non plus. Afficher une charge patronale ferait croire a un cout qui
+    // n'existe pas, et fausserait toute decision d'embauche.
+    var patronal = tauxCnss > 0 ? brut * CNSS_PATRONAL : 0;
     set('m-patronal', fcfa(patronal));
     set('m-cout', fcfa(brut + patronal));
   }
@@ -545,11 +558,17 @@
       nom:'f-nom', poste:'f-poste', matricule:'f-matricule', cnssnum:'f-cnss',
       periode:'f-periode', base:'g-base', hs:'g-hs', prime:'g-prime',
       pourboires:'g-pourboires', commission:'g-commission',
-      avance:'r-avance', retenue:'r-autre', paiement:'p-paiement'
+      avance:'r-avance', retenue:'r-autre', paiement:'p-paiement',
+      // Le taux CNSS vient de l'ERP : tant que personne n'est declare, il vaut
+      // 0 et la retenue s'eteint. Sans ce parametre la page gardait ses 3,6 %
+      // et imprimait un net inferieur a celui reellement verse.
+      cnss:'p-cnss'
     };
     Object.keys(map).forEach(function(k){
       if (q.has(k)) document.getElementById(map[k]).value = q.get(k);
     });
+    // `its` n'est pas un champ du panneau mais un drapeau : il se lit a part.
+    if (q.has('its')) ITS_ACTIF = q.get('its') !== '0';
     refresh();
   })();
 

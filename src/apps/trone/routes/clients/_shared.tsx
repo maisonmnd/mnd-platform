@@ -8,15 +8,16 @@ import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
-  appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey,
+  appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { sousArbreOf, useServices, useCategories, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable } from '../../../../shared/pricing';
+import { invoicesStore, invoiceTotal } from '../../../../shared/finance';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -130,6 +131,105 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.forfait) return Math.max(0, Math.round(a.forfait.totalXof));
   return Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
 };
+
+/* ---------- Les factures suivent le rituel ----------
+
+   MODIFIER UN RITUEL DÉJÀ ENCAISSÉ laissait sa facture telle qu'elle était
+   née : les lignes disaient les prestations du jour de l'encaissement, le
+   Carnet disait celles d'aujourd'hui — deux documents pour la même séance,
+   qui ne racontaient plus la même histoire (demande de Yéman, 11 août).
+
+   LA RÈGLE D'OR : L'ARGENT REÇU NE BOUGE PAS. La pièce atteste un paiement ;
+   son TOTAL est intouchable — c'est ce qui est entré dans la caisse, et le
+   chiffre d'affaires le lit. Seules les LIGNES se reconforment : chaque
+   prestation d'aujourd'hui à son PRIX PLEIN, l'écart en remise visible (ou en
+   ligne d'ajustement s'il joue dans l'autre sens). Si le nouveau net dépasse
+   ce qui a été payé, la différence vit où elle a toujours vécu : au RESTE dû
+   du rituel, pas dans une facture réécrite.
+
+   Une pièce de règlement PARTIEL (une seule ligne « Règlement · … ») ne se
+   détaille pas après coup — un argent qui n'a couvert qu'une part ne se
+   ventile pas ; seul son libellé suit les prestations du jour. */
+const LIGNE_AJUSTEMENT = 'Ajustement · prix consenti ce jour-là';
+
+export function alignerFacturesDuRituel(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  /* LE PRIX PLEIN DE CHAQUE PRESTATION, AU TARIF DE LA CLIENTE (12 août). La
+     première version lisait `svcPriceForAppt` — longueur et catalogue
+     seulement : planchers par calibre, tarif au lock et Juste Prix ignorés,
+     et une pièce Mini payée 90 000 F se réécrivait « 45 000 + Ajustement
+     45 000 ». L'appelant passe désormais SON contexte tarifaire (la modale
+     RDV passe le sien, longueur figée comprise) ; le repli reste l'ancien
+     calcul pour ne rien casser d'un appel nu. */
+  priceOf: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
+): void {
+  const ids = new Set<string>();
+  if (appt.invoiceId) ids.add(appt.invoiceId);
+  for (const p of appt.payments ?? []) if (p.invoiceId) ids.add(p.invoiceId);
+  if (ids.size === 0) return;
+  const services = apptServices(appt, byId);
+  if (services.length === 0) return;
+  /* Tous les noms de prestations du catalogue — pour reconnaître ce qui, sur
+     la pièce, est une ligne de RITUEL (même d'une composition passée). */
+  const nomsPrestations = new Set<string>();
+  for (const s of byId.values()) nomsPrestations.add(s.name);
+
+  invoicesStore.set((prev) => prev.map((inv) => {
+    if (!ids.has(inv.id) || inv.kind !== 'facture' || inv.status !== 'payée') return inv;
+    const total = invoiceTotal(inv);
+
+    if (inv.lines.length === 1 && inv.lines[0].label.startsWith('Règlement ·')) {
+      const label = `Règlement · ${apptLabel(appt, byId)}`;
+      if (inv.lines[0].label === label) return inv;
+      return { ...inv, lines: [{ ...inv.lines[0], label }] };
+    }
+
+    /* UN FORFAIT DONNE SON NOM À LA PIÈCE (règle du 8 août) : c'est le prix
+       négocié que la cliente relira, pas la composition. On ne le redétaille
+       pas — changer les gestes ne change pas ce qu'elle a accepté. */
+    if (appt.forfait && inv.lines.length === 1) return inv;
+
+    /* UNE PIÈCE MIXTE NE SE RÉÉCRIT PAS (12 août). Le panier de la Caisse pose
+       produits et formations sur LA MÊME facture que le rituel qu'elle solde ;
+       la réécrire depuis les seuls services effaçait ces lignes du document
+       payé — le flacon disparaissait du PDF, et le papier ne correspondait
+       plus au mouvement de stock. On ne reconforme que ce qu'on sait
+       reconstruire : si une ligne n'est ni une prestation du catalogue ni
+       l'ajustement, la pièce reste entière. */
+    const reconstructible = inv.lines.every((l) => nomsPrestations.has(l.label) || l.label === LIGNE_AJUSTEMENT);
+    if (!reconstructible) return inv;
+
+    /* LES LIGNES DISENT LES VRAIS PRIX, L'ÉCART SE DIT EN REMISE. La première
+       version répartissait le total AU PRORATA : 40 000 F sur deux gestes
+       donnaient 9 697 et 30 303 — exacts en somme, mais correspondant à aucun
+       prix réel (« des prix bizarres qui ne veulent rien dire », Yéman,
+       11 août). C'est la présentation de l'ENCAISSEMENT qu'on reproduit :
+       chaque prestation à son prix plein, et si leur somme dépasse le total
+       payé, l'écart est une remise visible ; si elle est en dessous, une
+       ligne d'ajustement le dit (patron de la reprise 0018). Le total, lui,
+       ne bouge toujours pas d'un franc. */
+    const pleins = services.map((s) => Math.max(0, Math.round(priceOf(s))));
+    const gross = pleins.reduce((a, b) => a + b, 0);
+    const lines = services.map((s, i) => ({
+      id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: 0,
+    }));
+    let remiseXof: number | undefined;
+    if (gross > total) {
+      remiseXof = gross - total;
+    } else if (gross < total) {
+      lines.push({ id: `il-${inv.id}-adj`, label: LIGNE_AJUSTEMENT, qty: 1, unitXof: total - gross, discountPct: 0 });
+    }
+    /* Idempotent : mêmes prestations, mêmes montants, même remise → on ne
+       réécrit rien, la synchronisation n'a pas à porter un faux changement. */
+    const deja = inv.lines.length === lines.length
+      && (inv.globalDiscountPct ?? 0) === 0
+      && (inv.globalDiscountXof ?? 0) === (remiseXof ?? 0)
+      && inv.lines.every((l, i) => l.label === lines[i].label && l.qty * l.unitXof === lines[i].unitXof && !l.discountPct);
+    if (deja) return inv;
+    return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof };
+  }));
+}
 
 /** Le nom d'un forfait ponctuel — « Forfait » quand la Maison n'en a pas donné. */
 export const forfaitLabel = (f: NonNullable<Appointment['forfait']>): string => f.nom?.trim() || 'Forfait';
@@ -391,8 +491,20 @@ export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'p
 function LocksDeLaTete({ client, calibre }: { client?: Client; calibre?: string }) {
   const initial = client?.lockCount != null ? String(client.lockCount) : '';
   const [draft, setDraft] = useState(initial);
+  const [focused, setFocused] = useState(false);
+  /* LE BROUILLON SUIT LA FICHE — même patron que la cellule de la liste
+     (LocksCell). Sans cela, il gardait sa valeur DE MONTAGE : changer de
+     cliente dans la même modale montrait les locks de la précédente, et un
+     comptage corrigé sur la fiche à côté n'apparaissait jamais ici — les deux
+     champs parlaient de la même tête sans se lire (constaté le 11 août). Hors
+     focus seulement : on n'écrase pas une frappe en cours. */
+  useEffect(() => {
+    if (!focused) setDraft(client?.lockCount != null ? String(client.lockCount) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.id, client?.lockCount, focused]);
 
   const inscrire = () => {
+    setFocused(false);
     if (!client) return;
     const t = draft.trim();
     if (t === '') {
@@ -415,6 +527,7 @@ function LocksDeLaTete({ client, calibre }: { client?: Client; calibre?: string 
         inputMode="numeric"
         disabled={!client}
         placeholder={client ? 'à compter' : '—'}
+        onFocus={() => setFocused(true)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={inscrire}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
@@ -552,6 +665,9 @@ export function RdvModal({
   const clients = useBranchClients();
   const branchAppts = useBranchAppointments();
   const [services] = useServices();
+  /* Les produits de la Gamme — une composition de forfait peut en porter, et
+     le moteur les compte désormais (12 août). */
+  const [produitsGamme] = useProducts();
   const byId = useServicesById();
 
   const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? clients[0]?.id ?? '');
@@ -591,8 +707,14 @@ export function RdvModal({
   const [prixMode, setPrixMode] = useState<'plein' | 'remise' | 'forfait'>(
     () => (appt?.forfait ? 'forfait' : (appt?.discountPct || appt?.discountXof ? 'remise' : 'plein')),
   );
-  /* Montant convenu — saisi pour les rituels à prix variable / sur devis. */
-  const [amount, setAmount] = useState<string>(appt?.priceXof != null ? String(appt.priceXof) : '');
+  /* Montant convenu — saisi pour les rituels à prix variable / sur devis.
+     `null` = la Maison n'a pas touché au champ : la valeur affichée se DÉRIVE
+     alors du rendez-vous. Le seeder avec `priceXof` était un bug à double
+     détente : le rendez-vous ne stocke que le TOTAL (fixes + libre), donc le
+     champ « sur mesure » se rouvrait avec le total entier — et réenregistrer
+     rajoutait les prix fixes PAR-DESSUS, gonflant le rituel à chaque
+     ouverture (constaté le 11 août, 8 000 → 13 000 → 18 000). */
+  const [amount, setAmount] = useState<string | null>(null);
   /* Ré-tarifer un rituel au tarif du jour (geste EXPLICITE) : un prix figé sous
      un ancien barème peut être actualisé au prix personnalisé courant. Jamais
      automatique — le prix d'origine fait foi tant que la maison ne le demande pas. */
@@ -602,6 +724,8 @@ export function RdvModal({
   const [subs] = useSubscribers();
   const [plans] = usePlans();
   const [bands] = useModelBands();
+  /* Tout le carnet — pour compter les venues honorées de la tête choisie. */
+  const [tousLesRdv] = useAppointments();
   /* Abonnement actif de la cliente — pour la distinguer à la prise de rendez-vous. */
   const membership = clientId ? activeSubscriberOf(subs, clientId) : undefined;
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
@@ -634,11 +758,23 @@ export function RdvModal({
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
   const [sets] = useBandSets();
-  /* LA LONGUEUR TRAVAILLÉE, choisie ici et non lue sur la fiche : elle repousse.
-     Elle entre dans le contexte tarifaire comme le calibre, et se réinscrit sur
-     le rendez-vous pour que le relire ne le retarife jamais à la longueur
-     d'aujourd'hui. Par défaut Mi-Long — le cas courant au fauteuil. */
-  const [longueur, setLongueur] = useState<LongueurId>(appt?.longueur ?? 'mi-long');
+  /* LA LONGUEUR TRAVAILLÉE, choisie ici — et le rendez-vous FIGE la sienne :
+     le relire ne le retarife jamais à la longueur d'aujourd'hui. Le point de
+     départ vient désormais de la FICHE (11 août) : la Maison connaît sa
+     longueur, autant partir de la vraie ; le sélecteur corrige si elle a
+     poussé. À défaut Mi-Long — le cas courant au fauteuil. */
+  const [longueur, setLongueur] = useState<LongueurId>(
+    appt?.longueur ?? rdvClient?.longueur ?? 'mi-long',
+  );
+  /* CHANGER DE CLIENTE dans la modale adopte SA longueur de fiche — sur le seul
+     changement de tête, pour qu'une synchro n'écrase pas une correction faite
+     au sélecteur. La longueur déjà FIGÉE d'un rituel existant prime toujours. */
+  useEffect(() => {
+    if (appt?.longueur) return;
+    const fiche = clients.find((c) => c.id === clientId);
+    setLongueur(fiche?.longueur ?? 'mi-long');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
   /* TOUS LES MONTANTS DE CETTE FICHE PASSENT PAR ICI. Masquer les prix un par
      un aurait laissé passer celui qu'on oublie — et un prix oublié dans un
      écran censé n'en montrer aucun vaut pire que pas de masquage du tout. */
@@ -655,7 +791,13 @@ export function RdvModal({
      Mini : le proposer, c'est risquer de figer 150 000 F sur son rendez-vous là
      où son prix est de 220 000 F. Déclaré APRÈS `pricing` — le lire plus haut
      touchait une constante non encore initialisée et cassait tout le Carnet. */
-  const proposables = remaining.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
+  /* LES VENUES DE LA TÊTE — pour ouvrir les prestations à seuil (desVenue).
+     Le forfait GBÈJÍ™ Fidélité ne paraît qu'à partir de la 3ᵉ venue : avant,
+     il n'existe pas pour elle, comme une création hors calibre. */
+  /* Mémoïsé : le comptage balaie le carnet ENTIER, et cette modale re-rend à
+     chaque frappe — le chemin de saisie le plus chaud de l'application. */
+  const venuesTete = useMemo(() => venuesHonorees(tousLesRdv, clientId), [tousLesRdv, clientId]);
+  const proposables = remaining.filter((sv) => estProposable(sv, pricing, venuesTete));
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
@@ -666,16 +808,65 @@ export function RdvModal({
   const horsAtelier = proposables.filter((sv) => !cats.some((c) => c.id === sv.categoryId));
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
-  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing, services), 0) : grossCatalogue;
+  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing, services, produitsGamme), 0) : grossCatalogue;
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
      montant convenu (saisi dans la modale) prime alors sur la somme de référence ;
      à défaut, on retient le prix de départ. */
-  const needsAmount = chosen.some((sv) => priceModeOf(sv) !== 'fixe');
-  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
+  /* CE QUI RESTE VRAIMENT À TARIFER — et rien d'autre.
+     Le critère n'est PAS « la prestation n'est pas à prix fixe » : une SÍNSIN
+     Élaborée est déclarée « variable », mais son prix est exactement connu dès
+     qu'on a le calibre ou le comptage de la cliente — l'écran l'affiche
+     d'ailleurs en clair, « 35 000 F » et non « dès 35 000 F ». Lui ouvrir un
+     champ de saisie faisait redemander un montant déjà calculé, sur une ligne
+     qui affichait déjà son prix : deux nombres, et l'on ne savait plus lequel
+     comptait (constaté le 11 août).
+
+     `prixFerme` porte déjà cette question — « son prix est-il exactement connu
+     pour cette cliente ? » — et il tient compte du prix convenu avec elle. Un
+     champ ne s'ouvre donc que là où la réponse est NON : une prestation sur
+     devis, ou une variable dont le modèle ne permet pas encore de trancher. */
+  const estLibre = (sv: Service) => !prixFerme(sv, pricing);
+  const needsAmount = chosen.some(estLibre);
+  /* UNE SEULE prestation à prix libre → le montant se saisit SUR SA LIGNE.
+     Au-delà, un champ par ligne mentirait : le rendez-vous ne porte qu'un
+     montant, et deux champs le réécriraient l'un après l'autre. */
+  const libres = chosen.filter(estLibre);
+  const seulPrixLibre = libres.length === 1;
   const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged && !refreshPrice;
   const grossXof = keepFrozen ? (frozenXof as number) : grossBase;
-  const effGross = needsAmount ? (amountNum || grossBase) : grossXof;
+
+  /* LE MONTANT CONVENU NE VAUT QUE POUR LES PRESTATIONS À PRIX LIBRE.
+     Il REMPLAÇAIT le total du rituel : une reprise SÍNSIN à 45 000 F posée à
+     côté d'une prestation sur mesure disparaissait dès qu'on saisissait
+     12 000 F pour celle-ci — le rendez-vous valait 12 000 F au lieu de 57 000,
+     et rien ne le disait (constaté le 11 août). Le montant se substitue
+     désormais au SEUL bloc des prix libres ; les prestations à prix fixe
+     gardent le leur et s'ajoutent.
+
+     Sans montant saisi, le bloc libre garde son prix de départ — zéro pour une
+     prestation sur devis, le prix annoncé pour une variable. */
+  const prixDe = (sv: Service) =>
+    rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
+  const grossLibre = libres.reduce((s, sv) => s + prixDe(sv), 0);
+  const grossFixe = Math.max(0, grossBase - grossLibre);
+  /* LA PART LIBRE DÉJÀ FIGÉE — retrouvée en ôtant les prix fixes du total
+     enregistré. C'est elle que le champ affiche à la réouverture, et c'est ce
+     qui rend le geste NEUTRE : rouvrir puis enregistrer sans rien toucher
+     redonne exactement le même total. */
+  const libreFige = needsAmount && appt?.priceXof != null
+    ? Math.max(0, Math.round(appt.priceXof) - grossFixe)
+    : undefined;
+  const amountStr = amount ?? (libreFige != null ? String(libreFige) : '');
+  /* « 0 » EST UNE VALEUR (12 août). L'ancien `(amountNum || grossLibre)` ne
+     distinguait pas « zéro convenu » de « rien saisi » : taper 0 (rituel
+     offert sur la part libre) enregistrait quand même le prix de départ, et
+     une part libre FIGÉE à zéro — tarif monté au Catalogue, prestation fixe
+     ajoutée dans la modale, abonnement décoché — regonflait le rituel à la
+     réouverture : la résurgence du bug « il remet 8 000 » par le cas zéro.
+     Seul un champ VIDE retombe sur le prix de départ, comme l'aide le dit. */
+  const amountNum = amountStr.trim() === '' ? null : (parseInt(amountStr.replace(/[^0-9]/g, ''), 10) || 0);
+  const effGross = needsAmount ? grossFixe + (amountNum ?? grossLibre) : grossXof;
   /* REMISE VISIBLE « prix d'origine conservé » : chaque prestation reste affichée à
      son prix PLEIN (personalPriceXof, somme = grossBase) ; quand le total effectif
      figé est INFÉRIEUR au prix du jour, l'écart est une remise explicite — le RDV
@@ -781,7 +972,10 @@ export function RdvModal({
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
                    devis : on GÈLE le montant convenu. */
-                priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossBase) : keepFrozen ? frozenXof : rdvPersonalized ? grossBase : undefined,
+                /* `effGross` — le MÊME nombre que l'aperçu de la modale : prix
+                   fixes + montant convenu des prix libres. Le recalculer ici
+                   ferait diverger ce qu'on lit de ce qu'on enregistre. */
+                priceXof: effCovered ? 0 : needsAmount ? effGross : keepFrozen ? frozenXof : rdvPersonalized ? grossBase : undefined,
                 depositServiceIds: effCovered ? [] : depositServiceIds,
                 depositXof: effCovered ? 0 : depositXof }
             : x,
@@ -795,6 +989,12 @@ export function RdvModal({
       } else if (chosenStatus !== 'honoré' && appt.status === 'honoré') {
         rembobinerRituel(appt.id);
       }
+      /* LES FACTURES LIÉES SUIVENT LA NOUVELLE COMPOSITION — total intact,
+         lignes conformes (voir alignerFacturesDuRituel). Le contexte tarifaire
+         de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
+         prix pleins — pas le prix catalogue nu. */
+      const maj = appointmentsStore.get().find((x) => x.id === appt.id);
+      if (maj) alignerFacturesDuRituel(maj, byId, (s) => prixDe(s));
     } else {
       const created: Appointment = {
         id: uid(),
@@ -817,7 +1017,7 @@ export function RdvModal({
         discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
-        priceXof: effCovered ? 0 : needsAmount ? (amountNum || grossBase) : rdvPersonalized ? grossBase : undefined,
+        priceXof: effCovered ? 0 : needsAmount ? effGross : rdvPersonalized ? grossBase : undefined,
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
@@ -939,14 +1139,45 @@ export function RdvModal({
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
                   {/* SON prix PLEIN — la remise éventuelle est une ligne à part (comme la facture). */}
-                  <span style={{ fontSize: 13 }}>{priceModeOf(sv) === 'devis'
+                  <span style={{ fontSize: 13 }}>{prixFixeDe(sv, pricing) !== undefined
+                      /* SON PRIX CONVENU, ET ON LE DIT. Sans la mention, le
+                         comptoir lit un montant qui ne colle pas au catalogue
+                         et « corrige » — c'est-à-dire efface l'accord. */
+                      ? <span title="Prix convenu avec elle — fiche → Profil → Ses prix fermes" style={{ color: 'var(--copper-700)' }}>
+                          {argent(prixFixeDe(sv, pricing)!)} · convenu
+                        </span>
+                      : priceModeOf(sv) === 'devis'
                       ? 'sur devis'
                       /* « dès » ne vaut que si le modèle est INCONNU. Dès qu'on
                          sait son nombre de locks, le prix au lock est exact —
                          l'annoncer comme un plancher fait douter la caissière. */
                       : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
-                        ? `dès ${argent(personalPriceXof(sv, pricing, services))}`
-                        : argent(personalPriceXof(sv, pricing, services))}</span>
+                        ? `dès ${argent(personalPriceXof(sv, pricing, services, produitsGamme))}`
+                        : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
+                  {/* LE MONTANT SE SAISIT SUR LA LIGNE, à côté de « sur devis ».
+                      Il vivait tout en bas de la modale, sous la note du carnet :
+                      on lisait « sur devis » sans voir où le dire, et l'on
+                      enregistrait un rituel à 0 F sans s'en apercevoir.
+
+                      UN SEUL MONTANT PAR RENDEZ-VOUS : `Appointment.priceXof`
+                      porte le rituel entier, pas la prestation. Le champ ne
+                      paraît donc en ligne que s'il n'y a QU'UNE prestation à
+                      prix libre — sinon deux champs modifieraient la même
+                      valeur en se contredisant, et c'est le bloc du bas, qui dit
+                      « montant du rituel », qui garde la main. */}
+                  {estLibre(sv) && seulPrixLibre && !effCovered && !sansPrix && (
+                    <input
+                      className="mnd-input"
+                      type="number"
+                      min={0}
+                      value={amountStr}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder={grossLibre > 0 ? String(grossLibre) : 'montant'}
+                      style={{ width: 118, textAlign: 'right', padding: '5px 8px', fontSize: 13 }}
+                      aria-label={`Montant convenu — ${sv.name}`}
+                      title="Montant convenu pour ce rituel"
+                    />
+                  )}
                   {/* L'ORDRE DES PRESTATIONS EST CELUI DU FAUTEUIL. Il decide de
                       la lecture du rendez-vous, de l'ordre des lignes sur la
                       facture et du deroule de la seance : un diagnostic ouvre,
@@ -1052,7 +1283,7 @@ export function RdvModal({
                 <optgroup key={g.cat.id} label={`${g.cat.fon} · ${g.cat.label}`}>
                   {g.list.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services))}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
                     </option>
                   ))}
                 </optgroup>
@@ -1061,7 +1292,7 @@ export function RdvModal({
                 <optgroup label="Autres">
                   {horsAtelier.map((sv) => (
                     <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services))}
+                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
                     </option>
                   ))}
                 </optgroup>
@@ -1104,7 +1335,7 @@ export function RdvModal({
             <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginTop: 9, lineHeight: 1.55 }}>
               <b style={{ fontWeight: 600 }}>{LONGUEURS.find((l) => l.id === longueur)?.label}</b>
               {' — '}
-              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services))}`).join(' · ')}
+              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services, produitsGamme))}`).join(' · ')}
             </div>
           </div>
         )}
@@ -1199,21 +1430,22 @@ export function RdvModal({
             pas : le montant du rituel et les remises sont des nombres bruts,
             qui passaient au travers. Un écran censé ne montrer aucun prix en
             montrait trois. */}
-        {needsAmount && !effCovered && !sansPrix && (
+        {needsAmount && !seulPrixLibre && !effCovered && !sansPrix && (
           <Field label="Montant du rituel (F CFA)">
             <input
               className="mnd-input"
               type="number"
               min={0}
-              value={amount}
+              value={amountStr}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={grossBase > 0 ? String(grossBase) : '—'}
+              placeholder={grossLibre > 0 ? String(grossLibre) : '—'}
               style={{ width: 180, textAlign: 'right' }}
               aria-label="Montant convenu du rituel"
             />
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-              Rituel à prix variable ou sur devis — saisissez le montant convenu.
-              {grossBase > 0 ? ` À défaut, ${argent(grossBase)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
+              Montant convenu pour {libres.length > 1 ? 'les prestations à prix libre' : 'la prestation à prix libre'}.
+              {grossFixe > 0 ? ` Il s’ajoute aux ${argent(grossFixe)} des prestations à prix fixe.` : ''}
+              {grossLibre > 0 ? ` À défaut, ${argent(grossLibre)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
             </div>
           </Field>
         )}
@@ -1499,11 +1731,24 @@ export function RdvModal({
             <Button variant="copper" onClick={() => save(status)}>
               Enregistrer les modifications
             </Button>
-            {onEncaisser && (
+            {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (Yéman, 11 août) :
+                proposer « Encaisser » sur un rituel payé sème la confusion —
+                le geste s'efface et la raison se dit. L'état se lit sur le
+                rendez-vous ENREGISTRÉ : si une modification sauvegardée crée
+                un nouveau reste à payer, le bouton revient de lui-même. */}
+            {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
+              <div
+                className="mnd-muted"
+                style={{ fontSize: 11.5, textAlign: 'center' }}
+                title="La facture atteste le paiement — l'argent reçu ne bouge pas. Si une modification enregistrée crée un reste à payer, l'encaissement rouvrira ici."
+              >
+                Réglé — rien à encaisser sur ce rituel.
+              </div>
+            ) : (
               <Button variant="ghost" onClick={() => onEncaisser(appt)}>
                 Encaisser ou poser un acompte
               </Button>
-            )}
+            ))}
             {appt.status !== 'annulé' && (
               <Button variant="ghost" onClick={cancelRdv}>
                 Annuler le rendez-vous

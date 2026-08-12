@@ -7,7 +7,7 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import { expenseOccurrences,
-  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, expenseTotal,
+  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, invoiceCashXof, expenseTotal,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
@@ -63,6 +63,8 @@ export default function Depenses() {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [] });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -160,10 +162,13 @@ export default function Depenses() {
   /* ---------- LE MODÈLE DES CAISSES — le flux, défini une fois pour toutes ----------
      Ce qui CRÉDITE physiquement une caisse (le tiroir) :
        + les encaissements qui la citent. Caisse de la maison : total facturé
-         − part réglée par AVOIR (crédit prépayé — aucun billet ce jour-là)
-         + POURBOIRE (il entre dans le tiroir, même hors chiffre d'affaires).
-         Caisse en devise : les billets étrangers réellement reçus (fx.amount,
-         qui inclut déjà le pourboire) — jamais un total reconverti.
+         − part réglée par AVOIR (crédit prépayé — aucun billet ce jour-là).
+         Le POURBOIRE n'y entre PLUS (11 août) : il va dans la caisse pourboire
+         de l'équipe — une cliente remet 45 000 F, la Caisse Principale reçoit
+         40 000, les 5 000 vivent au registre Encaissements, caisse
+         « Pourboires ». Caisse en devise : les billets étrangers réellement
+         reçus (fx.amount) — jamais un total reconverti ; un pourboire remis en
+         devise reste dans ces billets, on ne le découpe pas.
      Ce qui la DÉBITE :
        − les dépenses vivantes qui la citent (une dépense suspendue n'est
          jamais sortie du tiroir — c'est une économie, pas un flux).
@@ -178,7 +183,7 @@ export default function Depenses() {
   const boxCredit = (i: Invoice, boxCur: string, foreign: boolean): number =>
     foreign
       ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0)
-      : invoiceTotal(i) - (i.avoirXof ?? 0) - (i.depositCreditXof ?? 0) + (i.tipXof ?? 0);
+      : invoiceCashXof(i);
 
   const boxOf = (name: string) => branchBoxes.find((b) => b.name === name);
   const boxInvoices = (name: string) =>
@@ -232,10 +237,13 @@ export default function Depenses() {
           i.number,
           i.fx ? `${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : null,
           !foreign && (i.avoirXof ?? 0) > 0 ? `avoir −${fmtIn(i.avoirXof!, boxCur)}` : null,
-          !foreign && (i.tipXof ?? 0) > 0 ? `pourboire +${fmtIn(i.tipXof!, boxCur)}` : null,
+          /* Le pourboire se DIT sans se compter : il explique pourquoi la
+             cliente a remis plus que ce que la caisse inscrit. */
+          !foreign && (i.tipXof ?? 0) > 0 ? `pourboire ${fmtIn(i.tipXof!, boxCur)} → Pourboires` : null,
         ].filter(Boolean).join(' · '),
         delta: boxCredit(i, boxCur, foreign),
         invoiceId: i.id, // la ligne s'ouvre sur la facture
+        expense: undefined as Expense | undefined,
       }));
 
     const out = boxExpenses(name)
@@ -246,6 +254,9 @@ export default function Depenses() {
         sub: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category,
         delta: -expenseTotal(e),
         invoiceId: undefined as string | undefined, // une dépense n'a pas de facture
+        /* …mais elle a sa fiche : le relevé d'une caisse est l'endroit où l'on
+           repère une ligne fausse, il doit donc y mener. */
+        expense: e as Expense | undefined,
       }));
 
     const moves = [...inn, ...out].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -285,11 +296,13 @@ export default function Depenses() {
   const togglePause = (e: Expense) => patch(e.id, (x) => ({ ...x, paused: !x.paused }));
 
   const openFor = (cashbox?: string) => {
+    setSaveErr(null);
     setEditingId(null);
     setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false, items: [] });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
+    setSaveErr(null);
     setEditingId(e.id);
     setForm({
       label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
@@ -308,11 +321,26 @@ export default function Depenses() {
   const cleanItems = form.items.filter((it) => it.label.trim() && it.amountXof > 0);
   const formTotal = cleanItems.length ? cleanItems.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
 
+  /* UN BOUTON QUI REFUSE DOIT DIRE POURQUOI.
+     `save` renvoyait en silence dès qu'un champ manquait : l'écran ne bougeait
+     pas, la modale restait ouverte, et rien ne disait ce qui clochait — on
+     croyait le bouton cassé. Pire, il exigeait une CAISSE alors qu'une Maison
+     qui n'en a encore déclaré aucune n'a rien à choisir : la dépense devenait
+     tout simplement impossible à enregistrer (constaté le 11 août sur les
+     salaires d'août). La caisse est donc facultative — sans elle, la dépense
+     se range sous « Autres », ce que l'affichage sait déjà faire. */
   const save = () => {
     const items = cleanItems;
     const hasItems = items.length > 0;
     const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
-    if (!form.label.trim() || !amountXof || !form.cashbox) return;
+    if (!form.label.trim()) { setSaveErr('Il manque le bénéficiaire — qui a reçu cet argent ?'); return; }
+    if (!amountXof) {
+      setSaveErr(hasItems
+        ? 'Les articles saisis totalisent zéro — donnez un libellé et un montant à chacun.'
+        : 'Il manque le montant.');
+      return;
+    }
+    setSaveErr(null);
     if (editingId) {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
@@ -1098,7 +1126,19 @@ export default function Depenses() {
                     {c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}
                   </button>
                 ))}
+                {/* La caisse est FACULTATIVE : sans elle, la dépense se range
+                    sous « Autres ». L'exiger rendait la saisie impossible tant
+                    qu'aucune caisse n'était déclarée. */}
+                <button className={`trf-chip ${!form.cashbox ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, cashbox: '' }))}>
+                  Sans caisse · Autres
+                </button>
               </div>
+              {branchBoxes.length === 0 && (
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
+                  Aucune caisse déclarée pour cette branche — la dépense se rangera sous « Autres ».
+                  Les caisses se créent dans l’onglet « Les caisses ».
+                </div>
+              )}
             </div>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Récurrence</div>
@@ -1115,7 +1155,12 @@ export default function Depenses() {
                 <button className={`trf-chip ${form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: true }))}>Signalée · à revoir</button>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+              {saveErr && (
+                <span style={{ marginRight: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--trf-error)' }}>
+                  {saveErr}
+                </span>
+              )}
               <button className="mnd-btn mnd-btn--ghost" onClick={() => setOpen(false)}>Annuler</button>
               <button className="mnd-btn" onClick={save}>{editingId ? 'Enregistrer les modifications' : 'Enregistrer la dépense'}</button>
             </div>
@@ -1290,9 +1335,22 @@ export default function Depenses() {
                   .slice()
                   .sort((a, b) => (a.date < b.date ? 1 : -1))
                   .map((e) => (
-                    <div
+                    /* LA LIGNE S'OUVRE. On arrive ici en cherchant « où sont
+                       passés ces 230 000 F » — et c'est précisément là qu'on
+                       voit qu'une ligne est fausse. La refermer pour aller la
+                       corriger ailleurs faisait perdre le fil ; le détail rend
+                       donc directement à la fiche de la dépense. */
+                    <button
                       key={e.id}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}
+                      type="button"
+                      title="Modifier cette dépense"
+                      onClick={() => { setExpDrill(null); openEdit(e); }}
+                      style={{
+                        width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                        font: 'inherit', color: 'inherit',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12,
+                        padding: '9px 0', borderBottom: '1px solid var(--hairline)',
+                      }}
                     >
                       <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
                         <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(e.date)}</span>
@@ -1306,7 +1364,7 @@ export default function Depenses() {
                       <div className="mnd-serif" style={{ fontSize: 15, flex: 'none', color: 'var(--color-indigo)' }}>
                         {fmtMoney(expenseTotal(e), currency)}
                       </div>
-                    </div>
+                    </button>
                   ))}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
@@ -1375,14 +1433,23 @@ export default function Depenses() {
                   border: 'none', borderBottom: '1px solid var(--hairline)',
                   font: 'inherit', color: 'inherit',
                 };
-                /* Un encaissement s'ouvre sur sa facture ; une dépense n'en a pas,
-                   elle reste une ligne — pas un bouton qui ne mène nulle part. */
+                /* Un encaissement s'ouvre sur sa facture, une dépense sur sa
+                   fiche. Seule une ligne qui ne mène nulle part reste inerte. */
                 return m.invoiceId ? (
                   <button
                     key={`${m.date}-${m.label}-${i}`}
                     style={{ ...rowStyle, cursor: 'pointer' }}
                     title="Ouvrir la facture"
                     onClick={() => { setBoxDrill(null); navigate(`/factures?id=${m.invoiceId}`); }}
+                  >
+                    {body}
+                  </button>
+                ) : m.expense ? (
+                  <button
+                    key={`${m.date}-${m.label}-${i}`}
+                    style={{ ...rowStyle, cursor: 'pointer' }}
+                    title="Modifier cette dépense"
+                    onClick={() => { const e = m.expense!; setBoxDrill(null); openEdit(e); }}
                   >
                     {body}
                   </button>

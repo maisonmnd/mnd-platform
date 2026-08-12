@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients } from '../../../../shared/clients';
-import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { SEUIL_REASSORT, useCategories, useProducts } from '../../../../shared/catalog';
-import { useInvoices, useExpenses, invoiceTotal, expenseTotal } from '../../../../shared/finance';
+import { estCouronnee, useClients } from '../../../../shared/clients';
+import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
+import { useCategories } from '../../../../shared/catalog';
+import { useInvoices, useExpenses, invoiceTotal, invoiceCashXof, expenseTotal } from '../../../../shared/finance';
 import { useApprenants } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
@@ -15,7 +15,7 @@ import {
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
-import { reappro, useMouvementsStock, useProduitsStock } from '../../../../shared/stock';
+import { useBilans } from '../../../../shared/bilans';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
@@ -41,7 +41,6 @@ export default function Dashboard() {
   const clients = useBranchClients();
   const [allClients] = useClients();
   const byId = useServicesById();
-  const [products] = useProducts();
   const [invoices] = useInvoices();
   const [expenses] = useExpenses();
   const [categories] = useCategories();
@@ -76,7 +75,7 @@ export default function Dashboard() {
   const finPrev = new Date(Number(prevMonth.slice(0, 4)), Number(prevMonth.slice(5, 7)), 0).getDate();
   const cutPrev = `${prevMonth}-${String(Math.min(jourDuMois, finPrev)).padStart(2, '0')}`;
 
-  const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, stockAlerts, revMaison } = useMemo(() => {
+  const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, revMaison } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
        On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
     /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
@@ -148,9 +147,8 @@ export default function Dashboard() {
       todayRows: appts
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
-      stockAlerts: products.filter((p) => p.stock <= SEUIL_REASSORT),
     };
-  }, [appts, byId, invoices, expenses, products, apprenants, branch.id, today, thisMonth, prevMonth, cutPrev]);
+  }, [appts, byId, invoices, expenses, apprenants, branch.id, today, thisMonth, prevMonth, cutPrev]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
@@ -224,37 +222,65 @@ export default function Dashboard() {
     };
   }, [appts, byId, today]);
 
-  /* ---------- Ce qui presse — des gestes, pas des constats ---------- */
-  const [produitsStock] = useProduitsStock();
-  const [mouvementsStock] = useMouvementsStock();
+  /* ---------- Ce qui presse — des gestes, pas des constats ----------
+
+     LE RÉASSORT N'Y EST PLUS (décision de Yéman, 11 août). Il occupait
+     jusqu'à quatre lignes sur cinq et repoussait l'argent en bas de la carte,
+     alors qu'un manque de flacons se voit au comptoir et se traite dans Stock
+     & Achats. Ce panneau ne garde que ce qui presse VRAIMENT le matin :
+     l'argent qui doit rentrer, et la parole due à une cliente. */
+  const [bilans] = useBilans();
   const unpaidRef = useRef<HTMLDivElement>(null);
-  const presseStock = useMemo(() => {
-    type Row = { k: string; label: string; sub: string; action: string; go: () => void };
-    const rows: Row[] = [];
-    /* Le réassort se lit sur les FICHES (stock dérivé, seuil par fiche) dès que
-       l'inventaire existe ; l'ancien compteur de la Gamme reste le repli d'une
-       maison qui n'a pas repris son inventaire. */
-    const aDesFiches = produitsStock.some((p) => p.branchId === branch.id && p.actif);
-    if (aDesFiches) {
-      const manque = [...reappro(produitsStock, mouvementsStock, branch.id).values()].flat()
-        .sort((a, b) => (a.stock - a.produit.seuilAlerte) - (b.stock - b.produit.seuilAlerte))
-        .slice(0, 4);
-      for (const l of manque) {
-        rows.push({
-          k: `stk-${l.produit.id}`, label: l.produit.nom,
-          sub: `sous le seuil — ${l.stock.toLocaleString('fr-FR')} ${l.produit.unite} en réserve`,
-          action: 'Préparer le bon', go: () => navigate('/home-rituals'),
-        });
-      }
-    } else {
-      for (const p of stockAlerts.slice(0, 4)) {
-        rows.push({ k: `leg-${p.id}`, label: p.name, sub: `${p.stock} restants — réassort`, action: 'Voir la gamme', go: () => navigate('/home-rituals') });
-      }
-    }
-    return rows;
-  }, [produitsStock, mouvementsStock, stockAlerts, branch.id, navigate]);
+
+  /* « Têtes couronnées » comptait les FICHES de la branche — donc aussi les
+     comptes ouverts sur Ma Couronne sans jamais venir. Une tête est couronnée
+     quand la Maison l'a réellement couronnée (11 août). */
+  const tetesCouronnees = useMemo(() => {
+    const venues = tetesVenues(appts);
+    return clients.filter((c) => estCouronnee(c, venues)).length;
+  }, [clients, appts]);
+
+  /* LES FACTURES ÉMISES QUI ATTENDENT LEUR RÈGLEMENT — les pièces, pas les
+     rendez-vous. On ÔTE celles déjà comptées dans les impayés échus : la même
+     somme lue deux fois ferait croire à une dette double. */
+  const facturesARegler = useMemo(() => {
+    const dejaComptees = new Set(
+      unpaid.overdue.rows.map((r) => r.a.invoiceId).filter((id): id is string => !!id),
+    );
+    const rows = invoices.filter(
+      (i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'envoyée' && !dejaComptees.has(i.id),
+    );
+    const total = rows.reduce(
+      (s, i) => s + Math.max(0, invoiceCashXof(i)),
+      0,
+    );
+    return { count: rows.length, total };
+  }, [invoices, branch.id, unpaid.overdue.rows]);
+
+  /* LES BILANS DUS — un rituel honoré est une séance dont la cliente attend le
+     mot de la maison. On se borne aux TRENTE DERNIERS JOURS : au-delà, le
+     bilan a perdu son sens, et une liste sans fin ne se traite jamais. */
+  const bilansARemettre = useMemo(() => {
+    const depuis = addDaysISO(today, -30);
+    const remis = new Set(bilans.map((b) => b.apptId).filter((id): id is string => !!id));
+    return appts.filter(
+      (a) => a.status === 'honoré' && a.date >= depuis && a.date <= today && !remis.has(a.id),
+    ).length;
+  }, [appts, bilans, today]);
+
   const presseRows = [
-    ...presseStock,
+    ...(facturesARegler.count > 0 ? [{
+      k: 'factures',
+      label: `${facturesARegler.count} facture${facturesARegler.count > 1 ? 's' : ''} à régler`,
+      sub: `${fmtMoney(facturesARegler.total, currency)} en attente`,
+      action: 'Voir', go: () => navigate('/factures'),
+    }] : []),
+    ...(bilansARemettre > 0 ? [{
+      k: 'bilans',
+      label: `${bilansARemettre} bilan${bilansARemettre > 1 ? 's' : ''} à remettre`,
+      sub: bilansARemettre > 1 ? 'séances honorées des 30 derniers jours' : 'séance honorée des 30 derniers jours',
+      action: 'Voir', go: () => navigate('/customers'),
+    }] : []),
     ...(unpaid.overdue.rows.length > 0 ? [{
       k: 'impayes',
       label: `${unpaid.overdue.rows.length} impayé${unpaid.overdue.rows.length > 1 ? 's' : ''} échu${unpaid.overdue.rows.length > 1 ? 's' : ''}`,
@@ -505,7 +531,7 @@ export default function Dashboard() {
       <div className="trp-panel" style={{ marginTop: 14 }}>
         <div className="trp-panel__title">Ce qui presse</div>
         {presseRows.length === 0
-          ? <div className="trp-empty">Rien ne presse — la réserve est au complet, aucun impayé n'est échu.</div>
+          ? <div className="trp-empty">Rien ne presse — tout est réglé, et chaque séance a son bilan.</div>
           : presseRows.map((r, i) => (
             <div
               key={r.k}
@@ -629,8 +655,8 @@ export default function Dashboard() {
         </div>
         <div className="trp-tile" style={{ marginTop: 12 }}>
           <div className="trp-tile__label">Têtes couronnées</div>
-          <div className="trp-tile__value">{clients.length}</div>
-          <div className="trp-tile__cap">rattachées à cette branche</div>
+          <div className="trp-tile__value">{tetesCouronnees}</div>
+          <div className="trp-tile__cap">venues au moins une fois</div>
         </div>
         </div>
       </div>

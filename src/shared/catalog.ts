@@ -147,6 +147,17 @@ export type Service = {
       n'existe pas. Le nombre de locks de la cliente CHOISIT la création ; il ne
       multiplie pas un prix. Absent = la prestation sert tous les calibres. */
   bandId?: string;
+  /** CALIBRES SERVIS, au pluriel — le forfait GBÈJÍ™ Fidélité n'existe que
+      pour les têtes Micro et Nano. `bandId` (singulier) reste pour les
+      créations à calibre unique ; quand cette liste est posée, c'est elle qui
+      fait foi. */
+  bandIds?: string[];
+  /** LA PRESTATION S'OUVRE À PARTIR DE LA Nᵉ VENUE (honorée, jours distincts).
+      `desVenue: 3` = les deux premières visites paient le plein tarif, le
+      forfait paraît à la 3ᵉ — récompense de la constance (GBÈJÍ™ Fidélité,
+      11 août 2026). Absent = ouverte à toutes, comme toujours. Le compteur est
+      `venuesHonorees`, le même que la marque de passage et le Cercle. */
+  desVenue?: number;
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;

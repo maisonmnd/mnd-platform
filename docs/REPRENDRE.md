@@ -1,11 +1,81 @@
 # Reprendre — état de la Maison
 
-État au 10 août 2026 (soir). À lire en premier dans une nouvelle session.
-Déployé et vérifié : Le Trône et Ma Couronne servent `f8982cd` — bilans, Caisse maquette, tunnel, la refonte
-validée est COMPLÈTE (①②③④), plus les factures unifiées et la fenêtre
-d'avant-hydratation. Portail et LOKAA n'ont pas été republiés (rien de
-fonctionnel pour eux). TOUTES les migrations jusqu'à 0034 sont PASSÉES, ainsi
-que l'import local des formules maîtres. Ne relancer aucune migration.
+État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
+Derniers chantiers : la longueur PAR DÉFAUT sur la fiche, le pourboire qui a
+SA caisse, les PDF qui translittèrent le fon — puis la GRANDE REVUE DE CODE
+du 12 août (voir « La revue du 12 août ») : 14 défauts confirmés corrigés
+d'un bloc. L'HISTORIQUE LOCAL A ÉTÉ RÉÉCRIT ce jour-là avant première
+publication du dépôt source : des prénoms de clientes s'étaient glissés dans
+REPRENDRE et des commentaires de code — purgés des fichiers ET de l'historique
+(les commits d'avant la purge n'ont jamais été poussés). Portail et LOKAA n'ont pas été republiés (rien de
+fonctionnel pour eux). TOUTES les migrations jusqu'à 0034 sont PASSÉES, plus
+0038–0041 (Salon & Foyer, caisses indépendantes, coffre, épargne au coffre) ;
+0037 reste RÉSERVÉ au réarmement de `clients_protege_tarif`. Ne relancer
+aucune migration.
+
+## La revue du 12 août — 14 défauts confirmés, corrigés d'un bloc
+
+Dix angles de détection, ~40 candidats, 12 contre-enquêtes adversariales.
+Corrigé ce jour-là (chaque point a sa vérification au harnais quand il en
+relève) :
+
+- **`prixFerme` fermait les « sur devis »** → un rituel/une facture à 0 F
+  possibles. Le mode du Catalogue prime : seul un prix FIXE peut être ferme
+  (un prix convenu sur la fiche reste au-dessus). Harnais : 5 cas devis.
+- **`alignerFacturesDuRituel`** effaçait les produits d'un ticket mixte et
+  réécrivait aux prix de base. Désormais : une pièce dont une ligne n'est pas
+  une prestation du catalogue ne se réécrit PAS, et l'appelant passe son
+  contexte tarifaire (`priceOf`) — la modale passe le sien, longueur figée
+  comprise. Le compteur `touchees` (jamais lu, impur) est mort.
+- **Le seuil `desVenue` et les prix se calculent sur la TÊTE SERVIE** dans le
+  tunnel Ma Couronne (`cible = beneficiaire ?? client`), et la reco de
+  l'accueil passe par le juge unique **`estProposable`** (pricing.ts) — elle
+  recommandait et laissait réserver le forfait 3ᵉ venue à la venue zéro via
+  le prefill qui entrait après l'unique garde.
+- **Le moteur des forfaits compte les PRODUITS** (`forfaitPriceXof` +
+  `personalPriceXof(…, produits)`) ; Ma Couronne passe enfin le catalogue au
+  moteur (sans lui, une composition ne se résolvait jamais là-bas) ; l'aperçu
+  du Catalogue appelle le moteur au lieu d'additionner à la main.
+- **La charge salaire** : constructeur UNIQUE `chargeSalaire()` (payroll.ts) —
+  jour LOCAL (`jourLocalDe`, fini le UTC qui basculait la masse salariale de
+  mois), plus JAMAIS les coordonnées MoMo de l'employé en nom de caisse
+  (sans caisse = « Sans caisse · Autres »), libellé unique, et
+  `Expense.source: 'run' | 'confirm'` — la resynchronisation automatique de
+  Personnel ne réécrit plus une ligne d'un run payé ; seul un geste explicite
+  reprend la main. ATTENTION : les DEUX formules de net (run = cotisations
+  déduites ; Personnel = commissions/pourboires compris, brut de cotisations)
+  existent toujours — chaque geste écrit la sienne ; l'unification de la
+  formule reste un chantier à trancher par Yéman.
+- **Salon & Foyer** : `!e.stopped` sur les charges du mois (le Partage
+  divergeait de la Synthèse dès qu'on suspendait une dépense) ; identifiants
+  de dotation et de prêt **par branche** (`dot-<branche>-…`,
+  `pret-dep-<branche>-…`, anciens ids sans branche reconnus pour NOTRE
+  branche) ; l'enveloppe d'une dotation ne se re-libelle plus
+  (`modifieLigneEpargne` l'ignore sur les `dot-*` — le panneau détruisait la
+  ligne re-libellée) ; `dotationInscrite` filtre enfin par branche.
+- **Le pourboire d'un règlement en devise reste au tiroir devise** dans le
+  registre (il vivait dans deux caisses à la fois) ; `CAISSE_POURBOIRES` en
+  constante ; **`invoiceCashXof`** (finance.ts) remplace les trois copies de
+  la formule « net encaissable ».
+- **« Nouvelles » du Bilan mensuel = premières venues HONORÉES du mois** —
+  l'ancienne règle (couronnée + fiche du mois) lisait ~0 pour les têtes du
+  comptoir (nées de passage) et remplissait les mois rétroactivement.
+- **La modale RDV accepte « 0 » comme montant convenu** (`amountNum ?? …`) —
+  un 0 tapé n'est plus « rien saisi », et une part libre figée à 0 ne se
+  regonfle plus au ré-enregistrement.
+- **L'encaissement lit la longueur FIGÉE du rituel** (actions.tsx :
+  `longueur: appt.longueur` posé sur le contexte) — plus de remise fantôme
+  quand la fiche a changé de longueur depuis.
+- Mémoïsations : venues de la tête (modale RDV, Caisse — `groups` ne dépend
+  plus du carnet entier), aperçu par modèle du Catalogue, mouvements de
+  caisse (une fois par rendu), noms des clientes (Map), compteurs Clientes,
+  dépenses de la Paie (Map). `fmtCaisse` passe par `fmtIn`.
+
+**Différé, assumé** : dédoublonnage des 4 paires de formulaires de
+SalonFoyer, du panneau Dotations, de l'interrupteur CNSS/ITS, des badges de
+prix, du lanceur esbuild ×5 des harnais ; la garde souverain de SalonFoyer
+calcule encore le registre avant de refuser ; bulletin.html recalcule avec
+ses propres tranches ITS (à faire suivre des Paramètres de paie un jour).
 
 ## L'équipe — construit le 6 août
 
@@ -74,17 +144,38 @@ Une prestation porte `prixParLongueur` et `dureeParLongueur` — un prix et une
 durée par longueur travaillée. `priceXof` reste le **prix de repli** : celui
 qu'annonce la Vitrine (« dès ») et qui sort quand la longueur est inconnue.
 
-La longueur **se choisit à la réservation**, pas sur la fiche cliente : le
-calibre se constate une fois au KÒKÒ™ et ne bouge plus, la longueur repousse.
-Elle s'inscrit sur le rendez-vous (`Appointment.longueur`), si bien que relire
-un rituel de mars ne le retarife jamais à la longueur d'aujourd'hui.
+**Depuis le 11 août, la fiche porte une longueur PAR DÉFAUT**
+(`Client.longueur`, carte « La couronne » du Trône, « — à constater — » tant
+qu'on ne sait pas). La doctrine du 6 août la refusait — « la longueur
+repousse » — mais sans elle, Ma Couronne annonçait le prix de REPLI à une
+cliente dont la Maison connaît la longueur. La synthèse : la fiche donne le
+POINT DE DÉPART (`pricingOf` l'hérite), chaque rendez-vous **fige toujours la
+sienne** (`Appointment.longueur`) — relire un rituel de mars ne le retarife
+jamais à la longueur d'aujourd'hui — et le comptoir corrige à l'arrivée si
+elle a poussé. Modale RDV et Caisse adoptent la fiche au changement de
+cliente (au seul changement de tête : une synchro n'écrase pas une correction
+faite au sélecteur) ; la longueur figée d'un rituel existant prime toujours.
+La réservation Ma Couronne fige la longueur qui a fait le prix annoncé, et le
+récap la dit en toutes lettres (« Vos prix — établis pour votre couronne
+… · longueur Mi-Long. ») — personnaliser en silence ferait croire à une
+erreur. À tenir à jour sur la fiche quand une couronne pousse.
 
-Un prix par longueur est un prix SAISI : tant que ni le modèle ni le Juste Prix
-ne le modulent, il sort au franc près, sans l'arrondi commercial au 500 F.
+Un prix par longueur est un prix SAISI : tant que le Juste Prix ne le module
+pas, il sort au franc près, sans l'arrondi commercial au 500 F.
+**Depuis le 11 août, LA GRILLE PAR LONGUEUR REMPLACE LE MODÈLE** : dès qu'une
+prestation la porte, le coefficient de tranche ne s'applique plus — ni sur la
+longueur choisie, ni sur le prix de repli. WÈWÈ™ (25 000 F Mi-Long, « suit le
+modèle » coché) s'annonçait 62 500 F à une tête Nano : deux graduations de
+taille empilées, alors que la grille EST celle du soin. Le Juste Prix
+personnel, lui, s'applique toujours — un accord par CLIENTE, pas une taille.
+`prixFerme` suit : une grille = prix connu, quel que soit le comptage.
+(Harnais verifie-prix : 36 vérifications, dont « la fiche donne SON prix,
+l'écran prime, la fiche muette retombe sur le repli ».)
 
 Le sélecteur paraît à la réservation et à la Caisse dès qu'une prestation
-choisie s'y facture. **Ma Couronne ne le porte pas** — une cliente n'évalue pas
-sa propre longueur ; le comptoir corrige à l'arrivée.
+choisie s'y facture. **Ma Couronne ne le porte toujours pas** — une cliente
+n'évalue pas sa propre longueur ; elle hérite du défaut de sa fiche, et le
+comptoir corrige à l'arrivée.
 
 ## Le piège à ne pas oublier
 
@@ -307,10 +398,21 @@ séance prédite + réserver, Cercle en chiffres, bilan de séance, reco répar�
 - **Une tuile par vérité** : la tuile « Revenu mois » (doublon) est retirée ;
   « RDV aujourd'hui » vit dans le titre du carnet ; « Têtes couronnées » sous
   le graphe 7 jours.
-- **« Ce qui presse »** remplace la tuile « Alertes stock » : réassort lu sur
-  les FICHES (stock dérivé + seuil par fiche, repli ancien compteur si la
-  Gamme n'est pas reprise) avec « Préparer le bon », et une ligne « N impayés
-  échus » qui descend à la section qui les encaisse.
+- **« Ce qui presse »** remplace la tuile « Alertes stock ». **Refondu le
+  11 août à la demande de Yéman : LE RÉASSORT EN EST SORTI.** Il occupait
+  jusqu'à quatre lignes sur cinq et repoussait l'argent en bas de la carte,
+  alors qu'un manque de flacons se voit au comptoir et se traite dans Stock &
+  Achats. Le panneau ne garde que ce qui presse le matin — **factures à
+  régler · bilans à remettre · impayés échus** :
+  · les FACTURES sont les pièces `envoyée`, **moins celles déjà comptées dans
+    les impayés échus** (la même somme lue deux fois ferait croire à une dette
+    double) ;
+  · les BILANS sont les rituels honorés des 30 DERNIERS JOURS sans bilan
+    portant leur `apptId` — au-delà le bilan a perdu son sens, et une liste
+    sans fin ne se traite jamais ;
+  · les impayés échus descendent, comme avant, à la section qui les encaisse.
+  Le calcul `stockAlerts` (et `useProducts` avec lui) est retiré du tableau de
+  bord : il ne servait plus qu'à lui.
 - **L'état vide du carnet PROPOSE** : « N couronnes ont dépassé leur cadence —
   Voir les relances ». Le juge de cadence est extrait dans
   `clients/_shared.tsx` (`predictNextVisit`) — la fiche ET le tableau de bord
@@ -524,6 +626,640 @@ Rappel d'écran : la file des enfants déclarés vit sur CLIENTES (bouton
 « Enfants déclarés », visible quand il y en a en attente) — c'est là que Keli
 apparaîtra après la réparation.
 
+## LE PARTAGE PORTE SUR LE BÉNÉFICE, PAS SUR L'ENCAISSÉ — 11 août
+
+**Décision de Yéman, et c'est une correction de fond.** Le premier modèle
+répartissait le REVENU en quatre enveloppes, dont une « Charges Salon » qui
+n'était qu'un BUDGET : on partageait un argent dont une part était déjà partie
+payer le loyer et les salaires. En août, les charges réelles (230 000 F)
+dépassaient de trois fois leur enveloppe (75 000 F) — le foyer se voyait
+promettre 65 625 F que le salon n'avait pas.
+
+**Désormais : charges réelles d'abord, le RESTE se partage en trois** —
+Réinvestissement · Réserve fiscale · Prélèvement, somme = 100.
+
+- **Une perte ne se partage pas** : bénéfice ≤ 0 → les trois enveloppes valent
+  ZÉRO, jamais un négatif. L'écran le dit en toutes lettres, ajoute que tout
+  retrait du mois devient alors un PRÊT, et — si le mois est EN COURS —
+  rappelle que des charges déjà réglées pèsent contre un revenu encore partiel.
+- **`pctCharges` survit comme REPÈRE**, plus comme enveloppe : il ne prend rien
+  au partage et sert à dire « vos charges pèsent 123 % du revenu, repère 40 % »
+  (`poidsDesCharges`, `null` sans revenu — pas un infini trompeur).
+- **Les règles d'avant se renormalisent** (`partageNormalise`) : 40·15·10·35
+  laisse trois parts qui ne font que 60 ; les lire telles quelles amputerait le
+  partage d'un tiers EN SILENCE. Ramenées à 100 en gardant les proportions
+  (25·17·58), le prélèvement prenant le reste — comme pour les francs.
+- **L'écran montre la cascade** : revenu encaissé → − charges réelles →
+  = bénéfice → les trois parts. Les enveloppes sans leur origine laissaient
+  croire qu'elles se prenaient sur l'encaissé.
+- Nouveaux défauts : 20 · 20 · 60 sur le bénéfice, repère de charges 45 %.
+- Harnais : 41 vérifications, dont « un bénéfice négatif rend trois zéros ».
+
+## Salon & Foyer — construit le 10 août au soir, 0038 PASSÉE
+
+Le module de séparation entreprise / foyer (spec `MND_Modele_Finances_SPEC.md`
+de Yéman — le classeur Excel transposé). Quatre décisions prises à l'écran :
+Partage sur les **encaissements réels** · module **réservé au souverain** ·
+**Dépenses réutilisé** comme Charges Salon · départ à **45 · 10 · 10 · 35**.
+
+- **`shared/foyer.ts`** — la règle du Partage (4 enveloppes, validée à 100 %,
+  une par branche), l'annexe Prélèvements, les Prêts associés, les Réserves
+  (réinvestissement · fiscale), et DEUX CAISSES ÉTANCHES (Succession, Devises
+  multi-devises à contre-valeur indicative). L'étanchéité est structurelle :
+  aucun autre écran n'importe ces tables.
+- **Le revenu du Partage** = les encaissements du mois (mêmes sources que
+  l'écran Encaissements, à l'identique) **HORS pourboires**
+  (`revenuPartageDuMois` écarte les lignes `kind: 'pourboire'` du registre —
+  depuis le 11 août le pourboire a SA ligne, voir « Le pourboire a sa caisse » ;
+  l'ancienne soustraction de `tipXof` l'aurait retiré deux fois) — l'argent des
+  maîtres ne se partage pas. Les charges du mois = le registre Dépenses
+  (récurrentes comprises, même règle que Synthèse). **Bénéfice réel =
+  revenu − charges salon** ; le prélèvement N'EST PAS une charge.
+- **Rien ne s'écrit tout seul** (doctrine des primes) : les enveloppes se
+  CALCULENT, la dotation des réserves et la conversion d'un dépassement en
+  prêt s'INSCRIVENT d'un geste — identifiants déterministes
+  (`dot-<env>-<mois>`, `pret-dep-<mois>`), donc idempotents.
+- **Écran `/salon-foyer`** (Finances → Salon & Foyer), six onglets : Le mois ·
+  Prélèvements · Prêts associés · Réserves · Caisses indépendantes · La règle.
+  **Réservé au souverain** : `ROUTES_SOUVERAIN` dans `peutVoir` (garde d'écran,
+  barre + Trouver) ET RLS `is_souverain()` (la vraie barrière). Pour un gérant,
+  l'hydratation rend zéro ligne en silence — pastille verte, écran absent.
+- **`0038_salon_foyer.sql` — PASSÉE le 10 août au soir** (contrôle : 6 tables,
+  0 ligne). Ne pas la relancer. **Le numéro 0037 reste RÉSERVÉ au réarmement
+  de `clients_protege_tarif`.**
+- **PUBLIÉ le 11 août** (trone seul — la Couronne n'importe rien du module).
+  L'entrée du menu ne paraît qu'au compte SOUVERAIN, dans le groupe Finances
+  (replié par défaut).
+- **Les quatre enveloppes se DÉFINISSENT à l'écran** (11 août) : leurs phrases
+  étaient figées dans le code, or le « Divers » d'une maison n'est pas celui
+  d'une autre, et une enveloppe dont personne n'a écrit le contenu finit par
+  tout accueillir. `PartageConfig.dits` les porte, par branche ; un champ vidé
+  retombe sur la phrase de départ (`PARTAGE_DITS`) — jamais de définition
+  muette. Deux boutons distincts, et c'est voulu : changer un pourcentage est
+  un acte financier, renommer une enveloppe n'en est pas un ; chacun préserve
+  ce que l'autre a écrit. La définition se relit au SURVOL de l'enveloppe dans
+  « Le mois », là où l'argent se regarde.
+- Harnais : `node scripts/verifie-foyer.mjs` — 24 vérifications (répartition
+  sans reste d'arrondi, pourboires retirés, dette jamais négative, caisses par
+  branche et par devise). Typecheck 0 erreur.
+- Pas de nouvelles catégories de dépenses : la nomenclature existante couvre
+  le modèle (Loyer → Local, Produits & Stock → Matières premières…) — l'onglet
+  « La règle » l'explique à l'écran. Les retraits du foyer ne se saisissent
+  PLUS JAMAIS en dépense : ils vivent dans l'annexe.
+
+### L'ÉPARGNE VIT AU COFFRE-FORT, EN UNE SEULE ÉTAPE — 11 août, 0040 et 0041 PASSÉES
+
+**La Maison a eu DEUX registres d'épargne pendant une demi-journée** : le
+Coffre-fort (0009 — épargne verrouillée, seule sortie un virement bancaire) et
+une table de réserves propre au Partage (0038), reliées par un virement (0040).
+Trois gestes pour une seule décision — inscrire, verser, relire à deux
+endroits — et trois gestes pour une décision finissent par ne pas être faits.
+
+**Les deux enveloppes ne sont donc plus un registre : ce sont une ÉTIQUETTE sur
+les lignes du coffre** (`origine: 'reserve'` + `enveloppe`). Mettre de côté,
+c'est déposer au coffre : l'argent est à l'abri au moment même où on décide de
+l'épargner. « Les Réserves » ne sont plus qu'une LECTURE du coffre.
+
+- **`0041_epargne_au_coffre.sql` — PASSÉE le 11 août** (contrôle : 0 partout,
+  rien n'avait encore été inscrit — bascule sans risque). Sa reprise garde les
+  identifiants tels quels : une dotation porte déjà `dot-<enveloppe>-<mois>`,
+  la clé que l'écran recalcule. `reserves_mouvements` **n'est plus liée au
+  code** mais reste en base comme retour en arrière.
+- **Un seul geste** : « Mettre au coffre » écrit la dotation du mois
+  directement au coffre. Réinscrire le même mois AJUSTE la ligne au lieu d'en
+  créer une seconde (identifiant déterministe).
+- **Un retrait est un VIREMENT** — la seule sortie que le coffre autorise — et
+  **on ne retire jamais plus que l'enveloppe ne porte** ; le refus est motivé
+  à l'écran, rien n'est écrit.
+- **Supprimer une dotation dont une part a déjà été retirée laisse l'enveloppe
+  NÉGATIVE, et c'est voulu** : un négatif dit « il manque tant », un zéro le
+  cacherait. Même doctrine que le stock.
+- Les lignes ORDINAIRES du coffre (mises de côté au comptoir) restent hors des
+  enveloppes : le harnais le vérifie explicitement.
+- **`0040_coffre_reserves_souverain.sql` — PASSÉE le 11 août** (contrôle :
+  26 lignes ordinaires conservées, 0 venant des Réserves).
+  `coffre_movements` est lisible par
+  tout le personnel ayant Finances (0009), or l'épargne du Partage est
+  l'affaire du couple. La politique ne ferme QUE les lignes
+  `data->>'origine' = 'reserve'` — le reste du coffre ne bouge pas. Le
+  `with check` porte la même règle : sans lui, un compte non souverain
+  écrirait une ligne qu'il ne peut pas relire, et elle disparaîtrait sous ses
+  yeux à la synchronisation suivante.
+- **Conséquence assumée** : le solde du coffre affiché à un GÉRANT est plus bas
+  que celui du souverain — il ne voit pas ces lignes. Ce n'est pas une panne,
+  c'est la portée de son regard ; l'écran Salon & Foyer le dit au souverain,
+  seul à pouvoir agir dessus.
+- Harnais : 41 vérifications (`node scripts/verifie-foyer.mjs`), dont
+  « réinscrire le même mois ajuste au lieu de doubler » et « la ligne ordinaire
+  du coffre reste HORS des enveloppes ».
+
+### Les caisses indépendantes sont un REGISTRE — 11 août, 0039 PASSÉE
+
+0038 posait DEUX caisses écrites en dur (Succession, Devises). Limite
+arbitraire : une maison tient une caisse par héritage, par projet, par
+monnaie. Une caisse se crée, se nomme, porte sa devise et emporte son
+registre — `caisses_indep` + `caisses_indep_mouvements` (`shared/foyer.ts`).
+
+- **`0039_caisses_independantes.sql` — PASSÉE le 11 août**, puis publié dans
+  la foulée. Contrôle : 0 · 0 · 0 · 0 — **les deux anciennes caisses n'avaient
+  jamais servi**, il n'y avait rien à reprendre. Ne pas la relancer. La reprise
+  reste incluse et idempotente (`cxi-…`, `cxim-…`) si un jour elle sert :
+  une caisse Devises qui porterait plusieurs monnaies **se scinde en une
+  caisse par devise** — un solde ne se compte que dans sa propre monnaie.
+- **`caisse_succession` et `caisse_devises` NE SONT PAS SUPPRIMÉES** : elles
+  sont le retour en arrière (patron des `repli_0023_`). Plus liées au code.
+- **La devise se FIGE au premier mouvement** — la changer ensuite relirait des
+  billets d'une monnaie dans une autre. Le sélecteur se désactive de lui-même.
+- **Une caisse ne se supprime que VIDE** : on ne ferme pas une caisse sur son
+  registre. Le solde s'arrondit à 2 décimales (les centimes d'une caisse en
+  euros ne doivent pas dériver).
+- L'étanchéité reste STRUCTURELLE : aucun autre écran n'importe ces magasins.
+- Harnais : 29 vérifications (`node scripts/verifie-foyer.mjs`), dont « une
+  caisse ne voit QUE ses mouvements ».
+
+### La reprise du passé — FAITE le 11 août, 99 lignes
+
+L'ancien ERP séparait déjà le foyer sous une rubrique **« 8. Dépenses foyer »**
+— mais dans le registre des DÉPENSES, donc en charges du salon : le bénéfice
+réel était sous-estimé d'autant, tous les mois. Ces lignes sont devenues des
+prélèvements, à leur date d'origine, par
+`supabase/local_reprise_depenses_foyer.sql` (LOCAL et GITIGNORÉ — il porte les
+dépenses privées de la Maison ; **les montants et libellés du foyer restent
+dans ce fichier, jamais dans le dépôt public**).
+
+- **99 lignes, oct. 2025 → juil. 2026 — verdict ÉQUILIBRÉ** (99 sauvegardées,
+  99 créées, 99 retirées). Identifiants `plv-rep-<idDépense>`, patron des
+  `inv-rep-` de 0018. **Ne pas relancer.**
+- **AUCUNE dette créée, et c'est un principe** : la règle du Partage n'existait
+  pas sur cette période — convertir ces dépassements en prêts inventerait une
+  dette que personne n'a contractée. La dette part de zéro en août 2026. Les
+  mois repris AFFICHENT un dépassement en rouge : c'est un constat, pas une
+  créance.
+- **Table de secours `repli_reprise_foyer`** — le seul retour en arrière, avec
+  le bloc de rollback en fin de script. Ne pas la supprimer avant d'avoir vécu
+  quelques jours avec le nouveau registre (même règle que les `repli_0023_`).
+- **Le motif est DÉDUIT du libellé**, par un dictionnaire écrit sur les vrais
+  libellés de la Maison et qui n'existe qu'à UN endroit (l'étape 2 du script) —
+  deux copies auraient divergé. Le libellé d'origine est conservé mot pour mot
+  dans la note du retrait : chaque ligne remonte à sa source.
+- **Aucune récurrente parmi les 99** — vérifié avant d'écrire. Une récurrente
+  pèse sur chaque mois qu'elle traverse ; reprise en une ligne datée, elle
+  aurait allégé les mois passés de plus que son montant facial.
+- **TOUT SE CORRIGE EN PLACE dans Salon & Foyer** (11 août) : les retraits du
+  foyer, les mouvements d'une caisse indépendante (taux compris, avec la
+  contre-valeur qui se recalcule pendant la saisie), les lignes de Prêts
+  associés (la dette cumulée se refait d'elle-même) et celles du registre de
+  l'épargne. Ces dernières VIVENT AU COFFRE-FORT : les corriger ici les corrige
+  là-bas, ce que l'écran dit.
+  **Piège refermé au passage :** `dotationDuMois` vérifie désormais
+  l'ENVELOPPE en plus de l'identifiant. Une dotation dont on change l'enveloppe
+  à la main garde son id (`dot-<env>-<mois>`) ; s'en tenir à l'id faisait dire
+  « dotation inscrite » pour une enveloppe qui ne la portait plus, pendant que
+  le solde la comptait ailleurs.
+- **Chaque retrait se CORRIGE en place** (11 août) — date, bénéficiaire,
+  motif, note, montant. Une ligne fausse qu'on ne peut que supprimer pousse à
+  effacer puis ressaisir, et l'on y perd la date, le motif, parfois la ligne.
+  Les 99 reprises portent des motifs DÉDUITS d'un libellé : ce sont les
+  premières à devoir se corriger. Les listes déroulantes n'AVALENT jamais la
+  valeur affichée (`avecCourant`) — un motif venu d'ailleurs rendrait le champ
+  vide, et enregistrer effacerait ce qu'on n'avait pas voulu toucher.
+  Changer la date pour un autre mois déplace le retrait — et son budget.
+- **Reste ouvert : 70 lignes SANS catégorie** dans `expenses` — elles mélangent
+  salon et foyer et ne se déduisent pas (« Carburant Honda » peut être la moto
+  de course ou un plein personnel). La requête qui les liste est en fin de
+  script, commentée. C'est un tri à l'œil, par le souverain.
+
+## CNSS et ITS s'éteignent, chacun de son côté — 11 août
+
+Les employés de la Maison ne sont pas encore déclarés : retenir une cotisation
+qu'aucune caisse ne reçoit ferait annoncer au bulletin un net INFÉRIEUR à ce
+que l'employé touche vraiment. `PayrollParameters.cnssActive` (Personnel &
+paie → Barèmes) éteint la cotisation ; publié le 11 août.
+
+- **ABSENT = ALLUMÉE.** Une cotisation ne doit jamais disparaître par l'effet
+  d'un champ manquant : seul `false` l'éteint. Même doctrine que
+  `quizCouronne` (absent = l'état dans lequel la chose est née).
+- **Les DEUX parts tombent ensemble** — salariale ET patronale : on ne déclare
+  pas à moitié, et un coût employeur gonflé fausserait une décision d'embauche.
+- **DEUX INTERRUPTEURS, PAS UN.** `itsActive` éteint l'ITS séparément (les
+  employés n'y sont pas assujettis non plus, 11 août). L'ITS est un IMPÔT, la
+  CNSS une COTISATION : un interrupteur commun ferait tomber l'un en croyant
+  éteindre l'autre. Le harnais garde ce mur explicitement — éteindre la CNSS
+  laisse l'ITS dû, et l'inverse.
+- **Le bulletin DIT ce qui n'a pas été appliqué** (« suspendu — non appliqué »,
+  « suspendue — non appliquée ») : un zéro sans explication se lit comme un
+  oubli, et l'employé doit pouvoir vérifier son net.
+- **Les taux restent saisis** : l'interrupteur les conserve intacts (grisés),
+  les rallumer les retrouve. Mettre les taux à zéro aurait perdu des chiffres
+  qu'il aurait fallu retrouver le jour de la déclaration.
+- **LE PIÈGE, refermé : `bulletin.html` REFAIT le calcul de son côté** — il
+  portait ses 3,6 % ET son propre barème ITS en dur, si bien que le bulletin
+  imprimé aurait annoncé un autre net que le run, à un employé qui a reçu
+  autre chose. Les deux voyagent désormais dans l'adresse (`&cnss=…&its=0|1`,
+  `BulletinLink.cnssPct` / `itsActif`), et le taux se teste en `!= null` — pas
+  `if (x)` — parce que **zéro est précisément la valeur à transmettre**. La
+  page met aussi la charge patronale à zéro quand le taux salarial est nul.
+- Harnais NOUVEAU : `node scripts/verifie-paie.mjs` — 28 vérifications (il
+  n'en existait aucun pour la paie).
+
+### « Enregistrer » ne doit JAMAIS refuser en silence — 11 août
+
+**Le bouton de la modale Dépenses était réellement cassé**, et pour une raison
+qu'aucun message ne disait : `save()` renvoyait sans rien faire dès qu'un champ
+manquait — et il exigeait une CAISSE. Or la branche n'en a aucune de déclarée :
+la section « Payer depuis quelle caisse » était VIDE, il n'y avait donc rien à
+choisir, et **la dépense ne pouvait pas être enregistrée du tout**. On croyait
+le bouton mort. Trouvé sur les salaires d'août (charge écrite avec
+`cashbox: ''` par le run de paie).
+
+- **La caisse devient FACULTATIVE** — sans elle la dépense se range sous
+  « Autres », ce que `cashboxLabel` sait déjà faire. Une pastille « Sans caisse
+  · Autres » l'assume, et un mot le dit quand aucune caisse n'existe.
+- **Chaque refus est motivé à l'écran**, à côté du bouton (`saveErr`) :
+  bénéficiaire manquant, montant nul, articles qui totalisent zéro.
+- **Un enregistrement MUET se lit aussi comme une panne** : « Enregistrer
+  l'identité » (fiche cliente) écrivait bien, mais ne disait rien — le bouton
+  se grisait, on croyait le clic perdu. Il confirme désormais, brièvement.
+- **La leçon, à appliquer partout** : un `return` nu dans un gestionnaire de
+  bouton est un bug d'interface, même quand la donnée est bien protégée.
+
+### Les tiroirs de Dépenses mènent à la fiche — 11 août
+
+Les deux modales de détail (le tiroir d'une CATÉGORIE, le relevé d'une CAISSE)
+n'étaient que des listes mortes. Or c'est là qu'on repère une ligne fausse :
+on y arrive en cherchant « où sont passés ces 230 000 F ». Il fallait refermer,
+retrouver la ligne dans le flux, et cliquer Modifier — on perdait le fil.
+Chaque ligne de dépense ouvre désormais sa fiche (`openEdit`), la modale se
+refermant derrière elle. Dans le relevé d'une caisse, un encaissement mène
+toujours à sa FACTURE ; seule une ligne qui ne mène nulle part reste inerte.
+
+### Un run de paie entre enfin dans les DÉPENSES — 11 août
+
+**Un run pouvait être validé, payé, clôturé sans qu'un franc n'apparaisse aux
+Dépenses.** La masse salariale sortait de la caisse et le résultat du salon
+l'ignorait : le Partage croyait la Maison plus riche qu'elle n'est, exactement
+du montant des salaires. Constaté sur le run d'août (230 000 F, clôturé, rien
+d'inscrit). Corrigé :
+
+- **Marquer un run « payé » inscrit les charges** (catégorie Salaires, une
+  ligne par employé), après une confirmation qui annonce le montant. La charge
+  est datée du jour du RÈGLEMENT — c'est ce jour-là que l'argent sort, et le
+  Partage raisonne sur l'argent réellement sorti.
+- **UNE SEULE CLÉ, `chargeSalaireId(mois, employeeId)` dans `payroll.ts`.** Les
+  DEUX chemins l'utilisent — « Confirmer le règlement » (Personnel & paie) et
+  le run (Paie) — donc passer par les deux n'écrit qu'une ligne. La formule
+  était auparavant recopiée dans Personnel ; deux copies auraient fini par
+  diverger, et chaque divergence aurait compté un salaire DEUX FOIS.
+- **C'est le NET qui est la dépense** : c'est lui qui quitte la caisse. Les
+  cotisations retenues ne deviennent une charge que le jour où elles sont
+  versées, par leur propre ligne.
+- **Un bandeau dans le run dit l'état** : rien d'inscrit (« ces salaires ne
+  comptent nulle part »), inscrit et à jour, ou désynchronisé — avec
+  « Inscrire », « Mettre à jour » et « Retirer ». **Il paraît aussi sur un run
+  déjà CLÔTURÉ** : c'est ce qui permet de rattraper le passé sans rouvrir un
+  run immuable.
+
+**À savoir :** le « Confirmer le règlement » de Personnel & paie n'applique NI
+CNSS NI ITS — son net est `salaire + commissions + primes + pourboires −
+avances − retenues`. Le run, lui, passe par `computePay` (barèmes compris). Les
+deux écrivent la même ligne : le dernier geste fait foi sur le montant.
+
+### LE PRIX FERME PAR CLIENTE ET PAR PRESTATION — 11 août
+
+**Le Juste Prix est un COEFFICIENT, et c'était sa limite** : il multiplie ce
+que rend le barème, donc il ne savait pas dire « celle-ci paie 20 000 F, quoi
+qu'annonce le catalogue ». Il s'applique en outre à TOUTES ses prestations — le
+régler pour caler un seul geste déréglait les autres — et le prix « fixe »
+bougeait dès que le catalogue bougeait, puisqu'il n'était que proportionnel.
+Une dizaine de clientes de la Maison sont dans ce cas.
+
+- **`Client.prixFixes?: Record<serviceId, number>`** — un montant convenu avec
+  ELLE, geste par geste. Porté dans `PersonalPricing` par `pricingOf`, lu par
+  `prixFixeDe`.
+- **IL PASSE AVANT TOUT** dans `personalPriceXof` : avant le forfait, le
+  calibre, le tarif au lock, le plancher, la longueur et le coefficient. Le
+  laisser passer après le Juste Prix l'aurait MULTIPLIÉ — le montant écrit sur
+  la fiche n'aurait plus été celui qu'elle paie.
+- **`prixFerme` le reconnaît** : l'écran ne l'annonce jamais « dès X F » et ne
+  réclame plus de montant au fauteuil (`estLibre` dans la modale RDV) — sans
+  quoi le comptoir aurait pu en taper un autre et effacer l'accord.
+- **`isPersonalized` l'inclut**, et ce point a failli manquer : une cliente
+  sans modèle ni coefficient n'était pas « personnalisée », le rendez-vous
+  retombait sur le prix CATALOGUE, et l'accord de sa fiche restait lettre morte
+  au moment précis de s'appliquer.
+- **Zéro et négatif ne sont pas des prix** : un rituel offert se dit « offert »
+  sur le rendez-vous, il ne se déguise pas en prix fixe à 0 F — cela ferait
+  disparaître le geste de tous les comptes en silence.
+- Écran : fiche cliente → Profil → **« Ses prix fermes »** (poser, lire,
+  **modifier en place**, retirer). Une prestation retirée du catalogue garde
+  son accord et le dit. Les lignes ne s'appuient PAS sur `trf-tally` : la
+  classe vit dans finances.css, que les écrans Clientes ne chargent pas — nom
+  et prix s'affichaient collés. Le style se porte lui-même (leçon des
+  pastilles de la modale RDV).
+- **LA MARQUE SE VOIT AVANT TOUT LE RESTE** (11 août, même doctrine que « De
+  passage ») : pastille « Prix convenus » dans la LISTE des clientes, badge
+  « Prix convenus · N gestes » sur la COUVERTURE de la fiche, et au RENDEZ-VOUS
+  le prix s'annonce « 20 000 F · convenu » en cuivre — sans la mention, le
+  comptoir lit un montant qui ne colle pas au catalogue et « corrige »,
+  c'est-à-dire efface l'accord.
+- **Le JUSTE PRIX (coefficient) a les siennes aussi** : « Juste Prix ×0,8 »
+  dans la liste, « Juste Prix ×0,8 · tous ses prix » sur la couverture. Les
+  deux préférences se distinguent à l'œil : l'une dit UN geste, l'autre dit
+  TOUS ses prix. Le coefficient continue de se régler dans Finances → Le
+  Juste Prix.
+- Harnais NOUVEAU : `node scripts/verifie-prix.mjs` — 15 vérifications (il n'en
+  existait aucun pour le moteur tarifaire).
+
+### Le POURBOIRE se lit sur la facture — 11 août
+
+Il était ENREGISTRÉ sur la pièce (`Invoice.tipXof`) mais muet partout :
+Une cliente remettait 5 000 F et aucun document n'en gardait de trace lisible.
+Affiché désormais — détail d'une pièce (écran Factures), PDF de Factures, PDF
+du reçu de Caisse — en ligne « Pourboire — merci », cuivre, **SOUS le total et
+HORS de lui** : il ne s'y additionne jamais (c'est l'argent des maîtres,
+`invoiceTotal` l'exclut, la Synthèse aussi). Les pièces déjà émises l'affichent
+rétroactivement : la donnée y était.
+
+### Le POURBOIRE a sa caisse — et les PDF translittèrent le fon — 11 août
+
+Un reçu d'encaissement (Encaissements → Reçu) montrait deux maux. **L'objet en
+charabia** (« &K&L&†… ») : un SEUL caractère hors WinAnsi — le Ɔ de KLƆKLƆ™ —
+bascule TOUTE la ligne jsPDF en 16 bits. Réglé dans `pdf.ts` (`pdfSafe`,
+appliqué à chaque texte de chaque document) : les lettres fon se translittèrent
+sur papier (KLƆKLƆ™ s'imprime KLOKLO™ — assumé, la graphie fon vit à l'écran),
+les accents flottants se recomposent (ɔ́ → ó), l'inconnu sort en « ? » visible
+plutôt qu'en ligne détruite.
+
+**La somme qui bouleversait la caisse** : le registre créditait
+`total + pourboire` (45 000) à la caisse de la facture, alors que 40 000 y
+entrent et 5 000 vont dans la caisse pourboire de l'équipe. Désormais
+(`receipts.ts`) la facture encaisse SON total et le pourboire paraît sur **sa
+propre ligne** — nature « Pourboire », caisse « Pourboires », même jour, même
+référence, libellé « Pourboire — merci des mains ». Encaissements gagne
+l'onglet Pourboires et la carte « Par caisse » montre le bocal ; le reçu d'un
+pourboire se numérote **RP-** (sans ce préfixe il portait le même numéro que
+celui de la facture — mêmes 6 derniers caractères d'id). Le relevé de caisse
+de Dépenses ne compte plus le pourboire et le dit sur la ligne
+(« pourboire 5 000 → Pourboires »). Caisse en devise : les billets étrangers
+reçus restent entiers (`fx.amount`), on ne découpe pas un billet. Attention
+héritée : `revenuPartageDuMois` écarte maintenant les lignes `pourboire` par
+leur NATURE — l'ancienne soustraction de `tipXof` aurait retiré le pourboire
+DEUX fois (harnais foyer ajusté, tout au vert).
+
+### GBÈJÍ™ FIDÉLITÉ — le forfait à seuil de venues — 11 août
+
+Règle voulue par Yéman : les deux premières venues paient plein tarif ; dès la
+3ᵉ, Reprise Essentielle + Shampoing Signature pris ensemble = **−15 %**. TOUS
+les calibres (correction en cours de route — d'abord pensé Micro/Nano seuls).
+
+- **`Service.desVenue`** : la prestation s'ouvre à partir de la Nᵉ venue
+  honorée (`ouverteDesVenue` : acquises ≥ N−1 ; compteur `venuesHonorees`, le
+  même que la marque de passage et le Cercle). Filtré dans la modale RDV ET la
+  Caisse ; une vente SANS fiche ne voit jamais une prestation à seuil.
+- **`Service.bandIds`** : calibres multiples explicites (gardé au moteur bien
+  que ce forfait n'en ait plus besoin) — un modèle INCONNU ne passe pas.
+- **L'aperçu du Catalogue dit le prix PAR MODÈLE** (11 août) : composer un
+  forfait à remise n'annonçait qu'une fourchette basse-haute, le prix réel
+  par calibre se découvrait à la réservation. L'encadré appelle maintenant le
+  MOTEUR (`forfaitPriceXof` — le même juge que la modale RDV et Ma Couronne)
+  avec une tête type par calibre (plafond de locks, barèmes par atelier
+  compris) : pour chaque modèle, la composition barrée puis le prix après
+  remise. Produits au prix ferme ajoutés à part (le moteur ne les résout
+  pas). Le tableau ne paraît que si une remise est posée ET que les montants
+  diffèrent — un prix fixe est le même pour toutes, le récapitulatif suffit.
+- **Le forfait est une DONNÉE — CRÉÉ le 11 août** :
+  `supabase/local_forfait_gbeji_fidelite.sql` (LOCAL, gitignoré — politique
+  commerciale). Contrôle : « GBÈJÍ™ Fidélité · Reprise & Shampoing Signature »,
+  15 %, dès la 3ᵉ venue, 2 prestations (SÍNSIN™ Essentielle · La Reprise +
+  KLƆKLƆ™ Signature · L'Ancrage), 95 min. **L'aperçu a sauvé la composition** :
+  la recherche par nom attrapait AUSSI « La Reprise Frontale · Essentielle »
+  (le geste de niche) — exclue par `not ilike '%frontale%'`. Ne pas relancer
+  (idempotent de toute façon, `sv-forfait-gbeji-fidelite`).
+- **BUG PRÉEXISTANT ATTRAPÉ PAR LE HARNAIS : le Juste Prix s'appliquait DEUX
+  FOIS sur les forfaits composés** — une fois dans la composition
+  (`forfaitPriceXof` somme des `personalPriceXof`), une seconde sur le
+  résultat. Une cliente à ×0,5 payait le QUART au lieu de la moitié. Corrigé
+  dans `personalPriceXof` ; harnais verifie-prix : 34 vérifications.
+- **Ma Couronne filtre AUSSI par `desVenue`** (fait dans la foulée, à la
+  demande de Yéman) : le tunnel n'offre le forfait qu'à la 3ᵉ venue. Sous RLS
+  la cliente ne lit que SES rendez-vous (et ses mineurs) — c'est ce que le
+  compteur regarde : les venues de la tête pour qui l'on réserve, celle dont
+  `pricing` porte le tarif. Une tête sans venue lisible = seuil fermé.
+
+### LES FACTURES SUIVENT LE RITUEL — 11 août
+
+Modifier un rituel DÉJÀ ENCAISSÉ laissait sa facture née des prestations du
+jour de l'encaissement : deux documents pour la même séance, deux histoires
+(demande de Yéman). `alignerFacturesDuRituel` (clients/_shared) tourne à
+l'enregistrement de la modale RDV, sur toutes les pièces liées
+(`invoiceId` + `payments[].invoiceId`, kind facture, statut payée) :
+
+- **L'ARGENT REÇU NE BOUGE PAS** — le total de la pièce est intouchable (c'est
+  ce qui est entré en caisse, le CA le lit). Seules les LIGNES se reconforment.
+  **CORRIGÉ dans la foulée** : la première version répartissait le total AU
+  PRORATA — 40 000 F sur deux gestes donnaient 9 697 et 30 303, « des prix
+  bizarres qui ne veulent rien dire » (Yéman, pièce F-2026-0011). Désormais
+  chaque prestation garde son PRIX PLEIN (`svcPriceForAppt`), l'écart se dit en
+  REMISE visible (`globalDiscountXof`) ou en ligne « Ajustement · prix
+  consenti » s'il joue dans l'autre sens (patron 0018). Rouvrir + enregistrer
+  un rituel dont la pièce a été proratisée la remet d'aplomb. Un net qui
+  dépasse le payé vit au RESTE dû du rituel, jamais dans une facture réécrite.
+- Une pièce de règlement PARTIEL (« Règlement · … », une ligne) ne se
+  détaille pas après coup — seul son libellé suit.
+- **Un FORFAIT donne son nom à la pièce** (règle du 8 août) : pas de
+  redétaillage — changer les gestes ne change pas ce qu'elle a accepté.
+- Les remises globales tombent au réalignement (le total est déjà porté par
+  les lignes) ; idempotent — mêmes prestations, mêmes montants → zéro
+  écriture.
+- **Un rituel RÉGLÉ ne propose plus « Encaisser ou poser un acompte »**
+  (11 août) : le bouton semait la confusion sur un rituel payé. Il s'efface
+  quand `apptPayState` dit « payé », remplacé par « Réglé — rien à encaisser
+  sur ce rituel. » (doctrine : un refus se motive) ; il revient de lui-même si
+  une modification ENREGISTRÉE crée un nouveau reste à payer.
+- **Piège des vieux RDV sans longueur** (une facture réalignée, remise 18 000 au
+  lieu de 20 000) : une pièce réalignée AVANT que le rendez-vous porte une
+  longueur sort au prix de REPLI (shampoing 8 000 Court au lieu de 10 000
+  Mi-Long). Le geste : poser la longueur sur la fiche, rouvrir le RDV,
+  vérifier le sélecteur, Enregistrer — la pièce se réaligne, le total ne
+  bouge pas. (Au passage : le signe moins typographique « − » de la remise
+  sortait « ? » sur le PDF — translittéré en tiret dans `pdfSafe`.)
+
+### « UN PRIX FIXE EST FIXE » — `prixFerme` corrigé à la racine — 11 août
+
+Un RDV réclamait un montant pour un shampoing KLƆKLƆ dont le prix
+s'affichait en clair. Cause : `prixFerme` déclarait « pas ferme » toute
+prestation en mode calibre SANS grille par calibre — or un soin sans
+`priceFloors` NI `ratePerLock` ne dépend de rien d'inconnu : son prix est
+`base × coef de tranche × Juste Prix`, au franc près. Corrigé dans le juge
+lui-même (pas à l'écran) : ferme dès que le coefficient est connu — modèle
+renseigné, ou prestation qui ne suit pas le modèle. Conséquences partout où
+`prixFerme` est lu : plus de champ à saisir dans la modale RDV, plus de
+« dès » sur un prix exact (Trône, Vitrine, Ma Couronne — republiée aussi).
+Harnais : 19 vérifications.
+
+### SECOND BUG DE PRIX : la réouverture GONFLAIT le rituel — 11 août
+
+Le champ « montant convenu » était SEEDÉ avec `appt.priceXof` — or le
+rendez-vous ne stocke que le TOTAL (fixes + libre). À la réouverture, le champ
+« sur mesure » affichait donc le total entier, et réenregistrer rajoutait les
+prix fixes PAR-DESSUS : 8 000 → 13 000 → 18 000, un rituel qui enfle à chaque
+ouverture. Corrigé :
+
+- `amount` démarre à `null` (= « la Maison n'a pas touché au champ ») ; la
+  valeur affichée se DÉRIVE : `libreFige = priceXof − grossFixe`, la part
+  libre retrouvée en ôtant les prix fixes du total.
+- **Invariant garanti : rouvrir puis enregistrer sans rien toucher redonne
+  EXACTEMENT le même total** (`grossFixe + libreFige = priceXof`).
+- Leçon (deux fois le même jour — voir le montant qui REMPLAÇAIT le rituel) :
+  `priceXof` est un TOTAL ; tout écran qui le confond avec la part d'une seule
+  prestation crée un bug d'argent silencieux.
+
+### Le calendrier dit « · en cours » — 11 août
+
+L'indigo profond d'un bloc du Calendrier voulait dire « au fauteuil en ce
+moment » (aujourd'hui + heure courante dans la fenêtre + pas encore honoré) —
+et il fallait le SAVOIR pour le comprendre : Yéman a demandé « pourquoi ce
+RDV est en bleu ? ». Le bloc porte désormais « · en cours » après le nom,
+en vue jour comme en vue liste (téléphone). Une couleur qui porte un sens
+doit le dire en toutes lettres quelque part.
+
+### Le Profil de la fiche parle en UNE ligne par bloc — 11 août
+
+Retour de Yéman (« trop de texte ») : chaque bloc du Profil portait un
+paragraphe de doctrine, la page se lisait comme une notice. Règle appliquée :
+**l'état se dit en une phrase, la doctrine vit au survol** (`title`).
+
+- « Sa place à la Maison » : « De passage — la marque se lève à sa 2ᵉ venue
+  (1 à ce jour). » remplace quatre lignes ; pareil pour visiteur et relation.
+- Le Cercle : « Cercle au 7ᵉ passage — elle en a 4. » — le solde d'explication
+  est parti.
+- « Ses prix fermes » : une ligne, le reste au survol du titre.
+- Observations : le placeholder donne déjà les exemples — le mode d'emploi
+  sous le champ est réduit à une ligne.
+
+### La carte Couronne rangée, et « Ses locks » resynchronisé — 11 août
+
+Retour d'écran de Yéman (« les cellules ne sont pas connectées ») :
+
+- **Le vrai bug** : le champ « Ses locks » de la modale RDV (`LocksDeLaTete`)
+  gardait son brouillon DE MONTAGE — changer de cliente dans la même modale
+  montrait les locks de la précédente, et un comptage corrigé sur la fiche à
+  côté n'y apparaissait jamais. Aligné sur le patron de la liste
+  (`LocksCell`) : resynchronisation hors focus, jamais pendant la frappe.
+- **La carte « La couronne » de la fiche** portait un EN-TÊTE RÉSUMÉ qui
+  répétait les champs du dessous (« Style à définir », « 114 locks »,
+  « naissance à renseigner ») — à dix centimètres des champs, l'œil le prenait
+  pour un autre bloc jamais à jour. Parti. La carte ne dit plus que ce que les
+  champs ne disent pas : **le CALIBRE que le comptage donne** (« Calibre
+  Medium · 114 locks — c'est lui qui choisit ses créations et son barème »)
+  et l'envie déclarée au quiz. Remplir les locks produit désormais une
+  réponse visible — avant, la saisie semblait ne rien faire.
+
+### BUG DE PRIX CORRIGÉ : le montant convenu REMPLAÇAIT le rituel — 11 août
+
+**Le pire genre de bug : silencieux, et sur de l'argent.** Le montant saisi
+pour une prestation à prix libre remplaçait le total du rendez-vous entier.
+Une reprise SÍNSIN à 45 000 F posée à côté d'une prestation sur mesure
+disparaissait dès qu'on saisissait 12 000 F pour celle-ci : le rituel valait
+12 000 F au lieu de 57 000, et RIEN ne le disait. Le prix était figé sur le
+rendez-vous, donc l'erreur suivait jusqu'à la facture, au chiffre d'affaires,
+à la production et aux commissions.
+
+- **Le montant ne vaut plus que pour le BLOC DES PRIX LIBRES** ; les
+  prestations à prix fixe gardent le leur et s'ajoutent :
+  `effGross = grossFixe + (montant saisi || grossLibre)`.
+- Sans montant saisi, le bloc libre garde son prix de départ — **zéro** pour
+  une prestation sur devis, le prix annoncé pour une variable.
+- **Aucune régression sur l'ancien cas** : une seule prestation libre →
+  `grossFixe = 0`, le montant fait le total, exactement comme avant.
+- `priceXof` enregistré = `effGross`, **le même nombre que l'aperçu** : le
+  recalculer à l'enregistrement ferait diverger ce qu'on lit de ce qu'on écrit.
+- ⚠ **Les rendez-vous saisis AVANT ce correctif portent le prix faux** (figé
+  dans `priceXof`). Les rouvrir et réenregistrer les remet d'aplomb.
+
+### Le montant d'un rituel sur devis se saisit SUR SA LIGNE — 11 août
+
+Le champ « Montant du rituel » vivait tout en bas de la modale RDV, sous la
+note du carnet : on lisait « sur devis » à côté de la prestation sans voir où
+le dire, et l'on enregistrait un rituel à 0 F sans s'en apercevoir. Il paraît
+désormais **à côté de « sur devis »**, sur la ligne de la prestation.
+
+**LE CHAMP NE S'OUVRE QUE LÀ OÙ LE PRIX EST VRAIMENT INCONNU** (corrigé dans la
+foulée). Le critère n'est PAS « la prestation n'est pas à prix fixe » : une
+SÍNSIN Élaborée est déclarée « variable », mais son prix est exactement connu
+dès qu'on a le calibre ou le comptage — l'écran l'affiche « 35 000 F » et non
+« dès 35 000 F ». Lui ouvrir un champ faisait redemander un montant déjà
+calculé, sur une ligne qui affichait déjà son prix : deux nombres, et l'on ne
+savait plus lequel comptait. Le prédicat est donc `!prixFerme(sv, pricing)` —
+la question « son prix est-il exactement connu pour cette cliente ? » existait
+déjà, et elle tient compte du prix convenu avec elle.
+
+**UN SEUL MONTANT PAR RENDEZ-VOUS** : `Appointment.priceXof` porte le rituel
+entier, pas la prestation. Le champ en ligne ne s'affiche donc que s'il n'y a
+**qu'une** prestation à prix libre (`seulPrixLibre`) — au-delà, deux champs
+réécriraient la même valeur l'un après l'autre, et c'est le bloc du bas, qui
+dit « montant du rituel », qui reprend la main. Le jour où l'on voudra un prix
+PAR prestation, il faudra un champ par ligne dans le modèle, pas un champ de
+plus à l'écran.
+
+## Une fiche qui « revient » après suppression — gabarit écrit le 10 août au soir
+
+Supprimer une cliente au Trône n'efface que la FICHE ; ses documents restent,
+et `useReconcileClients` recrée la fiche pour tout `clientId` encore référencé
+par un RDV ou une facture — dans la seconde, sur n'importe quel poste ouvert.
+Un compte Ma Couronne la recréerait aussi à sa connexion (`ensureClient`).
+Le remède passe par le SQL : traiter les RÉFÉRENCES et le COMPTE, pas la fiche.
+Gabarit : `supabase/local_supprime_cliente.sql` — LOCAL et GITIGNORÉ (motif
+`supabase/local_*.sql`, ajouté ce jour) : étape 1 diagnostic lecture seule
+(fiches, compte, chaque pièce avec statut et montant, références brutes),
+étape 2A fusion vers la vraie fiche (l'histoire et le compte suivent, le
+doublon meurt), étape 2B effacement total (les factures sortent des comptes).
+Appliqué le 10 août : un doublon de comptoir (`MND-JTUG`, une seule pièce — un
+devis brouillon) fusionné vers sa fiche d'import Firebase (`gvCbf…`) ; 1 pièce
+reportée, doublon supprimé, plus rien ne le fait renaître.
+
+### Les fiches « Cliente Ma Couronne » — baptême du 12 août
+
+Une inscription Ma Couronne SANS nom (pas d'e-mail lisible, profil jamais
+rempli) fait naître une fiche au nom de repli « Cliente Ma Couronne » — le
+Calendrier et le Carnet, qui lisent le nom DE LA FICHE, n'affichent alors que
+ce repli. Le 12 août : 5 fiches trouvées — 2 vraies clientes (rituels du 12,
+renommées à leurs vrais prénoms par
+`supabase/local_nomme_clientes_couronne.sql`, LOCAL gitignoré, repli
+`repli_noms_couronne`) et 3 fantômes sans e-mail/téléphone/RDV
+(`local_purge_fantomes_couronne.sql` : constat des références PUIS sortie,
+repli `repli_fantomes_couronne`). Leçon en deux temps : (1) le nom figé d'un
+RENDEZ-VOUS peut différer du nom de la FICHE — toute réparation se cloue sur
+les IDENTIFIANTS, jamais sur un nom ; (2) une fiche ne sort que si AUCUNE
+pièce ne la cite (leçon de la fiche ressuscitée). Si le motif revient, le vrai chantier
+serait de demander le prénom à l'inscription Ma Couronne.
+
+### Le compte famille ne s'affiche plus partout — 11 août
+
+Demande de Yéman, et elle a raison sur les deux écrans : on proposait un foyer
+à des clientes qui n'en ont pas.
+
+- **Le Trône** : le bloc « Compte famille » de la fiche 360 s'affichait sur
+  TOUTES les fiches, avec sa phrase « elle n'est rattachée à aucun compte » et
+  son bouton d'ouverture — 178 fiches portaient un bloc qui ne concernait
+  presque personne. Il ne paraît plus QUE si le compte existe. Le rattachement
+  se fait là où il se décide, Finances › Comptes & Avoirs (`/comptes?parent=`).
+- **Ma Couronne** : la section « Mes enfants » (titre, invitation, bouton
+  « + Ajouter un enfant ») s'affichait sur chaque profil — on demandait
+  quelque chose de très intime à qui n'avait rien demandé. Elle ne paraît en
+  entier que pour un **parent connu** : une tête déjà ouverte, une demande en
+  cours, ou un refus à lire.
+- **La porte reste ouverte pour les autres, mais discrète** : une seule ligne,
+  « Un enfant à inscrire ? », qui déplie le formulaire. C'était nécessaire —
+  masquer tout aurait tué le TEMPS 2 (0036) du jour au lendemain : plus aucun
+  parent n'aurait pu déclarer un PREMIER enfant depuis chez lui. Dès la
+  demande envoyée, le compte devient « parent connu » et retrouve le bloc.
+- **Un membre sans fiche se crée depuis la modale du compte** (11 août) : le
+  champ « Ajouter une cliente au compte » porte `allowPassage` — l'option
+  « ＋ Cliente de passage » (prénom + téléphone) crée la fiche et l'ajoute au
+  compte dans le même geste, sans quitter Comptes & Avoirs. La fiche naît
+  de passage, comme toute fiche créée depuis le Trône.
+
 ## TEMPS 2 des comptes enfants — CONSTRUIT ET OUVERT le 10 août au soir
 
 Le chantier n° 1 de la liste du matin, bouclé le soir même :
@@ -563,6 +1299,13 @@ node scripts/publie.mjs trone couronne      # ou sans argument : les quatre
 ```
 
 Le compte GitHub est lu depuis l'origine du dépôt — aucun domaine en dur.
+
+**Le « publié @ xxxxxxx » ne désigne PAS la publication** (constaté le 11 août) :
+c'est le HEAD du dépôt SOURCE, donc deux publications successives sans commit
+entre elles portent le même libellé. Ce document cite ces empreintes comme
+repères — les prendre pour des identifiants de déploiement induirait en erreur.
+Pour savoir si quelque chose est parti, lire la ligne : « déjà à jour, rien à
+pousser » ou « N fichiers vérifiés, publié ».
 
 ## Deux barèmes à revoir, sans urgence
 
@@ -1293,13 +2036,75 @@ fiche »** : personne n'a à décliner son identité pour acheter un flacon. Ell
 se confond plus avec la cliente de passage, qui reçoit un geste et doit donc
 compter dans la production du maître.
 
-### RESTE À FAIRE
+### « TÊTE COURONNÉE » = VENUE AU MOINS UNE FOIS — 11 août
 
-- **Rien n'a été reclassé rétroactivement.** Les 178 fiches existantes sont
-  intactes ; aucune ne devient « de passage » toute seule, et c'est le bon
-  choix — la marque se pose au comptoir, au moment où on la reçoit. Si Yéman
-  veut relire les fiches à une seule venue, ce sera une LISTE À TRANCHER, comme
-  pour la diaspora, jamais une écriture en masse.
+**Ouvrir un compte sur Ma Couronne créait une fiche pleine** (`ensureClient`) :
+des gens inscrits qui n'étaient jamais venus comptaient parmi les têtes
+couronnées, et chaque inscription écrasait un peu plus la rétention. Constaté
+par Yéman (des comptes jamais venus) : **20 fiches sans AUCUN rendez-vous**, plus une
+avec un RDV jamais honoré.
+
+**On n'a posé aucune marque : on a corrigé la DÉFINITION.** Une tête est
+couronnée quand la Maison l'a réellement couronnée — au moins une venue
+honorée. Aucun champ, aucune migration, rien à entretenir ; un visiteur
+devient une tête le jour où il s'assied.
+
+- `tetesVenues(appts)` (shared/agenda.ts) — le SET des têtes venues, construit
+  d'une passe ; `estCouronnee(c, venues)` et `estVisiteur(c, venues)`
+  (shared/clients.ts). Le set se passe en ARGUMENT pour ne pas nouer les deux
+  couches (clients.ts n'importe pas l'agenda).
+- Appliqué à : la tuile « Têtes couronnées » (Dashboard), les registres et les
+  compteurs de Clientes, « Têtes actives » et son dénominateur (Analytics),
+  « Nouvelles » du Bilan mensuel.
+- **Un 4ᵉ registre « Visiteurs »** dans Clientes, visible seulement s'il y en a.
+- **UNE FICHE CRÉÉE AU COMPTOIR NAÎT « DE PASSAGE »** (décision de Yéman,
+  11 août) : sans la marque, une tête créée avant sa première venue tombait
+  chez les VISITEURS — pensé pour les comptes auto-inscrits de Ma Couronne,
+  avec un bandeau qui le prétendait. La modale « Nouvelle tête couronnée » le
+  dit avant d'enregistrer ; la 2ᵉ venue honorée lève la marque d'elle-même.
+  Le bandeau des Visiteurs ne prétend plus qu'ils viennent tous de Ma
+  Couronne (têtes déclarées pas encore passées, anciennes fiches comptoir).
+- **« Sa place à la Maison » porte les TROIS places** (fiche → Profil) : Tête
+  couronnée · Visiteur · De passage. **« Visiteur » ne se clique pas** — c'est
+  un constat du carnet, pas un réglage : il n'y aurait rien à écrire, et un
+  bouton qui ne fait rien se lit comme une panne. « Tête couronnée » est grisée
+  tant qu'aucune venue n'est honorée, pour la même raison — c'est la venue qui
+  couronne, pas le clic. « De passage » reste grisée au-delà de deux venues
+  (la marque serait levée aussitôt).
+- **MARKETING N'EST PAS TOUCHÉ, et c'est délibéré** : écrire à quelqu'un qui
+  s'est inscrit sans venir, c'est justement l'inviter. Ce n'est pas du bruit,
+  contrairement à une relance envoyée à une passante.
+- Effet de bord assumé : une tête dont le PREMIER rendez-vous est pris mais pas
+  encore honoré ne compte pas encore. C'est la vérité — elle
+  comptera le jour où elle s'assied.
+- **La racine n'est pas traitée** : `ensureClient` continue de créer une fiche
+  à l'inscription. Ne la faire naître qu'au premier geste réel (réservation,
+  commande, profil rempli) reste un chantier ouvert — il touche l'inscription,
+  le profil et le tunnel.
+
+### LE PASSÉ EST RECLASSÉ — 11 août 2026, 51 têtes marquées
+
+Fait par `supabase/local_marque_de_passage.sql` (LOCAL et GITIGNORÉ — il sort
+des noms). **64 des 178 fiches n'avaient qu'UNE venue, soit 36 % du CRM** :
+c'est ce qui faussait la rétention et le compte des têtes actives.
+
+- **Seuil retenu : 8 semaines** (51 têtes). Les 13 écartées sont des venues de
+  moins de 56 jours — **des NOUVELLES, pas des passantes** : les marquer aurait
+  fait taire la relance au moment précis où elle sert. Elles tomberont d'elles-
+  mêmes si elles ne reviennent pas : **le script est RELANÇABLE**, à passer une
+  fois par mois.
+- **Deux exclusions non négociables** : toute tête qui a un rendez-vous À VENIR
+  (elle revient, c'est un fait) — 0 dans ce lot — et celles déjà marquées.
+- **Table de secours `repli_de_passage`** : le rollback ne défait QUE les
+  fiches de ce script, jamais une marque posée à la main au comptoir.
+- **Le filet tient** : `usePassageVivant` ne sait que RETIRER la marque, à la
+  2ᵉ venue honorée. Une erreur se répare donc à la prochaine visite.
+- Observations à garder : des FAMILLES entières y sont (trois Dossou-Yovo le
+  même jour, trois Aïssi, deux Biao) — chaque tête n'est venue qu'une fois,
+  mais c'est le PAYEUR qu'une relance devrait viser. Et une quinzaine de ces
+  têtes sont celles de la liste diaspora (numéro étranger + une venue) : très
+  probablement des passages pendant un séjour, ce qui réduit d'autant le
+  chantier Diaspora.
 *(La question des points Cercle a été tranchée le 9 août — voir juste en dessous.)*
 
 ### Le Cercle se gagne au 3ᵉ passage — 9 août 2026

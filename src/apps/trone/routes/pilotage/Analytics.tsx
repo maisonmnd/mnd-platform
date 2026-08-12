@@ -4,10 +4,10 @@ import { PageHead } from '../_ui';
 import { Modal, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, tetesVenues } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useApprenants } from '../equipe/data';
-import { estDePassage, useClients } from '../../../../shared/clients';
+import { estCouronnee, estDePassage, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
@@ -88,9 +88,14 @@ export default function Analytics() {
      des TÊTES : sans quoi « Têtes actives » et sa part du carnet mesureraient la
      fréquentation du comptoir, jamais la fidélité de la Maison — et la rétention
      s'effondrerait sans que rien n'ait changé. Voir `Client.dePassage`. */
+  /* UNE TÊTE COURONNÉE S'EST ASSISE AU MOINS UNE FOIS (11 août). Un compte
+     ouvert sur Ma Couronne et jamais suivi d'une venue n'est pas une cliente :
+     le compter au dénominateur faisait chuter la rétention à chaque
+     inscription. */
+  const venues = useMemo(() => tetesVenues(appointments), [appointments]);
   const scopedClients = useMemo(
-    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope) && !estDePassage(c)),
-    [clients, scope],
+    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope) && estCouronnee(c, venues)),
+    [clients, scope, venues],
   );
   /* Qui ne compte pas comme tête — pour retirer ses venues de « Têtes actives »
      sans jamais toucher au revenu qu'elle a laissé. */

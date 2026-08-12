@@ -428,7 +428,12 @@ function FamilyModal({
                 <button type="button" aria-label="Retirer" style={{ flex: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13 }} onClick={() => removeMember(m.id)}>✕</button>
               </div>
             ))}
-            <ClientPicker value={pick} onChange={addMember} placeholder="Ajouter une cliente au compte…" />
+            {/* `allowPassage` : un membre de la famille sans fiche (un enfant,
+                un conjoint jamais venu) se crée ICI — prénom + téléphone — et
+                rejoint le compte dans le même geste. La fiche naît « de
+                passage », comme toute fiche créée depuis le Trône ; sa place
+                à la Maison se constate à sa première venue. */}
+            <ClientPicker value={pick} onChange={addMember} allowPassage placeholder="Ajouter une cliente au compte…" />
             <div className="mnd-muted" style={{ fontSize: 10.5 }}>Le parent payeur (★) est celui qui règle les factures du compte.</div>
           </div>
         </Field>

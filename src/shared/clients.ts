@@ -70,8 +70,31 @@ export type Client = {
       est légitime — elle porte sur un fait observé, elle est revenue, et non
       sur une supposition quant à sa vie. */
   dePassage?: boolean;
+  /** SES PRIX FERMES — un montant convenu avec ELLE, prestation par prestation.
+      Clé = identifiant de prestation, valeur = prix en XOF.
+
+      LE JUSTE PRIX EST UN COEFFICIENT, ET C'EST SA LIMITE : il multiplie ce que
+      rend le barème, donc il ne sait pas dire « celle-ci paie 20 000 F, quoi
+      qu'annonce le catalogue ». Pire, il s'applique à TOUTES ses prestations —
+      le régler pour caler un seul geste déréglait tous les autres — et le prix
+      « fixe » bougeait dès que le catalogue bougeait, puisqu'il n'était que
+      proportionnel.
+
+      Ce prix-ci est FERME : il passe AVANT le barème, le plancher, le tarif au
+      lock et le coefficient (voir `personalPriceXof`). Ni son nombre de locks
+      ni une révision du catalogue ne le déplacent. Une valeur ≤ 0 n'existe
+      pas — un accord à zéro franc se dit « offert », pas « prix fixe ». */
+  prixFixes?: Record<string, number>;
   /* — la couronne : partagé Trône (CRM 360) ↔ Ma Couronne (statut, suivi) — */
   crownStyle?: string; // Microlocks, Locks fines, Sisterlocks…
+  /** SA LONGUEUR PAR DÉFAUT (évolution du 11 août 2026). La doctrine du 6 août
+      la refusait sur la fiche — « la longueur repousse » — mais sans elle, Ma
+      Couronne annonçait le prix de REPLI à une cliente dont la Maison connaît
+      la longueur. Compromis : la fiche porte un POINT DE DÉPART, chaque
+      rendez-vous FIGE toujours la sienne (`Appointment.longueur`) — relire un
+      rituel de mars ne le retarife jamais — et le comptoir corrige à
+      l'arrivée si elle a poussé. Mêmes valeurs que `LongueurId` (catalog). */
+  longueur?: 'court' | 'mi-long' | 'long';
   lockCount?: number; // nombre de locks
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
@@ -225,6 +248,30 @@ export function ensureInitiePersona(): string {
    regarde — le rituel d'une passante vaut exactement celui d'une autre. */
 
 export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassage === true;
+
+/* ---------- Les VISITEURS — un compte, aucune venue ----------
+
+   Ouvrir un compte sur Ma Couronne crée une fiche pleine (`ensureClient`) :
+   quelqu'un qui s'inscrit, regarde et s'en va entrait au CRM comme une
+   fidèle. Ces fiches gonflaient « Têtes couronnées » et écrasaient la
+   rétention — constaté le 11 août 2026 sur une vingtaine de comptes.
+
+   ON NE POSE AUCUNE MARQUE, on corrige la DÉFINITION : une tête est
+   couronnée quand la Maison l'a réellement couronnée, c'est-à-dire quand elle
+   s'est assise au moins une fois. Rien à entretenir, rien à migrer, et le
+   visiteur devient une tête le jour de sa première venue — sans qu'on ait à
+   y penser.
+
+   `venues` est le SET rendu par `tetesVenues` (shared/agenda.ts) ; on le
+   passe en argument plutôt que d'importer l'agenda ici, pour ne pas nouer
+   les deux couches. */
+
+export const estCouronnee = (c: Pick<Client, 'id' | 'dePassage'>, venues: ReadonlySet<string>): boolean =>
+  !estDePassage(c) && venues.has(c.id);
+
+/** Un compte sans aucune venue — ni tête couronnée, ni passante. */
+export const estVisiteur = (c: Pick<Client, 'id' | 'dePassage'>, venues: ReadonlySet<string>): boolean =>
+  !estDePassage(c) && !venues.has(c.id);
 
 /** IDENTITÉ MINIMALE — prénom et téléphone, rien d'autre.
 

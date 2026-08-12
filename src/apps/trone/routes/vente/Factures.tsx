@@ -210,6 +210,9 @@ export default function Factures() {
       subtotal: fmtMoney(Math.round(gross), currency),
       discount: disc > 0 ? `− ${fmtMoney(Math.round(disc), currency)}` : undefined,
       total: fmtMoney(net, currency),
+      /* Le pourboire remis avec le règlement — hors total, il appartient aux
+         mains. La pièce doit dire TOUT ce que la cliente a tendu. */
+      tip: (d.tipXof ?? 0) > 0 ? fmtMoney(d.tipXof!, currency) : undefined,
       /* Le PDF porte la devise reçue et son taux — c'est la pièce que la cliente
          garde ; elle doit y retrouver ce qu'elle a tendu. */
       payment: d.fx
@@ -861,6 +864,22 @@ export default function Factures() {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Total</div>
                 <div className="trv-doc__total">{fmtMoney(totals.net, currency)}</div>
               </div>
+
+              {/* LE POURBOIRE SE DIT, HORS TOTAL. Il était enregistré sur la
+                  pièce (tipXof) mais muet partout : une cliente remettait 5 000 F
+                  et le document n'en gardait aucune trace lisible. Il ne
+                  s'additionne pas au total — c'est un merci aux mains, pas une
+                  ligne de la Maison (demande de Yéman, 11 août). */}
+              {(active.tipXof ?? 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--hairline)' }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                    Pourboire — merci
+                  </div>
+                  <div className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-copper)' }}>
+                    {fmtMoney(active.tipXof!, currency)}
+                  </div>
+                </div>
+              )}
 
               {/* Réglé en devise — la cliente doit lire ce qu'elle a réellement
                   tendu, et à quel taux. Sans cette ligne, le document affirme un

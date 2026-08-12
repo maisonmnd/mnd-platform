@@ -12,10 +12,10 @@ import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import {
-  useModelBands, useBandSets, pricingOf, personalPriceXof, servesBand, bandForService, prixFerme,
+  useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
-import { appointmentsStore } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -65,6 +65,8 @@ export default function Caisse() {
   const [products] = useProducts();
   const [formations] = useFormations();
   const [clients] = useClients();
+  /* Tout le carnet — les prestations à seuil se comptent en venues honorées. */
+  const [allAppts] = useAppointments();
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const [families] = useFamilies();
@@ -94,6 +96,17 @@ export default function Caisse() {
      un soin facture a la longueur sortirait toujours au prix de son repli.
      Mi-Long par defaut — le cas courant au fauteuil. */
   const [longueur, setLongueur] = useState<LongueurId>('mi-long');
+  /* CHOISIR LA CLIENTE ADOPTE SA LONGUEUR DE FICHE (11 août) — le comptoir part
+     de la vraie, et les puces corrigent si elle a poussé. Une fiche muette (ou
+     une vente de passage) retombe sur Mi-Long : on repart proprement à chaque
+     changement de tête plutôt que d'hériter de la précédente. */
+  useEffect(() => {
+    const fiche = clients.find((c) => c.id === clientId);
+    setLongueur(fiche?.longueur ?? 'mi-long');
+    /* Volontairement sur le seul changement de tête : une synchro des fiches en
+       pleine vente ne doit pas écraser une correction faite aux puces. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   /* SOLDER UN RITUEL DU CARNET. Toute la protection anti-double-comptage de la
      maison repose sur `Appointment.invoiceId` : un rituel qui en porte un est
@@ -152,6 +165,13 @@ export default function Caisse() {
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
   /* — l'offre, groupée par catégorie ™ — */
+  /* LE COMPTEUR D'ABORD, LE SCALAIRE EN DÉPENDANCE (12 août) : `groups`
+     dépendait du tableau ENTIER des rendez-vous pour n'en tirer que ce nombre
+     — une synchro d'agenda retriait toute l'offre en pleine vente. */
+  const venuesTete = useMemo(
+    () => (clientId ? venuesHonorees(allAppts, clientId) : 0),
+    [allAppts, clientId],
+  );
   const groups = useMemo(() => {
     /* LE COMPTOIR PARLE À UNE TÊTE, PAS AU CATALOGUE. Tant qu'aucune cliente
        n'est choisie, `pricing` est neutre : tout s'affiche au prix catalogue,
@@ -166,14 +186,18 @@ export default function Caisse() {
           n'offrent aucun choix, seulement l'occasion d'encaisser la mauvaise. */
     const cliente = clients.find((c) => c.id === clientId);
     const pricing = { ...pricingOf(cliente, bands, sets, categories), longueur };
-    const offre = services.filter((sv) => servesBand(sv, bandForService(sv, pricing)));
+    /* 3. ON NE PROPOSE QUE CE QUI LUI EST OUVERT. Une prestation à seuil de
+       venues (GBÈJÍ™ Fidélité, dès la 3ᵉ) n'existe pas pour une tête qui n'y
+       est pas encore — ni pour une vente sans fiche, où l'on ne peut compter
+       les venues de personne. */
+    const offre = services.filter((sv) => estProposable(sv, pricing, venuesTete));
     const cats = [...categories].sort((a, b) => a.order - b.order);
     const knownCats = new Set(cats.map((c) => c.id));
     type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode };
     const toItem = (s: typeof services[number]): CaisseItem => ({
       key: `s:${s.id}`,
       n: s.name,
-      priceXof: personalPriceXof(s, pricing, services),
+      priceXof: personalPriceXof(s, pricing, services, products),
       kind: 'service' as const,
       /* Un tarif au lock CESSE d'être « variable » dès qu'on connaît le nombre
          de locks : le montant est exact, il n'a plus à s'annoncer « dès ». */
@@ -200,7 +224,7 @@ export default function Caisse() {
       .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
     if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
     return gs;
-  }, [categories, services, products, formations, clients, clientId, bands, sets, longueur]);
+  }, [categories, services, products, formations, clients, clientId, bands, sets, longueur, venuesTete]);
 
   const flat = useMemo(() => {
     const map: Record<string, { n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode }> = {};
@@ -399,6 +423,7 @@ export default function Caisse() {
         subtotal: fmtMoney(Math.round(grossXof), currency),
         discount: grossXof - netXof > 0 ? `− ${fmtMoney(Math.round(grossXof - netXof), currency)}` : undefined,
         total: fmtMoney(netXof, currency),
+        tip: (inv.tipXof ?? 0) > 0 ? fmtMoney(inv.tipXof!, currency) : undefined,
         /* Le reçu doit dire ce que la cliente a réellement tendu, sinon elle lit
            un montant en F qu'elle n'a jamais versé. */
         payment: inv.fx

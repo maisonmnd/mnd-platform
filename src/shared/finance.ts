@@ -88,6 +88,12 @@ export type Expense = {
   paused?: boolean;
   /** Articles imputés au même achat ; `amountXof` = somme des lignes. */
   items?: ExpenseItem[];
+  /** QUI a écrit cette ligne en dernier — seulement pour les charges de
+      salaire, écrites par DEUX chemins (le run de Paie et « Confirmer le
+      règlement » de Personnel). 'run' verrouille la resynchronisation
+      automatique de Personnel : un run marqué payé ne se fait plus réécrire
+      sans geste ; seul un clic explicite reprend la main. */
+  source?: 'run' | 'confirm';
 };
 
 /** Total d'une dépense — somme des lignes si présentes, sinon le montant simple. */
@@ -153,12 +159,22 @@ export const isFxCashbox = (b: Cashbox, houseCurrency: string): boolean =>
 export type ExpenseCategory = { id: string; name: string; subs: string[] };
 
 /** Total encaissable : lignes remisées, puis remise globale en %, puis remise en
-    CFA. Jamais négatif. Le pourboire (`tipXof`) n'y entre JAMAIS — il transite par
-    la caisse mais n'est pas du chiffre d'affaires. */
+    CFA. Jamais négatif. Le pourboire (`tipXof`) n'y entre JAMAIS — depuis le
+    11 août il ne crédite même plus la caisse de la facture : il vit sur sa
+    propre ligne du registre des encaissements, caisse « Pourboires ». */
 export const invoiceTotal = (inv: Invoice): number => {
   const sub = inv.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
   return Math.max(0, Math.round(sub * (1 - inv.globalDiscountPct / 100)) - (inv.globalDiscountXof ?? 0));
 };
+
+/** CE QUI ENTRE EN BILLETS le jour du solde : le total, moins la part réglée
+    par AVOIR (un crédit, pas des billets) et moins l'acompte DÉJÀ reçu (entré
+    un autre jour, souvent dans une autre caisse). Trois écrans recalculaient
+    cette formule chacun de leur côté — registre des encaissements, relevé de
+    caisse, tableau de bord — et le retrait du pourboire a dû s'y éditer en
+    parallèle (12 août) : UNE formule désormais, ici. */
+export const invoiceCashXof = (inv: Invoice): number =>
+  invoiceTotal(inv) - (inv.avoirXof ?? 0) - (inv.depositCreditXof ?? 0);
 
 export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Souffle'] as const;
 
@@ -347,6 +363,17 @@ export type CoffreMovement = {
   clientName?: string;
   bank?: string; // virement : banque / compte destinataire
   note?: string;
+  /** Dépôt venu des RÉSERVES de Salon & Foyer — un virement interne, pas une
+      part de chiffre mise de côté au comptoir. Ces lignes sont réservées au
+      souverain côté serveur (migration 0040) : le budget du foyer et l'épargne
+      du Partage sont l'affaire du couple, le reste du coffre ne bouge pas. */
+  origine?: 'reserve';
+  /** Laquelle des deux enveloppes du Partage a produit cette ligne. C'est le
+      SEUL endroit où vit cette information : le coffre est le registre unique
+      de l'épargne, les « réserves » n'en sont qu'une lecture par enveloppe. */
+  enveloppe?: 'reinvestissement' | 'fiscale';
+  /** Référence d'un mouvement apparié — libre, conservée pour l'historique. */
+  ref?: string;
 };
 /** Montant signé d'un mouvement : + pour un dépôt, − pour un virement sortant. */
 export const coffreSignedXof = (m: CoffreMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);

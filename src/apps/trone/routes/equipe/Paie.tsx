@@ -5,12 +5,14 @@ import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/compon
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
+import { expensesStore, expenseCategoriesStore, useExpenses } from '../../../../shared/finance';
 import { useStaff } from './data';
 import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
   payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance,
   parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
+  cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
@@ -218,6 +220,7 @@ function NewRunModal({ onClose, onCreate, defaultAtelier }: { onClose: () => voi
 function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orphanMasters?: string[]; onClose: () => void }) {
   const { branch, currency } = useBranch();
   const [params] = usePayrollParameters();
+  const [allExpenses] = useExpenses();
   const [editLine, setEditLine] = useState<number | null>(null);
   const editable = run.status === 'brouillon';
   const lines = asArray<PayrollLine>(run.lines);
@@ -231,11 +234,65 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     setEditLine(null);
   };
 
+  /* ═══ LA PAIE DOIT ENTRER DANS LES DÉPENSES ═══
+
+     Un run pouvait être validé, payé, clôturé sans qu'un franc n'apparaisse
+     jamais aux Dépenses : la masse salariale sortait de la caisse et le
+     résultat du salon l'ignorait. Le Partage croyait alors le salon plus
+     riche qu'il n'est, exactement du montant des salaires.
+
+     LA CLÉ EST CELLE DE PERSONNEL & PAIE (`exp-paie-<mois>-<dossier>`) : les
+     deux chemins — « Confirmer le règlement » à l'écran Personnel, et le run
+     ici — écrivent donc LA MÊME ligne. Passer par les deux ne double rien.
+
+     C'est le NET qui sort de la caisse, donc c'est lui la dépense. Les
+     cotisations retenues ne sont pas une charge tant qu'elles n'ont pas été
+     versées : elles le deviendront le jour où elles partiront, par leur
+     propre ligne. */
+  const chargeId = (l: PayrollLine) => chargeSalaireId(run.period, l.employeeId);
+  /* Une Map, pas un some/find linéaire par ligne à chaque rendu de la modale. */
+  const expParId = useMemo(() => new Map(allExpenses.map((e) => [e.id, e])), [allExpenses]);
+  const lignesAvecCharge = lines.filter((l) => expParId.has(chargeId(l)));
+  const chargesAJour = lines.every((l) => {
+    const e = expParId.get(chargeId(l));
+    return !(l.result.net > 0) || (e && e.amountXof === l.result.net);
+  });
+
+  const inscrireCharges = () => {
+    /* La charge est datée du jour du RÈGLEMENT (en heure LOCALE — voir
+       jourLocalDe) et construite par le constructeur COMMUN aux deux chemins :
+       même libellé, même catégorie, pas de caisse fantôme, et la marque
+       `source: 'run'` verrouille la resynchronisation de Personnel. */
+    for (const l of lines) {
+      if (!(l.result.net > 0)) continue;
+      const charge = chargeSalaire({
+        mois: run.period, employeeId: l.employeeId, branchId: branch.id,
+        nom: l.name, netXof: l.result.net,
+        stamp: run.paidAt ?? run.closedAt, source: 'run',
+      });
+      expensesStore.set((prev) => (prev.some((e) => e.id === charge.id)
+        ? prev.map((e) => (e.id === charge.id ? charge : e))
+        : [charge, ...prev]));
+    }
+    expenseCategoriesStore.set((prev) =>
+      prev.some((c) => c.name === SALAIRES_CATEGORIE) ? prev : [...prev, { id: 'ec-salaires', name: SALAIRES_CATEGORIE, subs: [] }]);
+  };
+
+  const retirerCharges = () => {
+    if (!window.confirm('Retirer du registre des Dépenses les charges de salaire de ce run ? Le résultat du salon remontera d’autant.')) return;
+    const ids = new Set(lines.map(chargeId));
+    expensesStore.set((prev) => prev.filter((e) => !ids.has(e.id)));
+  };
+
   /* Cycle de vie — un run clôturé est immuable (les chiffres sont figés). */
   const advance = (next: RunStatus) => {
+    if (next === 'paye' && !window.confirm(
+      `Marquer ce run payé ?\n\nLa masse salariale nette (${fmtMoney(t.net, currency)}) s'inscrira dans les Dépenses, en catégorie Salaires — c'est ce qui la fait compter dans le résultat du salon et dans le Partage.`,
+    )) return;
     if (next === 'cloture' && !window.confirm('Clôturer ce run ? Il deviendra immuable — toute correction passera par un run de régularisation le mois suivant.')) return;
     const stamp = next === 'valide' ? { validatedAt: nowStamp() } : next === 'paye' ? { paidAt: nowStamp() } : next === 'cloture' ? { closedAt: nowStamp() } : {};
     setRun({ status: next, ...stamp });
+    if (next === 'paye') inscrireCharges();
   };
   const nextStatus: Record<RunStatus, RunStatus | null> = { brouillon: 'valide', valide: 'paye', paye: 'cloture', cloture: null };
   const next = nextStatus[run.status];
@@ -245,6 +302,11 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     base: l.gains.base, hs: l.gains.heuresSup, prime: l.gains.prime, pourboires: l.gains.pourboires,
     commission: l.gains.commission, avance: l.deductions.avance, retenue: l.deductions.autresRetenues,
     paiement: l.paiement,
+    /* LE TAUX SUIT LE BULLETIN. La page refait le calcul de son côté et
+       retomberait sur ses 3,6 % par défaut : elle imprimerait alors un net
+       inférieur à celui du run, et à celui que l'employé a reçu. */
+    cnssPct: tauxCnssSalarial(p),
+    itsActif: itsEstActif(p),
   });
 
   const exportCsv = () => {
@@ -284,6 +346,46 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
 
       {!editable && (
         <div className="tre-inline-note" style={{ marginTop: 12 }}><span className="mark">!</span><span>Run {RUN_STATUS_LABEL[run.status].toLowerCase()} — les lignes sont figées. {run.status === 'cloture' ? 'Toute correction passe par un run de régularisation.' : ''}</span></div>
+      )}
+
+      {/* LE PONT VERS LES DÉPENSES, VISIBLE. Un run payé dont les charges ne
+          sont pas inscrites ment au résultat du salon : il faut que ça se voie
+          et que ça se répare d'un geste, y compris sur un run déjà clôturé. */}
+      {(run.status === 'paye' || run.status === 'cloture') && (
+        <div
+          className="tre-inline-note"
+          style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+        >
+          <span className="mark">{chargesAJour && lignesAvecCharge.length > 0 ? '✓' : '!'}</span>
+          <span style={{ flex: 1, minWidth: 240 }}>
+            {lignesAvecCharge.length === 0 ? (
+              <>
+                <b>Ces salaires ne comptent nulle part.</b> Rien n'est inscrit aux Dépenses : le résultat du
+                salon et le Partage ignorent {fmtMoney(t.net, currency)} réellement sortis de la caisse.
+              </>
+            ) : chargesAJour ? (
+              <>
+                Charges inscrites aux Dépenses · catégorie <b>Salaires</b> ·{' '}
+                {lignesAvecCharge.length} ligne{lignesAvecCharge.length > 1 ? 's' : ''} pour {fmtMoney(t.net, currency)}.
+              </>
+            ) : (
+              <>
+                <b>Les charges inscrites ne correspondent plus au run.</b> Mettez-les à jour pour que le
+                résultat du salon dise la vérité.
+              </>
+            )}
+          </span>
+          <span style={{ display: 'inline-flex', gap: 8 }}>
+            {!(chargesAJour && lignesAvecCharge.length > 0) && (
+              <Button size="sm" variant="copper" onClick={inscrireCharges}>
+                {lignesAvecCharge.length === 0 ? 'Inscrire aux Dépenses' : 'Mettre à jour'}
+              </Button>
+            )}
+            {lignesAvecCharge.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={retirerCharges}>Retirer</Button>
+            )}
+          </span>
+        </div>
       )}
 
       {/* Un rituel honoré dont le maître ne correspond à aucun dossier n'alimente
@@ -392,6 +494,8 @@ export function PaieParametres() {
   const setBracket = (i: number, field: keyof ItsBracket, v: string) =>
     patch({ its: p.its.map((b, j) => (j === i ? { ...b, [field]: field === 'upTo' ? (v === '' ? null : digits(v)) : Number(v) } : b)) });
   const resetSeed = () => { if (window.confirm('Rétablir les barèmes de départ (valeurs de la spec) ?')) payrollParametersStore.set(() => [{ ...PAYROLL_PARAMETERS_SEED, its: PAYROLL_PARAMETERS_SEED.its.map((b) => ({ ...b })) }]); };
+  const cnssActif = cnssEstActive(p);
+  const itsActif = itsEstActif(p);
 
   const num = (label: string, key: 'cnssSalarialePct' | 'cnssPatronalePensionPct' | 'cnssPatronaleFamillePct' | 'cnssPatronaleRisquePct' | 'congesJoursParMois', suffix: string) => (
     <Field label={label}>
@@ -407,8 +511,36 @@ export function PaieParametres() {
       <div className="tre-inline-note"><span className="mark">!</span><span><b>Barèmes à faire valider par votre comptable avant le premier run réel.</b> Valeurs de départ issues de la réglementation béninoise, à confirmer.</span></div>
 
       <Card style={{ padding: '20px 22px' }}>
-        <div className="tre-sec-label" style={{ marginBottom: 14 }}>CNSS · pension & prestations</div>
-        <div className="tr-grid tr-grid--2">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div className="tre-sec-label">CNSS · pension & prestations</div>
+          {/* L'INTERRUPTEUR, PAS LA MISE À ZÉRO DES TAUX. Effacer les taux
+              perdrait des chiffres qu'il faudrait retrouver le jour de la
+              déclaration ; l'interrupteur les garde intacts et éteint le
+              calcul. Les deux parts s'éteignent ensemble — on ne déclare pas
+              à moitié. */}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
+            <input
+              type="checkbox"
+              checked={cnssActif}
+              onChange={(e) => patch({ cnssActive: e.target.checked })}
+              style={{ width: 16, height: 16, accentColor: 'var(--color-copper)', cursor: 'pointer' }}
+            />
+            <span>{cnssActif ? 'CNSS appliquée' : 'CNSS suspendue'}</span>
+          </label>
+        </div>
+
+        {!cnssActif && (
+          <div className="tre-inline-note" style={{ marginBottom: 14 }}>
+            <span className="mark">!</span>
+            <span>
+              <b>Aucune cotisation n'est retenue ni due</b> tant que cet interrupteur est éteint — ni part
+              salariale, ni part patronale, sur les bulletins comme dans le coût employeur. Les taux ci-dessous
+              sont conservés : le jour où les employés seront déclarés, il suffira de rallumer.
+            </span>
+          </div>
+        )}
+
+        <div className="tr-grid tr-grid--2" style={cnssActif ? undefined : { opacity: 0.45 }}>
           {num('Part salariale (pension)', 'cnssSalarialePct', '% du brut')}
           {num('Part patronale · pension', 'cnssPatronalePensionPct', '% du brut')}
           {num('Part patronale · prestations familiales', 'cnssPatronaleFamillePct', '% du brut')}
@@ -417,8 +549,34 @@ export function PaieParametres() {
       </Card>
 
       <Card style={{ padding: '20px 22px' }}>
-        <div className="tre-sec-label" style={{ marginBottom: 14 }}>ITS · barème progressif (mensuel, sur le brut)</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div className="tre-sec-label">ITS · barème progressif (mensuel, sur le brut)</div>
+          {/* SON PROPRE INTERRUPTEUR. L'ITS est un IMPÔT, la CNSS une
+              cotisation : rien ne lie leur sort, et un interrupteur commun
+              ferait tomber l'un en croyant éteindre l'autre. */}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
+            <input
+              type="checkbox"
+              checked={itsActif}
+              onChange={(e) => patch({ itsActive: e.target.checked })}
+              style={{ width: 16, height: 16, accentColor: 'var(--color-copper)', cursor: 'pointer' }}
+            />
+            <span>{itsActif ? 'ITS appliqué' : 'ITS suspendu'}</span>
+          </label>
+        </div>
+
+        {!itsActif && (
+          <div className="tre-inline-note" style={{ marginBottom: 14 }}>
+            <span className="mark">!</span>
+            <span>
+              <b>Aucun impôt n'est retenu</b> tant que cet interrupteur est éteint — le bulletin le dit en
+              toutes lettres (« suspendu — non appliqué »), pour qu'un zéro ne se lise pas comme un oubli.
+              Le barème ci-dessous est conservé.
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, ...(itsActif ? {} : { opacity: 0.45 }) }}>
           {p.its.map((b, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="mnd-muted" style={{ fontSize: 12, width: 70, flex: 'none' }}>Tranche {i + 1}</span>

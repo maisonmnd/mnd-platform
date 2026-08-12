@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -59,6 +59,7 @@ export const NAV: TroneGroup[] = [
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },
+      { path: '/salon-foyer', label: 'Salon & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
     ],
   },
   {
@@ -139,11 +140,19 @@ export const domaineDe = (path: string): string | undefined =>
    domaine, le CHEMIN D'UN ÉCRAN ouvre cet écran seul. Les chemins commencent
    par « / », les domaines non : rien ne se confond, et les réglages posés
    avant ce jour continuent de valoir. */
+/* ── SALON & FOYER EST L'AFFAIRE DU COUPLE ──────────────────────────────
+   Prélèvements du foyer, dette des associés, caisses indépendantes : réservé
+   au SOUVERAIN, comme la paie — un gérant qui tient le comptoir n'a pas à
+   lire le budget maison de Brice et Yéman. Ceci n'est qu'une garde d'écran ;
+   la vraie barrière est la RLS (`is_souverain()`, migration 0038). */
+export const ROUTES_SOUVERAIN = ['/salon-foyer'];
+
 export const peutVoir = (
   role: string | undefined,
   path: string,
   acces: Record<string, boolean> = {},
 ): boolean => {
+  if (ROUTES_SOUVERAIN.includes(path)) return role === 'souverain';
   if (role !== 'maitre') return true;
   if (ROUTES_MAITRE.includes(path)) return true;
   if (acces[path] === true) return true;
