@@ -287,9 +287,20 @@ export const joursAvantAnniversaire = (birthdayIso: string): number => {
   return Math.round((next.getTime() - today.getTime()) / 86400000);
 };
 
-/** Un compte sans aucune venue — ni tête couronnée, ni passante. */
-export const estVisiteur = (c: Pick<Client, 'id' | 'dePassage'>, venues: ReadonlySet<string>): boolean =>
-  !estDePassage(c) && !venues.has(c.id);
+/** Un compte sans aucune venue — ni tête couronnée, ni passante.
+    UNE FICHE RATTACHÉE À UNE FAMILLE N'EST JAMAIS « VISITEUR » (12 août) :
+    un enfant déclaré et validé (Ezra, Togni, Tobi…) n'a encore aucune venue,
+    mais il est une tête de la Maison par son foyer — le classer visiteur le
+    faisait DISPARAÎTRE du registre La Maison avec les comptes anonymes. */
+export const estVisiteur = (c: Pick<Client, 'id' | 'dePassage' | 'familyId'>, venues: ReadonlySet<string>): boolean =>
+  !estDePassage(c) && !venues.has(c.id) && !c.familyId;
+
+/** Une tête du REGISTRE de la Maison : couronnée (venue au moins une fois),
+    OU membre d'un compte famille pas encore assis — la relation existe par le
+    foyer. Ne gonfle PAS le compteur des têtes couronnées, qui reste
+    `estCouronnee` : ici on liste la relation, là-bas on compte les venues. */
+export const estDeLaMaison = (c: Pick<Client, 'id' | 'dePassage' | 'familyId'>, venues: ReadonlySet<string>): boolean =>
+  estCouronnee(c, venues) || (!!c.familyId && !estDePassage(c) && !venues.has(c.id));
 
 /** IDENTITÉ MINIMALE — prénom et téléphone, rien d'autre.
 

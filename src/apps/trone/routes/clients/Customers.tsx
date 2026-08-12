@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, joursAvantAnniversaire, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -379,8 +379,11 @@ export default function Customers() {
      leur registre, et deviennent des têtes le jour où ils s'assoient. */
   const venues = useMemo(() => tetesVenues(appts), [appts]);
   const visiteurClients = useMemo(() => clients.filter((c) => estVisiteur(c, venues)), [clients, venues]);
+  /* LA MAISON = les couronnées ET les membres de famille pas encore assis
+     (les enfants déclarés — Ezra, Togni, Tobi… — disparaissaient chez les
+     Visiteurs, 12 août). Le compteur des têtes couronnées, lui, ne bouge pas. */
   const maisonClients = useMemo(
-    () => clients.filter((c) => estCouronnee(c, venues) && !isDiaspora(c)),
+    () => clients.filter((c) => estDeLaMaison(c, venues) && !isDiaspora(c)),
     [clients, venues],
   );
   const passageCount = passageClients.length;
