@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
-import { Segs } from '../../../../ds/components';
+import { Button, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
@@ -122,8 +122,8 @@ export default function Vitrine() {
       {mode === 'couronne' && <CouronnePreview client={client} />}
       {mode === 'regie' && (
         <>
-          <InvitationCouronne />
           <Regie client={client} />
+          <InvitationCouronne />
         </>
       )}
     </div>
@@ -202,12 +202,27 @@ function InvitationCouronne() {
         <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
           Scanné, ce code ouvre Ma Couronne : la cliente se crée un compte, puis
           « Ajouter à l’écran d’accueil » l’installe comme une application. Imprimez la
-          carte pour le comptoir et le miroir, ou envoyez le lien par WhatsApp depuis sa fiche.
+          carte pour le comptoir et le miroir, ou envoyez-lui le lien par WhatsApp.
+        </div>
+        <div style={{ marginTop: 8, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-indigo)', wordBreak: 'break-all' }}>
+          {lienCouronne}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+          <Button variant="copper" size="sm" onClick={imprimer}>Imprimer la carte A5</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void navigator.clipboard.writeText(lienCouronne).then(
+                () => toast('Lien copié — collez-le dans WhatsApp ou un statut.'),
+                () => toast(`Le lien : ${lienCouronne}`),
+              );
+            }}
+          >
+            Copier le lien
+          </Button>
         </div>
       </div>
-      <button type="button" className="mnd-btn mnd-btn--copper" onClick={imprimer} style={{ flex: 'none' }}>
-        Imprimer la carte A5
-      </button>
     </div>
   );
 }
