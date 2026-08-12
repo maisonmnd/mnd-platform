@@ -1246,6 +1246,16 @@ Appliqué le 10 août : un doublon de comptoir (`MND-JTUG`, une seule pièce —
 devis brouillon) fusionné vers sa fiche d'import Firebase (`gvCbf…`) ; 1 pièce
 reportée, doublon supprimé, plus rien ne le fait renaître.
 
+### Un membre de famille n'est JAMAIS un visiteur — 12 août
+
+Les enfants déclarés (jamais assis, pas de passage) tombaient au registre
+Visiteurs depuis la refonte du 11 août — « disparus du CRM ». `estVisiteur`
+exclut désormais toute fiche rattachée à une famille (`familyId`), et le
+registre La Maison liste `estDeLaMaison` = couronnées + membres de famille
+pas encore venus. Le COMPTEUR des têtes couronnées reste `estCouronnee`
+(les venues seulement) — la liste dit la relation, le compteur dit les
+venues, et les deux peuvent différer.
+
 ### Le tapis de cuivre est INDIVIDUEL — 12 août
 
 La régie de la Vitrine (« Choisis ce que Marie verra ») écrivait la config
