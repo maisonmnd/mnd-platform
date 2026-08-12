@@ -106,7 +106,7 @@ export type Client = {
       d'aujourd'hui. Écrite par la cliente, jamais par la Maison. */
   envie?: EnvieKey;
   envieAt?: string; // ISO
-  birthday?: string; // ISO — anniversaire de la cliente
+  birthday?: string; // ISO — anniversaire de la cliente (voir joursAvantAnniversaire)
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
   /** Compte famille auquel la cliente est rattachée (ex. Famille Adamon). Le
@@ -268,6 +268,19 @@ export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassa
 
 export const estCouronnee = (c: Pick<Client, 'id' | 'dePassage'>, venues: ReadonlySet<string>): boolean =>
   !estDePassage(c) && venues.has(c.id);
+
+/** JOURS AVANT LE PROCHAIN ANNIVERSAIRE — 0 le jour même, en dates LOCALES
+    (jamais un slice d'UTC : à Cotonou la nuit comptable ne se coupe pas en
+    deux). UN seul juge : la liste des Clientes (badge « ANNIV. J-N ») et le
+    rappel « joyeux anniversaire » de Ce qui presse doivent compter pareil. */
+export const joursAvantAnniversaire = (birthdayIso: string): number => {
+  const [, m, d] = birthdayIso.split('-').map((x) => parseInt(x, 10));
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const next = new Date(today.getFullYear(), (m || 1) - 1, d || 1);
+  if (next.getTime() < today.getTime()) next.setFullYear(today.getFullYear() + 1);
+  return Math.round((next.getTime() - today.getTime()) / 86400000);
+};
 
 /** Un compte sans aucune venue — ni tête couronnée, ni passante. */
 export const estVisiteur = (c: Pick<Client, 'id' | 'dePassage'>, venues: ReadonlySet<string>): boolean =>

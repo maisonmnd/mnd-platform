@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, joursAvantAnniversaire, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -219,7 +219,9 @@ const crownAge = (iso: string): string => {
 const frBirthday = (iso: string) =>
   fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-/** Âge révolu + jours avant le prochain anniversaire (fenêtre discrète des 14 j). */
+/** Âge révolu + jours avant le prochain anniversaire (fenêtre discrète des
+    14 j). Le compte des jours vient du juge partagé (`joursAvantAnniversaire`,
+    shared/clients) — le même que le rappel de Ce qui presse. */
 function bdayInfo(iso: string): { age: number; daysUntil: number; soon: boolean } {
   const b = fromISO(iso);
   const now = new Date();
@@ -227,9 +229,7 @@ function bdayInfo(iso: string): { age: number; daysUntil: number; soon: boolean 
   const hadThisYear =
     today.getMonth() > b.getMonth() || (today.getMonth() === b.getMonth() && today.getDate() >= b.getDate());
   const age = today.getFullYear() - b.getFullYear() - (hadThisYear ? 0 : 1);
-  const next = new Date(today.getFullYear(), b.getMonth(), b.getDate());
-  if (next.getTime() < today.getTime()) next.setFullYear(today.getFullYear() + 1);
-  const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const daysUntil = joursAvantAnniversaire(iso);
   return { age, daysUntil, soon: daysUntil >= 0 && daysUntil <= 14 };
 }
 

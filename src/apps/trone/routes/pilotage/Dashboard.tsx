@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { estCouronnee, useClients } from '../../../../shared/clients';
+import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceCashXof, expenseTotal } from '../../../../shared/finance';
@@ -268,7 +268,36 @@ export default function Dashboard() {
     ).length;
   }, [appts, bilans, today]);
 
+  /* JOYEUX ANNIVERSAIRE — dès J−2 (demande de Yéman, 12 août). Une ligne par
+     tête dont l'anniversaire tombe sous deux jours, pour préparer le vœu et
+     l'envoyer le jour venu. Seules les têtes DÉJÀ VENUES comptent : souhaiter
+     l'anniversaire d'un compte Ma Couronne jamais assis n'aurait pas de sens.
+     Le compte des jours est le juge partagé (`joursAvantAnniversaire`) — le
+     même que le badge « ANNIV. J-N » de la liste des Clientes. */
+  const anniversaires = useMemo(() => {
+    const venues = tetesVenues(appts);
+    return clients
+      .filter((c) => !c.archived && c.branchId === branch.id && c.birthday && venues.has(c.id))
+      .map((c) => ({ c, j: joursAvantAnniversaire(c.birthday!) }))
+      .filter((x) => x.j <= 2)
+      .sort((a, b) => a.j - b.j);
+  }, [clients, appts, branch.id]);
+
   const presseRows = [
+    ...anniversaires.map(({ c, j }) => ({
+      k: `anniv-${c.id}`,
+      label: `Joyeux anniversaire à ${c.name}`,
+      sub: j === 0 ? 'c’est aujourd’hui' : j === 1 ? 'c’est demain' : 'dans 2 jours',
+      action: c.phone ? 'Souhaiter' : 'Sa fiche',
+      go: () => {
+        if (c.phone) {
+          const msg = `Joyeux anniversaire, ${c.name} ! Toute la Maison MND pense à vous et vous souhaite une année rayonnante. Votre couronne vous va à merveille.`;
+          window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+        } else {
+          navigate('/customers');
+        }
+      },
+    })),
     ...(facturesARegler.count > 0 ? [{
       k: 'factures',
       label: `${facturesARegler.count} facture${facturesARegler.count > 1 ? 's' : ''} à régler`,
