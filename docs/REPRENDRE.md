@@ -1246,6 +1246,24 @@ Appliqué le 10 août : un doublon de comptoir (`MND-JTUG`, une seule pièce —
 devis brouillon) fusionné vers sa fiche d'import Firebase (`gvCbf…`) ; 1 pièce
 reportée, doublon supprimé, plus rien ne le fait renaître.
 
+### Le tapis de cuivre est INDIVIDUEL — 12 août
+
+La régie de la Vitrine (« Choisis ce que Marie verra ») écrivait la config
+GLOBALE du miroir : masquer pour une tête masquait pour toutes. Désormais :
+
+- **Les masques vivent sur la fiche** (`Client.vitrineMasques` — catégories,
+  prestations, produits) ; la régie écrit là.
+- **Le juge unique est `catalogueVisiblePour`** (shared/bridges) : socle de la
+  Maison (VitrineConfig — liste de catégories, masques globaux hérités,
+  lecture auto/quiz/reco) PLUS les masques de la tête connectée. Utilisé par
+  `useVisibleCatalog` (Ma Couronne) ET par l'aperçu de la régie. Une famille
+  suit son atelier (l'arbre remonte) ; l'ordre rendu est celui du Catalogue
+  (`catsDansLOrdre`). La reco de l'accueil ne pioche QUE dans le visible.
+- **Héritage** : les listes `hiddenServices`/`hiddenProducts` de la config
+  globale, remplies quand la régie écrivait au mauvais endroit, continuent de
+  masquer POUR TOUTES (socle). Si Yéman veut repartir propre, un UPDATE du
+  doc `mnd_vitrine_config` les vide — à faire à sa demande seulement.
+
 ### Les fiches « Cliente Ma Couronne » — baptême du 12 août
 
 Une inscription Ma Couronne SANS nom (pas d'e-mail lisible, profil jamais
