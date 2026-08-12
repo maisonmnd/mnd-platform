@@ -9,7 +9,7 @@ import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shar
 import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
-import { vitrineConfigStore, catalogueVisiblePour } from '../../../../shared/bridges';
+import { vitrineConfigStore, catalogueVisiblePour, surMesureDe } from '../../../../shared/bridges';
 import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
 import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
 import { useStore } from '../../../../shared/store';
@@ -436,6 +436,51 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             on={cfg.quizEnabled}
             onToggle={(v) => setFlag('quizEnabled', v)}
           />
+
+          {/* LE SUR-MESURE (12 août) — remises, minimum et ateliers
+              d'abonnement se règlent ICI, plus dans le code. */}
+          <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Sur-mesure · « Vous composez »</div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {([['ponctuelPct', 'Ponctuel −%'], ['aboPct', 'Abonnement −%'], ['aboMin', 'Minimum abo.']] as const).map(([k, l]) => (
+                <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                  {l}
+                  <input
+                    className="mnd-input"
+                    style={{ width: 92 }}
+                    inputMode="numeric"
+                    value={String(surMesureDe(cfg)[k])}
+                    onChange={(e) => {
+                      const v = Math.max(0, Math.min(k === 'aboMin' ? 12 : 90, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0));
+                      vitrineConfigStore.set((c) => ({ ...c, surMesure: { ...surMesureDe(c), [k]: v } }));
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+              Ateliers ouverts à l’abonnement :
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {catsDansLOrdre(categories).filter((c) => !c.parentId).map((c) => {
+                const smCfg = surMesureDe(cfg);
+                const dans = smCfg.aboCats.includes(c.id);
+                return (
+                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={dans}
+                      onChange={() => vitrineConfigStore.set((cf) => {
+                        const cur = surMesureDe(cf);
+                        return { ...cf, surMesure: { ...cur, aboCats: dans ? cur.aboCats.filter((x) => x !== c.id) : [...cur.aboCats, c.id] } };
+                      })}
+                    />
+                    {c.fon} · {c.label}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
 
           {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le
               miroir recommandait quatre rituels écrits en dur, à des prix qui

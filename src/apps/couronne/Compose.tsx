@@ -2,7 +2,10 @@ import { asset } from '../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { composeStore, type ComposePayload } from '../../shared/bridges';
+import { composeStore, vitrineConfigStore, surMesureDe, type ComposePayload } from '../../shared/bridges';
+import { useStore } from '../../shared/store';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof } from '../../shared/pricing';
+import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
 import { priceModeOf } from '../../shared/catalog';
@@ -18,14 +21,22 @@ import { priceModeOf } from '../../shared/catalog';
    n'existent plus en base — les laisser ici ne levait aucune erreur, ça
    vidait simplement l'abonnement de tout sauf FÍNFÍN™, en silence.
    Toute refonte des catégories doit repasser par cette ligne. */
-const ABO_CATS = ['gbeji', 'finfin'];
-
 type Props = { onClose: () => void; toast: (msg: string) => void };
 
 export default function Compose({ onClose, toast }: Props) {
   const { currency } = useBranch();
-  const { cats, services } = useVisibleCatalog();
+  const { cats, services, products } = useVisibleCatalog();
   const client = useClient();
+  /* LES RÉGLAGES DU SUR-MESURE viennent du Trône (12 août) — remises,
+     minimum et ateliers d'abonnement ne sont plus écrits ici. */
+  const [cfgV] = useStore(vitrineConfigStore);
+  const sm = surMesureDe(cfgV);
+  /* SES PRIX (12 août) : la page affichait les prix CATALOGUE quand le tunnel
+     Réserver montrait les siens — même moteur partout désormais. */
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const pricing = pricingOf(client ?? undefined, bands, sets, cats);
+  const prixDe = (s: (typeof services)[number]): number => personalPriceXof(s, pricing, services, products);
 
   const [mode, setMode] = useState<'ponctuel' | 'abonnement'>('ponctuel');
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -39,7 +50,7 @@ export default function Compose({ onClose, toast }: Props) {
         .filter((g) => g.items.length > 0),
     [cats, services]
   );
-  const activeGroups = mode === 'abonnement' ? groups.filter((g) => ABO_CATS.includes(g.cat.id)) : groups;
+  const activeGroups = mode === 'abonnement' ? groups.filter((g) => sm.aboCats.includes(g.cat.id)) : groups;
 
   const switchMode = (m: 'ponctuel' | 'abonnement') => {
     setMode(m);
@@ -49,7 +60,7 @@ export default function Compose({ onClose, toast }: Props) {
         const next: Record<string, number> = {};
         for (const [id, q] of Object.entries(prev)) {
           const s = services.find((x) => x.id === id);
-          if (s && ABO_CATS.includes(s.categoryId)) next[id] = q;
+          if (s && sm.aboCats.includes(s.categoryId)) next[id] = q;
         }
         return next;
       });
@@ -59,15 +70,17 @@ export default function Compose({ onClose, toast }: Props) {
   const lines = activeGroups.flatMap((g) =>
     g.items
       .filter((s) => (qty[s.id] ?? 0) > 0)
-      .map((s) => ({ service: s, cat: g.cat, q: qty[s.id], line: s.priceXof * qty[s.id] }))
+      .map((s) => ({ service: s, cat: g.cat, q: qty[s.id], line: prixDe(s) * qty[s.id] }))
   );
   const count = lines.reduce((a, l) => a + l.q, 0);
   const subtotal = lines.reduce((a, l) => a + l.line, 0);
-  const discountPct = mode === 'abonnement' ? 15 : 10;
+  const discountPct = mode === 'abonnement' ? sm.aboPct : sm.ponctuelPct;
   const discount = Math.round((subtotal * discountPct) / 100);
   const total = subtotal - discount;
-  const aboBlocked = mode === 'abonnement' && count < 3;
+  const aboBlocked = mode === 'abonnement' && count < sm.aboMin;
   const canCompose = count > 0 && !aboBlocked;
+  /* Les ateliers d'abonnement, nommés depuis le catalogue visible. */
+  const aboNoms = cats.filter((c) => sm.aboCats.includes(c.id)).map((c) => c.fon).join(' · ') || 'les soins de la Maison';
 
   const bump = (id: string, d: 1 | -1) =>
     setQty((prev) => {
@@ -84,6 +97,7 @@ export default function Compose({ onClose, toast }: Props) {
       id: uid(),
       createdAt: new Date().toISOString(),
       client: client?.name ?? 'Cliente Ma Couronne',
+      clientId: client?.id,
       mode,
       discountPct,
       items: lines.map((l) => ({
@@ -94,6 +108,13 @@ export default function Compose({ onClose, toast }: Props) {
       totalXof: total,
     };
     composeStore.set(payload);
+    /* LA MAISON EST PRÉVENUE (12 août) — la promesse « elle revient vers vous
+       sur WhatsApp » ne s'appuyait sur rien : personne n'était averti. */
+    void pushNotifyStaff(
+      mode === 'abonnement' ? 'Abonnement sur-mesure · Ma Couronne' : 'Rituel sur-mesure · Ma Couronne',
+      `${payload.client} · ${count} prestation${count > 1 ? 's' : ''} · ${fmtMoney(total, currency)}`,
+      '/trone/#/',
+    );
     setDone(payload);
     toast(mode === 'abonnement' ? 'Abonnement sur-mesure transmis.' : 'Rituel sur-mesure transmis.');
   };
@@ -154,11 +175,11 @@ export default function Compose({ onClose, toast }: Props) {
         <div className="mc-modetoggle">
           <button className={`mc-mode ${mode === 'ponctuel' ? 'is-ritual' : ''}`} onClick={() => switchMode('ponctuel')}>
             <span className="mc-mode__name">Ponctuel</span>
-            <span className="mc-mode__sub">−10 % · une fois</span>
+            <span className="mc-mode__sub">−{sm.ponctuelPct} % · une fois</span>
           </button>
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
             <span className="mc-mode__name">Abonnement</span>
-            <span className="mc-mode__sub">−15 % · soins SÍNSIN · FÍNFÍN · GBÈZÀ</span>
+            <span className="mc-mode__sub">−{sm.aboPct} % · {aboNoms}</span>
           </button>
         </div>
       </div>
@@ -189,7 +210,7 @@ export default function Compose({ onClose, toast }: Props) {
                     <div className="mc-cmitem__body">
                       <div className="mc-cmitem__name">{s.name}</div>
                       <div className="mc-cmitem__meta">
-                        {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(s.priceXof, currency)}
+                        {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(prixDe(s), currency)}
                       </div>
                     </div>
                     <div className="mc-cmitem__qty">
@@ -239,7 +260,7 @@ export default function Compose({ onClose, toast }: Props) {
         {aboBlocked && (
           <div className="mc-cmfooter__hint">
             <span>⚑</span>
-            <span>Abonnement · 3 prestations minimum ({count}/3) — complétez vos soins pour activer l’avantage −15 %.</span>
+            <span>Abonnement · {sm.aboMin} prestations minimum ({count}/{sm.aboMin}) — complétez vos soins pour activer l’avantage −{sm.aboPct} %.</span>
           </div>
         )}
         {count === 0 && !aboBlocked && (

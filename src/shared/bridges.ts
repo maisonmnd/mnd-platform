@@ -10,11 +10,23 @@ export type ComposePayload = {
   id: string;
   createdAt: string;
   client: string;
+  /** L'identifiant de SA fiche (12 août) — le Trône ouvre WhatsApp et la
+      fiche sans chercher le nom à la main. Absent sur les vieux payloads. */
+  clientId?: string;
   mode: 'ponctuel' | 'abonnement';
   discountPct: number;
   items: { service: string; category: string; priceXof: number }[];
   totalXof: number;
 };
+
+/** LA FILE DES COMPOSITIONS REÇUES — côté Trône. Le pont `mnd_couronne_compose`
+    ne porte que la DERNIÈRE composition (un document) : le Tableau de bord la
+    MOISSONNE dans cette file locale persistante dès qu'elle paraît, et rien ne
+    se perd tant qu'un Trône est ouvert. La notification poussée à l'envoi
+    couvre le reste. (Si le volume grandit, une vraie table de file prendra le
+    relais — v1 sans migration, 12 août.) */
+export type CompositionRecue = ComposePayload & { recueLe: string; traiteLe?: string };
+export const compositionsRecuesStore = createStore<CompositionRecue[]>('mnd_compositions_recues', []);
 
 export type OnlineConsultation = {
   id: string;
@@ -98,7 +110,20 @@ export type VitrineConfig = {
       (celle qu'elle reprend, sinon la maison qu'elle fréquente). Il n'invente
       rien — il trie. Sans histoire, son persona reprend la main. */
   recoAuto?: boolean;
+  /** LE SUR-MESURE SE RÈGLE AU TRÔNE (12 août) — les remises, le minimum et
+      les ateliers d'abonnement étaient écrits dans le code. Absent = les
+      valeurs historiques : ponctuel −10 %, abonnement −15 %, 3 prestations
+      minimum, ateliers gbeji + finfin. */
+  surMesure?: { ponctuelPct?: number; aboPct?: number; aboMin?: number; aboCats?: string[] };
 };
+
+/** Les réglages EFFECTIFS du sur-mesure — les défauts historiques comblent. */
+export const surMesureDe = (cfg: VitrineConfig): { ponctuelPct: number; aboPct: number; aboMin: number; aboCats: string[] } => ({
+  ponctuelPct: cfg.surMesure?.ponctuelPct ?? 10,
+  aboPct: cfg.surMesure?.aboPct ?? 15,
+  aboMin: cfg.surMesure?.aboMin ?? 3,
+  aboCats: cfg.surMesure?.aboCats ?? ['gbeji', 'finfin'],
+});
 
 /* ---------- LE CATALOGUE QU'UNE CLIENTE VOIT — le juge UNIQUE ----------
 

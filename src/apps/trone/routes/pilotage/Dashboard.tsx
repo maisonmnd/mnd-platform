@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -16,6 +16,8 @@ import {
   DrillModal, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { useBilans } from '../../../../shared/bilans';
+import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
+import { useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
@@ -268,6 +270,23 @@ export default function Dashboard() {
     ).length;
   }, [appts, bilans, today]);
 
+  /* LES COMPOSITIONS SUR-MESURE (12 août). Le pont `mnd_couronne_compose` ne
+     porte que la DERNIÈRE composition transmise — et AVANT ce jour, personne
+     ne le lisait : les rituels composés dormaient en base pendant que la
+     cliente attendait un WhatsApp promis. Le Tableau de bord MOISSONNE chaque
+     payload dans une file locale persistante ; « Ce qui presse » la montre,
+     et le geste « Traitée » la solde. */
+  const [compoDoc] = useStore(composeStore);
+  const [compositions] = useStore(compositionsRecuesStore);
+  useEffect(() => {
+    if (!compoDoc) return;
+    compositionsRecuesStore.set((prev) => (prev.some((r) => r.id === compoDoc.id)
+      ? prev
+      : [{ ...compoDoc, recueLe: todayISO() }, ...prev]));
+  }, [compoDoc]);
+  const compoNouvelles = compositions.filter((r) => !r.traiteLe);
+  const [compoOpen, setCompoOpen] = useState(false);
+
   /* JOYEUX ANNIVERSAIRE — dès J−2 (demande de Yéman, 12 août). Une ligne par
      tête dont l'anniversaire tombe sous deux jours, pour préparer le vœu et
      l'envoyer le jour venu. Seules les têtes DÉJÀ VENUES comptent : souhaiter
@@ -284,6 +303,12 @@ export default function Dashboard() {
   }, [clients, appts, branch.id]);
 
   const presseRows = [
+    ...(compoNouvelles.length > 0 ? [{
+      k: 'compositions',
+      label: `${compoNouvelles.length} rituel${compoNouvelles.length > 1 ? 's' : ''} sur-mesure à sceller`,
+      sub: compoNouvelles.map((r) => r.client).join(' · '),
+      action: 'Voir', go: () => setCompoOpen(true),
+    }] : []),
     ...anniversaires.map(({ c, j }) => ({
       k: `anniv-${c.id}`,
       label: `Joyeux anniversaire à ${c.name}`,
@@ -761,6 +786,57 @@ export default function Dashboard() {
 
       {/* Ce qu’il y a derrière un chiffre — chaque ligne ouvre sa facture */}
       {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
+
+      {/* LES RITUELS SUR-MESURE REÇUS — chaque composition se lit, s'ouvre sur
+          WhatsApp pour sceller les créneaux, puis se marque traitée. */}
+      {compoOpen && (
+        <Modal title="Rituels sur-mesure reçus." onClose={() => setCompoOpen(false)} width={620}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '60vh', overflowY: 'auto' }}>
+            {compositions.length === 0 && <div className="trc-empty">Aucune composition reçue.</div>}
+            {compositions.map((r) => {
+              const fiche = clients.find((c) => c.id === r.clientId);
+              const tel = fiche?.phone?.replace(/\D/g, '');
+              return (
+                <div key={r.id} style={{ border: '1px solid var(--hairline)', borderLeft: `3px solid ${r.traiteLe ? 'var(--hairline)' : 'var(--color-copper)'}`, borderRadius: 4, padding: '12px 14px', opacity: r.traiteLe ? 0.55 : 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                    <b style={{ fontWeight: 'var(--weight-medium)' as never, color: 'var(--color-indigo)' }}>{r.client}</b>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+                      {fmtMoney(r.totalXof, currency)}{r.mode === 'abonnement' ? ' / cycle' : ''}
+                    </span>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 3 }}>
+                    {r.mode === 'abonnement' ? 'Abonnement' : 'Ponctuel'} · −{r.discountPct} % · reçu le {frShort(r.recueLe)}
+                    {r.traiteLe ? ` · traité le ${frShort(r.traiteLe)}` : ''}
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                    {r.items.map((it) => it.service).join(' · ')}
+                  </div>
+                  {!r.traiteLe && (
+                    <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                      {tel && (
+                        <a
+                          className="trf-act"
+                          style={{ textDecoration: 'none' }}
+                          href={`https://wa.me/${tel}?text=${encodeURIComponent(`Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`)}`}
+                          target="_blank" rel="noopener noreferrer"
+                        >
+                          Sceller sur WhatsApp
+                        </a>
+                      )}
+                      <button
+                        className="trf-act trf-act--ghost"
+                        onClick={() => compositionsRecuesStore.set((prev) => prev.map((x) => (x.id === r.id ? { ...x, traiteLe: todayISO() } : x)))}
+                      >
+                        Marquée traitée
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
