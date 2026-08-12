@@ -972,6 +972,32 @@ Une dizaine de clientes de la Maison sont dans ce cas.
 - Harnais NOUVEAU : `node scripts/verifie-prix.mjs` — 15 vérifications (il n'en
   existait aucun pour le moteur tarifaire).
 
+### Six forfaits composés + deux soins — CRÉÉS le 12 août
+
+Politique commerciale (données LOCALES, script gitignoré
+`supabase/local_forfaits_composes.sql`, repli `repli_forfaits_sources`) :
+
+- **Deux soins à 15 000 F fixes** : `sv-gbeji-sublimation` (« GBÈJÍ™
+  Sublimation · Le Renfort Durable », atelier GBÈJÍ) et `sv-finfin-legere`
+  (« FÍNFÍN™ Légère · La Réparation Douce », atelier réparation).
+- **Produit** `prod-trousse-mnd` « Trousse MND™ · Kit Home Rituals » 18 000 F
+  — stock né à 0, à compter dans Stock & Achats.
+- **Six prestations « jamais réservées » transformées en forfaits composés**
+  (sources supprimées, ids `sv-forfait-<ancien id>`), échelle premium posée
+  par la Maison : combinaisons en GRILLE FIXE ronde (WÈWÈ+DÀNDÀN
+  38 500/46 000/51 500 ; YÈKPÈ Couleur+Lumière 37 000/55 000/64 500, durées
+  par longueur conservées), cycles 3 mois composition −10 % (Trimestriel
+  6 lignes, ×3 8 lignes), Initiation −12 % (4 lignes, trousse comprise),
+  Annuel −15 % (25 lignes sur 52 semaines). Les échéances (`afterWeeks`)
+  posent les rendez-vous de suite au carnet.
+- **LEÇON SQL durement apprise** : un nom du catalogue portait un caractère
+  SOSIE (lettre cyrillique dans « Trimestriel ») — ni unaccent ni la chasse
+  aux espaces typographiques ne suffisaient. Une réparation de données se
+  cloue sur les IDENTIFIANTS ; le nom ne sert qu'au diagnostic (et un garde
+  qui échoue doit LISTER les candidats qu'il voit). Ne pas tester
+  `branch_id` pour savoir si une ligne existe : il est NULL sur tout le
+  catalogue.
+
 ### Le POURBOIRE se lit sur la facture — 11 août
 
 Il était ENREGISTRÉ sur la pièce (`Invoice.tipXof`) mais muet partout :
