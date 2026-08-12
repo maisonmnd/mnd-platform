@@ -501,7 +501,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </div>
           {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
               la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             {([['cliente', `Pour ${client.name.split(' ')[0]}`], ['maison', 'Pour toutes les clientes']] as const).map(([k, l]) => (
               <button
                 key={k}
@@ -518,6 +518,24 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                 {l}
               </button>
             ))}
+            {/* LE RETOUR AUX DÉFAUTS DE LA MAISON — tout rallumer d'un geste
+                (les masques individuels des fiches, eux, ne bougent pas). */}
+            {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés — ateliers, prestations et produits redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
+                  vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [] }));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Rétablir le tapis complet
+              </button>
+            )}
           </div>
         </div>
 
