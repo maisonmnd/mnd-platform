@@ -240,7 +240,10 @@ export function HomeTab({
   const client = useClient();
   const { currency } = useBranch();
   const [services] = useServices();
-  const { products } = useVisibleCatalog();
+  /* LE CATALOGUE VISIBLE pour tout ce qui PROPOSE (reco) : une prestation
+     masquée à la Vitrine ne doit jamais se recommander — le catalogue brut
+     ne sert qu'à nommer l'historique. */
+  const { services: servicesVisibles, products } = useVisibleCatalog();
   const next = useNextAppointment();
   const { offers, endMin } = useLiveOffers();
   const countdown = useOfferCountdown(endMin);
@@ -300,17 +303,17 @@ export function HomeTab({
        le forfait « dès la 3ᵉ venue » à une première visite, et le prefill
        entrait dans le tunnel APRÈS l'unique garde de l'étape 2. */
     const venuesTete = venuesHonorees(clientAppts, client.id);
-    const offre = services.filter((s) => estProposable(s, pricing, venuesTete));
+    const offre = servicesVisibles.filter((s) => estProposable(s, pricing, venuesTete));
     return recoPourEnvie(client, client.envie, {
       offre,
-      catalogue: services,
+      catalogue: servicesVisibles,
       personas,
       maison: cfgVitrine.recoParEnvie,
       appointments: clientAppts,
       auto: cfgVitrine.recoAuto,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, services, personas, cfgVitrine, clientAppts, bands, sets, cats]);
+  }, [client, servicesVisibles, personas, cfgVitrine, clientAppts, bands, sets, cats]);
 
   /* Rituel sous 48 h : bannière discrète + une notification locale, une seule fois. */
   const soon = useMemo(() => {
