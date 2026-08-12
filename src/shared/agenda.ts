@@ -138,6 +138,11 @@ export type Appointment = {
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
       (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */
   discountXof?: number;
+  /** `discountPct` est LA REMISE FAMILLE du compte de la cliente (voir
+      `remiseFamillePct`, shared/clients). Le montant ne change pas — seule
+      l'étiquette : la modale et la facture disent « Remise famille » pour que
+      la cliente sache d'où vient son avantage. */
+  remiseFamille?: boolean;
   /** Prix du rituel FIGÉ au moment où il a été facturé, avant remise.
       Le catalogue vit : ses tarifs changent. Sans ce champ, un rituel de mars se
       relirait au tarif d'aujourd'hui et l'historique se réécrirait tout seul —

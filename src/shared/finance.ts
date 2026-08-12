@@ -31,6 +31,10 @@ export type Invoice = {
   globalDiscountPct: number;
   /** Remise manuelle en CFA, retranchée APRÈS la remise globale en %. */
   globalDiscountXof?: number;
+  /** Le NOM de la remise quand elle en porte un — « Remise famille » pour
+      l'avantage du compte famille. La pièce le stipule à la place du libellé
+      générique ; le calcul, lui, ne change pas. */
+  discountLabel?: string;
   /** Encaissé en devise étrangère. Trace de ce qui a été REÇU au comptoir ; le
       total de la facture reste en XOF, seule base de la maison.
       `rate` = 1 unité de `code` en XOF, au taux du jour saisi par le maître. */
@@ -243,6 +247,7 @@ export type FactureNeuve = {
   lines?: InvoiceLine[];
   globalDiscountPct?: number;
   globalDiscountXof?: number;
+  discountLabel?: string;
   fx?: Invoice['fx'];
   theme?: Invoice['theme'];
   payment?: PaymentMethod;
@@ -298,6 +303,7 @@ export function nouvelleFacture(f: FactureNeuve): Invoice {
     ...(clientName ? { clientName } : {}),
     ...(f.forClientId ? { forClientId: f.forClientId } : {}),
     ...(f.globalDiscountXof ? { globalDiscountXof: f.globalDiscountXof } : {}),
+    ...(f.discountLabel ? { discountLabel: f.discountLabel } : {}),
     ...(f.fx ? { fx: f.fx } : {}),
     ...(f.payment ? { payment: f.payment } : {}),
     ...(f.cashbox ? { cashbox: f.cashbox } : {}),

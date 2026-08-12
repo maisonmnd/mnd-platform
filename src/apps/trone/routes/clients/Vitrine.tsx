@@ -14,6 +14,7 @@ import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
 import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
 import { useStore } from '../../../../shared/store';
 import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+import { QrSvg, qrMatrice } from '../equipe/Comptoir';
 import './clients.css';
 
 /* Vitrine client — le miroir personnalisé auto-joué pendant le rituel, et la régie
@@ -107,7 +108,91 @@ export default function Vitrine() {
 
       {mode === 'apercu' && <Apercu client={client} />}
       {mode === 'couronne' && <CouronnePreview client={client} />}
-      {mode === 'regie' && <Regie client={client} />}
+      {mode === 'regie' && (
+        <>
+          <InvitationCouronne />
+          <Regie client={client} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ═══════ LA CARTE D'INVITATION — le lien de Ma Couronne, au salon ═══════
+
+   Comment une cliente arrive sur l'application : elle SCANNE. Le QR vit ici
+   (la Régie), s'imprime en carte A5 aux couleurs de la maison — comptoir,
+   miroir, vitrine — et porte l'adresse calculée depuis l'origine servie,
+   JAMAIS un domaine en dur (changer de compte GitHub ne casse rien : on
+   réimprime, c'est tout). Ma Couronne est une PWA : scannée puis « Ajouter à
+   l'écran d'accueil », elle s'installe comme une application. */
+function InvitationCouronne() {
+  /* Sur le site déployé, le Trône vit sous /trone/ et sa sœur sous /couronne/ ;
+     en développement (une seule origine), l'entrée est couronne.html. */
+  const lienCouronne = `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
+
+  const imprimer = () => {
+    const { path, n } = qrMatrice(lienCouronne);
+    const fen = window.open('', '_blank', 'noopener,width=520,height=760');
+    if (!fen) return;
+    fen.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8" />
+<title>Ma Couronne — carte d'invitation</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Jost:wght@400;500;600&display=swap" />
+<style>
+  @page { size: A5 portrait; margin: 0; }
+  body { margin: 0; background: #F6F1E7; color: #14141B; font-family: 'Jost', sans-serif;
+         display: flex; justify-content: center; }
+  .carte { width: 148mm; min-height: 210mm; box-sizing: border-box; padding: 18mm 16mm;
+           display: flex; flex-direction: column; align-items: center; text-align: center;
+           border: 1px solid rgba(20,20,27,.14); outline: 2px solid #B97A4A; outline-offset: -6mm; }
+  .marque { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .34em; color: #1E2150; }
+  .titre { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 40px; color: #1E2150; margin: 10mm 0 2mm; }
+  .sous { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: #45454F; max-width: 96mm; line-height: 1.5; }
+  .qr { width: 64mm; height: 64mm; margin: 10mm 0 6mm; }
+  .etapes { font-size: 12.5px; color: #14141B; line-height: 2; letter-spacing: .02em; }
+  .etapes b { color: #9E6238; font-weight: 600; letter-spacing: .12em; }
+  .lien { font-size: 11px; color: #45454F; margin-top: 5mm; letter-spacing: .04em; }
+  .devise { margin-top: auto; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: #9E6238; }
+</style></head><body>
+  <div class="carte">
+    <div class="marque">MAISON MND</div>
+    <div class="titre">Ma Couronne.</div>
+    <div class="sous">Vos rendez-vous, le suivi de votre couronne, le Cercle — dans votre poche.</div>
+    <svg class="qr" viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="Scanner pour ouvrir Ma Couronne">
+      <rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#F6F1E7" />
+      <path d="${path}" fill="#1E2150" shape-rendering="crispEdges" />
+    </svg>
+    <div class="etapes">
+      <b>1</b> · Scannez avec l'appareil photo<br />
+      <b>2</b> · Créez votre espace — votre couronne vous reconnaît<br />
+      <b>3</b> · « Ajouter à l'écran d'accueil » — elle s'installe comme une application
+    </div>
+    <div class="lien">${lienCouronne}</div>
+    <div class="devise">mi nyɔ́ ɖɛkpɛ — la maison veille.</div>
+  </div>
+  <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
+</body></html>`);
+    fen.document.close();
+  };
+
+  return (
+    <div className="tr-card" style={{ padding: '16px 20px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <div style={{ width: 92, height: 92, flex: 'none' }}>
+        <QrSvg valeur={lienCouronne} />
+      </div>
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
+          Inviter les clientes sur Ma Couronne.
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55, maxWidth: '64ch' }}>
+          Ce code ouvre {lienCouronne} — scannée, l’app se crée un compte et s’installe sur
+          l’écran d’accueil (« Ajouter à l’écran d’accueil »). Imprimez la carte pour le
+          comptoir et le miroir, ou envoyez le lien par WhatsApp depuis la fiche d’une cliente.
+        </div>
+      </div>
+      <button type="button" className="mnd-btn mnd-btn--copper" onClick={imprimer} style={{ flex: 'none' }}>
+        Imprimer la carte A5
+      </button>
     </div>
   );
 }

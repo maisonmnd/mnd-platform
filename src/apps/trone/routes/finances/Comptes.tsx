@@ -6,7 +6,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
-  useClients, clientsStore, useFamilies, familiesStore, type Client, type Family,
+  useClients, clientsStore, useFamilies, familiesStore, remiseFamillePct, REMISE_FAMILLE_DEFAUT,
+  type Client, type Family,
 } from '../../../../shared/clients';
 import {
   useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal,
@@ -374,6 +375,11 @@ function FamilyModal({
   const [memberIds, setMemberIds] = useState<string[]>(initMembers);
   const [payerId, setPayerId] = useState(family?.payerClientId ?? parent?.id ?? '');
   const [pick, setPick] = useState('');
+  /* La remise famille du compte — le juge (`remiseFamillePct`) donne le défaut
+     de la Maison quand le compte est muet ; ici on ÉCRIT toujours le taux
+     choisi, pour que le compte dise lui-même son avantage. */
+  const [remiseStr, setRemiseStr] = useState(String(remiseFamillePct(family ?? undefined) || (family ? 0 : REMISE_FAMILLE_DEFAUT)));
+  const remiseNum = Math.max(0, Math.min(100, Math.round(Number(remiseStr.replace(/[^0-9]/g, '')) || 0)));
 
   const addMember = (id: string) => {
     if (!id || memberIds.includes(id)) return;

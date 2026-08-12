@@ -37,20 +37,25 @@ export const lienDuJour = (code: string) =>
    cette maison. Un seul chemin pour tous les modules noirs : le navigateur en
    redessine des centaines à chaque rendu sinon, et l'écran reste allumé
    des journées entières. */
-export function QrSvg({ valeur }: { valeur: string }) {
-  const d = useMemo(() => {
-    const qr = qrcode(0, 'M');
-    qr.addData(valeur);
-    qr.make();
-    const n = qr.getModuleCount();
-    let path = '';
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        if (qr.isDark(r, c)) path += `M${c} ${r}h1v1h-1z`;
-      }
+/** La matrice d'un QR en un seul chemin SVG — partagée : l'écran (QrSvg) et
+    les papeteries imprimables (carte d'invitation de la Régie) dessinent le
+    même code, au module près. */
+export function qrMatrice(valeur: string): { path: string; n: number } {
+  const qr = qrcode(0, 'M');
+  qr.addData(valeur);
+  qr.make();
+  const n = qr.getModuleCount();
+  let path = '';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) path += `M${c} ${r}h1v1h-1z`;
     }
-    return { path, n };
-  }, [valeur]);
+  }
+  return { path, n };
+}
+
+export function QrSvg({ valeur }: { valeur: string }) {
+  const d = useMemo(() => qrMatrice(valeur), [valeur]);
 
   return (
     <svg viewBox={`-2 -2 ${d.n + 4} ${d.n + 4}`} className="cpt__qrsvg" role="img" aria-label="Code du jour à scanner">

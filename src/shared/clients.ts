@@ -131,6 +131,24 @@ export type Family = {
   name: string; // « Famille Adamon »
   payerClientId?: string; // le parent payeur (une des clientes rattachées, ou une fiche dédiée)
   note?: string;
+  /** LA REMISE FAMILLE (%) — l'avantage du compte, posé d'office sur les
+      rendez-vous de ses membres et nommé « Remise famille » partout où il
+      s'écrit (modale RDV, facture). Absent = le taux de la Maison (15).
+      0 = ce compte n'a pas de remise. Le juge unique est `remiseFamillePct`. */
+  remisePct?: number;
+};
+
+/** Le taux de la Maison quand un compte n'a rien précisé. */
+export const REMISE_FAMILLE_DEFAUT = 15;
+
+/** LE juge de la remise famille — toute surface qui l'applique passe par ici.
+    Pas de famille → 0. Famille muette → le défaut de la Maison. Un taux posé
+    fait foi, borné à [0, 100] ; 0 explicite = remise coupée pour ce compte. */
+export const remiseFamillePct = (f?: Family | null): number => {
+  if (!f) return 0;
+  const p = Number(f.remisePct);
+  if (!Number.isFinite(p)) return REMISE_FAMILLE_DEFAUT;
+  return Math.max(0, Math.min(100, Math.round(p)));
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
