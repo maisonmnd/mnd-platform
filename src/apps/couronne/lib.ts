@@ -6,6 +6,7 @@ import {
   useCategories,
   useServices,
   useProducts,
+  catsDansLOrdre,
   type CatalogCategory,
   type Service,
   type Product,
@@ -250,10 +251,24 @@ export function useVisibleCatalog(): VisibleCatalog {
   const [vitrine] = useStore(vitrineConfigStore);
 
   return useMemo(() => {
-    const catOk = (id: string) => {
-      const c = cats.find((x) => x.id === id);
+    /* UNE FAMILLE SUIT SON ATELIER (12 août). La liste blanche de la Vitrine
+       a été cochée au temps des ateliers seuls : les familles créées depuis
+       n'y figuraient pas, et leurs prestations disparaissaient de Ma Couronne
+       en silence. On remonte donc l'arbre : la famille est visible si SON
+       ATELIER l'est (ou si elle est cochée elle-même) — et un maillon
+       désactivé coupe toute sa descendance. */
+    const catOk = (id: string): boolean => {
+      let c = cats.find((x) => x.id === id);
       if (!c || !c.enabled) return false;
-      return vitrine.visibleCategories.length === 0 || vitrine.visibleCategories.includes(id);
+      for (let i = 0; c.parentId && i < 8; i += 1) {
+        const parent = cats.find((x) => x.id === c!.parentId);
+        if (!parent) break;
+        if (!parent.enabled) return false;
+        c = parent;
+      }
+      return vitrine.visibleCategories.length === 0
+        || vitrine.visibleCategories.includes(c.id)
+        || vitrine.visibleCategories.includes(id);
     };
     const visServices = services
       .filter((s) => catOk(s.categoryId) && !vitrine.hiddenServices.includes(s.id))
@@ -267,7 +282,10 @@ export function useVisibleCatalog(): VisibleCatalog {
        une catégorie sans aucune prestation ni produit visible. */
     const nonEmpty = new Set<string>([...visServices.map((s) => s.categoryId), ...visProducts.map((p) => p.categoryId)]);
     return {
-      cats: cats.filter((c) => catOk(c.id) && nonEmpty.has(c.id)).slice().sort((a, b) => a.order - b.order),
+      /* L'ordre d'ARBRE se calcule sur le catalogue ENTIER puis se filtre :
+         une famille garde sa place même quand son atelier, sans prestation
+         directe, ne paraît pas lui-même. */
+      cats: catsDansLOrdre(cats).filter((c) => catOk(c.id) && nonEmpty.has(c.id)),
       services: visServices,
       products: visProducts,
     };
