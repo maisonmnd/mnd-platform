@@ -1246,6 +1246,28 @@ Appliqué le 10 août : un doublon de comptoir (`MND-JTUG`, une seule pièce —
 devis brouillon) fusionné vers sa fiche d'import Firebase (`gvCbf…`) ; 1 pièce
 reportée, doublon supprimé, plus rien ne le fait renaître.
 
+### Le sur-mesure boucle enfin — 12 août
+
+« Vous composez » (Ma Couronne) transmettait au pont `mnd_couronne_compose`
+que PERSONNE ne lisait — la promesse « la maison revient sur WhatsApp »
+reposait sur rien — et affichait les prix CATALOGUE. Quatre chantiers d'un
+coup (validés au sélecteur) :
+
+- **Le Trône reçoit** : le Tableau de bord moissonne chaque payload du pont
+  dans `compositionsRecuesStore` (file LOCALE persistante — v1 sans
+  migration : le pont ne porte que la dernière composition, la moisson la
+  garde ; si le volume grandit, une vraie table `compositions_queue`
+  prendra le relais). Ligne dans « Ce qui presse », modale : WhatsApp
+  pré-rempli pour sceller (via `clientId`, nouveau sur le payload) +
+  « Marquée traitée ».
+- **Notification poussée** à chaque envoi (pushNotifyStaff).
+- **Ses prix** : personalPriceXof (catalogue + produits), même moteur que
+  le tunnel Réserver.
+- **Réglages au Trône** : Vitrine → carte « Le miroir · pour toutes les
+  clientes » → bloc Sur-mesure — ponctuel −%, abonnement −%, minimum,
+  ateliers d'abonnement (cases). `surMesureDe(cfg)` comble avec les défauts
+  historiques (10/15/3, gbeji+finfin) ; les libellés de la page suivent.
+
 ### Un membre de famille n'est JAMAIS un visiteur — 12 août
 
 Les enfants déclarés (jamais assis, pas de passage) tombaient au registre
