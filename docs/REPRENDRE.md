@@ -402,8 +402,10 @@ séance prédite + réserver, Cercle en chiffres, bilan de séance, reco répar�
   11 août à la demande de Yéman : LE RÉASSORT EN EST SORTI.** Il occupait
   jusqu'à quatre lignes sur cinq et repoussait l'argent en bas de la carte,
   alors qu'un manque de flacons se voit au comptoir et se traite dans Stock &
-  Achats. Le panneau ne garde que ce qui presse le matin — **factures à
-  régler · bilans à remettre · impayés échus** :
+  Achats. Le panneau ne garde que ce qui presse le matin — **anniversaires
+  sous 2 jours (12 août : une ligne par tête déjà venue, vœu WhatsApp prêt à
+  partir, juge partagé `joursAvantAnniversaire` avec le badge de la liste
+  des Clientes) · factures à régler · bilans à remettre · impayés échus** :
   · les FACTURES sont les pièces `envoyée`, **moins celles déjà comptées dans
     les impayés échus** (la même somme lue deux fois ferait croire à une dette
     double) ;
