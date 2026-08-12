@@ -1259,10 +1259,19 @@ GLOBALE du miroir : masquer pour une tête masquait pour toutes. Désormais :
   `useVisibleCatalog` (Ma Couronne) ET par l'aperçu de la régie. Une famille
   suit son atelier (l'arbre remonte) ; l'ordre rendu est celui du Catalogue
   (`catsDansLOrdre`). La reco de l'accueil ne pioche QUE dans le visible.
-- **Héritage** : les listes `hiddenServices`/`hiddenProducts` de la config
-  globale, remplies quand la régie écrivait au mauvais endroit, continuent de
-  masquer POUR TOUTES (socle). Si Yéman veut repartir propre, un UPDATE du
-  doc `mnd_vitrine_config` les vide — à faire à sa demande seulement.
+- **DEUX PORTÉES au même écran** (12 août, demande de Yéman) : le commutateur
+  « Pour <prénom> / Pour toutes les clientes » écrit selon le cas sur SA
+  fiche ou dans le socle (`VitrineConfig.hiddenCategories` — nouveau — +
+  `hiddenServices`/`hiddenProducts`). En portée cliente, un masque Maison se
+  voit éteint et dit pourquoi il ne se rallume pas d'ici. L'aperçu et le
+  tapis suivent la portée choisie.
+- **La liste blanche `visibleCategories` est RETIRÉE du juge** (12 août) :
+  semée une fois au premier jour, entretenue par aucun écran, elle cachait
+  sur Ma Couronne toute catégorie née après (les forfaits SÍNSIN/GBÈJÍ
+  composés, les familles). Le réglage global d'une catégorie est « Visible
+  aux clientes » au Catalogue (`enabled`, descendance coupée) — plus le
+  masque global de la régie (portée Maison). Le champ reste dans le type
+  pour les données déjà en base, mais ne juge plus rien.
 
 ### Les fiches « Cliente Ma Couronne » — baptême du 12 août
 
