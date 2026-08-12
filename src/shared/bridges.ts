@@ -111,18 +111,21 @@ export type VitrineConfig = {
       rien — il trie. Sans histoire, son persona reprend la main. */
   recoAuto?: boolean;
   /** LE SUR-MESURE SE RÈGLE AU TRÔNE (12 août) — les remises, le minimum et
-      les ateliers d'abonnement étaient écrits dans le code. Absent = les
-      valeurs historiques : ponctuel −10 %, abonnement −15 %, 3 prestations
-      minimum, ateliers gbeji + finfin. */
-  surMesure?: { ponctuelPct?: number; aboPct?: number; aboMin?: number; aboCats?: string[] };
+      les ateliers étaient écrits dans le code. Absent = les valeurs
+      historiques : ponctuel −10 % (tout le catalogue), abonnement −15 %,
+      3 prestations minimum, ateliers gbeji + finfin. LES DEUX RÉGIMES SONT
+      SCINDÉS : chacun sa liste d'ateliers/familles (un nœud coché couvre son
+      sous-arbre). `ponctuelCats` VIDE = tout le catalogue visible. */
+  surMesure?: { ponctuelPct?: number; aboPct?: number; aboMin?: number; aboCats?: string[]; ponctuelCats?: string[] };
 };
 
 /** Les réglages EFFECTIFS du sur-mesure — les défauts historiques comblent. */
-export const surMesureDe = (cfg: VitrineConfig): { ponctuelPct: number; aboPct: number; aboMin: number; aboCats: string[] } => ({
+export const surMesureDe = (cfg: VitrineConfig): { ponctuelPct: number; aboPct: number; aboMin: number; aboCats: string[]; ponctuelCats: string[] } => ({
   ponctuelPct: cfg.surMesure?.ponctuelPct ?? 10,
   aboPct: cfg.surMesure?.aboPct ?? 15,
   aboMin: cfg.surMesure?.aboMin ?? 3,
   aboCats: cfg.surMesure?.aboCats ?? ['gbeji', 'finfin'],
+  ponctuelCats: cfg.surMesure?.ponctuelCats ?? [],
 });
 
 /* ---------- LE CATALOGUE QU'UNE CLIENTE VOIT — le juge UNIQUE ----------

@@ -458,56 +458,63 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                 </label>
               ))}
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-              Ouvert à l’abonnement — ateliers, familles ou sous-familles ;
-              cocher un parent couvre tout son sous-arbre :
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {(() => {
-                const smCfg = surMesureDe(cfg);
-                /* La profondeur indente ; un ancêtre coché COUVRE — l'enfant se
-                   montre inclus, non décochable tant que le parent l'est. */
-                const parentDe = (c: (typeof categories)[number]) => categories.find((x) => x.id === c.parentId);
-                const profondeur = (c: (typeof categories)[number]): number => {
-                  let d = 0; let cur = c;
-                  for (let i = 0; cur.parentId && i < 8; i += 1) {
-                    const p = parentDe(cur); if (!p) break; cur = p; d += 1;
-                  }
-                  return d;
-                };
-                const couvrePar = (c: (typeof categories)[number]) => {
-                  let cur = c;
-                  for (let i = 0; cur.parentId && i < 8; i += 1) {
-                    const p = parentDe(cur); if (!p) break;
-                    if (smCfg.aboCats.includes(p.id)) return p;
-                    cur = p;
-                  }
-                  return undefined;
-                };
-                return catsDansLOrdre(categories).map((c) => {
-                  const dans = smCfg.aboCats.includes(c.id);
-                  const couvert = couvrePar(c);
-                  return (
-                    <label
-                      key={c.id}
-                      title={couvert ? `Couvert par ${couvert.fon} — décocher le parent pour choisir plus fin.` : undefined}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: couvert ? 'default' : 'pointer', paddingLeft: profondeur(c) * 16, opacity: couvert ? 0.6 : 1 }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={dans || !!couvert}
-                        disabled={!!couvert}
-                        onChange={() => vitrineConfigStore.set((cf) => {
-                          const cur = surMesureDe(cf);
-                          return { ...cf, surMesure: { ...cur, aboCats: dans ? cur.aboCats.filter((x) => x !== c.id) : [...cur.aboCats, c.id] } };
-                        })}
-                      />
-                      {c.fon} · {c.label}
-                    </label>
-                  );
-                });
-              })()}
-            </div>
+            {/* DEUX RÉGIMES, DEUX ARBRES (12 août — « ils ne doivent pas avoir
+                accès aux mêmes ateliers ») : le ponctuel et l'abonnement se
+                cochent séparément. Un parent coché couvre son sous-arbre ;
+                l'enfant couvert se montre inclus et dit pourquoi. */}
+            {([
+              ['ponctuelCats', 'Ouvert au PONCTUEL', 'Aucune case cochée = tout le catalogue visible.'],
+              ['aboCats', 'Ouvert à l’ABONNEMENT', 'Cocher un parent couvre tout son sous-arbre.'],
+            ] as const).map(([champ, titre, note]) => {
+              const smCfg = surMesureDe(cfg);
+              const liste = smCfg[champ];
+              const parentDe = (c: (typeof categories)[number]) => categories.find((x) => x.id === c.parentId);
+              const profondeur = (c: (typeof categories)[number]): number => {
+                let d = 0; let cur = c;
+                for (let i = 0; cur.parentId && i < 8; i += 1) {
+                  const p = parentDe(cur); if (!p) break; cur = p; d += 1;
+                }
+                return d;
+              };
+              const couvrePar = (c: (typeof categories)[number]) => {
+                let cur = c;
+                for (let i = 0; cur.parentId && i < 8; i += 1) {
+                  const p = parentDe(cur); if (!p) break;
+                  if (liste.includes(p.id)) return p;
+                  cur = p;
+                }
+                return undefined;
+              };
+              return (
+                <div key={champ} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                    {titre} — {note}
+                  </div>
+                  {catsDansLOrdre(categories).map((c) => {
+                    const dans = liste.includes(c.id);
+                    const couvert = couvrePar(c);
+                    return (
+                      <label
+                        key={c.id}
+                        title={couvert ? `Couvert par ${couvert.fon} — décocher le parent pour choisir plus fin.` : undefined}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: couvert ? 'default' : 'pointer', paddingLeft: profondeur(c) * 16, opacity: couvert ? 0.6 : 1 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={dans || !!couvert}
+                          disabled={!!couvert}
+                          onChange={() => vitrineConfigStore.set((cf) => {
+                            const cur = surMesureDe(cf);
+                            return { ...cf, surMesure: { ...cur, [champ]: dans ? cur[champ].filter((x) => x !== c.id) : [...cur[champ], c.id] } };
+                          })}
+                        />
+                        {c.fon} · {c.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
 
           {/* CE QUE LE QUIZ PROPOSE — pris au catalogue, jamais inventé. Le

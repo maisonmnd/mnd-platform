@@ -52,23 +52,34 @@ export default function Compose({ onClose, toast }: Props) {
   );
   /* UN ATELIER COCHÉ OUVRE TOUT SON SOUS-ARBRE (12 août) : les prestations de
      GBÈJÍ vivent dans ses FAMILLES (SÍNSIN, KLƆKLƆ…) — comparer l'atelier aux
-     seules catégories directes laissait l'abonnement vide quand on le cochait. */
-  const aboSousArbre = useMemo(() => {
+     seules catégories directes laissait l'abonnement vide quand on le cochait.
+     LES DEUX RÉGIMES SONT SCINDÉS : chacun sa liste. Ponctuel sans liste =
+     tout le catalogue visible (l'historique). */
+  const sousArbreDe = (liste: string[]): Set<string> => {
     const ids = new Set<string>();
-    for (const id of sm.aboCats) for (const x of sousArbreOf(cats, id)) ids.add(x);
+    for (const id of liste) for (const x of sousArbreOf(cats, id)) ids.add(x);
     return ids;
-  }, [cats, sm.aboCats]);
-  const activeGroups = mode === 'abonnement' ? groups.filter((g) => aboSousArbre.has(g.cat.id)) : groups;
+  };
+  const aboSousArbre = useMemo(() => sousArbreDe(sm.aboCats), [cats, sm.aboCats]);
+  const ponctuelSousArbre = useMemo(
+    () => (sm.ponctuelCats.length ? sousArbreDe(sm.ponctuelCats) : null),
+    [cats, sm.ponctuelCats],
+  );
+  const activeGroups = mode === 'abonnement'
+    ? groups.filter((g) => aboSousArbre.has(g.cat.id))
+    : (ponctuelSousArbre ? groups.filter((g) => ponctuelSousArbre.has(g.cat.id)) : groups);
 
   const switchMode = (m: 'ponctuel' | 'abonnement') => {
     setMode(m);
-    if (m === 'abonnement') {
-      /* L'abonnement est réservé aux soins — les autres lignes quittent la composition. */
+    /* Chaque régime a SES ateliers — ce qui n'appartient pas au régime choisi
+       quitte la composition, dans les deux sens. */
+    const scope = m === 'abonnement' ? aboSousArbre : ponctuelSousArbre;
+    if (scope) {
       setQty((prev) => {
         const next: Record<string, number> = {};
         for (const [id, q] of Object.entries(prev)) {
           const s = services.find((x) => x.id === id);
-          if (s && aboSousArbre.has(s.categoryId)) next[id] = q;
+          if (s && scope.has(s.categoryId)) next[id] = q;
         }
         return next;
       });
