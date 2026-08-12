@@ -192,6 +192,27 @@ export const PRICE_MODES: { k: PriceMode; label: string; hint: string }[] = [
 export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): PriceMode =>
   s.priceMode ?? (s.hidePrice ? 'devis' : 'fixe');
 
+/** L'ORDRE DU CATALOGUE, l'arbre mis à plat (12 août) : les ateliers par leur
+    `order`, chacun aussitôt suivi de ses FAMILLES (mêmes règles, récursif).
+    Le tri à plat sur `order` séparait une famille de son atelier — les
+    flèches du Catalogue déplaçaient le parent, les enfants restaient. UN
+    juge pour la modale RDV, la Caisse et le tunnel Ma Couronne. Une
+    catégorie au parent inconnu (arbre cassé) ne disparaît pas : elle ferme
+    la marche. */
+export const catsDansLOrdre = (cats: CatalogCategory[]): CatalogCategory[] => {
+  const enfants = (pid: string | null): CatalogCategory[] =>
+    cats.filter((c) => (c.parentId ?? null) === pid).sort((a, b) => a.order - b.order);
+  const out: CatalogCategory[] = [];
+  const pousse = (c: CatalogCategory, prof: number): void => {
+    if (prof > 8) return;
+    out.push(c);
+    for (const e of enfants(c.id)) pousse(e, prof + 1);
+  };
+  for (const racine of enfants(null)) pousse(racine, 0);
+  for (const c of cats) if (!out.includes(c)) out.push(c);
+  return out;
+};
+
 /** SEUIL DE REASSORT — un seul pour toute la Maison. Trois ecrans en avaient
     trois differents (3 aux Produits, 8 au Catalogue, 10 au Tableau de bord et
     aux notifications) : l'ecran Produits annoncait 5 references a reassortir

@@ -11,7 +11,7 @@ import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
@@ -806,8 +806,7 @@ export function RdvModal({
      champs `order` que les flèches du Catalogue maintiennent — le sélecteur
      lisait l'ordre brut du magasin, et la main ne retrouvait pas ses repères.
      Tout suit un ordre à MND ; la Caisse trie déjà ainsi. */
-  const parAtelier = [...cats]
-    .sort((a, b) => a.order - b.order)
+  const parAtelier = catsDansLOrdre(cats)
     .map((c) => ({
       cat: c,
       list: proposables.filter((sv) => sv.categoryId === c.id).sort((a, b) => a.order - b.order),

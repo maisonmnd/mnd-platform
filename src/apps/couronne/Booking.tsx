@@ -14,7 +14,7 @@ import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../.
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
-import { useCategories, useProducts, priceModeOf, longueurLabel, type Service } from '../../shared/catalog';
+import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, type Service } from '../../shared/catalog';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable } from '../../shared/pricing';
 import {
   DOW_LETTERS,
@@ -220,7 +220,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent
      les champs `order` du Trône — le tunnel doit dérouler la carte dans le
      même ordre que la Maison la pense. */
-  const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id)).sort((a, b) => a.order - b.order);
+  const bookableCats = catsDansLOrdre(cats).filter((c) => offre.some((s) => s.categoryId === c.id));
   const catServices = offre.filter((s) => s.categoryId === catId).sort((a, b) => a.order - b.order);
   /* TOUTES les prestations de l'objectif choisi : le palier ne les trie plus. */
   const stepServices = catServices;

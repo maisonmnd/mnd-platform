@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useCategories, useServices, useProducts, productsStore, priceModeOf, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, productsStore, priceModeOf, catsDansLOrdre, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
 import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
@@ -191,7 +191,8 @@ export default function Caisse() {
        est pas encore — ni pour une vente sans fiche, où l'on ne peut compter
        les venues de personne. */
     const offre = services.filter((sv) => estProposable(sv, pricing, venuesTete));
-    const cats = [...categories].sort((a, b) => a.order - b.order);
+    /* L'ordre d'ARBRE du catalogue : chaque famille suit son atelier. */
+    const cats = catsDansLOrdre(categories);
     const knownCats = new Set(cats.map((c) => c.id));
     type CaisseItem = { key: string; n: string; priceXof: number; kind: 'service' | 'product' | 'formation'; mode: PriceMode };
     const toItem = (s: typeof services[number]): CaisseItem => ({
