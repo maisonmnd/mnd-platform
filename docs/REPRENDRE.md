@@ -1264,9 +1264,16 @@ coup (validés au sélecteur) :
 - **Ses prix** : personalPriceXof (catalogue + produits), même moteur que
   le tunnel Réserver.
 - **Réglages au Trône** : Vitrine → carte « Le miroir · pour toutes les
-  clientes » → bloc Sur-mesure — ponctuel −%, abonnement −%, minimum,
-  ateliers d'abonnement (cases). `surMesureDe(cfg)` comble avec les défauts
-  historiques (10/15/3, gbeji+finfin) ; les libellés de la page suivent.
+  clientes » → bloc Sur-mesure — ponctuel −%, abonnement −%, minimum.
+  `surMesureDe(cfg)` comble avec les défauts historiques (10/15/3,
+  gbeji+finfin) ; les libellés de la page suivent.
+- **PONCTUEL ET ABONNEMENT SONT SCINDÉS** (12 août) : chacun son ARBRE de
+  cases (ateliers, familles, sous-familles — un parent coché couvre son
+  sous-arbre via `sousArbreOf`, l'enfant couvert se montre inclus et non
+  décochable). `ponctuelCats` VIDE = tout le catalogue visible ; `aboCats`
+  vide = défaut historique. Changer de mode purge la composition dans les
+  deux sens. Piège d'origine : comparer l'atelier coché aux catégories
+  DIRECTES laissait GBÈJÍ vide — ses prestations vivent dans ses familles.
 
 ### Un membre de famille n'est JAMAIS un visiteur — 12 août
 
