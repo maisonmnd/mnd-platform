@@ -324,12 +324,9 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const [personas] = usePersonas();
   const persona = personas.find((p) => p.id === client.persona);
 
-  // Initialise les catégories visibles au premier passage : toutes celles activées.
-  useEffect(() => {
-    if (vitrineConfigStore.get().visibleCategories.length === 0 && categories.length) {
-      vitrineConfigStore.set((c) => ({ ...c, visibleCategories: categories.filter((x) => x.enabled).map((x) => x.id) }));
-    }
-  }, [categories]);
+  /* La liste blanche `visibleCategories` est RETIRÉE du juge (12 août) : semée
+     une fois, jamais entretenue, elle cachait toute catégorie née après. Le
+     réglage global vit au Catalogue (« Visible aux clientes », `enabled`). */
 
   /* LE TAPIS DE CUIVRE EST INDIVIDUEL (12 août — demande de Yéman : « là,
      c'est Marie »). Les interrupteurs écrivaient la config GLOBALE du miroir :

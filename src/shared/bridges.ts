@@ -119,6 +119,12 @@ export function catalogueVisiblePour(o: {
   const mCats = o.masques?.categories ?? [];
   const mSvcs = o.masques?.services ?? [];
   const mProds = o.masques?.products ?? [];
+  /* PLUS DE LISTE BLANCHE (12 août). `visibleCategories` avait été semée une
+     fois au premier jour et plus aucun écran ne l'entretenait : toute
+     catégorie née après — les forfaits SÍNSIN, les familles — restait
+     invisible sur Ma Couronne sans qu'aucun réglage ne le dise. Le VRAI
+     interrupteur global existe déjà et a son écran : « Visible aux
+     clientes » du Catalogue (`enabled`), qui coupe sa descendance. */
   const catOk = (id: string): boolean => {
     let c = o.cats.find((x) => x.id === id);
     if (!c || !c.enabled || mCats.includes(c.id)) return false;
@@ -128,9 +134,7 @@ export function catalogueVisiblePour(o: {
       if (!parent.enabled || mCats.includes(parent.id)) return false;
       c = parent;
     }
-    return o.cfg.visibleCategories.length === 0
-      || o.cfg.visibleCategories.includes(c.id)
-      || o.cfg.visibleCategories.includes(id);
+    return true;
   };
   const services = o.services
     .filter((s) => catOk(s.categoryId) && !o.cfg.hiddenServices.includes(s.id) && !mSvcs.includes(s.id))
