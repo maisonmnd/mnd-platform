@@ -801,11 +801,21 @@ export function RdvModal({
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
-     ça que la Maison en parle. Les catégories vides ne s'affichent pas. */
-  const parAtelier = cats
-    .map((c) => ({ cat: c, list: proposables.filter((sv) => sv.categoryId === c.id) }))
+     ça que la Maison en parle. Les catégories vides ne s'affichent pas.
+     DANS L'ORDRE DU CATALOGUE (12 août) : ateliers ET prestations suivent les
+     champs `order` que les flèches du Catalogue maintiennent — le sélecteur
+     lisait l'ordre brut du magasin, et la main ne retrouvait pas ses repères.
+     Tout suit un ordre à MND ; la Caisse trie déjà ainsi. */
+  const parAtelier = [...cats]
+    .sort((a, b) => a.order - b.order)
+    .map((c) => ({
+      cat: c,
+      list: proposables.filter((sv) => sv.categoryId === c.id).sort((a, b) => a.order - b.order),
+    }))
     .filter((g) => g.list.length);
-  const horsAtelier = proposables.filter((sv) => !cats.some((c) => c.id === sv.categoryId));
+  const horsAtelier = proposables
+    .filter((sv) => !cats.some((c) => c.id === sv.categoryId))
+    .sort((a, b) => a.order - b.order);
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing, services, produitsGamme), 0) : grossCatalogue;

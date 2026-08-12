@@ -217,8 +217,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const offre = services.filter((s) => estProposable(s, pricing, venuesTete));
 
   /* Catégories réservables : au moins une prestation visible. */
-  const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id));
-  const catServices = offre.filter((s) => s.categoryId === catId);
+  /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent
+     les champs `order` du Trône — le tunnel doit dérouler la carte dans le
+     même ordre que la Maison la pense. */
+  const bookableCats = cats.filter((c) => offre.some((s) => s.categoryId === c.id)).sort((a, b) => a.order - b.order);
+  const catServices = offre.filter((s) => s.categoryId === catId).sort((a, b) => a.order - b.order);
   /* TOUTES les prestations de l'objectif choisi : le palier ne les trie plus. */
   const stepServices = catServices;
 
