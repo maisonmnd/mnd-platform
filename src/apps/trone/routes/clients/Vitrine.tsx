@@ -9,7 +9,7 @@ import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shar
 import { useCategories, useProducts, useServices, priceModeOf } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
-import { vitrineConfigStore } from '../../../../shared/bridges';
+import { vitrineConfigStore, catalogueVisiblePour } from '../../../../shared/bridges';
 import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
 import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
 import { useStore } from '../../../../shared/store';
@@ -331,23 +331,38 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
     }
   }, [categories]);
 
-  const catVisible = (id: string) => cfg.visibleCategories.includes(id);
-  const svcVisible = (id: string) => !cfg.hiddenServices.includes(id);
-  const prodVisible = (id: string) => !cfg.hiddenProducts.includes(id);
+  /* LE TAPIS DE CUIVRE EST INDIVIDUEL (12 août — demande de Yéman : « là,
+     c'est Marie »). Les interrupteurs écrivaient la config GLOBALE du miroir :
+     masquer pour une tête masquait pour toutes. Ils écrivent désormais SES
+     masques, sur SA fiche (`Client.vitrineMasques`) ; la config globale ne
+     garde que ce qui vaut pour toute la Maison (la carte de gauche le dit). */
+  const masques = client.vitrineMasques ?? {};
+  const herCats = masques.categories ?? [];
+  const herSvcs = masques.services ?? [];
+  const herProds = masques.products ?? [];
+  const setMasques = (patch: Partial<NonNullable<typeof client.vitrineMasques>>) =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+      ? { ...c, vitrineMasques: { ...(c.vitrineMasques ?? {}), ...patch } }
+      : c)));
+  const bascule = (l: string[], id: string) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]);
 
-  const toggleCat = (id: string) =>
-    vitrineConfigStore.set((c) => ({ ...c, visibleCategories: c.visibleCategories.includes(id) ? c.visibleCategories.filter((x) => x !== id) : [...c.visibleCategories, id] }));
-  const toggleSvc = (id: string) =>
-    vitrineConfigStore.set((c) => ({ ...c, hiddenServices: c.hiddenServices.includes(id) ? c.hiddenServices.filter((x) => x !== id) : [...c.hiddenServices, id] }));
-  const toggleProd = (id: string) =>
-    vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: c.hiddenProducts.includes(id) ? c.hiddenProducts.filter((x) => x !== id) : [...c.hiddenProducts, id] }));
+  const catVisible = (id: string) => !herCats.includes(id);
+  const svcVisible = (id: string) => !herSvcs.includes(id);
+  const prodVisible = (id: string) => !herProds.includes(id);
+  const toggleCat = (id: string) => setMasques({ categories: bascule(herCats, id) });
+  const toggleSvc = (id: string) => setMasques({ services: bascule(herSvcs, id) });
+  const toggleProd = (id: string) => setMasques({ products: bascule(herProds, id) });
   const setFlag = (k: 'autoplay' | 'quizEnabled' | 'quizCouronne' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
 
-  const carpet = useMemo(() => {
-    const s = services.filter((x) => svcVisible(x.id) && catVisible(x.categoryId)).map((x) => x.name);
-    const p = products.filter((x) => prodVisible(x.id) && catVisible(x.categoryId)).map((x) => x.name);
-    return [...s, ...p];
-  }, [services, products, cfg]);
+  /* Ce qu'ELLE voit vraiment — le juge unique, socle Maison + ses masques. */
+  const sonCatalogue = useMemo(
+    () => catalogueVisiblePour({ cfg, masques: client.vitrineMasques, cats: categories, services, products }),
+    [cfg, client, categories, services, products],
+  );
+  const carpet = useMemo(
+    () => [...sonCatalogue.services.map((x) => x.name), ...sonCatalogue.products.map((x) => x.name)],
+    [sonCatalogue],
+  );
 
   const onCount = carpet.length;
   const offCount = services.length + products.length - onCount;
@@ -646,17 +661,13 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
       ? { ...c, hiddenModules: (c.hiddenModules ?? []).includes(k) ? (c.hiddenModules ?? []).filter((x) => x !== k) : [...(c.hiddenModules ?? []), k] }
       : c)));
 
-  /* Le catalogue VISIBLE côté cliente — mêmes règles que useVisibleCatalog. */
-  const catOk = (id: string) => {
-    const c = categories.find((x) => x.id === id);
-    if (!c || !c.enabled) return false;
-    return cfg.visibleCategories.length === 0 || cfg.visibleCategories.includes(id);
-  };
-  const visServices = useMemo(
-    () => services.filter((s) => catOk(s.categoryId) && !cfg.hiddenServices.includes(s.id)).slice().sort((a, b) => a.order - b.order),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [services, categories, cfg],
+  /* Le catalogue VISIBLE côté cliente — LE JUGE UNIQUE (socle Maison + ses
+     masques), le même que Ma Couronne : l'aperçu ne peut pas mentir. */
+  const sonApercu = useMemo(
+    () => catalogueVisiblePour({ cfg, masques: client.vitrineMasques, cats: categories, services, products }),
+    [services, products, categories, cfg, client],
   );
+  const visServices = sonApercu.services;
 
   /* SES prix, SA durée — le même moteur que l'app et le comptoir. */
   const [sets] = useBandSets();
@@ -958,7 +969,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                     ? `Ses prix — modèle ${client.lockCount} locks · ${bandLabel(pricing.band, bands)}`
                     : 'Modèle non renseigné — elle voit les prix catalogue'}
                 </div>
-                {categories.filter((c) => catOk(c.id) && visServices.some((s) => s.categoryId === c.id)).map((cat) => (
+                {sonApercu.cats.filter((c) => visServices.some((s) => s.categoryId === c.id)).map((cat) => (
                   <div key={cat.id} style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>{cat.fon} · {cat.label}</div>
                     {visServices.filter((s) => s.categoryId === cat.id).map((s) => (

@@ -117,6 +117,11 @@ export type Client = {
       Trône) : 'reserver' · 'compose' · 'suivi' · 'gamme' · 'cercle' · 'offres'.
       Absent/vide = tout est ouvert. Accueil et Profil ne se coupent jamais. */
   hiddenModules?: string[];
+  /** SON TAPIS DE CUIVRE (12 août) : les masques INDIVIDUELS de la vitrine —
+      ateliers, prestations et produits que la régie éteint POUR ELLE. La
+      config globale du miroir reste le socle de la Maison ; ces masques s'y
+      ajoutent. Le juge unique est `catalogueVisiblePour` (shared/bridges). */
+  vitrineMasques?: { categories?: string[]; services?: string[]; products?: string[] };
 };
 
 /** Compte famille — regroupe plusieurs clientes sous un même compte payeur. */

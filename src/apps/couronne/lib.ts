@@ -6,12 +6,11 @@ import {
   useCategories,
   useServices,
   useProducts,
-  catsDansLOrdre,
   type CatalogCategory,
   type Service,
   type Product,
 } from '../../shared/catalog';
-import { vitrineConfigStore } from '../../shared/bridges';
+import { vitrineConfigStore, catalogueVisiblePour } from '../../shared/bridges';
 import { clientsStore, initiePersonaId, useClients, type Client } from '../../shared/clients';
 import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
@@ -249,47 +248,15 @@ export function useVisibleCatalog(): VisibleCatalog {
   const [services] = useServices();
   const [products] = useProducts();
   const [vitrine] = useStore(vitrineConfigStore);
+  /* SON tapis de cuivre : les masques individuels vivent sur SA fiche —
+     le juge unique (`catalogueVisiblePour`, shared/bridges) applique le
+     socle de la Maison PLUS ses masques. Sans session, socle seul. */
+  const client = useClient();
 
-  return useMemo(() => {
-    /* UNE FAMILLE SUIT SON ATELIER (12 août). La liste blanche de la Vitrine
-       a été cochée au temps des ateliers seuls : les familles créées depuis
-       n'y figuraient pas, et leurs prestations disparaissaient de Ma Couronne
-       en silence. On remonte donc l'arbre : la famille est visible si SON
-       ATELIER l'est (ou si elle est cochée elle-même) — et un maillon
-       désactivé coupe toute sa descendance. */
-    const catOk = (id: string): boolean => {
-      let c = cats.find((x) => x.id === id);
-      if (!c || !c.enabled) return false;
-      for (let i = 0; c.parentId && i < 8; i += 1) {
-        const parent = cats.find((x) => x.id === c!.parentId);
-        if (!parent) break;
-        if (!parent.enabled) return false;
-        c = parent;
-      }
-      return vitrine.visibleCategories.length === 0
-        || vitrine.visibleCategories.includes(c.id)
-        || vitrine.visibleCategories.includes(id);
-    };
-    const visServices = services
-      .filter((s) => catOk(s.categoryId) && !vitrine.hiddenServices.includes(s.id))
-      .slice()
-      .sort((a, b) => a.order - b.order);
-    const visProducts = products
-      .filter((p) => catOk(p.categoryId) && !vitrine.hiddenProducts.includes(p.id))
-      .slice()
-      .sort((a, b) => a.order - b.order);
-    /* Une catégorie VIDE ne s'affiche pas au front : inutile de montrer à la cliente
-       une catégorie sans aucune prestation ni produit visible. */
-    const nonEmpty = new Set<string>([...visServices.map((s) => s.categoryId), ...visProducts.map((p) => p.categoryId)]);
-    return {
-      /* L'ordre d'ARBRE se calcule sur le catalogue ENTIER puis se filtre :
-         une famille garde sa place même quand son atelier, sans prestation
-         directe, ne paraît pas lui-même. */
-      cats: catsDansLOrdre(cats).filter((c) => catOk(c.id) && nonEmpty.has(c.id)),
-      services: visServices,
-      products: visProducts,
-    };
-  }, [cats, services, products, vitrine]);
+  return useMemo(
+    () => catalogueVisiblePour({ cfg: vitrine, masques: client?.vitrineMasques, cats, services, products }),
+    [cats, services, products, vitrine, client],
+  );
 }
 
 /* ---------- Dates (tout est calculé sur la date du jour) ---------- */

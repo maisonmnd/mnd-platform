@@ -1,4 +1,5 @@
 import { createStore } from './store';
+import { catsDansLOrdre, type CatalogCategory, type Product, type Service } from './catalog';
 
 /* Ponts inter-surfaces (mêmes clés localStorage que les prototypes) :
    - `mnd_couronne_compose` : rituel sur-mesure composé dans Ma Couronne → lu par le Trône
@@ -91,6 +92,61 @@ export type VitrineConfig = {
       rien — il trie. Sans histoire, son persona reprend la main. */
   recoAuto?: boolean;
 };
+
+/* ---------- LE CATALOGUE QU'UNE CLIENTE VOIT — le juge UNIQUE ----------
+
+   Deux couches, dans cet ordre :
+   · LE SOCLE DE LA MAISON (VitrineConfig) — catégories offertes au miroir,
+     masques valant pour toutes ;
+   · SES MASQUES À ELLE (`Client.vitrineMasques`, posés à la régie de la
+     Vitrine) — le tapis de cuivre est INDIVIDUEL : éteindre pour Marie
+     n'éteint QUE pour Marie (12 août — la régie écrivait la config globale
+     et masquer pour une tête masquait pour toutes).
+
+   Une famille suit son atelier : un maillon désactivé, non offert ou masqué
+   coupe toute sa descendance. L'ordre rendu est celui de l'ARBRE du
+   Catalogue. Utilisé par Ma Couronne (useVisibleCatalog) ET par l'aperçu de
+   la Vitrine — deux écrans, un seul juge. */
+export type VitrineMasques = { categories?: string[]; services?: string[]; products?: string[] };
+
+export function catalogueVisiblePour(o: {
+  cfg: VitrineConfig;
+  masques?: VitrineMasques;
+  cats: CatalogCategory[];
+  services: Service[];
+  products: Product[];
+}): { cats: CatalogCategory[]; services: Service[]; products: Product[] } {
+  const mCats = o.masques?.categories ?? [];
+  const mSvcs = o.masques?.services ?? [];
+  const mProds = o.masques?.products ?? [];
+  const catOk = (id: string): boolean => {
+    let c = o.cats.find((x) => x.id === id);
+    if (!c || !c.enabled || mCats.includes(c.id)) return false;
+    for (let i = 0; c.parentId && i < 8; i += 1) {
+      const parent = o.cats.find((x) => x.id === c!.parentId);
+      if (!parent) break;
+      if (!parent.enabled || mCats.includes(parent.id)) return false;
+      c = parent;
+    }
+    return o.cfg.visibleCategories.length === 0
+      || o.cfg.visibleCategories.includes(c.id)
+      || o.cfg.visibleCategories.includes(id);
+  };
+  const services = o.services
+    .filter((s) => catOk(s.categoryId) && !o.cfg.hiddenServices.includes(s.id) && !mSvcs.includes(s.id))
+    .slice()
+    .sort((a, b) => a.order - b.order);
+  const products = o.products
+    .filter((p) => catOk(p.categoryId) && !o.cfg.hiddenProducts.includes(p.id) && !mProds.includes(p.id))
+    .slice()
+    .sort((a, b) => a.order - b.order);
+  const nonEmpty = new Set<string>([...services.map((s) => s.categoryId), ...products.map((p) => p.categoryId)]);
+  return {
+    cats: catsDansLOrdre(o.cats).filter((c) => catOk(c.id) && nonEmpty.has(c.id)),
+    services,
+    products,
+  };
+}
 
 export const composeStore = createStore<ComposePayload | null>('mnd_couronne_compose', null);
 export const consultationsQueueStore = createStore<OnlineConsultation[]>('mnd_consultations_queue', []);
