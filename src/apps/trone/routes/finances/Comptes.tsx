@@ -378,7 +378,7 @@ function FamilyModal({
   /* La remise famille du compte — le juge (`remiseFamillePct`) donne le défaut
      de la Maison quand le compte est muet ; ici on ÉCRIT toujours le taux
      choisi, pour que le compte dise lui-même son avantage. */
-  const [remiseStr, setRemiseStr] = useState(String(remiseFamillePct(family ?? undefined) || (family ? 0 : REMISE_FAMILLE_DEFAUT)));
+  const [remiseStr, setRemiseStr] = useState(String(family ? remiseFamillePct(family) : REMISE_FAMILLE_DEFAUT));
   const remiseNum = Math.max(0, Math.min(100, Math.round(Number(remiseStr.replace(/[^0-9]/g, '')) || 0)));
 
   const addMember = (id: string) => {
@@ -403,7 +403,7 @@ function FamilyModal({
   const save = () => {
     if (!name.trim()) return;
     const id = family?.id ?? `fam-${uid()}`;
-    const rec: Family = { id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined };
+    const rec: Family = { id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined, remisePct: remiseNum };
     familiesStore.set((prev) => (family ? prev.map((f) => (f.id === id ? rec : f)) : [...prev, rec]));
     /* Rattachements : membres cochés → familyId, retirés → familyId effacé. */
     clientsStore.set((prev) => prev.map((c) => {
@@ -441,6 +441,27 @@ function FamilyModal({
                 à la Maison se constate à sa première venue. */}
             <ClientPicker value={pick} onChange={addMember} allowPassage placeholder="Ajouter une cliente au compte…" />
             <div className="mnd-muted" style={{ fontSize: 10.5 }}>Le parent payeur (★) est celui qui règle les factures du compte.</div>
+          </div>
+        </Field>
+        <Field label="Remise famille">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {[15, 18, 20].map((p) => (
+              <button key={p} type="button" className={`tre-chip ${remiseNum === p ? 'is-on' : ''}`} onClick={() => setRemiseStr(String(p))}>
+                −{p}%
+              </button>
+            ))}
+            <Input
+              inputMode="numeric"
+              value={remiseStr}
+              onChange={(e) => setRemiseStr(e.target.value.replace(/[^0-9]/g, ''))}
+              style={{ width: 68, textAlign: 'right' }}
+              aria-label="Remise famille en pourcentage"
+            />
+            <span className="mnd-muted" style={{ fontSize: 11.5 }}>%</span>
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+            L'avantage du compte : posée d'office sur les rendez-vous de chaque membre, et
+            nommée « Remise famille » jusqu'à la facture. 0 = pas de remise pour ce compte.
           </div>
         </Field>
         {family && (

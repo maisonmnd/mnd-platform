@@ -855,7 +855,7 @@ export default function Factures() {
                     <div className="trv-doc__totline disc"><span>Remise globale · −{active.globalDiscountPct}%</span><span>− {fmtMoney(Math.round(totals.globalDisc), currency)}</span></div>
                   )}
                   {totals.manualDisc > 0 && (
-                    <div className="trv-doc__totline disc"><span>Remise manuelle</span><span>− {fmtMoney(totals.manualDisc, currency)}</span></div>
+                    <div className="trv-doc__totline disc"><span>{active.discountLabel ?? 'Remise manuelle'}</span><span>− {fmtMoney(totals.manualDisc, currency)}</span></div>
                   )}
                 </>
               )}

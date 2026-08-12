@@ -2,6 +2,26 @@
 
 État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
 
+## La remise famille — 12 août
+
+L'avantage du compte famille est un TAUX porté par le compte
+(`Family.remisePct`, réglé dans Finances › Comptes : chips 15/18/20 + saisie
+libre, défaut 15, 0 = coupée). LE juge est `remiseFamillePct` (shared/clients)
+— compte muet → défaut de la Maison, pas de compte → 0. À la modale RDV :
+choisir un membre d'un compte pose D'OFFICE « Remise » au taux du compte sur
+un NOUVEAU rituel (effet sur le changement de tête, `famAuto` ; un choix
+manuel du mode l'éteint, revenir à une tête sans compte la retire) ; un rituel
+EXISTANT ne se réécrit jamais tout seul — la remise s'y propose d'un clic
+(« Poser la remise famille · −X% », chip « Famille −X% » dans les
+pourcentages). Le rituel enregistre `remiseFamille: true` quand le pourcentage
+posé est celui du compte ; la modale récapitule « remise famille −X% » ; la
+facture porte `Invoice.discountLabel` (« Remise famille ») écrit à
+l'encaissement (actions.tsx) et à la reconformation (alignerFacturesDuRituel),
+affiché sur la pièce à la place de « Remise manuelle ». La fiche cliente
+(panneau compte famille) lit l'avantage. Le tunnel Ma Couronne n'applique PAS
+la remise à la réservation (chantier possible : l'y afficher) — elle se pose
+au Trône.
+
 ## Les mondes se disent — 12 août
 
 Toutes les listes annoncent désormais le MONDE qu'on traverse : ATELIER MND™,

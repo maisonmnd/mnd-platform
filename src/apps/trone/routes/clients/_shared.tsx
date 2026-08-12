@@ -5,7 +5,8 @@ import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
-  clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, type Client,
+  clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
+  remiseFamillePct, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
@@ -220,14 +221,18 @@ export function alignerFacturesDuRituel(
     } else if (gross < total) {
       lines.push({ id: `il-${inv.id}-adj`, label: LIGNE_AJUSTEMENT, qty: 1, unitXof: total - gross, discountPct: 0 });
     }
+    /* La remise du compte famille se NOMME sur la pièce — la cliente doit lire
+       d'où vient son avantage, pas un « remise » anonyme. */
+    const discountLabel = remiseXof && appt.remiseFamille ? 'Remise famille' : undefined;
     /* Idempotent : mêmes prestations, mêmes montants, même remise → on ne
        réécrit rien, la synchronisation n'a pas à porter un faux changement. */
     const deja = inv.lines.length === lines.length
       && (inv.globalDiscountPct ?? 0) === 0
       && (inv.globalDiscountXof ?? 0) === (remiseXof ?? 0)
+      && (inv.discountLabel ?? undefined) === discountLabel
       && inv.lines.every((l, i) => l.label === lines[i].label && l.qty * l.unitXof === lines[i].unitXof && !l.discountPct);
     if (deja) return inv;
-    return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof };
+    return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof, discountLabel };
   }));
 }
 
@@ -755,6 +760,38 @@ export function RdvModal({
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
+  /* LA REMISE FAMILLE (12 août). Le compte famille de la tête choisie porte un
+     taux (`remiseFamillePct` — LE juge, shared/clients) : sur un NOUVEAU
+     rituel, choisir un membre pose d'office « Remise » à ce taux, et revenir à
+     une tête sans compte la retire — tant que la main n'a rien consenti
+     d'autre. Un rituel EXISTANT garde ce qui a été consenti : rien ne s'y
+     réécrit tout seul, la remise du compte s'y propose d'un clic. */
+  const [families] = useFamilies();
+  const ficheCliente = clients.find((c) => c.id === clientId);
+  const familleDuCompte = ficheCliente?.familyId ? families.find((f) => f.id === ficheCliente.familyId) : undefined;
+  const famPct = remiseFamillePct(familleDuCompte);
+  const famAuto = useRef(false);
+  useEffect(() => {
+    if (appt || sansPrix || forfaitOn || covered) return;
+    if (famPct > 0) {
+      const vierge = prixMode === 'plein' && !discountPct && !discountXof;
+      if (vierge || famAuto.current) {
+        famAuto.current = true;
+        setPrixMode('remise');
+        setDiscountPct(famPct);
+        setDiscountXof(0);
+      }
+    } else if (famAuto.current) {
+      famAuto.current = false;
+      setPrixMode('plein');
+      setDiscountPct(0);
+      setDiscountXof(0);
+    }
+    /* Volontairement sur le CHANGEMENT DE TÊTE (et de taux) seulement : réagir
+       aux états du prix referait le geste de la Maison dans son dos. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, famPct]);
+
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
      `remaining === null` = illimité. La couverture n'est proposée que s'il reste au
@@ -996,6 +1033,9 @@ export function RdvModal({
                    prix, on ne le remise pas une seconde fois. */
                 discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
                 discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
+                /* Le pourcentage posé est CELUI du compte famille : le rituel
+                   s'en souvient, et la facture nommera son avantage. */
+                remiseFamille: !effCovered && !forfaitPose && famPct > 0 && discountPct === famPct ? true : undefined,
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
@@ -1043,6 +1083,7 @@ export function RdvModal({
         forfait: forfaitEnregistre,
         discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
         discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
+        remiseFamille: !effCovered && !forfaitPose && famPct > 0 && discountPct === famPct ? true : undefined,
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
         priceXof: effCovered ? 0 : needsAmount ? effGross : rdvPersonalized ? grossBase : undefined,
@@ -1506,6 +1547,9 @@ export function RdvModal({
                   type="button"
                   className={`trc-disc ${prixMode === m ? 'is-on' : ''}`}
                   onClick={() => {
+                    /* Un choix de la main éteint l'automatisme famille : « Prix
+                       plein » consenti reste plein, même si la tête change. */
+                    famAuto.current = false;
                     setPrixMode(m);
                     if (m !== 'forfait') setForfaitOn(false);
                     if (m === 'forfait') { setForfaitOn(true); setDiscountPct(0); setDiscountXof(0); }
@@ -1516,9 +1560,36 @@ export function RdvModal({
                 </button>
               ))}
             </div>
+            {/* Le compte famille annonce son avantage — un clic le pose, quel
+                que soit le mode où la main se trouve. */}
+            {famPct > 0 && prixMode !== 'remise' && (
+              <button
+                type="button"
+                className="trc-disc"
+                style={{ marginTop: 10, borderColor: 'var(--copper-300)', color: 'var(--copper-700)' }}
+                onClick={() => {
+                  setPrixMode('remise');
+                  setForfaitOn(false);
+                  setDiscountPct(famPct);
+                  setDiscountXof(0);
+                }}
+              >
+                Poser la remise famille · −{famPct}%
+              </button>
+            )}
             {prixMode === 'remise' && (
               <>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                  {famPct > 0 && (
+                    <button
+                      type="button"
+                      className={`trc-disc ${discountPct === famPct ? 'is-on' : ''}`}
+                      onClick={() => setDiscountPct(famPct)}
+                      title={`L'avantage du compte ${familleDuCompte?.name ?? 'famille'}`}
+                    >
+                      Famille −{famPct}%
+                    </button>
+                  )}
                   {[5, 10, 15, 20].map((p) => (
                     <button
                       key={p}
@@ -1735,7 +1806,7 @@ export function RdvModal({
             <div className="trc-total__row">
               <span>
                 Sous-total
-                {discountPct > 0 ? ` · remise −${discountPct}%` : ''}
+                {discountPct > 0 ? (famPct > 0 && discountPct === famPct ? ` · remise famille −${discountPct}%` : ` · remise −${discountPct}%`) : ''}
                 {discountXof > 0 ? ` · remise −${argent(discountXof)}` : ''}
               </span>
               <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{argent(effGross)}</s></span>

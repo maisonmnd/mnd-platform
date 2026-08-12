@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, type Client } from '../../../../shared/clients';
+import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -1760,6 +1760,17 @@ function Customer360({
                     <span className="trc-sub" style={{ flex: 'none' }}>
                       Avoir · <b style={{ fontWeight: 600, color: avoirDuCompte > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>{fmtMoney(avoirDuCompte, currency)}</b>
                     </span>
+                  </div>
+
+                  {/* L'AVANTAGE DU COMPTE — la remise famille se lit ici même,
+                      pas seulement dans Finances › Comptes : c'est sur cette
+                      fiche qu'on prend le rendez-vous qui la portera. */}
+                  <div className="trc-sub" style={{ padding: '10px 13px', borderBottom: '1px solid var(--hairline)', lineHeight: 1.5 }}>
+                    {remiseFamillePct(clientFamily) > 0 ? (
+                      <>Remise famille · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseFamillePct(clientFamily)}%</b> — posée d'office sur les rendez-vous des membres.</>
+                    ) : (
+                      <>Remise famille · <b style={{ fontWeight: 600 }}>aucune</b> — ce compte n'en porte pas (réglable dans Finances › Comptes).</>
+                    )}
                   </div>
 
                   {membresDuCompte.length === 0 && (

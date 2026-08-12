@@ -510,8 +510,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         clientId: payerId,
         date: invDate,
         lines,
-        /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé. */
+        /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé —
+           NOMMÉE quand c'est l'avantage du compte famille. */
         globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
+        discountLabel: detailRemise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
         theme: 'Rose',
         payment: amount > 0 ? pay : 'Avoir',
         cashbox: activeBox,
