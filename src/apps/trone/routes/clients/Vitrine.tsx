@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
 import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
-import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre } from '../../../../shared/catalog';
+import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
 import { vitrineConfigStore, catalogueVisiblePour, surMesureDe } from '../../../../shared/bridges';
@@ -638,14 +638,26 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         </div>
 
         {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
-            l'arbre, chaque famille derrière son atelier (12 août). */}
-        {catsDansLOrdre(categories).map((cat) => {
+            l'arbre, chaque famille derrière son atelier (12 août) — et LES
+            MONDES SE DISENT : un intertitre quand on passe de l'Atelier au
+            plateau, au Studio. */}
+        {(() => {
+          let mondePrec: string | null = null;
+          return catsDansLOrdre(categories).map((cat) => {
           const { services: cs, products: cp } = byCat(cat.id);
           if (cs.length === 0 && cp.length === 0) return null;
           const catOn = catVisible(cat.id);
           const catMaison = portee === 'cliente' && masqueMaisonCat(cat.id);
+          const monde = mondeLabel(mondeDeCat(cat, categories));
+          const nouveauMonde = monde !== mondePrec;
+          mondePrec = monde;
           return (
             <div key={cat.id}>
+              {nouveauMonde && (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginBottom: 14 }}>
+                  {monde}
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
                 <div className="trc-microlabel" style={{ margin: 0 }}>
                   {cat.fon} · {cat.label}
@@ -682,7 +694,8 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               </div>
             </div>
           );
-        })}
+          });
+        })()}
 
         {/* Le tapis de cuivre */}
         <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>

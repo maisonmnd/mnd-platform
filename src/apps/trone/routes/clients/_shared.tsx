@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
@@ -11,7 +11,7 @@ import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
@@ -1288,15 +1288,25 @@ export function RdvModal({
               <option value="" disabled>
                 + Ajouter une prestation…
               </option>
-              {parAtelier.map((g) => (
-                <optgroup key={g.cat.id} label={`${g.cat.fon} · ${g.cat.label}`}>
-                  {g.list.map((sv) => (
-                    <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {/* LES MONDES SE DISENT (12 août) : un séparateur quand on passe
+                  de l'Atelier au plateau, au Studio — « où s'arrête
+                  l'Atelier ? » se lit dans la liste même. */}
+              {parAtelier.map((g, gi) => {
+                const monde = mondeDeCat(g.cat, cats);
+                const prec = gi > 0 ? mondeDeCat(parAtelier[gi - 1].cat, cats) : null;
+                return (
+                  <Fragment key={g.cat.id}>
+                    {(gi === 0 || monde !== prec) && <optgroup label={`━━ ${mondeLabel(monde)} ━━`} />}
+                    <optgroup label={`${g.cat.fon} · ${g.cat.label}`}>
+                      {g.list.map((sv) => (
+                        <option key={sv.id} value={sv.id}>
+                          {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </Fragment>
+                );
+              })}
               {horsAtelier.length > 0 && (
                 <optgroup label="Autres">
                   {horsAtelier.map((sv) => (

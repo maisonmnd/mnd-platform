@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useCategories, useServices, useProducts, productsStore, priceModeOf, catsDansLOrdre, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, productsStore, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type PriceMode } from '../../../../shared/catalog';
 import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
@@ -204,10 +204,14 @@ export default function Caisse() {
          de locks : le montant est exact, il n'a plus à s'annoncer « dès ». */
       mode: prixFerme(s, pricing) ? ('fixe' as const) : priceModeOf(s),
     });
-    const gs: { key: string; label: string; items: CaisseItem[] }[] = cats
+    /* CHAQUE GROUPE PORTE SON MONDE (12 août) : le rendu pose un bandeau
+       quand on passe de l'Atelier au plateau, au Studio, à l'Académie —
+       « où s'arrête l'Atelier ? » se lit dans l'offre même. */
+    const gs: { key: string; label: string; monde?: string; items: CaisseItem[] }[] = cats
       .map((cat) => ({
         key: cat.id,
         label: `${cat.fon} · ${cat.label}`,
+        monde: mondeLabel(mondeDeCat(cat, cats)),
         items: offre
           .filter((s) => s.categoryId === cat.id)
           .sort((a, b) => a.order - b.order)
@@ -219,11 +223,11 @@ export default function Caisse() {
     const orphans = offre.filter((s) => !knownCats.has(s.categoryId)).sort((a, b) => a.order - b.order).map(toItem);
     if (orphans.length) gs.push({ key: 'autres', label: 'Autres prestations', items: orphans });
     const prods = [...products].sort((a, b) => a.order - b.order).map((p) => ({ key: `p:${p.id}`, n: p.name, priceXof: p.priceXof, kind: 'product' as const, mode: 'fixe' as const }));
-    if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', items: prods });
+    if (prods.length) gs.push({ key: 'produits', label: 'Produits Maison · DÒDÒ™', monde: 'LA GAMME', items: prods });
     const forms = formations
       .filter((f) => !f.archived && f.priceXof > 0)
       .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
-    if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', items: forms });
+    if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', monde: 'MND ACADÉMIE', items: forms });
     return gs;
   }, [categories, services, products, formations, clients, clientId, bands, sets, longueur, venuesTete]);
 
@@ -579,8 +583,16 @@ export default function Caisse() {
             {groups.map((g, gi) => {
               const [fon, ...rest] = g.label.split(' · ');
               const open = !collapsed.has(g.key);
+              /* Le bandeau du MONDE quand il change — Atelier, plateau,
+                 Studio, la Gamme, l'Académie. */
+              const nouveauMonde = g.monde && g.monde !== groups[gi - 1]?.monde;
               return (
                 <div key={g.key} className="trv-catgroup" style={gi > 0 ? { borderTop: '1px solid var(--hairline)', marginTop: 18, paddingTop: 16 } : undefined}>
+                  {nouveauMonde && (
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginBottom: 12 }}>
+                      {g.monde}
+                    </div>
+                  )}
                   <div className="trv-catgroup__head" onClick={() => toggleGroup(g.key)} style={{ cursor: 'pointer' }} role="button" title={open ? 'Replier' : 'Déplier'}>
                     <span style={{ marginRight: 8, color: 'var(--ink-soft)', fontSize: 12, flex: 'none' }}>{open ? '▾' : '▸'}</span>
                     <span className="trv-catgroup__fon">{fon}</span>

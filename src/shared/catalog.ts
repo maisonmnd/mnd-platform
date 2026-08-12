@@ -199,16 +199,52 @@ export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): 
     juge pour la modale RDV, la Caisse et le tunnel Ma Couronne. Une
     catégorie au parent inconnu (arbre cassé) ne disparaît pas : elle ferme
     la marche. */
+/** LES QUATRE MONDES du catalogue — mêmes règles que l'écran Catalogue
+    (`groupeDe`) : la maison est celle de la RACINE, jamais de la famille ;
+    une racine `aca-…` est l'Académie ; sans maison, c'est le plateau. */
+export type Monde = 'atelier' | 'plateau' | 'studio' | 'academie';
+
+export const mondeDeCat = (c: CatalogCategory, cats: CatalogCategory[]): Monde => {
+  let cur = c;
+  for (let i = 0; cur.parentId && i < 8; i += 1) {
+    const p = cats.find((x) => x.id === cur.parentId);
+    if (!p) break;
+    cur = p;
+  }
+  if (cur.maison === 'atelier') return 'atelier';
+  if (cur.maison === 'studio') return 'studio';
+  if (cur.id.startsWith('aca-')) return 'academie';
+  return 'plateau';
+};
+
+/** LE RANG DES MONDES à l'affichage : l'Atelier ouvre, le plateau relie, le
+    Studio suit, l'Académie ferme (doctrine v6). */
+export const rangMonde = (m: Monde): number =>
+  (m === 'atelier' ? 0 : m === 'plateau' ? 1 : m === 'studio' ? 2 : 3);
+
+/** Le nom du monde, en toutes lettres — pour les séparateurs des listes. */
+export const mondeLabel = (m: Monde): string =>
+  m === 'atelier' ? 'ATELIER MND™'
+    : m === 'studio' ? 'STUDIO MND · ACƆ™'
+      : m === 'academie' ? 'MND ACADÉMIE'
+        : 'LE PLATEAU TECHNIQUE · commun aux deux maisons';
+
 export const catsDansLOrdre = (cats: CatalogCategory[]): CatalogCategory[] => {
+  /* LES MONDES NE SE MÉLANGENT PAS (12 août) : les racines se rangent
+     d'abord par maison — Atelier, plateau, Studio — puis par leur ordre.
+     Sans cela, une flèche du Catalogue pouvait glisser un atelier au milieu
+     du Studio, et « où s'arrête l'Atelier ? » n'avait plus de réponse. */
   const enfants = (pid: string | null): CatalogCategory[] =>
     cats.filter((c) => (c.parentId ?? null) === pid).sort((a, b) => a.order - b.order);
+  const racines = [...enfants(null)].sort((a, b) =>
+    (rangMonde(mondeDeCat(a, cats)) - rangMonde(mondeDeCat(b, cats))) || (a.order - b.order));
   const out: CatalogCategory[] = [];
   const pousse = (c: CatalogCategory, prof: number): void => {
     if (prof > 8) return;
     out.push(c);
     for (const e of enfants(c.id)) pousse(e, prof + 1);
   };
-  for (const racine of enfants(null)) pousse(racine, 0);
+  for (const racine of racines) pousse(racine, 0);
   for (const c of cats) if (!out.includes(c)) out.push(c);
   return out;
 };

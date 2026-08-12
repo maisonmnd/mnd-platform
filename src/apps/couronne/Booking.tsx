@@ -1,5 +1,5 @@
 import { asset } from '../../shared/asset';
-import { useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings } from '../../shared/settings';
@@ -14,7 +14,7 @@ import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../.
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
-import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, type Service } from '../../shared/catalog';
+import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable } from '../../shared/pricing';
 import {
   DOW_LETTERS,
@@ -653,27 +653,39 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === 0 && (
           bookableCats.length > 0 ? (
             <div className="mc-stack mc-fade">
-              {bookableCats.map((c) => (
-                <button
-                  key={c.id}
-                  className="mc-rowcard"
-                  onClick={() => {
-                    /* Le palier n'est plus demandé : l'objectif mène aux
-                       prestations. `setCatId` est OBLIGATOIRE ici : sans lui,
-                       qui n'arrivait ni du quiz ni d'une offre trouvait une
-                       liste VIDE — l'objectif ne désignait jamais sa catégorie. */
-                    setCatId(c.id);
-                    setVoirTout(false);
-                    setStep(2);
-                  }}
-                >
-                  <div>
-                    <div className="mc-rowcard__fon">{c.fon}</div>
-                    <div className="mc-rowcard__sub">{c.label}</div>
-                  </div>
-                  <span className="mc-rowcard__arrow">→</span>
-                </button>
-              ))}
+              {/* LES MONDES SE DISENT (12 août) : un intertitre quand on passe
+                  de l'Atelier au plateau, puis au Studio. */}
+              {bookableCats.map((c, ci) => {
+                const monde = mondeDeCat(c, cats);
+                const prec = ci > 0 ? mondeDeCat(bookableCats[ci - 1], cats) : null;
+                return (
+                  <Fragment key={c.id}>
+                    {(ci === 0 || monde !== prec) && (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700, #7C4C2C)', margin: ci === 0 ? '0 0 2px' : '14px 0 2px' }}>
+                        {mondeLabel(monde)}
+                      </div>
+                    )}
+                    <button
+                      className="mc-rowcard"
+                      onClick={() => {
+                        /* Le palier n'est plus demandé : l'objectif mène aux
+                           prestations. `setCatId` est OBLIGATOIRE ici : sans lui,
+                           qui n'arrivait ni du quiz ni d'une offre trouvait une
+                           liste VIDE — l'objectif ne désignait jamais sa catégorie. */
+                        setCatId(c.id);
+                        setVoirTout(false);
+                        setStep(2);
+                      }}
+                    >
+                      <div>
+                        <div className="mc-rowcard__fon">{c.fon}</div>
+                        <div className="mc-rowcard__sub">{c.label}</div>
+                      </div>
+                      <span className="mc-rowcard__arrow">→</span>
+                    </button>
+                  </Fragment>
+                );
+              })}
             </div>
           ) : (
             <div className="mc-emptyzone">

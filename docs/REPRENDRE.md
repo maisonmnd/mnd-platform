@@ -1,6 +1,23 @@
 # Reprendre — état de la Maison
 
 État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
+
+## Les mondes se disent — 12 août
+
+Toutes les listes annoncent désormais le MONDE qu'on traverse : ATELIER MND™,
+LE PLATEAU TECHNIQUE (commun aux deux maisons), STUDIO MND · ACƆ™, MND
+ACADÉMIE. Le juge vit dans `catalog.ts` : `mondeDeCat` (remonte à la racine ;
+`maison: 'atelier' | 'studio'` tranche, préfixe `aca-` → académie, sans maison
+→ plateau — MÊME logique que `groupeDe` de l'écran Catalogue), `rangMonde`
+(l'ordre 0–3) et `mondeLabel` (les intitulés). `catsDansLOrdre` trie ses
+racines par monde PUIS par `order`. Quatre surfaces posent l'intertitre au
+passage d'un monde : le sélecteur du RDV (`_shared.tsx`, `<optgroup>` vide
+`━━ … ━━`), la Caisse (bandeau cuivre au-dessus des groupes ; produits =
+« LA GAMME », formations = « MND ACADÉMIE »), les objectifs de la réservation
+Ma Couronne (`Booking.tsx`) et la régie de la Vitrine. LEÇON GRAVÉE : ne
+JAMAIS faire de remplacement de texte via PowerShell sur les sources
+accentuées — un `-replace | Set-Content` a mojibaké 4 fichiers (é→Ã©),
+récupérés par `git checkout --` puis ré-édités à l'outil.
 Derniers chantiers : la longueur PAR DÉFAUT sur la fiche, le pourboire qui a
 SA caisse, les PDF qui translittèrent le fon — puis la GRANDE REVUE DE CODE
 du 12 août (voir « La revue du 12 août ») : 14 défauts confirmés corrigés
