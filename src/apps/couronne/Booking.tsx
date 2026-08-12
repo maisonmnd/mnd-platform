@@ -2,7 +2,8 @@ import { asset } from '../../shared/asset';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { depositForServices, depositPctFor, useSettings } from '../../shared/settings';
+import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires } from '../../shared/settings';
+import { useBlocages } from '../../shared/blocages';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
@@ -15,7 +16,7 @@ import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -165,7 +166,16 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [sets] = useBandSets();
   const pricing = pricingOf(cible ?? undefined, bands, sets, cats);
   const personalized = isPersonalized(pricing);
-  const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricing), 0);
+  /* LA DURÉE PEUT CROIRE LA CLIENTE, LE PRIX JAMAIS. Tant que la Maison n'a
+     pas compté ses locks, la densité qu'elle déclare au tunnel (chips
+     ci-dessous, `lockCountDeclare`) affine le CRÉNEAU — une Micro demande des
+     heures qu'une Jumbo ne demande pas, et sans elles le calendrier promettait
+     un créneau intenable. Le PRIX, lui, reste sur `pricing` : une cliente ne
+     peut pas s'auto-tarifer, et le comptage de la Maison l'emportera. */
+  const pricingDuree = cible && !cible.lockCount && cible.lockCountDeclare
+    ? pricingOf({ ...cible, lockCount: cible.lockCountDeclare }, bands, sets, cats)
+    : pricing;
+  const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
   const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
   /* `services` + `produits` en arguments : sans eux, un FORFAIT COMPOSÉ ne
@@ -180,7 +190,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;
 
   /* Prix effectif (offre appliquée sur le total). */
-  useSettings(); // re-rend quand les taux d'acompte changent au Trône
+  useSettings(); // re-rend quand les taux d'acompte OU la capacité du jour changent au Trône
+  /* Les murs du calendrier : `freeSlots` les lit dans les registres, mais c'est
+     l'abonnement d'ICI qui re-rend la grille quand un blocage tombe. */
+  const [blocages] = useBlocages();
+  const [exceptions] = useExceptionsHoraires();
   const price = Math.round(knownTotal * (1 - discountPct / 100));
   /* Acompte UNIQUEMENT sur les prestations qui l'exigent, CHACUNE à son propre
      taux (Paramètres du Trône). Aucune → pas d'étape acompte, réservation directe. */
@@ -312,11 +326,26 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
-  }, [month, selected.length, master, totalDuration, appts, services, branch.id]);
+  }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions]);
 
   const dayTimes = selIso && selected.length
     ? freeSlots(selIso, master, totalDuration, appts, services, branch.id)
     : [];
+
+  /* ---- Densité déclarée (12 août) — la question ne se pose qu'au créneau,
+     et seulement quand elle compte : tête jamais comptée par la Maison, et au
+     moins une prestation qui suit le modèle. Elle règle la DURÉE, pas le prix. */
+  const besoinDensite = !!cible && !cible.lockCount && selected.some((s) => scalesWithModel(s));
+  const bandesDensite = sortedBands(bands);
+  const bandeDeclaree = besoinDensite ? bandOf(cible?.lockCountDeclare, bands) : undefined;
+  const declarerDensite = (b: ModelBand) => {
+    if (!cible) return;
+    /* On stocke un NOMBRE (le plafond de la tranche) et non l'id : les tranches
+       du Juste Prix peuvent être recalibrées sans invalider les déclarations. */
+    const i = bandesDensite.findIndex((x) => x.id === b.id);
+    const n = b.maxLocks ?? (bandesDensite[i - 1]?.maxLocks ?? 0) + 1;
+    clientsStore.set((prev) => prev.map((c) => (c.id === cible.id ? { ...c, lockCountDeclare: n } : c)));
+  };
 
   /* ---- Navigation ---- */
   const back = () => {
@@ -809,6 +838,34 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 )}
                 <span className="mc-sessionhead__note">
                   La prestation est réglée une fois — les séances suivantes sont incluses.
+                </span>
+              </div>
+            )}
+            {/* LA DENSITÉ DE SA COURONNE, dite par elle — le calendrier a besoin
+                de savoir combien d'heures réserver, et des Nano ne se resserrent
+                pas dans le temps d'une Jumbo. Sa réponse règle la DURÉE du
+                créneau ; le prix, lui, attend le comptage de la Maison. */}
+            {besoinDensite && (
+              <div className="mc-pourqui" style={{ paddingBottom: 18 }}>
+                <span className="mc-pourqui__lb" style={{ width: '100%' }}>
+                  Vos locks — pour réserver le bon nombre d’heures
+                </span>
+                {bandesDensite.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`mc-pourqui__chip ${bandeDeclaree?.id === b.id ? 'is-on' : ''}`}
+                    onClick={() => declarerDensite(b)}
+                  >
+                    {b.name}
+                    <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 10.5, opacity: 0.75 }}>
+                      {bandRange(b, bandesDensite)}
+                    </span>
+                  </button>
+                ))}
+                <span className="mnd-muted" style={{ width: '100%', fontSize: 11.5, lineHeight: 1.5 }}>
+                  Au plus près — la Maison comptera précisément au fauteuil.
+                  {bandeDeclaree ? ` Durée prévue : ${fmtDuration(totalDuration)}.` : ''}
                 </span>
               </div>
             )}

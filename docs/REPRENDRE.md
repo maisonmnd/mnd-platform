@@ -2,6 +2,42 @@
 
 État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
 
+## Le calendrier sait dire non — 12 août
+
+Trois restrictions à la réservation, demandées après un RDV Micro/Nano/Galaxy
+mal calibré. ⚠ MIGRATION **0042** À COLLER AVANT LA PROCHAINE PUBLICATION :
+les deux apps se lient à la table `blocages` — sans elle, pastille rouge
+(0037 reste RÉSERVÉ au réarmement de `clients_protege_tarif`).
+
+- **Créneaux bloqués** (`shared/blocages.ts`, table `blocages`, doc
+  Paramètres → « Le calendrier de réservation ») : une date, un maître (nom,
+  comme les RDV ; vide = toute la Maison), une plage `debut`/`fin` en
+  « 12h00 » ou la journée entière, un motif LISIBLE PAR LES CLIENTES (RLS :
+  lecture à toute personne connectée — la réservation calcule côté cliente).
+  `freeSlots` les traite comme des RDV qui occupent. Fermer une date entière
+  à toute la Maison reste une JOURNÉE EXCEPTIONNELLE — une vérité par
+  question.
+- **Plafond de RDV par jour** (`Settings.maxRdvParJourMaitre` /
+  `maxRdvParJourMaison`, 0 = illimité, même carte des Paramètres) : atteint,
+  `freeSlots` ne rend plus rien ce jour-là. Le comptoir n'est PAS bridé.
+- **Densité déclarée au tunnel** (`Client.lockCountDeclare`) : à l'étape du
+  créneau, si la CIBLE n'a pas de comptage et qu'une prestation suit le
+  modèle, des chips de tranches (barème par défaut) écrivent le plafond de la
+  tranche sur SA fiche. DURÉE SEULEMENT (`pricingDuree` dans Booking) — le
+  prix reste sur `pricing` : une cliente ne s'auto-tarife pas. La fiche
+  du Trône affiche « Elle se déclare calibre X — compter au fauteuil ».
+  ⚠ POUR LE RÉARMEMENT 0037 : `lockCountDeclare` doit RESTER écrivable par
+  la cliente (champ non protégé), contrairement à `lockCount`.
+
+Déménagements faits avec : les EXCEPTIONS D'HORAIRES vivent désormais dans
+`shared/settings` (type + store + `horaireEffectif` ; `equipe/payroll`
+re-exporte, aucun écran n'a bougé) parce que Ma Couronne ne peut pas importer
+un module du Trône. `openingForIso` applique maintenant l'exception MAISON du
+jour (fermée/décalée) — la réservation la respecte donc, et 0042 ajoute
+`mnd_horaires_exceptions` à la liste blanche `docs_pub_read` (12 clés) : les
+NOTES d'exceptions deviennent lisibles par les clientes, n'y écrire que ce qui
+peut se dire.
+
 ## L'inscription ne double plus les fiches — 12 août (Merine)
 
 Trois défauts vécus par une vraie cliente à son inscription Ma Couronne :

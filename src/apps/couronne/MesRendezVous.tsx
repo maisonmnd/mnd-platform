@@ -7,6 +7,8 @@ import { tetesPortees } from '../../shared/accounts';
 import { useServices } from '../../shared/catalog';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify } from '../../shared/push';
+import { useExceptionsHoraires } from '../../shared/settings';
+import { useBlocages } from '../../shared/blocages';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -115,6 +117,11 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   /* L'agenda sans le rendez-vous déplacé : son propre créneau redevient libre. */
   const others = useMemo(() => (editing ? appts.filter((x) => x.id !== editing.id) : appts), [appts, editing]);
 
+  /* Les murs du calendrier — `freeSlots` les lit dans les registres, l'abonnement
+     d'ici re-rend la grille quand ils bougent. */
+  const [blocages] = useBlocages();
+  const [exceptions] = useExceptionsHoraires();
+
   const calCells = useMemo(() => {
     if (!editing) return [];
     const dur = durationOf(editing);
@@ -129,7 +136,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     }
     return cells;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, month, others, services, branch.id, today]);
+  }, [editing, month, others, services, branch.id, today, blocages, exceptions]);
 
   const dayTimes =
     editing && selIso ? freeSlots(selIso, editing.master, durationOf(editing), others, services, branch.id) : [];

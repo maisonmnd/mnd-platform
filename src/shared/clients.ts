@@ -96,6 +96,11 @@ export type Client = {
       l'arrivée si elle a poussé. Mêmes valeurs que `LongueurId` (catalog). */
   longueur?: 'court' | 'mi-long' | 'long';
   lockCount?: number; // nombre de locks
+  /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
+      tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
+      DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.
+      Le comptage de la Maison, quand il arrive, l'emporte sans discussion. */
+  lockCountDeclare?: number;
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi

@@ -403,40 +403,18 @@ export const assurerCodeDuJour = (
 
    Une exception SANS `staffId` vaut pour toute la Maison ; avec, elle ne vaut
    que pour cette personne, et l'emporte alors sur celle du salon. Le plus
-   précis gagne : c'est la règle habituelle, et c'est celle qu'on attend. */
-export type HoraireException = {
-  id: string;
-  date: string;       // AAAA-MM-JJ
-  staffId?: string;   // absent = toute la Maison
-  open?: string;
-  close?: string;
-  closed?: boolean;
-  note?: string;
-};
-export const exceptionsHorairesStore = createStore<HoraireException[]>('mnd_horaires_exceptions', []);
-export const useExceptionsHoraires = () => useStore(exceptionsHorairesStore);
-bindDocument(exceptionsHorairesStore, 'mnd_horaires_exceptions');
+   précis gagne : c'est la règle habituelle, et c'est celle qu'on attend.
 
-/** L'horaire qui s'applique VRAIMENT à une personne un jour donné. */
-export const horaireEffectif = (
-  date: string,
-  staffId: string | undefined,
-  semaine: Record<string, { open: string; close: string; closed: boolean }>,
-  exceptions: HoraireException[],
-  jourDeLaSemaine: (d: string) => string,
-): { open: string; close: string; closed: boolean; exception?: HoraireException } => {
-  const base = semaine[jourDeLaSemaine(date)] ?? { open: '09h00', close: '19h00', closed: false };
-  const duJour = exceptions.filter((e) => e.date === date);
-  /* Le plus précis d'abord : la personne, puis la Maison. */
-  const ex = duJour.find((e) => e.staffId && e.staffId === staffId) ?? duJour.find((e) => !e.staffId);
-  if (!ex) return base;
-  return {
-    open: ex.open?.trim() || base.open,
-    close: ex.close?.trim() || base.close,
-    closed: ex.closed ?? base.closed,
-    exception: ex,
-  };
-};
+   TOUT VIT DÉSORMAIS DANS `shared/settings` (12 août) : le calendrier de
+   réservation ferme la Maison sur ces mêmes exceptions, et Ma Couronne ne
+   peut pas importer un module du Trône. Ici, on re-exporte seulement — les
+   écrans de paie n'ont pas bougé. */
+export {
+  exceptionsHorairesStore,
+  useExceptionsHoraires,
+  horaireEffectif,
+} from '../../../../shared/settings';
+export type { HoraireException } from '../../../../shared/settings';
 
 /** Minutes depuis minuit. Accepte « 09h00 » comme « 09:00 » — les horaires du
     salon s'écrivent avec un h, le pointage avec deux points. */

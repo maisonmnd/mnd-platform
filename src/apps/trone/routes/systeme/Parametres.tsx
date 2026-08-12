@@ -18,6 +18,7 @@ import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import { ERP_DOMAINS, useStaff } from '../equipe/data';
 import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
+import { useBlocages, type Blocage } from '../../../../shared/blocages';
 import { uid } from '../../../../shared/store';
 import './systeme.css';
 
@@ -437,6 +438,7 @@ function FactoryResetCard() {
 
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
+  const [blocages, setBlocages] = useBlocages();
   const [preuve, setPreuve] = usePointageConfig();
   const navigate = useNavigate();
 
@@ -481,6 +483,18 @@ export default function Parametres() {
     const n = Math.max(0, Math.min(100, Math.round(Number(raw) || 0)));
     setSettings((s) => ({ ...s, onlineDepositPct: n }));
   };
+
+  /** Plafond de rendez-vous par jour — entier, 0 = sans limite ; lu par la réservation. */
+  const setCapacite = (champ: 'maxRdvParJourMaitre' | 'maxRdvParJourMaison', raw: string) => {
+    const n = Math.max(0, parseInt(raw.replace(/[^0-9]/g, ''), 10) || 0);
+    setSettings((s) => ({ ...s, [champ]: n }));
+  };
+
+  /** Les noms qu'un blocage peut viser : ceux que portent les rendez-vous —
+      les maîtres du catalogue d'abord, l'équipe en complément. */
+  const maitresDuCalendrier = Array.from(new Set(
+    [...services.map((s) => s.master), ...equipe.map((m) => m.name)].filter(Boolean),
+  )).sort() as string[];
 
   /** Frais de livraison à domicile (XOF) — entier ≥ 0 ; lu par Ma Couronne · Gamme. */
   const setDeliveryFee = (raw: string) => {
@@ -1289,7 +1303,120 @@ export default function Parametres() {
         <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
           Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
           possible sans retoucher la fermeture. Une exception nominative l’emporte sur celle de la
-          Maison — le plus précis gagne.
+          Maison — le plus précis gagne. Une exception de la Maison ferme aussi la réservation
+          en ligne ce jour-là : sa note peut être lue par les clientes, écris-la pour elles.
+        </div>
+      </Card>
+
+      {/* ── LE CALENDRIER DE RÉSERVATION ────────────────────────────
+          Ce que les horaires ne savent pas dire : combien de rendez-vous la
+          Maison accepte par jour, et les murs posés à la main — une pause de
+          midi, un maître absent. Ma Couronne lit ces deux registres pour ne
+          jamais proposer un créneau qu'on refuserait. Le comptoir, lui, n'est
+          pas bridé : poser un rendez-vous à la main reste un geste du
+          personnel, qui voit son carnet. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Le calendrier de réservation</div>
+        <div className="sys-section__cap">
+          Ce que la réservation en ligne peut proposer, au-delà des heures d’ouverture :
+          le nombre de rendez-vous que la journée accepte, et les créneaux qu’on ferme à la main.
+        </div>
+
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 12 }}>
+          <Field label="Plafond par maître et par jour">
+            <Input
+              inputMode="numeric"
+              value={String(settings.maxRdvParJourMaitre ?? 0)}
+              onChange={(e) => setCapacite('maxRdvParJourMaitre', e.target.value)}
+              style={{ width: 90, textAlign: 'right' }}
+            />
+          </Field>
+          <Field label="Plafond pour toute la Maison, par jour">
+            <Input
+              inputMode="numeric"
+              value={String(settings.maxRdvParJourMaison ?? 0)}
+              onChange={(e) => setCapacite('maxRdvParJourMaison', e.target.value)}
+              style={{ width: 90, textAlign: 'right' }}
+            />
+          </Field>
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+          0 = sans limite. Le plafond compte les rendez-vous non annulés du jour : atteint,
+          la réservation en ligne ne propose plus aucun créneau — même si des heures restent.
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>Créneaux bloqués</div>
+          <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }}>
+            Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation,
+            comme si un rendez-vous l’occupait. Pour fermer une date entière à toute la Maison,
+            préfère la journée exceptionnelle ci-dessus — une seule vérité par question.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+            {blocages.length === 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun créneau bloqué.</div>
+            )}
+            {[...blocages].sort((a, b) => (a.date < b.date ? 1 : -1)).map((bl) => {
+              const maj = (patch: Partial<Blocage>) =>
+                setBlocages(blocages.map((x) => (x.id === bl.id ? { ...x, ...patch } : x)));
+              const journee = !bl.debut && !bl.fin;
+              return (
+                <div key={bl.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
+                  <Input type="date" value={bl.date} onChange={(e) => maj({ date: e.target.value })} style={{ width: 150 }} />
+                  <Select
+                    value={bl.master ?? ''}
+                    onChange={(e) => maj({ master: e.target.value || undefined })}
+                    style={{ width: 190 }}
+                  >
+                    <option value="">Toute la Maison</option>
+                    {maitresDuCalendrier.map((nom) => (
+                      <option key={nom} value={nom}>{nom}</option>
+                    ))}
+                  </Select>
+                  <button
+                    className={`tre-chip ${journee ? 'is-on' : ''}`}
+                    onClick={() => maj(journee ? { debut: '12h00', fin: '14h00' } : { debut: undefined, fin: undefined })}
+                    style={{ fontSize: 11.5, minWidth: 106 }}
+                  >
+                    {journee ? 'Journée entière' : 'Une plage'}
+                  </button>
+                  {!journee && (
+                    <>
+                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} placeholder="12h00" style={{ width: 86, textAlign: 'center' }} />
+                      <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} placeholder="14h00" style={{ width: 86, textAlign: 'center' }} />
+                    </>
+                  )}
+                  <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} placeholder="Fermeture exceptionnelle" style={{ flex: 1, minWidth: 130 }} />
+                  <button
+                    className="tre-link-btn tre-link-btn--danger"
+                    onClick={() => setBlocages(blocages.filter((x) => x.id !== bl.id))}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button
+              className="tre-link-btn"
+              onClick={() => setBlocages([
+                ...blocages,
+                { id: `blk-${uid()}`, branchId: branch?.id ?? '', date: new Date().toISOString().slice(0, 10) },
+              ])}
+            >
+              + Bloquer un créneau
+            </button>
+          </div>
+
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+            Le motif peut être lu par les clientes — écris ce qui peut se dire à une cliente,
+            jamais les affaires de la maison. Une absence de plusieurs jours se pose jour par
+            jour : on voit ce qu’on bloque.
+          </div>
         </div>
       </Card>
 

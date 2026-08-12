@@ -34,6 +34,13 @@ export type Settings = {
       l'active le temps d'une facture, puis on le referme — d'où une bascule et
       non un réglage permanent. */
   fxEnabled?: boolean;
+  /** LA CAPACITÉ DU CALENDRIER (réservation en ligne). Au-delà du plafond, Ma
+      Couronne ne propose plus de créneau ce jour-là, même si des heures
+      restent — la maison garde son souffle. 0 ou absent = illimité. Le
+      comptoir, lui, n'est jamais bridé : poser un RDV à la main reste un
+      geste du personnel, qui voit son carnet. */
+  maxRdvParJourMaitre?: number;
+  maxRdvParJourMaison?: number;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */
@@ -140,12 +147,63 @@ export const hourToMin = (h: string): number => {
 
 const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
 
-/** Fenêtre d'ouverture d'une date ISO — la disponibilité de réservation la respecte. */
+/** Fenêtre d'ouverture d'une date ISO — la disponibilité de réservation la
+    respecte, EXCEPTIONS COMPRISES : « deux sources d'horaires pour une seule
+    maison, c'est une de trop » — la fermeture exceptionnelle saisie pour la
+    paie ferme AUSSI la réservation en ligne (celle de la Maison ; celles d'une
+    personne restent l'affaire du pointage). */
 export function openingForIso(dateIso: string): { closed: boolean; openMin: number; closeMin: number } {
   const dow = new Date(`${dateIso}T00:00:00`).getDay();
   const day = settingsStore.get().hours.find((h) => h.key === DAY_KEYS[dow]);
   if (!day || day.closed) return { closed: true, openMin: 0, closeMin: 0 };
-  return { closed: false, openMin: hourToMin(day.open), closeMin: hourToMin(day.close) };
+  const base = { closed: false, openMin: hourToMin(day.open), closeMin: hourToMin(day.close) };
+  const ex = exceptionsHorairesStore.get().find((e) => e.date === dateIso && !e.staffId);
+  if (!ex) return base;
+  if (ex.closed) return { closed: true, openMin: 0, closeMin: 0 };
+  return {
+    closed: false,
+    openMin: ex.open?.trim() ? hourToMin(ex.open) : base.openMin,
+    closeMin: ex.close?.trim() ? hourToMin(ex.close) : base.closeMin,
+  };
+}
+
+/* ---------- Exceptions d'horaires — UNE date, des heures à part ----------
+   Déménagées ici depuis la paie (equipe/payroll) le 12 août : le calendrier
+   de réservation doit les lire aussi, et Ma Couronne ne peut pas importer un
+   module du Trône. Une exception SANS `staffId` vaut pour toute la Maison —
+   c'est elle que la réservation respecte ; avec `staffId`, elle ne parle
+   qu'au pointage. La clé du document ne change pas. */
+export type HoraireException = {
+  id: string;
+  date: string;       // AAAA-MM-JJ
+  staffId?: string;   // absent = toute la Maison
+  open?: string;
+  close?: string;
+  closed?: boolean;
+  note?: string;
+};
+export const exceptionsHorairesStore = createStore<HoraireException[]>('mnd_horaires_exceptions', []);
+export const useExceptionsHoraires = () => useStore(exceptionsHorairesStore);
+
+/** L'horaire qui s'applique VRAIMENT à une personne un jour donné (paie). */
+export const horaireEffectif = (
+  date: string,
+  staffId: string | undefined,
+  semaine: Record<string, { open: string; close: string; closed: boolean }>,
+  exceptions: HoraireException[],
+  jourDeLaSemaine: (d: string) => string,
+): { open: string; close: string; closed: boolean; exception?: HoraireException } => {
+  const base = semaine[jourDeLaSemaine(date)] ?? { open: '09h00', close: '19h00', closed: false };
+  const duJour = exceptions.filter((e) => e.date === date);
+  /* Le plus précis d'abord : la personne, puis la Maison. */
+  const ex = duJour.find((e) => e.staffId && e.staffId === staffId) ?? duJour.find((e) => !e.staffId);
+  if (!ex) return base;
+  return {
+    open: ex.open?.trim() || base.open,
+    close: ex.close?.trim() || base.close,
+    closed: ex.closed ?? base.closed,
+    exception: ex,
+  };
 }
 
 /* ---------- Marque & thème ---------- */
@@ -173,3 +231,4 @@ export function useBrand() {
 import { bindDocument } from './sync';
 bindDocument(settingsStore, 'mnd_settings');
 bindDocument(brandStore, 'mnd_brand');
+bindDocument(exceptionsHorairesStore, 'mnd_horaires_exceptions');

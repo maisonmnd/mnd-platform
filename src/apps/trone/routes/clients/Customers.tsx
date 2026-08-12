@@ -1594,6 +1594,16 @@ function Customer360({
                     : `${client.lockCount} locks — comptage inscrit, il pilote son prix personnalisé.`;
                 })()}
               </div>
+            ) : client.lockCountDeclare ? (
+              /* ELLE A DÉCLARÉ AU TUNNEL — la réservation en tient la durée,
+                 mais le prix attend le comptage : la ligne le rappelle pour que
+                 le fauteuil compte à sa prochaine venue. */
+              <div className="trc-crown__meta">
+                {(() => {
+                  const b = bandOf(client.lockCountDeclare, bands);
+                  return `Elle se déclare ${b?.name ? `calibre ${b.name}` : `à ${client.lockCountDeclare} locks`} — durée de créneau seulement. Compter au fauteuil pour ouvrir son prix.`;
+                })()}
+              </div>
             ) : (
               <div className="trc-crown__meta">Locks à compter — sans eux, les prix s’annoncent « dès ».</div>
             )}

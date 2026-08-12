@@ -15,7 +15,8 @@ import { clientsStore, initiePersonaId, useClients, type Client } from '../../sh
 import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
-import { openingForIso, hourToMin } from '../../shared/settings';
+import { openingForIso, hourToMin, settingsStore } from '../../shared/settings';
+import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
@@ -333,7 +334,10 @@ const toMin = (hhmm: string) => {
 };
 
 /** Heures de départ libres pour un maître, un jour, une durée — dans la fenêtre
-    d'ouverture configurée au Trône (Paramètres : jours & heures, jours fermés). */
+    d'ouverture configurée au Trône (Paramètres : jours & heures, jours fermés,
+    exceptions d'une date — `openingForIso` les résout toutes), MOINS les
+    créneaux bloqués à la main, et SEULEMENT si le plafond de rendez-vous du
+    jour n'est pas atteint. Trois murs, trois réglages du Trône. */
 export function freeSlots(
   dateIso: string,
   master: string,
@@ -345,12 +349,25 @@ export function freeSlots(
   const opening = openingForIso(dateIso);
   if (opening.closed) return [];
 
-  const busy = appts
-    .filter((a) => a.branchId === branchId && a.master === master && a.date === dateIso && a.status !== 'annulé')
-    .map((a) => {
-      const start = toMin(a.time);
-      return [start, start + apptDurationMin(a, services)] as const;
-    });
+  const duJour = appts.filter((a) => a.branchId === branchId && a.date === dateIso && a.status !== 'annulé');
+
+  /* LE PLAFOND D'ABORD : au-delà, plus aucun créneau — même si des heures
+     restent. La maison choisit son souffle ; le comptoir, lui, n'est pas
+     bridé (poser un RDV à la main reste un geste du personnel). 0 = illimité. */
+  const regl = settingsStore.get();
+  const capMaison = regl.maxRdvParJourMaison ?? 0;
+  const capMaitre = regl.maxRdvParJourMaitre ?? 0;
+  if (capMaison > 0 && duJour.length >= capMaison) return [];
+  const duMaitre = duJour.filter((a) => a.master === master);
+  if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
+
+  /* L'agenda du maître, PLUS les murs posés à la main (pause, absence) :
+     un blocage occupe le calendrier exactement comme un rendez-vous. */
+  const busy: Array<readonly [number, number]> = duMaitre.map((a) => {
+    const start = toMin(a.time);
+    return [start, start + apptDurationMin(a, services)] as const;
+  });
+  busy.push(...plagesBloquees(blocagesStore.get(), branchId, dateIso, master, hourToMin));
 
   const now = new Date();
   const isToday = dateIso === isoOf(now);
