@@ -536,6 +536,24 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                 Rétablir le tapis complet
               </button>
             )}
+            {/* LE RETOUR AUX DÉFAUTS POUR ELLE SEULE — lève ses masques à elle,
+                sans toucher au socle de la Maison. */}
+            {portee === 'cliente' && (herCats.length > 0 || herSvcs.length > 0 || herProds.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm(`Rétablir le tapis complet de ${client.name.split(' ')[0]} ? Tous SES masques seront levés — elle verra tout ce que la Maison montre. Les masques valant pour toutes les clientes ne bougent pas.`)) return;
+                  clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, vitrineMasques: undefined } : c)));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Rétablir son tapis complet
+              </button>
+            )}
           </div>
         </div>
 
