@@ -8,7 +8,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof } from '../../s
 import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
-import { priceModeOf } from '../../shared/catalog';
+import { priceModeOf, sousArbreOf } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
    Ponctuel −10 % · Abonnement −15 % (l'entretien et la réparation, 3 prestations minimum).
@@ -50,7 +50,15 @@ export default function Compose({ onClose, toast }: Props) {
         .filter((g) => g.items.length > 0),
     [cats, services]
   );
-  const activeGroups = mode === 'abonnement' ? groups.filter((g) => sm.aboCats.includes(g.cat.id)) : groups;
+  /* UN ATELIER COCHÉ OUVRE TOUT SON SOUS-ARBRE (12 août) : les prestations de
+     GBÈJÍ vivent dans ses FAMILLES (SÍNSIN, KLƆKLƆ…) — comparer l'atelier aux
+     seules catégories directes laissait l'abonnement vide quand on le cochait. */
+  const aboSousArbre = useMemo(() => {
+    const ids = new Set<string>();
+    for (const id of sm.aboCats) for (const x of sousArbreOf(cats, id)) ids.add(x);
+    return ids;
+  }, [cats, sm.aboCats]);
+  const activeGroups = mode === 'abonnement' ? groups.filter((g) => aboSousArbre.has(g.cat.id)) : groups;
 
   const switchMode = (m: 'ponctuel' | 'abonnement') => {
     setMode(m);
@@ -60,7 +68,7 @@ export default function Compose({ onClose, toast }: Props) {
         const next: Record<string, number> = {};
         for (const [id, q] of Object.entries(prev)) {
           const s = services.find((x) => x.id === id);
-          if (s && sm.aboCats.includes(s.categoryId)) next[id] = q;
+          if (s && aboSousArbre.has(s.categoryId)) next[id] = q;
         }
         return next;
       });

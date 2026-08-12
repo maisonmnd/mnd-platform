@@ -459,26 +459,54 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               ))}
             </div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-              Ateliers ouverts à l’abonnement :
+              Ouvert à l’abonnement — ateliers, familles ou sous-familles ;
+              cocher un parent couvre tout son sous-arbre :
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {catsDansLOrdre(categories).filter((c) => !c.parentId).map((c) => {
+              {(() => {
                 const smCfg = surMesureDe(cfg);
-                const dans = smCfg.aboCats.includes(c.id);
-                return (
-                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={dans}
-                      onChange={() => vitrineConfigStore.set((cf) => {
-                        const cur = surMesureDe(cf);
-                        return { ...cf, surMesure: { ...cur, aboCats: dans ? cur.aboCats.filter((x) => x !== c.id) : [...cur.aboCats, c.id] } };
-                      })}
-                    />
-                    {c.fon} · {c.label}
-                  </label>
-                );
-              })}
+                /* La profondeur indente ; un ancêtre coché COUVRE — l'enfant se
+                   montre inclus, non décochable tant que le parent l'est. */
+                const parentDe = (c: (typeof categories)[number]) => categories.find((x) => x.id === c.parentId);
+                const profondeur = (c: (typeof categories)[number]): number => {
+                  let d = 0; let cur = c;
+                  for (let i = 0; cur.parentId && i < 8; i += 1) {
+                    const p = parentDe(cur); if (!p) break; cur = p; d += 1;
+                  }
+                  return d;
+                };
+                const couvrePar = (c: (typeof categories)[number]) => {
+                  let cur = c;
+                  for (let i = 0; cur.parentId && i < 8; i += 1) {
+                    const p = parentDe(cur); if (!p) break;
+                    if (smCfg.aboCats.includes(p.id)) return p;
+                    cur = p;
+                  }
+                  return undefined;
+                };
+                return catsDansLOrdre(categories).map((c) => {
+                  const dans = smCfg.aboCats.includes(c.id);
+                  const couvert = couvrePar(c);
+                  return (
+                    <label
+                      key={c.id}
+                      title={couvert ? `Couvert par ${couvert.fon} — décocher le parent pour choisir plus fin.` : undefined}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: couvert ? 'default' : 'pointer', paddingLeft: profondeur(c) * 16, opacity: couvert ? 0.6 : 1 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={dans || !!couvert}
+                        disabled={!!couvert}
+                        onChange={() => vitrineConfigStore.set((cf) => {
+                          const cur = surMesureDe(cf);
+                          return { ...cf, surMesure: { ...cur, aboCats: dans ? cur.aboCats.filter((x) => x !== c.id) : [...cur.aboCats, c.id] } };
+                        })}
+                      />
+                      {c.fon} · {c.label}
+                    </label>
+                  );
+                });
+              })()}
             </div>
           </div>
 
