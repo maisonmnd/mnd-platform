@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check } from 'lucide-react';
+import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -341,7 +341,26 @@ export function ReminderBell({
   const upcoming =
     (appt.status === 'confirmé' || appt.status === 'en attente') && appt.date >= todayISO();
   const { href, due, when } = apptReminder(appt, client, byId, branch.pictogram ?? undefined);
-  if (!upcoming || !href) return null;
+  if (!upcoming || !client) return null;
+  /* Sans numéro sur la fiche, la cloche disparaissait EN SILENCE — et on
+     cherchait pourquoi telle cliente n'avait pas la sienne (question de Yéman,
+     12 août). Un refus se motive : cloche barrée, pointillée, qui dit ce qui
+     manque et mène à la fiche pour poser le numéro. */
+  if (!href) {
+    return (
+      <a
+        className={`trc-remind${className ? ` ${className}` : ''}`}
+        data-off="1"
+        href="#/customers"
+        draggable={false}
+        onClick={(e) => e.stopPropagation()}
+        title={`Pas de numéro sur la fiche — le rappel WhatsApp du RDV ${when} ne peut pas partir. Ouvrez la fiche pour ajouter le numéro.`}
+        aria-label="Pas de numéro sur la fiche — ouvrir le carnet de clientes"
+      >
+        <BellOff size={size} />
+      </a>
+    );
+  }
   const kind: ReminderKind = due === 'now' ? 'h1' : 'j1';
   const sent = sentKeys.includes(reminderKey(appt.id, appt.date, kind));
   const label = kind === 'h1' ? 'dernier rappel (dans l’heure)' : 'rappel de la veille';

@@ -92,6 +92,15 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(185, 122, 74, 0.45); }
   50% { box-shadow: 0 0 0 5px rgba(185, 122, 74, 0); }
 }
+/* Pas de numéro sur la fiche — la cloche ne disparaît plus en silence : un
+   refus se motive. Barrée, pointillée, elle mène à la fiche pour poser le
+   numéro ; le survol passe au cuivre (un conseil), jamais au vert WhatsApp. */
+.trc-remind[data-off="1"] {
+  color: var(--ink-soft); border-style: dashed; border-color: var(--hairline);
+}
+.trc-remind[data-off="1"]:hover {
+  color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50);
+}
 /* Rappel déjà envoyé — la cloche se met en retrait (vert discret, pas de
    pulsation) sans jamais se verrouiller : un clic renvoie le message. Déclaré
    APRÈS les états d'urgence pour les emporter à égalité de spécificité. */
