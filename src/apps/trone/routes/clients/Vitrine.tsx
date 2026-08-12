@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
 import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
-import { useCategories, useProducts, useServices, priceModeOf } from '../../../../shared/catalog';
+import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
 import { vitrineConfigStore, catalogueVisiblePour } from '../../../../shared/bridges';
@@ -381,8 +381,8 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const offCount = services.length + products.length - onCount;
 
   const byCat = (catId: string) => ({
-    services: services.filter((s) => s.categoryId === catId),
-    products: products.filter((p) => p.categoryId === catId),
+    services: services.filter((s) => s.categoryId === catId).sort((a, b) => a.order - b.order),
+    products: products.filter((p) => p.categoryId === catId).sort((a, b) => a.order - b.order),
   });
 
   return (
@@ -521,7 +521,9 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </div>
         </div>
 
-        {categories.map((cat) => {
+        {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
+            l'arbre, chaque famille derrière son atelier (12 août). */}
+        {catsDansLOrdre(categories).map((cat) => {
           const { services: cs, products: cp } = byCat(cat.id);
           if (cs.length === 0 && cp.length === 0) return null;
           const catOn = catVisible(cat.id);

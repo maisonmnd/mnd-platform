@@ -144,17 +144,25 @@ export function catalogueVisiblePour(o: {
     }
     return true;
   };
+  /* L'ORDRE DU CATALOGUE JUSQU'AU BOUT (12 août) : trier les prestations à
+     plat sur `order` mélangeait les ateliers (tous les rangs 1 d'abord…) —
+     le tapis de cuivre ne suivait pas la carte. On trie par la POSITION de
+     l'atelier dans l'arbre, puis par le rang dans l'atelier. */
+  const arbre = catsDansLOrdre(o.cats);
+  const rangCat = new Map(arbre.map((c, i) => [c.id, i]));
+  const parCatalogue = (a: { categoryId: string; order: number }, b: { categoryId: string; order: number }): number =>
+    ((rangCat.get(a.categoryId) ?? 9999) - (rangCat.get(b.categoryId) ?? 9999)) || (a.order - b.order);
   const services = o.services
     .filter((s) => catOk(s.categoryId) && !o.cfg.hiddenServices.includes(s.id) && !mSvcs.includes(s.id))
     .slice()
-    .sort((a, b) => a.order - b.order);
+    .sort(parCatalogue);
   const products = o.products
     .filter((p) => catOk(p.categoryId) && !o.cfg.hiddenProducts.includes(p.id) && !mProds.includes(p.id))
     .slice()
-    .sort((a, b) => a.order - b.order);
+    .sort(parCatalogue);
   const nonEmpty = new Set<string>([...services.map((s) => s.categoryId), ...products.map((p) => p.categoryId)]);
   return {
-    cats: catsDansLOrdre(o.cats).filter((c) => catOk(c.id) && nonEmpty.has(c.id)),
+    cats: arbre.filter((c) => catOk(c.id) && nonEmpty.has(c.id)),
     services,
     products,
   };
