@@ -23,6 +23,7 @@ import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   MONTHS,
+  ensureClient,
   moduleHidden,
   dayLabelIso,
   daysSince,
@@ -1372,6 +1373,19 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [city, setCity] = useState(client?.city ?? '');
   const [birthday, setBirthday] = useState(client?.birthday ?? '');
 
+  /* LA FICHE PEUT ARRIVER APRÈS L'ÉCRAN — synchronisation en cours, adoption,
+     première visite. L'amorce `useState` ne se rejoue pas : le formulaire
+     restait VIDE devant une fiche pleine, et la cliente retapait son nom en
+     boucle (Merine, 12 août). Dès que la fiche change de tête, on ressème. */
+  useEffect(() => {
+    if (!client) return;
+    setName(client.name ?? '');
+    setPhone(client.phone ?? '');
+    setCity(client.city ?? '');
+    setBirthday(client.birthday ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.id]);
+
   /* Notifications téléphone (Web Push). */
   const [pstate, setPstate] = useState<PushState>('default');
   const [pbusy, setPbusy] = useState(false);
@@ -1396,6 +1410,16 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
     const n = name.trim();
     if (!n) {
       toast('Votre nom est nécessaire — la maison vous appelle par votre nom.');
+      return;
+    }
+    /* LA FICHE D'ABORD, L'ÉCRITURE ENSUITE. Avant la fiche (synchronisation en
+       cours), le `map` n'écrivait RIEN et le toast disait quand même
+       « enregistré » — la cliente retapait son prénom sans fin (Merine,
+       12 août). On assure la fiche, et si elle n'est toujours pas là, on le
+       DIT au lieu de mentir. */
+    ensureClient(clientId, session?.user?.email, branch.id, n, session?.user?.id);
+    if (!clientsStore.get().some((c) => c.id === clientId)) {
+      toast('La maison synchronise encore votre dossier — réessayez dans un instant.');
       return;
     }
     clientsStore.set((prev) =>

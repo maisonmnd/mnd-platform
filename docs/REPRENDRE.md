@@ -2,6 +2,25 @@
 
 État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
 
+## L'inscription ne double plus les fiches — 12 août (Merine)
+
+Trois défauts vécus par une vraie cliente à son inscription Ma Couronne :
+① `useEnsureClient` attendait l'hydratation des BRANCHES mais pas celle des
+CLIENTES — inscrite avant la première lecture du CRM, elle recevait une fiche
+DOUBLON pendant que sa fiche historique (famille, enfants, rituels) attendait
+d'être adoptée par son adresse. Désormais : `tablePrete('clients')` requis
+avant toute création, et `ensureClient` tente UNE DERNIÈRE ADOPTION par
+l'adresse au moment même de créer. ② Le Profil « enregistrait » dans le vide
+quand la fiche n'était pas née (le `map` ne touchait rien, le toast mentait) —
+la fiche s'assure avant l'écriture, et si elle manque encore on le DIT.
+③ Le formulaire du Profil s'amorçait sur une fiche pas encore arrivée (champs
+vides, `useState` ne se rejoue pas) — il se ressème sur `client.id`.
+RAPPEL du juge des enfants : `tetesPortees` exige que le parent soit le
+PAYEUR de la famille ET que chaque enfant ait une DATE DE NAISSANCE (mineur
+échoue fermé) — sans elles, rien ne s'affiche côté Ma Couronne. Les doublons
+déjà nés se soudent par SQL clouée sur identifiants (motif
+`supabase/local_*.sql`, gitignoré).
+
 ## La remise famille — 12 août
 
 L'avantage du compte famille est un TAUX porté par le compte

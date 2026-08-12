@@ -81,6 +81,23 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
     }
     return;
   }
+  /* DERNIÈRE CHANCE D'ADOPTION avant de créer. `useClientId` a pu résoudre
+     l'identifiant AVANT que le CRM ne soit hydraté : à cet instant la fiche
+     historique (celle qui porte la famille, les enfants, les rituels) n'était
+     pas encore là pour être reconnue par son adresse. Créer sans revérifier
+     ouvrait un DOUBLON vide — la cliente perdait ses enfants et son histoire
+     de l'autre côté (Merine, 12 août). On regarde une dernière fois, ici même,
+     au moment du geste. */
+  const mailBas = (mail ?? '').toLowerCase();
+  const aAdopter = mailBas
+    ? clientsStore.get().find((c) => !c.authUserId && (c.email ?? '').trim().toLowerCase() === mailBas)
+    : undefined;
+  if (aAdopter) {
+    clientsStore.set((prev) =>
+      prev.map((c) => (c.id === aAdopter.id ? { ...c, authUserId: authUserId ?? clientId } : c)),
+    );
+    return;
+  }
   const local = (email ?? '').split('@')[0];
   const name = (fullName && fullName.trim())
     || (local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Cliente Ma Couronne');
@@ -114,9 +131,11 @@ export function useEnsureClient(): string {
   const clientId = useClientId();
   const uid = session?.user?.id;
   const metaName = (session?.user?.user_metadata as { name?: string } | undefined)?.name;
-  /* Se ré-exécute quand les branches ARRIVENT — c'est le moment où la fiche
-     peut naître (ou se ranger) sur la vraie branche. */
+  /* Se ré-exécute quand les branches ou le CRM ARRIVENT — ce sont les moments
+     où la fiche peut naître (ou se ranger) sur la vraie branche, ou être
+     ADOPTÉE au lieu d'être doublée. */
   const [branches] = useStore(branchesStore);
+  const [tousClients] = useClients();
   useEffect(() => {
     /* PAS DE FICHE SUR UNE BRANCHE DEVINÉE. Un téléphone neuf s'inscrit AVANT
        d'avoir hydraté le référentiel : créer la fiche à cet instant la rangeait
@@ -124,8 +143,13 @@ export function useEnsureClient(): string {
        vraie (Valerie Ahouansou, 10 août 2026). On attend la première lecture
        des branches ; sans backend, tout est prêt d'emblée. */
     if (!tablePrete('branches')) return;
+    /* PAS DE FICHE NEUVE AVANT D'AVOIR LU LE CRM. La même course, côté
+       clientes : s'inscrire avant l'hydratation créait un DOUBLON alors que la
+       fiche historique — famille, enfants, rituels — attendait d'être reconnue
+       par son adresse (Merine, 12 août). */
+    if (!tablePrete('clients')) return;
     ensureClient(clientId, session?.user?.email, undefined, metaName, uid);
-  }, [clientId, session?.user?.email, metaName, uid, branches]);
+  }, [clientId, session?.user?.email, metaName, uid, branches, tousClients]);
   return clientId;
 }
 
