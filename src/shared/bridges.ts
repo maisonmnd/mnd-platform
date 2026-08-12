@@ -30,7 +30,14 @@ export type OnlineConsultation = {
 
 export type VitrineConfig = {
   autoplay: boolean;
+  /** VESTIGE (12 août) — la liste blanche n'est plus consultée par le juge :
+      semée une fois, jamais entretenue, elle cachait toute catégorie née
+      après. Conservée pour ne pas casser les données déjà en base. */
   visibleCategories: string[];
+  /** LE TAPIS DE LA MAISON — masques valant pour TOUTES les clientes (mode
+      « Pour toutes les clientes » de la régie). Les masques individuels de
+      chaque fiche (`Client.vitrineMasques`) s'y AJOUTENT. */
+  hiddenCategories?: string[];
   hiddenServices: string[];
   hiddenProducts: string[];
   /** CE QUE LE QUIZ RECOMMANDE, prestation par envie.
@@ -125,13 +132,14 @@ export function catalogueVisiblePour(o: {
      invisible sur Ma Couronne sans qu'aucun réglage ne le dise. Le VRAI
      interrupteur global existe déjà et a son écran : « Visible aux
      clientes » du Catalogue (`enabled`), qui coupe sa descendance. */
+  const gCats = o.cfg.hiddenCategories ?? [];
   const catOk = (id: string): boolean => {
     let c = o.cats.find((x) => x.id === id);
-    if (!c || !c.enabled || mCats.includes(c.id)) return false;
+    if (!c || !c.enabled || mCats.includes(c.id) || gCats.includes(c.id)) return false;
     for (let i = 0; c.parentId && i < 8; i += 1) {
       const parent = o.cats.find((x) => x.id === c!.parentId);
       if (!parent) break;
-      if (!parent.enabled || mCats.includes(parent.id)) return false;
+      if (!parent.enabled || mCats.includes(parent.id) || gCats.includes(parent.id)) return false;
       c = parent;
     }
     return true;
@@ -157,6 +165,7 @@ export const consultationsQueueStore = createStore<OnlineConsultation[]>('mnd_co
 export const vitrineConfigStore = createStore<VitrineConfig>('mnd_vitrine_config', {
   autoplay: true,
   visibleCategories: [],
+  hiddenCategories: [],
   hiddenServices: [],
   hiddenProducts: [],
   recoParEnvie: {},

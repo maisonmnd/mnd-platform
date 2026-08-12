@@ -333,28 +333,44 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
      masquer pour une tête masquait pour toutes. Ils écrivent désormais SES
      masques, sur SA fiche (`Client.vitrineMasques`) ; la config globale ne
      garde que ce qui vaut pour toute la Maison (la carte de gauche le dit). */
+  /* DEUX PORTÉES, UN COMMUTATEUR (12 août) : le tapis se compose pour CETTE
+     cliente (sa fiche, `vitrineMasques`) ou pour TOUTE LA MAISON (le socle,
+     VitrineConfig). Les masques individuels s'ajoutent toujours au socle. */
+  const [portee, setPortee] = useState<'cliente' | 'maison'>('cliente');
   const masques = client.vitrineMasques ?? {};
   const herCats = masques.categories ?? [];
   const herSvcs = masques.services ?? [];
   const herProds = masques.products ?? [];
+  const gCats = cfg.hiddenCategories ?? [];
   const setMasques = (patch: Partial<NonNullable<typeof client.vitrineMasques>>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id
       ? { ...c, vitrineMasques: { ...(c.vitrineMasques ?? {}), ...patch } }
       : c)));
   const bascule = (l: string[], id: string) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]);
 
-  const catVisible = (id: string) => !herCats.includes(id);
-  const svcVisible = (id: string) => !herSvcs.includes(id);
-  const prodVisible = (id: string) => !herProds.includes(id);
-  const toggleCat = (id: string) => setMasques({ categories: bascule(herCats, id) });
-  const toggleSvc = (id: string) => setMasques({ services: bascule(herSvcs, id) });
-  const toggleProd = (id: string) => setMasques({ products: bascule(herProds, id) });
+  /* En portée cliente, un masque MAISON se voit (éteint) mais ne se rallume
+     pas d'ici — la carte le dit ; on bascule en portée Maison pour ça. */
+  const masqueMaisonCat = (id: string) => gCats.includes(id);
+  const masqueMaisonSvc = (id: string) => cfg.hiddenServices.includes(id);
+  const masqueMaisonProd = (id: string) => cfg.hiddenProducts.includes(id);
+  const catVisible = (id: string) => (portee === 'maison' ? !gCats.includes(id) : !herCats.includes(id) && !gCats.includes(id));
+  const svcVisible = (id: string) => (portee === 'maison' ? !cfg.hiddenServices.includes(id) : !herSvcs.includes(id) && !cfg.hiddenServices.includes(id));
+  const prodVisible = (id: string) => (portee === 'maison' ? !cfg.hiddenProducts.includes(id) : !herProds.includes(id) && !cfg.hiddenProducts.includes(id));
+  const toggleCat = (id: string) => (portee === 'maison'
+    ? vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: bascule(c.hiddenCategories ?? [], id) }))
+    : (masqueMaisonCat(id) ? undefined : setMasques({ categories: bascule(herCats, id) })));
+  const toggleSvc = (id: string) => (portee === 'maison'
+    ? vitrineConfigStore.set((c) => ({ ...c, hiddenServices: bascule(c.hiddenServices, id) }))
+    : (masqueMaisonSvc(id) ? undefined : setMasques({ services: bascule(herSvcs, id) })));
+  const toggleProd = (id: string) => (portee === 'maison'
+    ? vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: bascule(c.hiddenProducts, id) }))
+    : (masqueMaisonProd(id) ? undefined : setMasques({ products: bascule(herProds, id) })));
   const setFlag = (k: 'autoplay' | 'quizEnabled' | 'quizCouronne' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
 
-  /* Ce qu'ELLE voit vraiment — le juge unique, socle Maison + ses masques. */
+  /* Ce que la portée choisie DONNE À VOIR — le juge unique. */
   const sonCatalogue = useMemo(
-    () => catalogueVisiblePour({ cfg, masques: client.vitrineMasques, cats: categories, services, products }),
-    [cfg, client, categories, services, products],
+    () => catalogueVisiblePour({ cfg, masques: portee === 'cliente' ? client.vitrineMasques : undefined, cats: categories, services, products }),
+    [cfg, client, categories, services, products, portee],
   );
   const carpet = useMemo(
     () => [...sonCatalogue.services.map((x) => x.name), ...sonCatalogue.products.map((x) => x.name)],
@@ -475,9 +491,33 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
           <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>La régie de la vitrine</div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, color: 'var(--color-indigo)', margin: '2px 0 0' }}>Compose son tapis de cuivre.</h2>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, color: 'var(--color-indigo)', margin: '2px 0 0' }}>
+            {portee === 'cliente' ? 'Compose son tapis de cuivre.' : 'Compose le tapis de la Maison.'}
+          </h2>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--ink-soft)', marginTop: 5 }}>
-            Choisis ce que {client.name.split(' ')[0]} verra — et ce qu’elle ne verra pas.
+            {portee === 'cliente'
+              ? <>Choisis ce que {client.name.split(' ')[0]} verra — et ce qu’elle ne verra pas.</>
+              : <>Ce que TOUTES les clientes verront — les masques individuels s’y ajoutent.</>}
+          </div>
+          {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
+              la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            {([['cliente', `Pour ${client.name.split(' ')[0]}`], ['maison', 'Pour toutes les clientes']] as const).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={portee === k}
+                onClick={() => setPortee(k)}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: portee === k ? 'var(--color-ivoire)' : 'var(--color-indigo)',
+                  background: portee === k ? 'var(--color-indigo)' : 'transparent',
+                  border: '1px solid var(--color-indigo)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                {l}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -485,18 +525,41 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           const { services: cs, products: cp } = byCat(cat.id);
           if (cs.length === 0 && cp.length === 0) return null;
           const catOn = catVisible(cat.id);
+          const catMaison = portee === 'cliente' && masqueMaisonCat(cat.id);
           return (
             <div key={cat.id}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
-                <div className="trc-microlabel" style={{ margin: 0 }}>{cat.fon} · {cat.label}</div>
-                <button className={`trc-switch ${catOn ? 'is-on' : ''}`} onClick={() => toggleCat(cat.id)} aria-label={`Catégorie ${cat.fon}`} title={catOn ? 'Catégorie visible' : 'Catégorie masquée'} />
+                <div className="trc-microlabel" style={{ margin: 0 }}>
+                  {cat.fon} · {cat.label}
+                  {catMaison && <span style={{ color: 'var(--copper-700)', textTransform: 'none', letterSpacing: 0 }}> — masqué pour toute la Maison</span>}
+                </div>
+                <button
+                  className={`trc-switch ${catOn ? 'is-on' : ''}`}
+                  onClick={() => toggleCat(cat.id)}
+                  aria-label={`Catégorie ${cat.fon}`}
+                  title={catMaison
+                    ? 'Masqué pour toute la Maison — bascule sur « Pour toutes les clientes » pour le rallumer.'
+                    : catOn ? 'Catégorie visible' : 'Catégorie masquée'}
+                />
               </div>
               <div className="tr-grid tr-grid--2" style={{ opacity: catOn ? 1 : 0.4, pointerEvents: catOn ? 'auto' : 'none' }}>
                 {cs.map((s) => (
-                  <ToggleCard key={s.id} name={s.name} sub={`${s.palier}`} on={svcVisible(s.id)} onToggle={() => toggleSvc(s.id)} />
+                  <ToggleCard
+                    key={s.id}
+                    name={s.name}
+                    sub={portee === 'cliente' && masqueMaisonSvc(s.id) ? `${s.palier} · masqué pour toute la Maison` : `${s.palier}`}
+                    on={svcVisible(s.id)}
+                    onToggle={() => toggleSvc(s.id)}
+                  />
                 ))}
                 {cp.map((p) => (
-                  <ToggleCard key={p.id} name={p.name} sub="Produit maison" on={prodVisible(p.id)} onToggle={() => toggleProd(p.id)} />
+                  <ToggleCard
+                    key={p.id}
+                    name={p.name}
+                    sub={portee === 'cliente' && masqueMaisonProd(p.id) ? 'Produit maison · masqué pour toute la Maison' : 'Produit maison'}
+                    on={prodVisible(p.id)}
+                    onToggle={() => toggleProd(p.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -505,8 +568,12 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
 
         {/* Le tapis de cuivre */}
         <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>Le tapis de cuivre · {client.name.split(' ')[0]}</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>Ce qu’elle foulera, dans cet ordre — rien d’autre.</div>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
+            Le tapis de cuivre · {portee === 'cliente' ? client.name.split(' ')[0] : 'toute la Maison'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>
+            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre — rien d’autre.' : 'Le socle commun — chaque fiche peut encore y retrancher.'}
+          </div>
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>
             {carpet.length === 0 ? (
               <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-200)' }}>Tapis vide — allume au moins une pièce.</span>
