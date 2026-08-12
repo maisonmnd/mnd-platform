@@ -128,6 +128,21 @@ export function validerEnfant(dec: EnfantDeclare, aujourdhui: string, nomComplet
   if (!parent) return { ok: false, erreur: 'La fiche du parent est introuvable.' };
   const nom = (nomComplet ?? nomPropose(dec)).trim().replace(/\s+/g, ' ');
   if (!nom) return { ok: false, erreur: 'Il faut un nom pour ouvrir sa fiche.' };
+  /* LA MÊME TÊTE NE S'OUVRE PAS DEUX FOIS (Kaitlyn, 12 août : deux validations
+     ont ouvert deux fiches jumelles d'une enfant qui en avait déjà une). Même
+     nom, même naissance, même branche = c'est elle. On refuse en le disant —
+     le comptoir rattache la fiche EXISTANTE au compte famille depuis
+     Finances › Comptes, il ne la double pas. */
+  const nomBas = nom.toLowerCase();
+  const dejaLa = clientsStore.get().find((c) => !c.archived && c.branchId === dec.branchId
+    && c.name.trim().replace(/\s+/g, ' ').toLowerCase() === nomBas
+    && (c.birthday ?? '') === dec.birthday);
+  if (dejaLa) {
+    return {
+      ok: false,
+      erreur: `${nom} est déjà au carnet (même nom, même naissance). Rattachez sa fiche existante au compte famille (Finances › Comptes), puis refusez cette demande avec un mot.`,
+    };
+  }
 
   /* Le compte famille : celui du parent s'il en a un, sinon on l'ouvre — et le
      parent en devient le payeur, ce qui est déjà la vérité du comptoir. */
