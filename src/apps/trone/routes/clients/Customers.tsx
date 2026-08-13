@@ -1621,12 +1621,10 @@ function Customer360({
                   onChange={(e) => patch({ crownSince: e.target.value || undefined })}
                 />
               </Field>
-              <Field label="Maître préféré(e)">
-                <Select value={client.preferredMaster ?? ''} onChange={(e) => patch({ preferredMaster: e.target.value || undefined })}>
-                  <option value="">—</option>
-                  {branch.masters.map((m) => <option key={m} value={m}>{m}</option>)}
-                </Select>
-              </Field>
+              {/* « MAÎTRE PRÉFÉRÉ(E) » RETIRÉ DU STATUT (13 août, demande de
+                  Yéman) : la préférence est À ELLE — elle se dit dans le
+                  Profil de Ma Couronne (`preferredMaster` vit toujours, la
+                  reco et la réservation le lisent). */}
               <Field label="Produit recommandé · son Carnet de Suivi">
                 <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>
                   <option value="">— aucun —</option>
