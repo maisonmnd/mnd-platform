@@ -7,7 +7,7 @@ import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../sh
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceCashXof, expenseTotal } from '../../../../shared/finance';
-import { useApprenants } from '../equipe/data';
+import { useApprenants, useEnvois } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
@@ -384,6 +384,17 @@ export default function Dashboard() {
 
   const clientOf = (id: string) => allClients.find((c) => c.id === id);
 
+  /* La tournée du matin — les rendez-vous de DEMAIN encore debout, et le
+     journal des envois (table `envois`) qui dit ce qui est déjà parti seul. */
+  const demain = addDaysISO(today, 1);
+  const [envois] = useEnvois();
+  const demainRows = useMemo(
+    () => appts
+      .filter((a) => a.date === demain && (a.status === 'confirmé' || a.status === 'en attente'))
+      .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
+    [appts, demain],
+  );
+
   /* Rendu d'un groupe d'impayés (échus / à venir) — carte avec total + lignes encaissables. */
   const renderUnpaidGroup = (
     title: string,
@@ -598,6 +609,51 @@ export default function Dashboard() {
               <button className="trp-pay__cta" onClick={r.go}>{r.action}</button>
             </div>
           ))}
+      </div>
+
+      {/* ── LA TOURNÉE DU MATIN — les rappels de demain, réunis (13 août).
+          Les cloches existaient, dispersées sur le Carnet et le Calendrier ;
+          ici elles s'alignent : un tap par cliente, et la pastille dit si le
+          rappel PUSH est déjà parti tout seul (fonction `rappels-j1`). */}
+      <div className="trp-panel" style={{ marginTop: 14 }}>
+        <div className="trp-panel__title">
+          La tournée du matin · rappels de demain{demainRows.length > 0 ? ` · ${demainRows.length}` : ''}
+        </div>
+        {demainRows.length === 0
+          ? <div className="trp-empty">Rien à rappeler — le carnet de demain est libre.</div>
+          : demainRows.map((a, i) => {
+            const c = clientOf(a.clientId);
+            const nom = a.clientName ?? c?.name ?? 'Cliente';
+            const push = envois.find((e) => e.id === `env-${a.id}-push`);
+            const waAuto = envois.find((e) => e.id === `env-${a.id}-whatsapp`);
+            const smsAuto = envois.find((e) => e.id === `env-${a.id}-sms`);
+            const tag = (texte: string) => (
+              <span className="mnd-muted" style={{ fontSize: 11, border: '1px solid var(--hairline)', borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+                {texte}
+              </span>
+            );
+            return (
+              <div
+                key={a.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+              >
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', minWidth: 46 }}>{a.time}</span>
+                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
+                {push?.statut === 'envoyé' && tag('Push parti seul')}
+                {push?.statut === 'sans-abonnement' && tag('Sans l’appli')}
+                {waAuto?.statut === 'envoyé' && tag('WhatsApp auto')}
+                {smsAuto?.statut === 'envoyé' && tag('SMS auto')}
+                <ReminderBell appt={a} client={c} byId={byId} />
+              </div>
+            );
+          })}
+        {demainRows.length > 0 && (
+          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+            Le rappel push part tout seul en fin de journée vers les clientes qui ont installé
+            Ma Couronne. La cloche ouvre WhatsApp pré-rempli pour les autres — un tap, Envoyer,
+            et elle se souvient de ton geste.
+          </div>
+        )}
       </div>
 
       {/* Carnet du jour + revenu 7 jours */}

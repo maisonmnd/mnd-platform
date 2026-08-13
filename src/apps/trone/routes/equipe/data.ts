@@ -218,6 +218,28 @@ export const MOMO_QR_DEFAUT = '506846@momopay';
 export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
 export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
 
+/* ── LE JOURNAL DES ENVOIS (13 août) — table `envois`, 0043.
+   Une ligne = UN message à UNE personne par UN canal, avec son verdict.
+   ÉCRIT par la fonction planifiée `rappels-j1` (push automatique, WhatsApp/
+   SMS quand leurs clés existeront) et par la tournée du matin du Trône
+   (rappel WhatsApp envoyé à la main). Identifiant DÉTERMINISTE
+   `env-<apptId>-<canal>` : l'idempotence des rappels vit dans la clé. */
+export type Envoi = {
+  id: string;
+  branchId?: string;
+  type: 'rappel-j1';
+  canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
+  apptId: string;
+  clientId?: string;
+  dateRdv: string;
+  heure?: string;
+  statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main';
+  detail?: string;
+  quand: string; // ISO — l'instant de la tentative
+};
+export const envoisStore = createStore<Envoi[]>('mnd_envois', []);
+export const useEnvois = () => useStore(envoisStore);
+
 /** Liens configurables insérés tels quels dans les envois — partagés Marketing ↔ Paramètres. */
 export const autoConfigStore = createStore<AutoConfig>('mnd_auto_config', {
   momoLink: '',
@@ -817,6 +839,7 @@ bindDocument(segmentNotesStore, 'mnd_segment_notes');
 bindDocument(automationsStore, 'mnd_automations');
 bindDocument(automationsActiveStore, 'mnd_automations_active');
 bindDocument(autoConfigStore, 'mnd_auto_config');
+bindCollection(envoisStore, 'envois');
 bindDocument(recoStateStore, 'mnd_reco_state');
 bindDocument(salonHoursStore, 'mnd_salon_hours');
 bindDocument(staffAccessStore, 'mnd_staff_access');

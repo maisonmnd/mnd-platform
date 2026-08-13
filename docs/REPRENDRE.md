@@ -1,6 +1,35 @@
 # Reprendre — état de la Maison
 
-État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
+État au 13 août 2026. À lire en premier dans une nouvelle session.
+
+## Les envois automatiques — 13 août (chantier des trois canaux)
+
+Vérité d'avant : les « automatisations » de Marketing étaient un registre
+SANS émetteur — tout partait au tap (wa.me pré-rempli), seul le push
+(`push-notify`, déployée hors dépôt) était réel. Yéman a choisi les trois
+voies d'un coup : gratuit d'abord + WhatsApp API + SMS.
+
+- **Table `envois` (0043, PASSÉE — contrôle `envois · 0`)** : le journal,
+  une ligne par personne et par canal, id DÉTERMINISTE `env-<apptId>-<canal>`
+  (l'idempotence vit dans la clé). RLS personnel SEULEMENT — les lignes
+  portent des téléphones. Magasin lié dans `equipe/data.ts` (type `Envoi`).
+- **Fonction `rappels-j1`** (`supabase/functions/rappels-j1/index.ts`,
+  fichier COMPLET à coller — règle maison) : réveillée par cron (17 h UTC =
+  18 h Cotonou), lit les RDV de demain (fuseau salon), envoie ① le PUSH via
+  `push-notify` appelée de l'intérieur (gratuit, marche dès le déploiement),
+  ② WhatsApp par l'API Meta SI `WA_TOKEN`/`WA_PHONE_ID`/`WA_TEMPLATE` posés
+  (modèle `rappel_rdv` fr, {{1}} prénom {{2}} heure), ③ SMS forme Twilio SI
+  `SMS_TWILIO_SID`/`SMS_TWILIO_TOKEN`/`SMS_FROM` posés. Garde : n'accepte
+  QUE la clé service. AUCUN secret dans le dépôt.
+- **La tournée du matin** (Tableau de bord, après « Ce qui presse ») : les
+  RDV de demain alignés, pastilles « Push parti seul / WhatsApp auto / SMS
+  auto / Sans l'appli » lues du journal, et la `ReminderBell` existante pour
+  finir à la main.
+- **Guide complet : `docs/BRANCHER-ENVOIS.md`** — déploiement, cron,
+  compte Meta (numéro DÉDIÉ obligatoire, modèle à faire approuver, tarif à
+  la conversation à vérifier), fournisseur SMS (adapter le bloc ③ si autre
+  que Twilio). RESTE À FAIRE PAR YÉMAN : déployer la fonction + poser le
+  cron (étapes 1-2) ; comptes Meta/SMS quand elle veut (étapes 3-4).
 
 ## Paramètres : l'audit du vrai et du décor — 13 août
 
