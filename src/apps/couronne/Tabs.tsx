@@ -16,7 +16,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable,
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees } from '../../shared/accounts';
-import { declarationsDe, declarerEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
+import { declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
@@ -1270,14 +1270,20 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   const refusees = mesDemandes.filter((d) => d.statut === 'refusé');
 
   const envoyer = () => {
-    const r = declarerEnfant(client, prenom, nom, naissance, aujourdhui);
+    /* LE RATTACHEMENT EST IMMÉDIAT (13 août) : la fiche naît ici même, sous
+       son compte famille. Seule une tête DÉJÀ au carnet repasse par la
+       Maison — on ne s'annexe pas la fiche d'une autre. */
+    const r = rattacherEnfant(client, prenom, nom, naissance, aujourdhui);
     if (!r.ok) { setErreur(r.erreur ?? 'Cette demande n’a pas pu être envoyée.'); return; }
     setErreur('');
+    const petit = prenom.trim();
     setPrenom('');
     setNom('');
     setNaissance('');
     setOuvert(false);
-    toast('Demande transmise — la maison ouvre sa fiche et vous prévient.');
+    toast(r.enAttente
+      ? 'Cette tête est déjà connue de la maison — elle vérifie et vous prévient.'
+      : `${petit} est sur votre compte — réservez pour ${petit} dès maintenant.`);
   };
 
   /* LE PROFIL NE PROPOSE PLUS UN ENFANT À TOUT LE MONDE.

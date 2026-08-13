@@ -109,6 +109,100 @@ export function declarerEnfant(parent: Client, prenom: string, nom: string, birt
   return { ok: true };
 }
 
+/** Le compte famille du parent — celui qu'il a, sinon on l'ouvre, et le parent
+    en devient le payeur (c'est déjà la vérité du comptoir). Partagé entre la
+    validation du Trône et le rattachement direct de Ma Couronne. */
+const assureFamilleDuParent = (parent: Client): string => {
+  let familyId = parent.familyId;
+  const familles = familiesStore.get();
+  const existante = familyId ? familles.find((f) => f.id === familyId) : undefined;
+  if (!existante) {
+    familyId = `fam-${uid()}`;
+    const patronyme = parent.name.trim().split(/\s+/).slice(-1)[0] || parent.name.trim();
+    familiesStore.set((prev) => [
+      ...prev,
+      { id: familyId!, branchId: parent.branchId, name: `Famille ${patronyme}`, payerClientId: parent.id },
+    ]);
+    clientsStore.set((prev) => prev.map((c) => (c.id === parent.id ? { ...c, familyId } : c)));
+  } else if (!existante.payerClientId) {
+    familiesStore.set((prev) => prev.map((f) => (f.id === existante.id ? { ...f, payerClientId: parent.id } : f)));
+  }
+  return familyId!;
+};
+
+/** LE RATTACHEMENT DIRECT (13 août, décision de Yéman) : la cliente rattache
+    ses enfants SANS validation de la Maison. La sécurité qui motivait la
+    validation tenait en une phrase — un parent ne doit pas pouvoir s'annexer
+    la fiche d'une AUTRE personne. Elle tient toujours : ici, on ne peut que
+    CRÉER une tête neuve (prénom + nom + naissance, fiche qui naît vide).
+    Si une fiche existe déjà au carnet à ce nom et cette naissance, le
+    rattachement redevient une DEMANDE que la Maison arbitre — c'est le seul
+    cas qui passe encore par elle. Le journal des déclarations garde trace de
+    tout (statut « accepté », fiche créée). */
+export function rattacherEnfant(
+  parent: Client,
+  prenom: string,
+  nom: string,
+  birthday: string,
+  aujourdhui: string,
+): { ok: boolean; erreur?: string; enAttente?: boolean } {
+  const p = prenom.trim();
+  const n = nom.trim();
+  if (!p) return { ok: false, erreur: 'Il manque son prénom.' };
+  if (!n) return { ok: false, erreur: 'Il manque son nom de famille.' };
+  if (!birthday) return { ok: false, erreur: 'Il manque sa date de naissance.' };
+  if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
+  if (!estMineur({ birthday }, aujourdhui)) {
+    return { ok: false, erreur: 'Cette personne est majeure — elle peut ouvrir son propre compte.' };
+  }
+  /* Une tête déjà au carnet ne s'annexe pas soi-même : demande à la Maison. */
+  const nomComplet = `${p} ${n}`.replace(/\s+/g, ' ').trim();
+  const dejaLa = clientsStore.get().some((c) => !c.archived && c.branchId === parent.branchId
+    && c.name.trim().replace(/\s+/g, ' ').toLowerCase() === nomComplet.toLowerCase()
+    && (c.birthday ?? '') === birthday);
+  if (dejaLa) {
+    const r = declarerEnfant(parent, p, n, birthday, aujourdhui);
+    return r.ok ? { ok: true, enAttente: true } : r;
+  }
+
+  const familyId = assureFamilleDuParent(parent);
+  const enfantId = `enf-${uid()}`;
+  clientsStore.set((prev) => [
+    ...prev,
+    {
+      id: enfantId,
+      branchId: parent.branchId,
+      name: nomComplet,
+      phone: '',
+      city: parent.city ?? '',
+      persona: parent.persona,
+      since: aujourdhui,
+      birthday,
+      familyId,
+      segments: ['Enfant'],
+      priceCoef: parent.priceCoef ?? 1,
+      loyaltyPoints: 0,
+    } as Client,
+  ]);
+  /* Le journal — la Maison lit ce qui s'est rattaché, sans avoir à valider. */
+  enfantsDeclaresStore.set((prev) => [
+    ...prev,
+    {
+      id: `dec-${uid()}`,
+      branchId: parent.branchId,
+      clientId: parent.id,
+      prenom: p,
+      nom: n,
+      birthday,
+      declareLe: aujourdhui,
+      statut: 'accepté',
+      clientCreeId: enfantId,
+      traiteLe: aujourdhui,
+    },
+  ]);
+  return { ok: true };
+}
+
 /** LA MAISON VALIDE — et c'est seulement ici qu'une fiche naît.
 
     Elle crée la tête, ouvre le compte famille s'il n'existe pas encore, et
@@ -144,23 +238,8 @@ export function validerEnfant(dec: EnfantDeclare, aujourdhui: string, nomComplet
     };
   }
 
-  /* Le compte famille : celui du parent s'il en a un, sinon on l'ouvre — et le
-     parent en devient le payeur, ce qui est déjà la vérité du comptoir. */
-  let familyId = parent.familyId;
-  const familles = familiesStore.get();
-  const existante = familyId ? familles.find((f) => f.id === familyId) : undefined;
-  if (!existante) {
-    familyId = `fam-${uid()}`;
-    const patronyme = parent.name.trim().split(/\s+/).slice(-1)[0] || parent.name.trim();
-    familiesStore.set((prev) => [
-      ...prev,
-      { id: familyId!, branchId: parent.branchId, name: `Famille ${patronyme}`, payerClientId: parent.id },
-    ]);
-    clientsStore.set((prev) => prev.map((c) => (c.id === parent.id ? { ...c, familyId } : c)));
-  } else if (!existante.payerClientId) {
-    /* Une famille sans payeur ne porte personne : le parent qui déclare l'est. */
-    familiesStore.set((prev) => prev.map((f) => (f.id === existante.id ? { ...f, payerClientId: parent.id } : f)));
-  }
+  /* Le compte famille : le même juge que le rattachement direct. */
+  const familyId = assureFamilleDuParent(parent);
 
   const enfantId = `enf-${uid()}`;
   clientsStore.set((prev) => [

@@ -88,8 +88,11 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Enfants déclarés" onClose={onClose} width={620}>
       <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.55 }}>
-        Un parent ne peut pas créer une fiche : il dépose un prénom et une date de naissance.
-        C’est vous qui ouvrez la tête — et c’est ce geste qui lui donne accès au suivi de son enfant.
+        Depuis le 13 août, un enfant se rattache tout seul depuis Ma Couronne — la fiche naît
+        aussitôt. Ici n’arrivent plus que les cas à arbitrer : une tête déjà connue du carnet
+        (même nom, même naissance) — on ne s’annexe pas la fiche d’une autre. Si c’est bien son
+        enfant : rattachez la fiche existante au compte famille (Finances › Comptes), puis
+        refusez la demande avec un mot. Sinon, refusez simplement.
       </div>
 
       {file.length === 0 && <div className="trc-empty">Plus rien n’attend.</div>}

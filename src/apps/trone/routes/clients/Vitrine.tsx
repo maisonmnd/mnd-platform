@@ -1408,8 +1408,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   + Ajouter un enfant
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 10, marginTop: 6, lineHeight: 1.5 }}>
-                  Elle y écrit son prénom, son nom et sa date de naissance. Aucune fiche n’est créée :
-                  la demande arrive au comptoir, et c’est la maison qui ouvre la tête.
+                  Elle y écrit son prénom, son nom et sa date de naissance — la fiche naît aussitôt
+                  sous son compte famille. Seule une tête déjà connue du carnet repasse par la maison.
                 </div>
 
                 {/* CE QUE LE COMPTOIR DOIT SAVOIR, et qu'elle ne verra jamais :
