@@ -138,7 +138,7 @@ export default function Vitrine() {
    JAMAIS un domaine en dur (changer de compte GitHub ne casse rien : on
    réimprime, c'est tout). Ma Couronne est une PWA : scannée puis « Ajouter à
    l'écran d'accueil », elle s'installe comme une application. */
-function InvitationCouronne() {
+export function InvitationCouronne() {
   /* Sur le site déployé, le Trône vit sous /trone/ et sa sœur sous /couronne/ ;
      en développement (une seule origine), l'entrée est couronne.html. */
   const lienCouronne = `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
