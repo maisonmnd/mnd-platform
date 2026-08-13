@@ -2,6 +2,30 @@
 
 État au 12 août 2026 (soir). À lire en premier dans une nouvelle session.
 
+## Paramètres : l'audit du vrai et du décor — 13 août
+
+La page réorganisée en sept familles (colonne unique, sommaire collant,
+intertitres cuivre, zones sensibles À LA FIN — commit « la page se lit par
+familles »). Puis l'audit de CHAQUE réglage, à la demande de Yéman :
+
+- **Branché** : heures, journées exceptionnelles, calendrier de réservation,
+  acomptes, devise étrangère, livraison, modes de paiement (Caisse, Factures,
+  Académie, Abonnements), segments, styles de couronne (menu des fiches +
+  affichage Ma Couronne), preuve de présence, automatisations IA, sauvegarde.
+- **MORT — gardé, marqué « À venir », rendu INERTE** (décision de Yéman ;
+  bascules `pointerEvents:none`, champs `disabled`, pastille) : la carte
+  « Identité de la Maison » (nom/raison/fuseau — magasin `mnd_house_identity`
+  que RIEN ne lit ; le vrai nom vient de Branches), « Durée standard d'un
+  rituel », « Fenêtre d'annulation », les 8 interrupteurs
+  (`settings.toggles.*` : rappel, 4 notifications, auth, sauvegarde, export —
+  lus nulle part). Brancher l'un d'eux un jour = retirer sa marque ICI même.
+- Le bouton « Enregistrer » ne sauve rien (tout s'écrit à la frappe) — sa
+  note dit désormais la vérité.
+- **Styles de couronne réels** (validés par Yéman) : Microlocks · Sisterlocks
+  · Nanolocks · Galaxy · Traditionnelles · Freeform. Graine changée dans
+  `clients.ts` + script `supabase/pose_styles_reels.sql` pour le document
+  vivant (rejouable). Les fiches taguées d'un ancien style le gardent.
+
 ## Le calendrier sait dire non — 12 août
 
 Trois restrictions à la réservation, demandées après un RDV Micro/Nano/Galaxy

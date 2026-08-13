@@ -63,7 +63,7 @@ const DUREE_OPTIONS = [
 const ANNULATION_OPTIONS = ['24 h avant', '48 h avant', '72 h avant', 'Aucune fenêtre'];
 
 const RITUEL_TOGGLES: ToggleRow[] = [
-  { k: 'rappel', l: 'Rappels automatiques', sub: 'SMS + WhatsApp · J-1 et H-2' },
+  { k: 'rappel', l: 'Rappels automatiques', sub: 'SMS + WhatsApp · J-1 et H-2 · les vrais rappels se règlent dans Marketing' },
 ];
 const NOTIF_TOGGLES: ToggleRow[] = [
   { k: 'notifRdv', l: 'Nouveau rendez-vous', sub: 'au Maître concerné' },
@@ -127,6 +127,22 @@ function EditRow({ l, sub, children }: { l: string; sub?: string; children: Reac
     </div>
   );
 }
+
+/* ── LA MARQUE DES RÉGLAGES PAS ENCORE RELIÉS (13 août) ─────────────────
+   L'audit de la page a trouvé des commandes que RIEN ne lit : l'identité,
+   la durée standard, la fenêtre d'annulation, huit interrupteurs. Décision
+   de Yéman : les garder visibles — ce sont des promesses — mais marqués et
+   INERTES. Un interrupteur qui accepte le geste sans rien commander est
+   pire qu'absent : il fait croire qu'une protection existe. */
+const AVenir = () => (
+  <span style={{
+    fontFamily: 'var(--font-sans)', fontSize: 9.5, fontWeight: 600,
+    letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)',
+    border: '1px solid var(--hairline)', borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
+  }}>
+    À venir
+  </span>
+);
 
 /* ---------- Sauvegarde de la Maison — exporter tout d'un geste, restaurer sans risque ----------
    Née de l'incident du 24 juil. 2026 (RDV et factures effacés du serveur). L'export
@@ -690,15 +706,23 @@ export default function Parametres() {
 
   const save = () => { setSaved(true); window.setTimeout(() => setSaved(false), 2400); };
 
-  const ToggleRows = ({ rows }: { rows: ToggleRow[] }) => (
+  /* `aVenir` : rangée grisée, interrupteur INERTE — le réglage n'est encore
+     relié à rien, et un interrupteur qui accepte le geste sans rien commander
+     fait croire qu'une protection existe. */
+  const ToggleRows = ({ rows, aVenir }: { rows: ToggleRow[]; aVenir?: boolean }) => (
     <>
       {rows.map((r) => (
-        <div key={r.k} className="sys-row">
+        <div key={r.k} className="sys-row" style={aVenir ? { opacity: 0.55 } : undefined}>
           <div>
-            <div className="sys-row__label">{r.l}</div>
-            <div className="sys-row__sub">{r.sub}</div>
+            <div className="sys-row__label" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {r.l}
+              {aVenir && <AVenir />}
+            </div>
+            <div className="sys-row__sub">{aVenir ? `${r.sub} — pas encore relié.` : r.sub}</div>
           </div>
-          <Toggle on={!!settings.toggles[r.k]} onToggle={() => toggle(r.k)} />
+          <div style={aVenir ? { pointerEvents: 'none' } : undefined} aria-disabled={aVenir || undefined}>
+            <Toggle on={!!settings.toggles[r.k]} onToggle={() => toggle(r.k)} />
+          </div>
         </div>
       ))}
     </>
@@ -713,10 +737,13 @@ export default function Parametres() {
         actions={<Button variant="copper" onClick={save}>Enregistrer</Button>}
       />
 
+      {/* LE BOUTON NE SAUVE RIEN — et il le dit. Chaque réglage s'écrit à la
+          frappe dans son magasin synchronisé ; presser reste un geste de
+          réassurance, alors la note dit la vérité (audit du 13 août). */}
       {saved && (
         <div className="tre-inline-note" style={{ marginBottom: 16 }}>
           <span className="mark">✦</span>
-          <span>Paramètres enregistrés — la Maison retient vos réglages.</span>
+          <span>Tout est déjà enregistré — la Maison écrit à la frappe, à chaque réglage touché.</span>
         </div>
       )}
 
@@ -726,14 +753,21 @@ export default function Parametres() {
       <Intertitre id="fam-maison">La Maison</Intertitre>
 
       <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Identité de la Maison</div>
-          <div className="sys-section__cap">Ce que la Maison montre au monde.</div>
+        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          Identité de la Maison <AVenir />
+        </div>
+          <div className="sys-section__cap">
+            Ce que la Maison montrera au monde — pas encore relié : le nom qui s’affiche
+            aujourd’hui partout vient de Système → Branches.
+          </div>
+          <div style={{ opacity: 0.55 }}>
           <EditRow l="Nom de la Maison">
             <input
               className="sys-input"
               value={identity.nom}
               onChange={(e) => setIdent('nom', e.target.value)}
               aria-label="Nom de la Maison"
+              disabled
             />
           </EditRow>
           <EditRow l="Raison sociale">
@@ -742,6 +776,7 @@ export default function Parametres() {
               value={identity.raison}
               onChange={(e) => setIdent('raison', e.target.value)}
               aria-label="Raison sociale"
+              disabled
             />
           </EditRow>
           <EditRow l="Fuseau horaire">
@@ -750,10 +785,12 @@ export default function Parametres() {
               value={identity.fuseau}
               onChange={(e) => setIdent('fuseau', e.target.value)}
               aria-label="Fuseau horaire"
+              disabled
             >
               {FUSEAU_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </EditRow>
+          </div>
           <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
         </Card>
 
@@ -818,26 +855,39 @@ export default function Parametres() {
         <Card className="sys-section" style={{ marginTop: 18 }}>
           <div className="sys-section__title">Le rendez-vous & l’acompte</div>
           <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous — et ce que Ma Couronne exige à la réservation.</div>
-          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut.">
-            <select
-              className="sys-select"
-              value={identity.dureeRituel}
-              onChange={(e) => setIdent('dureeRituel', e.target.value)}
-              aria-label="Durée standard d’un rituel"
-            >
-              {DUREE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+          {/* Ces deux rangées ne pilotent RIEN (audit du 13 août) : chaque
+              prestation du Catalogue porte SA durée, et aucun code n'applique
+              la fenêtre d'annulation. Gardées comme promesses, inertes. */}
+          <div style={{ opacity: 0.55 }}>
+          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut — pas encore relié : chaque prestation du Catalogue porte sa durée.">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AVenir />
+              <select
+                className="sys-select"
+                value={identity.dureeRituel}
+                onChange={(e) => setIdent('dureeRituel', e.target.value)}
+                aria-label="Durée standard d’un rituel"
+                disabled
+              >
+                {DUREE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
           </EditRow>
-          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte est retenu.">
-            <select
-              className="sys-select"
-              value={identity.fenetreAnnulation}
-              onChange={(e) => setIdent('fenetreAnnulation', e.target.value)}
-              aria-label="Fenêtre d’annulation"
-            >
-              {ANNULATION_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
+          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte serait retenu — pas encore relié : rien ne l’applique pour l’instant.">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AVenir />
+              <select
+                className="sys-select"
+                value={identity.fenetreAnnulation}
+                onChange={(e) => setIdent('fenetreAnnulation', e.target.value)}
+                aria-label="Fenêtre d’annulation"
+                disabled
+              >
+                {ANNULATION_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
           </EditRow>
+          </div>
           <div className="sys-row">
             <div>
               <div className="sys-row__label">Acompte exigé en ligne (%)</div>
@@ -932,7 +982,7 @@ export default function Parametres() {
               </>
             )}
           </div>
-          <ToggleRows rows={RITUEL_TOGGLES} />
+          <ToggleRows rows={RITUEL_TOGGLES} aVenir />
         </Card>
 
       {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────
@@ -1510,9 +1560,14 @@ export default function Parametres() {
       <Intertitre id="fam-notifs">Notifications & automatisations</Intertitre>
 
       <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Notifications</div>
-        <div className="sys-section__cap">Qui est prévenu, et quand.</div>
-        <ToggleRows rows={NOTIF_TOGGLES} />
+        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          Notifications <AVenir />
+        </div>
+        <div className="sys-section__cap">
+          Qui sera prévenu, et quand — pas encore relié : les seules alertes réelles sont la
+          cloche du Trône et les notifications de Ma Couronne.
+        </div>
+        <ToggleRows rows={NOTIF_TOGGLES} aVenir />
       </Card>
 
       {/* ---------- Automatisations · IA ---------- */}
@@ -1551,9 +1606,14 @@ export default function Parametres() {
       <Intertitre id="fam-donnees">Données & zones sensibles</Intertitre>
 
       <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Accès & souveraineté</div>
-        <div className="sys-section__cap">La Maison reste maîtresse de ses données.</div>
-        <ToggleRows rows={ACCES_TOGGLES} />
+        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          Accès & souveraineté <AVenir />
+        </div>
+        <div className="sys-section__cap">
+          La Maison reste maîtresse de ses données — ces bascules ne sont pas encore reliées ;
+          la vraie sauvegarde est la carte « Sauvegarde de la Maison » ci-dessous.
+        </div>
+        <ToggleRows rows={ACCES_TOGGLES} aVenir />
         <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
       </Card>
 

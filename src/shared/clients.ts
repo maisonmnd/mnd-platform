@@ -156,10 +156,12 @@ export const remiseFamillePct = (f?: Family | null): number => {
   return Math.max(0, Math.min(100, Math.round(p)));
 };
 
-/** Styles de couronne par défaut — la liste est éditable (crownStylesStore). */
+/** Styles de couronne par défaut — la liste est éditable (crownStylesStore).
+    LES MODÈLES RÉELS DE LA MAISON depuis le 13 août : la liste d'usine du
+    prototype (dix styles génériques) proposait des couronnes que le salon ne
+    pratique pas — et c'est cette liste que voient les fiches ET les clientes. */
 export const CROWN_STYLES_DEFAULT = [
-  'Microlocks', 'Sisterlocks', 'Locks fines', 'Locks moyennes', 'Locks larges',
-  'Traditionnelles', 'Freeform', 'Faux locks', 'Locks bouclées', 'Interlocks',
+  'Microlocks', 'Sisterlocks', 'Nanolocks', 'Galaxy', 'Traditionnelles', 'Freeform',
 ];
 
 /** Liste gérable des styles de couronne (Paramètres / CRM), synchronisée Supabase. */
