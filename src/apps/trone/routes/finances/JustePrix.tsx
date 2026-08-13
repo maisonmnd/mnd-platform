@@ -3,11 +3,11 @@ import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore, type Client } from '../../../../shared/clients';
-import { useCategories, useServices, type Service } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, catsDansLOrdre, LONGUEURS, type Service } from '../../../../shared/catalog';
 import { tarifModeOf,
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
   pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
-  bandSetsStore, useBandSets, type ModelBand,
+  bandSetsStore, useBandSets, regimeTarifaire, type ModelBand,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
 import './finances.css';
@@ -365,6 +365,9 @@ export default function JustePrix() {
   const { branch, currency } = useBranch();
   const [clients, setClients] = useClients();
   const [services] = useServices();
+  /* Les produits de la Gamme — une composition de forfait peut en porter, et
+     le moteur les compte dans le prix du forfait. */
+  const [produits] = useProducts();
   const [bands] = useModelBands();
 
   const branchClients = useMemo(() => clients.filter((c) => c.branchId === branch.id && !c.archived), [clients, branch.id]);
@@ -683,6 +686,103 @@ export default function JustePrix() {
             </span>
           </div>
         </div>
+
+        {/* ═══ TOUS SES JUSTE PRIX — LE MIROIR COMPLET (13 août). La question
+            de Yéman : « comment voir tous les 79, et comment ils changent quand
+            je change une variable ? » Réponse : ils sont TOUS ici, rangés par
+            atelier, calculés par LE moteur (`personalPriceXof`) pour la cliente
+            choisie — et ils se recalculent à CHAQUE geste : ses locks et sa
+            longueur (ci-dessous, écrits sur sa fiche), son coefficient
+            personnel (au-dessus), le barème des modèles (plus haut). Quand le
+            prix diffère du catalogue, le catalogue reste lisible, barré. */}
+        {(() => {
+          const jp = services.filter((s) => regimeTarifaire(s).justePrix);
+          const groupes = catsDansLOrdre(categories)
+            .map((c) => ({ cat: c, list: jp.filter((s) => s.categoryId === c.id).sort((a, b) => a.order - b.order) }))
+            .filter((g) => g.list.length > 0);
+          const orphelins = jp.filter((s) => !categories.some((c) => c.id === s.categoryId));
+          const prenom = client.name.split(' ')[0];
+          return (
+            <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                  Tous ses Juste Prix · {jp.length}
+                </span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                  les prix de {prenom} — ils bougent à chaque variable touchée
+                </span>
+              </div>
+
+              {/* SES VARIABLES, à portée de main : locks et longueur s'écrivent
+                  sur SA fiche — les mêmes valeurs que le comptoir et Ma
+                  Couronne lisent. Rien n'est une simulation jetable. */}
+              <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap', margin: '10px 0 4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Ses locks</span>
+                  <NumCell
+                    value={client.lockCount ?? null}
+                    allowEmpty
+                    width={86}
+                    placeholder="à compter"
+                    ariaLabel="Nombre de locks de la cliente"
+                    title="Écrit sur sa fiche — le comptoir et Ma Couronne lisent la même valeur"
+                    onCommit={(v) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, lockCount: v ?? undefined } : c)))}
+                  />
+                </label>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>Sa longueur</span>
+                  {LONGUEURS.map((l) => {
+                    const on = client.longueur === l.id;
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        className="trf-act"
+                        style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                        title={on ? 'Retirer la longueur de sa fiche' : 'Écrire cette longueur sur sa fiche (point de départ — chaque RDV fige la sienne)'}
+                        onClick={() => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, longueur: on ? undefined : l.id } : c)))}
+                      >
+                        {l.label}
+                      </button>
+                    );
+                  })}
+                </span>
+              </div>
+
+              {[...groupes, ...(orphelins.length ? [{ cat: { id: '__orphelins__', fon: 'À RECLASSER', label: 'sans catégorie' }, list: orphelins }] : [])].map((g) => (
+                <div key={g.cat.id} style={{ marginTop: 14 }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '1px solid var(--hairline)', paddingBottom: 4 }}>
+                    {g.cat.fon} <span style={{ color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>· {g.list.length}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '5px 22px', marginTop: 7 }}>
+                    {g.list.map((s) => {
+                      const sien = personalPriceXof(s, pricing, services, produits);
+                      const sert = servesBand(s, bandForService(s, pricing));
+                      const bouge = sert && sien !== s.priceXof;
+                      return (
+                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, minWidth: 0 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                          <span style={{ flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
+                            {!sert ? (
+                              <span className="mnd-muted" title={`Hors du calibre de ${prenom} — cette création ne la concerne pas`} style={{ fontSize: 11 }}>
+                                hors calibre
+                              </span>
+                            ) : (
+                              <>
+                                {bouge && <s style={{ color: 'var(--ink-soft)', opacity: 0.6, marginRight: 7 }}>{fmtMoney(s.priceXof, currency)}</s>}
+                                <b style={{ fontWeight: 600, color: bouge ? 'var(--color-indigo)' : 'var(--ink-soft)' }}>{fmtMoney(sien, currency)}</b>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
