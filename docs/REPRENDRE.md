@@ -32,10 +32,20 @@ familles »). Puis l'audit de CHAQUE réglage, à la demande de Yéman :
   connexion (avant session) retombent sur le cache local ou le défaut.
 - Le bouton « Enregistrer » ne sauve rien (tout s'écrit à la frappe) — sa
   note dit désormais la vérité.
-- **Styles de couronne réels** (validés par Yéman) : Microlocks · Sisterlocks
-  · Nanolocks · Galaxy · Traditionnelles · Freeform. Graine changée dans
-  `clients.ts` + script `supabase/pose_styles_reels.sql` pour le document
-  vivant (rejouable). Les fiches taguées d'un ancien style le gardent.
+- **Styles de couronne réels** (v2, dictée par Yéman — la finesse des locks) :
+  Jumbo · Traditionnelles · Medium · Mini · Micro · Nano · Galaxy. Graine
+  dans `clients.ts` + `supabase/pose_styles_reels.sql` PASSÉ (contrôle : 7).
+  Les fiches taguées d'un ancien style le gardent. Les listes styles et
+  modes de paiement s'éditent EN LIGNE (LigneListe : frappe = sauvegarde,
+  vide/doublon revient au blur, ▲▼ = ordre des menus et de la Caisse ;
+  CLÉ PAR POSITION sinon le champ perd le focus à chaque lettre).
+- **Le QR marchand MoMo vit aux Automatisations** (13 août) : décodé du
+  document officiel de Yéman (« Scannez et payez ») — il encode
+  `506846@momopay` — et redessiné par `qrMatrice`/`QrSvg` (Comptoir).
+  Champs `AutoConfig.momoQr/momoUssd/momoMarchand` (défauts en code :
+  l'affiche est posée au salon, publique par nature ; nom affiché
+  « Ets ACIA1 », jamais le prénom). Chantier possible : insérer l'USSD dans
+  les messages de rappel/relance.
 
 ## Le calendrier sait dire non — 12 août
 

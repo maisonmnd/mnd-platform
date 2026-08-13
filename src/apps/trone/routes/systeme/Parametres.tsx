@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
-import { autoConfigStore, type AutoConfig } from '../equipe/data';
+import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
+import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
@@ -745,6 +746,12 @@ export default function Parametres() {
     mapsLink: autoCfgRaw.mapsLink || settings.automations.mapsLink,
     reviewLink: autoCfgRaw.reviewLink || settings.automations.reviewLink,
     itineraire: autoCfgRaw.itineraire || settings.automations.itineraire,
+    /* Le compte marchand MoMo — le document vivant est né avant ces champs :
+       le repli sur les valeurs du document officiel les fait exister, et la
+       première retouche les inscrit pour de bon. */
+    momoQr: autoCfgRaw.momoQr || MOMO_QR_DEFAUT,
+    momoUssd: autoCfgRaw.momoUssd || MOMO_USSD_DEFAUT,
+    momoMarchand: autoCfgRaw.momoMarchand || MOMO_MARCHAND_DEFAUT,
   };
   const setAuto = (field: keyof AutoConfig, val: string) =>
     setAutoCfgRaw({ ...autoCfg, [field]: val });
@@ -1608,6 +1615,55 @@ export default function Parametres() {
         </div>
         <div style={{ marginTop: 4 }}>
           <Eyebrow>Insérés tels quels dans chaque envoi automatique</Eyebrow>
+        </div>
+
+        {/* ── LE QR MARCHAND MoMo ──────────────────────────────────
+            Le « lien de paiement » de la Maison n'est pas un lien : c'est le
+            QR du compte marchand MTN, décodé du document officiel
+            (« Scannez et payez ») puis REDESSINÉ par le moteur QR de la
+            maison — même donnée, même lecture au scan, mais net à toutes les
+            tailles et jamais dépendant d'une capture d'écran. */}
+        <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+            Paiement Mobile Money · le QR de la Maison
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, maxWidth: 640 }}>
+            Le code du compte marchand MTN MoMo, redessiné par la maison — la même donnée que
+            l’affiche « Scannez et payez ». Montre-le à l’écran quand une cliente règle en MoMo ;
+            le code USSD est le chemin sans appareil photo.
+          </div>
+
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 14 }}>
+            <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px' }}>
+              <QrSvg valeur={autoCfg.momoQr || MOMO_QR_DEFAUT} style={{ width: 148, height: 148, display: 'block' }} />
+              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                {autoCfg.momoMarchand}
+              </div>
+              <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 2 }}>
+                {autoCfg.momoUssd}
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label className="mnd-field">
+                <span className="mnd-field__label">Nom affiché — compte marchand</span>
+                <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} placeholder="Ets ACIA1" />
+              </label>
+              <label className="mnd-field">
+                <span className="mnd-field__label">Code USSD — sans appareil photo</span>
+                <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} placeholder="*880*41*506846*montant#" />
+              </label>
+              <label className="mnd-field">
+                <span className="mnd-field__label">Donnée du QR — identifiant marchand</span>
+                <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} placeholder="506846@momopay" />
+              </label>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Dans le code USSD, « montant » se remplace par la somme en francs — 15 000 F se
+                compose *880*41*506846*15000#. Ne touche à la donnée du QR que si MTN te remet
+                un nouveau document marchand.
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 

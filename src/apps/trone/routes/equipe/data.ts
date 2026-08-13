@@ -201,7 +201,22 @@ export type AutoConfig = {
   mapsLink: string;
   reviewLink: string;
   itineraire: string;
+  /** LE QR MARCHAND MoMo (13 août). Le « lien de paiement » de la Maison
+      n'est pas un lien : c'est le QR du compte marchand MTN. `momoQr` porte
+      la DONNÉE que le QR encode (décodée du document officiel : l'identifiant
+      marchand), redessinée en SVG par le moteur maison — même donnée, même
+      lecture au scan. L'USSD est le chemin sans appareil photo ; le nom est
+      celui du compte marchand, affiché sous le code. Ces trois valeurs sont
+      sur l'affiche posée au salon — publiques par nature. */
+  momoQr?: string;
+  momoUssd?: string;
+  momoMarchand?: string;
 };
+
+/** Défauts du compte marchand — relevés du document MoMo de la Maison. */
+export const MOMO_QR_DEFAUT = '506846@momopay';
+export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
+export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
 
 /** Liens configurables insérés tels quels dans les envois — partagés Marketing ↔ Paramètres. */
 export const autoConfigStore = createStore<AutoConfig>('mnd_auto_config', {
@@ -209,6 +224,9 @@ export const autoConfigStore = createStore<AutoConfig>('mnd_auto_config', {
   mapsLink: '',
   reviewLink: '',
   itineraire: '',
+  momoQr: MOMO_QR_DEFAUT,
+  momoUssd: MOMO_USSD_DEFAUT,
+  momoMarchand: MOMO_MARCHAND_DEFAUT,
 });
 export const useAutoConfig = () => useStore(autoConfigStore);
 
