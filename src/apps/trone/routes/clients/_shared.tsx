@@ -1217,10 +1217,15 @@ export function RdvModal({
                         </span>
                       : priceModeOf(sv) === 'devis'
                       ? 'sur devis'
-                      /* « dès » ne vaut que si le modèle est INCONNU. Dès qu'on
-                         sait son nombre de locks, le prix au lock est exact —
-                         l'annoncer comme un plancher fait douter la caissière. */
-                      : priceModeOf(sv) === 'variable' && !prixFerme(sv, pricing)
+                      /* UN PRIX PAS FERME SE DIT « dès » — quel que soit le mode
+                         (13 août). Une prestation FIXE qui suit le modèle, sur
+                         une tête aux locks non comptés, affichait « 20 000 F »
+                         net PENDANT que le champ de montant s'ouvrait à côté :
+                         deux vérités contradictoires sur la même ligne, et le
+                         champ se lisait comme un bug. Dès que le prix est connu
+                         au franc près (`prixFerme`), le montant s'affiche net
+                         et le champ ne s'ouvre pas — même juge des deux côtés. */
+                      : !prixFerme(sv, pricing)
                         ? `dès ${argent(personalPriceXof(sv, pricing, services, produitsGamme))}`
                         : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
                   {/* LE MONTANT SE SAISIT SUR LA LIGNE, à côté de « sur devis ».
