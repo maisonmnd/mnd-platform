@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useInvoices } from '../../../shared/finance';
-import { clientsStore, ensureInitiePersona, type Client } from '../../../shared/clients';
+import { clientsStore, useClients, ensureInitiePersona, type Client } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 import { useStore } from '../../../shared/store';
 import { consultationsQueueStore } from '../../../shared/bridges';
 import { branchesStore, currentBranchStore } from '../../../shared/branches';
+import { tablePrete } from '../../../shared/sync';
+import { supabase } from '../../../shared/supabase';
 
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
 export const PROSPECT_SEGMENT = 'Prospect';
@@ -26,10 +28,20 @@ export function useReconcileClients(): void {
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const [queue] = useStore(consultationsQueueStore);
+  /* Se ré-exécute quand le CRM change — c'est aussi lui qui dit qui est connu. */
+  const [tousClients] = useClients();
 
   useEffect(() => {
     // L'écriture des fiches exige le personnel (RLS) : n'agir qu'avec une session.
     if (!session) return;
+    /* PAS DE FICHE AVANT D'AVOIR LU (13 août — Hermine Deffon et Elodie Aissi
+       ÉCRASÉES). Quand les rendez-vous arrivaient avant les fiches (hydratation
+       ou Realtime en retard), chaque clientId semblait orphelin : le hook
+       créait une fiche fourre-tout AVEC LE MÊME identifiant, et la poussée de
+       synchronisation l'écrivait PAR-DESSUS la vraie fiche du serveur — le nom
+       devenait « Cliente Ma Couronne », le téléphone se vidait. On attend donc
+       la première lecture de TOUTES les tables concernées. */
+    if (!tablePrete('clients') || !tablePrete('appointments') || !tablePrete('invoices')) return;
 
     const known = new Set(clientsStore.get().map((c) => c.id));
     /* Un candidat par clientId manquant : on retient la branche et le nom du
@@ -62,27 +74,42 @@ export function useReconcileClients(): void {
 
     if (missing.size === 0) return;
 
-    clientsStore.set((prev) => {
-      const have = new Set(prev.map((c) => c.id));
-      const created = [...missing.entries()]
-        .filter(([id]) => !have.has(id))
-        .map(([id, m]) => ({
-          id,
-          branchId: m.branchId,
-          name: m.name || 'Cliente Ma Couronne',
-          phone: '',
-          city: '',
-          /* Le Trône tourne côté personnel : il peut créer le persona d'accueil
-             s'il manque encore (idempotent). */
-          persona: ensureInitiePersona(),
-          since: m.since,
-          segments: ['Ma Couronne'],
-          priceCoef: 1,
-          loyaltyPoints: 0,
-        }));
-      return created.length ? [...prev, ...created] : prev;
-    });
-  }, [session, appts, invoices]);
+    /* LA CEINTURE : avant de créer, on demande AU SERVEUR s'il porte déjà ces
+       identifiants. Une fiche qui existe là-bas n'est pas orpheline — elle est
+       simplement en route (Realtime) : la créer ici l'écraserait à la poussée.
+       On ne fabrique une fiche que pour un identifiant inconnu DES DEUX côtés. */
+    void (async () => {
+      if (supabase) {
+        const ids = [...missing.keys()];
+        const { data, error } = await supabase.from('clients').select('id').in('id', ids);
+        /* Serveur muet (réseau, RLS) : on s'abstient — créer dans le doute est
+           exactement l'accident qu'on répare. Le prochain passage retentera. */
+        if (error) return;
+        for (const r of data ?? []) missing.delete((r as { id: string }).id);
+        if (missing.size === 0) return;
+      }
+      clientsStore.set((prev) => {
+        const have = new Set(prev.map((c) => c.id));
+        const created = [...missing.entries()]
+          .filter(([id]) => !have.has(id))
+          .map(([id, m]) => ({
+            id,
+            branchId: m.branchId,
+            name: m.name || 'Cliente Ma Couronne',
+            phone: '',
+            city: '',
+            /* Le Trône tourne côté personnel : il peut créer le persona d'accueil
+               s'il manque encore (idempotent). */
+            persona: ensureInitiePersona(),
+            since: m.since,
+            segments: ['Ma Couronne'],
+            priceCoef: 1,
+            loyaltyPoints: 0,
+          }));
+        return created.length ? [...prev, ...created] : prev;
+      });
+    })();
+  }, [session, appts, invoices, tousClients]);
 
   /* Prospects — chaque consultation en ligne (tunnel Ma Couronne) crée
      automatiquement une fiche « Prospect » (personne en phase de consultation,
