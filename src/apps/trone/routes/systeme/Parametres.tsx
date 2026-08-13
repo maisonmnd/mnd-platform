@@ -200,6 +200,50 @@ const AVenir = () => (
    référentiel. Leur base est ICI : noms et bornes de locks. Une évolution
    s'applique à TOUS les barèmes (`ecrisCalibresPartout`) ; les COEFFICIENTS de
    prix et de durée, eux, restent l'affaire du Juste Prix. */
+/* SAISIE À VALIDATION AU BLUR — le tableau des calibres est TRIÉ : écrire à
+   chaque frappe re-triait les tranches en pleine saisie (taper « 350 » passe
+   par 3 puis 35 — la ligne sautait en tête et une autre case arrivait sous
+   les doigts, constaté par Yéman le 13 août). Le brouillon reste local tant
+   que la case a le focus ; Entrée ou la sortie de case enregistre, Échap
+   annule. Même remède que les cellules du barème au Juste Prix. */
+function CaseCalibre({ valeur, onCommit, numerique, width, placeholder, ariaLabel }: {
+  valeur: string;
+  onCommit: (v: string) => void;
+  numerique?: boolean;
+  width: number;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  const [draft, setDraft] = useState(valeur);
+  const [focused, setFocused] = useState(false);
+  const annule = useRef(false);
+  useEffect(() => {
+    if (!focused) setDraft(valeur);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valeur, focused]);
+  const commit = () => {
+    setFocused(false);
+    if (annule.current) { annule.current = false; setDraft(valeur); return; }
+    onCommit(draft);
+  };
+  return (
+    <Input
+      value={draft}
+      inputMode={numerique ? 'numeric' : undefined}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { annule.current = true; (e.target as HTMLInputElement).blur(); }
+      }}
+      style={{ width, textAlign: numerique ? 'right' : undefined }}
+    />
+  );
+}
+
 function CalibresCard() {
   const navigate = useNavigate();
   const [bands] = useModelBands();
@@ -241,28 +285,42 @@ function CalibresCard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14, maxWidth: 560 }}>
         {sorted.map((b, i) => {
           const depuis = i === 0 ? 1 : (sorted[i - 1].maxLocks ?? 0) + 1;
+          const dernier = i === sorted.length - 1;
           return (
             <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '9px 12px' }}>
-              <Input
-                value={b.name ?? ''}
+              <CaseCalibre
+                valeur={b.name ?? ''}
                 placeholder="Nom du calibre"
-                onChange={(e) => renomme(b.id, e.target.value)}
-                style={{ width: 130 }}
-                aria-label="Nom du calibre"
+                onCommit={(v) => renomme(b.id, v)}
+                width={130}
+                ariaLabel="Nom du calibre"
               />
               <span className="mnd-muted" style={{ fontSize: 12, flex: 'none' }}>de {depuis} à</span>
               {b.maxLocks === null ? (
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)' }}>l’infini — sans plafond</span>
               ) : (
                 <>
-                  <Input
-                    inputMode="numeric"
-                    value={String(b.maxLocks)}
-                    onChange={(e) => borne(b.id, e.target.value)}
-                    style={{ width: 78, textAlign: 'right' }}
-                    aria-label={`Borne haute du calibre ${b.name ?? ''}`}
+                  <CaseCalibre
+                    numerique
+                    valeur={String(b.maxLocks)}
+                    onCommit={(v) => borne(b.id, v)}
+                    width={78}
+                    ariaLabel={`Borne haute du calibre ${b.name ?? ''}`}
                   />
                   <span className="mnd-muted" style={{ fontSize: 12 }}>locks</span>
+                  {/* LA DERNIÈRE TRANCHE DOIT POUVOIR REDEVENIR SANS PLAFOND —
+                      une borne posée dessus fait sortir du barème toute tête
+                      au-delà (« modèle inconnu »), et rien ne permettait de
+                      revenir en arrière. */}
+                  {dernier && (
+                    <button
+                      className="trv-minibtn"
+                      onClick={() => ecrisCalibresPartout((prev) => prev.map((x) => (x.id === b.id ? { ...x, maxLocks: null } : x)))}
+                      title="Retirer le plafond — les têtes au-delà restent dans ce calibre"
+                    >
+                      Sans plafond
+                    </button>
+                  )}
                 </>
               )}
               <span style={{ flex: 1 }} />
