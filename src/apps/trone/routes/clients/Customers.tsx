@@ -274,6 +274,70 @@ function LocksCell({ client }: { client: Client }) {
   );
 }
 
+/* LA DATE EN CLAIR — MOIS · JOUR · ANNÉE (13 août, demande de Yéman). Le champ
+   natif s'affiche dans l'ordre de la LANGUE DU NAVIGATEUR : sur un poste en
+   anglais, « 05/07/1990 » se lisait 7 mai quand la main croyait écrire un
+   5 juillet — et rien ne disait quel nombre était le mois. Ici le mois
+   s'écrit EN TOUTES LETTRES, l'ordre est celui que la Maison a demandé, et
+   l'ISO ne s'écrit que quand la date est complète et réelle. */
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+function DateEnClair({ value, onChange, ariaLabel }: {
+  value?: string;
+  onChange: (iso: string | undefined) => void;
+  ariaLabel?: string;
+}) {
+  const decompose = (iso?: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+    return m ? { mois: m[2], jour: String(Number(m[3])), annee: m[1] } : { mois: '', jour: '', annee: '' };
+  };
+  const [p, setP] = useState(() => decompose(value));
+  useEffect(() => { setP(decompose(value)); }, [value]);
+  const maj = (patch: Partial<typeof p>) => {
+    const n = { ...p, ...patch };
+    setP(n);
+    if (!n.mois && !n.jour.trim() && !n.annee.trim()) { onChange(undefined); return; }
+    const a = parseInt(n.annee, 10);
+    const j = parseInt(n.jour, 10);
+    if (!n.mois || !Number.isFinite(a) || n.annee.trim().length !== 4 || a < 1900 || a > 2100 || !Number.isFinite(j) || j < 1) return;
+    /* Le jour se borne au mois réel — un 31 février devient le 28/29. */
+    const jMax = new Date(a, Number(n.mois), 0).getDate();
+    const jOk = Math.min(j, jMax);
+    onChange(`${a}-${n.mois}-${String(jOk).padStart(2, '0')}`);
+  };
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <Select
+        value={p.mois}
+        onChange={(e) => maj({ mois: e.target.value })}
+        style={{ flex: '1 1 120px', minWidth: 0 }}
+        aria-label={ariaLabel ? `${ariaLabel} — mois` : 'Mois'}
+      >
+        <option value="">— mois —</option>
+        {MOIS_FR.map((nom, i) => (
+          <option key={nom} value={String(i + 1).padStart(2, '0')}>{nom}</option>
+        ))}
+      </Select>
+      <Input
+        inputMode="numeric"
+        value={p.jour}
+        onChange={(e) => maj({ jour: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) })}
+        placeholder="jour"
+        style={{ width: 58, textAlign: 'right', flex: 'none' }}
+        aria-label={ariaLabel ? `${ariaLabel} — jour` : 'Jour'}
+      />
+      <Input
+        inputMode="numeric"
+        value={p.annee}
+        onChange={(e) => maj({ annee: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+        placeholder="année"
+        style={{ width: 74, textAlign: 'right', flex: 'none' }}
+        aria-label={ariaLabel ? `${ariaLabel} — année` : 'Année'}
+      />
+    </div>
+  );
+}
+
 /* LE CHAMP « STYLE DE COURONNE » EST RETIRÉ (13 août, décision de Yéman) :
    le calibre se COMPTE — il se déduit du nombre de locks par le barème
    (`calibreDe`), il ne se choisit plus dans une liste. `Client.crownStyle`
@@ -1519,7 +1583,7 @@ function Customer360({
           <div className="trc-bday">
             <div className="trc-bday__field">
               <Field label="Anniversaire">
-                <Input type="date" value={client.birthday ?? ''} onChange={(e) => patch({ birthday: e.target.value || undefined })} />
+                <DateEnClair value={client.birthday} onChange={(iso) => patch({ birthday: iso })} ariaLabel="Anniversaire" />
               </Field>
             </div>
             {client.birthday && bday && (
@@ -1615,11 +1679,7 @@ function Customer360({
                 </Select>
               </Field>
               <Field label="Couronne depuis">
-                <Input
-                  type="date"
-                  value={client.crownSince ?? ''}
-                  onChange={(e) => patch({ crownSince: e.target.value || undefined })}
-                />
+                <DateEnClair value={client.crownSince} onChange={(iso) => patch({ crownSince: iso })} ariaLabel="Couronne depuis" />
               </Field>
               {/* « MAÎTRE PRÉFÉRÉ(E) » RETIRÉ DU STATUT (13 août, demande de
                   Yéman) : la préférence est À ELLE — elle se dit dans le
@@ -2419,7 +2479,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             </Select>
           </Field>
           <Field label="Anniversaire">
-            <Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+            <DateEnClair value={birthday || undefined} onChange={(iso) => setBirthday(iso ?? '')} ariaLabel="Anniversaire" />
           </Field>
         </div>
 
@@ -2451,7 +2511,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
               <Input type="number" min={0} value={lockCount} onChange={(e) => setLockCount(e.target.value)} placeholder="—" />
             </Field>
             <Field label="Couronne depuis">
-              <Input type="date" value={crownSince} onChange={(e) => setCrownSince(e.target.value)} />
+              <DateEnClair value={crownSince || undefined} onChange={(iso) => setCrownSince(iso ?? '')} ariaLabel="Couronne depuis" />
             </Field>
             <Field label="Maître préféré(e)">
               <Select value={preferredMaster} onChange={(e) => setPreferredMaster(e.target.value)}>
