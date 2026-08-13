@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Seal, Textarea } from '../../../../ds/components';
 import { DEFAULT_ACCENT, DEFAULT_VERBE, useBrand } from '../../../../shared/settings';
+import { maisonNom } from '../../../../shared/identite';
 import './systeme.css';
 
 /* Système · Marque & thème — l'âme visible. Accent de prestige, monogramme, verbe
@@ -156,7 +157,7 @@ export default function Marque() {
             <div className="sys-preview__head">
               <div className="sys-preview__accent-top" style={{ background: brand.accent }} />
               <Seal color={asSeal(brand.mono)} size={42} style={{ margin: '0 auto' }} />
-              <div className="sys-preview__name">Maison MND</div>
+              <div className="sys-preview__name">{maisonNom()}</div>
               <div className="sys-preview__rule" style={{ background: brand.accent }} />
               <div className="sys-preview__verbe">“{brand.verbe}”</div>
             </div>

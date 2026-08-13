@@ -13,6 +13,7 @@ import { apptLabel, useServicesById } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv } from './_shared';
 import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import './finances.css';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
@@ -118,7 +119,7 @@ export default function Encaissements() {
            avec la ligne de la facture (même pièce d'origine) : sans le préfixe
            « RP », les deux reçus porteraient le MÊME numéro. */
         number: `${r.kind === 'pourboire' ? 'RP' : 'R'}-${r.date.replace(/-/g, '')}-${r.id.slice(-6).toUpperCase()}`,
-        houseName: 'Maison MND',
+        houseName: maisonNom(),
         houseSub: `${branch.name} · ${branch.city}`,
         date: new Date(`${r.date}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
         clientName: r.clientName,

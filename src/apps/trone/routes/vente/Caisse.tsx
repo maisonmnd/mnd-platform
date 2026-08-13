@@ -19,6 +19,7 @@ import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
@@ -438,7 +439,7 @@ export default function Caisse() {
       };
       await invoicePdf(receipt);
       const msg =
-        `Maison MND · ${inv.number}\n` +
+        `${maisonNom()} · ${inv.number}\n` +
         `${client ? client.name : 'Chère tête couronnée'}, voici le règlement de votre passage : ${fmtMoney(netXof, currency)}.\n` +
         `Votre reçu ${inv.number} est en pièce jointe.\n` +
         `Réglez d’un geste — MTN MoMo · Moov Money. La maison veille sur votre couronne.`;

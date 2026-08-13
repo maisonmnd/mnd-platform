@@ -4,6 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { maisonNom } from '../../../../shared/identite';
 import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -1054,7 +1055,7 @@ function Customer360({
     const first = client.name.split(' ')[0];
     const n = await pushToClient(
       client.id,
-      'Joyeux anniversaire — Maison MND',
+      `Joyeux anniversaire — ${maisonNom()}`,
       `${first}, une séance vous est offerte pour votre anniversaire. La Maison vous attend pour la célébrer.`,
       '/couronne/',
       client.email,

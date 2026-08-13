@@ -9,6 +9,7 @@ import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore } from
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import { apptNetXof, svcPriceForAppt } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -659,7 +660,7 @@ export default function Personnel() {
       ...reList.map((r) => ({ label: `— ${RETENUE_LABEL[r.type]}${r.days ? ` · ${r.days} j` : ''}${r.note ? ` · ${r.note}` : ''}`, value: `- ${pdfMoney(r.amountXof)}`, sub: true })),
     ];
     await payslipPdf({
-      houseName: 'Maison MND',
+      houseName: maisonNom(),
       houseSub: [branch.name, branch.city].filter(Boolean).join(' · '),
       employeeName: m.name,
       role: m.role,
@@ -688,10 +689,10 @@ export default function Personnel() {
     await summaryPdf({
       eyebrow: 'Récapitulatif annuel de paie',
       title: m.name,
-      houseName: 'Maison MND',
+      houseName: maisonNom(),
       meta: [`${branch.name} · ${branch.city}`, `Année · ${year} · ${m.role}`],
       sections,
-      footer: 'Document généré par Le Trône · Maison MND',
+      footer: `Document généré par Le Trône · ${maisonNom()}`,
       filename: `recap-annuel-${m.name.replace(/\s+/g, '-')}-${year}.pdf`,
     });
   };

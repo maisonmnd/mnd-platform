@@ -6,6 +6,7 @@ import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { maisonNom, maisonRaison } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, frDay } from '../clients/_shared';
@@ -378,7 +379,7 @@ export default function Factures() {
     const label = doc.kind === 'devis' ? 'Devis' : 'Facture';
     const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
     const msg =
-      `Maison MND · ${label} ${doc.number}\n` +
+      `${maisonNom()} · ${label} ${doc.number}\n` +
       `Pour ${prenomOf(doc)} — total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
@@ -801,7 +802,7 @@ export default function Factures() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                 <img src={asset("/assets/monograms/mono-copper.png")} alt="" style={{ width: 30 }} />
                 <div>
-                  <div className="trv-doc__brand">Maison MND</div>
+                  <div className="trv-doc__brand">{maisonNom()}</div>
                   <div className="trv-doc__brand-sub">{branch.city} · l’art de la couronne</div>
                 </div>
               </div>
@@ -909,7 +910,10 @@ export default function Factures() {
 
               <div className="trv-doc__foot">
                 <div className="trv-doc__fon">mi nyɔ́ ɖɛkpɛ</div>
-                <div className="trv-doc__legal">Maison MND · RCCM CO-B-2024 · {branch.city} · merci de cultiver votre couronne avec nous.</div>
+                {/* LA LIGNE LÉGALE VIENT DES PARAMÈTRES (13 août). Un RCCM codé
+                    en dur ici contredisait celui de l'identité — deux numéros
+                    pour une seule maison, et c'est la pièce OFFICIELLE. */}
+                <div className="trv-doc__legal">{maisonRaison()} · {branch.city} · merci de cultiver votre couronne avec nous.</div>
               </div>
             </div>
           </div>

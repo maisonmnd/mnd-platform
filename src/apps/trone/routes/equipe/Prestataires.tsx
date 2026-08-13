@@ -8,6 +8,7 @@ import { bindDocument } from '../../../../shared/sync';
 import { expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import './equipe.css';
 
 /* Prestataires extérieurs — répertoire + missions + paiements confirmés (reçu PDF).
@@ -185,7 +186,7 @@ export default function Prestataires() {
       docLabel: 'REÇU DE PAIEMENT',
       partyLabel: 'PRESTATAIRE',
       netLabel: 'MONTANT VERSÉ',
-      houseName: 'Maison MND',
+      houseName: maisonNom(),
       houseSub: [branch.name, branch.city].filter(Boolean).join(' · '),
       employeeName: p?.name ?? providerName(m.providerId),
       role: p ? MODE_LABEL[p.mode] + (p.specialty ? ` · ${p.specialty}` : '') : undefined,
@@ -228,10 +229,10 @@ export default function Prestataires() {
     await summaryPdf({
       eyebrow: `Relevé prestataire · ${PERIOD_LABEL[period]}`,
       title: p.name,
-      houseName: 'Maison MND',
+      houseName: maisonNom(),
       meta: [MODE_LABEL[p.mode] + (p.specialty ? ` · ${p.specialty}` : ''), `${branch.name} · ${branch.city}`, `Période · ${PERIOD_LABEL[period]}`],
       sections,
-      footer: 'Document généré par Le Trône · Maison MND',
+      footer: `Document généré par Le Trône · ${maisonNom()}`,
       filename: `releve-${p.name.replace(/\s+/g, '-')}-${period}.pdf`,
     });
   };

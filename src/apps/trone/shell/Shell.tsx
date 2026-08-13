@@ -18,6 +18,7 @@ import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
 import { useBranch } from '../../../shared/branches';
+import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, toast } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
@@ -69,13 +70,17 @@ function SyncDot() {
   );
 }
 
-const fmtDate = (d: Date) =>
+/* LA DATE DU SALON, PAS CELLE DU TÉLÉPHONE. Le fuseau des Paramètres entre
+   ici : la Souveraine en voyage voit le jour du salon en haut du Trône. */
+const fmtDate = (d: Date, timeZone: string) =>
   d
-    .toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+    .toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', timeZone })
     .toUpperCase();
 
 export default function Shell() {
   const { branch, branches, setBranch, currency } = useBranch();
+  /* L'identité signe la barre latérale et règle l'horloge (Paramètres). */
+  const [identite] = useHouseIdentity();
   const { session } = useAuth();
   const staff = useStaff();
   const role = staff?.role;
@@ -230,7 +235,7 @@ export default function Shell() {
         <div className="tr-side__brand">
           <Seal color="or" size={34} />
           <div>
-            <h1 className="mnd-serif">Maison MND</h1>
+            <h1 className="mnd-serif">{identite.nom.trim() || 'Maison MND'}</h1>
             <div className="tr-side__powered">Propulsé par LOKAA</div>
           </div>
           <button className="tr-side__close" onClick={closeSide} aria-label="Fermer le menu">
@@ -298,7 +303,7 @@ export default function Shell() {
             <Menu size={20} />
           </button>
           <div className="tr-top__trail">
-            Le Trône · {branch.city} · {fmtDate(today)}
+            Le Trône · {branch.city} · {fmtDate(today, fuseauIana(identite.fuseau))}
           </div>
           {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
           <Trouver />

@@ -28,30 +28,13 @@ import './systeme.css';
 type FieldRow = { l: string; v: string };
 type ToggleRow = { k: string; l: string; sub: string };
 
-/* ---------- Identité de la Maison & rituel par défaut — champs éditables ----------
-   Persistés en localStorage (clé `mnd_house_identity`) via le magasin partagé.
-   Ces réglages ne trouvaient pas de foyer dans `settings` (bascules) ni dans
-   `houseSettingsStore` (Record<string, boolean>) : on leur donne un magasin dédié. */
-type HouseIdentity = {
-  nom: string;
-  raison: string;
-  fuseau: string;
-  dureeRituel: string;
-  fenetreAnnulation: string;
-};
-
-const DEFAULT_IDENTITY: HouseIdentity = {
-  nom: 'Maison MND',
-  raison: 'MND SARL · RCCM COT-B-2021',
-  fuseau: 'Cotonou · GMT+1',
-  dureeRituel: '2 h 30',
-  fenetreAnnulation: '48 h avant',
-};
-
-const houseIdentityStore = createStore<HouseIdentity>('mnd_house_identity', DEFAULT_IDENTITY);
-import { bindDocument } from '../../../../shared/sync';
-bindDocument(houseIdentityStore, 'mnd_house_identity'); // synchronisé Supabase (multi-appareils)
-const useHouseIdentity = () => useStore(houseIdentityStore);
+/* ---------- Identité de la Maison — DÉMÉNAGÉE dans `shared/identite` ----------
+   Branchée le 13 août : le nom signe la barre latérale, l'écran de connexion,
+   les factures et les reçus PDF ; la raison sociale, le pied des factures ;
+   le fuseau, l'horloge du Trône. Le magasin vivait ici tant que rien ne le
+   lisait — ses lecteurs sont partout, il vit désormais dans la couche
+   partagée. Même clé (`mnd_house_identity`) : rien à migrer. */
+import { useHouseIdentity, type HouseIdentity } from '../../../../shared/identite';
 
 const FUSEAU_OPTIONS = [
   'Cotonou · GMT+1', 'Abidjan · GMT', 'Lomé · GMT', 'Dakar · GMT',
@@ -753,44 +736,38 @@ export default function Parametres() {
       <Intertitre id="fam-maison">La Maison</Intertitre>
 
       <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          Identité de la Maison <AVenir />
-        </div>
+        <div className="sys-section__title">Identité de la Maison</div>
           <div className="sys-section__cap">
-            Ce que la Maison montrera au monde — pas encore relié : le nom qui s’affiche
-            aujourd’hui partout vient de Système → Branches.
+            Le nom signe la barre latérale, l’écran de connexion, les factures et les reçus PDF ;
+            la raison sociale, la ligne légale au pied des factures ; le fuseau, la date affichée
+            en haut du Trône. La branche (Système → Branches) garde son propre nom de lieu.
           </div>
-          <div style={{ opacity: 0.55 }}>
-          <EditRow l="Nom de la Maison">
+          <EditRow l="Nom de la Maison" sub="Il se propage à la frappe — regarde la barre latérale.">
             <input
               className="sys-input"
               value={identity.nom}
               onChange={(e) => setIdent('nom', e.target.value)}
               aria-label="Nom de la Maison"
-              disabled
             />
           </EditRow>
-          <EditRow l="Raison sociale">
+          <EditRow l="Raison sociale" sub="La ligne légale des factures — RCCM compris.">
             <input
               className="sys-input"
               value={identity.raison}
               onChange={(e) => setIdent('raison', e.target.value)}
               aria-label="Raison sociale"
-              disabled
             />
           </EditRow>
-          <EditRow l="Fuseau horaire">
+          <EditRow l="Fuseau horaire" sub="L’horloge du Trône : en voyage, tu vois le jour du salon.">
             <select
               className="sys-select"
               value={identity.fuseau}
               onChange={(e) => setIdent('fuseau', e.target.value)}
               aria-label="Fuseau horaire"
-              disabled
             >
               {FUSEAU_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </EditRow>
-          </div>
           <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
         </Card>
 

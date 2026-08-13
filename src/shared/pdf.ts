@@ -4,6 +4,8 @@
    l'API WhatsApp Business (serveur) — ici on télécharge le PDF puis on ouvre le
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
+import { maisonNom } from './identite';
+
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
 const INK = '#14141B';
@@ -341,7 +343,7 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   /* ⚠ Pas de devise en fon ici : les polices standard du PDF (WinAnsi) n'ont ni
      « ɔ » ni « ɖ » ni « ɛ » — jsPDF tracerait des glyphes parasites. La devise
      vit dans les messages et à l'écran, pas dans les documents imprimés. */
-  doc.text('Reçu émis par Le Trône · Maison MND', W / 2, 128, { align: 'center' });
+  doc.text(`Reçu émis par Le Trône · ${maisonNom()}`, W / 2, 128, { align: 'center' });
 
   const filename = `Recu-${d.number}.pdf`;
   doc.save(filename);
@@ -546,7 +548,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   }
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
-  doc.text('Document généré par Le Trône · Maison MND', W / 2, 288, { align: 'center' });
+  doc.text(`Document généré par Le Trône · ${maisonNom()}`, W / 2, 288, { align: 'center' });
   doc.save(d.filename);
   return d.filename;
 }

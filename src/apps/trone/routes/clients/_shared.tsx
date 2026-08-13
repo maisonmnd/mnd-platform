@@ -4,6 +4,7 @@ import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { maisonNom } from '../../../../shared/identite';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
   remiseFamillePct, type Client,
@@ -295,7 +296,7 @@ const digitsOf = (p?: string) => (p ?? '').replace(/\D/g, '');
     lieu ; le vrai logo se pose une fois pour toutes en photo de profil du compte
     WhatsApp de la Maison, où il signe alors CHAQUE message. */
 export const houseSignature = (picto?: string) =>
-  `${picto ?? '◈'} Maison MND · mi nyɔ́ ɖɛkpɛ`;
+  `${picto ?? '◈'} ${maisonNom()} · mi nyɔ́ ɖɛkpɛ`;
 
 export function apptReminder(
   a: Appointment,

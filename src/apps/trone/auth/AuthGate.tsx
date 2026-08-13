@@ -1,5 +1,6 @@
 import { useState, useEffect, type ReactNode, type FormEvent } from 'react';
 import { Seal, Button, Field, Input } from '../../../ds/components';
+import { maisonNom } from '../../../shared/identite';
 import {
   useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff,
   startPasswordReset, verifyPasswordReset, updatePassword,
@@ -135,7 +136,7 @@ function Login() {
           <Seal color="or" size={40} />
           <div>
             <div className="mnd-eyebrow">Le Trône</div>
-            <h1 className="mnd-serif tra-title">Maison MND</h1>
+            <h1 className="mnd-serif tra-title">{maisonNom()}</h1>
           </div>
         </div>
 

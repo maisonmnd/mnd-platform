@@ -13,12 +13,23 @@ familles »). Puis l'audit de CHAQUE réglage, à la demande de Yéman :
   Académie, Abonnements), segments, styles de couronne (menu des fiches +
   affichage Ma Couronne), preuve de présence, automatisations IA, sauvegarde.
 - **MORT — gardé, marqué « À venir », rendu INERTE** (décision de Yéman ;
-  bascules `pointerEvents:none`, champs `disabled`, pastille) : la carte
-  « Identité de la Maison » (nom/raison/fuseau — magasin `mnd_house_identity`
-  que RIEN ne lit ; le vrai nom vient de Branches), « Durée standard d'un
-  rituel », « Fenêtre d'annulation », les 8 interrupteurs
+  bascules `pointerEvents:none`, champs `disabled`, pastille) : « Durée
+  standard d'un rituel », « Fenêtre d'annulation », les 8 interrupteurs
   (`settings.toggles.*` : rappel, 4 notifications, auth, sauvegarde, export —
   lus nulle part). Brancher l'un d'eux un jour = retirer sa marque ICI même.
+- **L'IDENTITÉ DE LA MAISON EST BRANCHÉE** (13 août, sur demande) : le
+  magasin `mnd_house_identity` vit désormais dans `shared/identite.ts`
+  (même clé, rien à migrer). Le NOM signe la barre latérale, l'écran de
+  connexion, l'entête ET l'en-tête WhatsApp des factures, les reçus PDF
+  (`houseName`/pieds de page) et `houseSignature` ; la RAISON SOCIALE est la
+  ligne légale au pied des factures (remplace un RCCM codé en dur qui
+  CONTREDISAIT celui de la carte : CO-B-2024 vs COT-B-2021) ; le FUSEAU
+  règle la date du bandeau du Trône (`fmtDate(…, fuseauIana())` — la
+  Souveraine en voyage voit le jour du salon). Règle suivie : le nom ne
+  s'insère que là où il se tient SEUL, jamais au milieu d'une phrase
+  française (« Toute la Maison MND pense à vous » se briserait sur un autre
+  nom). Le doc n'est PAS dans `docs_pub_read` : Ma Couronne et l'écran de
+  connexion (avant session) retombent sur le cache local ou le défaut.
 - Le bouton « Enregistrer » ne sauve rien (tout s'écrit à la frappe) — sa
   note dit désormais la vérité.
 - **Styles de couronne réels** (validés par Yéman) : Microlocks · Sisterlocks
