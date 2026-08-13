@@ -138,7 +138,10 @@ export default function Vitrine() {
    JAMAIS un domaine en dur (changer de compte GitHub ne casse rien : on
    réimprime, c'est tout). Ma Couronne est une PWA : scannée puis « Ajouter à
    l'écran d'accueil », elle s'installe comme une application. */
-export function InvitationCouronne() {
+export function InvitationCouronne({ surComptoir }: {
+  /** Posé par la page QR Codes : ouvre ce code en plein écran, face cliente. */
+  surComptoir?: (g: { titre: string; phrase: string; valeur: string }) => void;
+} = {}) {
   /* Sur le site déployé, le Trône vit sous /trone/ et sa sœur sous /couronne/ ;
      en développement (une seule origine), l'entrée est couronne.html. */
   const lienCouronne = `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
@@ -221,6 +224,19 @@ export function InvitationCouronne() {
           >
             Copier le lien
           </Button>
+          {surComptoir && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => surComptoir({
+                titre: 'Ma Couronne.',
+                phrase: 'Scannez — votre couronne vous reconnaît.',
+                valeur: lienCouronne,
+              })}
+            >
+              Afficher au comptoir
+            </Button>
+          )}
         </div>
       </div>
     </div>

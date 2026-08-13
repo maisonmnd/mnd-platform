@@ -2,6 +2,20 @@
 
 État au 13 août 2026. À lire en premier dans une nouvelle session.
 
+## La page QR Codes : Wi-Fi et plein écran du comptoir — 13 août
+
+La page QR Codes (`/qr-codes`) porte QUATRE cartes : invitation Ma Couronne,
+Wi-Fi des clientes (« Installez-vous. Le réseau de la Maison est à vous. »),
+MoMoPay, code du jour. CHAQUE code sait s'« Afficher au comptoir » : plein
+écran parchemin, marque, code géant tourné vers la cliente — toucher ou Échap
+referme (`AuComptoir`, QrCodes.tsx ; l'invitation reçoit le geste par la prop
+`surComptoir` d'`InvitationCouronne`, la Vitrine ne change pas). Le Wi-Fi
+encode `WIFI:T:WPA;S:…;P:…;;` (caractères réservés échappés) ; nom du réseau
+et mot de passe vivent dans `autoConfigStore` (`wifiSsid`/`wifiPass`) — DANS
+LA BASE, jamais en dur dans le code : le dépôt est public. Ils se saisissent
+sur la carte même ; tant qu'ils manquent, la carte dit « à renseigner ». Le
+gabarit A5 est partagé (`carteA5`) — MoMo et Wi-Fi s'impriment pareil.
+
 ## Le calibre se compte, le style est retiré — 13 août
 
 Décision Yéman : le champ « style de couronne » SORT du système. Le CALIBRE

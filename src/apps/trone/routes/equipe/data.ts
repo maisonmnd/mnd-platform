@@ -211,6 +211,12 @@ export type AutoConfig = {
   momoQr?: string;
   momoUssd?: string;
   momoMarchand?: string;
+  /** LE WI-FI DES CLIENTES (13 août). Le QR encode `WIFI:T:WPA;S:…;P:…;;` —
+      le téléphone se connecte sans taper le mot de passe. Ces deux valeurs
+      vivent ICI, dans la base de la maison, JAMAIS en dur dans le code : le
+      dépôt est public, et un mot de passe commité est un mot de passe donné. */
+  wifiSsid?: string;
+  wifiPass?: string;
 };
 
 /** Défauts du compte marchand — relevés du document MoMo de la Maison. */
