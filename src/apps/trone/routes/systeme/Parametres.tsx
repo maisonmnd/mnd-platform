@@ -761,7 +761,6 @@ export default function Parametres() {
   const [identity, setIdentity] = useHouseIdentity();
   const [segments, setSegments] = useSegments();
   const [payMethods] = usePaymentMethods();
-  const [saved, setSaved] = useState(false);
   const [newSeg, setNewSeg] = useState('');
   const [segEditIdx, setSegEditIdx] = useState<number | null>(null);
   const [segEditVal, setSegEditVal] = useState('');
@@ -921,8 +920,6 @@ export default function Parametres() {
 
   const openDays = useMemo(() => settings.hours.filter((d) => !d.closed).length, [settings.hours]);
 
-  const save = () => { setSaved(true); window.setTimeout(() => setSaved(false), 2400); };
-
   /* `aVenir` : rangée grisée, interrupteur INERTE — le réglage n'est encore
      relié à rien, et un interrupteur qui accepte le geste sans rien commander
      fait croire qu'une protection existe. */
@@ -947,22 +944,15 @@ export default function Parametres() {
 
   return (
     <div className="mnd-rise">
+      {/* LE BOUTON « ENREGISTRER » EST SUPPRIMÉ (13 août, décision de Yéman) :
+          il ne sauvait rien — chaque réglage s'écrit à la frappe dans son
+          magasin synchronisé. Un bouton qui ne commande rien ment ; la vérité
+          se dit une fois, dans le sous-titre. */}
       <PageHead
         eyebrow="Système · La Maison"
         title="Paramètres."
-        sub={`${branch.name} — les règles qui cadrent chaque rendez-vous, et les accès de ceux qui servent.`}
-        actions={<Button variant="copper" onClick={save}>Enregistrer</Button>}
+        sub={`${branch.name} — les règles qui cadrent chaque rendez-vous. Chaque réglage s'enregistre à la frappe, rien à valider.`}
       />
-
-      {/* LE BOUTON NE SAUVE RIEN — et il le dit. Chaque réglage s'écrit à la
-          frappe dans son magasin synchronisé ; presser reste un geste de
-          réassurance, alors la note dit la vérité (audit du 13 août). */}
-      {saved && (
-        <div className="tre-inline-note" style={{ marginBottom: 16 }}>
-          <span className="mark">✦</span>
-          <span>Tout est déjà enregistré — la Maison écrit à la frappe, à chaque réglage touché.</span>
-        </div>
-      )}
 
       <SommaireParametres />
 
