@@ -157,11 +157,12 @@ export const remiseFamillePct = (f?: Family | null): number => {
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore).
-    LES MODÈLES RÉELS DE LA MAISON depuis le 13 août : la liste d'usine du
-    prototype (dix styles génériques) proposait des couronnes que le salon ne
-    pratique pas — et c'est cette liste que voient les fiches ET les clientes. */
+    LA NOMENCLATURE DE LA MAISON (Yéman, 13 août) : la finesse des locks,
+    du plus épais au plus fin — les mêmes mots que les calibres du Juste
+    Prix, plus les Traditionnelles. La liste d'usine du prototype proposait
+    des couronnes que le salon ne pratique pas. */
 export const CROWN_STYLES_DEFAULT = [
-  'Microlocks', 'Sisterlocks', 'Nanolocks', 'Galaxy', 'Traditionnelles', 'Freeform',
+  'Jumbo', 'Traditionnelles', 'Medium', 'Mini', 'Micro', 'Nano', 'Galaxy',
 ];
 
 /** Liste gérable des styles de couronne (Paramètres / CRM), synchronisée Supabase. */

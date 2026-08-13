@@ -12,10 +12,12 @@
 -- la fiche, la liste ne sert qu'à proposer) : rien ne se perd.
 -- ═══════════════════════════════════════════════════════════════════
 
+-- v2 (13 août, après-midi) : la nomenclature dictée par Yéman — la finesse
+-- des locks, du plus épais au plus fin, plus les Traditionnelles.
 insert into public.documents (key, data, updated_at)
 values (
   'mnd_crown_styles',
-  '["Microlocks","Sisterlocks","Nanolocks","Galaxy","Traditionnelles","Freeform"]'::jsonb,
+  '["Jumbo","Traditionnelles","Medium","Mini","Micro","Nano","Galaxy"]'::jsonb,
   now()
 )
 on conflict (key) do update

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
@@ -107,6 +107,66 @@ function EditRow({ l, sub, children }: { l: string; sub?: string; children: Reac
         {sub && <div className="sys-row__sub">{sub}</div>}
       </div>
       {children}
+    </div>
+  );
+}
+
+/* ── LA LIGNE QUI S'ÉCRIT SANS CÉRÉMONIE (13 août) ──────────────────────
+   « Renommer » puis « Valider », c'était deux gestes pour changer un mot.
+   La ligne est désormais UN champ, toujours ouvert : chaque lettre
+   s'enregistre à la frappe (le magasin synchronisé porte la liste entière),
+   et ▲▼ règlent l'ordre — celui des menus et des chips d'encaissement.
+
+   Deux gardes au moment de quitter le champ : un nom vidé REVIENT à ce
+   qu'il était (retirer une ligne est le geste « Retirer », pas la touche
+   effacer), et un nom déjà pris ailleurs revient aussi — deux lignes du
+   même nom seraient indistinguables partout où la liste se propose.
+
+   ⚠ CLÉ PAR POSITION, jamais par contenu : une clé qui contient le nom
+   remonte le composant À CHAQUE LETTRE — le champ perdrait le focus. */
+function LigneListe({ nom, existe, premier, dernier, renomme, bouge, retire, aria }: {
+  nom: string;
+  /** Le nom est-il déjà porté par une AUTRE ligne ? (insensible à la casse) */
+  existe: (candidat: string) => boolean;
+  premier: boolean;
+  dernier: boolean;
+  renomme: (val: string) => void;
+  bouge: (dir: -1 | 1) => void;
+  retire: () => void;
+  aria: string;
+}) {
+  const [draft, setDraft] = useState(nom);
+  const [focus, setFocus] = useState(false);
+  const avant = useRef(nom);
+  /* Une valeur venue d'ailleurs (synchro, ▲▼) rafraîchit le champ hors frappe. */
+  useEffect(() => { if (!focus) setDraft(nom); }, [nom, focus]);
+  const fleche: CSSProperties = { fontSize: 13, lineHeight: 1, padding: '6px 8px' };
+  return (
+    <div className="sys-row sys-row--items">
+      <input
+        className="sys-select"
+        value={draft}
+        onFocus={() => { setFocus(true); avant.current = nom; }}
+        onChange={(e) => { setDraft(e.target.value); renomme(e.target.value); }}
+        onBlur={() => {
+          setFocus(false);
+          const t = draft.trim();
+          if (!t || (t.toLowerCase() !== avant.current.trim().toLowerCase() && existe(t))) {
+            renomme(avant.current); setDraft(avant.current);
+            if (t) toast('Ce nom existe déjà dans la liste.');
+          } else if (t !== draft) {
+            renomme(t); setDraft(t);
+          }
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        style={{ flex: 1, marginRight: 12, fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}
+        aria-label={aria}
+      />
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <Button size="sm" variant="ghost" style={fleche} onClick={() => bouge(-1)} disabled={premier} aria-label={`Monter ${nom}`}>▲</Button>
+        <Button size="sm" variant="ghost" style={fleche} onClick={() => bouge(1)} disabled={dernier} aria-label={`Descendre ${nom}`}>▼</Button>
+        <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={retire}>Retirer</Button>
+      </div>
     </div>
   );
 }
@@ -519,14 +579,10 @@ export default function Parametres() {
   const [payMethods] = usePaymentMethods();
   const [saved, setSaved] = useState(false);
   const [newStyle, setNewStyle] = useState('');
-  const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editVal, setEditVal] = useState('');
   const [newSeg, setNewSeg] = useState('');
   const [segEditIdx, setSegEditIdx] = useState<number | null>(null);
   const [segEditVal, setSegEditVal] = useState('');
   const [newPay, setNewPay] = useState('');
-  const [payEditIdx, setPayEditIdx] = useState<number | null>(null);
-  const [payEditVal, setPayEditVal] = useState('');
 
   const curName = currencyByCode(currency)?.name ?? currency;
 
@@ -611,17 +667,22 @@ export default function Parametres() {
     setCrownStyles((prev) => normalizeStyles([...prev, t]));
     setNewStyle('');
   };
-  const startRename = (idx: number, current: string) => { setEditIdx(idx); setEditVal(current); };
-  const commitRename = (idx: number) => {
-    const t = editVal.trim();
-    if (t) setCrownStyles((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
-    setEditIdx(null);
-    setEditVal('');
-  };
+  /* La frappe écrit TELLE QUELLE (pas de normalize : il retirerait la ligne
+     dès qu'elle se vide pour être retapée) — les gardes vivent au blur, dans
+     LigneListe. */
+  const renommeStyle = (idx: number, val: string) =>
+    setCrownStyles((prev) => prev.map((s, i) => (i === idx ? val : s)));
+  const bougeStyle = (idx: number, dir: -1 | 1) =>
+    setCrownStyles((prev) => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const n = [...prev];
+      [n[idx], n[j]] = [n[j], n[idx]];
+      return n;
+    });
   const removeStyle = (idx: number, name: string) => {
     if (!window.confirm(`Retirer le style « ${name} » ? Il ne sera plus proposé au CRM ni à Ma Couronne.`)) return;
     setCrownStyles((prev) => prev.filter((_, i) => i !== idx));
-    if (editIdx === idx) setEditIdx(null);
   };
 
   /* ----- Segments de clientèle — même gestion (ajout / renommage / retrait) ----- */
@@ -653,16 +714,19 @@ export default function Parametres() {
     paymentMethodsStore.set((prev) => normalizeStyles([...prev, t]));
     setNewPay('');
   };
-  const commitPayRename = (idx: number) => {
-    const t = payEditVal.trim();
-    if (t) paymentMethodsStore.set((prev) => normalizeStyles(prev.map((s, i) => (i === idx ? t : s))));
-    setPayEditIdx(null);
-    setPayEditVal('');
-  };
+  const renommePay = (idx: number, val: string) =>
+    paymentMethodsStore.set((prev) => prev.map((s, i) => (i === idx ? val : s)));
+  const bougePay = (idx: number, dir: -1 | 1) =>
+    paymentMethodsStore.set((prev) => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const n = [...prev];
+      [n[idx], n[j]] = [n[j], n[idx]];
+      return n;
+    });
   const removePay = (idx: number, name: string) => {
     if (!window.confirm(`Retirer le mode de paiement « ${name} » ? Il ne sera plus proposé à l’encaissement (Factures & Académie).`)) return;
     paymentMethodsStore.set((prev) => prev.filter((_, i) => i !== idx));
-    if (payEditIdx === idx) setPayEditIdx(null);
   };
 
   const setHour = (key: string, field: keyof DayHours, val: string | boolean) =>
@@ -1167,8 +1231,9 @@ export default function Parametres() {
           <div>
             <div className="sys-section__title">Catalogue · styles de couronne</div>
             <div className="sys-section__cap">
-              La liste des styles proposée partout — fiches CRM et Ma Couronne. Ajoutez, renommez, retirez ;
-              les changements se propagent aussitôt.
+              La finesse des locks, proposée partout — fiches CRM et Ma Couronne. Écris directement
+              dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre des menus. Une fiche
+              déjà taguée garde son libellé d’origine.
             </div>
           </div>
           <span className="sys-badge-count">{crownStyles.length} style{crownStyles.length > 1 ? 's' : ''}</span>
@@ -1176,33 +1241,17 @@ export default function Parametres() {
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {crownStyles.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {editIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={editVal}
-                    autoFocus
-                    onChange={(e) => setEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(i); if (e.key === 'Escape') setEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le style"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => startRename(i, s)}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeStyle(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
+            <LigneListe
+              key={i}
+              nom={s}
+              existe={(c) => crownStyles.some((x, k) => k !== i && x.trim().toLowerCase() === c.toLowerCase())}
+              premier={i === 0}
+              dernier={i === crownStyles.length - 1}
+              renomme={(v) => renommeStyle(i, v)}
+              bouge={(d) => bougeStyle(i, d)}
+              retire={() => removeStyle(i, s)}
+              aria={`Nom du style ${i + 1}`}
+            />
           ))}
           {crownStyles.length === 0 && (
             <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
@@ -1216,7 +1265,7 @@ export default function Parametres() {
             value={newStyle}
             onChange={(e) => setNewStyle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addStyle(); }}
-            placeholder="Nouveau style — ex. Microlocks"
+            placeholder="Nouveau style — ex. Nano"
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
@@ -1294,8 +1343,9 @@ export default function Parametres() {
           <div>
             <div className="sys-section__title">Encaissement · modes de paiement</div>
             <div className="sys-section__cap">
-              Les moyens de règlement proposés à l’encaissement — Factures &amp; Académie. Ajoutez, renommez, retirez ;
-              les changements se propagent aussitôt.
+              Les moyens de règlement proposés à l’encaissement — Caisse, Factures &amp; Académie.
+              Écris directement dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre
+              des boutons à la Caisse. Les pièces déjà encaissées gardent leur libellé.
             </div>
           </div>
           <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
@@ -1303,33 +1353,17 @@ export default function Parametres() {
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {payMethods.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {payEditIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={payEditVal}
-                    autoFocus
-                    onChange={(e) => setPayEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitPayRename(i); if (e.key === 'Escape') setPayEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le mode de paiement"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitPayRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setPayEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setPayEditIdx(i); setPayEditVal(s); }}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removePay(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
+            <LigneListe
+              key={i}
+              nom={s}
+              existe={(c) => payMethods.some((x, k) => k !== i && x.trim().toLowerCase() === c.toLowerCase())}
+              premier={i === 0}
+              dernier={i === payMethods.length - 1}
+              renomme={(v) => renommePay(i, v)}
+              bouge={(d) => bougePay(i, d)}
+              retire={() => removePay(i, s)}
+              aria={`Nom du mode de paiement ${i + 1}`}
+            />
           ))}
           {payMethods.length === 0 && (
             <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
