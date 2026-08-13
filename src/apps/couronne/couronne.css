@@ -1753,34 +1753,24 @@
    toujours le plein écran, bord à bord — jamais ce cadrage bureau.
    ============================================================ */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
-  .mc-app {
-    background: var(--color-obsidian);
-    background-image:
-      radial-gradient(circle at 50% -10%, rgba(46, 51, 120, 0.5), transparent 60%),
-      linear-gradient(180deg, rgba(30, 33, 80, 0.18), transparent 40%);
-    align-items: center;
-    padding: clamp(0px, 3vh, 34px) 24px;
-  }
+  /* LE CADRE EST RETIRÉ (13 août, demande de Yéman) : plus de scène
+     obsidienne ni de carte bordée — l'app occupe TOUTE la page, sur papier,
+     comme au téléphone. (L'obsidienne n'avait de toute façon pas sa place :
+     doctrine des surfaces sombres.) Seule la LISIBILITÉ demeure : le
+     parcours d'entrée garde une colonne de lecture centrée. */
 
-  .mc-viewport { height: min(920px, calc(100dvh - 68px)); }
-
-  /* --- Connexion / onboarding : carte centrée, généreuse (jamais un sliver) --- */
-  .mc-app--auth .mc-viewport {
+  /* --- Connexion / onboarding : pleine page, colonne centrée --- */
+  .mc-app--auth .mc-onb,
+  .mc-app--auth .mc-onb-form {
+    width: 100%;
     max-width: 560px;
-    height: min(880px, calc(100dvh - 68px));
-    border-radius: 5px;
-    border: 1px solid rgba(246, 241, 231, 0.10);
-    box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.8);
+    margin: 0 auto;
   }
 
-  /* --- Coquille de l'app : navigation gauche + contenu --- */
+  /* --- Coquille de l'app : navigation gauche + contenu, pleine largeur --- */
   .mc-app--shell .mc-viewport {
     flex-direction: row;
     width: 100%;
-    max-width: 1280px;
-    border-radius: 5px;
-    border: 1px solid rgba(246, 241, 231, 0.10);
-    box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.8);
   }
 
   /* La barre d'onglets devient une navigation verticale (sceau + onglets + sortie). */
