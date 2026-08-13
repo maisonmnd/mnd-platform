@@ -58,6 +58,10 @@ type SvcForm = {
       est désormais EXCLUSIF : seuls les champs du modèle choisi s'affichent,
       et l'enregistrement EFFACE les systèmes des autres modèles. */
   modele: 'fixe' | 'modele' | 'lock' | 'calibre' | 'longueur';
+  /** LES CALIBRES QU'ELLE SERT (13 août — deux créations prixées en même
+      temps : Création Medium ne portait pas la restriction de ses sœurs, et
+      AUCUN champ ne permettait de la poser). Vide = toutes les têtes. */
+  bandIds: string[];
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
   estForfait: boolean; // un forfait porte une composition ; une prestation, non
@@ -73,7 +77,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe',
+  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [],
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -518,6 +522,8 @@ export default function Catalogue() {
       prixLong: Object.fromEntries(Object.entries(svc.prixParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
       dureeLong: Object.fromEntries(Object.entries(svc.dureeParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
       modele: modeleDe(svc),
+      /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
+      bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -693,6 +699,10 @@ export default function Catalogue() {
       /* L'interrupteur « suit le modèle » appartient au modèle « Barème » ;
          un forfait garde le sien tel quel. */
       ...(svcForm.estForfait ? {} : { scalesWithModel: m === 'modele' ? true : undefined }),
+      /* LES CALIBRES SERVIS — la liste fait foi (`servesBand`) ; l'ancien
+         champ simple `bandId`, fondu dans la liste à l'ouverture, se retire. */
+      bandIds: svcForm.bandIds.length ? svcForm.bandIds : undefined,
+      bandId: undefined,
     };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
@@ -1708,6 +1718,38 @@ export default function Catalogue() {
                 </div>
               </Field>
             )}
+            {/* LES CALIBRES QU'ELLE SERT (13 août). À 300 locks, DEUX créations
+                s'affichaient prixées : Création Medium ne portait pas la
+                restriction de ses sœurs — et rien à l'écran ne permettait de la
+                poser. Vaut aussi pour un forfait (GBÈJÍ™ Fidélité sert Micro et
+                Nano). Le juge est `servesBand` : hors de ces calibres, la
+                prestation n'est ni proposée ni prixée — « hors calibre ». */}
+            <Field label="Les calibres qu'elle sert">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {bands.map((b) => {
+                  const on = svcForm.bandIds.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className="trv-minibtn"
+                      style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                      onClick={() => setSvcForm({
+                        ...svcForm,
+                        bandIds: on ? svcForm.bandIds.filter((x) => x !== b.id) : [...svcForm.bandIds, b.id],
+                      })}
+                    >
+                      {b.name ?? bandRange(b, bands)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {svcForm.bandIds.length
+                  ? 'Réservée à ces calibres — pour les autres têtes : « hors calibre », jamais proposée ni prixée.'
+                  : 'Aucune coche : elle sert toutes les têtes, quel que soit le calibre.'}
+              </div>
+            </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Code ERP">
                 <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
