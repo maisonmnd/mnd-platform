@@ -361,30 +361,32 @@ export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
     du plancher par calibre, d'une grille par longueur ou du Juste Prix — les
     réglages se lisaient champ par champ, jamais comme une règle (13 août).
     `justePrix` dit si le coefficient personnel de la cliente s'appliquera. */
-export type RegimeTarifaire = { mots: string; justePrix: boolean };
+export type RegimeClef = 'ferme' | 'forfait' | 'devis' | 'longueur' | 'calibre' | 'lock' | 'modele' | 'variable' | 'fixe';
+export type RegimeTarifaire = { k: RegimeClef; mots: string; justePrix: boolean };
 export const regimeTarifaire = (sv: Service): RegimeTarifaire => {
-  if (isFixedPrice(sv)) return { mots: 'prix ferme du catalogue', justePrix: false };
-  if (sv.includes?.length) return { mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
-  if (priceModeOf(sv) === 'devis') return { mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
+  if (isFixedPrice(sv)) return { k: 'ferme', mots: 'prix ferme du catalogue', justePrix: false };
+  if (sv.includes?.length) return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
+  if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
   if (sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0) {
-    return { mots: 'grille par longueur (court · mi-long · long), prix saisis', justePrix: true };
+    return { k: 'longueur', mots: 'grille par longueur (court · mi-long · long), prix saisis', justePrix: true };
   }
   const planchers = Object.keys(sv.priceFloors ?? {}).length > 0;
   if (tarifModeOf(sv) === 'calibre' && planchers) {
-    return { mots: 'prix par calibre — le plancher de la tranche EST le prix', justePrix: true };
+    return { k: 'calibre', mots: 'prix par calibre — le plancher de la tranche EST le prix', justePrix: true };
   }
   if (sv.tarifMode === 'lock' && sv.ratePerLock) {
-    return { mots: 'comptage — locks × tarif, sans plancher', justePrix: true };
+    return { k: 'lock', mots: 'comptage — locks × tarif, sans plancher', justePrix: true };
   }
   if (sv.ratePerLock) {
     return {
+      k: 'lock',
       mots: planchers ? 'comptage — locks × tarif, plancher par calibre en filet' : 'comptage — locks × tarif',
       justePrix: true,
     };
   }
-  if (scalesWithModel(sv)) return { mots: 'prix de base × coefficient du calibre', justePrix: true };
-  if (priceModeOf(sv) === 'variable') return { mots: 'prix de départ « dès » — montant convenu au fauteuil', justePrix: true };
-  return { mots: 'prix fixe du catalogue', justePrix: true };
+  if (scalesWithModel(sv)) return { k: 'modele', mots: 'prix de base × coefficient du calibre', justePrix: true };
+  if (priceModeOf(sv) === 'variable') return { k: 'variable', mots: 'prix de départ « dès » — montant convenu au fauteuil', justePrix: true };
+  return { k: 'fixe', mots: 'prix fixe du catalogue', justePrix: true };
 };
 
 /** LE PRIX D'UN FORFAIT POUR CETTE TETE. Somme de ses prestations au prix de la

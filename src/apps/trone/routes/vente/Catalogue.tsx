@@ -169,6 +169,11 @@ export default function Catalogue() {
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  /* LE REGROUPEMENT PAR RÉGIME (13 août — « tous les services qui dépendent du
+     Juste Prix doivent être regroupés »). Un filtre montre le catalogue entier
+     réduit aux prestations du régime choisi, toujours rangées par atelier, et
+     se comporte comme une recherche : catégories vides masquées, tout déplié. */
+  const [regimeFiltre, setRegimeFiltre] = useState<'tout' | 'jp' | 'lock' | 'calibre' | 'longueur' | 'hors'>('tout');
 
   /* ----- Le point d'usage : ce que chaque prestation a réellement servi -----
      Par prestation : rituels honorés, RDV à venir, et part du chiffre encaissé
@@ -365,8 +370,20 @@ export default function Catalogue() {
   /* Recherche + repli — le catalogue peut être dense ; on aide à s'y retrouver.
      Une recherche déplie tout et masque les catégories sans correspondance. */
   const q = query.trim().toLowerCase();
-  const matchSvc = (s: Service) => !q || s.name.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q);
-  const matchProd = (p: Product) => !q || p.name.toLowerCase().includes(q);
+  /* Le régime d'une prestation contre le filtre — MÊME juge que l'étiquette. */
+  const matchRegime = (s: Service): boolean => {
+    if (regimeFiltre === 'tout') return true;
+    const r = regimeTarifaire(s);
+    if (regimeFiltre === 'jp') return r.justePrix;
+    if (regimeFiltre === 'hors') return !r.justePrix;
+    return r.k === regimeFiltre;
+  };
+  /* Un filtre actif (recherche OU régime) masque les catégories vides. */
+  const filtreActif = !!q || regimeFiltre !== 'tout';
+  const matchSvc = (s: Service) => (!q || s.name.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q)) && matchRegime(s);
+  /* Les produits de la Gamme ne portent pas de régime tarifaire : un filtre
+     par régime les met de côté — on regarde des PRESTATIONS. */
+  const matchProd = (p: Product) => (!q || p.name.toLowerCase().includes(q)) && regimeFiltre === 'tout';
   const toggleCollapse = (id: string) =>
     setCollapsed((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allCollapsed = cats.length > 0 && cats.every((c) => collapsed.has(c.id));
@@ -752,7 +769,7 @@ export default function Catalogue() {
       />
 
       {cats.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', flexWrap: 'wrap' }}>
           <input
             className="mnd-input"
             value={query}
@@ -764,6 +781,59 @@ export default function Catalogue() {
           <Button variant="ghost" onClick={toggleAll}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</Button>
         </div>
       )}
+
+      {/* LE REGROUPEMENT PAR RÉGIME — un clic montre ENSEMBLE toutes les
+          prestations d'un même régime tarifaire (rangées par atelier), avec
+          le compte sur chaque pastille. Le même juge que les étiquettes. */}
+      {cats.length > 0 && (() => {
+        const nb = {
+          jp: services.filter((s) => regimeTarifaire(s).justePrix).length,
+          lock: services.filter((s) => regimeTarifaire(s).k === 'lock').length,
+          calibre: services.filter((s) => regimeTarifaire(s).k === 'calibre').length,
+          longueur: services.filter((s) => regimeTarifaire(s).k === 'longueur').length,
+          hors: services.filter((s) => !regimeTarifaire(s).justePrix).length,
+        };
+        const chips: { v: typeof regimeFiltre; t: string; n?: number }[] = [
+          { v: 'tout', t: 'Tout' },
+          { v: 'jp', t: 'Juste Prix', n: nb.jp },
+          { v: 'lock', t: 'Comptage des locks', n: nb.lock },
+          { v: 'calibre', t: 'Prix par calibre', n: nb.calibre },
+          { v: 'longueur', t: 'Grille par longueur', n: nb.longueur },
+          { v: 'hors', t: 'Hors Juste Prix', n: nb.hors },
+        ];
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 16px', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>
+              Régime du prix
+            </span>
+            {chips.map((c) => {
+              const on = regimeFiltre === c.v;
+              return (
+                <button
+                  key={c.v}
+                  type="button"
+                  className="trv-minibtn"
+                  onClick={() => setRegimeFiltre(on && c.v !== 'tout' ? 'tout' : c.v)}
+                  style={on
+                    ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
+                    : undefined}
+                >
+                  {c.t}{c.n !== undefined ? ` · ${c.n}` : ''}
+                </button>
+              );
+            })}
+            {regimeFiltre !== 'tout' && (
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                {regimeFiltre === 'jp'
+                  ? 'toutes les prestations que le Juste Prix de la cliente modulera — les produits de la Gamme sont hors champ'
+                  : regimeFiltre === 'hors'
+                    ? 'prix fermes du catalogue et montants sur devis — le Juste Prix ne les touche pas'
+                    : 'les prestations de ce régime, rangées par atelier'}
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {cats.length === 0 && (
         <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '28px 0', textAlign: 'center' }}>
@@ -787,10 +857,13 @@ export default function Catalogue() {
         const prods = (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
         const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
-        /* En recherche : on masque les catégories sans aucune correspondance. */
-        if (q && count === 0 && !catMatches) return null;
-        /* Replié uniquement hors recherche — une recherche déplie tout. */
-        const open = !q && !collapsed.has(cat.id);
+        /* Filtre actif (recherche ou régime) : on masque les catégories sans
+           aucune correspondance. */
+        if (filtreActif && count === 0 && !(q && catMatches)) return null;
+        /* Replié uniquement hors filtre — chercher ou filtrer DÉPLIE : le
+           `!q &&` d'origine faisait l'inverse de son commentaire, une
+           recherche repliait tous les ateliers (corrigé le 13 août). */
+        const open = filtreActif || !collapsed.has(cat.id);
         return (
           <div key={`w-${cat.id}`}>
           {ouvreGroupe && g && (
