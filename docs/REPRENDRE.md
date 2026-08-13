@@ -30,6 +30,18 @@ voies d'un coup : gratuit d'abord + WhatsApp API + SMS.
   la conversation à vérifier), fournisseur SMS (adapter le bloc ③ si autre
   que Twilio). RESTE À FAIRE PAR YÉMAN : déployer la fonction + poser le
   cron (étapes 1-2) ; comptes Meta/SMS quand elle veut (étapes 3-4).
+- **Suivi du compte MoMoPay** (13 août, même journée) : le QR/USSD est un
+  canal fermé MTN — la seule vue complète est le RELEVÉ marchand. Construit :
+  Encaissements → « Pointer le relevé MoMo » (lecteur tolérant montant/date/
+  réf, rapprochement contre `buildReceipts` + acomptes en attente ; verdicts
+  Pointé / Acompte à confirmer [bouton → `depositConfirmed` daté du relevé] /
+  Noté sous un autre moyen / Orphelin ; un encaissement ne se consomme
+  qu'UNE fois ; rien ne persiste — recoller le relevé recalcule). Si le
+  format réel lit mal : demander un échantillon et calibrer `lireReleve`.
+  Voie B choisie aussi : MoMo Open API Collections (RequestToPay) — enrôle-
+  ment MTN d'abord (guide, annexe B) ; le chantier `momo-collecte` + bouton
+  Caisse s'écrira quand les clés existeront. KkiaPay NON retenu (rails
+  dormants intacts dans `shared/kkiapay.ts`).
 
 ## Paramètres : l'audit du vrai et du décor — 13 août
 

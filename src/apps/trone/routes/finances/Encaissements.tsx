@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Input, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { useInvoices, usePayments, useCredits } from '../../../../shared/finance';
 import { useApprenants, useSubscribers } from '../equipe/data';
@@ -42,6 +42,96 @@ const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
 
 const frDay = (iso: string): string =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—';
+
+/* ═══ LE POINTAGE DU RELEVÉ MoMo (13 août) ═══════════════════════════
+   Le compte marchand MoMoPay reçoit des paiements que Le Trône ne voit
+   pas naître (QR du salon, USSD composé par la cliente). Le relevé du
+   portail marchand MTN est la SEULE vue complète de ce compte : on le
+   colle ici tel quel, et chaque ligne est rapprochée du registre.
+
+   Le lecteur est TOLÉRANT : il cherche montant, date et référence où
+   qu'ils soient sur la ligne (export CSV, copie du portail, messages) —
+   les formats de MTN varient et ne nous appartiennent pas. Une ligne
+   sans montant lisible est comptée « illisible », jamais devinée. */
+
+type LigneReleve = { brute: string; date?: string; montantXof: number; ref?: string };
+
+const lireReleve = (texte: string): { lignes: LigneReleve[]; illisibles: number } => {
+  const lignes: LigneReleve[] = [];
+  let illisibles = 0;
+  for (const brute of texte.split(/\r?\n/)) {
+    const l = brute.trim();
+    if (!l) continue;
+    /* La date — ISO d'abord, sinon jj/mm/aaaa à la française. */
+    let date: string | undefined;
+    const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(l);
+    const fr = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b/.exec(l);
+    if (iso) date = `${iso[1]}-${iso[2]}-${iso[3]}`;
+    else if (fr) {
+      const an = fr[3].length === 2 ? `20${fr[3]}` : fr[3];
+      date = `${an}-${fr[2].padStart(2, '0')}-${fr[1].padStart(2, '0')}`;
+    }
+    /* Le montant — un nombre marqué F/FCFA/XOF d'abord ; sinon un nombre à
+       séparateurs de milliers (15 000 · 15.000 · 15,000). */
+    const marque = /([\d][\d\s .,]*)\s*(?:FCFA|XOF|F)\b/i.exec(l);
+    const separe = /\b\d{1,3}(?:[\s .]\d{3})+\b/.exec(l);
+    const brut = marque?.[1] ?? separe?.[0];
+    const montantXof = brut ? parseInt(brut.replace(/[\s .,]/g, ''), 10) : NaN;
+    if (!Number.isFinite(montantXof) || montantXof <= 0) { illisibles++; continue; }
+    /* La référence — la plus longue suite d'au moins 9 chiffres qui n'est
+       pas le montant (les identifiants de transaction MoMo sont longs). */
+    const refs = (l.match(/\b\d{9,}\b/g) ?? []).filter((r) => parseInt(r, 10) !== montantXof);
+    const ref = refs.sort((a, b) => b.length - a.length)[0];
+    lignes.push({ brute: l, date, montantXof, ref });
+  }
+  return { lignes, illisibles };
+};
+
+const joursEntre = (a?: string, b?: string): number =>
+  a && b ? Math.abs((new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86_400_000) : 99;
+
+const estMomo = (moyen?: string): boolean => /momo|mtn|mobile/i.test(moyen ?? '');
+
+export type VerdictReleve = {
+  ligne: LigneReleve;
+  etat: 'pointé' | 'autre-moyen' | 'acompte' | 'orphelin';
+  /** Ce qu'on a trouvé en face — pour le dire en toutes lettres. */
+  detail?: string;
+  apptId?: string;
+};
+
+/** Rapproche chaque ligne du registre : un encaissement ne se consomme qu'UNE
+    fois (deux paiements de 15 000 F le même jour = deux encaissements requis). */
+const rapprocher = (
+  lignes: LigneReleve[],
+  receipts: Receipt[],
+  acomptesEnAttente: { id: string; depositXof: number; clientName?: string; date: string }[],
+): VerdictReleve[] => {
+  const libres = new Set(receipts.map((r) => r.id));
+  const acomptesLibres = new Set(acomptesEnAttente.map((a) => a.id));
+  return lignes.map((ligne) => {
+    /* Le meilleur encaissement encore libre : même montant, dates proches. */
+    const candidats = receipts
+      .filter((r) => libres.has(r.id) && r.amountXof === ligne.montantXof && joursEntre(ligne.date, r.date) <= 3)
+      .sort((a, b) => joursEntre(ligne.date, a.date) - joursEntre(ligne.date, b.date));
+    const elu = candidats.find((r) => estMomo(r.method)) ?? candidats[0];
+    if (elu) {
+      libres.delete(elu.id);
+      const qui = `${elu.clientName} · ${frDay(elu.date)} · ${elu.method}`;
+      return estMomo(elu.method)
+        ? { ligne, etat: 'pointé' as const, detail: qui }
+        : { ligne, etat: 'autre-moyen' as const, detail: qui };
+    }
+    /* Un acompte demandé, jamais confirmé, du même montant : la preuve
+       attendue vient peut-être d'arriver par ce relevé. */
+    const ac = acomptesEnAttente.find((a) => acomptesLibres.has(a.id) && a.depositXof === ligne.montantXof);
+    if (ac) {
+      acomptesLibres.delete(ac.id);
+      return { ligne, etat: 'acompte' as const, detail: `${ac.clientName ?? 'Cliente'} · RDV ${frDay(ac.date)}`, apptId: ac.id };
+    }
+    return { ligne, etat: 'orphelin' as const };
+  });
+};
 
 export default function Encaissements() {
   const { branch, currency } = useBranch();
@@ -141,6 +231,32 @@ export default function Encaissements() {
       ...shown.map((r) => [r.date, receiptKindLabel(r.kind), r.clientName, r.label, r.method, r.cashbox ?? '', r.ref ?? '', r.amountXof]),
     ]);
 
+  /* ── Le pointage du relevé MoMo ─────────────────────────────────── */
+  const [releveOuvert, setReleveOuvert] = useState(false);
+  const [texteReleve, setTexteReleve] = useState('');
+  const { lignes, illisibles } = useMemo(() => lireReleve(texteReleve), [texteReleve]);
+  /* Les acomptes demandés jamais confirmés — la preuve arrive peut-être ici. */
+  const acomptesEnAttente = useMemo(
+    () => appointments
+      .filter((a) => a.branchId === branch.id && (a.depositXof ?? 0) > 0 && !a.depositConfirmed && a.status !== 'annulé')
+      .map((a) => ({ id: a.id, depositXof: a.depositXof ?? 0, clientName: a.clientName ?? clients.find((c) => c.id === a.clientId)?.name, date: a.date })),
+    [appointments, branch.id, clients],
+  );
+  const verdicts = useMemo(() => rapprocher(lignes, all, acomptesEnAttente), [lignes, all, acomptesEnAttente]);
+  const compte = (etat: VerdictReleve['etat']) => verdicts.filter((v) => v.etat === etat).length;
+  /* Confirmer l'acompte depuis la ligne du relevé : la date de la preuve est
+     celle du relevé — c'est ce jour-là que l'argent est entré. */
+  const confirmerAcompte = (apptId: string, dateLigne?: string) =>
+    appointmentsStore.set((prev) => prev.map((a) =>
+      a.id === apptId ? { ...a, depositConfirmed: true, depositConfirmedAt: dateLigne ?? todayISO() } : a,
+    ));
+  const ETAT_META: Record<VerdictReleve['etat'], { l: string; couleur: string }> = {
+    'pointé': { l: 'Pointé', couleur: 'var(--color-indigo)' },
+    'autre-moyen': { l: 'Noté sous un autre moyen', couleur: 'var(--copper-700)' },
+    'acompte': { l: 'Acompte à confirmer', couleur: 'var(--copper-700)' },
+    'orphelin': { l: 'Orphelin — à regarder', couleur: '#8f3b30' },
+  };
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -151,9 +267,74 @@ export default function Encaissements() {
           <>
             <MonthNav month={month} onChange={setMonth} />
             <Button variant="ghost" onClick={exportCsv} disabled={shown.length === 0}>Exporter</Button>
+            <Button variant={releveOuvert ? 'copper' : 'ghost'} onClick={() => setReleveOuvert((o) => !o)}>
+              Pointer le relevé MoMo
+            </Button>
           </>
         }
       />
+
+      {/* ── Le pointage du relevé MoMo — la seule vue complète du compte
+          marchand (QR du salon compris) rapprochée du registre, ligne à
+          ligne. Rien ne s'écrit sans geste : seul « Confirmer l'acompte »
+          modifie quelque chose, et il le dit. ── */}
+      {releveOuvert && (
+        <div className="trf-panel" style={{ marginBottom: 18 }}>
+          <div className="mnd-eyebrow">Pointer le relevé MoMo</div>
+          <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5, maxWidth: 680 }}>
+            Colle le relevé du portail marchand MTN tel quel — export ou copie d’écran, une
+            opération par ligne. Je lis montant, date et référence où qu’ils soient sur la ligne,
+            et je rapproche chaque entrée du registre : encaissements, acomptes en attente.
+          </div>
+          <textarea
+            value={texteReleve}
+            onChange={(e) => setTexteReleve(e.target.value)}
+            rows={6}
+            placeholder={'12/08/2026  15 000 F  réf 123456789012  AKOSSIWA D.\n12/08/2026  40 000 F  réf 123456789013  …'}
+            style={{ width: '100%', marginTop: 12, padding: '10px 12px', border: '1px solid var(--hairline)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 13, background: 'var(--surface-card)', color: 'var(--ink)', resize: 'vertical' }}
+            aria-label="Relevé MoMo à pointer"
+          />
+          {lignes.length > 0 && (
+            <>
+              <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+                {lignes.length} ligne{lignes.length > 1 ? 's' : ''} lue{lignes.length > 1 ? 's' : ''}
+                {illisibles > 0 ? ` · ${illisibles} illisible${illisibles > 1 ? 's' : ''} (sans montant)` : ''}
+                {' — '}
+                {compte('pointé')} pointée{compte('pointé') > 1 ? 's' : ''} ·{' '}
+                {compte('acompte')} acompte{compte('acompte') > 1 ? 's' : ''} à confirmer ·{' '}
+                {compte('autre-moyen')} sous un autre moyen ·{' '}
+                {compte('orphelin')} orpheline{compte('orphelin') > 1 ? 's' : ''}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {verdicts.map((v, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                    <span style={{ minWidth: 64, fontSize: 12.5 }}>{v.ligne.date ? frDay(v.ligne.date) : '—'}</span>
+                    <span style={{ minWidth: 96, fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', textAlign: 'right' }}>
+                      {fmtMoney(v.ligne.montantXof, currency)}
+                    </span>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: ETAT_META[v.etat].couleur, minWidth: 150 }}>
+                      {ETAT_META[v.etat].l}
+                    </span>
+                    <span className="mnd-muted" style={{ fontSize: 12, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {v.detail ?? (v.etat === 'orphelin' ? 'Aucune entrée du registre à ce montant — paiement hors salon, ou à enregistrer.' : '')}
+                    </span>
+                    {v.etat === 'acompte' && v.apptId && (
+                      <Button size="sm" variant="copper" onClick={() => confirmerAcompte(v.apptId!, v.ligne.date)}>
+                        Confirmer l’acompte
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+                « Noté sous un autre moyen » : l’argent est arrivé en MoMo mais le registre dit
+                autre chose (Espèces, carte…) — à corriger sur la pièce d’origine. Le pointage ne
+                s’enregistre pas : recolle le relevé pour le refaire, il retombe sur ses pieds.
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Totaux du mois — par moyen puis par caisse. */}
       <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>

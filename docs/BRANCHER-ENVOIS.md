@@ -100,6 +100,47 @@ ne bouge pas) — demander ce chantier quand le compte existe.
 - La table `envois` est le journal complet (une ligne par personne et par
   canal, avec le verdict et l'heure).
 
+## Annexe — suivre les paiements du compte MoMoPay
+
+Deux voies, choisies le 13 août :
+
+### A. Le pointage du relevé (déjà construit — aucun compte à ouvrir)
+
+Le QR du salon et l'USSD sont un canal fermé de MTN : le Trône ne voit pas
+naître ces paiements. La seule vue COMPLÈTE du compte marchand est le relevé
+du portail marchand MTN (ou l'historique de l'appli marchand).
+
+Finances → Encaissements → **« Pointer le relevé MoMo »** : coller le relevé
+tel quel, une opération par ligne. Le lecteur trouve montant, date et
+référence où qu'ils soient sur la ligne, puis rapproche chaque entrée du
+registre : *Pointé* (encaissement MoMo retrouvé) · *Acompte à confirmer*
+(la preuve attendue vient d'arriver — un bouton confirme) · *Noté sous un
+autre moyen* (l'argent est arrivé MoMo, le registre dit Espèces — à
+corriger) · *Orphelin* (rien en face — à regarder).
+
+Si le format du relevé réel lit mal, apporter un échantillon (quelques
+lignes SANS les noms complets) — le lecteur se calibre en une retouche.
+
+### B. L'API MoMo Collections — RequestToPay (la Caisse demande, la cliente valide)
+
+Ce que la Maison doit obtenir auprès de MTN (rien ne se code avant) :
+
+1. Un compte sur **momodeveloper.mtn.com** et l'abonnement au produit
+   **Collections** (clé d'abonnement `Ocp-Apim-Subscription-Key`).
+2. L'accès **production pour le Bénin** : il se demande à MTN (le bac à
+   sable est ouvert à tous, la production passe par leur validation du
+   marchand). Conditions, frais et devise de facturation : à vérifier avec
+   MTN Bénin — ne rien signer sur la foi d'un souvenir.
+3. À l'issue : un **API User** et une **API Key** de production, plus la clé
+   d'abonnement.
+
+Quand ces trois valeurs existent, demander le chantier : une fonction Edge
+`momo-collecte` (RequestToPay + vérification du statut, secrets côté
+Supabase), un bouton à la Caisse « Demander le paiement MoMo » (la cliente
+reçoit la demande sur son téléphone et valide par PIN), et le journal des
+demandes avec leur verdict. Le geste au comptoir change : c'est la Maison
+qui tend la main, la cliente ne compose plus rien.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.
