@@ -14,7 +14,7 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
-import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, type PersonalPricing } from '../../../../shared/pricing';
+import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, type PersonalPricing } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
@@ -957,6 +957,23 @@ export default function Catalogue() {
                     </div>
                   )}
 
+                  {/* CE QUI FAIT SON PRIX — la règle en une phrase, par LE juge
+                      du moteur (`regimeTarifaire`). Comptage, plancher, grille,
+                      Juste Prix : ça se lisait champ par champ, jamais comme
+                      une règle (13 août). */}
+                  {(() => {
+                    const regime = regimeTarifaire(svc);
+                    return (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, marginTop: 5, lineHeight: 1.45, color: 'var(--ink-soft)' }}>
+                        <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Son prix · </span>
+                        {regime.mots}
+                        <span style={{ color: regime.justePrix ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
+                          {regime.justePrix ? ' · Juste Prix : oui' : ' · Juste Prix : non'}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   <div className="trv-svc__meta">
                     <span>{svc.palier}</span>
                     <span style={{ color: 'var(--color-argile)' }}>·</span>
@@ -1452,6 +1469,38 @@ export default function Catalogue() {
               ouvert={ouvert}
               onBascule={() => setAvanceOuverte(ouvert && !reglee ? null : clef)}
             >
+            {/* LA RÈGLE, DITE EN DIRECT — le même juge que l'étiquette des
+                lignes (`regimeTarifaire`) relit le formulaire à chaque frappe :
+                on voit ce que les champs du dessous FONT au prix, au lieu de
+                le déduire champ par champ (13 août). */}
+            {(() => {
+              const planchersSaisis = Object.fromEntries(
+                Object.entries(svcForm.floors).map(([k, v]) => [k, num(v)]).filter(([, v]) => v !== undefined),
+              ) as Record<string, number>;
+              const brouillon = {
+                id: svcForm.id ?? '',
+                categoryId: svcForm.categoryId,
+                name: svcForm.name,
+                priceMode: svcForm.priceMode,
+                hidePrice: svcForm.priceMode === 'devis',
+                scalesWithModel: svcForm.id ? services.find((s) => s.id === svcForm.id)?.scalesWithModel : undefined,
+                ratePerLock: num(svcForm.rate),
+                tarifMode: svcForm.tarifMode || undefined,
+                includes: svcForm.includes.length ? svcForm.includes : undefined,
+                priceFloors: Object.keys(planchersSaisis).length ? planchersSaisis : undefined,
+                prixParLongueur: nettoie(svcForm.prixLong),
+              } as unknown as Service;
+              const regime = regimeTarifaire(brouillon);
+              return (
+                <div style={{ padding: '11px 14px', background: 'var(--color-sable)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55 }}>
+                  <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ce qui fait son prix · </span>
+                  {regime.mots}
+                  {regime.justePrix
+                    ? ' — puis le Juste Prix de la cliente s’applique (Finances › Le Juste Prix).'
+                    : ' — le Juste Prix de la cliente ne s’applique pas.'}
+                </div>
+              );
+            })()}
             <Field label="Qui commande le prix">
               <select
                 className="ds-select"

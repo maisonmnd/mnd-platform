@@ -2,6 +2,20 @@
 
 État au 13 août 2026. À lire en premier dans une nouvelle session.
 
+## Le régime tarifaire se lit — 13 août (entame du Juste Prix)
+
+Nouveau juge `regimeTarifaire(sv)` (pricing.ts) : CE QUI FAIT LE PRIX d'une
+prestation, dit en une phrase dans l'ordre même de `personalPriceXof`
+(prix ferme catalogue → composition de forfait → devis → grille longueur →
+prix par calibre → comptage au lock → coef du modèle → fixe/variable), avec
+`justePrix` qui dit si le coefficient personnel s'appliquera. Le Catalogue
+l'affiche sur CHAQUE ligne (« Son prix · … · Juste Prix : oui/non ») et la
+« Tarification avancée » relit le formulaire À CHAQUE FRAPPE avec le même
+juge (« Ce qui fait son prix · … »). Le Juste Prix par cliente se règle dans
+Finances › Le Juste Prix ; il s'applique partout SAUF prix fermes du
+catalogue, prix convenus de la fiche et montants sur devis. Harnais
+verifie-prix : 43/43 après le juge.
+
 ## Les envois automatiques — 13 août (chantier des trois canaux)
 
 Vérité d'avant : les « automatisations » de Marketing étaient un registre

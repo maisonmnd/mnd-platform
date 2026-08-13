@@ -355,6 +355,38 @@ export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
   return !!p.lockCount;
 };
 
+/** CE QUI FAIT LE PRIX DE CETTE PRESTATION — dit en une phrase, dans l'ORDRE
+    même du moteur (`personalPriceXof`). Le Catalogue l'affiche sur chaque
+    ligne : la Maison doit distinguer d'un regard ce qui dépend du comptage,
+    du plancher par calibre, d'une grille par longueur ou du Juste Prix — les
+    réglages se lisaient champ par champ, jamais comme une règle (13 août).
+    `justePrix` dit si le coefficient personnel de la cliente s'appliquera. */
+export type RegimeTarifaire = { mots: string; justePrix: boolean };
+export const regimeTarifaire = (sv: Service): RegimeTarifaire => {
+  if (isFixedPrice(sv)) return { mots: 'prix ferme du catalogue', justePrix: false };
+  if (sv.includes?.length) return { mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
+  if (priceModeOf(sv) === 'devis') return { mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
+  if (sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0) {
+    return { mots: 'grille par longueur (court · mi-long · long), prix saisis', justePrix: true };
+  }
+  const planchers = Object.keys(sv.priceFloors ?? {}).length > 0;
+  if (tarifModeOf(sv) === 'calibre' && planchers) {
+    return { mots: 'prix par calibre — le plancher de la tranche EST le prix', justePrix: true };
+  }
+  if (sv.tarifMode === 'lock' && sv.ratePerLock) {
+    return { mots: 'comptage — locks × tarif, sans plancher', justePrix: true };
+  }
+  if (sv.ratePerLock) {
+    return {
+      mots: planchers ? 'comptage — locks × tarif, plancher par calibre en filet' : 'comptage — locks × tarif',
+      justePrix: true,
+    };
+  }
+  if (scalesWithModel(sv)) return { mots: 'prix de base × coefficient du calibre', justePrix: true };
+  if (priceModeOf(sv) === 'variable') return { mots: 'prix de départ « dès » — montant convenu au fauteuil', justePrix: true };
+  return { mots: 'prix fixe du catalogue', justePrix: true };
+};
+
 /** LE PRIX D'UN FORFAIT POUR CETTE TETE. Somme de ses prestations au prix de la
     cliente, moins la remise du forfait. Une ligne « selon le calibre » se resout
     ici comme a la reservation : on prend la prestation de l'atelier qui sert son
