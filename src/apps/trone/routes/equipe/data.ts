@@ -217,6 +217,9 @@ export type AutoConfig = {
       dépôt est public, et un mot de passe commité est un mot de passe donné. */
   wifiSsid?: string;
   wifiPass?: string;
+  /** Le second réseau de la maison (l'autre box, l'autre bande) — même règle. */
+  wifi2Ssid?: string;
+  wifi2Pass?: string;
 };
 
 /** Défauts du compte marchand — relevés du document MoMo de la Maison. */

@@ -74,6 +74,94 @@ const imprime = (html: string) => {
   fen.document.close();
 };
 
+/* ── UNE CARTE WI-FI ────────────────────────────────────────────────────
+   La maison a DEUX réseaux : la carte est un gabarit, chaque réseau a la
+   sienne. Nom et mot de passe se posent ici et vivent dans la BASE de la
+   maison (jamais dans le code : le dépôt est public). Tant qu'ils manquent,
+   la carte attend au lieu de montrer un code muet. */
+function CarteWifi({ titre, sous, ssid, pass, pose, surComptoir }: {
+  titre: string;
+  sous: string;
+  ssid: string;
+  pass: string;
+  pose: (ssid: string, pass: string) => void;
+  surComptoir: (g: Grand) => void;
+}) {
+  const pret = ssid.trim() !== '' && pass.trim() !== '';
+  const valeur = pret ? wifiPayload(ssid.trim(), pass.trim()) : '';
+  /* Face cliente — plein écran et carte imprimée — la phrase est LA MÊME
+     pour les deux réseaux : elle accueille, elle ne parle pas de boxes. */
+  const imprimer = () => imprime(carteA5({
+    titre: 'Installez-vous.',
+    sous: 'Le réseau de la Maison est à vous — scannez, votre téléphone se connecte seul.',
+    qr: valeur,
+    grand: ssid.trim(),
+    etapes: [
+      'Ouvrez l’appareil photo du téléphone',
+      'Visez le carré',
+      '« Se connecter » — vous êtes chez vous',
+    ],
+    ariaQr: 'QR du réseau Wi-Fi de la maison',
+  }));
+  return (
+    <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+      {pret ? (
+        <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
+          <QrSvg valeur={valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
+        </div>
+      ) : (
+        <div style={{ width: 96, height: 96, flex: 'none', border: '1px dashed var(--copper-300)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 13, textAlign: 'center', padding: 6 }}>
+          à renseigner
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 240 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
+          {titre}
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
+          {sous}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+          <label className="mnd-field" style={{ width: 200 }}>
+            <span className="mnd-field__label">Nom du réseau</span>
+            <input
+              className="mnd-input"
+              value={ssid}
+              onChange={(e) => pose(e.target.value, pass)}
+              placeholder="Le réseau du salon"
+              autoComplete="off"
+            />
+          </label>
+          <label className="mnd-field" style={{ width: 200 }}>
+            <span className="mnd-field__label">Mot de passe</span>
+            <input
+              className="mnd-input"
+              value={pass}
+              onChange={(e) => pose(ssid, e.target.value)}
+              placeholder="Celui de la box"
+              autoComplete="off"
+            />
+          </label>
+        </div>
+      </div>
+      {pret && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--copper"
+            onClick={() => surComptoir({ titre: 'Installez-vous.', phrase: 'Le réseau de la Maison est à vous.', valeur })}
+          >
+            Afficher au comptoir
+          </button>
+          <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimer}>
+            Imprimer la carte A5
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── LE PLEIN ÉCRAN DU COMPTOIR ─────────────────────────────────────────
    Parchemin, marque, le code aussi grand que l'écran le permet. On le tourne
    vers la cliente ; un toucher n'importe où — ou Échap — le referme. */
@@ -124,13 +212,6 @@ export default function QrCodes() {
   const momoQr = autoRaw.momoQr || MOMO_QR_DEFAUT;
   const momoUssd = autoRaw.momoUssd || MOMO_USSD_DEFAUT;
   const momoMarchand = autoRaw.momoMarchand || MOMO_MARCHAND_DEFAUT;
-  /* Le réseau des clientes — les deux valeurs vivent dans la base de la
-     maison (jamais dans le code : le dépôt est public). Tant qu'elles ne
-     sont pas posées, la carte attend au lieu d'imprimer un code muet. */
-  const wifiSsid = autoRaw.wifiSsid ?? '';
-  const wifiPass = autoRaw.wifiPass ?? '';
-  const wifiPret = wifiSsid.trim() !== '' && wifiPass.trim() !== '';
-  const wifiValeur = wifiPret ? wifiPayload(wifiSsid.trim(), wifiPass.trim()) : '';
   /* Le code du jour ne se FABRIQUE pas ici — c'est le geste du Comptoir. On
      montre celui d'aujourd'hui s'il existe, sinon on mène au Comptoir. */
   const [preuve] = usePointageConfig();
@@ -152,19 +233,6 @@ export default function QrCodes() {
     ariaQr: 'QR MoMoPay de la maison',
   }));
 
-  const imprimerWifi = () => imprime(carteA5({
-    titre: 'Installez-vous.',
-    sous: 'Le réseau de la Maison est à vous — scannez, votre téléphone se connecte seul.',
-    qr: wifiValeur,
-    grand: wifiSsid.trim(),
-    etapes: [
-      'Ouvrez l’appareil photo du téléphone',
-      'Visez le carré',
-      '« Se connecter » — vous êtes chez vous',
-    ],
-    ariaQr: 'QR du réseau Wi-Fi de la maison',
-  }));
-
   return (
     <div className="mnd-rise">
       <PageHead
@@ -176,66 +244,25 @@ export default function QrCodes() {
       {/* ① L'invitation Ma Couronne — la même carte que la Vitrine. */}
       <InvitationCouronne surComptoir={setGrand} />
 
-      {/* ② Le Wi-Fi des clientes — « Installez-vous. » */}
-      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-        {wifiPret ? (
-          <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
-            <QrSvg valeur={wifiValeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-          </div>
-        ) : (
-          <div style={{ width: 96, height: 96, flex: 'none', border: '1px dashed var(--copper-300)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 13, textAlign: 'center', padding: 6 }}>
-            à renseigner
-          </div>
-        )}
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-            Installez-vous.
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            Le réseau de la Maison est à vous — scanné, ce code connecte le téléphone
-            de la cliente sans qu’elle tape le mot de passe. Le nom et le mot de passe
-            restent dans la base de la maison, nulle part ailleurs.
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-            <label className="mnd-field" style={{ width: 200 }}>
-              <span className="mnd-field__label">Nom du réseau</span>
-              <input
-                className="mnd-input"
-                value={wifiSsid}
-                onChange={(e) => setAuto({ ...autoRaw, wifiSsid: e.target.value })}
-                placeholder="Le réseau du salon"
-                autoComplete="off"
-              />
-            </label>
-            <label className="mnd-field" style={{ width: 200 }}>
-              <span className="mnd-field__label">Mot de passe</span>
-              <input
-                className="mnd-input"
-                value={wifiPass}
-                onChange={(e) => setAuto({ ...autoRaw, wifiPass: e.target.value })}
-                placeholder="Celui de la box"
-                autoComplete="off"
-              />
-            </label>
-          </div>
-        </div>
-        {wifiPret && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-            <button
-              type="button"
-              className="mnd-btn mnd-btn--copper"
-              onClick={() => setGrand({ titre: 'Installez-vous.', phrase: 'Le réseau de la Maison est à vous.', valeur: wifiValeur })}
-            >
-              Afficher au comptoir
-            </button>
-            <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimerWifi}>
-              Imprimer la carte A5
-            </button>
-          </div>
-        )}
-      </div>
+      {/* ② et ③ Les deux réseaux Wi-Fi — « Installez-vous. » */}
+      <CarteWifi
+        titre="Installez-vous."
+        sous="Le réseau de la Maison est à vous — scanné, ce code connecte le téléphone de la cliente sans qu’elle tape le mot de passe. Le nom et le mot de passe restent dans la base de la maison, nulle part ailleurs."
+        ssid={autoRaw.wifiSsid ?? ''}
+        pass={autoRaw.wifiPass ?? ''}
+        pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })}
+        surComptoir={setGrand}
+      />
+      <CarteWifi
+        titre="Le second réseau."
+        sous="La maison a deux réseaux — même geste pour l’autre box. Face cliente, la carte et le plein écran disent la même chose : « Installez-vous. »"
+        ssid={autoRaw.wifi2Ssid ?? ''}
+        pass={autoRaw.wifi2Pass ?? ''}
+        pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })}
+        surComptoir={setGrand}
+      />
 
-      {/* ③ L'encaissement MoMoPay. */}
+      {/* ④ L'encaissement MoMoPay. */}
       <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
         <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
           <QrSvg valeur={momoQr} style={{ width: '100%', height: '100%', display: 'block' }} />
@@ -263,7 +290,7 @@ export default function QrCodes() {
         </div>
       </div>
 
-      {/* ④ Le code du jour — pointage de l'équipe (il naît au Comptoir). */}
+      {/* ⑤ Le code du jour — pointage de l'équipe (il naît au Comptoir). */}
       <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
         {codeJour ? (
           <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>

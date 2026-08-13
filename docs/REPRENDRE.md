@@ -4,16 +4,19 @@
 
 ## La page QR Codes : Wi-Fi et plein écran du comptoir — 13 août
 
-La page QR Codes (`/qr-codes`) porte QUATRE cartes : invitation Ma Couronne,
-Wi-Fi des clientes (« Installez-vous. Le réseau de la Maison est à vous. »),
-MoMoPay, code du jour. CHAQUE code sait s'« Afficher au comptoir » : plein
-écran parchemin, marque, code géant tourné vers la cliente — toucher ou Échap
-referme (`AuComptoir`, QrCodes.tsx ; l'invitation reçoit le geste par la prop
+La page QR Codes (`/qr-codes`) porte CINQ cartes : invitation Ma Couronne,
+les DEUX réseaux Wi-Fi de la maison (« Installez-vous. Le réseau de la Maison
+est à vous. » — gabarit `CarteWifi`, une carte par réseau), MoMoPay, code du
+jour. CHAQUE code sait s'« Afficher au comptoir » : plein écran parchemin,
+marque, code géant tourné vers la cliente — toucher ou Échap referme
+(`AuComptoir`, QrCodes.tsx ; l'invitation reçoit le geste par la prop
 `surComptoir` d'`InvitationCouronne`, la Vitrine ne change pas). Le Wi-Fi
-encode `WIFI:T:WPA;S:…;P:…;;` (caractères réservés échappés) ; nom du réseau
-et mot de passe vivent dans `autoConfigStore` (`wifiSsid`/`wifiPass`) — DANS
-LA BASE, jamais en dur dans le code : le dépôt est public. Ils se saisissent
-sur la carte même ; tant qu'ils manquent, la carte dit « à renseigner ». Le
+encode `WIFI:T:WPA;S:…;P:…;;` (caractères réservés échappés) ; noms et mots
+de passe vivent dans `autoConfigStore` (`wifiSsid`/`wifiPass`, second réseau
+`wifi2Ssid`/`wifi2Pass`) — DANS LA BASE, jamais en dur dans le code : le
+dépôt est public. Ils se saisissent sur la carte même ; tant qu'ils manquent,
+la carte dit « à renseigner ». Face cliente (plein écran, carte imprimée),
+les deux réseaux disent la MÊME phrase — l'accueil ne parle pas de boxes. Le
 gabarit A5 est partagé (`carteA5`) — MoMo et Wi-Fi s'impriment pareil.
 
 ## Le calibre se compte, le style est retiré — 13 août
