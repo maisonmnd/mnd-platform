@@ -389,7 +389,7 @@ export default function Catalogue() {
   /* Le régime d'une prestation contre le filtre — MÊME juge que l'étiquette. */
   const matchRegime = (s: Service): boolean => {
     if (regimeFiltre === 'tout') return true;
-    const r = regimeTarifaire(s);
+    const r = regimeTarifaire(s, cats);
     if (regimeFiltre === 'jp') return r.justePrix;
     if (regimeFiltre === 'hors') return !r.justePrix;
     return r.k === regimeFiltre;
@@ -812,12 +812,12 @@ export default function Catalogue() {
           le compte sur chaque pastille. Le même juge que les étiquettes. */}
       {cats.length > 0 && (() => {
         const nb = {
-          jp: services.filter((s) => regimeTarifaire(s).justePrix).length,
-          modele: services.filter((s) => regimeTarifaire(s).k === 'modele').length,
-          lock: services.filter((s) => regimeTarifaire(s).k === 'lock').length,
-          calibre: services.filter((s) => regimeTarifaire(s).k === 'calibre').length,
-          longueur: services.filter((s) => regimeTarifaire(s).k === 'longueur').length,
-          hors: services.filter((s) => !regimeTarifaire(s).justePrix).length,
+          jp: services.filter((s) => regimeTarifaire(s, cats).justePrix).length,
+          modele: services.filter((s) => regimeTarifaire(s, cats).k === 'modele').length,
+          lock: services.filter((s) => regimeTarifaire(s, cats).k === 'lock').length,
+          calibre: services.filter((s) => regimeTarifaire(s, cats).k === 'calibre').length,
+          longueur: services.filter((s) => regimeTarifaire(s, cats).k === 'longueur').length,
+          hors: services.filter((s) => !regimeTarifaire(s, cats).justePrix).length,
         };
         const chips: { v: typeof regimeFiltre; t: string; n?: number }[] = [
           { v: 'tout', t: 'Tout' },
@@ -1062,7 +1062,7 @@ export default function Catalogue() {
                       Juste Prix : ça se lisait champ par champ, jamais comme
                       une règle (13 août). */}
                   {(() => {
-                    const regime = regimeTarifaire(svc);
+                    const regime = regimeTarifaire(svc, cats);
                     return (
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, marginTop: 5, lineHeight: 1.45, color: 'var(--ink-soft)' }}>
                         <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Son prix · </span>
@@ -1593,7 +1593,7 @@ export default function Catalogue() {
                 priceFloors: m === 'calibre' && Object.keys(planchersSaisis).length ? planchersSaisis : undefined,
                 prixParLongueur: m === 'longueur' ? nettoie(svcForm.prixLong) : undefined,
               } as unknown as Service;
-              const regime = regimeTarifaire(brouillon);
+              const regime = regimeTarifaire(brouillon, cats);
               return (
                 <div style={{ padding: '11px 14px', background: 'var(--color-sable)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55 }}>
                   <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ce qui fait son prix · </span>

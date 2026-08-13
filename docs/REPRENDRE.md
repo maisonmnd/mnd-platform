@@ -12,9 +12,18 @@ prix par calibre → comptage au lock → coef du modèle → fixe/variable), av
 l'affiche sur CHAQUE ligne (« Son prix · … · Juste Prix : oui/non ») et la
 « Tarification avancée » relit le formulaire À CHAQUE FRAPPE avec le même
 juge (« Ce qui fait son prix · … »). Le Juste Prix par cliente se règle dans
-Finances › Le Juste Prix ; il s'applique partout SAUF prix fermes du
-catalogue, prix convenus de la fiche et montants sur devis. Harnais
-verifie-prix : 43/43 après le juge.
+Finances › Le Juste Prix. RÈGLE DES MONDES (13 août, décision Yéman —
+« Atelier seulement ») : le coefficient personnel ne touche QUE les
+prestations dont le monde est l'ATELIER (`coefJustePrix`, pricing.ts, via
+`mondeDeCat`) — plateau technique, Studio et Académie sont à ×1, et un monde
+introuvable échoue fermé (×1). Un contexte SANS arbre de catégories garde le
+comportement global d'avant (harnais, appels nus). Il ne s'applique pas non
+plus aux prix fermes du catalogue, prix convenus de la fiche et montants sur
+devis. LE MODÈLE DE PRIX EST EXCLUSIF au Catalogue (fixe / barème du modèle /
+comptage / calibre / longueur) : enregistrer une prestation EFFACE les
+systèmes des autres modèles. « Les systèmes de prix » (page Le Juste Prix)
+donne les comptes et ouvre le Catalogue filtré (`?regime=`). Harnais
+verifie-prix : 43/43 après chaque étape.
 
 ## Les envois automatiques — 13 août (chantier des trois canaux)
 

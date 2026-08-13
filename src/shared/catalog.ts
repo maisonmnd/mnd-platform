@@ -204,7 +204,12 @@ export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): 
     une racine `aca-…` est l'Académie ; sans maison, c'est le plateau. */
 export type Monde = 'atelier' | 'plateau' | 'studio' | 'academie';
 
-export const mondeDeCat = (c: CatalogCategory, cats: CatalogCategory[]): Monde => {
+export const mondeDeCat = (
+  /* Seuls id, parentId et maison servent au juge — la signature le dit, pour
+     que le moteur tarifaire (qui ne porte que cette coupe) puisse le lire. */
+  c: Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>,
+  cats: readonly Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[],
+): Monde => {
   let cur = c;
   for (let i = 0; cur.parentId && i < 8; i += 1) {
     const p = cats.find((x) => x.id === cur.parentId);

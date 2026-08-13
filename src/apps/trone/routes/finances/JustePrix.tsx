@@ -518,8 +518,8 @@ export default function JustePrix() {
             { k: 'hors' as const, t: 'Hors Juste Prix', d: 'prix fermes et devis — le coefficient ne les touche pas' },
           ]).map((row) => {
             const n = row.k === 'hors'
-              ? services.filter((s) => !regimeTarifaire(s).justePrix).length
-              : services.filter((s) => regimeTarifaire(s).k === row.k).length;
+              ? services.filter((s) => !regimeTarifaire(s, categories).justePrix).length
+              : services.filter((s) => regimeTarifaire(s, categories).k === row.k).length;
             return (
               <div key={row.k} style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', borderBottom: '1px solid var(--hairline)', paddingBottom: 8 }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-indigo)', minWidth: 170 }}>{row.t}</span>
@@ -735,7 +735,7 @@ export default function JustePrix() {
              aux soins de 15 000 F rendait la liste illisible. Et UNE seule
              encre par ligne : le prix d'elle, en indigo quand il est
              personnalisé — le catalogue barré partout doublait chaque nombre. */
-          const jp = services.filter((s) => regimeTarifaire(s).justePrix);
+          const jp = services.filter((s) => regimeTarifaire(s, categories).justePrix);
           const jpPresta = jp.filter((s) => !s.includes?.length);
           const jpForfaits = jp.filter((s) => !!s.includes?.length);
           const groupes = catsDansLOrdre(categories)

@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import { priceModeOf, type CatalogCategory, type LongueurId, type Service } from './catalog';
+import { mondeDeCat, priceModeOf, type CatalogCategory, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
@@ -170,8 +170,9 @@ export type PersonalPricing = {
   sets?: Record<string, ModelBand[]>;
   /** L'arbre des categories — pour remonter d'une famille a son atelier. Le
       bareme est attache a l'ATELIER : sans cette remontee, une prestation
-      rangee sous SINSIN cesserait de suivre le bareme de GBEJI. */
-  cats?: Pick<CatalogCategory, 'id' | 'parentId'>[];
+      rangee sous SINSIN cesserait de suivre le bareme de GBEJI. `maison` sert
+      au juge des mondes : le Juste Prix ne touche que l'ATELIER (13 août). */
+  cats?: Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[];
   /** LA LONGUEUR TRAVAILLÉE. Depuis le 11 août, la fiche porte un DÉFAUT que
       `pricingOf` hérite (Ma Couronne montre ainsi SES prix) ; l'écran qui
       réserve pose la sienne par-dessus, et le rendez-vous la fige. Absente,
@@ -193,7 +194,7 @@ export const pricingOf = (
   /* L'arbre des categories : sans lui, une prestation rangee sous une famille
      ne trouverait pas le bareme de son atelier. Facultatif — absent, tout se
      comporte comme avant la mise en place des familles. */
-  cats?: Pick<CatalogCategory, 'id' | 'parentId'>[],
+  cats?: Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[],
 ): PersonalPricing => ({
   band: bandOf(client?.lockCount, bands),
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
@@ -206,6 +207,23 @@ export const pricingOf = (
   sets,
   cats,
 });
+
+/** LE JUSTE PRIX NE TOUCHE QUE L'ATELIER (13 août, décision de Yéman). Le
+    coefficient personnel a été pensé pour la couronne — appliqué en global, il
+    remisait aussi une manucure du Studio et le Module Création de l'Académie
+    (180 000 F). Le coefficient EFFECTIF d'une prestation est donc :
+      · son monde est l'ATELIER → le coefficient de la cliente ;
+      · plateau, Studio, Académie, ou monde introuvable → ×1 (on échoue fermé :
+        pas de remise silencieuse sur une prestation mal rangée) ;
+      · contexte SANS arbre de catégories (harnais, appels nus) → comportement
+        global d'avant, pour ne déplacer aucun prix à l'aveugle. */
+export const coefJustePrix = (sv: Pick<Service, 'categoryId'>, p: PersonalPricing): number => {
+  if (p.clientCoef === 1) return 1;
+  if (!p.cats?.length) return p.clientCoef;
+  const cat = p.cats.find((c) => c.id === sv.categoryId);
+  if (!cat) return 1;
+  return mondeDeCat(cat, p.cats) === 'atelier' ? p.clientCoef : 1;
+};
 
 /** Le prix ferme convenu avec CETTE cliente pour CETTE prestation, s'il existe.
     Zéro et les valeurs négatives ne comptent pas : un rituel offert se dit
@@ -363,7 +381,7 @@ export const prixFerme = (sv: Service, p: PersonalPricing): boolean => {
     `justePrix` dit si le coefficient personnel de la cliente s'appliquera. */
 export type RegimeClef = 'ferme' | 'forfait' | 'devis' | 'longueur' | 'calibre' | 'lock' | 'modele' | 'variable' | 'fixe';
 export type RegimeTarifaire = { k: RegimeClef; mots: string; justePrix: boolean };
-export const regimeTarifaire = (sv: Service): RegimeTarifaire => {
+const regimeBrut = (sv: Service): RegimeTarifaire => {
   if (isFixedPrice(sv)) return { k: 'ferme', mots: 'prix ferme du catalogue', justePrix: false };
   if (sv.includes?.length) return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
   if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
@@ -387,6 +405,21 @@ export const regimeTarifaire = (sv: Service): RegimeTarifaire => {
   if (scalesWithModel(sv)) return { k: 'modele', mots: 'prix de base × coefficient du calibre', justePrix: true };
   if (priceModeOf(sv) === 'variable') return { k: 'variable', mots: 'prix de départ « dès » — montant convenu au fauteuil', justePrix: true };
   return { k: 'fixe', mots: 'prix fixe du catalogue', justePrix: true };
+};
+
+/** Avec l'arbre des catégories, le juge applique la règle des mondes : LE
+    JUSTE PRIX NE TOUCHE QUE L'ATELIER (même règle que `coefJustePrix`) —
+    une prestation du plateau, du Studio ou de l'Académie dit « Juste Prix :
+    non » quel que soit son régime. Sans arbre : le régime brut, comme avant. */
+export const regimeTarifaire = (
+  sv: Service,
+  cats?: readonly Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[],
+): RegimeTarifaire => {
+  const r = regimeBrut(sv);
+  if (!cats?.length || !r.justePrix) return r;
+  const cat = cats.find((c) => c.id === sv.categoryId);
+  const atelier = !!cat && mondeDeCat(cat, cats) === 'atelier';
+  return atelier ? r : { ...r, justePrix: false };
 };
 
 /** LE PRIX D'UN FORFAIT POUR CETTE TETE. Somme de ses prestations au prix de la
@@ -475,9 +508,11 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      le lock, le plafond du calibre Medium donnait 18 000 F contre un plancher
      a 25 000 F. Le plancher gagnait partout sauf au-dela de 550 locks, et deux
      clientes a 105 et 180 locks payaient le meme prix sans que rien ne le dise. */
+  /* Le Juste Prix EFFECTIF de cette prestation — ×1 hors de l'Atelier. */
+  const justePrix = coefJustePrix(sv, p);
   if (tarifModeOf(sv) === 'calibre' && bande && sv.priceFloors?.[bande.id] !== undefined) {
     const parCalibre = sv.priceFloors[bande.id];
-    return p.clientCoef === 1 ? parCalibre : roundPrice(parCalibre * p.clientCoef);
+    return justePrix === 1 ? parCalibre : roundPrice(parCalibre * justePrix);
   }
 
   /* LE COMPTAGE COMMANDE, choisi explicitement au Catalogue : le prix est
@@ -495,7 +530,7 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      11 300 F, et l'arrondi commercial les transformerait en 11 500 F — un écart
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi
      ne revient que si le Juste Prix personnel entre en jeu et produit une décimale. */
-  if (auLock !== undefined) return p.clientCoef === 1 ? auLock : roundPrice(auLock * p.clientCoef);
+  if (auLock !== undefined) return justePrix === 1 ? auLock : roundPrice(auLock * justePrix);
   /* UNE GRILLE PAR LONGUEUR REMPLACE LE MODÈLE (11 août 2026). WÈWÈ™ La
      Purification porte 25 000 F en Mi-Long — et l'interrupteur « suit le
      modèle » : pour une tête Nano (coef 2,5), l'écran annonçait 62 500 F.
@@ -512,8 +547,8 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
      du sens sur un produit de multiplication, aucun sur un montant que la
      Maison a écrit elle-même. */
   const parLongueur = p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined;
-  if (parLongueur !== undefined && p.clientCoef === 1) return parLongueur;
-  return roundPrice(prixDeBase(sv, p) * modelCoef * p.clientCoef);
+  if (parLongueur !== undefined && justePrix === 1) return parLongueur;
+  return roundPrice(prixDeBase(sv, p) * modelCoef * justePrix);
 };
 
 /** Durée personnalisée d'une prestation — calée au quart d'heure, jamais nulle. */
