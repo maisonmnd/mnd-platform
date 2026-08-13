@@ -2,6 +2,22 @@
 
 État au 13 août 2026. À lire en premier dans une nouvelle session.
 
+## Le Trône REÇOIT — réservations en attente et enfants rattachés — 13 août
+
+Deux files de réception dans « Ce qui presse » (Dashboard), en tête de
+liste. ① RÉSERVATIONS À RECEVOIR : tout RDV `en attente` à venir, toutes
+dates — il ne paraissait qu'à sa date au Calendrier, une réservation prise
+pour dans trois semaines restait invisible trois semaines. « Recevoir »
+ouvre la modale : chaque ligne (tête, date, prestations, maître) se
+CONFIRME d'un geste (même écriture qu'au Calendrier) ou s'OUVRE (RdvModal).
+② ENFANTS RATTACHÉS DEPUIS MA COURONNE : le journal `enfants_declares`
+statut `accepté` (écrit par la RPC 0044), moins les arrivées déjà reçues
+(`mnd_enfants_recus_vus`, mémoire LOCALE du poste comme la file des
+compositions — le journal, lui, reste intact). « Voir » marque reçues et
+ouvre les Clientes. Les enfants posés au comptoir (AjoutEnfantAuCompte)
+n'écrivent pas de déclaration — la file ne montre que ce qui ARRIVE de Ma
+Couronne.
+
 ## Les comptes enfants au visage — maquette du 9 août posée — 13 août
 
 Les trois écrans de la maquette « Les comptes enfants » vivent. ① LE

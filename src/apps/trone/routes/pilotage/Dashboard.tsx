@@ -17,13 +17,19 @@ import {
 } from '../clients/_shared';
 import { useBilans } from '../../../../shared/bilans';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
-import { useStore } from '../../../../shared/store';
+import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
+import { createStore, useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
    filtré par la branche, exprimé dans sa devise. */
+
+/* Les arrivées d'enfants DÉJÀ REÇUES (marquées d'un geste) — mémoire locale du
+   poste, comme la file des compositions : le journal `enfants_declares`, lui,
+   reste intact. */
+const enfantsRecusVusStore = createStore<string[]>('mnd_enfants_recus_vus', []);
 
 const monthKey = (iso: string) => iso.slice(0, 7);
 /* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → clé de mois / jour ISO. */
@@ -302,7 +308,55 @@ export default function Dashboard() {
       .sort((a, b) => a.j - b.j);
   }, [clients, appts, branch.id]);
 
+  /* LES RÉSERVATIONS À RECEVOIR (13 août, « ce qui presse » — demande de
+     Yéman). Un rendez-vous pris depuis Ma Couronne arrive « en attente » : la
+     cliente attend le sceau de la maison. Or il ne paraissait qu'à SA date au
+     Calendrier — une réservation prise pour dans trois semaines restait
+     invisible trois semaines. La file les montre tous, et chacun se confirme
+     d'un geste. */
+  const aRecevoir = useMemo(
+    () => appts
+      .filter((a) => a.status === 'en attente' && a.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time)),
+    [appts, today],
+  );
+  const [attenteOpen, setAttenteOpen] = useState(false);
+
+  /* LES ENFANTS RATTACHÉS DEPUIS MA COURONNE. Depuis le rattachement direct
+     (0044), la fiche naît sans passer par une validation — mais une tête qui
+     entre au carnet sans qu'on la voie entrer n'est pas reçue. Le journal
+     `enfants_declares` (statut accepté) porte chaque arrivée ; « Voir » les
+     marque reçues et ouvre les Clientes. */
+  const [declares] = useEnfantsDeclares();
+  const [enfantsVus] = useStore(enfantsRecusVusStore);
+  const enfantsArrives = useMemo(() => {
+    const vus = new Set(enfantsVus);
+    return declares
+      .filter((d) => d.branchId === branch.id && d.statut === 'accepté' && !!d.clientCreeId && !vus.has(d.id))
+      .sort((a, b) => b.declareLe.localeCompare(a.declareLe));
+  }, [declares, enfantsVus, branch.id]);
+
   const presseRows = [
+    ...(aRecevoir.length > 0 ? [{
+      k: 'attente',
+      label: `${aRecevoir.length} réservation${aRecevoir.length > 1 ? 's' : ''} à recevoir`,
+      sub: aRecevoir.slice(0, 3).map((a) => `${a.clientName || 'Une tête'} · ${frShort(a.date)} ${a.time}`).join(' · ')
+        + (aRecevoir.length > 3 ? ' · …' : ''),
+      action: 'Recevoir', go: () => setAttenteOpen(true),
+    }] : []),
+    ...(enfantsArrives.length > 0 ? [{
+      k: 'enfants',
+      label: `${enfantsArrives.length} enfant${enfantsArrives.length > 1 ? 's' : ''} rattaché${enfantsArrives.length > 1 ? 's' : ''} depuis Ma Couronne`,
+      sub: enfantsArrives.slice(0, 4).map((d) => nomPropose(d) || 'Sans nom').join(' · ')
+        + (enfantsArrives.length > 4 ? ' · …' : ''),
+      action: 'Voir',
+      go: () => {
+        /* Vus = reçus : la ligne s'éteint, le journal demeure. */
+        const ids = enfantsArrives.map((d) => d.id);
+        enfantsRecusVusStore.set((prev) => [...new Set([...prev, ...ids])]);
+        navigate('/customers');
+      },
+    }] : []),
     ...(compoNouvelles.length > 0 ? [{
       k: 'compositions',
       label: `${compoNouvelles.length} rituel${compoNouvelles.length > 1 ? 's' : ''} sur-mesure à sceller`,
@@ -845,6 +899,46 @@ export default function Dashboard() {
 
       {/* LES RITUELS SUR-MESURE REÇUS — chaque composition se lit, s'ouvre sur
           WhatsApp pour sceller les créneaux, puis se marque traitée. */}
+      {/* LA FILE DE RÉCEPTION — les réservations encore « en attente », toutes
+          dates confondues. Confirmer ici est le même geste qu'au Calendrier ;
+          « Ouvrir » donne la fiche du rendez-vous pour déplacer ou annuler. */}
+      {attenteOpen && (
+        <Modal title="Réservations à recevoir." onClose={() => setAttenteOpen(false)} width={620}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '60vh', overflowY: 'auto' }}>
+            {aRecevoir.length === 0 && <div className="trc-empty">Rien à recevoir — tout est scellé.</div>}
+            {aRecevoir.map((a) => (
+              <div key={a.id} style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                  <b style={{ fontWeight: 'var(--weight-medium)' as never, color: 'var(--color-indigo)' }}>
+                    {a.clientName || 'Une tête'}
+                  </b>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)', flex: 'none' }}>
+                    {frShort(a.date)} · {a.time}
+                  </span>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                  {apptLabel(a, byId)}{a.master ? ` · avec ${a.master}` : ''}
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button
+                    className="trf-act"
+                    onClick={() => appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'confirmé' } : x)))}
+                  >
+                    Confirmer
+                  </button>
+                  <button
+                    className="trf-act trf-act--ghost"
+                    onClick={() => { setAttenteOpen(false); setEditAppt(a); }}
+                  >
+                    Ouvrir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
       {compoOpen && (
         <Modal title="Rituels sur-mesure reçus." onClose={() => setCompoOpen(false)} width={620}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '60vh', overflowY: 'auto' }}>
