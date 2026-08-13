@@ -12,7 +12,7 @@ import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel, type EnvieKey } from '../../shared/quiz';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees } from '../../shared/accounts';
@@ -451,7 +451,15 @@ export function HomeTab({
           <span className="mc-crownstatus__filet" />
           <div className="mc-crownstatus__top">
             <div className="mc-crownstatus__id">
-              <span className="mc-crownstatus__style">{client?.crownStyle ?? 'Votre couronne'}</span>
+              {/* LE CALIBRE SE COMPTE (13 août) : le style choisi à la main est
+                  retiré — la couronne se nomme par son calibre, déduit du
+                  comptage de la Maison. */}
+              <span className="mc-crownstatus__style">
+                {(() => {
+                  const cal = calibreDe(client?.lockCount, bands);
+                  return cal ? `Couronne ${cal} · ${client?.lockCount} locks` : 'Votre couronne';
+                })()}
+              </span>
             </div>
             {cercle.membre && attained.length > 0 && (
               <span className="mc-pillseal">Palier {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
@@ -621,6 +629,9 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
 
   const honored = clientAppts.filter((a) => a.status === 'honoré');
   const lockDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
+  /* Le calibre, déduit du comptage — le style à la main est retiré (13 août). */
+  const [bandsModeles] = useModelBands();
+  const calSuivi = calibreDe(client?.lockCount, bandsModeles);
 
   /* La timeline naît des vrais rendez-vous : naissance de la couronne,
      rituels honorés, puis le prochain rendez-vous en attente. */
@@ -629,7 +640,7 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
     timeline.push({
       d: dayLabelIso(client.crownSince),
       t: 'Naissance de la couronne',
-      s: client.crownStyle ? `${client.crownStyle} · la maison veille` : 'La maison veille',
+      s: calSuivi ? `Calibre ${calSuivi} · la maison veille` : 'La maison veille',
       done: true,
     });
   }
@@ -1392,6 +1403,8 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const { branch } = useBranch();
   const { session } = useAuth();
   const email = client?.email ?? session?.user?.email ?? '';
+  /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */
+  const [bandsProfil] = useModelBands();
 
   const [name, setName] = useState(client?.name ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
@@ -1564,8 +1577,9 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Votre couronne</div>
       <div className="mc-preflist">
         <div className="mc-inforow">
-          <span>Style de couronne</span>
-          <span className="mc-inforow__v">{client?.crownStyle ?? 'À renseigner'}</span>
+          <span>Calibre</span>
+          {/* Déduit du comptage de la Maison — il ne se choisit pas. */}
+          <span className="mc-inforow__v">{calibreDe(client?.lockCount, bandsProfil) ?? 'À compter au salon'}</span>
         </div>
         <div className="mc-inforow">
           <span>Nombre de locks</span>

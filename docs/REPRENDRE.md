@@ -2,6 +2,21 @@
 
 État au 13 août 2026. À lire en premier dans une nouvelle session.
 
+## Le calibre se compte, le style est retiré — 13 août
+
+Décision Yéman : le champ « style de couronne » SORT du système. Le CALIBRE
+(déduit du comptage par le barème — juge `calibreDe`, pricing.ts) s'affiche à
+sa place partout : fiche 360 (déjà lu du comptage, sélecteur retiré),
+formulaire nouvelle cliente (champ retiré), Consultations, accueil + Suivi +
+Profil de Ma Couronne, miroir de la Vitrine. La carte Paramètres « styles de
+couronne » est SUPPRIMÉE ; `crownStylesStore` et `Client.crownStyle` restent
+en données (fiches anciennes) mais ne s'écrivent plus. SEEDS à SEPT calibres
+(bornes revues par Yéman) : Jumbo 80 · Medium 150 · Mini 250 · Micro 350 ·
+Nano 450 · PICO 550 (nouveau, coefs interpolés 2,5/2,6 — VÈKPÈ 3,75/2,75) ·
+Galaxy SANS PLAFOND (demande « 551 à 650 » adaptée : une cliente réelle porte
+700 locks, la dernière tranche reste infinie — la case ∞ des Paramètres pose
+un plafond si la Maison y tient). « Rétablir » dit désormais 7.
+
 ## Le régime tarifaire se lit — 13 août (entame du Juste Prix)
 
 Nouveau juge `regimeTarifaire(sv)` (pricing.ts) : CE QUI FAIT LE PRIX d'une

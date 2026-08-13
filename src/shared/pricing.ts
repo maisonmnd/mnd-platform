@@ -39,11 +39,16 @@ export type ModelBand = {
     facturé 70 000 F, soit exactement 2,8 × la base. Sans plafond, aucune cliente ne
     peut sortir du barème. */
 export const MODEL_BANDS_SEED: ModelBand[] = [
-  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 100, coef: 0.8, durCoef: 0.7 },
-  { id: 'cal-medium', name: 'Medium', maxLocks: 180, coef: 1, durCoef: 1 },
+  /* SEPT CALIBRES depuis le 13 août (bornes revues par Yéman aux Paramètres,
+     PICO ajouté entre Nano et Galaxy — coefficients interpolés). La dernière
+     tranche reste SANS PLAFOND : une cliente réelle porte 700 locks, et
+     aucune tête ne doit pouvoir sortir du barème. */
+  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 80, coef: 0.8, durCoef: 0.7 },
+  { id: 'cal-medium', name: 'Medium', maxLocks: 150, coef: 1, durCoef: 1 },
   { id: 'cal-mini', name: 'Mini', maxLocks: 250, coef: 1.4, durCoef: 1.4 },
-  { id: 'cal-micro', name: 'Micro', maxLocks: 400, coef: 1.8, durCoef: 1.9 },
-  { id: 'cal-nano', name: 'Nano', maxLocks: 600, coef: 2.2, durCoef: 2.4 },
+  { id: 'cal-micro', name: 'Micro', maxLocks: 350, coef: 1.8, durCoef: 1.9 },
+  { id: 'cal-nano', name: 'Nano', maxLocks: 450, coef: 2.2, durCoef: 2.4 },
+  { id: 'cal-pico', name: 'Pico', maxLocks: 550, coef: 2.5, durCoef: 2.6 },
   { id: 'cal-galaxy', name: 'Galaxy', maxLocks: null, coef: 2.8, durCoef: 2.8 },
 ];
 
@@ -82,11 +87,12 @@ export const ecrisCalibresPartout = (fn: (prev: ModelBand[]) => ModelBand[]): vo
     Les coefficients de DURÉE suivent les durées annoncées (3–4 h en Jumbo,
     2 jours en Micro et Nano). GALAXY est extrapolé — v6 s'arrête à 600 locks. */
 export const VEKPE_BANDS_SEED: ModelBand[] = [
-  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 100, coef: 0.53, durCoef: 0.74 },
-  { id: 'cal-medium', name: 'Medium', maxLocks: 180, coef: 1, durCoef: 1 },
+  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 80, coef: 0.53, durCoef: 0.74 },
+  { id: 'cal-medium', name: 'Medium', maxLocks: 150, coef: 1, durCoef: 1 },
   { id: 'cal-mini', name: 'Mini', maxLocks: 250, coef: 1.33, durCoef: 1.32 },
-  { id: 'cal-micro', name: 'Micro', maxLocks: 400, coef: 2.33, durCoef: 2.11 },
-  { id: 'cal-nano', name: 'Nano', maxLocks: 600, coef: 3.33, durCoef: 2.53 },
+  { id: 'cal-micro', name: 'Micro', maxLocks: 350, coef: 2.33, durCoef: 2.11 },
+  { id: 'cal-nano', name: 'Nano', maxLocks: 450, coef: 3.33, durCoef: 2.53 },
+  { id: 'cal-pico', name: 'Pico', maxLocks: 550, coef: 3.75, durCoef: 2.75 },
   { id: 'cal-galaxy', name: 'Galaxy', maxLocks: null, coef: 4.2, durCoef: 3 },
 ];
 
@@ -235,6 +241,16 @@ export const coefJustePrix = (sv: Pick<Service, 'categoryId'>, p: PersonalPricin
   const cat = p.cats.find((c) => c.id === sv.categoryId);
   if (!cat) return 1;
   return mondeDeCat(cat, p.cats) === 'atelier' ? p.clientCoef : 1;
+};
+
+/** LE CALIBRE SE COMPTE, IL NE SE CHOISIT PAS (13 août, décision de Yéman —
+    le champ « style de couronne » est retiré du système). Le calibre affiché
+    sur la fiche 360 et dans Ma Couronne SE DÉDUIT du comptage par le barème :
+    une seule vérité pour la taille d'une tête. Sans comptage → undefined,
+    et l'écran dit « à compter ». */
+export const calibreDe = (lockCount: number | undefined, bands: ModelBand[]): string | undefined => {
+  const b = bandOf(lockCount, bands);
+  return b?.name?.trim() || undefined;
 };
 
 /** Le prix ferme convenu avec CETTE cliente pour CETTE prestation, s'il existe.

@@ -8,7 +8,7 @@ import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
-import { useCrownStyles, useSegments, renameSegment, clientsStore } from '../../../../shared/clients';
+import { useSegments, renameSegment, clientsStore } from '../../../../shared/clients';
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
@@ -267,7 +267,7 @@ function CalibresCard() {
     ecrisCalibresPartout((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
   const retablit = () => {
-    if (!window.confirm('Rétablir les 6 calibres recommandés (Jumbo → Galaxy) ? Les calibres actuels seront remplacés dans tous les barèmes.')) return;
+    if (!window.confirm('Rétablir les 7 calibres recommandés (Jumbo → Pico → Galaxy) ? Les calibres actuels seront remplacés dans tous les barèmes.')) return;
     modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
     bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
   };
@@ -354,7 +354,7 @@ function CalibresCard() {
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
         <Button size="sm" variant="ghost" onClick={ajoute}>+ Ajouter un calibre</Button>
-        <Button size="sm" variant="ghost" onClick={retablit}>Rétablir les 6 recommandés</Button>
+        <Button size="sm" variant="ghost" onClick={retablit}>Rétablir les 7 recommandés</Button>
         <Button size="sm" variant="ghost" onClick={() => navigate('/juste-prix')}>Les coefficients · Le Juste Prix →</Button>
       </div>
       {sorted.every((b) => b.maxLocks !== null) ? (
@@ -759,11 +759,9 @@ export default function Parametres() {
   const [autoCfgRaw, setAutoCfgRaw] = useStore(autoConfigStore);
   const [services] = useServices();
   const [identity, setIdentity] = useHouseIdentity();
-  const [crownStyles, setCrownStyles] = useCrownStyles();
   const [segments, setSegments] = useSegments();
   const [payMethods] = usePaymentMethods();
   const [saved, setSaved] = useState(false);
-  const [newStyle, setNewStyle] = useState('');
   const [newSeg, setNewSeg] = useState('');
   const [segEditIdx, setSegEditIdx] = useState<number | null>(null);
   const [segEditVal, setSegEditVal] = useState('');
@@ -832,7 +830,11 @@ export default function Parametres() {
       return { ...s, depositPctByService: { ...cur, [id]: n } };
     });
 
-  /* ----- Styles de couronne — liste éditable (trim + dédoublonnage) ----- */
+  /* LES STYLES DE COURONNE SONT RETIRÉS DU SYSTÈME (13 août, décision de
+     Yéman) : le calibre se COMPTE — il se déduit du nombre de locks par le
+     barème des modèles, il ne se choisit plus dans une liste. La carte et
+     ses gestes ont disparu ; `normalizeStyles` reste, les segments s'en
+     servent. */
   const normalizeStyles = (list: string[]): string[] => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -845,29 +847,6 @@ export default function Parametres() {
       out.push(t);
     }
     return out;
-  };
-  const addStyle = () => {
-    const t = newStyle.trim();
-    if (!t) return;
-    setCrownStyles((prev) => normalizeStyles([...prev, t]));
-    setNewStyle('');
-  };
-  /* La frappe écrit TELLE QUELLE (pas de normalize : il retirerait la ligne
-     dès qu'elle se vide pour être retapée) — les gardes vivent au blur, dans
-     LigneListe. */
-  const renommeStyle = (idx: number, val: string) =>
-    setCrownStyles((prev) => prev.map((s, i) => (i === idx ? val : s)));
-  const bougeStyle = (idx: number, dir: -1 | 1) =>
-    setCrownStyles((prev) => {
-      const j = idx + dir;
-      if (j < 0 || j >= prev.length) return prev;
-      const n = [...prev];
-      [n[idx], n[j]] = [n[j], n[idx]];
-      return n;
-    });
-  const removeStyle = (idx: number, name: string) => {
-    if (!window.confirm(`Retirer le style « ${name} » ? Il ne sera plus proposé au CRM ni à Ma Couronne.`)) return;
-    setCrownStyles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   /* ----- Segments de clientèle — même gestion (ajout / renommage / retrait) ----- */
@@ -1417,52 +1396,6 @@ export default function Parametres() {
       <Intertitre id="fam-catalogue">Catalogue & clientèle</Intertitre>
 
       {/* ---------- Catalogue · styles de couronne ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Catalogue · styles de couronne</div>
-            <div className="sys-section__cap">
-              La finesse des locks, proposée partout — fiches CRM et Ma Couronne. Écris directement
-              dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre des menus. Une fiche
-              déjà taguée garde son libellé d’origine.
-            </div>
-          </div>
-          <span className="sys-badge-count">{crownStyles.length} style{crownStyles.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {crownStyles.map((s, i) => (
-            <LigneListe
-              key={i}
-              nom={s}
-              existe={(c) => crownStyles.some((x, k) => k !== i && x.trim().toLowerCase() === c.toLowerCase())}
-              premier={i === 0}
-              dernier={i === crownStyles.length - 1}
-              renomme={(v) => renommeStyle(i, v)}
-              bouge={(d) => bougeStyle(i, d)}
-              retire={() => removeStyle(i, s)}
-              aria={`Nom du style ${i + 1}`}
-            />
-          ))}
-          {crownStyles.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun style pour l’instant — ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newStyle}
-            onChange={(e) => setNewStyle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addStyle(); }}
-            placeholder="Nouveau style — ex. Nano"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
       {/* ---------- CRM · segments de clientèle ---------- */}
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>

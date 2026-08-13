@@ -8,7 +8,7 @@ import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
 import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel, calibreDe } from '../../../../shared/pricing';
 import { vitrineConfigStore, catalogueVisiblePour, surMesureDe } from '../../../../shared/bridges';
 import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
 import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
@@ -1225,7 +1225,9 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                 </div>
                 <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, background: 'var(--surface-card)', padding: '12px 14px', marginTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{client.crownStyle ?? 'Votre couronne'}</span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                      {(() => { const cal = calibreDe(client.lockCount, bands); return cal ? `Couronne ${cal} · ${client.lockCount} locks` : 'Votre couronne'; })()}
+                    </span>
                     {attained.length > 0 && <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 999, padding: '2px 9px' }}>Palier {attained.length}</span>}
                   </div>
                   {ladder.length > 0 && (

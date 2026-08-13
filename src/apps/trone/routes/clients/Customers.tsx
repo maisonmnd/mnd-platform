@@ -5,7 +5,7 @@ import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/co
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
-import { clientsStore, crownStylesStore, segmentsStore, useCrownStyles, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -274,38 +274,10 @@ function LocksCell({ client }: { client: Client }) {
   );
 }
 
-/** Champ « Style de couronne » — liste éditable (crownStylesStore) + ajout inline. */
-function CrownStyleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [styles] = useCrownStyles();
-  const addStyle = () => {
-    const name = window.prompt('Nom du nouveau style de couronne :')?.trim();
-    if (!name) return;
-    crownStylesStore.set((prev) =>
-      prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name],
-    );
-    onChange(name);
-  };
-  return (
-    <div className="mnd-field">
-      <span className="mnd-field__label">Style de couronne</span>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
-        <Select value={value} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
-          <option value="">—</option>
-          {styles.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <button
-          type="button"
-          className="trc-crown-add"
-          onClick={addStyle}
-          aria-label="Ajouter un style"
-          title="Ajouter un style de couronne"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
+/* LE CHAMP « STYLE DE COURONNE » EST RETIRÉ (13 août, décision de Yéman) :
+   le calibre se COMPTE — il se déduit du nombre de locks par le barème
+   (`calibreDe`), il ne se choisit plus dans une liste. `Client.crownStyle`
+   reste porté par les fiches anciennes, il ne s'écrit plus. */
 
 export default function Customers() {
   const { branch, currency } = useBranch();
@@ -1617,11 +1589,9 @@ function Customer360({
                 {client.envieAt ? ` · dite le ${frShort(client.envieAt)}` : ''}
               </div>
             )}
+            {/* LE STYLE À LA MAIN EST RETIRÉ (13 août) : le calibre se COMPTE
+                — il se lit juste au-dessus, déduit du nombre de locks. */}
             <div className="trc-crown__grid">
-              <CrownStyleField
-                value={client.crownStyle ?? ''}
-                onChange={(v) => patch({ crownStyle: v || undefined })}
-              />
               <Field label="Nombre de locks">
                 <Input
                   type="number"
@@ -2326,7 +2296,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [birthday, setBirthday] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>([]);
-  const [crownStyle, setCrownStyle] = useState('');
   const [lockCount, setLockCount] = useState('');
   const [crownSince, setCrownSince] = useState('');
   const [preferredMaster, setPreferredMaster] = useState('');
@@ -2351,7 +2320,9 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
         {
           name: '',
           city: city.trim(),
-          crownStyle,
+          /* Le style est retiré du système : le classement se décide sur la
+             densité (locks) et l'ancienneté. */
+          crownStyle: '',
           lockCount: lockCount === '' ? undefined : Number(lockCount),
           crownSince,
           country: branch.country,
@@ -2397,7 +2368,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       loyaltyPoints: 0,
       birthday: birthday || undefined,
       diaspora: branch.country !== 'Bénin' && branch.country !== "Côte d’Ivoire",
-      crownStyle: crownStyle || undefined,
       lockCount: lockCount === '' ? undefined : Math.max(0, Number(lockCount)),
       crownSince: crownSince || undefined,
       preferredMaster: preferredMaster || undefined,
@@ -2479,7 +2449,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
         <div>
           <span className="trc-microlabel">La couronne · partagé avec Ma Couronne</span>
           <div className="tr-grid tr-grid--2">
-            <CrownStyleField value={crownStyle} onChange={setCrownStyle} />
             <Field label="Nombre de locks">
               <Input type="number" min={0} value={lockCount} onChange={(e) => setLockCount(e.target.value)} placeholder="—" />
             </Field>

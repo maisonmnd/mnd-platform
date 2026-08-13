@@ -176,7 +176,7 @@ function BaremeModeles({ currency }: { currency: string }) {
     writeToutes((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
   const resetBands = () => {
-    if (!window.confirm('Rétablir le barème recommandé (6 tranches) ? Vos tranches actuelles seront remplacées.')) return;
+    if (!window.confirm('Rétablir le barème recommandé (7 tranches, Jumbo → Pico → Galaxy) ? Vos tranches actuelles seront remplacées.')) return;
     modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
     bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
   };

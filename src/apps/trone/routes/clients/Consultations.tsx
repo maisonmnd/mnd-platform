@@ -9,6 +9,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
 import { type Appointment } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
+import { useModelBands, calibreDe } from '../../../../shared/pricing';
 import { useBranch } from '../../../../shared/branches';
 import { asset } from '../../../../shared/asset';
 import { summaryPdf } from '../../../../shared/pdf';
@@ -297,6 +298,8 @@ function DossierPanel({
 }) {
   const { currency, branch } = useBranch();
   const navigate = useNavigate();
+  /* Le calibre se déduit du comptage — le style à la main est retiré (13 août). */
+  const [bandsModeles] = useModelBands();
   const [queue] = useStore(consultationsQueueStore);
   const [invoices] = useInvoices();
   const [bookOpen, setBookOpen] = useState(false);
@@ -403,13 +406,14 @@ function DossierPanel({
           </div>
         </div>
 
-        {/* La couronne — si renseignée */}
-        {(client.crownStyle || client.lockCount != null) && (
+        {/* La couronne — le CALIBRE, déduit du comptage (le style à la main
+            est retiré du système, 13 août). */}
+        {client.lockCount != null && (
           <div>
             <span className="trc-microlabel">La couronne</span>
             <div className="trc-crown">
-              <div className="trc-crown__style">{client.crownStyle ?? 'Style à définir'}</div>
-              <div className="trc-crown__meta">{client.lockCount != null ? `${client.lockCount} locks` : 'Locks à compter'}</div>
+              <div className="trc-crown__style">{calibreDe(client.lockCount, bandsModeles) ?? 'Calibre à constater'}</div>
+              <div className="trc-crown__meta">{client.lockCount} locks</div>
             </div>
           </div>
         )}
