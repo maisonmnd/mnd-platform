@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   signInClient, signUpClient, startPasswordReset, verifyPasswordReset, updatePassword,
+  signInWithGoogle,
 } from '../../shared/auth';
 import { pushNotifyStaff } from '../../shared/push';
 
@@ -326,6 +327,35 @@ export default function Onboarding() {
           : mode === 'oubli-code' ? 'Définir le mot de passe'
           : 'Se connecter'}
       </button>
+
+      {/* LA PORTE GOOGLE (13 août) : l'adresse est GARANTIE par Google — une
+          adresse inventée ne peut pas entrer par ici. La page part chez
+          Google ; au retour, la session s'ouvre et le verrou d'App bascule. */}
+      {(mode === 'connexion' || mode === 'inscription') && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px', color: 'var(--ink-soft)', fontSize: 11.5, fontFamily: 'var(--font-sans)' }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
+            ou
+            <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
+          </div>
+          <button
+            type="button"
+            className="mc-cta mc-cta--outline"
+            disabled={busy}
+            onClick={() => {
+              setErr(null);
+              setNotice(null);
+              setBusy(true);
+              signInWithGoogle().catch((e) => {
+                setBusy(false);
+                setErr(errMessage(e, 'Google indisponible pour le moment — entrez par e-mail, ou réessayez plus tard.'));
+              });
+            }}
+          >
+            Continuer avec Google
+          </button>
+        </>
+      )}
 
       {mode === 'connexion' && (
         <button

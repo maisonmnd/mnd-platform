@@ -135,6 +135,22 @@ export async function signUpClient(
   return { needsConfirmation: !data.session };
 }
 
+/** Connexion / inscription par GOOGLE — l'adresse est GARANTIE par Google :
+    aucune adresse inventée ne peut ouvrir un compte par cette porte (demande
+    de Yéman, 13 août — « yemanboya3@gmail.com » entrait avec un simple mot de
+    passe). Nécessite le fournisseur Google activé au tableau de bord Supabase
+    (Authentication → Providers → Google) et l'URL de l'app dans les
+    « Redirect URLs ». La page PART chez Google : pas de retour d'erreur
+    au-delà du lancement. */
+export async function signInWithGoogle(): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: appRedirect() },
+  });
+  if (error) throw error;
+}
+
 /* ---- Mot de passe oublié — code à 6 chiffres (même principe que l'OTP e-mail) ----
    Le gabarit « Reset Password » du tableau de bord doit exposer {{ .Token }} :
    sans lui l'e-mail ne montre qu'un lien, et la cliente n'a aucun code à saisir. */
