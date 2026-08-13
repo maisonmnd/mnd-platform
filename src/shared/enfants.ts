@@ -1,6 +1,7 @@
 import { createStore, useStore, uid } from './store';
 import { clientsStore, familiesStore, type Client } from './clients';
 import { estMineur } from './accounts';
+import { supabase } from './supabase';
 
 /* LES ENFANTS SE DÉCLARENT, PUIS SE VALIDENT.
 
@@ -139,13 +140,13 @@ const assureFamilleDuParent = (parent: Client): string => {
     rattachement redevient une DEMANDE que la Maison arbitre — c'est le seul
     cas qui passe encore par elle. Le journal des déclarations garde trace de
     tout (statut « accepté », fiche créée). */
-export function rattacherEnfant(
+export async function rattacherEnfant(
   parent: Client,
   prenom: string,
   nom: string,
   birthday: string,
   aujourdhui: string,
-): { ok: boolean; erreur?: string; enAttente?: boolean } {
+): Promise<{ ok: boolean; erreur?: string; enAttente?: boolean }> {
   const p = prenom.trim();
   const n = nom.trim();
   if (!p) return { ok: false, erreur: 'Il manque son prénom.' };
@@ -155,8 +156,64 @@ export function rattacherEnfant(
   if (!estMineur({ birthday }, aujourdhui)) {
     return { ok: false, erreur: 'Cette personne est majeure — elle peut ouvrir son propre compte.' };
   }
-  /* Une tête déjà au carnet ne s'annexe pas soi-même : demande à la Maison. */
   const nomComplet = `${p} ${n}`.replace(/\s+/g, ' ').trim();
+
+  /* AVEC BACKEND, C'EST LE SERVEUR QUI ÉCRIT (migration 0044). La RLS —
+     à raison — n'autorise une cliente qu'à écrire SA fiche : créés depuis
+     son téléphone, les enfants restaient locaux puis disparaissaient à la
+     première relecture du serveur (constaté le 13 août sur le compte de
+     test). La fonction `rattacher_enfant` vérifie et écrit elle-même ;
+     on REFLÈTE ensuite ses lignes en local pour que l'écran suive tout de
+     suite — l'écho Realtime les confirmera à l'identique. */
+  if (supabase) {
+    const { data, error } = await supabase.rpc('rattacher_enfant', {
+      p_prenom: p, p_nom: n, p_naissance: birthday,
+    });
+    if (error) {
+      const brut = error.message ?? '';
+      return {
+        ok: false,
+        erreur: /function|does not exist|schema cache/i.test(brut)
+          ? 'La maison doit d’abord activer le rattachement (migration 0044) — réessayez ensuite.'
+          : brut || 'Rattachement impossible — réessayez.',
+      };
+    }
+    const r = data as { statut: string; enfantId?: string; familyId?: string; nom?: string };
+    if (r.statut === 'attente') return { ok: true, enAttente: true };
+    const familyId = r.familyId!;
+    if (!familiesStore.get().some((f) => f.id === familyId)) {
+      const patronyme = parent.name.trim().split(/\s+/).slice(-1)[0] || parent.name.trim();
+      familiesStore.set((prev) => [
+        ...prev,
+        { id: familyId, branchId: parent.branchId, name: `Famille ${patronyme}`, payerClientId: parent.id },
+      ]);
+    }
+    if (parent.familyId !== familyId) {
+      clientsStore.set((prev) => prev.map((c) => (c.id === parent.id ? { ...c, familyId } : c)));
+    }
+    if (r.enfantId && !clientsStore.get().some((c) => c.id === r.enfantId)) {
+      clientsStore.set((prev) => [
+        ...prev,
+        {
+          id: r.enfantId!,
+          branchId: parent.branchId,
+          name: r.nom ?? nomComplet,
+          phone: '',
+          city: parent.city ?? '',
+          persona: parent.persona,
+          since: aujourdhui,
+          birthday,
+          familyId,
+          segments: ['Enfant'],
+          priceCoef: parent.priceCoef ?? 1,
+          loyaltyPoints: 0,
+        } as Client,
+      ]);
+    }
+    return { ok: true };
+  }
+
+  /* SANS BACKEND (mode local) : le même geste, en local. */
   const dejaLa = clientsStore.get().some((c) => !c.archived && c.branchId === parent.branchId
     && c.name.trim().replace(/\s+/g, ' ').toLowerCase() === nomComplet.toLowerCase()
     && (c.birthday ?? '') === birthday);
@@ -164,7 +221,6 @@ export function rattacherEnfant(
     const r = declarerEnfant(parent, p, n, birthday, aujourdhui);
     return r.ok ? { ok: true, enAttente: true } : r;
   }
-
   const familyId = assureFamilleDuParent(parent);
   const enfantId = `enf-${uid()}`;
   clientsStore.set((prev) => [
@@ -184,7 +240,6 @@ export function rattacherEnfant(
       loyaltyPoints: 0,
     } as Client,
   ]);
-  /* Le journal — la Maison lit ce qui s'est rattaché, sans avoir à valider. */
   enfantsDeclaresStore.set((prev) => [
     ...prev,
     {

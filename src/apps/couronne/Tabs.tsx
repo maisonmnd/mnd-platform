@@ -1269,11 +1269,12 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   const attente = mesDemandes.filter((d) => d.statut === 'en attente');
   const refusees = mesDemandes.filter((d) => d.statut === 'refusé');
 
-  const envoyer = () => {
-    /* LE RATTACHEMENT EST IMMÉDIAT (13 août) : la fiche naît ici même, sous
-       son compte famille. Seule une tête DÉJÀ au carnet repasse par la
-       Maison — on ne s'annexe pas la fiche d'une autre. */
-    const r = rattacherEnfant(client, prenom, nom, naissance, aujourdhui);
+  const envoyer = async () => {
+    /* LE RATTACHEMENT EST IMMÉDIAT (13 août) : le SERVEUR crée la fiche sous
+       son compte famille (migration 0044) et l'écran la reflète aussitôt.
+       Seule une tête DÉJÀ au carnet repasse par la Maison — on ne s'annexe
+       pas la fiche d'une autre. */
+    const r = await rattacherEnfant(client, prenom, nom, naissance, aujourdhui);
     if (!r.ok) { setErreur(r.erreur ?? 'Cette demande n’a pas pu être envoyée.'); return; }
     setErreur('');
     const petit = prenom.trim();
@@ -1383,7 +1384,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             jusqu’à ses dix-huit ans.
           </div>
           {erreur && <div className="mc-form-err">{erreur}</div>}
-          <button className="mc-cta mc-cta--indigo" style={{ marginTop: 14 }} onClick={envoyer}>
+          <button className="mc-cta mc-cta--indigo" style={{ marginTop: 14 }} onClick={() => void envoyer()}>
             Envoyer à la maison
           </button>
           <button className="mc-textbtn" style={{ marginTop: 8 }} onClick={() => { setOuvert(false); setErreur(''); }}>
