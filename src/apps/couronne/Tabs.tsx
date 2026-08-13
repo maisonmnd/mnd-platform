@@ -11,7 +11,7 @@ import { useCategories, useProducts, useServices } from '../../shared/catalog';
 import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
-import { envieLabel } from '../../shared/quiz';
+import { envieLabel, type EnvieKey } from '../../shared/quiz';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
@@ -203,6 +203,16 @@ function useNotifCount(): number {
     + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length;
 }
 
+/* LA PHRASE DU POURQUOI (maquette accueil, repère 5) : la recommandation dit
+   sa raison en toutes lettres — l'envie qu'ELLE a déclarée au quiz, jamais un
+   fait inventé sur sa fibre. Une par envie, dans les mots de la maison. */
+const PHRASE_ENVIE: Record<EnvieKey, string> = {
+  longueur: 'Pour les centimètres que vous êtes venue chercher — la longueur se gagne à la racine, séance après séance.',
+  eclat: 'Pour l’éclat que vous êtes venue chercher — la lumière se scelle mèche après mèche.',
+  protection: 'Pour protéger ce qui pousse — la saison ne doit rien prendre à votre couronne.',
+  transformation: 'Pour la transformation que vous êtes venue chercher — sans rien sacrifier de votre couronne.',
+};
+
 function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
   return a.serviceIds
     .map((id) => services.find((s) => s.id === id)?.name)
@@ -375,6 +385,67 @@ export function HomeTab({
           <div>Vous êtes l’héroïne de cette transformation. Mèche après mèche, depuis plus de 20 ans, la maison veille.</div>
         </div>
 
+        {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2) : la
+            séance prise, ou la séance PRÉDITE avec ses deux gestes. Le vide
+            n'ouvre plus l'écran. */}
+        <div className="mc-nextrdv">
+          <div className="mc-nextrdv__row">
+            <span className="mc-nextrdv__label">Votre prochaine séance</span>
+            {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? 'Confirmé' : 'En attente'}</span>}
+          </div>
+          {next ? (
+            <>
+              <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
+              <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
+              {next.seriesTotal && (
+                <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
+                  Séance {next.seriesIndex}/{next.seriesTotal}
+                </span>
+              )}
+              {next.depositXof != null && (
+                <span className="mc-nextrdv__seal">{next.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(next.depositXof, currency)}</span>
+              )}
+            </>
+          ) : predite ? (
+            /* RIEN N'EST PRIS, MAIS LA MAISON SAIT — le ≈ dit l'estimation, la
+               phrase dit le rythme, et DEUX gestes répondent (13 août) :
+               « Réserver ce créneau » ouvre le tunnel SUR le jour prédit,
+               « Choisir une autre date » l'ouvre grille libre. Même juge que
+               la fiche du Trône (shared/cadence.ts). */
+            <>
+              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}</div>
+              <div className="mc-nextrdv__when">
+                d’après votre rythme{predite.avgDays ? ` — ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
+              </div>
+              {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
+                <>
+                  <button
+                    className="mc-cta mc-cta--copper"
+                    style={{ marginTop: 14 }}
+                    onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0], dateIso: predite.iso! })}
+                  >
+                    Réserver ce créneau
+                  </button>
+                  <button
+                    className="mc-nextrdv__manage"
+                    onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0] })}
+                  >
+                    Choisir une autre date
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mc-nextrdv__service">Aucun rituel à venir</div>
+              <div className="mc-nextrdv__when">Votre couronne mérite sa prochaine séance — réservez en sept temps.</div>
+            </>
+          )}
+          <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
+            Mes rendez-vous · voir, déplacer, annuler
+          </button>
+        </div>
+
         {/* statut couronne */}
         <div className="mc-crownstatus">
           <span className="mc-crownstatus__filet" />
@@ -450,55 +521,6 @@ export function HomeTab({
           </>
         )}
 
-        {/* prochain rituel */}
-        <div className="mc-nextrdv">
-          <div className="mc-nextrdv__row">
-            <span className="mc-nextrdv__label">Prochain rituel</span>
-            {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? 'Confirmé' : 'En attente'}</span>}
-          </div>
-          {next ? (
-            <>
-              <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
-              <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
-              {next.seriesTotal && (
-                <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
-                  Séance {next.seriesIndex}/{next.seriesTotal}
-                </span>
-              )}
-              {next.depositXof != null && (
-                <span className="mc-nextrdv__seal">{next.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(next.depositXof, currency)}</span>
-              )}
-            </>
-          ) : predite ? (
-            /* RIEN N'EST PRIS, MAIS LA MAISON SAIT — l'écran propose au lieu
-               d'annoncer un vide. Même juge que la fiche du Trône ; le ≈ dit
-               l'estimation, la phrase dit le rythme, le geste réserve. */
-            <>
-              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}</div>
-              <div className="mc-nextrdv__when">
-                d’après votre rythme{predite.avgDays ? ` — ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
-              </div>
-              {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
-                <button
-                  className="mc-nextrdv__manage"
-                  style={{ marginRight: 8 }}
-                  onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0] })}
-                >
-                  Réserver ce rituel →
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="mc-nextrdv__service">Aucun rituel à venir</div>
-              <div className="mc-nextrdv__when">Votre couronne mérite sa prochaine séance — réservez en sept temps.</div>
-            </>
-          )}
-          <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
-            Mes rendez-vous · voir, déplacer, annuler
-          </button>
-        </div>
-
         {/* Modules coupés par la Maison : les gestes fermés disparaissent (les
             gardes d'App.tsx couvrent de toute façon tous les autres chemins). */}
         {!moduleHidden(client, 'reserver') && (
@@ -550,6 +572,9 @@ export function HomeTab({
                     ? 'Prix au fauteuil — la maison vous dira'
                     : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
                 </div>
+                {client?.envie && (
+                  <div className="mc-recocard__why">{PHRASE_ENVIE[client.envie]}</div>
+                )}
               </div>
               {!moduleHidden(client, 'reserver') && (
                 <button className="mc-arrowbtn" aria-label="Réserver cette prestation" onClick={() => onOpenBooking({ serviceId: recoPresta.service.id })}>→</button>

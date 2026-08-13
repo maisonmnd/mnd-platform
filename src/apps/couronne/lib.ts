@@ -509,4 +509,8 @@ export type BookingPrefill = {
   serviceId: string;
   discountPct?: number;
   offerLabel?: string;
+  /** LA DATE PRÉDITE par la cadence (maquette accueil, repère 2) : « Réserver
+      ce créneau » l'apporte — la grille du tunnel s'ouvre sur ce jour, l'heure
+      reste à choisir. Passée ou hors des deux mois affichés : ignorée. */
+  dateIso?: string;
 };

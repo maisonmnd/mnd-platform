@@ -118,6 +118,18 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
+  /* LE CRÉNEAU PRÉDIT ARRIVE PRÉ-CHOISI (maquette accueil, repère 2) :
+     « Réserver ce créneau » porte la date de la cadence — la grille s'ouvre
+     sur ce jour, l'heure reste à choisir. Une date passée, ou au-delà des deux
+     mois que le calendrier montre, est simplement ignorée. */
+  const prefIso = (() => {
+    const d = prefill?.dateIso;
+    if (!prefService || !d || d < todayIso()) return null;
+    const now = new Date();
+    const decalage = (Number(d.slice(0, 4)) - now.getFullYear()) * 12 + (Number(d.slice(5, 7)) - 1 - now.getMonth());
+    return decalage === 0 || decalage === 1 ? { iso: d, mois: decalage } : null;
+  })();
+
   /* Une prestation déjà désignée (offre instantanée, re-réservation) saute le
      quiz ET l'objectif : on ne demande pas son envie à une cliente qui vient de
      toucher « Réserver ce rituel ». */
@@ -133,8 +145,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [voirTout, setVoirTout] = useState(false);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
   const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
-  const [monthIdx, setMonthIdx] = useState(0);
-  const [selIso, setSelIso] = useState<string | null>(null);
+  const [monthIdx, setMonthIdx] = useState(prefIso?.mois ?? 0);
+  const [selIso, setSelIso] = useState<string | null>(prefIso?.iso ?? null);
   const [time, setTime] = useState<string | null>(null);
   /* Séries multi-séances : chaque séance choisie (date + heure), dans l'ordre. */
   const [sessionDates, setSessionDates] = useState<{ iso: string; time: string }[]>([]);
