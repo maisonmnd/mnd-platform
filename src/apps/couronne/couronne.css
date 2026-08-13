@@ -370,8 +370,13 @@
 
 /* LE FORMULAIRE DÉFILE (13 août) : avec prénom + nom et les trois portes, la
    carte dépasse l'écran — sans défilement, Google se coupait à mi-hauteur et
-   Apple comme WhatsApp n'existaient pas à l'écran. */
-.mc-onb-form { display: flex; flex-direction: column; height: 100%; overflow-y: auto; padding: calc(34px + env(safe-area-inset-top)) 28px calc(34px + env(safe-area-inset-bottom)); }
+   Apple comme WhatsApp n'existaient pas à l'écran.
+   `min-height: 0` est LA clef : enfant d'une colonne flex (.mc-viewport,
+   overflow hidden), le formulaire gardait son `min-height: auto` d'enfant
+   flex — il grandissait à la taille de son CONTENU au lieu de tenir à 100 %
+   et de défiler, et le viewport coupait le surplus. Sans cette ligne,
+   `overflow-y: auto` ne servait à rien. */
+.mc-onb-form { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto; padding: calc(34px + env(safe-area-inset-top)) 28px calc(34px + env(safe-area-inset-bottom)); }
 .mc-onb-form__seal { width: 32px; margin-top: 30px; }
 
 .mc-field-label {
