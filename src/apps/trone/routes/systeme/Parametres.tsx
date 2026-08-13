@@ -436,6 +436,66 @@ function FactoryResetCard() {
   );
 }
 
+/* ── LA PAGE SE LIT PAR FAMILLES (13 août) ─────────────────────────────
+   Quatorze cartes empilées dans l'ordre où elles étaient nées : les zones
+   dangereuses au milieu, le calendrier éparpillé en trois endroits, et une
+   grille à deux colonnes dont l'une finissait en désert d'écrans. Désormais :
+   une seule colonne, sept familles annoncées par un intertitre cuivre, un
+   sommaire collant pour sauter à la bonne, et les zones sensibles À LA FIN —
+   là où on ne les croise pas par accident. */
+const FAMILLES_SOMMAIRE = [
+  { id: 'fam-maison', l: 'La Maison' },
+  { id: 'fam-calendrier', l: 'Le calendrier' },
+  { id: 'fam-catalogue', l: 'Catalogue & clientèle' },
+  { id: 'fam-encaissement', l: 'L’encaissement' },
+  { id: 'fam-equipe', l: 'L’équipe' },
+  { id: 'fam-notifs', l: 'Notifications & automatisations' },
+  { id: 'fam-donnees', l: 'Données & zones sensibles' },
+];
+
+/** L'intertitre d'une famille — le motif des mondes de la Caisse : un mot
+    cuivre, un filet, et l'œil sait où il est. `scrollMarginTop` laisse la
+    place du sommaire collant quand on saute à l'ancre. */
+function Intertitre({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <div id={id} style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '34px 0 0', scrollMarginTop: 64 }}>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Le sommaire — collant sous le haut de page, il suit pendant qu'on défile.
+    Des ancres, pas des onglets : la page reste UNE page, la recherche du
+    navigateur voit tout, et un réglage se retrouve d'un geste. */
+function SommaireParametres() {
+  return (
+    <nav
+      aria-label="Sommaire des paramètres"
+      style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        background: 'var(--color-ivoire)',
+        display: 'flex', flexWrap: 'wrap', gap: 8,
+        padding: '10px 0 12px', marginBottom: 4,
+        borderBottom: '1px solid var(--hairline)',
+      }}
+    >
+      {FAMILLES_SOMMAIRE.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          className="tre-chip"
+          onClick={() => document.getElementById(f.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          {f.l}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [blocages, setBlocages] = useBlocages();
@@ -660,9 +720,13 @@ export default function Parametres() {
         </div>
       )}
 
-      <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
-        <Card className="sys-section">
-          <div className="sys-section__title">Identité de la Maison</div>
+      <SommaireParametres />
+
+      {/* ══ LA MAISON ═══════════════════════════════════════════════ */}
+      <Intertitre id="fam-maison">La Maison</Intertitre>
+
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Identité de la Maison</div>
           <div className="sys-section__cap">Ce que la Maison montre au monde.</div>
           <EditRow l="Nom de la Maison">
             <input
@@ -693,9 +757,67 @@ export default function Parametres() {
           <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
         </Card>
 
-        <Card className="sys-section">
-          <div className="sys-section__title">Le rituel par défaut</div>
-          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous.</div>
+      {/* ── LES HEURES DU SALON ─────────────────────────────────────
+          UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
+          qui commande les créneaux réservables (`openingForIso`), et une autre
+          branchée sur un second document jamais lu par la réservation. « Mon
+          mois » lisait la seconde, restée à ses valeurs de départ, et
+          annonçait 9 h quand la Maison ouvrait à 8 h.
+
+          Deux sources d'horaires pour une seule maison, c'est une de trop.
+          Celle-ci reste, et tout s'y branche : la réservation, l'amplitude du
+          Calendrier, la ponctualité au pointage et les heures au-delà. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Les heures du salon</div>
+            <div className="sys-section__cap">
+              Le salon n’accepte des rendez-vous que pendant ces plages. Elles décident aussi de
+              l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure » au pointage,
+              et de ce qui compte comme heure au-delà.
+            </div>
+          </div>
+          <span className="sys-badge-count">{openDays} / 7 jours</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {settings.hours.map((d) => (
+            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{JOUR_LABEL[d.key] ?? d.key}</span>
+              <button
+                className={`tre-chip ${d.closed ? '' : 'is-on'}`}
+                onClick={() => setHour(d.key, 'closed', !d.closed)}
+                style={{ fontSize: 11.5, minWidth: 78 }}
+              >
+                {d.closed ? 'Fermé' : 'Ouvert'}
+              </button>
+              {!d.closed && (
+                <>
+                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="08h00" style={{ width: 92, textAlign: 'center' }} />
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="20h30" style={{ width: 92, textAlign: 'center' }} />
+                </>
+              )}
+              {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+          Écris l’heure comme « 08h00 ». Le Calendrier couvre la plus large amplitude de la
+          semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
+        </div>
+      </Card>
+
+      {/* ══ LE CALENDRIER ═══════════════════════════════════════════
+          Tout ce qui régit un rendez-vous, au même endroit : ses règles et
+          son acompte, les journées qui dérogent, et les murs de la
+          réservation en ligne. */}
+      <Intertitre id="fam-calendrier">Le calendrier</Intertitre>
+
+        <Card className="sys-section" style={{ marginTop: 18 }}>
+          <div className="sys-section__title">Le rendez-vous & l’acompte</div>
+          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous — et ce que Ma Couronne exige à la réservation.</div>
           <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut.">
             <select
               className="sys-select"
@@ -810,423 +932,8 @@ export default function Parametres() {
               </>
             )}
           </div>
-          {/* Exceptionnel, d'où une bascule : on l'ouvre le temps d'une facture,
-              on la referme après. Fermée, la Caisse n'encaisse qu'en {currency}. */}
-          <div className="sys-row">
-            <div>
-              <div className="sys-row__label">Paiement en devise étrangère</div>
-              <div className="sys-row__sub">
-                Ouvre à la Caisse le règlement dans une autre devise que le {currency} — la cliente
-                paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
-                taux sont consignés. À refermer une fois la facture réglée.
-              </div>
-            </div>
-            <Toggle on={!!settings.fxEnabled} onToggle={() => setSettings((s) => ({ ...s, fxEnabled: !s.fxEnabled }))} />
-          </div>
-          <div className="sys-row">
-            <div>
-              <div className="sys-row__label">Frais de livraison à domicile</div>
-              <div className="sys-row__sub">Ajoutés en ligne à la commande produits sur Ma Couronne. 0 = livraison offerte.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                className="sys-select"
-                type="number"
-                min={0}
-                step={500}
-                value={settings.deliveryFeeXof}
-                onChange={(e) => setDeliveryFee(e.target.value)}
-                style={{ width: 96, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
-                aria-label="Frais de livraison à domicile en francs CFA"
-              />
-              <span className="sys-row__value">F</span>
-            </div>
-          </div>
           <ToggleRows rows={RITUEL_TOGGLES} />
         </Card>
-
-        <Card className="sys-section">
-          <div className="sys-section__title">Notifications</div>
-          <div className="sys-section__cap">Qui est prévenu, et quand.</div>
-          <ToggleRows rows={NOTIF_TOGGLES} />
-        </Card>
-
-        <Card className="sys-section">
-          <div className="sys-section__title">Accès & souveraineté</div>
-          <div className="sys-section__cap">La Maison reste maîtresse de ses données.</div>
-          <ToggleRows rows={ACCES_TOGGLES} />
-          <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
-        </Card>
-      </div>
-
-      {/* ---------- Sauvegarde de la Maison ---------- */}
-      <SauvegardeCard />
-
-      {/* ---------- Zone sensible — annuler les encaissements ---------- */}
-      <ResetEncaissementsCard />
-
-      {/* ---------- Zone sensible — vider tous les rendez-vous ---------- */}
-      <ViderRdvCard />
-
-      {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
-      <FactoryResetCard />
-
-      {/* ── LES HEURES DU SALON ─────────────────────────────────────
-          UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
-          qui commande les créneaux réservables (`openingForIso`), et une autre
-          branchée sur un second document jamais lu par la réservation. « Mon
-          mois » lisait la seconde, restée à ses valeurs de départ, et
-          annonçait 9 h quand la Maison ouvrait à 8 h.
-
-          Deux sources d'horaires pour une seule maison, c'est une de trop.
-          Celle-ci reste, et tout s'y branche : la réservation, l'amplitude du
-          Calendrier, la ponctualité au pointage et les heures au-delà. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Les heures du salon</div>
-            <div className="sys-section__cap">
-              Le salon n’accepte des rendez-vous que pendant ces plages. Elles décident aussi de
-              l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure » au pointage,
-              et de ce qui compte comme heure au-delà.
-            </div>
-          </div>
-          <span className="sys-badge-count">{openDays} / 7 jours</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          {settings.hours.map((d) => (
-            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{JOUR_LABEL[d.key] ?? d.key}</span>
-              <button
-                className={`tre-chip ${d.closed ? '' : 'is-on'}`}
-                onClick={() => setHour(d.key, 'closed', !d.closed)}
-                style={{ fontSize: 11.5, minWidth: 78 }}
-              >
-                {d.closed ? 'Fermé' : 'Ouvert'}
-              </button>
-              {!d.closed && (
-                <>
-                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="08h00" style={{ width: 92, textAlign: 'center' }} />
-                  <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="20h30" style={{ width: 92, textAlign: 'center' }} />
-                </>
-              )}
-              {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
-            </div>
-          ))}
-        </div>
-
-        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-          Écris l’heure comme « 08h00 ». Le Calendrier couvre la plus large amplitude de la
-          semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
-        </div>
-      </Card>
-
-      {/* LA SECONDE CARTE D'HORAIRES A ÉTÉ RETIRÉE le 6 août. Elle montrait
-          exactement la même donnée — `settings.hours` — sous une autre
-          présentation : deux fenêtres sur un seul chiffre, dont l'une finit
-          toujours par faire douter de l'autre. Une maison n'a qu'un horaire.
-          Celle qui reste est au-dessus. */}
-
-      {/* ---------- Catalogue · styles de couronne ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Catalogue · styles de couronne</div>
-            <div className="sys-section__cap">
-              La liste des styles proposée partout — fiches CRM et Ma Couronne. Ajoutez, renommez, retirez ;
-              les changements se propagent aussitôt.
-            </div>
-          </div>
-          <span className="sys-badge-count">{crownStyles.length} style{crownStyles.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {crownStyles.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {editIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={editVal}
-                    autoFocus
-                    onChange={(e) => setEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(i); if (e.key === 'Escape') setEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le style"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => startRename(i, s)}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeStyle(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-          {crownStyles.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun style pour l’instant — ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newStyle}
-            onChange={(e) => setNewStyle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addStyle(); }}
-            placeholder="Nouveau style — ex. Microlocks"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
-      {/* ---------- CRM · segments de clientèle ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">CRM · segments de clientèle</div>
-            <div className="sys-section__cap">
-              Les segments proposés dans les fiches clientes (VIP, Prospect, Cercle…). Ajoutez, renommez, retirez ;
-              une fiche déjà taguée conserve ses segments même s’ils sont retirés d’ici.
-            </div>
-          </div>
-          <span className="sys-badge-count">{segments.length} segment{segments.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {segments.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {segEditIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={segEditVal}
-                    autoFocus
-                    onChange={(e) => setSegEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitSegRename(i); if (e.key === 'Escape') setSegEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le segment"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitSegRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setSegEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setSegEditIdx(i); setSegEditVal(s); }}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeSeg(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-          {segments.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun segment — ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newSeg}
-            onChange={(e) => setNewSeg(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
-            placeholder="Nouveau segment — ex. Fidèle"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
-      {/* ---------- Encaissement · modes de paiement ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Encaissement · modes de paiement</div>
-            <div className="sys-section__cap">
-              Les moyens de règlement proposés à l’encaissement — Factures &amp; Académie. Ajoutez, renommez, retirez ;
-              les changements se propagent aussitôt.
-            </div>
-          </div>
-          <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {payMethods.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {payEditIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={payEditVal}
-                    autoFocus
-                    onChange={(e) => setPayEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitPayRename(i); if (e.key === 'Escape') setPayEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le mode de paiement"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitPayRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setPayEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setPayEditIdx(i); setPayEditVal(s); }}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removePay(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-          {payMethods.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun mode de paiement — ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newPay}
-            onChange={(e) => setNewPay(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
-            placeholder="Nouveau mode — ex. Orange Money"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
-      {/* ---------- Accès ERP · rôles & codes ---------- */}
-      {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
-          Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
-          l'écrire depuis son lit. La position d'abord — aucun geste quotidien —
-          et le code en secours, parce qu'une journée de travail ne peut pas
-          dépendre d'un satellite. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Preuve de présence au pointage</div>
-        <div className="sys-section__cap">
-          Sans elle, « Arrivée » est une déclaration que rien ne vérifie. On demande d’abord la
-          position du téléphone ; le code affiché au comptoir prend le relais quand le GPS refuse.
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0 10px' }}>
-          <button
-            className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
-            onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
-          >
-            Confiance — aucune vérification
-          </button>
-          <button
-            className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
-            onClick={() => setPreuve({ ...preuve, exigerPreuve: true })}
-          >
-            Vérifier la présence
-          </button>
-        </div>
-
-        {preuve.exigerPreuve && (
-          <>
-            <div className="tr-grid tr-grid--2" style={{ marginTop: 6 }}>
-              <Field label="Position du salon">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Input
-                    value={preuve.lat !== undefined ? String(preuve.lat) : ''}
-                    onChange={(e) => setPreuve({ ...preuve, lat: Number(e.target.value) || undefined })}
-                    placeholder="latitude"
-                    style={{ width: 118 }}
-                  />
-                  <Input
-                    value={preuve.lng !== undefined ? String(preuve.lng) : ''}
-                    onChange={(e) => setPreuve({ ...preuve, lng: Number(e.target.value) || undefined })}
-                    placeholder="longitude"
-                    style={{ width: 118 }}
-                  />
-                </div>
-                {/* LA POSITION SE CAPTURE DEPUIS LE SALON — saisir des
-                    coordonnées à la main est le meilleur moyen de se tromper
-                    d'un chiffre et de rendre le pointage impossible. */}
-                <button
-                  className="tre-link-btn"
-                  style={{ marginTop: 8 }}
-                  onClick={() => {
-                    if (!navigator.geolocation) { toast('Position indisponible sur cet appareil.'); return; }
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setPreuve({
-                          ...preuve,
-                          lat: Math.round(pos.coords.latitude * 1e6) / 1e6,
-                          lng: Math.round(pos.coords.longitude * 1e6) / 1e6,
-                        });
-                        toast('Position du salon enregistrée.');
-                      },
-                      () => toast('Position refusée — autorisez-la dans le navigateur.'),
-                      { enableHighAccuracy: true, timeout: 8000 },
-                    );
-                  }}
-                >
-                  Utiliser ma position actuelle — à faire DEPUIS le salon
-                </button>
-              </Field>
-              <Field label="Rayon accepté (mètres)">
-                <Input
-                  inputMode="numeric"
-                  value={String(preuve.rayonM)}
-                  onChange={(e) => setPreuve({ ...preuve, rayonM: Math.max(20, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 150) })}
-                  style={{ width: 110, textAlign: 'right' }}
-                />
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                  150 m est un bon départ : le GPS hésite de quelques dizaines de mètres en intérieur,
-                  et un rayon trop serré refuserait des gens réellement présents.
-                </div>
-              </Field>
-            </div>
-
-            {/* LE BOUTON DU MATIN A DISPARU le 6 août. Il fallait le presser
-                chaque jour — donc on l'oubliait, et le jour de l'oubli
-                personne ne pouvait plus pointer sans GPS. Une vérification
-                suspendue à un geste humain répété finit toujours par céder. */}
-            <Field label="Code du jour">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
-                  {codeAujourdhui || '— — — —'}
-                </span>
-                <button className="tre-link-btn" onClick={() => navigate('/comptoir')}>
-                  Ouvrir l’affichage du comptoir
-                </button>
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                Il se renouvelle seul chaque jour — rien à presser. Il ne sert qu’à celles et ceux
-                dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
-                le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
-                quatre chiffres à la main.
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
-                L’équipe ne le voit jamais dans l’application : un code que le logiciel montre au
-                téléphone qui s’en sert ne prouve plus rien.
-              </div>
-            </Field>
-          </>
-        )}
-      </Card>
 
       {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────
           Un inventaire, une fermeture, une personne à qui l'on a demandé de
@@ -1420,6 +1127,356 @@ export default function Parametres() {
         </div>
       </Card>
 
+      {/* LA SECONDE CARTE D'HORAIRES A ÉTÉ RETIRÉE le 6 août (même donnée
+          montrée deux fois — une maison n'a qu'un horaire) ; la carte qui
+          reste vit dans LA MAISON, en tête de page, depuis le 13 août. */}
+
+      {/* ══ CATALOGUE & CLIENTÈLE ═══════════════════════════════════ */}
+      <Intertitre id="fam-catalogue">Catalogue & clientèle</Intertitre>
+
+      {/* ---------- Catalogue · styles de couronne ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Catalogue · styles de couronne</div>
+            <div className="sys-section__cap">
+              La liste des styles proposée partout — fiches CRM et Ma Couronne. Ajoutez, renommez, retirez ;
+              les changements se propagent aussitôt.
+            </div>
+          </div>
+          <span className="sys-badge-count">{crownStyles.length} style{crownStyles.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {crownStyles.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
+              {editIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={editVal}
+                    autoFocus
+                    onChange={(e) => setEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(i); if (e.key === 'Escape') setEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le style"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => startRename(i, s)}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeStyle(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {crownStyles.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun style pour l’instant — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newStyle}
+            onChange={(e) => setNewStyle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addStyle(); }}
+            placeholder="Nouveau style — ex. Microlocks"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addStyle} disabled={!newStyle.trim()}>Ajouter</Button>
+        </div>
+      </Card>
+
+      {/* ---------- CRM · segments de clientèle ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">CRM · segments de clientèle</div>
+            <div className="sys-section__cap">
+              Les segments proposés dans les fiches clientes (VIP, Prospect, Cercle…). Ajoutez, renommez, retirez ;
+              une fiche déjà taguée conserve ses segments même s’ils sont retirés d’ici.
+            </div>
+          </div>
+          <span className="sys-badge-count">{segments.length} segment{segments.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {segments.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
+              {segEditIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={segEditVal}
+                    autoFocus
+                    onChange={(e) => setSegEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitSegRename(i); if (e.key === 'Escape') setSegEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le segment"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitSegRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSegEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setSegEditIdx(i); setSegEditVal(s); }}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeSeg(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {segments.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun segment — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newSeg}
+            onChange={(e) => setNewSeg(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
+            placeholder="Nouveau segment — ex. Fidèle"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
+        </div>
+      </Card>
+
+      {/* ══ L'ENCAISSEMENT ══════════════════════════════════════════ */}
+      <Intertitre id="fam-encaissement">L’encaissement</Intertitre>
+
+      {/* ---------- Encaissement · modes de paiement ---------- */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div>
+            <div className="sys-section__title">Encaissement · modes de paiement</div>
+            <div className="sys-section__cap">
+              Les moyens de règlement proposés à l’encaissement — Factures &amp; Académie. Ajoutez, renommez, retirez ;
+              les changements se propagent aussitôt.
+            </div>
+          </div>
+          <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {payMethods.map((s, i) => (
+            <div key={`${s}-${i}`} className="sys-row sys-row--items">
+              {payEditIdx === i ? (
+                <>
+                  <input
+                    className="sys-select"
+                    value={payEditVal}
+                    autoFocus
+                    onChange={(e) => setPayEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitPayRename(i); if (e.key === 'Escape') setPayEditIdx(null); }}
+                    style={{ flex: 1, marginRight: 12 }}
+                    aria-label="Renommer le mode de paiement"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="copper" onClick={() => commitPayRename(i)}>Valider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setPayEditIdx(null)}>Annuler</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setPayEditIdx(i); setPayEditVal(s); }}>Renommer</Button>
+                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removePay(i, s)}>Retirer</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {payMethods.length === 0 && (
+            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+              Aucun mode de paiement — ajoutez le premier ci-dessous.
+            </div>
+          )}
+        </div>
+
+        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Input
+            value={newPay}
+            onChange={(e) => setNewPay(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
+            placeholder="Nouveau mode — ex. Orange Money"
+            style={{ flex: 1 }}
+          />
+          <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
+        </div>
+      </Card>
+
+      {/* Ces deux réglages vivaient perdus dans la carte du rendez-vous — ils
+          parlent de la Caisse et de la Gamme, pas du fauteuil (13 août). */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Devise étrangère & livraison</div>
+        <div className="sys-section__cap">L’exception de la Caisse, et le geste de la Gamme.</div>
+        {/* Exceptionnel, d'où une bascule : on l'ouvre le temps d'une facture,
+            on la referme après. Fermée, la Caisse n'encaisse qu'en {currency}. */}
+        <div className="sys-row">
+          <div>
+            <div className="sys-row__label">Paiement en devise étrangère</div>
+            <div className="sys-row__sub">
+              Ouvre à la Caisse le règlement dans une autre devise que le {currency} — la cliente
+              paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
+              taux sont consignés. À refermer une fois la facture réglée.
+            </div>
+          </div>
+          <Toggle on={!!settings.fxEnabled} onToggle={() => setSettings((s) => ({ ...s, fxEnabled: !s.fxEnabled }))} />
+        </div>
+        <div className="sys-row">
+          <div>
+            <div className="sys-row__label">Frais de livraison à domicile</div>
+            <div className="sys-row__sub">Ajoutés en ligne à la commande produits sur Ma Couronne. 0 = livraison offerte.</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              className="sys-select"
+              type="number"
+              min={0}
+              step={500}
+              value={settings.deliveryFeeXof}
+              onChange={(e) => setDeliveryFee(e.target.value)}
+              style={{ width: 96, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+              aria-label="Frais de livraison à domicile en francs CFA"
+            />
+            <span className="sys-row__value">F</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* ══ L'ÉQUIPE ════════════════════════════════════════════════ */}
+      <Intertitre id="fam-equipe">L’équipe</Intertitre>
+
+      {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
+          Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
+          l'écrire depuis son lit. La position d'abord — aucun geste quotidien —
+          et le code en secours, parce qu'une journée de travail ne peut pas
+          dépendre d'un satellite. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Preuve de présence au pointage</div>
+        <div className="sys-section__cap">
+          Sans elle, « Arrivée » est une déclaration que rien ne vérifie. On demande d’abord la
+          position du téléphone ; le code affiché au comptoir prend le relais quand le GPS refuse.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0 10px' }}>
+          <button
+            className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
+            onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
+          >
+            Confiance — aucune vérification
+          </button>
+          <button
+            className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
+            onClick={() => setPreuve({ ...preuve, exigerPreuve: true })}
+          >
+            Vérifier la présence
+          </button>
+        </div>
+
+        {preuve.exigerPreuve && (
+          <>
+            <div className="tr-grid tr-grid--2" style={{ marginTop: 6 }}>
+              <Field label="Position du salon">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Input
+                    value={preuve.lat !== undefined ? String(preuve.lat) : ''}
+                    onChange={(e) => setPreuve({ ...preuve, lat: Number(e.target.value) || undefined })}
+                    placeholder="latitude"
+                    style={{ width: 118 }}
+                  />
+                  <Input
+                    value={preuve.lng !== undefined ? String(preuve.lng) : ''}
+                    onChange={(e) => setPreuve({ ...preuve, lng: Number(e.target.value) || undefined })}
+                    placeholder="longitude"
+                    style={{ width: 118 }}
+                  />
+                </div>
+                {/* LA POSITION SE CAPTURE DEPUIS LE SALON — saisir des
+                    coordonnées à la main est le meilleur moyen de se tromper
+                    d'un chiffre et de rendre le pointage impossible. */}
+                <button
+                  className="tre-link-btn"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    if (!navigator.geolocation) { toast('Position indisponible sur cet appareil.'); return; }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setPreuve({
+                          ...preuve,
+                          lat: Math.round(pos.coords.latitude * 1e6) / 1e6,
+                          lng: Math.round(pos.coords.longitude * 1e6) / 1e6,
+                        });
+                        toast('Position du salon enregistrée.');
+                      },
+                      () => toast('Position refusée — autorisez-la dans le navigateur.'),
+                      { enableHighAccuracy: true, timeout: 8000 },
+                    );
+                  }}
+                >
+                  Utiliser ma position actuelle — à faire DEPUIS le salon
+                </button>
+              </Field>
+              <Field label="Rayon accepté (mètres)">
+                <Input
+                  inputMode="numeric"
+                  value={String(preuve.rayonM)}
+                  onChange={(e) => setPreuve({ ...preuve, rayonM: Math.max(20, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 150) })}
+                  style={{ width: 110, textAlign: 'right' }}
+                />
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                  150 m est un bon départ : le GPS hésite de quelques dizaines de mètres en intérieur,
+                  et un rayon trop serré refuserait des gens réellement présents.
+                </div>
+              </Field>
+            </div>
+
+            {/* LE BOUTON DU MATIN A DISPARU le 6 août. Il fallait le presser
+                chaque jour — donc on l'oubliait, et le jour de l'oubli
+                personne ne pouvait plus pointer sans GPS. Une vérification
+                suspendue à un geste humain répété finit toujours par céder. */}
+            <Field label="Code du jour">
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
+                  {codeAujourdhui || '— — — —'}
+                </span>
+                <button className="tre-link-btn" onClick={() => navigate('/comptoir')}>
+                  Ouvrir l’affichage du comptoir
+                </button>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                Il se renouvelle seul chaque jour — rien à presser. Il ne sert qu’à celles et ceux
+                dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
+                le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
+                quatre chiffres à la main.
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                L’équipe ne le voit jamais dans l’application : un code que le logiciel montre au
+                téléphone qui s’en sert ne prouve plus rien.
+              </div>
+            </Field>
+          </>
+        )}
+      </Card>
+
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div className="sys-section__title">Accès ERP du personnel</div>
         <div className="sys-section__cap">
@@ -1447,6 +1504,15 @@ export default function Parametres() {
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* ══ NOTIFICATIONS & AUTOMATISATIONS ═════════════════════════ */}
+      <Intertitre id="fam-notifs">Notifications & automatisations</Intertitre>
+
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Notifications</div>
+        <div className="sys-section__cap">Qui est prévenu, et quand.</div>
+        <ToggleRows rows={NOTIF_TOGGLES} />
       </Card>
 
       {/* ---------- Automatisations · IA ---------- */}
@@ -1478,6 +1544,30 @@ export default function Parametres() {
           <Eyebrow>Insérés tels quels dans chaque envoi automatique</Eyebrow>
         </div>
       </Card>
+
+      {/* ══ DONNÉES & ZONES SENSIBLES ═══════════════════════════════
+          À LA FIN, délibérément : on ne croise pas « réinitialiser toute la
+          Maison » en cherchant un horaire. Qui vient ici vient pour ça. */}
+      <Intertitre id="fam-donnees">Données & zones sensibles</Intertitre>
+
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Accès & souveraineté</div>
+        <div className="sys-section__cap">La Maison reste maîtresse de ses données.</div>
+        <ToggleRows rows={ACCES_TOGGLES} />
+        <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
+      </Card>
+
+      {/* ---------- Sauvegarde de la Maison ---------- */}
+      <SauvegardeCard />
+
+      {/* ---------- Zone sensible — annuler les encaissements ---------- */}
+      <ResetEncaissementsCard />
+
+      {/* ---------- Zone sensible — vider tous les rendez-vous ---------- */}
+      <ViderRdvCard />
+
+      {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
+      <FactoryResetCard />
     </div>
   );
 }
