@@ -506,11 +506,16 @@ export function useCouronneFermee(): { fermee: boolean; mot: string } {
 /* ---------- Réservation — pré-remplissage (offres, re-réservation) ---------- */
 
 export type BookingPrefill = {
-  serviceId: string;
+  /** Absente, le tunnel s'ouvre au quiz — « Réserver pour Mahoussi » n'impose
+      pas de prestation, seulement la tête. */
+  serviceId?: string;
   discountPct?: number;
   offerLabel?: string;
   /** LA DATE PRÉDITE par la cadence (maquette accueil, repère 2) : « Réserver
       ce créneau » l'apporte — la grille du tunnel s'ouvre sur ce jour, l'heure
       reste à choisir. Passée ou hors des deux mois affichés : ignorée. */
   dateIso?: string;
+  /** LA TÊTE POUR QUI L'ON RÉSERVE (maquette du 9 août, écran 2) : le bouton
+      qui dit le nom entre dans le tunnel déjà posé sur elle. */
+  pourId?: string;
 };

@@ -2,6 +2,31 @@
 
 État au 13 août 2026. À lire en premier dans une nouvelle session.
 
+## Les comptes enfants au visage — maquette du 9 août posée — 13 août
+
+Les trois écrans de la maquette « Les comptes enfants » vivent. ① LE
+SÉLECTEUR DE TÊTE : une seule ligne en haut de l'accueil de Ma Couronne
+(App.tsx — chips `mc-pourqui`, « Vous » toujours premier, âge lu de la
+naissance). Elle ne paraît que si `tetesPortees` (shared/accounts) rend des
+mineurs — parent PAYEUR du compte famille, comme la RLS. Le sélecteur ne
+change pas de session : il change la tête que l'application REGARDE. ② LA
+COURONNE DE L'ENFANT (`HomeEnfant`, Tabs.tsx) : carte à son nom (« N ans ·
+c'est vous qui réservez et réglez »), calibre compté + dernière venue +
+reprise conseillée (même juge `predictNextVisit`), prochain rituel (« Son
+fauteuil l'attend »), CTA QUI DIT LE NOM (« Réserver pour X » →
+`BookingPrefill.pourId`, le tunnel arrive posé sur la tête — serviceId
+devenu OPTIONNEL) et « Revenir à votre couronne ». Gamme et Cercle SE
+FERMENT quand on regarde un enfant (rien à son nom) ; le SUIVI suit le
+regard (`SuiviTab.regard` — parcours, timeline, re-réserver avec pourId ;
+tiroirs « Mes rendez-vous/commandes » tus). Les juges
+`useClientAppointments`/`useNextAppointment` (Tabs.tsx) acceptent une
+cible. ③ LA FICHE 360 DU TRÔNE : le bloc compte famille porte la naissance
+en clair sur chaque membre, le badge « Règle pour tous » sur le payeur, et
+« + Ajouter un enfant à ce compte » (`AjoutEnfantAuCompte`, Customers.tsx)
+— fiche réelle sans compte, mineur déduit de la naissance, mêmes gardes que
+la RPC 0044 (tête déjà au carnet → refus, majeur → Finances › Comptes),
+héritage ville/persona/coef du parent payeur.
+
 ## La page QR Codes : Wi-Fi et plein écran du comptoir — 13 août
 
 La page QR Codes (`/qr-codes`) porte CINQ cartes : invitation Ma Couronne,

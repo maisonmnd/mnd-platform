@@ -106,7 +106,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [tousClients] = useClients();
   const [familles] = useFamilies();
   const tetes = client ? tetesPortees(client, tousClients, familles, todayIso()) : [];
-  const [pourId, setPourId] = useState('');
+  /* « Réserver pour Mahoussi » (accueil, tête regardée) arrive déjà posé. */
+  const [pourId, setPourId] = useState(prefill?.pourId ?? '');
   const beneficiaire = tetes.find((t) => t.id === pourId);
   /* LA TÊTE POUR QUI L'ON RÉSERVE (12 août) : tout — seuil de venues, tarif,
      longueur, durée, acompte — se calcule sur ELLE, pas sur le compte

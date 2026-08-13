@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
-import { useEnsureClient, useActivityTracker, useClientId, useClient, useCouronneFermee, useModuleFerme, type BookingPrefill } from './lib';
+import { useClients, useFamilies } from '../../shared/clients';
+import { ageDe, tetesPortees } from '../../shared/accounts';
+import { useEnsureClient, useActivityTracker, useClientId, useClient, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
 import MesRendezVous from './MesRendezVous';
-import { HomeTab, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications, MesCommandes } from './Tabs';
+import { HomeTab, HomeEnfant, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications, MesCommandes } from './Tabs';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
    Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
@@ -56,15 +58,32 @@ function Shell() {
   /* Modules coupés par la Maison (Vitrine du Trône) : les onglets désactivés
      disparaissent ; si l'onglet courant se ferme, on revient à l'Accueil. */
   const me = useClient();
+  /* LE SÉLECTEUR DE TÊTE (maquette du 9 août, écran 1). Le compte reste celui
+     du parent — le sélecteur ne change pas de session, il change la tête que
+     l'application REGARDE. Sans enfant rattaché au compte famille, la ligne
+     ne paraît pas du tout ; « Vous » est toujours en premier. */
+  const [tousClients] = useClients();
+  const [familles] = useFamilies();
+  const tetes = me ? tetesPortees(me, tousClients, familles, todayIso()) : [];
+  const [tete, setTete] = useState('');
+  const enfant = tetes.find((t) => t.id === tete);
+  /* La tête regardée peut sortir du compte (majorité, détachement) : le regard
+     revient à soi au lieu de fixer le vide. */
+  useEffect(() => {
+    if (tete && !enfant) setTete('');
+  }, [tete, enfant]);
   /* UN SEUL JUGE pour les deux fermetures — celle de la Maison et celle de sa
-     fiche. Voir `useModuleFerme`. */
+     fiche. Voir `useModuleFerme`. Quand on regarde un ENFANT, les onglets qui
+     n'ont pas de sens pour un mineur se ferment : ni Gamme ni Cercle à son nom
+     (maquette du 9 août — c'est le compte du parent qui commande et cumule). */
   const ferme = useModuleFerme();
   const visibleTabs = TABS.filter((t) =>
-    t.id === 'accueil' || t.id === 'profil' || !ferme(t.id as 'suivi' | 'gamme' | 'cercle'));
+    (t.id === 'accueil' || t.id === 'profil' || !ferme(t.id as 'suivi' | 'gamme' | 'cercle'))
+    && !(enfant && (t.id === 'gamme' || t.id === 'cercle')));
   useEffect(() => {
     if (!visibleTabs.some((t) => t.id === tab)) setTab('accueil');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.hiddenModules?.join('|')]);
+  }, [me?.hiddenModules?.join('|'), tete]);
 
   /* Suivi de présence : une session par visite, temps cumulé écrit pour le Trône. */
   useActivityTracker(tab);
@@ -118,7 +137,35 @@ function Shell() {
   return (
     <>
       <div className="mc-scroll mc-appbody">
-        {tab === 'accueil' && (
+        {/* UNE SEULE LIGNE S'AJOUTE EN HAUT DE L'ACCUEIL (écran 1) : les têtes
+            du compte. Tout le reste de l'application est déjà là. */}
+        {tab === 'accueil' && tetes.length > 0 && (
+          <div className="mc-pourqui" style={{ padding: '14px 18px 0' }}>
+            <button
+              type="button"
+              className={`mc-pourqui__chip ${!tete ? 'is-on' : ''}`}
+              onClick={() => setTete('')}
+            >
+              Vous
+            </button>
+            {tetes.map((t) => {
+              const a = ageDe(t.birthday, todayIso());
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`mc-pourqui__chip ${tete === t.id ? 'is-on' : ''}`}
+                  onClick={() => setTete(t.id)}
+                >
+                  {t.name.split(' ')[0]}{a !== undefined ? ` · ${a} ans` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {tab === 'accueil' && (enfant ? (
+          <HomeEnfant enfant={enfant} onOpenBooking={openBooking} onRevenir={() => setTete('')} />
+        ) : (
           <HomeTab
             onOpenBooking={openBooking}
             onOpenCompose={openCompose}
@@ -127,8 +174,8 @@ function Shell() {
             goGamme={() => setTab('gamme')}
             toast={toast}
           />
-        )}
-        {tab === 'suivi' && <SuiviTab onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}
+        ))}
+        {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}
         {tab === 'gamme' && <GammeTab toast={toast} onOpenOrders={openOrders} />}
         {tab === 'cercle' && <CercleTab toast={toast} />}
         {tab === 'profil' && <ProfilTab toast={toast} />}

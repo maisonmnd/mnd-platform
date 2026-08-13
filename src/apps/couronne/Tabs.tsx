@@ -8,7 +8,7 @@ import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useCategories, useProducts, useServices } from '../../shared/catalog';
-import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas, type Client } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel, type EnvieKey } from '../../shared/quiz';
@@ -102,12 +102,16 @@ function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void })
   );
 }
 
-/* ---------- rituels de la cliente — lus dans l'agenda partagé ---------- */
+/* ---------- rituels de la cliente — lus dans l'agenda partagé ----------
+   Chaque juge accepte une AUTRE tête (`cibleId`) : le parent lit les rituels
+   de son enfant avec les mêmes yeux que les siens — la RLS (0036/0044) ne lui
+   montre de toute façon que les têtes qu'il porte. */
 
-/** Tous les rendez-vous de la cliente, du plus ancien au plus récent. */
-function useClientAppointments(): Appointment[] {
+/** Tous les rendez-vous de la tête regardée, du plus ancien au plus récent. */
+function useClientAppointments(cibleId?: string): Appointment[] {
   const [appts] = useAppointments();
-  const clientId = useClientId();
+  const monId = useClientId();
+  const clientId = cibleId ?? monId;
   return useMemo(
     () =>
       appts
@@ -119,10 +123,11 @@ function useClientAppointments(): Appointment[] {
 }
 
 /** Rendez-vous à venir (confirmés ou en attente), du plus proche au plus lointain. */
-function useUpcomingAppointments(): Appointment[] {
+function useUpcomingAppointments(cibleId?: string): Appointment[] {
   const { branch } = useBranch();
   const [appts] = useAppointments();
-  const clientId = useClientId();
+  const monId = useClientId();
+  const clientId = cibleId ?? monId;
   return useMemo(() => {
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -139,8 +144,8 @@ function useUpcomingAppointments(): Appointment[] {
   }, [appts, branch.id, clientId]);
 }
 
-function useNextAppointment(): Appointment | undefined {
-  return useUpcomingAppointments()[0];
+function useNextAppointment(cibleId?: string): Appointment | undefined {
+  return useUpcomingAppointments(cibleId)[0];
 }
 
 /** OÙ ELLE EN EST DU CERCLE. On y entre au N-ième passage (réglé au Trône) : une
@@ -613,15 +618,110 @@ export function HomeTab({
   );
 }
 
+/* ================= LA COURONNE DE L'ENFANT (écran 2, maquette du 9 août) ==
+   Quand le sélecteur regarde une tête portée, l'accueil devient LE SIEN :
+   sa couronne, son calibre, son prochain rituel — et le bouton DIT LE NOM
+   (« Réserver pour Mahoussi », jamais « Réserver un rituel ») : un bouton
+   qui ne nomme pas sa tête laisse poser un rendez-vous sur la mauvaise
+   personne, et personne ne s'en aperçoit avant le fauteuil. */
+
+export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
+  enfant: Client;
+  onOpenBooking: OpenBooking;
+  onRevenir: () => void;
+}) {
+  const [services] = useServices();
+  const [bands] = useModelBands();
+  const appts = useClientAppointments(enfant.id);
+  const next = useNextAppointment(enfant.id);
+  const prenom = enfant.name.split(' ')[0] || enfant.name;
+  const age = ageDe(enfant.birthday, todayIso());
+  const cal = calibreDe(enfant.lockCount, bands);
+  /* Dernière venue honorée + reprise conseillée — le même juge de cadence que
+     la fiche du Trône (shared/cadence.ts), posé sur SA tête. */
+  const honores = appts.filter((a) => a.status === 'honoré');
+  const derniere = honores[honores.length - 1];
+  const cadence = useMemo(
+    () => predictNextVisit(appts, [enfant], enfant.id, todayIso()),
+    [appts, enfant],
+  );
+  const reprise = !next && cadence?.predicted && cadence.iso ? cadence.iso : null;
+
+  return (
+    <div className="mc-fade mc-pagepad mc-pagepad--top">
+      <div className="mc-nextrdv" style={{ marginTop: 0 }}>
+        <div className="mc-nextrdv__label">La couronne de {prenom}</div>
+        <div className="mc-nextrdv__service" style={{ marginTop: 6 }}>{prenom}.</div>
+        <div className="mc-nextrdv__when">
+          {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · ` : ''}c’est vous qui réservez et réglez.
+        </div>
+      </div>
+
+      {/* Son calibre se COMPTE, comme pour toutes les têtes (13 août). */}
+      <div className="mc-crownstatus">
+        <span className="mc-crownstatus__filet" />
+        <div className="mc-crownstatus__top">
+          <span className="mc-crownstatus__style">
+            {cal ? `Couronne ${cal} · ${enfant.lockCount} locks` : 'Sa couronne'}
+          </span>
+        </div>
+        {(derniere || reprise) && (
+          <div className="mc-crownstatus__progress">
+            <span>
+              {derniere ? `Dernière venue le ${dayLabelIso(derniere.date)}` : ''}
+              {reprise ? `${derniere ? ' — ' : ''}reprise conseillée ≈ ${dayLabelIso(reprise)}` : ''}
+            </span>
+          </div>
+        )}
+        {!cal && !derniere && !reprise && (
+          <div className="mc-crownstatus__progress">
+            <span>La maison comptera ses locks à son premier passage.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mc-nextrdv">
+        <div className="mc-nextrdv__row">
+          <span className="mc-nextrdv__label">Prochain rituel</span>
+          {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? 'Confirmé' : 'En attente'}</span>}
+        </div>
+        {next ? (
+          <>
+            <div className="mc-nextrdv__service">{serviceNames(next, services) || 'Rituel de la maison'}</div>
+            <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
+          </>
+        ) : (
+          <>
+            <div className="mc-nextrdv__service">Aucun rituel à venir</div>
+            <div className="mc-nextrdv__when">Son fauteuil l’attend.</div>
+          </>
+        )}
+      </div>
+
+      <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking({ pourId: enfant.id })}>
+        Réserver pour {prenom}
+      </button>
+      <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onRevenir}>
+        Revenir à votre couronne
+      </button>
+      <div style={{ height: 26 }} />
+    </div>
+  );
+}
+
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void; goGamme: () => void }) {
+export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { regard?: Client; onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void; goGamme: () => void }) {
   const [services] = useServices();
-  const client = useClient();
+  const moi = useClient();
+  /* LE SUIVI SUIT LE REGARD : la tête choisie au sélecteur de l'accueil.
+     Une couronne de neuf ans n'est pas celle de sa mère — son parcours non
+     plus (maquette du 9 août). */
+  const client = regard ?? moi;
   const { currency } = useBranch();
   const { products } = useVisibleCatalog();
-  const clientAppts = useClientAppointments();
-  const next = useNextAppointment();
+  const clientAppts = useClientAppointments(regard?.id);
+  const next = useNextAppointment(regard?.id);
 
   /* Le produit prescrit par la maison sur la fiche cliente — affiché seulement
      s'il est choisi ET visible au front (catégorie active, non masqué). */
@@ -661,16 +761,19 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
     });
   }
 
-  /* Re-réserver à l'identique : la prestation du rendez-vous le plus récent. */
+  /* Re-réserver à l'identique : la prestation du rendez-vous le plus récent —
+     posée sur la tête regardée, jamais sur le compte par défaut. */
   const lastAppt = clientAppts.filter((a) => a.status !== 'annulé' && a.serviceIds.length > 0).slice(-1)[0];
   const rebook = () => {
-    if (lastAppt) onOpenBooking({ serviceId: lastAppt.serviceIds[0] });
+    if (lastAppt) onOpenBooking({ serviceId: lastAppt.serviceIds[0], pourId: regard?.id });
   };
+
+  const prenomRegard = regard ? (regard.name.split(' ')[0] || regard.name) : '';
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">Carnet de Suivi · votre lignée</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>Mon parcours.</h1>
+      <div className="mc-micro-eyebrow">{regard ? 'Carnet de Suivi · sa lignée' : 'Carnet de Suivi · votre lignée'}</div>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>{regard ? `Le parcours de ${prenomRegard}.` : 'Mon parcours.'}</h1>
 
       {/* portrait de la couronne — seulement si la maison l'a consigné */}
       {client?.photo && (
@@ -687,8 +790,9 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
         <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">Rituels honorés</div></div>
       </div>
 
-      {/* prescription de la maison — produit choisi sur la fiche, au Trône */}
-      {reco && (
+      {/* prescription de la maison — produit choisi sur la fiche, au Trône.
+          Pas pour un mineur : la Gamme n'est pas à son nom (9 août). */}
+      {reco && !regard && (
         <>
           <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>
           <div className="mc-recocard">
@@ -706,7 +810,7 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
       )}
 
       {/* timeline mèche-après-mèche */}
-      <div className="mc-sectionlabel" style={{ margin: '24px 0 12px' }}>L’histoire de votre couronne</div>
+      <div className="mc-sectionlabel" style={{ margin: '24px 0 12px' }}>{regard ? 'L’histoire de sa couronne' : 'L’histoire de votre couronne'}</div>
       {timeline.map((t, i) => (
         <div key={i} className="mc-tl">
           <div className="mc-tl__rail">
@@ -722,32 +826,40 @@ export function SuiviTab({ onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { 
       ))}
       {timeline.length === 0 && (
         <div className="mc-tlempty">
-          <div className="mc-tlempty__t">Votre histoire commence ici.</div>
+          <div className="mc-tlempty__t">{regard ? 'Son histoire commence ici.' : 'Votre histoire commence ici.'}</div>
           <div className="mc-tlempty__s">
             Chaque rituel honoré s’inscrira dans ce carnet, mèche après mèche.
           </div>
-          <button className="mc-cta mc-cta--copper" onClick={() => onOpenBooking()}>Réserver mon premier rituel</button>
+          <button className="mc-cta mc-cta--copper" onClick={() => onOpenBooking({ pourId: regard?.id })}>
+            {regard ? `Réserver pour ${prenomRegard}` : 'Réserver mon premier rituel'}
+          </button>
         </div>
       )}
 
-      {/* Tout suivre — rendez-vous & commandes, réunis dans le Carnet de Suivi */}
-      <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Tout suivre</div>
-      <div className="mc-preflist">
-        <button className="mc-navrow" onClick={onOpenRdv}>
-          <span className="mc-navrow__main">
-            <span>Mes rendez-vous</span>
-            <span className="mc-navrow__sub">voir, déplacer, annuler</span>
-          </span>
-          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
-        </button>
-        <button className="mc-navrow" onClick={onOpenOrders}>
-          <span className="mc-navrow__main">
-            <span>Mes commandes</span>
-            <span className="mc-navrow__sub">suivre l’état de la Gamme</span>
-          </span>
-          <span className="mc-navrow__arrow" aria-hidden="true">→</span>
-        </button>
-      </div>
+      {/* Tout suivre — rendez-vous & commandes, réunis dans le Carnet de Suivi.
+          Ces tiroirs sont ceux du COMPTE (vos rendez-vous, vos commandes) :
+          quand le carnet regarde un enfant, ils se taisent. */}
+      {!regard && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Tout suivre</div>
+          <div className="mc-preflist">
+            <button className="mc-navrow" onClick={onOpenRdv}>
+              <span className="mc-navrow__main">
+                <span>Mes rendez-vous</span>
+                <span className="mc-navrow__sub">voir, déplacer, annuler</span>
+              </span>
+              <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+            </button>
+            <button className="mc-navrow" onClick={onOpenOrders}>
+              <span className="mc-navrow__main">
+                <span>Mes commandes</span>
+                <span className="mc-navrow__sub">suivre l’état de la Gamme</span>
+              </span>
+              <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+        </>
+      )}
       {lastAppt && (
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 14 }} onClick={rebook}>
           Re-réserver à l’identique

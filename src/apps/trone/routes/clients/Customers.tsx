@@ -5,7 +5,7 @@ import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/co
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -345,6 +345,98 @@ function DateEnClair({ value, onChange, ariaLabel }: {
    le calibre se COMPTE — il se déduit du nombre de locks par le barème
    (`calibreDe`), il ne se choisit plus dans une liste. `Client.crownStyle`
    reste porté par les fiches anciennes, il ne s'écrit plus. */
+
+/** « 4 mars 2017 » — la naissance en clair sur une ligne de membre. */
+const naissanceEnClair = (iso?: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+  return m ? `${Number(m[3])} ${MOIS_FR[Number(m[2]) - 1]} ${m[1]}` : '';
+};
+
+/* + AJOUTER UN ENFANT À CE COMPTE (maquette du 9 août, écran 3). Un enfant
+   reçoit une VRAIE fiche cliente — calibre, suivi, historique — mais sans
+   e-mail ni mot de passe : une fiche sans identifiant de compte, comme toute
+   tête inscrite au comptoir. « Mineur » ne se coche pas : il se déduit de la
+   date de naissance — c'est elle qui ouvre l'espace du parent dans Ma
+   Couronne, et qui détachera la fiche à la majorité. Mêmes gardes que le
+   serveur (0044) : une tête déjà au carnet ne se double pas, une personne
+   majeure se rattache dans Finances › Comptes. */
+function AjoutEnfantAuCompte({ famille, parent, tetes }: { famille: Family; parent: Client; tetes: Client[] }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [prenom, setPrenom] = useState('');
+  const [nom, setNom] = useState('');
+  const [naissance, setNaissance] = useState<string | undefined>(undefined);
+  const [erreur, setErreur] = useState('');
+
+  const poser = () => {
+    const nomComplet = `${prenom.trim()} ${nom.trim()}`.replace(/\s+/g, ' ').trim();
+    if (!prenom.trim()) { setErreur('Il manque son prénom.'); return; }
+    if (!nom.trim()) { setErreur('Il manque son nom de famille — le sien, tel qu’à l’état civil.'); return; }
+    if (!naissance) { setErreur('Il manque sa date de naissance — c’est elle qui dit la minorité.'); return; }
+    if (!estMineur({ birthday: naissance }, todayISO())) {
+      setErreur('Cette personne est majeure — sa fiche se rattache au compte dans Finances › Comptes.');
+      return;
+    }
+    const deja = tetes.some((c) => !c.archived
+      && c.name.trim().replace(/\s+/g, ' ').toLowerCase() === nomComplet.toLowerCase()
+      && c.birthday === naissance);
+    if (deja) {
+      setErreur('Cette tête est déjà au carnet — rattachez sa fiche existante au compte (Finances › Comptes).');
+      return;
+    }
+    clientsStore.set((prev) => [...prev, {
+      id: `enf-${uid()}`,
+      branchId: parent.branchId,
+      name: nomComplet,
+      phone: '',
+      city: parent.city ?? '',
+      persona: parent.persona,
+      since: todayISO(),
+      birthday: naissance,
+      familyId: famille.id,
+      segments: ['Enfant'],
+      priceCoef: parent.priceCoef ?? 1,
+      loyaltyPoints: 0,
+    }]);
+    setPrenom(''); setNom(''); setNaissance(undefined); setErreur(''); setOuvert(false);
+  };
+
+  if (!ouvert) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOuvert(true)}
+        style={{
+          width: '100%', marginTop: 8, padding: '10px 13px', cursor: 'pointer',
+          background: 'none', border: '1px dashed var(--copper-500)', borderRadius: 3,
+          color: 'var(--copper-700)', font: 'inherit', fontSize: 12.5, letterSpacing: '.04em',
+        }}
+      >
+        + Ajouter un enfant à ce compte
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 8, border: '1px dashed var(--copper-500)', borderRadius: 3, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="tr-grid tr-grid--2">
+        <Field label="Son prénom">
+          <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Mahoussi" autoComplete="off" />
+        </Field>
+        <Field label="Son nom de famille">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Le sien, à l’état civil" autoComplete="off" />
+        </Field>
+      </div>
+      <Field label="Sa date de naissance">
+        <DateEnClair value={naissance} onChange={setNaissance} ariaLabel="Naissance de l’enfant" />
+      </Field>
+      {erreur && <div className="trc-sub" style={{ color: 'var(--copper-700)' }}>{erreur}</div>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button size="sm" onClick={poser}>Poser l’enfant sur le compte</Button>
+        <Button variant="ghost" size="sm" onClick={() => { setOuvert(false); setErreur(''); }}>Annuler</Button>
+      </div>
+    </div>
+  );
+}
 
 export default function Customers() {
   const { branch, currency } = useBranch();
@@ -1842,17 +1934,30 @@ function Customer360({
                         <span style={{ minWidth: 0 }}>
                           <span style={{ fontSize: 13, color: 'var(--color-indigo)', display: 'block' }}>{m.name}</span>
                           <span className="trc-sub">
-                            {a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'naissance à renseigner'}
+                            {/* L'ÂGE SE LIT, IL NE SE SAISIT PAS DEUX FOIS : il
+                                vient de la naissance déjà portée par la fiche. */}
+                            {a !== undefined
+                              ? `${a} an${a > 1 ? 's' : ''}${naissanceEnClair(m.birthday) ? ` · ${naissanceEnClair(m.birthday)}` : ''}`
+                              : 'naissance à renseigner'}
                             {m.lockCount ? ` · ${m.lockCount} locks` : ''}
                           </span>
                         </span>
                         <span className="trc-src" style={{ flex: 'none' }}>
-                          {m.id === clientFamily.payerClientId ? 'Payeur' : mineur ? 'Mineur' : 'Membre'}
+                          {m.id === clientFamily.payerClientId ? 'Règle pour tous' : mineur ? 'Mineur' : 'Membre'}
                         </span>
                       </button>
                     );
                   })}
                 </div>
+
+              {/* POSER UN ENFANT EN UN GESTE (écran 3) — le compte existe déjà,
+                  c'est le geste qui manquait. L'enfant hérite de la ville, du
+                  persona et du coefficient du parent payeur, comme au serveur. */}
+              <AjoutEnfantAuCompte
+                famille={clientFamily}
+                parent={tetesBranche.find((c) => c.id === clientFamily.payerClientId) ?? client}
+                tetes={tetesBranche}
+              />
 
               {portees.length > 0 && (
                 <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
