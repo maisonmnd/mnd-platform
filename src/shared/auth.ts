@@ -151,6 +151,31 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw error;
 }
 
+/** Connexion par APPLE — même garantie que Google : l'identité vient du
+    fournisseur, pas d'une adresse inventée. Nécessite le fournisseur Apple
+    activé au tableau de bord Supabase (compte développeur Apple requis). */
+export async function signInWithApple(): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: { redirectTo: appRedirect() },
+  });
+  if (error) throw error;
+}
+
+/** Code à 6 chiffres envoyé SUR WHATSAPP — le téléphone est prouvé par la
+    réception du code, aucune adresse à inventer. Passe par le fournisseur
+    téléphone de Supabase (Twilio) avec le canal whatsapp ; crée le compte au
+    premier passage. La vérification réutilise `verifyPhoneOtp`. */
+export async function startWhatsAppOtp(phone: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.signInWithOtp({
+    phone,
+    options: { channel: 'whatsapp' },
+  });
+  if (error) throw error;
+}
+
 /* ---- Mot de passe oublié — code à 6 chiffres (même principe que l'OTP e-mail) ----
    Le gabarit « Reset Password » du tableau de bord doit exposer {{ .Token }} :
    sans lui l'e-mail ne montre qu'un lien, et la cliente n'a aucun code à saisir. */
