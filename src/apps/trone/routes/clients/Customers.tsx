@@ -2361,7 +2361,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [segments, setSegments] = useState<string[]>([]);
   const [lockCount, setLockCount] = useState('');
   const [crownSince, setCrownSince] = useState('');
-  const [preferredMaster, setPreferredMaster] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [why, setWhy] = useState<string | null>(null);
@@ -2434,7 +2433,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       diaspora: branch.country !== 'Bénin' && branch.country !== "Côte d’Ivoire",
       lockCount: lockCount === '' ? undefined : Math.max(0, Number(lockCount)),
       crownSince: crownSince || undefined,
-      preferredMaster: preferredMaster || undefined,
       /* UNE FICHE DU COMPTOIR NAÎT « DE PASSAGE » (décision de Yéman, 11 août).
          Sans la marque, une tête créée avant sa première venue tombait dans le
          registre des VISITEURS — pensé pour les comptes auto-inscrits sur Ma
@@ -2523,12 +2521,6 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             </Field>
             <Field label="Couronne depuis">
               <DateEnClair value={crownSince || undefined} onChange={(iso) => setCrownSince(iso ?? '')} ariaLabel="Couronne depuis" />
-            </Field>
-            <Field label="Maître préféré(e)">
-              <Select value={preferredMaster} onChange={(e) => setPreferredMaster(e.target.value)}>
-                <option value="">—</option>
-                {branch.masters.map((m) => <option key={m} value={m}>{m}</option>)}
-              </Select>
             </Field>
           </div>
         </div>

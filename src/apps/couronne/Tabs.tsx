@@ -1470,10 +1470,6 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
     toast('Profil enregistré — la maison vous connaît.');
   };
 
-  const setMaster = (m: string) => {
-    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, preferredMaster: m || undefined } : c)));
-    toast(m ? `${m} vous accueillera en priorité.` : 'La maison choisira votre maître.');
-  };
 
   const sinceYear = client ? new Date(client.since).getFullYear() : new Date().getFullYear();
   const initial = (client?.name?.trim() || 'C').charAt(0).toUpperCase();
@@ -1561,18 +1557,9 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={save}>Enregistrer</button>
       </div>
 
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Maître préféré</div>
-      <select
-        className="mc-profselect"
-        value={client?.preferredMaster ?? ''}
-        aria-label="Maître préféré"
-        onChange={(e) => setMaster(e.target.value)}
-      >
-        <option value="">La maison choisit</option>
-        {branch.masters.map((m) => (
-          <option key={m} value={m}>{m}</option>
-        ))}
-      </select>
+      {/* « MAÎTRE PRÉFÉRÉ » RETIRÉ (13 août, décision de Yéman) : la cliente
+          ne choisit pas les maîtres — les mains sont l'affaire de la maison,
+          au Profil comme au tunnel (décision du 10 août). */}
 
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Votre couronne</div>
       <div className="mc-preflist">
