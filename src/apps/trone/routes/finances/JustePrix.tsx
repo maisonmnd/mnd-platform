@@ -743,10 +743,20 @@ export default function JustePrix() {
             .filter((g) => g.list.length > 0);
           const orphelins = jpPresta.filter((s) => !categories.some((c) => c.id === s.categoryId));
           const prenom = client.name.split(' ')[0];
+          /* LE CODE COULEUR (13 août, demande de Yéman) : INDIGO = le Juste
+             Prix a modulé ce montant pour elle ; CUIVRE = le prix vient d'une
+             GRILLE PAR LONGUEUR (il varie par la longueur, pas par le
+             coefficient) ; GRIS = inchangé — le Juste Prix ne joue pas ici.
+             La légende sous les variables dit la même chose en un mot. */
           const Ligne = ({ s }: { s: Service }) => {
             const sien = personalPriceXof(s, pricing, services, produits);
             const sert = servesBand(s, bandForService(s, pricing));
+            const parLongueur = regimeTarifaire(s, categories).k === 'longueur';
             const bouge = sert && sien !== s.priceXof;
+            const couleur = parLongueur ? 'var(--copper-700)' : bouge ? 'var(--color-indigo)' : 'var(--ink-soft)';
+            const explique = parLongueur
+              ? `Grille par longueur${bouge ? ` — catalogue : ${fmtMoney(s.priceXof, currency)}` : ''}`
+              : bouge ? `Modulé par le Juste Prix — catalogue : ${fmtMoney(s.priceXof, currency)}` : undefined;
             return (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, minWidth: 0 }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
@@ -756,7 +766,7 @@ export default function JustePrix() {
                       hors calibre
                     </span>
                   ) : (
-                    <b style={{ fontWeight: bouge ? 600 : 400, color: bouge ? 'var(--color-indigo)' : 'var(--ink-soft)' }} title={bouge ? `Personnalisé — catalogue : ${fmtMoney(s.priceXof, currency)}` : undefined}>
+                    <b style={{ fontWeight: parLongueur || bouge ? 600 : 400, color: couleur }} title={explique}>
                       {fmtMoney(sien, currency)}
                     </b>
                   )}
@@ -809,6 +819,15 @@ export default function JustePrix() {
                     );
                   })}
                 </span>
+              </div>
+
+              {/* La légende des encres — un mot par couleur, pas plus. */}
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 6, color: 'var(--ink-soft)' }}>
+                <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>● indigo</b> modulé par le Juste Prix
+                {' · '}
+                <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>● cuivre</b> grille par longueur
+                {' · '}
+                <span>● gris — inchangé, le Juste Prix ne joue pas</span>
               </div>
 
               {/* ── LES PRESTATIONS, par atelier ── */}
