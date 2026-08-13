@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -363,6 +364,7 @@ function BaremeModeles({ currency }: { currency: string }) {
 
 export default function JustePrix() {
   const { branch, currency } = useBranch();
+  const navigate = useNavigate();
   const [clients, setClients] = useClients();
   const [services] = useServices();
   /* Les produits de la Gamme — une composition de forfait peut en porter, et
@@ -499,6 +501,38 @@ export default function JustePrix() {
       )}
 
       <BaremeModeles currency={currency} />
+
+      {/* LES SYSTÈMES DE PRIX — L'ENDROIT UNIQUE (13 août, demande de Yéman :
+          « un endroit dans mon ERP où je gère chaque système de prix »).
+          Chaque prestation obéit à UN modèle (choisi sur sa fiche, au
+          Catalogue) ; d'ici, chaque système s'ouvre au Catalogue déjà
+          regroupé sur ses prestations. */}
+      <div className="trf-panel" style={{ padding: '18px 22px', marginBottom: 18 }}>
+        <div className="trf-panel__title">Les systèmes de prix</div>
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          {([
+            { k: 'modele' as const, t: 'Barème du modèle', d: 'prix de base × coef de la tranche — le barème ci-dessus' },
+            { k: 'lock' as const, t: 'Comptage des locks', d: 'locks comptés × tarif' },
+            { k: 'calibre' as const, t: 'Prix par calibre', d: 'le prix de la tranche est le prix' },
+            { k: 'longueur' as const, t: 'Grille par longueur', d: 'trois prix saisis — court, mi-long, long' },
+            { k: 'hors' as const, t: 'Hors Juste Prix', d: 'prix fermes et devis — le coefficient ne les touche pas' },
+          ]).map((row) => {
+            const n = row.k === 'hors'
+              ? services.filter((s) => !regimeTarifaire(s).justePrix).length
+              : services.filter((s) => regimeTarifaire(s).k === row.k).length;
+            return (
+              <div key={row.k} style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', borderBottom: '1px solid var(--hairline)', paddingBottom: 8 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-indigo)', minWidth: 170 }}>{row.t}</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: n ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{n}</span>
+                <span className="mnd-muted" style={{ fontSize: 11.5, flex: '1 1 220px' }}>{row.d}</span>
+                <button className="trf-act trf-act--ghost" onClick={() => navigate(`/catalogue?regime=${row.k}`)}>
+                  Gérer au Catalogue →
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* APERÇU PAR CLIENTE */}
       <div className="trf-panel" style={{ padding: '20px 22px' }}>
@@ -696,12 +730,40 @@ export default function JustePrix() {
             personnel (au-dessus), le barème des modèles (plus haut). Quand le
             prix diffère du catalogue, le catalogue reste lisible, barré. */}
         {(() => {
+          /* LES SERVICES À PART, LES FORFAITS À PART (13 août — « trop d'infos,
+             pas assez de structure ») : mêler un abonnement composé de 730 000 F
+             aux soins de 15 000 F rendait la liste illisible. Et UNE seule
+             encre par ligne : le prix d'elle, en indigo quand il est
+             personnalisé — le catalogue barré partout doublait chaque nombre. */
           const jp = services.filter((s) => regimeTarifaire(s).justePrix);
+          const jpPresta = jp.filter((s) => !s.includes?.length);
+          const jpForfaits = jp.filter((s) => !!s.includes?.length);
           const groupes = catsDansLOrdre(categories)
-            .map((c) => ({ cat: c, list: jp.filter((s) => s.categoryId === c.id).sort((a, b) => a.order - b.order) }))
+            .map((c) => ({ cat: c, list: jpPresta.filter((s) => s.categoryId === c.id).sort((a, b) => a.order - b.order) }))
             .filter((g) => g.list.length > 0);
-          const orphelins = jp.filter((s) => !categories.some((c) => c.id === s.categoryId));
+          const orphelins = jpPresta.filter((s) => !categories.some((c) => c.id === s.categoryId));
           const prenom = client.name.split(' ')[0];
+          const Ligne = ({ s }: { s: Service }) => {
+            const sien = personalPriceXof(s, pricing, services, produits);
+            const sert = servesBand(s, bandForService(s, pricing));
+            const bouge = sert && sien !== s.priceXof;
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, minWidth: 0 }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                <span style={{ flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
+                  {!sert ? (
+                    <span className="mnd-muted" title={`Hors du calibre de ${prenom} — cette création ne la concerne pas`} style={{ fontSize: 11 }}>
+                      hors calibre
+                    </span>
+                  ) : (
+                    <b style={{ fontWeight: bouge ? 600 : 400, color: bouge ? 'var(--color-indigo)' : 'var(--ink-soft)' }} title={bouge ? `Personnalisé — catalogue : ${fmtMoney(s.priceXof, currency)}` : undefined}>
+                      {fmtMoney(sien, currency)}
+                    </b>
+                  )}
+                </span>
+              </div>
+            );
+          };
           return (
             <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -749,37 +811,33 @@ export default function JustePrix() {
                 </span>
               </div>
 
+              {/* ── LES PRESTATIONS, par atelier ── */}
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginTop: 16 }}>
+                Prestations · {jpPresta.length}
+              </div>
               {[...groupes, ...(orphelins.length ? [{ cat: { id: '__orphelins__', fon: 'À RECLASSER', label: 'sans catégorie' }, list: orphelins }] : [])].map((g) => (
                 <div key={g.cat.id} style={{ marginTop: 14 }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '1px solid var(--hairline)', paddingBottom: 4 }}>
-                    {g.cat.fon} <span style={{ color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>· {g.list.length}</span>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', borderBottom: '1px solid var(--hairline)', paddingBottom: 4 }}>
+                    {g.cat.fon} <span style={{ textTransform: 'none', letterSpacing: 0 }}>· {g.list.length}</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '5px 22px', marginTop: 7 }}>
-                    {g.list.map((s) => {
-                      const sien = personalPriceXof(s, pricing, services, produits);
-                      const sert = servesBand(s, bandForService(s, pricing));
-                      const bouge = sert && sien !== s.priceXof;
-                      return (
-                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, minWidth: 0 }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                          <span style={{ flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
-                            {!sert ? (
-                              <span className="mnd-muted" title={`Hors du calibre de ${prenom} — cette création ne la concerne pas`} style={{ fontSize: 11 }}>
-                                hors calibre
-                              </span>
-                            ) : (
-                              <>
-                                {bouge && <s style={{ color: 'var(--ink-soft)', opacity: 0.6, marginRight: 7 }}>{fmtMoney(s.priceXof, currency)}</s>}
-                                <b style={{ fontWeight: 600, color: bouge ? 'var(--color-indigo)' : 'var(--ink-soft)' }}>{fmtMoney(sien, currency)}</b>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {g.list.map((s) => <Ligne key={s.id} s={s} />)}
                   </div>
                 </div>
               ))}
+
+              {/* ── LES FORFAITS & ABONNEMENTS, à part — leur prix est une
+                  composition, il ne se lit pas à côté d'un soin. ── */}
+              {jpForfaits.length > 0 && (
+                <>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginTop: 22 }}>
+                    Forfaits &amp; abonnements · {jpForfaits.length}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '5px 22px', marginTop: 8 }}>
+                    {jpForfaits.map((s) => <Ligne key={s.id} s={s} />)}
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}
