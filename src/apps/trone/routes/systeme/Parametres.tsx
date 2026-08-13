@@ -297,7 +297,22 @@ function CalibresCard() {
               />
               <span className="mnd-muted" style={{ fontSize: 12, flex: 'none' }}>de {depuis} à</span>
               {b.maxLocks === null ? (
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)' }}>l’infini — sans plafond</span>
+                /* LE GESTE INVERSE (13 août) : la tranche infinie ne pouvait
+                   recevoir un plafond qu'en la SUPPRIMANT. Saisir une borne le
+                   pose ; laisser vide la garde infinie. */
+                <>
+                  <CaseCalibre
+                    numerique
+                    valeur=""
+                    onCommit={(v) => borne(b.id, v)}
+                    width={78}
+                    placeholder="∞"
+                    ariaLabel={`Poser un plafond au calibre ${b.name ?? ''}`}
+                  />
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    sans plafond — saisir une borne le pose
+                  </span>
+                </>
               ) : (
                 <>
                   <CaseCalibre
@@ -342,9 +357,17 @@ function CalibresCard() {
         <Button size="sm" variant="ghost" onClick={retablit}>Rétablir les 6 recommandés</Button>
         <Button size="sm" variant="ghost" onClick={() => navigate('/juste-prix')}>Les coefficients · Le Juste Prix →</Button>
       </div>
-      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-        La dernière tranche n’a jamais de plafond — aucune tête ne peut sortir du barème.
-      </div>
+      {sorted.every((b) => b.maxLocks !== null) ? (
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, marginTop: 8, lineHeight: 1.55, color: 'var(--copper-700)' }}>
+          Attention : aucune tranche sans plafond — une tête au-delà de{' '}
+          {Math.max(...sorted.map((b) => b.maxLocks ?? 0))} locks sortirait du barème
+          (« modèle inconnu »). « Sans plafond » sur la dernière tranche referme la porte.
+        </div>
+      ) : (
+        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+          La dernière tranche n’a pas de plafond — aucune tête ne peut sortir du barème.
+        </div>
+      )}
     </Card>
   );
 }
