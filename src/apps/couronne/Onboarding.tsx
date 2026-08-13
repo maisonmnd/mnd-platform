@@ -72,7 +72,12 @@ export default function Onboarding() {
   const [slide, setSlide] = useState(0);
   const [mode, setMode] = useState<Mode>('inscription');
 
-  const [name, setName] = useState('');
+  /* PRÉNOM ET NOM SÉPARÉS (13 août, demande de Yéman) : un seul bloc « Nom
+     complet » mélangeait les deux — et la Maison lit le PRÉNOM en tête
+     (« Bonjour, Merine. », les pastilles, les rappels). La fiche garde un nom
+     unique : « Prénom Nom », composé à l'inscription. */
+  const [prenom, setPrenom] = useState('');
+  const [nomFamille, setNomFamille] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -147,8 +152,12 @@ export default function Onboarding() {
   const submit = async () => {
     if (mode === 'oubli') return askReset();
     if (mode === 'oubli-code') return confirmReset();
-    if (mode === 'inscription' && !name.trim()) {
-      setErr('Indiquez votre nom.');
+    if (mode === 'inscription' && !prenom.trim()) {
+      setErr('Indiquez votre prénom.');
+      return;
+    }
+    if (mode === 'inscription' && !nomFamille.trim()) {
+      setErr('Indiquez votre nom de famille.');
       return;
     }
     if (!emailOk) {
@@ -164,9 +173,11 @@ export default function Onboarding() {
     setBusy(true);
     try {
       if (mode === 'inscription') {
-        const { needsConfirmation } = await signUpClient(email.trim(), password, name.trim());
+        /* « Prénom Nom » — l'ordre que toute la Maison lit (firstName, fiches). */
+        const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
+        const { needsConfirmation } = await signUpClient(email.trim(), password, nomComplet);
         /* Alerte le personnel du Trône (Web Push) d'une nouvelle inscription. */
-        void pushNotifyStaff('Nouvelle inscription Ma Couronne', name.trim(), '/trone/#/customers');
+        void pushNotifyStaff('Nouvelle inscription Ma Couronne', nomComplet, '/trone/#/customers');
         if (needsConfirmation) {
           setNotice('Compte créé. Confirmez votre e-mail, puis connectez-vous.');
           setMode('connexion');
@@ -229,7 +240,7 @@ export default function Onboarding() {
       </h1>
       <p className="mc-lead">
         {mode === 'inscription'
-          ? 'Votre nom, votre e-mail, un mot de passe — la maison vous reconnaît.'
+          ? 'Votre prénom, votre nom, votre e-mail, un mot de passe — la maison vous reconnaît.'
           : mode === 'oubli'
           ? 'Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.'
           : mode === 'oubli-code'
@@ -239,15 +250,26 @@ export default function Onboarding() {
 
       {mode === 'inscription' && (
         <>
-          <label className="mc-field-label" htmlFor="mc-name">Nom complet</label>
+          <label className="mc-field-label" htmlFor="mc-prenom">Prénom</label>
           <div className="mc-emailline">
             <input
-              id="mc-name"
+              id="mc-prenom"
               type="text"
-              value={name}
-              autoComplete="name"
-              placeholder="Nom et prénom"
-              onChange={(e) => { setName(e.target.value); setErr(null); }}
+              value={prenom}
+              autoComplete="given-name"
+              placeholder="Votre prénom"
+              onChange={(e) => { setPrenom(e.target.value); setErr(null); }}
+            />
+          </div>
+          <label className="mc-field-label" htmlFor="mc-nom">Nom de famille</label>
+          <div className="mc-emailline">
+            <input
+              id="mc-nom"
+              type="text"
+              value={nomFamille}
+              autoComplete="family-name"
+              placeholder="Votre nom"
+              onChange={(e) => { setNomFamille(e.target.value); setErr(null); }}
             />
           </div>
         </>
