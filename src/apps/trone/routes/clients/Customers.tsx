@@ -2341,7 +2341,12 @@ function Customer360({
 function IntakeModal({ onClose, personas }: { onClose: () => void; personas: ReturnType<typeof usePersonas>[0] }) {
   const { branch } = useBranch();
   const [segmentList] = useSegments();
-  const [name, setName] = useState('');
+  /* PRÉNOM ET NOM SÉPARÉS (13 août) — même règle que l'inscription Ma
+     Couronne : la Maison lit le prénom en tête (« Bonjour, Merine. »,
+     pastilles, rappels), la fiche garde un nom unique « Prénom Nom ». */
+  const [prenom, setPrenom] = useState('');
+  const [nomFamille, setNomFamille] = useState('');
+  const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [email, setEmail] = useState('');
   const [city, setCity] = useState(branch.city);
@@ -2364,7 +2369,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   /* L'IA propose, la maison dispose : la suggestion remplit les champs, elle ne
      valide rien. Rien n'est écrit tant que le maître n'a pas enregistré. */
   const suggest = async () => {
-    if (!name.trim()) { setError('Donnez d’abord un nom — l’IA n’a rien à lire.'); return; }
+    if (!nomComplet) { setError('Donnez d’abord un nom — l’IA n’a rien à lire.'); return; }
     setError(null);
     setWhy(null);
     setThinking(true);
@@ -2410,11 +2415,12 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const toggleSeg = (s: string) => setSegments((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
 
   const save = () => {
-    if (!name.trim()) { setError('Donnez un nom à la tête couronnée.'); return; }
+    if (!prenom.trim()) { setError('Indiquez son prénom.'); return; }
+    if (!nomFamille.trim()) { setError('Indiquez son nom de famille.'); return; }
     const client: Client = {
       id: uid(),
       branchId: branch.id,
-      name: name.trim(),
+      name: nomComplet,
       phone: phone.trim(),
       email: email.trim() || undefined,
       city: city.trim() || branch.city,
@@ -2448,7 +2454,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
           {photo ? (
             <img src={photo} alt="" className="trc-avatar" style={{ width: 64, height: 64 }} />
           ) : (
-            <span className="trc-avatar" style={{ width: 64, height: 64, fontSize: 24 }}>{name.trim() ? name.trim()[0] : '＋'}</span>
+            <span className="trc-avatar" style={{ width: 64, height: 64, fontSize: 24 }}>{prenom.trim() ? prenom.trim()[0] : '＋'}</span>
           )}
           <label style={{ cursor: 'pointer', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-600)', border: '1px dashed var(--copper-500)', borderRadius: 2, padding: '9px 14px' }}>
             Ajouter une photo
@@ -2456,9 +2462,14 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
           </label>
         </div>
 
-        <Field label="Nom complet">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom et prénom" />
-        </Field>
+        <div className="tr-grid tr-grid--2">
+          <Field label="Prénom">
+            <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Son prénom" autoComplete="given-name" />
+          </Field>
+          <Field label="Nom de famille">
+            <Input value={nomFamille} onChange={(e) => setNomFamille(e.target.value)} placeholder="Son nom" autoComplete="family-name" />
+          </Field>
+        </div>
 
         <div className="tr-grid tr-grid--2">
           <Field label="Téléphone">
