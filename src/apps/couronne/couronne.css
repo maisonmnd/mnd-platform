@@ -368,7 +368,10 @@
 .mc-onb__body .mc-cta--copper { margin-top: 14px; }
 .mc-onb__body .mc-cta--outline { margin-top: 12px; }
 
-.mc-onb-form { display: flex; flex-direction: column; height: 100%; padding: calc(34px + env(safe-area-inset-top)) 28px calc(34px + env(safe-area-inset-bottom)); }
+/* LE FORMULAIRE DÉFILE (13 août) : avec prénom + nom et les trois portes, la
+   carte dépasse l'écran — sans défilement, Google se coupait à mi-hauteur et
+   Apple comme WhatsApp n'existaient pas à l'écran. */
+.mc-onb-form { display: flex; flex-direction: column; height: 100%; overflow-y: auto; padding: calc(34px + env(safe-area-inset-top)) 28px calc(34px + env(safe-area-inset-bottom)); }
 .mc-onb-form__seal { width: 32px; margin-top: 30px; }
 
 .mc-field-label {
