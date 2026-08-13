@@ -21,6 +21,10 @@ import { ERP_DOMAINS, useStaff } from '../equipe/data';
 import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
 import { useBlocages, type Blocage } from '../../../../shared/blocages';
 import { uid } from '../../../../shared/store';
+import {
+  useModelBands, sortedBands, ecrisCalibresPartout, modelBandsStore, bandSetsStore,
+  MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
+} from '../../../../shared/pricing';
 import './systeme.css';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
@@ -187,6 +191,105 @@ const AVenir = () => (
     À venir
   </span>
 );
+
+/* ---------- Les calibres des modèles — LA BASE (13 août, demande de Yéman) ----------
+
+   Les calibres (Jumbo… Galaxy) sont la colonne vertébrale des tailles : le même
+   langage commande la création, l'entretien et la lecture des prix. Ils
+   vivaient uniquement DANS le barème du Juste Prix — introuvables comme
+   référentiel. Leur base est ICI : noms et bornes de locks. Une évolution
+   s'applique à TOUS les barèmes (`ecrisCalibresPartout`) ; les COEFFICIENTS de
+   prix et de durée, eux, restent l'affaire du Juste Prix. */
+function CalibresCard() {
+  const navigate = useNavigate();
+  const [bands] = useModelBands();
+  const sorted = sortedBands(bands);
+
+  const renomme = (id: string, name: string) =>
+    ecrisCalibresPartout((prev) => prev.map((b) => (b.id === id ? { ...b, name: name.trim() || undefined } : b)));
+  const borne = (id: string, v: string) => {
+    const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    ecrisCalibresPartout((prev) => prev.map((b) => (b.id === id ? { ...b, maxLocks: n } : b)));
+  };
+  const retire = (id: string) => {
+    if (sorted.length <= 1) return;
+    const nom = sorted.find((b) => b.id === id)?.name ?? 'ce calibre';
+    if (!window.confirm(`Retirer le calibre « ${nom} » de TOUS les barèmes ? Les têtes de cette plage tomberont dans le calibre voisin.`)) return;
+    ecrisCalibresPartout((prev) => prev.filter((b) => b.id !== id));
+  };
+  const ajoute = () => {
+    const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
+    ecrisCalibresPartout((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
+  };
+  const retablit = () => {
+    if (!window.confirm('Rétablir les 6 calibres recommandés (Jumbo → Galaxy) ? Les calibres actuels seront remplacés dans tous les barèmes.')) return;
+    modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
+    bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div className="sys-section__title">Les calibres des modèles</div>
+      <div className="sys-section__cap" style={{ maxWidth: 660 }}>
+        La colonne vertébrale des tailles — le même langage de la naissance à l’entretien.
+        Le calibre se constate au KÒKÒ™ et s’inscrit sur la fiche. Renommer, déplacer une
+        borne, ajouter ou retirer un calibre s’applique à <b>tous</b> les barèmes ;
+        les coefficients de prix et de durée se règlent au Juste Prix.
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14, maxWidth: 560 }}>
+        {sorted.map((b, i) => {
+          const depuis = i === 0 ? 1 : (sorted[i - 1].maxLocks ?? 0) + 1;
+          return (
+            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '9px 12px' }}>
+              <Input
+                value={b.name ?? ''}
+                placeholder="Nom du calibre"
+                onChange={(e) => renomme(b.id, e.target.value)}
+                style={{ width: 130 }}
+                aria-label="Nom du calibre"
+              />
+              <span className="mnd-muted" style={{ fontSize: 12, flex: 'none' }}>de {depuis} à</span>
+              {b.maxLocks === null ? (
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)' }}>l’infini — sans plafond</span>
+              ) : (
+                <>
+                  <Input
+                    inputMode="numeric"
+                    value={String(b.maxLocks)}
+                    onChange={(e) => borne(b.id, e.target.value)}
+                    style={{ width: 78, textAlign: 'right' }}
+                    aria-label={`Borne haute du calibre ${b.name ?? ''}`}
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>locks</span>
+                </>
+              )}
+              <span style={{ flex: 1 }} />
+              <button
+                className="trv-minibtn"
+                onClick={() => retire(b.id)}
+                disabled={sorted.length <= 1}
+                title="Retirer ce calibre de tous les barèmes"
+              >
+                Retirer
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+        <Button size="sm" variant="ghost" onClick={ajoute}>+ Ajouter un calibre</Button>
+        <Button size="sm" variant="ghost" onClick={retablit}>Rétablir les 6 recommandés</Button>
+        <Button size="sm" variant="ghost" onClick={() => navigate('/juste-prix')}>Les coefficients · Le Juste Prix →</Button>
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+        La dernière tranche n’a jamais de plafond — aucune tête ne peut sortir du barème.
+      </div>
+    </Card>
+  );
+}
 
 /* ---------- Sauvegarde de la Maison — exporter tout d'un geste, restaurer sans risque ----------
    Née de l'incident du 24 juil. 2026 (RDV et factures effacés du serveur). L'export
@@ -1683,6 +1786,9 @@ export default function Parametres() {
         <ToggleRows rows={ACCES_TOGGLES} aVenir />
         <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
       </Card>
+
+      {/* ---------- Les calibres des modèles — la base ---------- */}
+      <CalibresCard />
 
       {/* ---------- Sauvegarde de la Maison ---------- */}
       <SauvegardeCard />

@@ -8,7 +8,7 @@ import { useCategories, useServices, useProducts, catsDansLOrdre, LONGUEURS, typ
 import { tarifModeOf,
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
   pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
-  bandSetsStore, useBandSets, regimeTarifaire, type ModelBand,
+  bandSetsStore, useBandSets, regimeTarifaire, ecrisCalibresPartout, type ModelBand,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
 import './finances.css';
@@ -111,13 +111,9 @@ function BaremeModeles({ currency }: { currency: string }) {
     else bandSetsStore.set((prev) => ({ ...prev, [scope]: fn(prev[scope] ?? MODEL_BANDS_SEED) }));
   };
   /* Une TRANCHE se definit une seule fois : ajouter, retirer ou deplacer une
-     borne s'applique a TOUS les baremes. Sans ca, un atelier finirait avec des
-     calibres differents des autres et le meme nombre de locks tomberait dans
-     deux tranches selon la prestation. */
-  const writeToutes = (fn: (prev: ModelBand[]) => ModelBand[]) => {
-    modelBandsStore.set(fn);
-    bandSetsStore.set((prev) => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, fn(v)])));
-  };
+     borne s'applique a TOUS les baremes — le juge partagé vit dans pricing.ts,
+     les Paramètres (« Les calibres des modèles ») écrivent par lui aussi. */
+  const writeToutes = ecrisCalibresPartout;
   /* Le coefficient d'une tranche DANS UNE COLONNE. La tranche peut manquer d'un
      bareme d'atelier cree avant elle : on la cree a l'identique. */
   const coefDe = (scope: string, id: string, champ: 'coef' | 'durCoef'): number => {

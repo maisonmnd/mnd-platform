@@ -51,6 +51,18 @@ export const modelBandsStore = createStore<ModelBand[]>('mnd_model_bands', MODEL
 export const useModelBands = () => useStore(modelBandsStore);
 bindDocument(modelBandsStore, 'mnd_model_bands');
 
+/** UNE TRANCHE (CALIBRE) SE DÉFINIT UNE SEULE FOIS pour toute la Maison :
+    renommer, déplacer une borne, ajouter ou retirer un calibre s'applique au
+    barème de la Maison ET à chaque barème d'atelier. Sans cela, un atelier
+    finirait avec des calibres différents des autres et le même nombre de locks
+    tomberait dans deux tranches selon la prestation. Les COEFFICIENTS, eux,
+    restent propres à chaque barème (Le Juste Prix). La déclaration de
+    `bandSetsStore` vit plus bas — d'où la fonction, appelée après coup. */
+export const ecrisCalibresPartout = (fn: (prev: ModelBand[]) => ModelBand[]): void => {
+  modelBandsStore.set(fn);
+  bandSetsStore.set((prev) => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, fn(v)])));
+};
+
 /** BARÈME PROPRE À VÈKPÈ™ · LA NAISSANCE.
 
     Une création ne progresse pas comme un resserrage. Sur les tarifs v6, en
