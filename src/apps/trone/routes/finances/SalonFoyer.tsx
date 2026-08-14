@@ -23,6 +23,7 @@ import {
   soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre,
   verserDansEnveloppe, retirerDeEnveloppe, supprimeLigneEpargne, modifieLigneEpargne, ENVELOPPES_RESERVE,
   BENEFICIAIRES, MOTIFS_PRELEVEMENT, DEVISES_CAISSE, RESERVE_LABELS, PARTAGE_DEFAUT,
+  useMotifsFoyer, motifsFoyerStore, totalPostes, type PosteFoyer,
   CLES_ENVELOPPES, ENVELOPPE_LABELS, PARTAGE_DITS, ditEnveloppe,
   type EnveloppeReserve, type PartageConfig, type CleEnveloppe, type CaisseIndep,
   type MouvementCaisseIndep,
@@ -246,7 +247,19 @@ export default function SalonFoyer() {
   const [caisseSel, setCaisseSel] = useState<string | null>(null);
   const [fCaisse, setFCaisse] = useState<null | { nom: string; devise: string; dit: string }>(null);
   const [fEdit, setFEdit] = useState<null | { id: string; nom: string; devise: string; dit: string }>(null);
-  const [fMvt, setFMvt] = useState({ date: todayISO(), sens: 'entree' as 'entree' | 'sortie', label: '', montant: '', taux: '655' });
+  /* UNE CAISSE À PART TIENT DE VRAIES DÉPENSES (14 août, demande de Yéman) :
+     son mouvement porte donc le même modèle que le foyer — un motif, son
+     détail, et plusieurs postes sur une même sortie. */
+  const [fMvt, setFMvt] = useState({
+    date: todayISO(), sens: 'entree' as 'entree' | 'sortie', label: '', montant: '', taux: '655',
+    motif: '', sousMotif: '', postes: [] as PosteFoyer[],
+  });
+  const postesCaisse = fMvt.postes.filter((p) => p.label.trim() && p.amountXof > 0);
+  const ajoutePosteCaisse = () => setFMvt((f) => ({ ...f, postes: [...f.postes, { id: uid(), label: '', amountXof: 0 }] }));
+  const majPosteCaisse = (id: string, patch: Partial<PosteFoyer>) =>
+    setFMvt((f) => ({ ...f, postes: f.postes.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+  const retirePosteCaisse = (id: string) =>
+    setFMvt((f) => ({ ...f, postes: f.postes.filter((p) => p.id !== id) }));
   /** Le mouvement de caisse en cours de correction — un seul, édité EN PLACE. */
   const [editMvt, setEditMvt] = useState<null | { id: string; date: string; sens: 'entree' | 'sortie'; label: string; montant: string; taux: string }>(null);
   /** Une ligne du registre des prêts, et une du registre de l'épargne. */
@@ -293,10 +306,27 @@ export default function SalonFoyer() {
   const [mvtOuvert, setMvtOuvert] = useState(false);
   const [geste, setGeste] = useState<Geste>('foyer');
   const [fMvtUni, setFMvtUni] = useState({
-    date: todayISO(), motif: 'Maison', note: '',
+    date: todayISO(), motif: 'Maison', sousMotif: '', note: '',
     enveloppe: 'reinvestissement' as EnveloppeReserve, montant: '',
+    postes: [] as PosteFoyer[],
   });
-  const montantUni = litXof(fMvtUni.montant);
+  /* LES MOTIFS SE GÈRENT (14 août) — même modèle que les catégories de
+     dépenses du salon : un nom, des sous-motifs, et la main qui ajoute. */
+  const [motifs] = useMotifsFoyer();
+  const [motifsOuvert, setMotifsOuvert] = useState(false);
+  const motifCourant = motifs.find((m) => m.name === fMvtUni.motif);
+  /* Le motif choisi pour le mouvement de caisse — même registre. */
+  const motifCaisse = motifs.find((m) => m.name === fMvt.motif);
+  /* PLUSIEURS POSTES SUR UNE MÊME SORTIE : dès qu'il y en a, LA SOMME fait
+     le montant — le grand nombre du haut le dit et cesse de se saisir. */
+  const postesNets = fMvtUni.postes.filter((p) => p.label.trim() && p.amountXof > 0);
+  const montantUni = totalPostes(postesNets, litXof(fMvtUni.montant));
+
+  const ajoutePoste = () => setFMvtUni((f) => ({ ...f, postes: [...f.postes, { id: uid(), label: '', amountXof: 0 }] }));
+  const majPoste = (id: string, patch: Partial<PosteFoyer>) =>
+    setFMvtUni((f) => ({ ...f, postes: f.postes.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+  const retirePoste = (id: string) =>
+    setFMvtUni((f) => ({ ...f, postes: f.postes.filter((p) => p.id !== id) }));
 
   const inscrireMouvement = () => {
     if (montantUni <= 0) return;
@@ -308,7 +338,10 @@ export default function SalonFoyer() {
          la décision reste à la Maison. */
       setPrelevements((prev) => [...prev, {
         id: `plv-${uid()}`, branchId: branch.id, date: fMvtUni.date,
-        beneficiaire: 'Foyer', motif: fMvtUni.motif, note, amountXof: montantUni,
+        beneficiaire: 'Foyer', motif: fMvtUni.motif,
+        sousMotif: fMvtUni.sousMotif || undefined,
+        note, amountXof: montantUni,
+        items: postesNets.length ? postesNets : undefined,
       }]);
     } else if (geste === 'cote') {
       verserDansEnveloppe({
@@ -324,7 +357,7 @@ export default function SalonFoyer() {
         amountXof: montantUni,
       }]);
     }
-    setFMvtUni((f) => ({ ...f, note: '', montant: '' }));
+    setFMvtUni((f) => ({ ...f, note: '', montant: '', postes: [] }));
     setMvtOuvert(false);
   };
 
@@ -455,15 +488,21 @@ export default function SalonFoyer() {
 
   const ajouteMouvement = () => {
     if (!caisseActive) return;
-    const montant = litMontant(fMvt.montant);
+    /* La somme des postes fait le montant, comme au foyer. */
+    const montant = postesCaisse.length
+      ? postesCaisse.reduce((s, p) => s + p.amountXof, 0)
+      : litMontant(fMvt.montant);
     const taux = litMontant(fMvt.taux);
     if (montant <= 0 || !fMvt.label.trim() || (enDevise && taux <= 0)) return;
     setMvtsCaisse((prev) => [...prev, {
       id: `cxim-${uid()}`, branchId: branch.id, caisseId: caisseActive.id,
       date: fMvt.date, sens: fMvt.sens, label: fMvt.label.trim(),
       montant, ...(enDevise ? { taux } : {}),
+      ...(fMvt.motif ? { motif: fMvt.motif } : {}),
+      ...(fMvt.sousMotif ? { sousMotif: fMvt.sousMotif } : {}),
+      ...(postesCaisse.length ? { items: postesCaisse } : {}),
     }]);
-    setFMvt((f) => ({ ...f, label: '', montant: '' }));
+    setFMvt((f) => ({ ...f, label: '', montant: '', postes: [] }));
   };
 
   const supprime = <T extends { id: string }>(set: (fn: (prev: T[]) => T[]) => void, id: string, quoi: string) => {
@@ -548,6 +587,92 @@ export default function SalonFoyer() {
         ))}
       </div>
 
+      {/* ═══ LES MOTIFS DU FOYER SE GÈRENT ICI (14 août) — la liste était
+          figée dans le code : ajouter « Loyer maison » demandait une
+          publication. Un motif, ses sous-motifs, et la main qui décide. ═══ */}
+      {motifsOuvert && (
+        <Modal title="Les motifs du foyer." onClose={() => setMotifsOuvert(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+              Un motif dit à quoi l’argent a servi ; ses sous-motifs le précisent.
+              Renommer un motif ne touche pas aux retraits déjà inscrits — ils gardent
+              le mot sous lequel ils ont été écrits.
+            </div>
+
+            {motifs.map((m) => (
+              <div key={m.id} className="mnd-bande" style={{ padding: '11px 13px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
+                  <button
+                    type="button"
+                    className="tre-link-btn"
+                    onClick={() => {
+                      const n = window.prompt('Renommer ce motif', m.name);
+                      if (n && n.trim()) motifsFoyerStore.set((prev) => prev.map((x) => (x.id === m.id ? { ...x, name: n.trim() } : x)));
+                    }}
+                  >
+                    Renommer
+                  </button>
+                  <button
+                    type="button"
+                    className="tre-link-btn tre-link-btn--danger"
+                    onClick={() => {
+                      if (!window.confirm(`Retirer le motif « ${m.name} » ? Les retraits déjà inscrits le gardent.`)) return;
+                      motifsFoyerStore.set((prev) => prev.filter((x) => x.id !== m.id));
+                    }}
+                  >
+                    Retirer
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
+                  {m.subs.map((s) => (
+                    <span key={s} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12,
+                      border: '1px solid var(--hairline)', borderRadius: 'var(--radius-pill, 999px)',
+                      padding: '4px 10px', background: 'var(--surface-card)',
+                    }}>
+                      {s}
+                      <button
+                        type="button"
+                        onClick={() => motifsFoyerStore.set((prev) => prev.map((x) => (x.id === m.id ? { ...x, subs: x.subs.filter((y) => y !== s) } : x)))}
+                        aria-label={`Retirer ${s}`}
+                        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, color: 'var(--ink-soft)', fontSize: 12 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = window.prompt(`Un sous-motif de « ${m.name} »`);
+                      if (s && s.trim()) motifsFoyerStore.set((prev) => prev.map((x) => (x.id === m.id && !x.subs.includes(s.trim()) ? { ...x, subs: [...x.subs, s.trim()] } : x)));
+                    }}
+                    style={{
+                      cursor: 'pointer', font: 'inherit', fontSize: 12, color: 'var(--copper-700)',
+                      border: '1px dashed var(--copper-500)', borderRadius: 'var(--radius-pill, 999px)',
+                      background: 'transparent', padding: '4px 11px',
+                    }}
+                  >
+                    + sous-motif
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const n = window.prompt('Le nom du nouveau motif');
+                if (n && n.trim()) motifsFoyerStore.set((prev) => [...prev, { id: `mf-${uid()}`, name: n.trim(), subs: [] }]);
+              }}
+            >
+              + Ajouter un motif
+            </Button>
+          </div>
+        </Modal>
+      )}
+
       {/* ═══ INSCRIRE UN MOUVEMENT — une question, pas six onglets ═══ */}
       {mvtOuvert && (() => {
         const resteFoyer = env.prelevement - preleve;
@@ -564,24 +689,41 @@ export default function SalonFoyer() {
                 <div style={{ textAlign: 'center', paddingTop: 4 }}>
                   <div className="trc-microlabel" style={{ letterSpacing: '.2em' }}>Montant</div>
                   <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
-                    <input
-                      value={fMvtUni.montant}
-                      onChange={(e) => setFMvtUni({ ...fMvtUni, montant: e.target.value })}
-                      inputMode="numeric"
-                      placeholder="0"
-                      autoFocus
-                      aria-label={`Montant en ${currency}`}
-                      style={{
-                        width: 220, textAlign: 'right', background: 'transparent',
-                        border: 'none', borderBottom: '1px solid var(--copper-300)',
-                        fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
-                        padding: '2px 6px', outline: 'none',
-                      }}
-                    />
+                    {postesNets.length > 0 ? (
+                      /* LA SOMME DES POSTES FAIT LOI — on ne saisit plus deux
+                         vérités pour le même retrait. */
+                      <span style={{
+                        width: 220, textAlign: 'right', display: 'inline-block',
+                        borderBottom: '1px solid var(--copper-300)',
+                        fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)', padding: '2px 6px',
+                      }}>
+                        {montantUni.toLocaleString('fr-FR')}
+                      </span>
+                    ) : (
+                      <input
+                        value={fMvtUni.montant}
+                        onChange={(e) => setFMvtUni({ ...fMvtUni, montant: e.target.value })}
+                        inputMode="numeric"
+                        placeholder="0"
+                        autoFocus
+                        aria-label={`Montant en ${currency}`}
+                        style={{
+                          width: 220, textAlign: 'right', background: 'transparent',
+                          border: 'none', borderBottom: '1px solid var(--copper-300)',
+                          fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
+                          padding: '2px 6px', outline: 'none',
+                        }}
+                      />
+                    )}
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--copper-700)' }}>
                       {currency === 'XOF' ? 'F' : currency}
                     </span>
                   </div>
+                  {postesNets.length > 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5 }}>
+                      somme de {postesNets.length} poste{postesNets.length > 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -612,16 +754,92 @@ export default function SalonFoyer() {
               ) : (
                 <>
                   {geste === 'foyer' && (
-                    <div>
-                      <div className="trc-microlabel" style={{ marginBottom: 9 }}>Motif</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                        {MOTIFS_PRELEVEMENT.map((m) => (
-                          <Pastille key={m} actif={fMvtUni.motif === m} onClick={() => setFMvtUni({ ...fMvtUni, motif: m })}>
-                            {m}
-                          </Pastille>
-                        ))}
+                    <>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 9 }}>
+                          <span className="trc-microlabel">Motif</span>
+                          <button type="button" className="tre-link-btn" style={{ marginLeft: 'auto' }} onClick={() => setMotifsOuvert(true)}>
+                            Gérer les motifs
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                          {motifs.map((m) => (
+                            <Pastille
+                              key={m.id}
+                              actif={fMvtUni.motif === m.name}
+                              onClick={() => setFMvtUni({ ...fMvtUni, motif: m.name, sousMotif: '' })}
+                            >
+                              {m.name}
+                            </Pastille>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+
+                      {/* LE SOUS-MOTIF — « École » puis « Rentrée ». Il ne paraît
+                          que si le motif en porte : une rangée vide n'apprend rien. */}
+                      {motifCourant && motifCourant.subs.length > 0 && (
+                        <div>
+                          <div className="trc-microlabel" style={{ marginBottom: 9 }}>Le détail · facultatif</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                            {motifCourant.subs.map((s) => (
+                              <Pastille
+                                key={s}
+                                actif={fMvtUni.sousMotif === s}
+                                onClick={() => setFMvtUni({ ...fMvtUni, sousMotif: fMvtUni.sousMotif === s ? '' : s })}
+                              >
+                                {s}
+                              </Pastille>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* PLUSIEURS POSTES SUR UNE MÊME SORTIE (demande de Yéman) :
+                          une sortie couvre souvent plusieurs achats. Chaque ligne
+                          porte son libellé et son montant ; leur somme devient LE
+                          montant du retrait. */}
+                      <div>
+                        <div className="trc-microlabel" style={{ marginBottom: 9 }}>Détail des postes · facultatif</div>
+                        {fMvtUni.postes.map((p) => (
+                          <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+                            <Input
+                              value={p.label}
+                              onChange={(e) => majPoste(p.id, { label: e.target.value })}
+                              placeholder="Ex. marché"
+                              style={{ flex: 1, minWidth: 0 }}
+                              aria-label="Libellé du poste"
+                            />
+                            <Input
+                              inputMode="numeric"
+                              value={p.amountXof ? String(p.amountXof) : ''}
+                              onChange={(e) => majPoste(p.id, { amountXof: litXof(e.target.value) })}
+                              placeholder="0"
+                              style={{ width: 110, textAlign: 'right', flex: 'none' }}
+                              aria-label="Montant du poste"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => retirePoste(p.id)}
+                              aria-label="Retirer ce poste"
+                              style={{ flex: 'none', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 15, padding: '0 4px' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={ajoutePoste}
+                          style={{
+                            width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
+                            border: '1px dashed var(--copper-500)', borderRadius: 3,
+                            background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
+                          }}
+                        >
+                          + Détailler ce retrait (optionnel)
+                        </button>
+                      </div>
+                    </>
                   )}
 
                   {geste === 'cote' && (
@@ -1280,6 +1498,91 @@ export default function SalonFoyer() {
                   <Field label={`Taux (1 ${deviseActive} en ${currency})`}>
                     <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} placeholder="655" />
                   </Field>
+                )}
+              </div>
+
+              {/* LE MÊME MODÈLE QU'AU FOYER (14 août) : un motif, son détail,
+                  et plusieurs postes sur une même sortie. Les motifs sont les
+                  mêmes registres — une seule liste à tenir pour toute la
+                  maison. */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 9 }}>
+                  <span className="trc-microlabel">Motif · facultatif</span>
+                  <button type="button" className="tre-link-btn" style={{ marginLeft: 'auto' }} onClick={() => setMotifsOuvert(true)}>
+                    Gérer les motifs
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {motifs.map((m) => (
+                    <Pastille
+                      key={m.id}
+                      actif={fMvt.motif === m.name}
+                      onClick={() => setFMvt({ ...fMvt, motif: fMvt.motif === m.name ? '' : m.name, sousMotif: '' })}
+                    >
+                      {m.name}
+                    </Pastille>
+                  ))}
+                </div>
+                {motifCaisse && motifCaisse.subs.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
+                    {motifCaisse.subs.map((s) => (
+                      <Pastille
+                        key={s}
+                        actif={fMvt.sousMotif === s}
+                        onClick={() => setFMvt({ ...fMvt, sousMotif: fMvt.sousMotif === s ? '' : s })}
+                      >
+                        {s}
+                      </Pastille>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div className="trc-microlabel" style={{ marginBottom: 9 }}>Détail des postes · facultatif</div>
+                {fMvt.postes.map((p) => (
+                  <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+                    <Input
+                      value={p.label}
+                      onChange={(e) => majPosteCaisse(p.id, { label: e.target.value })}
+                      placeholder="Ex. frais notaire"
+                      style={{ flex: 1, minWidth: 0 }}
+                      aria-label="Libellé du poste"
+                    />
+                    <Input
+                      inputMode="decimal"
+                      value={p.amountXof ? String(p.amountXof) : ''}
+                      onChange={(e) => majPosteCaisse(p.id, { amountXof: litMontant(e.target.value) })}
+                      placeholder="0"
+                      style={{ width: 110, textAlign: 'right', flex: 'none' }}
+                      aria-label="Montant du poste"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => retirePosteCaisse(p.id)}
+                      aria-label="Retirer ce poste"
+                      style={{ flex: 'none', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 15, padding: '0 4px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={ajoutePosteCaisse}
+                  style={{
+                    width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
+                    border: '1px dashed var(--copper-500)', borderRadius: 3,
+                    background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
+                  }}
+                >
+                  + Détailler ce mouvement (optionnel)
+                </button>
+                {postesCaisse.length > 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
+                    {postesCaisse.length} poste{postesCaisse.length > 1 ? 's' : ''} · le montant vaudra{' '}
+                    {fmtCaisse(postesCaisse.reduce((s, p) => s + p.amountXof, 0), deviseActive)}
+                  </div>
                 )}
               </div>
               <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>

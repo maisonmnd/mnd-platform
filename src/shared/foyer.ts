@@ -190,14 +190,50 @@ export type Prelevement = {
   date: string; // ISO AAAA-MM-JJ
   beneficiaire: string; // Foyer · Brice · Yéman
   motif: string;
+  /** LE DÉTAIL DU MOTIF (14 août) — « École » puis « Rentrée », comme les
+      dépenses du salon ont leur sous-catégorie. */
+  sousMotif?: string;
   note?: string;
   amountXof: number; // toujours positif
+  /** PLUSIEURS POSTES SUR UN MÊME RETRAIT (14 août, demande de Yéman) : une
+      sortie d'argent couvre souvent plusieurs achats — marché, pharmacie,
+      taxi. Le modèle est celui des dépenses du salon (`ExpenseItem`) :
+      `amountXof` vaut alors la SOMME des lignes, jamais autre chose. */
+  items?: PosteFoyer[];
 };
+
+/** Un poste d'un retrait ou d'un mouvement de caisse — même forme que les
+    articles d'une dépense du salon, pour que les deux se lisent pareil. */
+export type PosteFoyer = { id: string; label: string; amountXof: number };
+
+/** Le total d'une ligne à postes : la somme des lignes fait foi. */
+export const totalPostes = (items: readonly PosteFoyer[] | undefined, defaut: number): number =>
+  items && items.length ? items.reduce((s, it) => s + it.amountXof, 0) : defaut;
 
 /** Listes du modèle — des suggestions de saisie, pas des enums : une valeur
     libre reste possible et rien ne casse si la Maison invente un motif. */
 export const BENEFICIAIRES = ['Foyer', 'Brice', 'Yéman'] as const;
 export const MOTIFS_PRELEVEMENT = ['Maison', 'Nourriture', 'École', 'Santé', 'Transport', 'Personnel', 'Divers'] as const;
+
+/* ── LES MOTIFS DU FOYER SE GÈRENT (14 août, demande de Yéman) ──────────
+   La liste ci-dessus était figée dans le code : ajouter « Loyer maison »
+   demandait une publication. Elle devient une SEMENCE d'un registre
+   éditable, de même forme que les catégories de dépenses du salon
+   (nom + sous-motifs) — la Maison ajoute, renomme, retire. */
+export type MotifFoyer = { id: string; name: string; subs: string[] };
+
+export const MOTIFS_FOYER_SEED: MotifFoyer[] = [
+  { id: 'mf-maison', name: 'Maison', subs: ['Loyer', 'Énergie & eau', 'Entretien', 'Meubles'] },
+  { id: 'mf-nourriture', name: 'Nourriture', subs: ['Marché', 'Supermarché', 'Restaurant'] },
+  { id: 'mf-ecole', name: 'École', subs: ['Scolarité', 'Fournitures', 'Transport scolaire', 'Cantine'] },
+  { id: 'mf-sante', name: 'Santé', subs: ['Pharmacie', 'Consultation', 'Analyses'] },
+  { id: 'mf-transport', name: 'Transport', subs: ['Carburant', 'Taxi', 'Entretien véhicule'] },
+  { id: 'mf-personnel', name: 'Personnel', subs: ['Vêtements', 'Beauté', 'Loisirs'] },
+  { id: 'mf-divers', name: 'Divers', subs: ['Imprévu', 'Cadeau', 'Autre'] },
+];
+
+export const motifsFoyerStore = createStore<MotifFoyer[]>('mnd_motifs_foyer', MOTIFS_FOYER_SEED);
+export const useMotifsFoyer = () => useStore(motifsFoyerStore);
 
 export const prelevementsStore = createStore<Prelevement[]>('mnd_prelevements', []);
 export const usePrelevements = () => useStore(prelevementsStore);
@@ -407,6 +443,12 @@ export type MouvementCaisseIndep = {
   date: string;
   sens: 'entree' | 'sortie';
   label: string;
+  /** LE MÊME MODÈLE QUE LES DÉPENSES (14 août) : une caisse à part tient de
+      vraies dépenses — elles méritent leur motif, son détail, et plusieurs
+      postes sur un même mouvement. `montant` vaut alors la somme des lignes. */
+  motif?: string;
+  sousMotif?: string;
+  items?: PosteFoyer[];
   /** Montant DANS LA DEVISE DE LA CAISSE, toujours positif (décimales
       permises) ; le SENS porte le signe. */
   montant: number;
@@ -449,6 +491,9 @@ export const mouvementsDe = (l: MouvementCaisseIndep[], caisseId: string): Mouve
 /* ---------- Synchronisation — tables sous `is_souverain()` (0038, 0039) ---------- */
 
 bindCollection(partageConfigStore, 'partage_config');
+/* Les motifs du foyer suivent les autres registres : ils se synchronisent,
+   donc la liste est la même au comptoir et sur le téléphone. */
+bindCollection(motifsFoyerStore, 'motifs_foyer');
 bindCollection(prelevementsStore, 'prelevements');
 bindCollection(pretsStore, 'prets_associes');
 /* `reserves_mouvements` (0038) n'est PLUS liée : l'épargne vit au coffre

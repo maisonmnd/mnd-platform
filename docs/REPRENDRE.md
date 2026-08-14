@@ -2,6 +2,28 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Le modèle des dépenses porté au foyer et aux caisses — 14 août
+
+Demande de Yéman : « comment j'ajoute des motifs, catégories,
+sous-catégories ? Rajouter détailler les dépenses et plusieurs dépenses
+sur une même facture — sur les caisses indépendantes aussi. » Le salon
+avait déjà tout (expenseCategoriesStore éditable + `Expense.items`,
+Depenses.tsx) ; le foyer avait une liste FIGÉE dans le code
+(MOTIFS_PRELEVEMENT). Désormais, shared/foyer.ts : `MotifFoyer`
+{id,name,subs} + `motifsFoyerStore` (semence à 7 motifs avec
+sous-motifs, `bindCollection('motifs_foyer')`), `PosteFoyer`
+{id,label,amountXof} et `totalPostes`. `Prelevement` gagne `sousMotif` et
+`items` ; `MouvementCaisseIndep` gagne `motif`, `sousMotif`, `items`.
+Écran : la fenêtre « Inscrire un mouvement » tire ses motifs du registre
+(pastilles), affiche les sous-motifs du motif choisi, et porte « +
+Détailler ce retrait » — LA SOMME DES POSTES DEVIENT LE MONTANT (le grand
+nombre du haut cesse alors de se saisir). Le formulaire des caisses
+indépendantes reçoit le MÊME bloc (motif · sous-motif · postes), sur le
+même registre de motifs. Gestionnaire « Gérer les motifs » (Modal) :
+ajouter/renommer/retirer un motif et ses sous-motifs — renommer ne touche
+pas aux lignes déjà écrites. RESTE À FAIRE : afficher le détail des
+postes dans les registres (lecture), comme Depenses le fait déjà.
+
 ## Salon & Foyer : une question, pas six onglets — 14 août
 
 Maquette validée par Yéman (artifact « Salon & Foyer — maquette »).
