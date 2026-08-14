@@ -27,6 +27,7 @@ const PICTO_OPTS = ['◈', '❖', '▦', '⌂', '✦', '◍', '⬗', '⬣'];
 
 type BranchForm = {
   name: string;
+  city: string;
   address: string;
   country: string;
   dial: string;
@@ -41,7 +42,7 @@ type BranchForm = {
 };
 
 const emptyForm = (): BranchForm => ({
-  name: '', address: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
+  name: '', city: '', address: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
   logo: 'copper', pictogram: '◈', masters: [], seats: 4, status: 'paused', curTouched: false,
 });
 
@@ -94,7 +95,7 @@ export default function Branches() {
     setEditId(b.id);
     setNewMaster('');
     setForm({
-      name: b.name, address: b.address, country: b.country, dial: b.dial,
+      name: b.name, city: b.city, address: b.address, country: b.country, dial: b.dial,
       phone: b.phone ?? `${b.dial} `, currency: b.currency, logo: asSeal(b.logo),
       pictogram: b.pictogram ?? '◈', masters: [...b.masters], seats: b.seats,
       status: b.status, curTouched: true,
@@ -118,8 +119,15 @@ export default function Branches() {
   };
 
   const save = () => {
-    if (!form.name.trim() || !form.address.trim()) return;
-    const city = form.name.split('·')[0].trim() || form.address.split(',')[0].trim() || form.name.trim();
+    /* LE NOM ET LA VILLE, rien d'autre (14 août). L'adresse ne verrouille
+       plus : elle n'est portée nulle part (affichage de la carte seulement) —
+       exiger un champ décoratif bloquait l'enregistrement sans un mot.
+       La VILLE, elle, est partout (bandeau, pied des factures, reçus PDF) :
+       elle devient un champ EXPLICITE au lieu d'être re-déduite du nom —
+       l'ancienne déduction `name.split('·')` aurait renommé la ville en
+       « L'atelier MND » au premier enregistrement. */
+    if (!form.name.trim() || !form.city.trim()) return;
+    const city = form.city.trim();
     /* Liste finale des maîtres : rognée, sans vides, dédupliquée (insensible à la casse). */
     const cleanMasters = form.masters.reduce<string[]>((acc, raw) => {
       const name = raw.trim();
@@ -265,9 +273,14 @@ export default function Branches() {
             <Field label="Nom de la branche">
               <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Ex. Porto-Novo · La Résidence" />
             </Field>
-            <Field label="Adresse">
-              <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} placeholder="Quartier, ville" />
-            </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Ville">
+                <Input value={form.city} onChange={(e) => patch({ city: e.target.value })} placeholder="Cotonou" />
+              </Field>
+              <Field label="Adresse (facultative)">
+                <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} placeholder="Quartier, rue…" />
+              </Field>
+            </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Pays">
                 <Select value={form.country} onChange={(e) => onCountry(e.target.value)}>
@@ -389,10 +402,17 @@ export default function Branches() {
 
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setOpen(false)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={!form.name.trim() || !form.address.trim()}>
+              <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={!form.name.trim() || !form.city.trim()}>
                 {editId ? 'Enregistrer la branche' : 'Ajouter au territoire'}
               </Button>
             </div>
+            {/* UN REFUS SE MOTIVE (règle maison) : un bouton gris qui ne dit
+                pas ce qui lui manque fait chercher — dis-le en toutes lettres. */}
+            {(!form.name.trim() || !form.city.trim()) && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, textAlign: 'right' }}>
+                Il manque {!form.name.trim() ? 'le nom de la branche' : 'la ville'} pour enregistrer.
+              </div>
+            )}
           </div>
         </Modal>
       )}
