@@ -1,6 +1,28 @@
 # Reprendre — état de la Maison
 
-État au 13 août 2026. À lire en premier dans une nouvelle session.
+État au 14 août 2026. À lire en premier dans une nouvelle session.
+
+## L'adoption passe par le serveur, la maison reste au Trône — 14 août
+
+RACINE DES DOUBLONS (Merine 12 août, Valerie 14 août) : `cli_sel` (0036) ne
+montre à une cliente que SES têtes — l'adoption par adresse, côté téléphone,
+était AVEUGLE (la fiche de la maison qui porte son e-mail lui est invisible)
+et l'app créait une fiche neuve, vide, à côté de la vraie. Deux comptes
+peuvent en plus naître sur UNE MÊME adresse (mot de passe d'un côté, Google
+de l'autre, tant que l'adresse n'est pas confirmée). MIGRATION
+0045_adopter_ma_fiche.sql (à coller) : RPC security definer qui lit
+l'adresse DU JETON et rend un verdict — `staff` (compte de la maison : le
+Trône est sa porte, JAMAIS de fiche cliente — demande de Yéman), `ok`,
+`adoptee` (fiche libre au même e-mail → authUserId posé), `occupee`
+(l'adresse est au compte d'un AUTRE → pas de doublon), `aucune`. Côté app
+(couronne/lib.ts) : `adopterMaFiche` (un appel par compte, verdict dans
+`adoptionStore`) AVANT toute création dans `useEnsureClient` — `adoptee`
+recharge une fois (les droits changent), `staff`/`occupee` ne créent rien ;
+`useCompteEnDouble` et `useCompteMaison` commandent deux écrans de garde
+dans App.tsx (« Cette adresse a déjà son espace. » / « Ce compte tient le
+Trône. » avec lien vers /trone/). Sans la 0045 collée, l'erreur RPC retombe
+sur le comportement d'avant. La soudure des données de Valerie reste à
+faire par SQL sur IDs (audit : supabase/local_valerie_audit.sql, gitignoré).
 
 ## Le Trône REÇOIT — réservations en attente et enfants rattachés — 13 août
 

@@ -3,7 +3,7 @@ import { asset } from '../../shared/asset';
 import { useAuth, requireAuth, signOut } from '../../shared/auth';
 import { useClients, useFamilies } from '../../shared/clients';
 import { ageDe, tetesPortees } from '../../shared/accounts';
-import { useEnsureClient, useActivityTracker, useClientId, useClient, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
+import { useEnsureClient, useActivityTracker, useClientId, useClient, useCompteEnDouble, useCompteMaison, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
@@ -223,6 +223,12 @@ function Shell() {
 export default function App() {
   const { session, loading } = useAuth();
   const { fermee, mot } = useCouronneFermee();
+  /* Cette session est-elle la SECONDE porte ouverte sur une même adresse ?
+     (mot de passe d'un côté, Google de l'autre — 14 août, Valerie). */
+  const double = useCompteEnDouble();
+  /* Ou le compte de la MAISON, qui n'a rien à faire ici ? Le Trône est sa
+     porte — ici, il se fabriquait une fiche cliente (14 août). */
+  const maison = useCompteMaison();
 
   /* Splash bref pendant la restauration de session. */
   if (loading) {
@@ -250,6 +256,59 @@ export default function App() {
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
             <h1 className="mc-closed__t">La maison est fermée.</h1>
             <p className="mc-closed__s">{mot}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* LE COMPTE DE LA MAISON N'OUVRE PAS MA COURONNE. Le Trône est sa porte —
+     ici, il se fabriquait une fiche cliente à côté du carnet qu'il tient. */
+  if (authed && maison) {
+    const lienTrone = `${window.location.origin}${window.location.pathname.startsWith('/couronne') ? '/trone/' : '/trone.html'}`;
+    return (
+      <div className="mc-app mc-app--auth">
+        <div className="mc-viewport">
+          <div className="mc-closed">
+            <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
+            <h1 className="mc-closed__t">Ce compte tient le Trône.</h1>
+            <p className="mc-closed__s">
+              Ma Couronne est la porte des clientes — le compte de la maison, lui, ouvre le
+              Trône. Pour essayer Ma Couronne, utilisez un compte de test qui n’est pas au
+              personnel.
+            </p>
+            <a className="mc-cta mc-cta--copper" style={{ marginTop: 18, display: 'inline-block', textDecoration: 'none' }} href={lienTrone}>
+              Ouvrir le Trône
+            </a>
+            <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={() => void signOut()}>
+              Se déconnecter
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* LA PORTE EST DÉJÀ OUVERTE AILLEURS. Cette adresse a son espace — ouvert
+     par une autre porte de connexion. Ouvrir un second espace vide à côté du
+     vrai (sans famille, sans enfants, sans historique) serait pire que de
+     refermer : on le dit, et on raccompagne. */
+  if (authed && double) {
+    return (
+      <div className="mc-app mc-app--auth">
+        <div className="mc-viewport">
+          <div className="mc-closed">
+            <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
+            <h1 className="mc-closed__t">Cette adresse a déjà son espace.</h1>
+            <p className="mc-closed__s">
+              Un compte existe déjà pour {session?.user?.email ?? 'cette adresse'} — ouvert par une
+              autre porte (e-mail et mot de passe, ou Google). Reconnectez-vous par la porte
+              utilisée la première fois pour retrouver votre couronne, vos enfants et vos
+              rendez-vous. Un doute ? Écrivez à la maison, on vous ouvre.
+            </p>
+            <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={() => void signOut()}>
+              Se déconnecter
+            </button>
           </div>
         </div>
       </div>

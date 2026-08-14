@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useStore } from '../../shared/store';
+import { createStore, useStore } from '../../shared/store';
 import { clientSessionsStore } from '../../shared/activity';
-import { useAuth } from '../../shared/auth';
+import { useAuth, useStaff } from '../../shared/auth';
+import { supabase } from '../../shared/supabase';
 import {
   useCategories,
   useServices,
@@ -99,6 +100,19 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
     );
     return;
   }
+  /* LA PORTE NE S'OUVRE PAS DEUX FOIS SUR LA MÊME ADRESSE (14 août, Valerie).
+     Deux comptes de connexion peuvent naître sur une même adresse tant qu'elle
+     n'est pas confirmée — mot de passe d'un côté, Google de l'autre. Le second
+     se fabriquait alors une fiche NEUVE : vide, sans famille, sans enfants —
+     pendant que la vraie couronne restait au premier compte. On ne crée JAMAIS
+     de fiche quand l'adresse est déjà portée par la fiche d'un autre compte :
+     l'écran de la porte déjà ouverte (App.tsx) le dira, un doublon jamais. */
+  const dejaPortee = mailBas
+    ? clientsStore.get().some((c) =>
+        (c.email ?? '').trim().toLowerCase() === mailBas
+        && !!c.authUserId && c.authUserId !== (authUserId ?? clientId))
+    : false;
+  if (dejaPortee) return;
   const local = (email ?? '').split('@')[0];
   const name = (fullName && fullName.trim())
     || (local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Cliente Ma Couronne');
@@ -121,12 +135,37 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
   );
 }
 
+/* ---------- L'ADOPTION PASSE PAR LE SERVEUR (0045, 14 août) ----------
+   La RLS ne montre à une cliente que SES têtes : l'adoption par adresse,
+   côté téléphone, était AVEUGLE — la fiche de la maison qui porte son e-mail
+   lui est invisible tant qu'elle ne lui appartient pas. L'app créait donc un
+   doublon vide pendant que la vraie couronne dormait à côté (Merine le
+   12 août, Valerie le 14). Le serveur, lui, voit tout : `adopter_ma_fiche`
+   lit l'adresse DU JETON et rend un verdict — ok, adoptee, occupee (l'adresse
+   est au compte d'un autre : porte déjà ouverte), staff (compte de la
+   maison), aucune. Le verdict se garde par compte, une demande par session. */
+export const adoptionStore = createStore<{ uid: string; statut: string } | null>('mnd_mc_adoption', null);
+const verdictsAdoption = new Map<string, Promise<string>>();
+function adopterMaFiche(uid: string): Promise<string> {
+  if (!supabase) return Promise.resolve('aucune');
+  if (!verdictsAdoption.has(uid)) {
+    verdictsAdoption.set(uid, Promise.resolve(supabase.rpc('adopter_ma_fiche')).then(({ data, error }) => {
+      /* 0045 pas encore collée dans Supabase → comportement d'avant. */
+      if (error) return 'aucune';
+      const statut = ((data as { statut?: string } | null)?.statut) ?? 'aucune';
+      adoptionStore.set({ uid, statut });
+      return statut;
+    }));
+  }
+  return verdictsAdoption.get(uid)!;
+}
+
 /** Garantit l'existence du dossier client dès qu'une session est ouverte.
 
-    LE DOSSIER EST RÉSOLU AVANT D'ÊTRE CRÉÉ : `useClientId` a déjà cherché la
-    fiche de cette cliente par son compte, puis par son adresse. On ne crée donc
-    qu'en dernier recours — et le compte s'inscrit sur la fiche trouvée, pour
-    que la reconnaissance ne dépende plus jamais de l'adresse. */
+    LE DOSSIER EST RÉSOLU AVANT D'ÊTRE CRÉÉ : le serveur adopte d'abord
+    (`adopter_ma_fiche` — le seul à voir les fiches sans compte), et la
+    création n'est que le dernier recours. Un compte de la maison, ou une
+    adresse déjà au compte d'un autre, ne crée JAMAIS rien ici. */
 export function useEnsureClient(): string {
   const { session } = useAuth();
   const clientId = useClientId();
@@ -149,7 +188,23 @@ export function useEnsureClient(): string {
        fiche historique — famille, enfants, rituels — attendait d'être reconnue
        par son adresse (Merine, 12 août). */
     if (!tablePrete('clients')) return;
-    ensureClient(clientId, session?.user?.email, undefined, metaName, uid);
+    void (async () => {
+      if (uid && supabase) {
+        const statut = await adopterMaFiche(uid);
+        /* La maison n'ouvre pas d'espace cliente ; une adresse au compte d'un
+           autre non plus — les écrans d'App.tsx disent chacun leur mot. */
+        if (statut === 'staff' || statut === 'occupee') return;
+        if (statut === 'adoptee') {
+          /* La fiche vient de devenir la nôtre CÔTÉ SERVEUR : un rechargement
+             la lit avec les bons droits (famille, enfants, rituels compris).
+             Pas de boucle possible — au prochain passage, le verdict est
+             « ok ». */
+          window.location.reload();
+          return;
+        }
+      }
+      ensureClient(clientId, session?.user?.email, undefined, metaName, uid);
+    })();
   }, [clientId, session?.user?.email, metaName, uid, branches, tousClients]);
   return clientId;
 }
@@ -158,6 +213,38 @@ export function useClient(): Client | undefined {
   const [clients] = useClients();
   const clientId = useClientId();
   return clients.find((c) => c.id === clientId);
+}
+
+/** LA PORTE DÉJÀ OUVERTE — cette session est-elle un DOUBLON ? Le verdict
+    vient du SERVEUR (`adopter_ma_fiche`, seul à voir les fiches des autres) ;
+    la lecture locale reste en second — elle vaut en dev, sans backend. L'app
+    doit alors le dire et refermer — jamais ouvrir un espace vide à côté du
+    vrai (Valerie, 14 août : deux comptes sur la même adresse). */
+export function useCompteEnDouble(): boolean {
+  const { session } = useAuth();
+  const [clients] = useClients();
+  const [verdict] = useStore(adoptionStore);
+  const uid = session?.user?.id;
+  const mail = (session?.user?.email ?? '').trim().toLowerCase();
+  if (!uid) return false;
+  if (verdict?.uid === uid && verdict.statut === 'occupee') return true;
+  if (!mail) return false;
+  /* Sa fiche à elle existe (née de son compte ou adoptée) : pas un doublon. */
+  if (clients.some((c) => c.authUserId === uid || c.id === uid)) return false;
+  return clients.some((c) =>
+    (c.email ?? '').trim().toLowerCase() === mail && !!c.authUserId && c.authUserId !== uid);
+}
+
+/** CE COMPTE EST CELUI DE LA MAISON — le Trône est sa porte, pas Ma Couronne
+    (14 août, demande de Yéman). Deux juges qui se recoupent : le verdict du
+    serveur (`statut: staff`) et la table `staff` elle-même — chacun suffit. */
+export function useCompteMaison(): boolean {
+  const { session } = useAuth();
+  const [verdict] = useStore(adoptionStore);
+  const staff = useStaff();
+  const uid = session?.user?.id;
+  if (!uid) return false;
+  return (verdict?.uid === uid && verdict.statut === 'staff') || !!staff;
 }
 
 export function firstName(name: string | undefined): string {
