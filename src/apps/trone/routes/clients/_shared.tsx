@@ -1956,9 +1956,25 @@ export function ClientPicker({
     });
   };
 
-  const enregistrePassage = () => {
+  /* LA GARDE ANTI-DOUBLON (14 août — la Jade en double chez Ruth). Le petit
+     formulaire créait sans regarder le carnet : taper le nom d'une tête déjà
+     inscrite ouvrait une SECONDE fiche — deux Jade, deux suivis, deux comptes.
+     Même nom (aplati, sans accents) ou même téléphone → on PROPOSE la fiche
+     existante au lieu de la doubler. « Créer quand même » reste offert : les
+     homonymes existent, mais ils se créent les yeux ouverts. */
+  const [deja, setDeja] = useState<Client | null>(null);
+
+  const enregistrePassage = (force = false) => {
     const nom = (passage?.name ?? '').trim();
     if (!nom) return;
+    if (!force) {
+      const plat = (s: string) => norm(s).replace(/\s+/g, ' ').trim();
+      const telSaisi = digits(passage?.phone ?? '');
+      const trouve = clients.find((c) => !c.archived
+        && (plat(c.name) === plat(nom)
+          || (telSaisi.length >= 8 && digits(c.phone) === telSaisi)));
+      if (trouve) { setDeja(trouve); return; }
+    }
     const c = clienteDePassage({
       branchId: branch.id,
       name: nom,
@@ -1971,6 +1987,17 @@ export function ClientPicker({
     });
     clientsStore.set((prev) => [...prev, c]);
     onChange(c.id);
+    setDeja(null);
+    setPassage(null);
+    setOpen(false);
+    setQuery('');
+  };
+
+  /* La tête existante est prise telle quelle — c'est le geste attendu. */
+  const prendreExistante = () => {
+    if (!deja) return;
+    onChange(deja.id);
+    setDeja(null);
     setPassage(null);
     setOpen(false);
     setQuery('');
@@ -1998,7 +2025,7 @@ export function ClientPicker({
             value={passage.name}
             placeholder="Prénom"
             aria-label="Prénom de la cliente de passage"
-            onChange={(e) => setPassage({ ...passage, name: e.target.value })}
+            onChange={(e) => { setPassage({ ...passage, name: e.target.value }); setDeja(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enregistrePassage(); } }}
           />
           <input
@@ -2007,12 +2034,24 @@ export function ClientPicker({
             placeholder="Téléphone"
             inputMode="tel"
             aria-label="Téléphone de la cliente de passage"
-            onChange={(e) => setPassage({ ...passage, phone: e.target.value })}
+            onChange={(e) => { setPassage({ ...passage, phone: e.target.value }); setDeja(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enregistrePassage(); } }}
           />
+          {deja && (
+            <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 2, background: 'var(--copper-50, #f9efe7)', padding: '10px 12px' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--color-indigo)', lineHeight: 1.5 }}>
+                Cette tête est déjà au carnet — <b style={{ fontWeight: 600 }}>{deja.name}</b>
+                {deja.phone ? ` · ${deja.phone}` : ''}.
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                <Button size="sm" variant="copper" onClick={prendreExistante}>Prendre sa fiche</Button>
+                <Button size="sm" variant="ghost" onClick={() => enregistrePassage(true)}>Créer quand même · homonyme</Button>
+              </div>
+            </div>
+          )}
           <div className="trc-passage__foot">
-            <button type="button" className="trc-passage__cancel" onClick={() => setPassage(null)}>Annuler</button>
-            <Button variant="copper" onClick={enregistrePassage} disabled={!passage.name.trim()}>Enregistrer</Button>
+            <button type="button" className="trc-passage__cancel" onClick={() => { setPassage(null); setDeja(null); }}>Annuler</button>
+            <Button variant="copper" onClick={() => enregistrePassage()} disabled={!passage.name.trim()}>Enregistrer</Button>
           </div>
           <div className="trc-passage__note">
             Son rituel comptera au chiffre et à la production du maître. Elle

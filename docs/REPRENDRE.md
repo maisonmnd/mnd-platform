@@ -13,8 +13,13 @@ RPC). Soudure par IDs : supabase/local_ruth_soudure.sql (gitignoré) — la
 famille du Trône est gardée, la Jade doublée effacée (vécu re-pointé), la
 fiche-carnet sans e-mail (MND-…) FUSIONNÉE dans la fiche du compte (carnet
 = socle, champs non vides du compte par-dessus, nom du carnet gardé).
-À POSER UN JOUR : la garde « tête déjà au carnet » dans le rattachement de
-Finances › Comptes (elle n'existe que dans la RPC et AjoutEnfantAuCompte).
+GARDE POSÉE (14 août, plus tard le même jour) : `ClientPicker` —
+le formulaire « Cliente de passage » vérifie désormais le carnet AVANT de
+créer (même nom aplati sans accents, ou même téléphone à 8+ chiffres) et
+PROPOSE la fiche existante (« Prendre sa fiche ») ; « Créer quand même ·
+homonyme » reste offert, les yeux ouverts. L'avertissement s'efface à la
+frappe. Un seul point de garde protège TOUS les chemins de création
+rapide : compte famille (Comptes), RDV, caisse.
 
 ## Le lien de famille se répare à chaque entrée — 14 août
 
