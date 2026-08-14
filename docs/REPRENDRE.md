@@ -34,7 +34,13 @@ supabase/local_valerie_soudure.sql (gitignoré) — garde fam-026504110d,
 y range les 4 enfants, efface la famille vide. PIÈGE DE FOND documenté :
 les poussées « ligne entière » d'une copie froide peuvent effacer des
 champs posés par le serveur sur la fiche cliente — 0046 ne guérit que
-familyId, par re-pose.
+familyId, par re-pose. DERNIER MUR TROUVÉ ENSUITE : `families` n'avait
+QUE `staff_all` — zéro ligne côté cliente, donc `tetesPortees` ne trouvait
+jamais la famille et Ma Couronne n'affichait aucun enfant (données bonnes,
+porte de lecture absente). MIGRATION 0047_familles_lisibles.sql (à
+coller) : `est_ma_famille(fam)` security definer + politique `fam_sel`
+(SELECT) — une cliente lit LA famille que sa fiche pointe ou dont elle est
+payeuse ; l'écriture reste staff + RPC.
 
 ## Le Trône REÇOIT — réservations en attente et enfants rattachés — 13 août
 
