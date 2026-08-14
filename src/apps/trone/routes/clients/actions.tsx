@@ -287,6 +287,23 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
 
 /* ---------- Encaisser un RDV — Tableau de bord / Calendrier / Carnet ---------- */
 
+/* LES PALIERS DE L'ENCAISSEMENT (14 août, maquette validée par Yéman) :
+   ce qu'elle doit · comment elle règle · et ensuite. L'argent se compte à voix
+   haute, dans cet ordre. */
+function PalierEnc({ n, titre, aide }: { n: number; titre: string; aide?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
+      <span style={{
+        flex: 'none', width: 21, height: 21, borderRadius: '50%', border: '1px solid var(--color-copper)',
+        color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 11.5,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>{n}</span>
+      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{titre}</span>
+      {aide && <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>{aide}</span>}
+    </div>
+  );
+}
+
 export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
   const { branch, currency } = useBranch();
   const byId = useServicesById();
@@ -682,14 +699,41 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   return (
     <Modal title="Encaisser le rituel" onClose={onClose} width={440}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="mnd-muted" style={{ fontSize: 13 }}>
-          {client?.name ?? 'Cliente'} · {apptLabel(appt, byId)}
+        {/* ═══ LE BANDEAU VIVANT (14 août, maquette validée) — il ne bouge
+            jamais. Le nombre qu'on cherche en ouvrant, c'est le RESTE À
+            ENCAISSER : il vivait au milieu de la coulée, après le total, le
+            forfait, l'acompte et les versements. Il monte en tête, en grand. */}
+        <div style={{
+          position: 'sticky', top: -1, zIndex: 3, margin: '-4px -2px 0',
+          background: 'var(--color-indigo)', borderRadius: 3, padding: '13px 16px',
+        }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-ivoire)' }}>
+            Encaisser · {client?.name ?? 'Cliente'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-invert-soft, #C9C3DB)', marginTop: 4 }}>
+            {apptLabel(appt, byId)} · {frShort(appt.date)}{appt.master ? ` · avec ${appt.master}` : ''}
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
+            marginTop: 11, paddingTop: 10, borderTop: '1px solid var(--hairline-invert)',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--ink-invert-soft, #C9C3DB)' }}>
+              Reste à encaisser
+            </span>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, color: 'var(--copper-200)', lineHeight: 1, whiteSpace: 'nowrap' }}>
+              {fmtMoney(due, currency)}
+            </span>
+          </div>
         </div>
+
         {isFamilyPayer && (
           <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '4px 11px', alignSelf: 'flex-start' }}>
             Compte famille — facturé à {payerClient?.name ?? 'au parent payeur'}
           </div>
         )}
+
+        {/* ① CE QU'ELLE DOIT — le compte du rituel, avant tout règlement. */}
+        <PalierEnc n={1} titre="Ce qu’elle doit" />
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span className="mnd-muted">
             {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
@@ -788,8 +832,10 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid, currency)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18 }}>
-          <span>Reste à encaisser</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
+        {/* Le total DÛ ferme le palier ① — le « reste à encaisser » a pris la
+            tête de l'écran, dans le bandeau. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
+          <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
         {alreadyPaid > 0 && (
           <button
@@ -832,6 +878,81 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             jour du rituel, paiement = aujourd'hui), elles n'occupent l'écran
             que si on les change. La règle reste vraie : c'est la date du
             PAIEMENT qui range l'encaissement dans le bon mois. */}
+        {/* ② COMMENT ELLE RÈGLE — deux tiroirs, un seul total. L'avoir et le
+            comptant sont deux façons de payer la même somme : ils vivaient en
+            deux champs qui ne s'additionnaient jamais devant la main, et rien
+            ne disait si le compte tombait juste. Le moyen de paiement et la
+            caisse ne concernent QUE l'argent qui entre vraiment : ils se
+            rangent dans le tiroir du comptant. */}
+        <PalierEnc n={2} titre="Comment elle règle" aide={avoirBal > 0 ? 'deux tiroirs, un seul total' : undefined} />
+
+        {avoirBal > 0 && (
+          <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 13px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Sur son avoir</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>disponible {fmtMoney(avoirBal, currency)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 9 }}>
+              <Input type="number" min={0} max={Math.min(avoirBal, due)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} aria-label="Montant réglé par l'avoir" />
+              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => { const v = Math.min(avoirBal, due); setAvoirStr(String(v)); setAmountStr(String(Math.max(0, due - v))); }}>Tout</button>
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''} — déduit sans passer par la caisse.
+            </div>
+          </div>
+        )}
+
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 13px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Comptant, maintenant</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>ce qui entre en caisse</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 9 }}>
+            <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} aria-label="Montant encaissé comptant" />
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Le reste</button>
+          </div>
+          {amount > 0 && (
+            <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 10 }}>
+              <Field label="Moyen de paiement">
+                <Select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod)}>
+                  {methods.map((m) => <option key={m} value={m}>{m}</option>)}
+                </Select>
+              </Field>
+              {eligibleBoxes.length > 0 && (
+                <Field label="Caisse">
+                  <Select value={activeBox} onChange={(e) => setCashbox(e.target.value)}>
+                    {eligibleBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </Select>
+                </Field>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* LA LIGNE QUI ADDITIONNE — elle dit tout haut si le compte tombe
+            juste, ou ce qu'il manque. C'est elle qui manquait. */}
+        {due > 0 && settleTotal > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+            borderRadius: 3, padding: '10px 13px', fontSize: 13,
+            background: remainingAfter === 0 ? 'var(--color-sable)' : 'var(--copper-50)',
+            border: `1px solid ${remainingAfter === 0 ? 'var(--hairline)' : 'var(--copper-300)'}`,
+          }}>
+            <span className="mnd-muted">
+              {avoirApplied > 0 ? `${fmtMoney(avoirApplied, currency)} sur l’avoir` : ''}
+              {avoirApplied > 0 && amount > 0 ? ' + ' : ''}
+              {amount > 0 ? `${fmtMoney(amount, currency)} comptant` : ''}
+            </span>
+            <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
+              {remainingAfter === 0 ? 'tout est réglé' : `il resterait ${fmtMoney(remainingAfter, currency)} dû`}
+            </b>
+          </div>
+        )}
+
+        {/* LES DEUX DATES, REPLIÉES EN UNE LIGNE : justes par défaut (facture =
+            jour du rituel, paiement = aujourd'hui), elles n'occupent l'écran
+            que si on les change. La règle reste vraie : c'est la date du
+            PAIEMENT qui range l'encaissement dans le bon mois. */}
         {!datesOuvertes ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12 }}>
             <span className="mnd-muted">
@@ -852,35 +973,9 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             </Field>
           </div>
         )}
-        {avoirBal > 0 && (
-          <Field label={`Régler par l'avoir · disponible ${fmtMoney(avoirBal, currency)}`}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <Input type="number" min={0} max={Math.min(avoirBal, due)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
-              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => { const v = Math.min(avoirBal, due); setAvoirStr(String(v)); setAmountStr(String(Math.max(0, due - v))); }}>Max</button>
-            </div>
-            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''} — déduit sans passer par la caisse.
-            </div>
-          </Field>
-        )}
-        <Field label="Encaissé maintenant (comptant)">
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} />
-            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Tout</button>
-          </div>
-        </Field>
-        <Field label="Moyen de paiement">
-          <Select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod)}>
-            {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-          </Select>
-        </Field>
-        {eligibleBoxes.length > 0 && (
-          <Field label="Caisse">
-            <Select value={activeBox} onChange={(e) => setCashbox(e.target.value)}>
-              {eligibleBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </Select>
-          </Field>
-        )}
+
+        {/* ③ ET ENSUITE — ce qui suit le paiement et n'entre pas dans son calcul. */}
+        <PalierEnc n={3} titre="Et ensuite" aide="facultatif" />
         <Field label="Pourboire (F CFA) — partagé entre l’équipe">
           <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} />
         </Field>

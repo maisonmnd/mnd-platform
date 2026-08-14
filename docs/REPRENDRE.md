@@ -19,10 +19,17 @@ NOTE se replie (`noteOuverte`, ouverte si l'appt en porte une) derrière
 « + Une note au carnet » ; ⑤ LE PIED : Enregistrer (cuivre) + Encaisser
 gardent leur place ; annuler et supprimer passent EN PETIT sous eux, avec
 leurs confirmations. À la CRÉATION, les DEUX boutons restent (Confirmer /
-En attente — décision de Yéman). RESTE À FAIRE : l'écran 2 de la maquette
-(l'encaissement — reste à encaisser vivant dans le bandeau, deux tiroirs
-avoir/comptant qui s'additionnent, caisse rangée sous le comptant,
-pourboire et prochain RDV sous « Et ensuite »).
+En attente — décision de Yéman). ÉCRAN 2 CONSTRUIT dans la foulée
+(PayAppointmentModal, actions.tsx) : bandeau sticky « Encaisser · Nom »
+avec le RESTE À ENCAISSER en 30 px ; trois paliers (`PalierEnc`) — ①
+Ce qu'elle doit (total, forfait, acompte, versements, « Total dû » qui
+ferme le palier) · ② Comment elle règle : DEUX TIROIRS encadrés (Sur son
+avoir / Comptant, maintenant), boutons renommés « Tout » et « Le reste »,
+MOYEN + CAISSE RANGÉS DANS LE TIROIR DU COMPTANT et masqués si rien
+n'entre, puis LA LIGNE QUI ADDITIONNE (« 3 500 F sur l'avoir + 5 000 F
+comptant — tout est réglé » / « il resterait N F dû ») — c'est elle qui
+manquait ; les deux dates repliées suivent · ③ Et ensuite (facultatif) :
+pourboire, devise, reprogrammation.
 
 ## Comptes & Avoirs revisitée : deux registres — 14 août
 
