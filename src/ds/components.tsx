@@ -1,5 +1,5 @@
 import { asset } from '../shared/asset';
-import { useEffect, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 /* MND — primitives React partagées. Styles dans ds.css. */
 
@@ -88,9 +88,33 @@ export function Stat({
   );
 }
 
+/* UN CHAMP — et le piège que ce composant portait depuis le début (14 août).
+
+   `Field` enveloppe son contenu dans un `<label>`. Or un `<label>` sans `for`
+   transmet TOUT clic à son PREMIER descendant étiquetable — et un `<button>`
+   en est un. Partout où un champ porte des pastilles (le mode de prix, le
+   palier, les membres d'un compte, la remise famille…), cliquer sur le
+   libellé ou dans le vide à côté APPUYAIT sur la première pastille : le taux
+   personnalisé saisi redevenait le barème, le premier membre devenait payeur,
+   le mode de prix retombait sur le premier. Rien ne le disait, et la main
+   croyait à un caprice de l'écran.
+
+   On garde le `<label>` — il nomme le champ pour les lecteurs d'écran — mais
+   on coupe le renvoi : un clic hors commande donne le focus au premier vrai
+   champ de saisie, et n'actionne plus jamais un bouton. */
 export function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
+  const ref = useRef<HTMLLabelElement>(null);
   return (
-    <label className="mnd-field">
+    <label
+      ref={ref}
+      className="mnd-field"
+      onClick={(e) => {
+        /* Clic sur une vraie commande : elle fait son travail, on ne touche à rien. */
+        if ((e.target as HTMLElement).closest('input, select, textarea, button, a, [role="button"]')) return;
+        e.preventDefault();
+        ref.current?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+      }}
+    >
       <span className="mnd-field__label">{label}</span>
       {children}
     </label>
