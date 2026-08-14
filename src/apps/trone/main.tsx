@@ -1,4 +1,7 @@
 import '../../shared/preload-guard';
+/* La mise à jour automatique (2 août) — branchée le 14 : sans cet import,
+   une app installée ne voyait jamais un déploiement. */
+import '../../shared/version';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createHashRouter, RouterProvider } from 'react-router-dom';

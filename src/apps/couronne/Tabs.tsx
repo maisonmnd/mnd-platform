@@ -1697,6 +1697,16 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => void signOut()}>
         Se déconnecter
       </button>
+      {/* L'EMPREINTE DE VERSION — pour lire d'un coup d'œil quelle construction
+          ce téléphone porte (14 août : « les écrans ne sont jamais publiés »
+          alors que le site en ligne était à jour — impossible à trancher sans
+          elle). Le format du build est AAAAMMJJHHMMSS. */}
+      {(() => {
+        const b = (import.meta.env.VITE_BUILD_ID as string | undefined) ?? '';
+        const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(b);
+        const mot = m ? `Version du ${Number(m[3])} ${MONTHS[Number(m[2]) - 1].toLowerCase()} ${m[1]} · ${m[4]}:${m[5]}` : 'Version de développement';
+        return <div className="mc-footnote" style={{ marginTop: 10 }}>{mot}</div>;
+      })()}
       <div style={{ height: 12 }} />
     </div>
   );

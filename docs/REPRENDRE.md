@@ -2,6 +2,21 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La mise à jour automatique enfin BRANCHÉE — 14 août
+
+« Les écrans ne sont jamais publiés » (Yéman) alors que gh-pages ET le
+bundle servi en ligne étaient à jour (vérifié par ls-remote + lecture HTTP
+du HTML servi). Cause : `shared/version.ts` (écrit le 2 août — compare le
+`version.json` déposé par build-sites au VITE_BUILD_ID compilé, recharge
+une fois au démarrage/focus) n'était IMPORTÉ NULLE PART. Une app installée
+repartait de sa copie d'index.html et ne voyait jamais un déploiement.
+Branché dans LES SEPT entrées (`import '../../shared/version'` dans chaque
+main.tsx + portal). L'empreinte se LIT désormais : Profil de Ma Couronne,
+« Version du 14 août 2026 · 11:42 » (décodée de VITE_BUILD_ID
+AAAAMMJJHHMMSS). CE déploiement est le dernier à exiger un
+rafraîchissement manuel des appareils ; ensuite l'app se met à jour seule
+(délai possible ≈ 10 min — cache CDN de GitHub Pages sur version.json).
+
 ## L'adoption passe par le serveur, la maison reste au Trône — 14 août
 
 RACINE DES DOUBLONS (Merine 12 août, Valerie 14 août) : `cli_sel` (0036) ne
