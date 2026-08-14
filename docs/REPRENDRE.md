@@ -2,6 +2,19 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La passe éditoriale de Ma Couronne — 14 août
+
+Règle de Yéman : « élimine tous les textes inutiles, simplifie
+l'accueil ». Chaque phrase doit porter un GESTE ou une INFORMATION — ce
+qui ne fait que décorer sort. Retirés/raccourcis : la citation de la
+maison (une carte entière à chaque ouverture), « Votre couronne mérite sa
+prochaine séance… » → « La maison vous attend. », « Mes rendez-vous ·
+voir, déplacer, annuler » → « Mes rendez-vous », « Composez votre rituel
+sur-mesure » → « Rituel sur-mesure », la ligne d'explication du bilan
+(la prestation seule suffit), et les trois slides d'entrée à UNE ligne
+chacune. Cercle/Profil/Suivi inchangés — leurs phrases portent des
+chiffres et des seuils.
+
 ## Une seule porte fédérée : Google — 14 août
 
 Décision Yéman : les portes Apple et WhatsApp SORTENT de Ma Couronne

@@ -18,27 +18,29 @@ import { pushNotifyStaff } from '../../shared/push';
    aussitôt. En enchaînant les deux appels dans une seule soumission, le mot de
    passe est bien redéfini avant que la cliente ne parte dans l'app. */
 
+/* UNE LIGNE PAR PANNEAU (14 août — « élimine tous les textes inutiles ») :
+   le panneau se lit en une seconde, la photo fait le reste. */
 const SLIDES = [
   {
     photo: asset('/assets/photos/portrait-3.jpg'),
     pos: 'center 25%',
     eyebrow: 'Bénin · Édition Souveraine',
     title: 'Ma Couronne.',
-    copy: 'Votre rituel, vos locks, votre lignée — réunis dans un seul espace. Réservez, suivez votre couronne, transmettez la reconnaissance.',
+    copy: 'Vos rendez-vous, votre suivi, votre Cercle — dans votre poche.',
   },
   {
     photo: asset('/assets/photos/model-microlocks.jpg'),
     pos: 'center 20%',
     eyebrow: 'La maison vous guide',
     title: 'Réservez en sept temps.',
-    copy: 'De l’objectif à l’acompte Mobile Money, chaque décision est simple, claire, accompagnée par vos maîtres.',
+    copy: 'Quelques gestes, acompte Mobile Money compris.',
   },
   {
     photo: asset('/assets/photos/portrait-2.jpg'),
     pos: 'center 25%',
     eyebrow: 'Mèche après mèche',
     title: 'Suivez votre couronne.',
-    copy: 'Avant, après, chaque séance consignée dans votre Carnet de Suivi — le héros, c’est vous. MND veille.',
+    copy: 'Chaque séance consignée dans votre Carnet de Suivi.',
   },
 ];
 

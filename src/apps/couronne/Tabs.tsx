@@ -384,11 +384,9 @@ export function HomeTab({
           </button>
         )}
 
-        {/* citation de la maison */}
-        <div className="mc-quote">
-          <span className="mc-quote__mark">“</span>
-          <div>Vous êtes l’héroïne de cette transformation. Mèche après mèche, depuis plus de 20 ans, la maison veille.</div>
-        </div>
+        {/* LA CITATION EST RETIRÉE (14 août — « élimine tous les textes
+            inutiles ») : une phrase qui ne porte ni geste ni information
+            occupait une carte entière à chaque ouverture. */}
 
         {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2) : la
             séance prise, ou la séance PRÉDITE avec ses deux gestes. Le vide
@@ -443,11 +441,11 @@ export function HomeTab({
           ) : (
             <>
               <div className="mc-nextrdv__service">Aucun rituel à venir</div>
-              <div className="mc-nextrdv__when">Votre couronne mérite sa prochaine séance — réservez en sept temps.</div>
+              <div className="mc-nextrdv__when">La maison vous attend.</div>
             </>
           )}
           <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
-            Mes rendez-vous · voir, déplacer, annuler
+            Mes rendez-vous
           </button>
         </div>
 
@@ -543,7 +541,7 @@ export function HomeTab({
         )}
         {!moduleHidden(client, 'compose') && (
           <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onOpenCompose}>
-            ✦ Composez votre rituel sur-mesure
+            ✦ Rituel sur-mesure
           </button>
         )}
 
@@ -555,9 +553,7 @@ export function HomeTab({
               <div className="mc-recocard__body">
                 <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>Le Carnet de Suivi</div>
                 <div className="mc-recocard__name">Séance du {dayLabelIso(monBilan.date)}</div>
-                <div className="mc-recocard__line">
-                  {monBilan.prestation ?? 'Rituel de la maison'} — l’état de votre couronne, geste par geste.
-                </div>
+                <div className="mc-recocard__line">{monBilan.prestation ?? 'Rituel de la maison'}</div>
               </div>
               <span className="mc-arrowbtn" aria-hidden="true">→</span>
             </button>
