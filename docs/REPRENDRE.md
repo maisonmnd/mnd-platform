@@ -2,6 +2,26 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La fusion de fiches, un geste du comptoir — 14 août
+
+« Je peux faire la soudure moi-même » (Yéman). Le moteur :
+`shared/fusion.ts` — `survivantDe` (la fiche au COMPTE survit toujours, un
+compte ne déménage pas ; sans compte des deux côtés, la fiche ouverte ;
+deux comptes → refus motivé) et `fusionnerFiches` (même mécanique que les
+soudures SQL éprouvées : absorbée = SOCLE, champs remplis du survivant
+par-dessus, nom d'attente « Cliente Ma Couronne » écarté, points
+ADDITIONNÉS, segments unis, since/crownSince = plus ancien, dePassage
+seulement si les deux ; l'histoire suit — appointments (+offertPar),
+invoices, bilans, client_sessions, enfants_declares (clientId ET
+clientCreeId), families.payerClientId, credit_movements holder client —
+puis la coquille s'efface). Le geste : fiche 360 → « Fusionner avec une
+autre fiche… » (au-dessus de Retirer de la Maison) → FusionModal
+(ClientPicker, qui survit et pourquoi, compte des RDV qui suivent,
+window.confirm, rouvre la fiche gardée). L'outil web « Les adresses du
+carnet » (artifact claude.ai + supabase/local_export_adresses.sql,
+gitignoré) reste la PRÉVENTION : adresse posée avant la 1ʳᵉ connexion =
+adoption automatique, zéro fusion à faire.
+
 ## La passe éditoriale de Ma Couronne — 14 août
 
 Règle de Yéman : « élimine tous les textes inutiles, simplifie

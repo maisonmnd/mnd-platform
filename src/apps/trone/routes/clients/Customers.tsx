@@ -31,11 +31,12 @@ import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera } from 'lucide-react';
 import {
-  Avatar, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
+  Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptNetXof, cadenceLabel, frLong, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
+import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 
@@ -435,6 +436,78 @@ function AjoutEnfantAuCompte({ famille, parent, tetes }: { famille: Family; pare
         <Button variant="ghost" size="sm" onClick={() => { setOuvert(false); setErreur(''); }}>Annuler</Button>
       </div>
     </div>
+  );
+}
+
+/* LA MODALE DE FUSION (14 août) — choisir l'autre fiche, lire qui survit et
+   ce qui suit, confirmer. La règle ne se choisit pas à la main : la fiche au
+   COMPTE survit toujours (un compte ne déménage pas) ; sans compte des deux
+   côtés, celle que l'on tient ouverte. Deux comptes : refus motivé. */
+function FusionModal({ client, onClose, onDone }: {
+  client: Client;
+  onClose: () => void;
+  onDone: (survivantId: string) => void;
+}) {
+  const tetes = useBranchClients();
+  const appts = useBranchAppointments();
+  const [autreId, setAutreId] = useState('');
+  const autre = autreId && autreId !== client.id ? tetes.find((c) => c.id === autreId) : undefined;
+  const duo = autre ? survivantDe(client, autre) : null;
+  const refus = duo && 'erreur' in duo ? duo.erreur : null;
+  const paire = duo && !('erreur' in duo) ? duo : null;
+  const nRdv = paire ? appts.filter((x) => x.clientId === paire.absorbee.id).length : 0;
+
+  const fusionner = () => {
+    if (!paire) return;
+    const ok = window.confirm(
+      `Fondre « ${paire.absorbee.name} » dans « ${paire.survivant.name} » ? `
+      + `Son histoire suit (${nRdv} rendez-vous), puis sa fiche s'efface. Ce geste ne se défait pas.`,
+    );
+    if (!ok) return;
+    fusionnerFiches(paire.survivant.id, paire.absorbee.id);
+    onDone(paire.survivant.id);
+  };
+
+  return (
+    <Modal title="Fusionner deux fiches." onClose={onClose} width={520}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <p className="trc-sub" style={{ margin: 0, lineHeight: 1.6 }}>
+          Deux fiches pour une même personne — l’une porte l’histoire, l’autre est née
+          d’une inscription. La fusion les fond en une seule : l’historique suit
+          (rendez-vous, factures, bilans, famille, avoir), les points s’additionnent,
+          la coquille s’efface.
+        </p>
+        <Field label={`Fondre « ${client.name} » avec…`}>
+          <ClientPicker value={autreId} onChange={setAutreId} placeholder="Chercher son autre fiche (nom, téléphone)…" />
+        </Field>
+
+        {refus && (
+          <div className="trc-sub" style={{ color: 'var(--copper-700)', lineHeight: 1.6 }}>{refus}</div>
+        )}
+
+        {paire && (
+          <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 14px' }}>
+            <div className="trc-sub" style={{ lineHeight: 1.7 }}>
+              Fiche gardée : <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>{paire.survivant.name}</b>
+              {paire.survivant.authUserId
+                ? ' — elle porte le compte Ma Couronne, le compte ne déménage pas.'
+                : ' — celle que vous tenez ouverte.'}
+              <br />
+              Fiche fondue : <b style={{ fontWeight: 600 }}>{paire.absorbee.name}</b>
+              {nRdv > 0 ? ` — ses ${nRdv} rendez-vous suivent,` : ' —'} son téléphone, sa famille et
+              son histoire passent sur la fiche gardée, puis elle s’efface.
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="copper" style={{ flex: 1 }} onClick={fusionner} disabled={!paire}>
+            Fusionner
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -1084,6 +1157,7 @@ function Customer360({
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
+  const [fusionOpen, setFusionOpen] = useState(false);
   const [allTemps] = useClientTemps();
   const myTemps = tempsOf(allTemps, client.id);
   const today = todayISO();
@@ -2418,6 +2492,18 @@ function Customer360({
           </div>
         </div>
 
+        {/* LA FUSION — le geste qui soude un doublon sans SQL (14 août).
+            Une cliente inscrite avant que sa fiche ne porte son adresse vit
+            en deux fiches : la vraie (l'histoire) et la neuve (le compte).
+            Ce bouton les fond en une seule — l'historique suit, la coquille
+            s'efface. */}
+        <div style={{ marginTop: 14 }}>
+          <span className="trc-microlabel">Deux fiches pour une même personne ?</span>
+          <Button variant="ghost" size="sm" onClick={() => setFusionOpen(true)}>
+            Fusionner avec une autre fiche…
+          </Button>
+        </div>
+
         {/* Retrait de la Maison — archive (doux) ou suppression définitive */}
         <div className="trc-danger">
           <span className="trc-microlabel">Retirer de la Maison</span>
@@ -2433,6 +2519,17 @@ function Customer360({
             L’archivage la retire des listes sans l’effacer. La suppression est définitive.
           </p>
         </div>
+
+        {fusionOpen && (
+          <FusionModal
+            client={client}
+            onClose={() => setFusionOpen(false)}
+            onDone={(survivantId) => {
+              setFusionOpen(false);
+              onOpen(survivantId);
+            }}
+          />
+        )}
         </>
         )}
       </div>
