@@ -1284,13 +1284,34 @@ export function RdvModal({
               ? `${chosen.length} prestation${chosen.length > 1 ? 's' : ''} · ${fmtDureeCourte(chosen.reduce((s, sv) => s + sv.durationMin, 0))}`
               : undefined}
           />
+          {/* LE MAÎTRE AU FAUTEUIL, ICI — c'est lui qui exécute le rituel, et
+              chaque prestation le nomme juste dessous. Il tenait un champ à
+              part en bas de page, à côté du statut : deux choses qui n'ont
+              rien à voir. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9 }}>
+            <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none' }}>Au fauteuil</span>
+            <Select
+              value={master}
+              onChange={(e) => setMaster(e.target.value)}
+              style={{ flex: '0 1 220px', minWidth: 0 }}
+              aria-label="Maître au fauteuil"
+            >
+              {branch.masters.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </Select>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
             {chosen.map((sv, i) => (
               <div
                 key={sv.id}
                 style={{
+                  /* LA BANDE CLAIRE (14 août, maquette) : `--surface-card` vaut
+                     l'ivoire du papier — la prestation se fondait dans la
+                     modale, on ne voyait plus où commençait chaque geste. Le
+                     sable est la surface alternative de la maison. */
                   border: '1px solid var(--hairline)', borderRadius: 2, padding: '11px 14px',
-                  background: 'var(--surface-card)',
+                  background: 'var(--color-sable)',
                 }}
               >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -1592,30 +1613,21 @@ export function RdvModal({
           </Field>
         </div>
 
-        <div className="tr-grid tr-grid--2">
-          <Field label="Maître au fauteuil">
-            <Select value={master} onChange={(e) => setMaster(e.target.value)}>
-              {branch.masters.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+        {/* LE MAÎTRE A QUITTÉ LE BAS DE PAGE (14 août, Yéman) : il se lisait
+            déjà trois fois — dans le bandeau, sous chaque prestation, et là.
+            Le choix vit désormais AU RITUEL, où la main le désigne ; ici ne
+            reste que ce qui appartient au moment. */}
+        {appt && (
+          <Field label="Statut">
+            <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
+              {RDV_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
                 </option>
               ))}
             </Select>
           </Field>
-          {appt ? (
-            <Field label="Statut">
-              <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
-                {RDV_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : (
-            <span />
-          )}
-        </div>
+        )}
 
         {overlap && (
           <div className="trc-overlap">

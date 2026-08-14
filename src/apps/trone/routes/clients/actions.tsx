@@ -887,7 +887,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
         <PalierEnc n={2} titre="Comment elle règle" aide={avoirBal > 0 ? 'deux tiroirs, un seul total' : undefined} />
 
         {avoirBal > 0 && (
-          <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 13px' }}>
+          <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--color-sable)', padding: '12px 13px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Sur son avoir</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>disponible {fmtMoney(avoirBal, currency)}</span>
@@ -902,7 +902,7 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           </div>
         )}
 
-        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 13px' }}>
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--color-sable)', padding: '12px 13px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Comptant, maintenant</span>
             <span className="mnd-muted" style={{ fontSize: 12 }}>ce qui entre en caisse</span>
