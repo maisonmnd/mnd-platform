@@ -340,11 +340,12 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
      commissions et le Bilan continuent de compter juste (voir `apptNetXof`). */
   const grossActuel = apptTotalXof(appt, byId);
   const [forfaitOn, setForfaitOn] = useState(!!appt.forfait);
-  const [forfaitNom, setForfaitNom] = useState(appt.forfait?.nom ?? '');
+  /* Le nom du forfait se LIT (il vient du rendez-vous) ; il ne s'écrit plus
+     ici depuis que le forfait ne se pose qu'au rituel — 14 août. */
+  const [forfaitNom] = useState(appt.forfait?.nom ?? '');
   const [forfaitStr, setForfaitStr] = useState(appt.forfait ? String(appt.forfait.totalXof) : '');
   const forfaitNum = Math.max(0, Math.round(Number(String(forfaitStr).replace(/[^0-9]/g, '')) || 0));
   const forfaitPose = forfaitOn && String(forfaitStr).trim() !== '';
-  const forfaitPct = grossActuel > 0 ? Math.round((1 - forfaitNum / grossActuel) * 1000) / 10 : 0;
   const nomForfait = forfaitPose ? forfaitNom.trim() || 'Forfait' : '';
   /* LE NET DE CET ÉCRAN. Le forfait qu'on est en train de poser prime sur celui
      qui est enregistré — sinon le montant proposé mentirait d'un geste. Sans
@@ -746,49 +747,14 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             cadre permanent pesait sur chaque encaissement), le détail ne
             s'ouvre qu'au geste. Les prestations restent entières dessous :
             leur montant porte les mains, la production, les commissions. */}
+        {/* LE FORFAIT NE SE POSE PLUS ICI (14 août, Yéman) : « un total négocié
+            pour l'ensemble » se dit AU RENDEZ-VOUS, palier « Le prix », où le
+            geste appartient. Le redemander à l'encaissement faisait écrire deux
+            fois la même négociation — et laissait deux endroits se contredire.
+            Un forfait DÉJÀ posé reste lisible : la ligne « Total · son nom »
+            au-dessus le nomme, et la bande ci-dessous rattrape le seul cas qui
+            demande encore une main — la composition a bougé depuis la promesse. */}
         <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-            <input type="checkbox" checked={forfaitOn} onChange={(e) => majForfait(e.target.checked, forfaitStr)} />
-            Poser un forfait — un total négocié pour l’ensemble
-          </label>
-          {forfaitOn && (
-            <>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-                <Input
-                  value={forfaitNom}
-                  onChange={(e) => setForfaitNom(e.target.value)}
-                  placeholder="Forfait"
-                  style={{ flex: '1 1 130px', minWidth: 0 }}
-                  aria-label="Nom du forfait"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  value={forfaitStr}
-                  onChange={(e) => majForfait(true, e.target.value)}
-                  placeholder={String(grossActuel)}
-                  style={{ width: 118, textAlign: 'right' }}
-                  aria-label={`Total du forfait en ${currency}`}
-                />
-                <span className="mnd-muted" style={{ fontSize: 11.5 }}>soit</span>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={forfaitPose ? String(forfaitPct) : ''}
-                  onChange={(e) => majForfaitParPct(e.target.value)}
-                  style={{ width: 72, textAlign: 'right' }}
-                  aria-label="Taux du forfait en pourcentage"
-                />
-                <span className="mnd-muted" style={{ fontSize: 11.5 }}>% sur {fmtMoney(grossActuel, currency)}</span>
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>
-                Chaque prestation garde son montant, au prorata de ce qu’elle vaut — mains, primes,
-                commissions et Bilan continuent de compter juste. Un forfait remplace les remises.
-              </div>
-            </>
-          )}
           {/* LA COMPOSITION A BOUGÉ DEPUIS LA PROMESSE. Le total tient — la
               Maison a dit un prix — mais le comptoir doit le savoir, et pouvoir
               reporter le même taux d'un geste plutôt qu'à la calculette. */}
