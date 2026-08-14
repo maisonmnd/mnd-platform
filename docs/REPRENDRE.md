@@ -21,8 +21,20 @@ recharge une fois (les droits changent), `staff`/`occupee` ne créent rien ;
 `useCompteEnDouble` et `useCompteMaison` commandent deux écrans de garde
 dans App.tsx (« Cette adresse a déjà son espace. » / « Ce compte tient le
 Trône. » avec lien vers /trone/). Sans la 0045 collée, l'erreur RPC retombe
-sur le comportement d'avant. La soudure des données de Valerie reste à
-faire par SQL sur IDs (audit : supabase/local_valerie_audit.sql, gitignoré).
+sur le comportement d'avant. L'AUDIT VALERIE (14 août) a montré autre
+chose que prévu : UN seul compte de connexion, mais la fiche parent avait
+PERDU son familyId (copie froide poussée par le téléphone — l'écriture de
+sa propre fiche lui est permise) → la 0044 ouvrait une SECONDE famille au
+rattachement suivant, enfants éparpillés, plus rien de visible dans Ma
+Couronne (tetesPortees exige le lien sur la fiche). MIGRATION
+0046_famille_retrouvee.sql (à coller après la 0045) : `rattacher_enfant`
+cherche la famille dont le parent est DÉJÀ payeur avant d'en ouvrir une,
+et REPOSE `familyId` sur la fiche à chaque passage. Soudure Valerie :
+supabase/local_valerie_soudure.sql (gitignoré) — garde fam-026504110d,
+y range les 4 enfants, efface la famille vide. PIÈGE DE FOND documenté :
+les poussées « ligne entière » d'une copie froide peuvent effacer des
+champs posés par le serveur sur la fiche cliente — 0046 ne guérit que
+familyId, par re-pose.
 
 ## Le Trône REÇOIT — réservations en attente et enfants rattachés — 13 août
 
