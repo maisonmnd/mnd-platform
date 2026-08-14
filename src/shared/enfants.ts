@@ -140,6 +140,40 @@ const assureFamilleDuParent = (parent: Client): string => {
     rattachement redevient une DEMANDE que la Maison arbitre — c'est le seul
     cas qui passe encore par elle. Le journal des déclarations garde trace de
     tout (statut « accepté », fiche créée). */
+/** LA NAISSANCE D'UN ENFANT SE CORRIGE DEPUIS MA COURONNE (14 août). Une date
+    mal saisie fausse l'âge — et c'est elle qui commande l'accès du parent.
+    L'écriture passe par le SERVEUR (0050) : la RLS interdit à une cliente
+    d'écrire la fiche d'un enfant, et le serveur vérifie que la tête est un
+    mineur qu'elle porte, et que la correction le LAISSE mineur. */
+export async function corrigerNaissance(
+  enfantId: string,
+  birthday: string,
+  aujourdhui: string,
+): Promise<{ ok: boolean; erreur?: string }> {
+  if (!birthday) return { ok: false, erreur: 'Il manque la date de naissance.' };
+  if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
+  if (!estMineur({ birthday }, aujourdhui)) {
+    return { ok: false, erreur: 'Cette date en ferait une personne majeure — passez au salon pour ce changement.' };
+  }
+  if (supabase) {
+    const { error } = await supabase.rpc('corriger_naissance_enfant', {
+      p_enfant: enfantId,
+      p_naissance: birthday,
+    });
+    if (error) {
+      const msg = error.message ?? '';
+      if (/function|does not exist|schema cache/i.test(msg)) {
+        return { ok: false, erreur: 'La maison doit d’abord activer cette correction (migration 0050) — réessayez ensuite.' };
+      }
+      return { ok: false, erreur: msg || 'La correction n’a pas pu passer.' };
+    }
+  }
+  /* Le miroir local — l'écran reflète la correction sans attendre la
+     prochaine lecture du serveur. */
+  clientsStore.set((prev) => prev.map((c) => (c.id === enfantId ? { ...c, birthday } : c)));
+  return { ok: true };
+}
+
 export async function rattacherEnfant(
   parent: Client,
   prenom: string,

@@ -16,7 +16,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable,
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees } from '../../shared/accounts';
-import { declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
+import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
@@ -1369,6 +1369,11 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   const [nom, setNom] = useState('');
   const [naissance, setNaissance] = useState('');
   const [erreur, setErreur] = useState('');
+  /* LA CORRECTION D'UNE NAISSANCE (14 août) — une date mal saisie fausse
+     l'âge affiché partout. L'écriture passe par le serveur (0050). */
+  const [corrigeId, setCorrigeId] = useState('');
+  const [dateCorrigee, setDateCorrigee] = useState('');
+  const [errCorrige, setErrCorrige] = useState('');
 
   if (!client) return null;
   const aujourdhui = todayIso();
@@ -1427,6 +1432,13 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
 
       {mesTetes.map((e) => {
         const a = ageDe(e.birthday, aujourdhui);
+        const enCorrection = corrigeId === e.id;
+        const corriger = async () => {
+          const r = await corrigerNaissance(e.id, dateCorrigee, aujourdhui);
+          if (!r.ok) { setErrCorrige(r.erreur ?? 'La correction n’a pas pu passer.'); return; }
+          setCorrigeId(''); setDateCorrigee(''); setErrCorrige('');
+          toast(`La date de naissance de ${e.name.split(' ')[0]} est corrigée.`);
+        };
         return (
           <div key={e.id} className="mc-crownstatus" style={{ marginTop: 8 }}>
             <span className="mc-crownstatus__filet" />
@@ -1434,6 +1446,36 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{e.name}</span>
               <span className="mc-pillseal">{a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}</span>
             </div>
+            {enCorrection ? (
+              <div style={{ marginTop: 10 }}>
+                <div className="mc-field-label">Sa date de naissance</div>
+                <input
+                  className="mnd-input"
+                  type="date"
+                  value={dateCorrigee}
+                  max={aujourdhui}
+                  onChange={(ev) => { setDateCorrigee(ev.target.value); setErrCorrige(''); }}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+                {errCorrige && <div className="mc-form-err">{errCorrige}</div>}
+                <div style={{ display: 'flex', gap: 10, marginTop: 10, alignItems: 'center' }}>
+                  <button className="mc-cta mc-cta--indigo" style={{ marginTop: 0, flex: 1 }} onClick={() => void corriger()}>
+                    Enregistrer
+                  </button>
+                  <button className="mc-textbtn" style={{ marginTop: 0 }} onClick={() => { setCorrigeId(''); setErrCorrige(''); }}>
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="mc-textbtn"
+                style={{ marginTop: 8 }}
+                onClick={() => { setCorrigeId(e.id); setDateCorrigee(e.birthday ?? ''); setErrCorrige(''); }}
+              >
+                Corriger sa date de naissance
+              </button>
+            )}
           </div>
         );
       })}

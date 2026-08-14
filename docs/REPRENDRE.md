@@ -2,6 +2,19 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La naissance d'un enfant se corrige depuis Ma Couronne — 14 août
+
+MIGRATION 0050_corriger_naissance.sql (COLLÉE, contrôlée ✓) : RPC
+`corriger_naissance_enfant(p_enfant, p_naissance)` security definer — la
+RLS interdit à une cliente d'écrire la fiche d'un enfant, le serveur
+vérifie (est_ma_tete : un mineur qu'elle porte ; pas sa propre fiche ;
+date ni future ni majorisante — « passez au salon pour ce changement »).
+Client : `corrigerNaissance` (shared/enfants.ts — validations locales,
+RPC, miroir clientsStore) ; geste dans Profil › Mes enfants (Tabs.tsx,
+MesEnfants) : « Corriger sa date de naissance » sous chaque tête → champ
+date + Enregistrer/Annuler, toast. L'âge se recalcule partout (sélecteur,
+pastilles) via le miroir.
+
 ## La fusion de fiches, un geste du comptoir — 14 août
 
 « Je peux faire la soudure moi-même » (Yéman). Le moteur :
