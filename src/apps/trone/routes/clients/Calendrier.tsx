@@ -4,7 +4,7 @@ import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
+  PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
@@ -418,7 +418,11 @@ export default function Calendrier() {
                   <span className="trc-agenda__side" onClick={(e) => e.stopPropagation()}>
                     <PayStatusPill a={a} byId={byId} />
                     <ReminderBell appt={a} client={clientOf(a.clientId)} byId={byId} className="trc-remind--sm" size={13} />
-                    {a.status !== 'honoré' && (
+                    {/* UN RITUEL RÉGLÉ N'A PLUS RIEN À ENCAISSER (14 août,
+                        Yéman) : la pastille dit « payé » et le bouton
+                        proposait quand même de recommencer. Le juge est
+                        celui de la modale — un seul avis sur l'argent reçu. */}
+                    {a.status !== 'honoré' && apptPayState(a, byId) !== 'payé' && (
                       <button type="button" className="trc-agenda__pay" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}>Encaisser</button>
                     )}
                   </span>
@@ -509,7 +513,8 @@ export default function Calendrier() {
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apptLabel(a, byId)}</span>
                         <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
                       </div>
-                      {a.status !== 'honoré' && (
+                      {/* Réglé = plus rien à encaisser — même juge qu'ailleurs. */}
+                      {a.status !== 'honoré' && apptPayState(a, byId) !== 'payé' && (
                         <button
                           className="trc-cal__encaisser"
                           draggable={false}
