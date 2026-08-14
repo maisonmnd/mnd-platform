@@ -65,7 +65,12 @@ export const estMineur = (client: Pick<Client, 'birthday'>, aujourdhui: string):
     À dix-huit ans, l'enfant en sort de lui-même : ses données lui appartiennent.
     Le lien de famille, lui, demeure — le parent peut continuer à régler. */
 export function tetesPortees(parent: Client, clients: Client[], families: Family[], aujourdhui: string): Client[] {
-  const fam = parent.familyId ? families.find((f) => f.id === parent.familyId) : undefined;
+  /* LE LIEN PERDU N'EST PAS UNE FAMILLE ABSENTE (14 août, Valerie) : une
+     copie froide poussée par le téléphone peut effacer `familyId` sur la
+     fiche du parent. La famille dont il est le PAYEUR le porte tout autant —
+     même règle que la base (`est_ma_tete`) et que le rattachement (0046). */
+  const fam = (parent.familyId ? families.find((f) => f.id === parent.familyId) : undefined)
+    ?? families.find((f) => f.payerClientId === parent.id);
   if (!fam || fam.payerClientId !== parent.id) return [];
   return clients
     .filter((c) => c.id !== parent.id && c.familyId === fam.id && estMineur(c, aujourdhui) && !c.archived)

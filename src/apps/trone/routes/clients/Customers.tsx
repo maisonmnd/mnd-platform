@@ -1067,7 +1067,10 @@ function Customer360({
   /* Compte & avoir — porté par le compte famille (parent payeur) ou la cliente. */
   const [families] = useFamilies();
   const [credits] = useCredits();
-  const clientFamily = client.familyId ? families.find((f) => f.id === client.familyId) : undefined;
+  /* Le lien perdu n'est pas une famille absente : la famille dont elle est
+     la PAYEUSE la porte tout autant (14 août — même règle que tetesPortees). */
+  const clientFamily = (client.familyId ? families.find((f) => f.id === client.familyId) : undefined)
+    ?? families.find((f) => f.payerClientId === client.id);
   const avoirBal = creditBalanceOf(credits, holderOf(client, families));
   const clientPayerName = clientFamily
     ? clientsStore.get().find((c) => c.id === payerClientIdOf(client, families))?.name ?? 'le parent'

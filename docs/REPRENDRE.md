@@ -2,6 +2,22 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Le lien de famille se répare à chaque entrée — 14 août
+
+Le piège de fond a REfrappé le jour même : la version du 14 était bien sur
+l'appareil, la 0047 collée — et toujours aucun enfant chez Valerie. Cause
+probable : les écritures froides rejouées au démarrage du téléphone
+repoussent une copie de la fiche SANS familyId et effacent la soudure.
+Triple ceinture posée : ① `tetesPortees` (shared/accounts) et
+`clientFamily` (fiche 360) acceptent la famille dont on est PAYEUR même
+sans lien sur la fiche — l'affichage ne dépend plus du champ effaçable ;
+② MIGRATION 0048_le_lien_se_repare.sql (à coller) : `adopter_ma_fiche` —
+appelée à CHAQUE entrée dans l'app — recoud familyId quand la fiche est
+payeuse d'une famille (réparer à la main perd contre une file qui
+rejoue ; le serveur répare au même rythme) ; ③ 0046 reposait déjà le lien
+à chaque rattachement. Contrôle de la 0048 : compte des fiches payeuses
+sans lien (0 ou 1 attendu au moment de coller).
+
 ## La mise à jour automatique enfin BRANCHÉE — 14 août
 
 « Les écrans ne sont jamais publiés » (Yéman) alors que gh-pages ET le
