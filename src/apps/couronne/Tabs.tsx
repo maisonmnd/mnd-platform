@@ -1430,9 +1430,12 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
         </div>
       )}
 
+      {/* CHAQUE ENFANT S'OUVRE PAR SON NOM (14 août, goût de Yéman) : la
+          liste reste calme — le geste de correction vit DEDANS, pas étalé
+          sous chaque ligne. */}
       {mesTetes.map((e) => {
         const a = ageDe(e.birthday, aujourdhui);
-        const enCorrection = corrigeId === e.id;
+        const ouverte = corrigeId === e.id;
         const corriger = async () => {
           const r = await corrigerNaissance(e.id, dateCorrigee, aujourdhui);
           if (!r.ok) { setErrCorrige(r.erreur ?? 'La correction n’a pas pu passer.'); return; }
@@ -1442,13 +1445,26 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
         return (
           <div key={e.id} className="mc-crownstatus" style={{ marginTop: 8 }}>
             <span className="mc-crownstatus__filet" />
-            <div className="mc-crownstatus__top">
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{e.name}</span>
-              <span className="mc-pillseal">{a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}</span>
-            </div>
-            {enCorrection ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (ouverte) { setCorrigeId(''); setErrCorrige(''); return; }
+                setCorrigeId(e.id); setDateCorrigee(e.birthday ?? ''); setErrCorrige('');
+              }}
+              aria-expanded={ouverte}
+              style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}
+            >
+              <div className="mc-crownstatus__top">
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+                  {e.name}
+                  <span aria-hidden="true" style={{ marginLeft: 8, fontSize: 12, color: 'var(--ink-soft)', display: 'inline-block', transform: ouverte ? 'rotate(90deg)' : 'none', transition: 'transform .2s ease' }}>›</span>
+                </span>
+                <span className="mc-pillseal">{a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}</span>
+              </div>
+            </button>
+            {ouverte && (
               <div style={{ marginTop: 10 }}>
-                <div className="mc-field-label">Sa date de naissance</div>
+                <div className="mc-field-label">Changer sa date de naissance</div>
                 <input
                   className="mnd-input"
                   type="date"
@@ -1467,14 +1483,6 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
                   </button>
                 </div>
               </div>
-            ) : (
-              <button
-                className="mc-textbtn"
-                style={{ marginTop: 8 }}
-                onClick={() => { setCorrigeId(e.id); setDateCorrigee(e.birthday ?? ''); setErrCorrige(''); }}
-              >
-                Corriger sa date de naissance
-              </button>
             )}
           </div>
         );

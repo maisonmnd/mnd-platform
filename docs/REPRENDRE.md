@@ -2,6 +2,21 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Chaque sœur sa session — 14 août
+
+Même origine = même tiroir de session Supabase : connecté au Trône,
+l'admin ne pouvait plus OUVRIR Ma Couronne dans le même navigateur —
+l'écran « Ce compte tient le Trône » revenait à chaque reconnexion au
+Trône, sans fin (constaté par Yéman, desktop ET téléphone). FIX :
+`VITE_AUTH_SCOPE=couronne` (build-sites) → `storageKey: sb-mnd-couronne`
+dans shared/supabase.ts — Ma Couronne a son propre tiroir, l'admin au
+Trône et une cliente sur Ma Couronne cohabitent dans le même navigateur.
+En dev (pas de scope), tout reste partagé. CONSÉQUENCE UNIQUE : les
+sessions Ma Couronne existantes vivent dans l'ancien tiroir → chaque
+cliente déjà connectée devra SE RECONNECTER UNE FOIS. Au passage, la
+liste « Mes enfants » du Profil s'ouvre par le NOM (ligne calme, chevron,
+le geste « Changer sa date de naissance » vit dedans).
+
 ## La naissance d'un enfant se corrige depuis Ma Couronne — 14 août
 
 MIGRATION 0050_corriger_naissance.sql (COLLÉE, contrôlée ✓) : RPC

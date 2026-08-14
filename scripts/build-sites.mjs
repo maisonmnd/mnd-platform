@@ -40,8 +40,10 @@ const SITES = [
     base: '/couronne/',
     apps: 'couronne',
     rename: { 'couronne.html': 'index.html' },
-    // Connexion cliente obligatoire (OTP e-mail).
-    env: { VITE_REQUIRE_AUTH: 'true' },
+    // Connexion cliente obligatoire — et SESSION À PART (même origine que le
+    // Trône : sans tiroir séparé, l'admin connecté au Trône bloquait Ma
+    // Couronne dans le même navigateur).
+    env: { VITE_REQUIRE_AUTH: 'true', VITE_AUTH_SCOPE: 'couronne' },
   },
   { name: 'lokaa', base: '/lokaa/', apps: 'lokaa', rename: { 'lokaa.html': 'index.html' } },
   {
