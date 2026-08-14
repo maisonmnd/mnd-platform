@@ -60,13 +60,38 @@ const TABS: { k: Tab; l: string }[] = [
 /** LES CINQ GESTES — ce qui s'est passé, dans les mots de la maison. C'est la
     réponse qui choisit le registre : on raconte, on ne range plus. */
 type Geste = 'foyer' | 'cote' | 'emprunt' | 'rembourse' | 'caisse';
-const GESTES: { k: Geste; t: string; s: string }[] = [
-  { k: 'foyer', t: 'J’ai pris de l’argent pour le foyer', s: 'Marché, école, maison — sur le budget du mois.' },
-  { k: 'cote', t: 'J’ai mis de côté', s: 'Réinvestissement ou réserve fiscale — l’argent part au coffre-fort.' },
-  { k: 'emprunt', t: 'Le foyer a emprunté au salon', s: 'Une avance à rembourser — elle crée une dette.' },
-  { k: 'rembourse', t: 'Le foyer rembourse le salon', s: 'Réduit la dette en cours.' },
-  { k: 'caisse', t: 'Mouvement sur une caisse à part', s: 'Wells Fargo, Mes Euros… — sans lien avec le salon.' },
+const GESTES: { k: Geste; t: string; s: string; pt: string; couleur: string }[] = [
+  { k: 'foyer', t: 'J’ai pris de l’argent pour le foyer', s: 'Marché, école, maison — sur le budget du mois.', pt: 'Retrait du foyer', couleur: 'var(--color-copper)' },
+  { k: 'cote', t: 'J’ai mis de côté', s: 'Réinvestissement ou réserve fiscale — l’argent part au coffre-fort.', pt: 'Mise de côté', couleur: 'var(--trf-success, #4A6B4F)' },
+  { k: 'emprunt', t: 'Le foyer a emprunté au salon', s: 'Une avance à rembourser — elle crée une dette.', pt: 'Emprunt', couleur: 'var(--trf-error, #A03D2E)' },
+  { k: 'rembourse', t: 'Le foyer rembourse le salon', s: 'Réduit la dette en cours.', pt: 'Remboursement', couleur: 'var(--indigo-400, #4E5790)' },
+  { k: 'caisse', t: 'Mouvement sur une caisse à part', s: 'Wells Fargo, Mes Euros… — sans lien avec le salon.', pt: 'Caisse à part', couleur: 'var(--color-argile)' },
 ];
+
+/** Une pastille de choix — le geste, le motif, l'enveloppe. Un point de
+    couleur quand le choix en porte une, comme les catégories de Dépenses. */
+function Pastille({ actif, point, onClick, children }: {
+  actif: boolean; point?: string; onClick: () => void; children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={actif}
+      style={{
+        cursor: 'pointer', font: 'inherit', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 7,
+        border: `1px solid ${actif ? 'var(--color-copper)' : 'var(--hairline)'}`,
+        background: actif ? 'var(--copper-50)' : 'var(--surface-card)',
+        color: actif ? 'var(--copper-700)' : 'var(--ink)',
+        fontWeight: actif ? 600 : 400,
+        borderRadius: 'var(--radius-pill, 999px)', padding: '7px 14px',
+      }}
+    >
+      {point && <span style={{ width: 7, height: 7, borderRadius: '50%', background: point, flex: 'none' }} />}
+      {children}
+    </button>
+  );
+}
 
 /** « 45 000 » et « 2,5 » se lisent ; jamais négatif — le SENS vient du champ dédié. */
 const litMontant = (s: string): number => {
@@ -210,10 +235,10 @@ export default function SalonFoyer() {
 
   /* ---------- Formulaires ---------- */
 
-  const [fPre, setFPre] = useState({ date: todayISO(), beneficiaire: 'Foyer', motif: 'Maison', note: '', montant: '' });
+  /* `fPre` et `fPret` sont partis avec leurs formulaires (14 août) : la
+     fenêtre « Inscrire un mouvement » écrit à leur place. */
   /* Le retrait en cours de correction — un seul à la fois, édité EN PLACE. */
   const [editPrel, setEditPrel] = useState<null | { id: string; date: string; beneficiaire: string; motif: string; note: string; montant: string }>(null);
-  const [fPret, setFPret] = useState({ date: todayISO(), type: 'pret' as 'pret' | 'remboursement', associe: 'Foyer', motif: '', montant: '' });
   const [fRes, setFRes] = useState({ date: todayISO(), enveloppe: 'reinvestissement' as EnveloppeReserve, sens: 'dotation' as 'dotation' | 'retrait', note: '', montant: '' });
   /* Le refus d'un retrait qui dépasse l'enveloppe se dit à côté du bouton. */
   const [vrsErr, setVrsErr] = useState<string | null>(null);
@@ -303,16 +328,6 @@ export default function SalonFoyer() {
     setMvtOuvert(false);
   };
 
-  const ajoutePrelevement = () => {
-    const montant = litXof(fPre.montant);
-    if (montant <= 0) return;
-    setPrelevements((prev) => [...prev, {
-      id: `plv-${uid()}`, branchId: branch.id, date: fPre.date,
-      beneficiaire: fPre.beneficiaire, motif: fPre.motif,
-      note: fPre.note.trim() || undefined, amountXof: montant,
-    }]);
-    setFPre((f) => ({ ...f, note: '', montant: '' }));
-  };
 
   const sauvePret = () => {
     if (!editPret) return;
@@ -337,16 +352,6 @@ export default function SalonFoyer() {
     setEditEpa(null);
   };
 
-  const ajoutePret = () => {
-    const montant = litXof(fPret.montant);
-    if (montant <= 0) return;
-    setPrets((prev) => [...prev, {
-      id: `prt-${uid()}`, branchId: branch.id, date: fPret.date, type: fPret.type,
-      associe: fPret.associe, motif: fPret.motif.trim() || (fPret.type === 'pret' ? 'Prêt au salon' : 'Remboursement'),
-      amountXof: montant,
-    }]);
-    setFPret((f) => ({ ...f, motif: '', montant: '' }));
-  };
 
   /* Un mouvement d'épargne à la main — il va au coffre comme les autres. */
   const ajouteReserve = () => {
@@ -548,36 +553,50 @@ export default function SalonFoyer() {
         const resteFoyer = env.prelevement - preleve;
         const apres = resteFoyer - montantUni;
         return (
-          <Modal title="Inscrire un mouvement." onClose={() => setMvtOuvert(false)} width={560}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>
-                Qu’est-ce qui s’est passé ?
-              </div>
-
-              <div style={{ display: 'grid', gap: 8 }}>
-                {GESTES.map((g) => (
-                  <button
-                    key={g.k}
-                    type="button"
-                    onClick={() => setGeste(g.k)}
-                    style={{
-                      textAlign: 'left', cursor: 'pointer', font: 'inherit', display: 'flex', gap: 10, alignItems: 'flex-start',
-                      border: `1px solid ${geste === g.k ? 'var(--color-copper)' : 'var(--hairline)'}`,
-                      background: geste === g.k ? 'var(--copper-50)' : 'var(--surface-card)',
-                      borderRadius: 3, padding: '11px 13px',
-                    }}
-                  >
-                    <span style={{
-                      flex: 'none', width: 9, height: 9, borderRadius: '50%', marginTop: 5,
-                      border: '1px solid var(--color-copper)',
-                      background: geste === g.k ? 'var(--color-copper)' : 'transparent',
-                    }} />
-                    <span>
-                      <span style={{ display: 'block', fontSize: 14, color: 'var(--color-indigo)' }}>{g.t}</span>
-                      <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>{g.s}</span>
+          <Modal title="Inscrire un mouvement." onClose={() => setMvtOuvert(false)} width={520}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* ═══ LE MONTANT EST LE HÉROS (14 août — modèle apporté par
+                  Yéman). C'est le nombre qu'on vient écrire : il s'affiche en
+                  grand, au centre, avant tout le reste. Les champs de saisie
+                  alignés à la file faisaient chercher lequel portait la
+                  somme. ═══ */}
+              {geste !== 'caisse' && (
+                <div style={{ textAlign: 'center', paddingTop: 4 }}>
+                  <div className="trc-microlabel" style={{ letterSpacing: '.2em' }}>Montant</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
+                    <input
+                      value={fMvtUni.montant}
+                      onChange={(e) => setFMvtUni({ ...fMvtUni, montant: e.target.value })}
+                      inputMode="numeric"
+                      placeholder="0"
+                      autoFocus
+                      aria-label={`Montant en ${currency}`}
+                      style={{
+                        width: 220, textAlign: 'right', background: 'transparent',
+                        border: 'none', borderBottom: '1px solid var(--copper-300)',
+                        fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
+                        padding: '2px 6px', outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--copper-700)' }}>
+                      {currency === 'XOF' ? 'F' : currency}
                     </span>
-                  </button>
-                ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qu’est-ce qui s’est passé ?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {GESTES.map((g) => (
+                    <Pastille key={g.k} actif={geste === g.k} point={g.couleur} onClick={() => setGeste(g.k)}>
+                      {g.pt}
+                    </Pastille>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+                  {GESTES.find((g) => g.k === geste)?.s}
+                </div>
               </div>
 
               {geste === 'caisse' ? (
@@ -592,27 +611,32 @@ export default function SalonFoyer() {
                 </>
               ) : (
                 <>
-                  <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                    <Field label="Date">
-                      <Input type="date" value={fMvtUni.date} onChange={(e) => setFMvtUni({ ...fMvtUni, date: e.target.value })} />
-                    </Field>
-                    {geste === 'foyer' && (
-                      <Field label="Motif">
-                        <Select value={fMvtUni.motif} onChange={(e) => setFMvtUni({ ...fMvtUni, motif: e.target.value })}>
-                          {MOTIFS_PRELEVEMENT.map((m) => <option key={m} value={m}>{m}</option>)}
-                        </Select>
-                      </Field>
-                    )}
-                    {geste === 'cote' && (
-                      <Field label="Enveloppe">
-                        <Select value={fMvtUni.enveloppe} onChange={(e) => setFMvtUni({ ...fMvtUni, enveloppe: e.target.value as EnveloppeReserve })}>
-                          {(['reinvestissement', 'fiscale'] as EnveloppeReserve[]).map((e2) => (
-                            <option key={e2} value={e2}>{RESERVE_LABELS[e2]}</option>
-                          ))}
-                        </Select>
-                      </Field>
-                    )}
-                  </div>
+                  {geste === 'foyer' && (
+                    <div>
+                      <div className="trc-microlabel" style={{ marginBottom: 9 }}>Motif</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                        {MOTIFS_PRELEVEMENT.map((m) => (
+                          <Pastille key={m} actif={fMvtUni.motif === m} onClick={() => setFMvtUni({ ...fMvtUni, motif: m })}>
+                            {m}
+                          </Pastille>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {geste === 'cote' && (
+                    <div>
+                      <div className="trc-microlabel" style={{ marginBottom: 9 }}>Dans quelle enveloppe</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                        {(['reinvestissement', 'fiscale'] as EnveloppeReserve[]).map((e2) => (
+                          <Pastille key={e2} actif={fMvtUni.enveloppe === e2} onClick={() => setFMvtUni({ ...fMvtUni, enveloppe: e2 })}>
+                            {RESERVE_LABELS[e2]}
+                          </Pastille>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <Field label={geste === 'foyer' ? 'Note · facultatif' : 'Motif · facultatif'}>
                     <Input
                       value={fMvtUni.note}
@@ -620,25 +644,19 @@ export default function SalonFoyer() {
                       placeholder={geste === 'foyer' ? 'Marché + supermarché…' : geste === 'cote' ? 'Achat fauteuil, acompte impôt…' : 'Retenue sur prélèvement…'}
                     />
                   </Field>
-                  <Field label={`Montant (${currency})`}>
-                    <Input
-                      inputMode="numeric"
-                      value={fMvtUni.montant}
-                      onChange={(e) => setFMvtUni({ ...fMvtUni, montant: e.target.value })}
-                      placeholder="45 000"
-                      style={{ textAlign: 'right' }}
-                    />
+
+                  <Field label="Date">
+                    <Input type="date" value={fMvtUni.date} onChange={(e) => setFMvtUni({ ...fMvtUni, date: e.target.value })} />
                   </Field>
 
                   {/* LA CONSÉQUENCE S'ANNONCE AVANT LE GESTE — et un dépassement
                       ne bloque pas : il s'inscrit tel quel, sans devenir un
                       prêt (décision de Yéman, 14 août). */}
                   {geste === 'foyer' && montantUni > 0 && (
-                    <div style={{
+                    <div className="mnd-bande" style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
-                      borderRadius: 3, padding: '10px 13px', fontSize: 13,
-                      background: apres >= 0 ? 'var(--color-sable)' : 'var(--copper-50)',
-                      border: `1px solid ${apres >= 0 ? 'var(--hairline)' : 'var(--copper-300)'}`,
+                      padding: '10px 13px', fontSize: 13,
+                      ...(apres < 0 ? { background: 'var(--copper-50)', borderColor: 'var(--copper-300)' } : {}),
                     }}>
                       <span className="mnd-muted">
                         {apres >= 0 ? 'Après ce retrait, il restera au foyer' : 'Ce retrait dépasse le budget du mois de'}
@@ -650,13 +668,10 @@ export default function SalonFoyer() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <Button variant="ghost" onClick={() => setMvtOuvert(false)}>Annuler</Button>
+                  <div style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+                    <Button variant="ghost" style={{ flex: 1 }} onClick={() => setMvtOuvert(false)}>Annuler</Button>
                     <Button variant="copper" style={{ flex: 1 }} onClick={inscrireMouvement} disabled={montantUni <= 0}>
-                      {geste === 'foyer' ? 'Inscrire le retrait'
-                        : geste === 'cote' ? 'Mettre au coffre'
-                        : geste === 'emprunt' ? 'Inscrire l’emprunt'
-                        : 'Inscrire le remboursement'}
+                      Enregistrer
                     </Button>
                   </div>
                 </>
@@ -899,26 +914,15 @@ export default function SalonFoyer() {
             </div>
           </div>
 
-          <Panel title="Inscrire un retrait du foyer">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <Field label="Date"><Input type="date" value={fPre.date} onChange={(e) => setFPre({ ...fPre, date: e.target.value })} /></Field>
-              <Field label="Bénéficiaire">
-                <Select value={fPre.beneficiaire} onChange={(e) => setFPre({ ...fPre, beneficiaire: e.target.value })}>
-                  {BENEFICIAIRES.map((b) => <option key={b} value={b}>{b}</option>)}
-                </Select>
-              </Field>
-              <Field label="Motif">
-                <Select value={fPre.motif} onChange={(e) => setFPre({ ...fPre, motif: e.target.value })}>
-                  {MOTIFS_PRELEVEMENT.map((m) => <option key={m} value={m}>{m}</option>)}
-                </Select>
-              </Field>
-              <Field label="Note (libre)"><Input value={fPre.note} onChange={(e) => setFPre({ ...fPre, note: e.target.value })} placeholder="Marché + supermarché…" /></Field>
-              <Field label={`Montant (${currency})`}><Input inputMode="numeric" value={fPre.montant} onChange={(e) => setFPre({ ...fPre, montant: e.target.value })} placeholder="45 000" /></Field>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <button className="trf-act" onClick={ajoutePrelevement} disabled={litXof(fPre.montant) <= 0}>Inscrire le retrait</button>
-            </div>
-          </Panel>
+          {/* LES TROIS FORMULAIRES JUMEAUX SONT PARTIS (14 août) : « + Inscrire
+              un mouvement » les remplace tous — une question, la réponse
+              choisit le registre. Les registres ci-dessous ne servent plus
+              qu'à LIRE et à CORRIGER ce qui est écrit. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <button className="trf-act trf-act--primary" onClick={() => setMvtOuvert(true)}>
+              + Inscrire un mouvement
+            </button>
+          </div>
 
           {/* CHAQUE RETRAIT SE CORRIGE EN PLACE. Une ligne fausse qu'on ne peut
               que SUPPRIMER pousse à effacer puis ressaisir — on y perd la date,
@@ -981,30 +985,6 @@ export default function SalonFoyer() {
             </div>
           </div>
 
-          <Panel title="Inscrire un prêt ou un remboursement">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <Field label="Date"><Input type="date" value={fPret.date} onChange={(e) => setFPret({ ...fPret, date: e.target.value })} /></Field>
-              <Field label="Type">
-                <Select value={fPret.type} onChange={(e) => setFPret({ ...fPret, type: e.target.value as 'pret' | 'remboursement' })}>
-                  <option value="pret">Prêt — le foyer a pris au-delà du budget</option>
-                  <option value="remboursement">Remboursement — retenue ou versement</option>
-                </Select>
-              </Field>
-              <Field label="Associé">
-                <Select value={fPret.associe} onChange={(e) => setFPret({ ...fPret, associe: e.target.value })}>
-                  {BENEFICIAIRES.map((b) => <option key={b} value={b}>{b}</option>)}
-                </Select>
-              </Field>
-              <Field label="Motif"><Input value={fPret.motif} onChange={(e) => setFPret({ ...fPret, motif: e.target.value })} placeholder="Retenue sur prélèvement de septembre…" /></Field>
-              <Field label={`Montant (${currency})`}><Input inputMode="numeric" value={fPret.montant} onChange={(e) => setFPret({ ...fPret, montant: e.target.value })} placeholder="50 000" /></Field>
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button className="trf-act" onClick={ajoutePret} disabled={litXof(fPret.montant) <= 0}>Inscrire</button>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                Un prêt AUGMENTE la dette, un remboursement la réduit. La dette doit revenir à zéro.
-              </span>
-            </div>
-          </Panel>
 
           <Panel title="Le registre — du premier prêt à aujourd'hui">
             {prets.filter((p) => p.branchId === branch.id).length === 0 && (
@@ -1127,7 +1107,11 @@ export default function SalonFoyer() {
             })}
           </Panel>
 
-          <Panel title="Inscrire un mouvement à la main">
+          {/* CE FORMULAIRE RESTE — il est le SEUL chemin pour RETIRER d'une
+              réserve, ce que la fenêtre « Inscrire un mouvement » ne propose
+              pas (on met de côté d'un geste ; on reprend au coffre à bon
+              escient, et cela se pèse). */}
+          <Panel title="Retirer d’une réserve — ou corriger à la main">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <Field label="Date"><Input type="date" value={fRes.date} onChange={(e) => setFRes({ ...fRes, date: e.target.value })} /></Field>
               <Field label="Enveloppe">
