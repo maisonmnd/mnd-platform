@@ -1,5 +1,8 @@
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { type EnvieKey } from './quiz';
+/* Import sans cycle : accounts.ts n'importe d'ici que des TYPES (effacés à
+   l'exécution) — le runtime ne boucle pas. */
+import { estMineur } from './accounts';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -137,23 +140,35 @@ export type Family = {
   payerClientId?: string; // le parent payeur (une des clientes rattachées, ou une fiche dédiée)
   note?: string;
   /** LA REMISE FAMILLE (%) — l'avantage du compte, posé d'office sur les
-      rendez-vous de ses membres et nommé « Remise famille » partout où il
-      s'écrit (modale RDV, facture). Absent = le taux de la Maison (15).
+      rendez-vous de ses membres (HORS FORFAITS, déjà réduits) et nommé
+      « Remise famille » partout où il s'écrit (modale RDV, facture).
+      ABSENT = le BARÈME DU FOYER décide (1 enfant → 10, 2 et plus → 15).
+      Un taux posé est une remise PERSONNALISÉE et fait foi ;
       0 = ce compte n'a pas de remise. Le juge unique est `remiseFamillePct`. */
   remisePct?: number;
 };
 
-/** Le taux de la Maison quand un compte n'a rien précisé. */
+/** Le plafond du barème — et le taux proposé par défaut dans l'éditeur. */
 export const REMISE_FAMILLE_DEFAUT = 15;
 
 /** LE juge de la remise famille — toute surface qui l'applique passe par ici.
-    Pas de famille → 0. Famille muette → le défaut de la Maison. Un taux posé
-    fait foi, borné à [0, 100] ; 0 explicite = remise coupée pour ce compte. */
-export const remiseFamillePct = (f?: Family | null): number => {
+    Pas de famille → 0. Un taux POSÉ fait foi (personnalisé, 0 = coupée).
+    Famille muette → LE BARÈME DU FOYER (14 août, décision de Yéman) :
+    1 enfant mineur rattaché → 10 %, 2 et plus → 15 %, aucun → 0.
+    Elle ne porte JAMAIS sur les forfaits — déjà réduits par construction ;
+    ce sont les surfaces d'application qui excluent leur part (part hors
+    forfaits × taux, en francs exacts). */
+export const remiseFamillePct = (
+  f: Family | null | undefined,
+  clients: readonly Pick<Client, 'id' | 'familyId' | 'birthday' | 'archived'>[],
+  aujourdhui: string,
+): number => {
   if (!f) return 0;
   const p = Number(f.remisePct);
-  if (!Number.isFinite(p)) return REMISE_FAMILLE_DEFAUT;
-  return Math.max(0, Math.min(100, Math.round(p)));
+  if (Number.isFinite(p)) return Math.max(0, Math.min(100, Math.round(p)));
+  const enfants = clients.filter((c) =>
+    c.familyId === f.id && c.id !== f.payerClientId && !c.archived && estMineur(c, aujourdhui)).length;
+  return enfants >= 2 ? 15 : enfants === 1 ? 10 : 0;
 };
 
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore).

@@ -18,7 +18,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
 import { invoicesStore, invoiceTotal } from '../../../../shared/finance';
 import './clients.css';
 
@@ -761,16 +761,19 @@ export function RdvModal({
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
-  /* LA REMISE FAMILLE (12 août). Le compte famille de la tête choisie porte un
-     taux (`remiseFamillePct` — LE juge, shared/clients) : sur un NOUVEAU
-     rituel, choisir un membre pose d'office « Remise » à ce taux, et revenir à
-     une tête sans compte la retire — tant que la main n'a rien consenti
-     d'autre. Un rituel EXISTANT garde ce qui a été consenti : rien ne s'y
-     réécrit tout seul, la remise du compte s'y propose d'un clic. */
+  /* LA REMISE FAMILLE (12 août ; barème du foyer le 14). Le compte famille de
+     la tête choisie porte un taux (`remiseFamillePct` — LE juge : taux posé =
+     personnalisé, compte muet = 1 enfant → 10 %, 2 et plus → 15 %) : sur un
+     NOUVEAU rituel, choisir un membre pose d'office « Remise » à ce taux, et
+     revenir à une tête sans compte la retire — tant que la main n'a rien
+     consenti d'autre. Un rituel EXISTANT garde ce qui a été consenti : rien
+     ne s'y réécrit tout seul, la remise du compte s'y propose d'un clic.
+     ELLE NE PORTE PAS SUR LES FORFAITS (déjà réduits) : le net l'applique à
+     la part hors forfaits, et l'enregistrement la FIGE en francs exacts. */
   const [families] = useFamilies();
   const ficheCliente = clients.find((c) => c.id === clientId);
   const familleDuCompte = ficheCliente?.familyId ? families.find((f) => f.id === ficheCliente.familyId) : undefined;
-  const famPct = remiseFamillePct(familleDuCompte);
+  const famPct = remiseFamillePct(familleDuCompte, clients, todayISO());
   const famAuto = useRef(false);
   useEffect(() => {
     if (appt || sansPrix || forfaitOn || covered) return;
@@ -854,7 +857,7 @@ export function RdvModal({
   /* Mémoïsé : le comptage balaie le carnet ENTIER, et cette modale re-rend à
      chaque frappe — le chemin de saisie le plus chaud de l'application. */
   const venuesTete = useMemo(() => venuesHonorees(tousLesRdv, clientId), [tousLesRdv, clientId]);
-  const proposables = remaining.filter((sv) => estProposable(sv, pricing, venuesTete));
+  const proposables = remaining.filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte));
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
@@ -954,11 +957,24 @@ export function RdvModal({
     const p = Math.max(0, Math.min(100, Number(String(v).replace(',', '.')) || 0));
     setForfaitStr(String(Math.max(0, Math.round(effGross * (1 - p / 100)))));
   };
+  /* LA REMISE FAMILLE ÉPARGNE LES FORFAITS (14 août, décision de Yéman) : un
+     forfait est déjà réduit par construction — le remiser encore le réduirait
+     deux fois. Quand la remise posée EST celle du compte famille (même
+     identité que partout : discountPct === famPct), le pourcentage ne porte
+     que sur la part hors forfaits. Une remise manuelle, elle, porte sur tout
+     — c'est un geste de la main, pas un barème. */
+  const forfaitPartXof = chosen
+    .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait')
+    .reduce((s, sv) => s + prixDe(sv), 0);
+  const remiseEstFamille = prixMode === 'remise' && famPct > 0 && discountPct === famPct;
+  const baseRemisePct = remiseEstFamille ? Math.max(0, effGross - forfaitPartXof) : effGross;
+  /* En francs exacts — c'est CE montant que l'enregistrement fige. */
+  const remiseFamilleXof = remiseEstFamille ? Math.round(baseRemisePct * (discountPct / 100)) : 0;
   const totalXof = effCovered
     ? 0
     : forfaitPose
       ? forfaitNum
-      : Math.max(0, Math.round(effGross * (1 - discountPct / 100)) - discountXof);
+      : Math.max(0, effGross - Math.round(baseRemisePct * (discountPct / 100)) - discountXof);
   /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
      CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
   const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
@@ -1032,11 +1048,14 @@ export function RdvModal({
                 forfait: forfaitEnregistre,
                 /* Un forfait posé efface les remises : le total négocié EST le
                    prix, on ne le remise pas une seconde fois. */
-                discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
-                discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
-                /* Le pourcentage posé est CELUI du compte famille : le rituel
-                   s'en souvient, et la facture nommera son avantage. */
-                remiseFamille: !effCovered && !forfaitPose && famPct > 0 && discountPct === famPct ? true : undefined,
+                /* La remise famille se FIGE EN FRANCS (part hors forfaits ×
+                   taux) : la facture et l'encaissement retranchent ce montant
+                   exact, sans avoir à reconnaître les forfaits après coup. */
+                discountPct: effCovered || forfaitPose || remiseEstFamille ? undefined : (discountPct || undefined),
+                discountXof: effCovered || forfaitPose ? undefined
+                  : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
+                  : (discountXof || undefined),
+                remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
@@ -1082,9 +1101,12 @@ export function RdvModal({
         coverKind: effCovered ? ('abonnement' as const) : undefined,
         offertPar: offertRetenu,
         forfait: forfaitEnregistre,
-        discountPct: effCovered || forfaitPose ? undefined : (discountPct || undefined),
-        discountXof: effCovered || forfaitPose ? undefined : (discountXof || undefined),
-        remiseFamille: !effCovered && !forfaitPose && famPct > 0 && discountPct === famPct ? true : undefined,
+        /* Remise famille figée en francs — voir la note du chemin des séries. */
+        discountPct: effCovered || forfaitPose || remiseEstFamille ? undefined : (discountPct || undefined),
+        discountXof: effCovered || forfaitPose ? undefined
+          : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
+          : (discountXof || undefined),
+        remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
         priceXof: effCovered ? 0 : needsAmount ? effGross : rdvPersonalized ? grossBase : undefined,
@@ -1812,7 +1834,7 @@ export function RdvModal({
             <div className="trc-total__row">
               <span>
                 Sous-total
-                {discountPct > 0 ? (famPct > 0 && discountPct === famPct ? ` · remise famille −${discountPct}%` : ` · remise −${discountPct}%`) : ''}
+                {discountPct > 0 ? (remiseEstFamille ? ` · remise famille −${discountPct}%${forfaitPartXof > 0 ? ' (hors forfaits)' : ''}` : ` · remise −${discountPct}%`) : ''}
                 {discountXof > 0 ? ` · remise −${argent(discountXof)}` : ''}
               </span>
               <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{argent(effGross)}</s></span>

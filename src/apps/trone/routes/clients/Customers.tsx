@@ -1977,8 +1977,9 @@ function Customer360({
                       pas seulement dans Finances › Comptes : c'est sur cette
                       fiche qu'on prend le rendez-vous qui la portera. */}
                   <div className="trc-sub" style={{ padding: '10px 13px', borderBottom: '1px solid var(--hairline)', lineHeight: 1.5 }}>
-                    {remiseFamillePct(clientFamily) > 0 ? (
-                      <>Remise famille · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseFamillePct(clientFamily)}%</b> — posée d'office sur les rendez-vous des membres.</>
+                    {remiseFamillePct(clientFamily, tetesBranche, todayISO()) > 0 ? (
+                      <>Remise famille · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseFamillePct(clientFamily, tetesBranche, todayISO())}%</b>
+                        {clientFamily.remisePct === undefined ? ' (barème du foyer)' : ' (personnalisée)'} — posée d'office sur les rendez-vous des membres, hors forfaits.</>
                     ) : (
                       <>Remise famille · <b style={{ fontWeight: 600 }}>aucune</b> — ce compte n'en porte pas (réglable dans Finances › Comptes).</>
                     )}

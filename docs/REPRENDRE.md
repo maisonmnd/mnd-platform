@@ -2,6 +2,33 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La remise famille : barème du foyer, hors forfaits, prix famille — 14 août
+
+DÉCISION YÉMAN. ① BARÈME AUTO (`remiseFamillePct(f, clients, aujourdhui)`
+— signature ÉLARGIE, tous les appels passent clients+today) : taux posé =
+personnalisé (0 = coupée) ; compte MUET = barème du foyer — 1 enfant
+mineur rattaché → 10 %, 2 et plus → 15 %, aucun → 0. L'éditeur de compte
+(Comptes) a la chip « Barème du foyer · −X% » (remisePct absent) à côté
+des taux personnalisés — il n'écrit PLUS toujours un taux. ② HORS
+FORFAITS : la remise famille ne porte jamais sur la part forfaits (déjà
+réduits). Modale RDV (_shared) : l'identité `discountPct === famPct`
+reste l'affichage ; le net applique le % à `effGross − forfaitPartXof`
+(regimeTarifaire k==='forfait'), et l'ENREGISTREMENT FIGE la remise EN
+FRANCS (`discountXof`, discountPct effacé, remiseFamille=true) — facture
+et encaissement retranchent le montant exact sans reconnaître les
+forfaits. Une remise MANUELLE porte sur tout (geste de la main). ③ MA
+COURONNE : tunnel — ligne « Remise famille · −X % (hors forfaits) ·
+−N F » au récap, net et « reste au salon » remisés, et le RDV créé porte
+discountXof+remiseFamille (le Trône encaisse ce que l'écran a promis) ;
+Profil — « Compte famille · remise −X % (hors forfaits) » sous l'identité.
+④ RÉSERVÉE AUX FAMILLES : `Service.reserveFamilles` + `estProposable(sv,
+p, venues, aFamille=false)` — défaut FERMÉ, un pack ne fuit jamais par
+oubli d'écran ; appels mis à jour (tunnel, accueil, modale RDV avec la
+famille de la tête). Catalogue : bouton « Réservée aux comptes famille »
+dans le formulaire. LE PACK FAMILLE se crée AU CATALOGUE par Yéman :
+forfait composé (Shampoing + Reprise essentielle), prix à sa main,
+coche familles. Harnais 43/43.
+
 ## Chaque sœur sa session — 14 août
 
 Même origine = même tiroir de session Supabase : connecté au Trône,

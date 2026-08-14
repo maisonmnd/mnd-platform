@@ -8,7 +8,7 @@ import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useCategories, useProducts, useServices } from '../../shared/catalog';
-import { clientsStore, useClients, useFamilies, usePersonas, type Client } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, type Client } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel, type EnvieKey } from '../../shared/quiz';
@@ -319,7 +319,7 @@ export function HomeTab({
        le forfait « dès la 3ᵉ venue » à une première visite, et le prefill
        entrait dans le tunnel APRÈS l'unique garde de l'étape 2. */
     const venuesTete = venuesHonorees(clientAppts, client.id);
-    const offre = servicesVisibles.filter((s) => estProposable(s, pricing, venuesTete));
+    const offre = servicesVisibles.filter((s) => estProposable(s, pricing, venuesTete, !!client?.familyId));
     return recoPourEnvie(client, client.envie, {
       offre,
       catalogue: servicesVisibles,
@@ -1566,6 +1566,13 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
+  /* L'AVANTAGE DU COMPTE FAMILLE SE LIT ICI (14 août) : le taux du juge de
+     la maison — barème du foyer ou taux personnalisé — dit à la cliente ce
+     que son compte lui donne. */
+  const [famillesProfil] = useFamilies();
+  const [tousClientsProfil] = useClients();
+  const familleProfil = client?.familyId ? famillesProfil.find((f) => f.id === client.familyId) : undefined;
+  const famPctProfil = remiseFamillePct(familleProfil, tousClientsProfil, todayIso());
   const { session } = useAuth();
   const email = client?.email ?? session?.user?.email ?? '';
   /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */
@@ -1654,6 +1661,11 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
           {email && <div className="mc-idcard__meta" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>}
           <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
+          {famPctProfil > 0 && (
+            <div className="mc-idcard__meta" style={{ color: 'var(--copper-700, #9E6238)' }}>
+              Compte famille · remise −{famPctProfil} % (hors forfaits)
+            </div>
+          )}
         </div>
       </div>
 

@@ -14,7 +14,7 @@ import {
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
-import { holderOf, holderLabel } from '../../../../shared/accounts';
+import { holderOf, holderLabel, estMineur } from '../../../../shared/accounts';
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
 import { todayISO } from './_shared';
@@ -375,10 +375,14 @@ function FamilyModal({
   const [memberIds, setMemberIds] = useState<string[]>(initMembers);
   const [payerId, setPayerId] = useState(family?.payerClientId ?? parent?.id ?? '');
   const [pick, setPick] = useState('');
-  /* La remise famille du compte — le juge (`remiseFamillePct`) donne le défaut
-     de la Maison quand le compte est muet ; ici on ÉCRIT toujours le taux
-     choisi, pour que le compte dise lui-même son avantage. */
-  const [remiseStr, setRemiseStr] = useState(String(family ? remiseFamillePct(family) : REMISE_FAMILLE_DEFAUT));
+  /* LA REMISE FAMILLE — deux régimes (14 août, décision de Yéman) :
+     · BARÈME DU FOYER (compte muet) : 1 enfant mineur → 10 %, 2 et plus →
+       15 %, aucun → 0. Il suit la famille tout seul — un enfant s'ajoute,
+       le taux monte.
+     · PERSONNALISÉE (taux posé) : la main fait foi, 0 = remise coupée.
+     Elle ne porte jamais sur les forfaits, déjà réduits. */
+  const [remiseAuto, setRemiseAuto] = useState(family ? family.remisePct === undefined : true);
+  const [remiseStr, setRemiseStr] = useState(String(family?.remisePct ?? REMISE_FAMILLE_DEFAUT));
   const remiseNum = Math.max(0, Math.min(100, Math.round(Number(remiseStr.replace(/[^0-9]/g, '')) || 0)));
 
   const addMember = (id: string) => {
@@ -403,7 +407,8 @@ function FamilyModal({
   const save = () => {
     if (!name.trim()) return;
     const id = family?.id ?? `fam-${uid()}`;
-    const rec: Family = { id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined, remisePct: remiseNum };
+    /* Barème du foyer = remisePct ABSENT — le juge décide, et suit la famille. */
+    const rec: Family = { id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined, remisePct: remiseAuto ? undefined : remiseNum };
     familiesStore.set((prev) => (family ? prev.map((f) => (f.id === id ? rec : f)) : [...prev, rec]));
     /* Rattachements : membres cochés → familyId, retirés → familyId effacé. */
     clientsStore.set((prev) => prev.map((c) => {
@@ -444,25 +449,47 @@ function FamilyModal({
           </div>
         </Field>
         <Field label="Remise famille">
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            {[15, 18, 20].map((p) => (
-              <button key={p} type="button" className={`tre-chip ${remiseNum === p ? 'is-on' : ''}`} onClick={() => setRemiseStr(String(p))}>
-                −{p}%
-              </button>
-            ))}
-            <Input
-              inputMode="numeric"
-              value={remiseStr}
-              onChange={(e) => setRemiseStr(e.target.value.replace(/[^0-9]/g, ''))}
-              style={{ width: 68, textAlign: 'right' }}
-              aria-label="Remise famille en pourcentage"
-            />
-            <span className="mnd-muted" style={{ fontSize: 11.5 }}>%</span>
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
-            L'avantage du compte : posée d'office sur les rendez-vous de chaque membre, et
-            nommée « Remise famille » jusqu'à la facture. 0 = pas de remise pour ce compte.
-          </div>
+          {(() => {
+            /* Le barème, lu sur les membres COCHÉS ICI — l'aperçu dit ce que
+               le compte donnera une fois enregistré, pas l'état d'hier. */
+            const mineurs = memberClients.filter((m) => m.id !== payerId && estMineur(m, todayISO())).length;
+            const autoPct = mineurs >= 2 ? 15 : mineurs === 1 ? 10 : 0;
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className={`tre-chip ${remiseAuto ? 'is-on' : ''}`}
+                    onClick={() => setRemiseAuto(true)}
+                    title="1 enfant → 10 % · 2 et plus → 15 % — le taux suit la famille tout seul"
+                  >
+                    Barème du foyer · −{autoPct}%
+                  </button>
+                  {[10, 15, 18, 20].map((p) => (
+                    <button key={p} type="button" className={`tre-chip ${!remiseAuto && remiseNum === p ? 'is-on' : ''}`} onClick={() => { setRemiseAuto(false); setRemiseStr(String(p)); }}>
+                      −{p}%
+                    </button>
+                  ))}
+                  <Input
+                    inputMode="numeric"
+                    value={remiseStr}
+                    onChange={(e) => { setRemiseAuto(false); setRemiseStr(e.target.value.replace(/[^0-9]/g, '')); }}
+                    style={{ width: 68, textAlign: 'right', opacity: remiseAuto ? 0.5 : 1 }}
+                    aria-label="Remise famille personnalisée en pourcentage"
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>%</span>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                  {remiseAuto
+                    ? <>Le barème suit le foyer : 1 enfant → −10 %, 2 et plus → −15 % — ce compte donne
+                        aujourd’hui −{autoPct}%. Un taux saisi à la main devient une remise personnalisée.</>
+                    : <>Remise personnalisée : la main fait foi (0 = pas de remise pour ce compte).</>}
+                  {' '}Posée d’office sur les rendez-vous des membres, hors forfaits — déjà réduits —,
+                  et nommée « Remise famille » jusqu’à la facture.
+                </div>
+              </>
+            );
+          })()}
         </Field>
         {family && (
           <Field label="Avoir du compte">

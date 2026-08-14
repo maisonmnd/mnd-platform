@@ -62,6 +62,8 @@ type SvcForm = {
       temps : Création Medium ne portait pas la restriction de ses sœurs, et
       AUCUN champ ne permettait de la poser). Vide = toutes les têtes. */
   bandIds: string[];
+  /** Réservée aux comptes famille (14 août — le Pack Famille). */
+  reserveFamilles: boolean;
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
   estForfait: boolean; // un forfait porte une composition ; une prestation, non
@@ -77,7 +79,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [],
+  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false,
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -524,6 +526,7 @@ export default function Catalogue() {
       modele: modeleDe(svc),
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
+      reserveFamilles: !!svc.reserveFamilles,
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -703,6 +706,10 @@ export default function Catalogue() {
          champ simple `bandId`, fondu dans la liste à l'ouverture, se retire. */
       bandIds: svcForm.bandIds.length ? svcForm.bandIds : undefined,
       bandId: undefined,
+      /* RÉSERVÉE AUX COMPTES FAMILLE — le juge est `estProposable` : une tête
+         sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
+         modale RDV. */
+      reserveFamilles: svcForm.reserveFamilles || undefined,
     };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
@@ -1748,6 +1755,20 @@ export default function Catalogue() {
                 {svcForm.bandIds.length
                   ? 'Réservée à ces calibres — pour les autres têtes : « hors calibre », jamais proposée ni prixée.'
                   : 'Aucune coche : elle sert toutes les têtes, quel que soit le calibre.'}
+              </div>
+            </Field>
+            <Field label="Réservée aux comptes famille">
+              <button
+                type="button"
+                className="trv-minibtn"
+                style={svcForm.reserveFamilles ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                onClick={() => setSvcForm({ ...svcForm, reserveFamilles: !svcForm.reserveFamilles })}
+              >
+                {svcForm.reserveFamilles ? 'Oui — familles seulement' : 'Non — ouverte à toutes'}
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                Réservée : seules les têtes rattachées à un compte famille la voient — tunnel de
+                Ma Couronne, accueil et modale de rendez-vous. Le Pack Famille vit ici.
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">

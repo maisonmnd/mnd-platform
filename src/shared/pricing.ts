@@ -499,8 +499,14 @@ export const forfaitPriceXof = (
     le composaient chacune à la main (modale RDV, Caisse, tunnel et reco
     Ma Couronne) et la reco avait oublié le seuil : le forfait « dès la 3ᵉ
     venue » se recommandait — et se réservait — à la première visite. */
-export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number): boolean =>
-  servesBand(sv, bandForService(sv, p)) && ouverteDesVenue(sv, venuesAcquises);
+/* `aFamille` (14 août — le Pack Famille) : une prestation `reserveFamilles`
+   ne se propose qu'aux têtes rattachées à un compte famille. Le défaut FERMÉ
+   (false) protège les appels qui ne se prononcent pas : un pack famille ne
+   fuit jamais vers une tête seule par oubli d'un écran. */
+export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false): boolean =>
+  servesBand(sv, bandForService(sv, p))
+  && ouverteDesVenue(sv, venuesAcquises)
+  && (!sv.reserveFamilles || aFamille);
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[], produits?: readonly { id: string; priceXof: number }[]): number => {
   /* SON PRIX FERME PASSE AVANT TOUT — avant le forfait, le calibre, le tarif au

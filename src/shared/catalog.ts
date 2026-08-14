@@ -158,6 +158,10 @@ export type Service = {
       11 août 2026). Absent = ouverte à toutes, comme toujours. Le compteur est
       `venuesHonorees`, le même que la marque de passage et le Cercle. */
   desVenue?: number;
+  /** RÉSERVÉE AUX COMPTES FAMILLE (14 août — le Pack Famille) : la prestation
+      ne se propose qu'aux têtes rattachées à un compte famille. Absent =
+      ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
+  reserveFamilles?: boolean;
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;

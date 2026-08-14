@@ -9,14 +9,14 @@ import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '..
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { clientsStore, useClients, useFamilies, usePersonas } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct } from '../../shared/clients';
 import { tetesPortees } from '../../shared/accounts';
 import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, type ModelBand } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -116,6 +116,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      au barème et à la longueur de la mère. */
   const cible = beneficiaire ?? client;
   const { session } = useAuth();
+  /* LE COMPTE FAMILLE DE LA TÊTE (14 août) : sa remise se VOIT ici — prix
+     famille au récapitulatif — et se fige en francs sur le rendez-vous, pour
+     que le Trône encaisse exactement ce que l'écran a promis. Le juge est
+     celui de la maison : taux posé = personnalisé ; compte muet = barème du
+     foyer (1 enfant → 10 %, 2 et plus → 15 %). Jamais sur les forfaits. */
+  const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
+  const famPct = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
@@ -195,6 +202,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      résolvait jamais sa composition ici — Ma Couronne annonçait son priceXof
      stocké (souvent 0 F) au lieu du prix réel de la tête (12 août). */
   const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0);
+  /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
+  const famForfaitXof = selected
+    .filter((s) => !s.hidePrice && regimeTarifaire(s, cats).k === 'forfait')
+    .reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0);
+  const famRemiseXof = famPct > 0 ? Math.round(Math.max(0, knownTotal - famForfaitXof) * (famPct / 100)) : 0;
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
@@ -208,7 +220,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      l'abonnement d'ICI qui re-rend la grille quand un blocage tombe. */
   const [blocages] = useBlocages();
   const [exceptions] = useExceptionsHoraires();
-  const price = Math.round(knownTotal * (1 - discountPct / 100));
+  /* L'offre en % d'abord, puis la remise famille en francs — le même ordre
+     que le juge d'encaissement du Trône (apptNetXof). */
+  const price = Math.max(0, Math.round(knownTotal * (1 - discountPct / 100)) - famRemiseXof);
   /* Acompte UNIQUEMENT sur les prestations qui l'exigent, CHACUNE à son propre
      taux (Paramètres du Trône). Aucune → pas d'étape acompte, réservation directe. */
   const priced = selected.filter((s) => !s.hidePrice);
@@ -241,7 +255,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      c'est précisément ce que le compteur regarde : les venues de la tête
      pour qui l'on réserve, celle dont `pricing` porte déjà le tarif. */
   const venuesTete = cible ? venuesHonorees(appts, cible.id) : 0;
-  const offre = services.filter((s) => estProposable(s, pricing, venuesTete));
+  const offre = services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete));
 
   /* Catégories réservables : au moins une prestation visible. */
   /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent
@@ -459,6 +473,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           ...(i === 0 && personalized && !anyHidden && !anyVariable
             ? { priceXof: knownTotal, ...(discountPct > 0 ? { discountPct } : {}) }
             : {}),
+          /* LA REMISE FAMILLE VOYAGE AVEC LE RENDEZ-VOUS — figée en francs
+             (part hors forfaits × taux) : l'encaissement du Trône retranche
+             ce montant exact, et la facture le nommera « Remise famille ». */
+          ...(i === 0 && famRemiseXof > 0 ? { discountXof: famRemiseXof, remiseFamille: true } : {}),
           /* LA LONGUEUR QUI A FAIT CE PRIX se fige avec lui (11 août) : c'est
              celle de la fiche, héritée par `pricingOf`. Sans elle, le comptoir
              rouvrirait le rituel à SA longueur du jour et retarifierait ce que
@@ -975,6 +993,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(knownTotal, currency)}</s>
                 </div>
               )}
+              {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite
+                  avec son taux et ses francs — hors forfaits, déjà réduits. */}
+              {famRemiseXof > 0 && (
+                <div className="mc-recapcard__deal">
+                  Remise famille · −{famPct} %{famForfaitXof > 0 ? ' (hors forfaits)' : ''} · −{fmtMoney(famRemiseXof, currency)}
+                </div>
+              )}
               <div className="mc-hairline" />
               <div className="mc-recapcard__total">
                 <span>Total{anyHidden && !allHidden ? ' connu' : ''}</span>
@@ -1065,7 +1090,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <div className="mc-sectionlabel">Régler maintenant</div>
                 <div className="mc-recapcard" style={{ textAlign: 'left' }}>
                   <div className="mc-recapcard__line"><span>Mobile Money · carte</span><span>{fmtMoney(deposit, currency)}</span></div>
-                  <div className="mc-recapcard__line"><span>Reste au salon</span><span>{anyHidden ? 'à convenir' : fmtMoney(Math.max(0, knownTotal - deposit), currency)}</span></div>
+                  <div className="mc-recapcard__line"><span>Reste au salon</span><span>{anyHidden ? 'à convenir' : fmtMoney(Math.max(0, price - deposit), currency)}</span></div>
                 </div>
                 <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={payOnline} disabled={paying}>
                   {paying ? 'Paiement en cours…' : `Payer l’acompte · ${fmtMoney(deposit, currency)}`}
