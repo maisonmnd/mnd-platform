@@ -1305,14 +1305,8 @@ export function RdvModal({
             {chosen.map((sv, i) => (
               <div
                 key={sv.id}
-                style={{
-                  /* LA BANDE CLAIRE (14 août, maquette) : `--surface-card` vaut
-                     l'ivoire du papier — la prestation se fondait dans la
-                     modale, on ne voyait plus où commençait chaque geste. Le
-                     sable est la surface alternative de la maison. */
-                  border: '1px solid var(--hairline)', borderRadius: 2, padding: '11px 14px',
-                  background: 'var(--color-sable)',
-                }}
+                className="mnd-bande"
+                style={{ padding: '11px 14px' }}
               >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <span style={{ minWidth: 0 }}>
@@ -1446,7 +1440,7 @@ export function RdvModal({
                 const ouvert = desMains.length > 0 || mainsOuvertes.includes(sv.id);
                 const equipeAuFauteuil = ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil));
                 return (
-                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px dashed var(--hairline)' }}>
+                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                       <span className="mnd-muted" style={{ fontSize: 11.5 }}>
                         {desMains.length > 0

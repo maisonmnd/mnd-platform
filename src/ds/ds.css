@@ -277,3 +277,17 @@
 .mnd-toast.is-out { opacity: 0; transition: opacity 0.35s ease; }
 @keyframes mnd-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 @media (prefers-reduced-motion: reduce) { .mnd-toast { animation: none; } }
+
+/* ── LA BANDE (14 août, maquette du rituel) ─────────────────────────────
+   Une surface qui se détache du papier SANS le trancher : l'ivoire du fond
+   avec une pointe de sable. Le sable plein (`--color-sable`) était trop
+   soutenu — la prestation devenait un bloc étranger ; l'ivoire seul se
+   confondait avec la modale et l'on ne voyait plus où commençait chaque
+   geste. Deux déclarations : la seconde n'existe que si `color-mix` est
+   compris, la première tient partout ailleurs. */
+.mnd-bande {
+  background: var(--color-sable);
+  background: color-mix(in srgb, var(--color-sable) 40%, var(--color-ivoire));
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+}
