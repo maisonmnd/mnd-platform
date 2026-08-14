@@ -2,6 +2,18 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Une seule porte fédérée : Google — 14 août
+
+Décision Yéman : les portes Apple et WhatsApp SORTENT de Ma Couronne
+(compte développeur Apple à l'année, Twilio pour WhatsApp — les
+branchements ne valaient pas leur poids). Restent : e-mail + mot de passe
+(la porte de la maison) et « Continuer avec Google ». Retirés :
+`signInWithApple`/`startWhatsAppOtp` (auth.ts), modes
+whatsapp/whatsapp-code + marques SVG (Onboarding). Le branchement Google
+côté tableau de bord Supabase reste À FAIRE par Yéman : Google Cloud
+Console (client OAuth) → Supabase Auth → Providers → Google (Client ID +
+Secret) ; Redirect URLs déjà notées (l'origine GitHub Pages + /couronne/).
+
 ## Le motif « deux familles, une payeuse » vu une 2ᵉ fois (Ruth) — 14 août
 
 Même dessin que Valerie, autre chemin : la cliente rattache un enfant sur
