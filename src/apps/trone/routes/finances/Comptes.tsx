@@ -14,7 +14,7 @@ import {
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
-import { holderOf, holderLabel, estMineur } from '../../../../shared/accounts';
+import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
 import { todayISO } from './_shared';
@@ -26,6 +26,68 @@ import './finances.css';
 
 const frDay = (iso: string): string =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+/* LA REMISE SE CHANGE SUR LA CARTE (14 août, demande de Yéman) — sans ouvrir
+   le foyer. Elle s'écrit à la frappe, comme les Paramètres : rien à valider.
+   Le champ libre COMMET AU REPOS (Entrée, ou quand on le quitte) — écrire à
+   chaque frappe ferait passer « 22 » par « 2 », et le compte aurait vécu une
+   seconde à 2 %. */
+function RemiseSurCarte({ famille, autoPct, onClose }: {
+  famille: Family;
+  autoPct: number;
+  onClose: () => void;
+}) {
+  const pose = (v: number | undefined) =>
+    familiesStore.set((prev) => prev.map((f) => (f.id === famille.id ? { ...f, remisePct: v } : f)));
+  const [libre, setLibre] = useState(famille.remisePct === undefined ? '' : String(famille.remisePct));
+  const commit = () => {
+    const n = libre.replace(/[^0-9]/g, '');
+    if (n === '') return;
+    pose(Math.max(0, Math.min(100, parseInt(n, 10))));
+  };
+  const estAuto = famille.remisePct === undefined;
+  return (
+    <div style={{ marginTop: 10, padding: '10px 12px', border: '1px solid var(--copper-300)', borderRadius: 3, background: 'var(--surface-card)' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button
+          type="button"
+          className={`tre-chip ${estAuto ? 'is-on' : ''}`}
+          onClick={() => { pose(undefined); setLibre(''); }}
+          title="1 enfant → 10 % · 2 et plus → 15 % — le taux suit la famille"
+        >
+          Barème · −{autoPct}%
+        </button>
+        {[10, 15, 18, 20].map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={`tre-chip ${!estAuto && famille.remisePct === p ? 'is-on' : ''}`}
+            onClick={() => { pose(p); setLibre(String(p)); }}
+          >
+            −{p}%
+          </button>
+        ))}
+        <Input
+          inputMode="numeric"
+          value={libre}
+          placeholder="—"
+          onChange={(e) => setLibre(e.target.value.replace(/[^0-9]/g, ''))}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          style={{ width: 62, textAlign: 'right' }}
+          aria-label={`Remise personnalisée de ${famille.name}`}
+        />
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>%</span>
+        <Button size="sm" variant="ghost" style={{ marginLeft: 'auto' }} onClick={() => { commit(); onClose(); }}>Fermer</Button>
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+        {estAuto
+          ? <>Le barème suit le foyer — un enfant de plus, et le taux monte. Un taux à la main devient une remise personnalisée.</>
+          : <>Remise personnalisée — la main fait foi (0 = pas de remise). Posée hors forfaits, déjà réduits.</>}
+      </div>
+    </div>
+  );
+}
 
 export default function Comptes() {
   const { branch, currency } = useBranch();
@@ -52,7 +114,14 @@ export default function Comptes() {
 
   const totalAvoirs = branchFamilies.reduce((s, f) => s + famBalance(f), 0)
     + soloAvoirs.reduce((s, a) => s + a.bal, 0);
-  const activeCount = branchFamilies.filter((f) => famBalance(f) > 0).length + soloAvoirs.length;
+
+  /* DEUX REGISTRES, JAMAIS MÊLÉS (14 août — la page mêlait le foyer et
+     l'argent : seize cartes annonçaient « 0 F » pour qu'une seule dise un
+     solde). On ouvre sur les foyers : c'est ce qu'on vient chercher. */
+  const [registre, setRegistre] = useState<'foyers' | 'avoirs'>('foyers');
+  /* La remise s'ouvre sur la carte ; les gestes rares sous les trois points. */
+  const [remiseOuverte, setRemiseOuverte] = useState<string | null>(null);
+  const [plusOuvert, setPlusOuvert] = useState<string | null>(null);
 
   const [famModal, setFamModal] = useState<Family | 'new' | null>(null);
   /* La cliente d'où l'on vient, quand on arrive depuis sa fiche : elle devient
@@ -124,103 +193,242 @@ export default function Comptes() {
     }]);
   };
 
+  /* CE QUI PRESSE — les foyers dont la payeuse n'a pas d'adresse : ils ne se
+     retrouveront pas sur Ma Couronne (l'adoption se fait par l'adresse). */
+  const sansAdresse = branchFamilies.filter((f) => {
+    const p = branchClients.find((c) => c.id === f.payerClientId);
+    return p && !p.authUserId && !(p.email ?? '').trim();
+  }).length;
+
+  /* Le registre de l'argent — familles créditées ET clientes seules, mêlées :
+     un porteur, un solde. Le dernier mouvement dit si le solde dort. */
+  const lignesAvoirs = useMemo(() => {
+    const dernier = (h: CreditHolder) => credits
+      .filter((m) => m.holderType === h.type && m.holderId === h.id)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    const desFamilles = branchFamilies
+      .map((f) => ({ holder: { type: 'family' as const, id: f.id }, nom: f.name, sous: `Compte famille · payeuse ${nameOf(f.payerClientId)}`, bal: famBalance(f) }))
+      .filter((r) => r.bal > 0);
+    const desClientes = soloAvoirs
+      .map(({ client, bal }) => ({ holder: { type: 'client' as const, id: client.id }, nom: client.name, sous: 'Cliente · avoir individuel', bal }));
+    return [...desFamilles, ...desClientes]
+      .map((r) => ({ ...r, mvt: dernier(r.holder) }))
+      .sort((a, b) => b.bal - a.bal);
+  }, [branchFamilies, soloAvoirs, credits, branchClients]);
+
+  const MOT_MVT: Record<string, string> = { depot: 'Dépôt', usage: 'Usage', remboursement: 'Remboursement' };
+
   return (
     <div className="mnd-rise">
       <PageHead
-        eyebrow="Finances · comptes & avoirs"
-        title="Comptes & Avoirs."
-        sub="Regroupez des clientes en comptes familles (le parent paie pour tous) et gérez les avoirs — un crédit versé d'avance, déduit ensuite à l'encaissement d'un rituel ou à la Caisse."
-        actions={
-          <>
-            <Button variant="ghost" onClick={() => setFamModal('new')}>+ Compte famille</Button>
-            <Button variant="copper" onClick={() => setDeposit({ holder: { type: 'client', id: '' }, kind: 'depot' })}>+ Verser un avoir</Button>
-          </>
-        }
+        eyebrow="Finances"
+        title={registre === 'foyers' ? 'Les foyers.' : 'Les avoirs.'}
+        sub={registre === 'foyers'
+          ? "Un foyer regroupe une famille sous un parent payeur : il règle pour tous, la remise s'applique d'office, et les enfants le suivent sur Ma Couronne."
+          : "Un crédit versé d'avance, déduit ensuite à l'encaissement d'un rituel ou à la Caisse. Seuls les porteurs qui ont un solde figurent ici."}
+        actions={registre === 'foyers'
+          ? <Button variant="copper" onClick={() => setFamModal('new')}>+ Compte famille</Button>
+          : <Button variant="copper" onClick={() => setDeposit({ holder: { type: 'client', id: '' }, kind: 'depot' })}>+ Verser un avoir</Button>}
       />
 
-      <div className="tr-grid tr-grid--3" style={{ marginBottom: 18 }}>
-        <Card filet="copper" style={{ padding: 18 }}>
-          <div className="mnd-stat__label">Avoirs en circulation</div>
-          <div className="mnd-stat__value" style={{ fontSize: 28 }}>{fmtMoney(totalAvoirs, currency)}</div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>crédit prépayé à solder</div>
-        </Card>
-        <Card filet="indigo" style={{ padding: 18 }}>
-          <div className="mnd-stat__label">Comptes familles</div>
-          <div className="mnd-stat__value" style={{ fontSize: 28 }}>{branchFamilies.length}</div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>regroupements de clientes</div>
-        </Card>
-        <Card filet="indigo" style={{ padding: 18 }}>
-          <div className="mnd-stat__label">Comptes avec avoir</div>
-          <div className="mnd-stat__value" style={{ fontSize: 28 }}>{activeCount}</div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>familles + clientes créditées</div>
-        </Card>
+      {/* Les deux registres — le foyer d'un côté, l'argent de l'autre. */}
+      <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid var(--hairline)', margin: '0 0 18px' }}>
+        {([
+          { k: 'foyers' as const, mot: 'Les foyers', n: String(branchFamilies.length) },
+          { k: 'avoirs' as const, mot: 'Les avoirs', n: fmtMoney(totalAvoirs, currency) },
+        ]).map((t) => (
+          <button
+            key={t.k}
+            type="button"
+            onClick={() => setRegistre(t.k)}
+            aria-current={registre === t.k ? 'page' : undefined}
+            style={{
+              appearance: 'none', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit',
+              padding: '10px 2px', display: 'inline-flex', alignItems: 'baseline', gap: 9,
+              fontSize: 14.5, color: registre === t.k ? 'var(--color-indigo)' : 'var(--ink-soft)',
+              fontWeight: registre === t.k ? 600 : 400,
+              borderBottom: `2px solid ${registre === t.k ? 'var(--color-copper)' : 'transparent'}`,
+              marginBottom: -1,
+            }}
+          >
+            {t.mot}
+            <span style={{
+              fontSize: 11, letterSpacing: '.02em',
+              color: registre === t.k ? 'var(--copper-700)' : 'var(--ink-soft)',
+              border: `1px solid ${registre === t.k ? 'var(--copper-300)' : 'var(--hairline)'}`,
+              borderRadius: 999, padding: '1px 9px',
+            }}>{t.n}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Comptes familles */}
-      <div className="trc-microlabel" style={{ marginBottom: 10 }}>Comptes familles</div>
-      {branchFamilies.length === 0 ? (
-        <Card style={{ padding: 22 }}>
-          <div className="mnd-muted" style={{ fontSize: 13 }}>
-            Aucun compte famille. « + Compte famille » regroupe plusieurs clientes (ex. Famille Adamon) sous un parent payeur.
-          </div>
-        </Card>
-      ) : (
-        <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
-          {branchFamilies.map((f) => {
-            const members = membersOf(f);
-            const bal = famBalance(f);
-            return (
-              <Card key={f.id} filet="copper" style={{ padding: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}>{f.name}</div>
-                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 3 }}>
-                      Parent payeur : <b style={{ color: 'var(--copper-700)' }}>{nameOf(f.payerClientId) || 'à désigner'}</b>
+      {/* ══════════ LES FOYERS ══════════ */}
+      {registre === 'foyers' && (
+        <>
+          {sansAdresse > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              background: 'var(--copper-50, #F7EDE4)', border: '1px solid var(--copper-300)',
+              borderRadius: 3, padding: '11px 14px', marginBottom: 16, fontSize: 13,
+            }}>
+              <span>
+                <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>{sansAdresse} foyer{sansAdresse > 1 ? 's' : ''}</b> n’{sansAdresse > 1 ? 'ont' : 'a'} pas
+                l’adresse de {sansAdresse > 1 ? 'leur' : 'sa'} payeuse — {sansAdresse > 1 ? 'leurs' : 'ses'} enfants resteront invisibles sur Ma Couronne.
+              </span>
+            </div>
+          )}
+
+          {branchFamilies.length === 0 ? (
+            <Card style={{ padding: 22 }}>
+              <div className="mnd-muted" style={{ fontSize: 13 }}>
+                Aucun foyer. « + Compte famille » regroupe plusieurs clientes sous un parent payeur.
+              </div>
+            </Card>
+          ) : (
+            <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
+              {branchFamilies.map((f) => {
+                const members = membersOf(f);
+                const bal = famBalance(f);
+                const payeuse = branchClients.find((c) => c.id === f.payerClientId);
+                const autres = members.filter((m) => m.id !== f.payerClientId);
+                const mineurs = autres.filter((m) => estMineur(m, todayISO())).length;
+                const autoPct = mineurs >= 2 ? 15 : mineurs === 1 ? 10 : 0;
+                const pct = remiseFamillePct(f, branchClients, todayISO());
+                const sansNaissance = autres.filter((m) => !(m.birthday ?? '').trim()).length;
+                const adresseAbsente = !!payeuse && !payeuse.authUserId && !(payeuse.email ?? '').trim();
+                return (
+                  <Card key={f.id} filet="indigo" style={{ padding: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)', minWidth: 0 }}>{f.name}</div>
+                      {/* LA REMISE EN TÊTE — et modifiable ici même. */}
+                      <button
+                        type="button"
+                        onClick={() => setRemiseOuverte(remiseOuverte === f.id ? null : f.id)}
+                        title={f.remisePct === undefined ? 'Barème du foyer — toucher pour changer' : 'Remise personnalisée — toucher pour changer'}
+                        style={{
+                          flex: 'none', cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600,
+                          letterSpacing: '.03em', borderRadius: 999, padding: '3px 11px',
+                          color: pct > 0 ? 'var(--copper-700)' : 'var(--ink-soft)',
+                          background: pct > 0 ? 'var(--copper-50, #F7EDE4)' : 'transparent',
+                          border: `1px solid ${pct > 0 ? 'var(--copper-300)' : 'var(--hairline)'}`,
+                        }}
+                      >
+                        {pct > 0 ? `−${pct} %` : 'aucune'}
+                      </button>
                     </div>
-                  </div>
-                  <div style={{ textAlign: 'right', flex: 'none' }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: bal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)' }}>{fmtMoney(bal, currency)}</div>
-                    <div className="mnd-muted" style={{ fontSize: 10 }}>avoir disponible</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-                  {members.length === 0 && <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aucun membre — ajoutez-en dans « Modifier ».</span>}
-                  {members.map((m) => (
-                    <span key={m.id} className="trc-chip" style={{ cursor: 'default' }}>
-                      {m.name}{m.id === f.payerClientId ? ' · payeur' : ''}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                  <Button size="sm" variant="copper" onClick={() => setDeposit({ holder: { type: 'family', id: f.id }, kind: 'depot' })}>Verser un avoir</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setUnpaidFor({ type: 'family', id: f.id })}>Impayés</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setLedgerHolder({ type: 'family', id: f.id })}>Mouvements</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setFamModal(f)}>Modifier</Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+
+                    <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                      ★ <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{nameOf(f.payerClientId) || 'payeur à désigner'}</b> règle pour tous
+                    </div>
+
+                    {remiseOuverte === f.id && (
+                      <RemiseSurCarte famille={f} autoPct={autoPct} onClose={() => setRemiseOuverte(null)} />
+                    )}
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                      {autres.length === 0 && <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aucun membre rattaché</span>}
+                      {autres.map((m) => {
+                        const a = ageDe(m.birthday, todayISO());
+                        return (
+                          <span key={m.id} className="trc-chip" style={{ cursor: 'default' }}>
+                            {m.name}{a !== undefined ? <span style={{ color: 'var(--ink-soft)' }}> · {a}</span> : ''}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    {(adresseAbsente || sansNaissance > 0) && (
+                      <div style={{ marginTop: 9, fontSize: 12, color: 'var(--copper-700)', lineHeight: 1.5 }}>
+                        {adresseAbsente && <div>— Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
+                        {sansNaissance > 0 && <div>— {sansNaissance} naissance{sansNaissance > 1 ? 's' : ''} manquante{sansNaissance > 1 ? 's' : ''} : {sansNaissance > 1 ? 'ces enfants n’apparaîtront pas' : 'cet enfant n’apparaîtra pas'} dans son espace.</div>}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12, paddingTop: 11, borderTop: '1px solid var(--hairline)' }}>
+                      <Button size="sm" variant="ghost" onClick={() => setFamModal(f)}>Ouvrir le foyer</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setUnpaidFor({ type: 'family', id: f.id })}>Impayés</Button>
+                      {bal > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setLedgerHolder({ type: 'family', id: f.id })}
+                          style={{
+                            cursor: 'pointer', font: 'inherit', fontSize: 12, color: 'var(--color-indigo)',
+                            background: 'var(--surface-card)', border: '1px solid var(--hairline)',
+                            borderRadius: 2, padding: '4px 10px',
+                          }}
+                        >
+                          Avoir · {fmtMoney(bal, currency)}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPlusOuvert(plusOuvert === f.id ? null : f.id)}
+                        aria-label="Autres gestes"
+                        aria-expanded={plusOuvert === f.id}
+                        style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 17, letterSpacing: '.12em', padding: '0 4px' }}
+                      >
+                        ⋯
+                      </button>
+                    </div>
+
+                    {plusOuvert === f.id && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                        <Button size="sm" variant="ghost" onClick={() => { setDeposit({ holder: { type: 'family', id: f.id }, kind: 'depot' }); setPlusOuvert(null); }}>Verser un avoir</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setLedgerHolder({ type: 'family', id: f.id }); setPlusOuvert(null); }}>Mouvements</Button>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Avoirs individuels (hors famille) */}
-      {soloAvoirs.length > 0 && (
+      {/* ══════════ LES AVOIRS ══════════ */}
+      {registre === 'avoirs' && (
         <>
-          <div className="trc-microlabel" style={{ margin: '22px 0 10px' }}>Avoirs individuels</div>
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            {soloAvoirs.map(({ client, bal }) => (
-              <div key={client.id} className="trf-coffre-row">
-                <span className="trf-coffre-row__icon trf-coffre-row__icon--depot">₣</span>
-                <span className="trf-coffre-row__main">
-                  <span className="trf-coffre-row__title">{client.name}</span>
-                  <span className="trf-coffre-row__meta">avoir individuel</span>
-                </span>
-                <span className="trf-coffre-row__amount trf-coffre-row__amount--depot">{fmtMoney(bal, currency)}</span>
-                <button className="trf-coffre-row__del" style={{ opacity: 0.8, fontSize: 11 }} title="Impayés du compte" onClick={() => setUnpaidFor({ type: 'client', id: client.id })}>impayés</button>
-                <button className="trf-coffre-row__del" style={{ opacity: 0.8, fontSize: 11 }} title="Mouvements" onClick={() => setLedgerHolder({ type: 'client', id: client.id })}>voir</button>
+          {lignesAvoirs.length === 0 ? (
+            <Card style={{ padding: 22 }}>
+              <div className="mnd-muted" style={{ fontSize: 13 }}>
+                Aucun avoir en circulation — la maison ne doit rien d’avance.
               </div>
-            ))}
-          </Card>
+            </Card>
+          ) : (
+            <Card style={{ padding: 0, overflow: 'hidden' }}>
+              {lignesAvoirs.map((r) => (
+                <div key={`${r.holder.type}-${r.holder.id}`} style={{
+                  display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+                  padding: '13px 16px', borderBottom: '1px solid var(--hairline)',
+                }}>
+                  <span style={{ flex: '1 1 200px', minWidth: 0 }}>
+                    <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{r.nom}</span>
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>{r.sous}</span>
+                  </span>
+                  <span className="mnd-muted" style={{ flex: 'none', fontSize: 12 }}>
+                    {r.mvt ? `${MOT_MVT[r.mvt.kind] ?? r.mvt.kind} · ${frDay(r.mvt.date)}` : 'aucun mouvement'}
+                  </span>
+                  <span style={{ flex: 'none', fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--copper-700)', minWidth: 110, textAlign: 'right' }}>
+                    {fmtMoney(r.bal, currency)}
+                  </span>
+                  <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
+                    <Button size="sm" variant="ghost" onClick={() => setUnpaidFor(r.holder)}>Impayés</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLedgerHolder(r.holder)}>Mouvements</Button>
+                  </span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '13px 16px', background: 'var(--surface-alt, #F3EDE1)' }}>
+                <span className="mnd-muted" style={{ fontSize: 12.5 }}>Crédit prépayé que la maison doit encore</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{fmtMoney(totalAvoirs, currency)}</span>
+              </div>
+            </Card>
+          )}
+
+          {branchFamilies.length > lignesAvoirs.length && (
+            <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 12, fontStyle: 'italic' }}>
+              Les autres foyers n’ont pas d’avoir — ils vivent sous « Les foyers ».
+            </div>
+          )}
         </>
       )}
 

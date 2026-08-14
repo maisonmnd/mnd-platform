@@ -2,6 +2,26 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Comptes & Avoirs revisitée : deux registres — 14 août
+
+Maquette validée par Yéman, construite le jour même. La page mêlait deux
+sujets : seize cartes annonçaient « 0 F » pour qu'une seule porte un
+solde, et la REMISE — la vraie raison d'ouvrir un compte — n'était nulle
+part. Désormais DEUX REGISTRES en onglets (`registre` : 'foyers' |
+'avoirs'), titre et action de PageHead contextuels (+ Compte famille /
++ Verser un avoir). ① LES FOYERS : carte = nom + REMISE EN PASTILLE
+(cliquable → `RemiseSurCarte` : barème/10/15/18/20 + champ libre à
+BLUR-COMMIT, écrit à la frappe dans familiesStore, sans ouvrir le foyer —
+demande de Yéman), payeuse ★, membres avec leur ÂGE, et ce qui manque en
+cuivre (adresse absente de la payeuse, naissances manquantes). Pied :
+« Ouvrir le foyer », « Impayés » EN ACCÈS DIRECT (demande de Yéman),
+pastille « Avoir · N F » seulement si > 0, et « ⋯ » pour les gestes rares
+(verser, mouvements). Bandeau en tête : N foyers sans adresse de payeuse.
+② LES AVOIRS : une seule liste — familles créditées ET clientes seules
+mêlées (un porteur, un solde), dernier mouvement, total nommé « crédit
+prépayé que la maison doit encore ». Les trois KPI décoratifs sont
+retirés. Maquette : artifact claude.ai (Comptes & Avoirs — maquette).
+
 ## La remise famille : barème du foyer, hors forfaits, prix famille — 14 août
 
 DÉCISION YÉMAN. ① BARÈME AUTO (`remiseFamillePct(f, clients, aujourdhui)`
