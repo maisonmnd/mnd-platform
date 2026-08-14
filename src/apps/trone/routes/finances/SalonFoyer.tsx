@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Field, Input, Select, Textarea } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -40,15 +40,32 @@ import './finances.css';
    RÉSERVÉ AU SOUVERAIN. Ceci n'est qu'une garde d'écran ; la vraie barrière
    est la RLS de la migration 0038 (`is_souverain()`), comme pour la paie. */
 
-type Tab = 'mois' | 'annexe' | 'prets' | 'reserves' | 'caisses' | 'regle';
+/* QUATRE ONGLETS, PLUS SIX (14 août, maquette validée par Yéman). Quatre
+   registres, un monde étanche et un réglage s'alignaient comme s'ils servaient
+   à la même chose et à la même fréquence — et il fallait deviner lequel
+   abritait « j'ai pris 45 000 F pour le marché » avant de pouvoir l'écrire.
+   Les trois registres du salon se rangent sous UN journal ; les caisses
+   indépendantes gardent leur onglet (leur monnaie et leur taux en font un
+   vrai monde à part) ; la règle du Partage reste, mais on l'atteint aussi
+   par un lien qui affiche déjà ses trois nombres. */
+type Tab = 'mois' | 'journal' | 'caisses' | 'regle';
 
 const TABS: { k: Tab; l: string }[] = [
   { k: 'mois', l: 'Le mois' },
-  { k: 'annexe', l: 'Prélèvements' },
-  { k: 'prets', l: 'Prêts associés' },
-  { k: 'reserves', l: 'Réserves' },
+  { k: 'journal', l: 'Le journal' },
   { k: 'caisses', l: 'Caisses indépendantes' },
   { k: 'regle', l: 'La règle du Partage' },
+];
+
+/** LES CINQ GESTES — ce qui s'est passé, dans les mots de la maison. C'est la
+    réponse qui choisit le registre : on raconte, on ne range plus. */
+type Geste = 'foyer' | 'cote' | 'emprunt' | 'rembourse' | 'caisse';
+const GESTES: { k: Geste; t: string; s: string }[] = [
+  { k: 'foyer', t: 'J’ai pris de l’argent pour le foyer', s: 'Marché, école, maison — sur le budget du mois.' },
+  { k: 'cote', t: 'J’ai mis de côté', s: 'Réinvestissement ou réserve fiscale — l’argent part au coffre-fort.' },
+  { k: 'emprunt', t: 'Le foyer a emprunté au salon', s: 'Une avance à rembourser — elle crée une dette.' },
+  { k: 'rembourse', t: 'Le foyer rembourse le salon', s: 'Réduit la dette en cours.' },
+  { k: 'caisse', t: 'Mouvement sur une caisse à part', s: 'Wells Fargo, Mes Euros… — sans lien avec le salon.' },
 ];
 
 /** « 45 000 » et « 2,5 » se lisent ; jamais négatif — le SENS vient du champ dédié. */
@@ -242,6 +259,48 @@ export default function SalonFoyer() {
       amountXof: montant,
     } : p)));
     setEditPrel(null);
+  };
+
+  /* ─── LE MOUVEMENT UNIQUE (14 août) — une question, cinq réponses, et
+     l'écriture part dans le bon registre. Le geste choisi commande les champs
+     ouverts ET la table écrite ; le comptoir ne traduit plus « j'ai pris pour
+     le marché » en « prélèvement associés ». ─── */
+  const [mvtOuvert, setMvtOuvert] = useState(false);
+  const [geste, setGeste] = useState<Geste>('foyer');
+  const [fMvtUni, setFMvtUni] = useState({
+    date: todayISO(), motif: 'Maison', note: '',
+    enveloppe: 'reinvestissement' as EnveloppeReserve, montant: '',
+  });
+  const montantUni = litXof(fMvtUni.montant);
+
+  const inscrireMouvement = () => {
+    if (montantUni <= 0) return;
+    const note = fMvtUni.note.trim() || undefined;
+    if (geste === 'foyer') {
+      /* LE DÉPASSEMENT S'ACCEPTE ET S'INSCRIT TEL QUEL (décision de Yéman,
+         14 août) : le retrait passe même s'il excède le budget du mois, et il
+         ne se convertit PAS en prêt — la conséquence est dite avant le geste,
+         la décision reste à la Maison. */
+      setPrelevements((prev) => [...prev, {
+        id: `plv-${uid()}`, branchId: branch.id, date: fMvtUni.date,
+        beneficiaire: 'Foyer', motif: fMvtUni.motif, note, amountXof: montantUni,
+      }]);
+    } else if (geste === 'cote') {
+      verserDansEnveloppe({
+        branchId: branch.id, enveloppe: fMvtUni.enveloppe,
+        amountXof: montantUni, date: fMvtUni.date, note,
+      });
+    } else {
+      setPrets((prev) => [...prev, {
+        id: `prt-${uid()}`, branchId: branch.id, date: fMvtUni.date,
+        type: geste === 'emprunt' ? 'pret' : 'remboursement',
+        associe: 'Foyer',
+        motif: fMvtUni.note.trim() || (geste === 'emprunt' ? 'Prêt du salon au foyer' : 'Remboursement'),
+        amountXof: montantUni,
+      }]);
+    }
+    setFMvtUni((f) => ({ ...f, note: '', montant: '' }));
+    setMvtOuvert(false);
   };
 
   const ajoutePrelevement = () => {
@@ -484,11 +543,146 @@ export default function SalonFoyer() {
         ))}
       </div>
 
+      {/* ═══ INSCRIRE UN MOUVEMENT — une question, pas six onglets ═══ */}
+      {mvtOuvert && (() => {
+        const resteFoyer = env.prelevement - preleve;
+        const apres = resteFoyer - montantUni;
+        return (
+          <Modal title="Inscrire un mouvement." onClose={() => setMvtOuvert(false)} width={560}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>
+                Qu’est-ce qui s’est passé ?
+              </div>
+
+              <div style={{ display: 'grid', gap: 8 }}>
+                {GESTES.map((g) => (
+                  <button
+                    key={g.k}
+                    type="button"
+                    onClick={() => setGeste(g.k)}
+                    style={{
+                      textAlign: 'left', cursor: 'pointer', font: 'inherit', display: 'flex', gap: 10, alignItems: 'flex-start',
+                      border: `1px solid ${geste === g.k ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                      background: geste === g.k ? 'var(--copper-50)' : 'var(--surface-card)',
+                      borderRadius: 3, padding: '11px 13px',
+                    }}
+                  >
+                    <span style={{
+                      flex: 'none', width: 9, height: 9, borderRadius: '50%', marginTop: 5,
+                      border: '1px solid var(--color-copper)',
+                      background: geste === g.k ? 'var(--color-copper)' : 'transparent',
+                    }} />
+                    <span>
+                      <span style={{ display: 'block', fontSize: 14, color: 'var(--color-indigo)' }}>{g.t}</span>
+                      <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>{g.s}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {geste === 'caisse' ? (
+                <>
+                  <div className="trf-empty">
+                    Les caisses à part ont leur monnaie et leur taux : leur écriture se fait dans leur
+                    onglet, où le registre de chacune vit à côté de son solde.
+                  </div>
+                  <Button variant="copper" onClick={() => { setMvtOuvert(false); setTab('caisses'); }}>
+                    Ouvrir les caisses indépendantes
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
+                    <Field label="Date">
+                      <Input type="date" value={fMvtUni.date} onChange={(e) => setFMvtUni({ ...fMvtUni, date: e.target.value })} />
+                    </Field>
+                    {geste === 'foyer' && (
+                      <Field label="Motif">
+                        <Select value={fMvtUni.motif} onChange={(e) => setFMvtUni({ ...fMvtUni, motif: e.target.value })}>
+                          {MOTIFS_PRELEVEMENT.map((m) => <option key={m} value={m}>{m}</option>)}
+                        </Select>
+                      </Field>
+                    )}
+                    {geste === 'cote' && (
+                      <Field label="Enveloppe">
+                        <Select value={fMvtUni.enveloppe} onChange={(e) => setFMvtUni({ ...fMvtUni, enveloppe: e.target.value as EnveloppeReserve })}>
+                          {(['reinvestissement', 'fiscale'] as EnveloppeReserve[]).map((e2) => (
+                            <option key={e2} value={e2}>{RESERVE_LABELS[e2]}</option>
+                          ))}
+                        </Select>
+                      </Field>
+                    )}
+                  </div>
+                  <Field label={geste === 'foyer' ? 'Note · facultatif' : 'Motif · facultatif'}>
+                    <Input
+                      value={fMvtUni.note}
+                      onChange={(e) => setFMvtUni({ ...fMvtUni, note: e.target.value })}
+                      placeholder={geste === 'foyer' ? 'Marché + supermarché…' : geste === 'cote' ? 'Achat fauteuil, acompte impôt…' : 'Retenue sur prélèvement…'}
+                    />
+                  </Field>
+                  <Field label={`Montant (${currency})`}>
+                    <Input
+                      inputMode="numeric"
+                      value={fMvtUni.montant}
+                      onChange={(e) => setFMvtUni({ ...fMvtUni, montant: e.target.value })}
+                      placeholder="45 000"
+                      style={{ textAlign: 'right' }}
+                    />
+                  </Field>
+
+                  {/* LA CONSÉQUENCE S'ANNONCE AVANT LE GESTE — et un dépassement
+                      ne bloque pas : il s'inscrit tel quel, sans devenir un
+                      prêt (décision de Yéman, 14 août). */}
+                  {geste === 'foyer' && montantUni > 0 && (
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
+                      borderRadius: 3, padding: '10px 13px', fontSize: 13,
+                      background: apres >= 0 ? 'var(--color-sable)' : 'var(--copper-50)',
+                      border: `1px solid ${apres >= 0 ? 'var(--hairline)' : 'var(--copper-300)'}`,
+                    }}>
+                      <span className="mnd-muted">
+                        {apres >= 0 ? 'Après ce retrait, il restera au foyer' : 'Ce retrait dépasse le budget du mois de'}
+                      </span>
+                      <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: apres >= 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
+                        {fmtMoney(Math.abs(apres), currency)}
+                        {apres < 0 ? ' — il s’inscrira quand même' : ' ce mois'}
+                      </b>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <Button variant="ghost" onClick={() => setMvtOuvert(false)}>Annuler</Button>
+                    <Button variant="copper" style={{ flex: 1 }} onClick={inscrireMouvement} disabled={montantUni <= 0}>
+                      {geste === 'foyer' ? 'Inscrire le retrait'
+                        : geste === 'cote' ? 'Mettre au coffre'
+                        : geste === 'emprunt' ? 'Inscrire l’emprunt'
+                        : 'Inscrire le remboursement'}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
+
       {/* ═══════ LE MOIS — la vérité en un coup d'œil ═══════ */}
       {tab === 'mois' && (
         <div>
-          <div className="trf-toolbar" style={{ marginTop: 0 }}>
+          <div className="trf-toolbar" style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <MonthNav month={month} onChange={setMonth} />
+            {/* LE GESTE UNIQUE — il remplace quatre formulaires jumeaux
+                dispersés dans quatre onglets. */}
+            <button className="trf-act trf-act--primary" onClick={() => setMvtOuvert(true)}>
+              + Inscrire un mouvement
+            </button>
+            <button
+              className="tre-link-btn"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setTab('regle')}
+            >
+              La règle du Partage · {parts.reinvest} · {parts.reserve} · {parts.prelevement} →
+            </button>
           </div>
 
           <div className="tr-grid tr-grid--3" style={{ marginTop: 18 }}>
@@ -500,6 +694,54 @@ export default function SalonFoyer() {
               </div>
             ))}
           </div>
+
+          {/* ═══ LES TROIS ENVELOPPES, VIVANTES (14 août, maquette) — le budget
+              du mois, ce qui en a été pris, CE QU'IL RESTE, et une jauge. La
+              seule question qu'on se pose devant cette page vivait au fond du
+              deuxième onglet. ═══ */}
+          {benefice > 0 && (
+            <div className="tr-grid tr-grid--3" style={{ marginTop: 14, alignItems: 'start' }}>
+              {([
+                { k: 'foyer', t: 'Le foyer', pct: parts.prelevement, budget: env.prelevement, pris: preleve, accent: 'var(--color-copper)' },
+                { k: 'reinv', t: RESERVE_LABELS.reinvestissement, pct: parts.reinvest, budget: env.reinvest, pris: dotationInscrite('reinvestissement')?.amountXof ?? 0, accent: 'var(--indigo-400, #4E5790)' },
+                { k: 'fisc', t: RESERVE_LABELS.fiscale, pct: parts.reserve, budget: env.reserve, pris: dotationInscrite('fiscale')?.amountXof ?? 0, accent: 'var(--trf-success, #4A6B4F)' },
+              ] as const).map((e) => {
+                const reste = e.budget - e.pris;
+                const part = e.budget > 0 ? Math.min(100, Math.round((e.pris / e.budget) * 100)) : 0;
+                return (
+                  <div key={e.k} style={{
+                    background: 'var(--surface-card)', border: '1px solid var(--hairline)',
+                    borderLeft: `3px solid ${e.accent}`, borderRadius: 4, padding: '14px 15px',
+                  }}>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{e.t}</div>
+                    <div className="mnd-muted" style={{ fontSize: 11.5 }}>{e.pct} % du bénéfice</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--color-indigo)', marginTop: 6 }}>
+                      {fmtMoney(e.budget, currency)}
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, background: 'var(--color-sable)', margin: '9px 0 7px', overflow: 'hidden' }}>
+                      <i style={{ display: 'block', height: '100%', width: `${part}%`, background: e.accent, borderRadius: 999 }} />
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 12 }}>
+                      {e.pris > 0
+                        ? <>{fmtMoney(e.pris, currency)} {e.k === 'foyer' ? 'pris' : 'au coffre'} · <b style={{ color: reste >= 0 ? 'var(--copper-700)' : 'var(--trf-error)', fontWeight: 600 }}>
+                            {reste >= 0 ? `${fmtMoney(reste, currency)} restent` : `${fmtMoney(-reste, currency)} au-delà du budget`}
+                          </b></>
+                        : e.k === 'foyer' ? 'rien pris ce mois' : 'rien mis au coffre ce mois'}
+                    </div>
+                    {e.k !== 'foyer' && (!dotationInscrite(e.k === 'reinv' ? 'reinvestissement' : 'fiscale') || (dotationInscrite(e.k === 'reinv' ? 'reinvestissement' : 'fiscale')?.amountXof !== e.budget)) && e.budget > 0 && (
+                      <button
+                        className="trf-act"
+                        style={{ marginTop: 11 }}
+                        onClick={() => inscrireDotation(e.k === 'reinv' ? 'reinvestissement' : 'fiscale', e.budget)}
+                      >
+                        {e.pris > 0 ? `Ajuster à ${fmtMoney(e.budget, currency)}` : 'Mettre au coffre'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <Panel title={`Le Partage du bénéfice · ${parts.reinvest} · ${parts.reserve} · ${parts.prelevement}`}>
             {/* LA CASCADE SE LIT DE HAUT EN BAS : ce qui est entré, ce qui est
@@ -633,7 +875,7 @@ export default function SalonFoyer() {
       )}
 
       {/* ═══════ PRÉLÈVEMENTS — l'annexe du foyer ═══════ */}
-      {tab === 'annexe' && (
+      {tab === 'journal' && (
         <div>
           <div className="trf-toolbar" style={{ marginTop: 0 }}>
             <MonthNav month={month} onChange={setMonth} />
@@ -729,7 +971,7 @@ export default function SalonFoyer() {
       )}
 
       {/* ═══════ PRÊTS ASSOCIÉS — la dette tracée ═══════ */}
-      {tab === 'prets' && (
+      {tab === 'journal' && (
         <div>
           <div className="tr-grid tr-grid--3" style={{ marginTop: 8 }}>
             <div className="trf-kpi" style={{ '--accent': dette > 0 ? 'var(--trf-error)' : 'var(--trf-success)' } as CSSProperties}>
@@ -837,7 +1079,7 @@ export default function SalonFoyer() {
       )}
 
       {/* ═══════ RÉSERVES — l'argent qui fait grandir le salon ═══════ */}
-      {tab === 'reserves' && (
+      {tab === 'journal' && (
         <div>
           <div className="tr-grid tr-grid--3" style={{ marginTop: 8 }}>
             <div className="trf-kpi" style={{ '--accent': 'var(--color-indigo)' } as CSSProperties}>

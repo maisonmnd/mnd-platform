@@ -2,6 +2,28 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Salon & Foyer : une question, pas six onglets — 14 août
+
+Maquette validée par Yéman (artifact « Salon & Foyer — maquette »).
+DIAGNOSTIC : la page était rangée par REGISTRES quand la main arrive avec
+un GESTE — pour écrire « j'ai pris 45 000 F pour le marché » il fallait
+deviner l'onglet, puis retrouver le bon des quatre formulaires jumeaux
+(Date · X · Montant · INSCRIRE). ① QUATRE ONGLETS au lieu de six : Le
+mois · Le journal (les trois registres du salon réunis) · Caisses
+indépendantes (GARDÉ SÉPARÉ, décision de Yéman — monnaie et taux propres)
+· La règle du Partage (atteinte aussi par un lien du Mois affichant déjà
+25 · 17 · 58). ② LES TROIS ENVELOPPES VIVANTES sur Le mois : budget, part
+prise, JAUGE et surtout « N F restent » — la seule question qu'on se pose
+ici vivait au fond du 2ᵉ onglet ; « Mettre au coffre » vit sur
+l'enveloppe. ③ « + INSCRIRE UN MOUVEMENT » (Modal, `GESTES`) : cinq
+réponses dans les mots de la maison (foyer / mise de côté / emprunt /
+remboursement / caisse à part), la réponse choisit le registre écrit
+(prelevements, verserDansEnveloppe, prets) et n'ouvre que les champs
+utiles ; la caisse à part renvoie à son onglet. LA CONSÉQUENCE S'ANNONCE
+AVANT : « après ce retrait il restera N F » — et un DÉPASSEMENT s'inscrit
+TEL QUEL, sans devenir un prêt (décision de Yéman) : la bande le dit en
+cuivre, elle ne bloque pas.
+
 ## La modale du rendez-vous remise en ordre — 14 août
 
 Maquette validée par Yéman (artifact « Le rituel, de la prise à
