@@ -2,6 +2,20 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## Le motif « deux familles, une payeuse » vu une 2ᵉ fois (Ruth) — 14 août
+
+Même dessin que Valerie, autre chemin : la cliente rattache un enfant sur
+Ma Couronne (famille A naît, RPC), PUIS la maison monte le foyer au Trône
+(Finances › Comptes — famille B avec les enfants, payeuse identique) : la
+fiche pointe A, le vrai foyer est B, et l'enfant commun existe EN DOUBLE
+(le rattachement du Trône ne passe pas par la garde anti-doublon de la
+RPC). Soudure par IDs : supabase/local_ruth_soudure.sql (gitignoré) — la
+famille du Trône est gardée, la Jade doublée effacée (vécu re-pointé), la
+fiche-carnet sans e-mail (MND-…) FUSIONNÉE dans la fiche du compte (carnet
+= socle, champs non vides du compte par-dessus, nom du carnet gardé).
+À POSER UN JOUR : la garde « tête déjà au carnet » dans le rattachement de
+Finances › Comptes (elle n'existe que dans la RPC et AjoutEnfantAuCompte).
+
 ## Le lien de famille se répare à chaque entrée — 14 août
 
 Le piège de fond a REfrappé le jour même : la version du 14 était bien sur
