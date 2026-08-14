@@ -626,6 +626,32 @@ export const TIME_SLOTS: string[] = (() => {
 
    Une modale partagée par quatre écrans ne peut pas dépendre de la feuille d'un
    domaine. */
+/* LES QUATRE PALIERS DE LA MODALE (14 août, maquette validée). Un rendez-vous
+   se lit comme une phrase — qui, quoi, quand, combien — et les numéros disent
+   une vraie séquence : l'ordre dans lequel la main remplit, et celui dans
+   lequel on relit un rituel au comptoir. */
+/** « 1 h 30 » · « 45 min » — la durée d'un rituel, dite court. */
+const fmtDureeCourte = (min: number): string => {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} h ${m}` : `${h} h`;
+};
+
+function PalierRdv({ n, titre, aide }: { n: number; titre: string; aide?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
+      <span style={{
+        flex: 'none', width: 21, height: 21, borderRadius: '50%', border: '1px solid var(--color-copper)',
+        color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 11.5,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>{n}</span>
+      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{titre}</span>
+      {aide && <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>{aide}</span>}
+    </div>
+  );
+}
+
 function ChipChoix({ actif, onClick, title, children, petit }: {
   actif: boolean;
   onClick: () => void;
@@ -701,6 +727,12 @@ export function RdvModal({
      le rituel peut porter deux fois le meme geste, et pas forcement par les
      memes personnes. Vide sur une ligne = on retombe sur le maitre assigne. */
   const [mains, setMains] = useState<string[][]>(appt?.mains ?? []);
+  /* LES PLIS (14 août, maquette validée par Yéman). Neuf fois sur dix c'est le
+     maître au fauteuil qui exécute, et la note du carnet reste vide : ces deux
+     blocs occupaient pourtant la moitié de l'écran. Ils se replient — et
+     s'ouvrent d'eux-mêmes quand ils portent déjà quelque chose. */
+  const [mainsOuvertes, setMainsOuvertes] = useState<string[]>([]);
+  const [noteOuverte, setNoteOuverte] = useState(!!appt?.note?.trim());
   const [equipe] = useStaff();
   const mainsDe = (i: number) => mains[i] ?? [];
   const basculeMain = (i: number, staffId: string) => setMains((prev) => {
@@ -1190,12 +1222,45 @@ export function RdvModal({
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* LES LOCKS SE COMPTENT AU FAUTEUIL, pas ailleurs — et c'est ici qu'on
-            ouvre le rituel. Ils commandent le barème du modèle : tant qu'ils
-            manquent, le prix s'annonce « dès », et il devient exact dès qu'on
-            les connaît. Les saisir obligeait à quitter la modale, retrouver la
-            fiche, revenir. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px', gap: 12, alignItems: 'start' }}>
+        {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
+            Onze champs à la file, et le total tout en bas : on faisait défiler
+            pour retrouver ce qu'on était en train d'écrire. La tête, son
+            calibre, le moment et LE TOTAL NET (remise déduite — la somme
+            qu'elle paiera, pas le prix du catalogue) restent sous les yeux du
+            premier au dernier champ. */}
+        <div style={{
+          position: 'sticky', top: -1, zIndex: 3, margin: '-4px -2px 0',
+          background: 'var(--color-indigo)', borderRadius: 3, padding: '13px 16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-ivoire)', minWidth: 0 }}>
+              {rdvClient?.name ?? 'Tête à choisir'}
+            </span>
+            {!sansPrix && (
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 23, color: 'var(--copper-200)', whiteSpace: 'nowrap' }}>
+                {effCovered ? 'inclus' : argent(totalXof)}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6, fontSize: 12, color: 'var(--ink-invert-soft, #C9C3DB)' }}>
+            {pricing.band && rdvClient?.lockCount ? (
+              <span style={{ border: '1px solid var(--hairline-invert)', borderRadius: 999, padding: '1px 9px' }}>
+                {bandLabel(pricing.band, bands)} · {rdvClient.lockCount} locks
+              </span>
+            ) : null}
+            <span>
+              {frShort(date)} · <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{time}</b>
+              {master ? <> · avec <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{master}</b></> : ''}
+            </span>
+            <span style={{ border: '1px solid var(--hairline-invert)', borderRadius: 999, padding: '1px 9px' }}>{status}</span>
+          </div>
+        </div>
+
+        {/* ① LA TÊTE — et ses locks : ils commandent le barème du modèle. Tant
+            qu'ils manquent, le prix s'annonce « dès » ; il devient exact dès
+            qu'on les connaît, sans quitter la modale. */}
+        <PalierRdv n={1} titre="La tête" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px', gap: 12, alignItems: 'start', marginTop: -8 }}>
           <Field label="Tête couronnée">
             <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
             {membership && (
@@ -1212,8 +1277,14 @@ export function RdvModal({
         </div>
 
         <div>
-          <span className="trc-microlabel">Prestations</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <PalierRdv
+            n={2}
+            titre="Le rituel"
+            aide={chosen.length
+              ? `${chosen.length} prestation${chosen.length > 1 ? 's' : ''} · ${fmtDureeCourte(chosen.reduce((s, sv) => s + sv.durationMin, 0))}`
+              : undefined}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
             {chosen.map((sv, i) => (
               <div
                 key={sv.id}
@@ -1343,25 +1414,47 @@ export function RdvModal({
                   par une troisieme. Le maitre assigne repond du rendez-vous ;
                   il ne dit pas qui a travaille, et c'est pourtant lui seul que
                   la commission suivait. Aucune main cochee : on retombe sur lui. */}
-              {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 9, paddingTop: 9, borderTop: '1px dashed var(--hairline)' }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                    Mains
-                  </span>
-                  {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).map((m) => {
-                    const pos = serviceIds.indexOf(sv.id);
-                    const on = mainsDe(pos).includes(m.id);
-                    return (
-                      <ChipChoix key={m.id} actif={on} petit onClick={() => basculeMain(pos, m.id)}>
-                        {m.name}
-                      </ChipChoix>
-                    );
-                  })}
-                  {mainsDe(serviceIds.indexOf(sv.id)).length === 0 && (
-                    <span className="mnd-muted" style={{ fontSize: 11 }}>— {master || 'le maître assigné'}</span>
-                  )}
-                </div>
-              )}
+              {/* LES MAINS SE REPLIENT (14 août). Neuf fois sur dix c'est le
+                  maître au fauteuil qui exécute : une ligne le dit, et les
+                  pastilles n'écrasent plus la prestation. Le pli s'ouvre de
+                  lui-même dès que des mains sont désignées — on ne cache
+                  jamais un choix déjà fait. */}
+              {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).length > 0 && (() => {
+                const pos = serviceIds.indexOf(sv.id);
+                const desMains = mainsDe(pos);
+                const ouvert = desMains.length > 0 || mainsOuvertes.includes(sv.id);
+                const equipeAuFauteuil = ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil));
+                return (
+                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px dashed var(--hairline)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                      <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                        {desMains.length > 0
+                          ? `Exécuté par ${desMains.length} main${desMains.length > 1 ? 's' : ''}`
+                          : <>Exécuté par <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{master || 'le maître assigné'}</b>, au fauteuil</>}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setMainsOuvertes((prev) => (prev.includes(sv.id) ? prev.filter((x) => x !== sv.id) : [...prev, sv.id]))}
+                        style={{
+                          marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+                          font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+                        }}
+                      >
+                        {ouvert ? 'Replier' : 'Plusieurs mains ?'}
+                      </button>
+                    </div>
+                    {ouvert && (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
+                        {equipeAuFauteuil.map((m) => (
+                          <ChipChoix key={m.id} actif={desMains.includes(m.id)} petit onClick={() => basculeMain(pos, m.id)}>
+                            {m.name}
+                          </ChipChoix>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               </div>
             ))}
             <Select
@@ -1481,7 +1574,9 @@ export function RdvModal({
           </div>
         )}
 
-        <div className="tr-grid tr-grid--2">
+        {/* ③ LE MOMENT — le jour, l'heure, la main qui tient le fauteuil. */}
+        <PalierRdv n={3} titre="Le moment" />
+        <div className="tr-grid tr-grid--2" style={{ marginTop: -8 }}>
           <Field label="Date">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
@@ -1529,9 +1624,25 @@ export function RdvModal({
           </div>
         )}
 
-        <Field label="Note du carnet">
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" />
-        </Field>
+        {/* LA NOTE SE REPLIE (14 août) : elle reste vide la plupart du temps,
+            et occupait une ligne entière entre deux champs qu'on remplit
+            toujours. Le pli s'ouvre de lui-même quand elle porte un mot. */}
+        {noteOuverte ? (
+          <Field label="Note du carnet">
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" autoFocus={!appt?.note?.trim()} />
+          </Field>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNoteOuverte(true)}
+            style={{
+              alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+              font: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)',
+            }}
+          >
+            + Une note au carnet
+          </button>
+        )}
 
         {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait
             pas : le montant du rituel et les remises sont des nombres bruts,
@@ -1563,6 +1674,12 @@ export function RdvModal({
             alors qu'un forfait EFFACE les remises (un prix négocié ne se remise
             pas). Le choix dit la règle. */}
         {!effCovered && !sansPrix && (
+          <>
+          <PalierRdv
+            n={4}
+            titre="Le prix"
+            aide={rdvPersonalized && rdvClient?.lockCount ? `son prix · ${rdvClient.lockCount} locks` : undefined}
+          />
           <Field label="Le prix">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {([
@@ -1699,6 +1816,7 @@ export function RdvModal({
               </>
             )}
           </Field>
+          </>
         )}
 
         {/* CE RITUEL EST-IL OFFERT ? Le geste vit sur le rendez-vous, et non sur
@@ -1886,14 +2004,29 @@ export function RdvModal({
                 Encaisser ou poser un acompte
               </Button>
             ))}
-            {appt.status !== 'annulé' && (
-              <Button variant="ghost" onClick={cancelRdv}>
-                Annuler le rendez-vous
-              </Button>
-            )}
-            <Button variant="ghost" onClick={remove} style={{ color: 'var(--copper-700)' }}>
-              Supprimer le rendez-vous
-            </Button>
+            {/* LA DESTRUCTION QUITTE LA PILE (14 août). Annuler et supprimer
+                s'alignaient, pleine largeur, avec Enregistrer et Encaisser :
+                quatre boutons de même poids dont deux qui détruisent — une
+                erreur qui attend son heure. Ils vivent désormais sous un pli,
+                en petit, et gardent leur mot de confirmation. */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 2 }}>
+              {appt.status !== 'annulé' && (
+                <button
+                  type="button"
+                  onClick={cancelRdv}
+                  style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 4, font: 'inherit', fontSize: 11.5, color: 'var(--ink-soft)' }}
+                >
+                  Annuler le rendez-vous
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={remove}
+                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 4, font: 'inherit', fontSize: 11.5, color: 'var(--copper-700)' }}
+              >
+                Supprimer
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

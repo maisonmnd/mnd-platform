@@ -2,6 +2,28 @@
 
 État au 14 août 2026. À lire en premier dans une nouvelle session.
 
+## La modale du rendez-vous remise en ordre — 14 août
+
+Maquette validée par Yéman (artifact « Le rituel, de la prise à
+l'encaissement »), écran 1 construit. L'écran le plus utilisé de la maison
+était une coulée de onze champs, total tout en bas, quatre boutons de même
+poids dont deux destructeurs. Désormais : ① BANDEAU VIVANT `position:
+sticky` en tête (tête, calibre+locks, date/heure/maître, statut, et LE
+TOTAL NET remise déduite — décision de Yéman : la somme qu'elle paiera,
+pas le prix catalogue) ; ② QUATRE PALIERS numérotés (`PalierRdv`) — La
+tête · Le rituel (n prestations · durée) · Le moment · Le prix (« son
+prix · N locks ») ; ③ LES MAINS SE REPLIENT par prestation
+(`mainsOuvertes`) : ligne « Exécuté par X, au fauteuil » + « Plusieurs
+mains ? », pli OUVERT d'office si des mains sont déjà désignées ; ④ LA
+NOTE se replie (`noteOuverte`, ouverte si l'appt en porte une) derrière
+« + Une note au carnet » ; ⑤ LE PIED : Enregistrer (cuivre) + Encaisser
+gardent leur place ; annuler et supprimer passent EN PETIT sous eux, avec
+leurs confirmations. À la CRÉATION, les DEUX boutons restent (Confirmer /
+En attente — décision de Yéman). RESTE À FAIRE : l'écran 2 de la maquette
+(l'encaissement — reste à encaisser vivant dans le bandeau, deux tiroirs
+avoir/comptant qui s'additionnent, caisse rangée sous le comptant,
+pourboire et prochain RDV sous « Et ensuite »).
+
 ## Comptes & Avoirs revisitée : deux registres — 14 août
 
 Maquette validée par Yéman, construite le jour même. La page mêlait deux
