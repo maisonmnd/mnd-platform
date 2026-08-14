@@ -380,10 +380,15 @@ function FamilyModal({
        15 %, aucun → 0. Il suit la famille tout seul — un enfant s'ajoute,
        le taux monte.
      · PERSONNALISÉE (taux posé) : la main fait foi, 0 = remise coupée.
-     Elle ne porte jamais sur les forfaits, déjà réduits. */
-  const [remiseAuto, setRemiseAuto] = useState(family ? family.remisePct === undefined : true);
-  const [remiseStr, setRemiseStr] = useState(String(family?.remisePct ?? REMISE_FAMILLE_DEFAUT));
-  const remiseNum = Math.max(0, Math.min(100, Math.round(Number(remiseStr.replace(/[^0-9]/g, '')) || 0)));
+     Elle ne porte jamais sur les forfaits, déjà réduits.
+     UN SEUL ÉTAT — 'auto' ou le taux saisi. Deux états séparés (drapeau +
+     valeur) se sont désynchronisés à l'écran de Yéman le jour même : 22
+     saisi, barème encore en vedette. Un seul état ne peut pas mentir. */
+  const [remiseChoix, setRemiseChoix] = useState<string>(
+    family ? (family.remisePct === undefined ? 'auto' : String(family.remisePct)) : 'auto',
+  );
+  const remiseAuto = remiseChoix === 'auto';
+  const remiseNum = remiseAuto ? 0 : Math.max(0, Math.min(100, Math.round(Number(remiseChoix.replace(/[^0-9]/g, '')) || 0)));
 
   const addMember = (id: string) => {
     if (!id || memberIds.includes(id)) return;
@@ -460,21 +465,26 @@ function FamilyModal({
                   <button
                     type="button"
                     className={`tre-chip ${remiseAuto ? 'is-on' : ''}`}
-                    onClick={() => setRemiseAuto(true)}
+                    onClick={() => setRemiseChoix('auto')}
                     title="1 enfant → 10 % · 2 et plus → 15 % — le taux suit la famille tout seul"
                   >
                     Barème du foyer · −{autoPct}%
                   </button>
                   {[10, 15, 18, 20].map((p) => (
-                    <button key={p} type="button" className={`tre-chip ${!remiseAuto && remiseNum === p ? 'is-on' : ''}`} onClick={() => { setRemiseAuto(false); setRemiseStr(String(p)); }}>
+                    <button key={p} type="button" className={`tre-chip ${!remiseAuto && remiseNum === p ? 'is-on' : ''}`} onClick={() => setRemiseChoix(String(p))}>
                       −{p}%
                     </button>
                   ))}
+                  {/* Le champ libre : taper un chiffre BASCULE en personnalisée
+                      (le même état porte les deux — rien à désynchroniser).
+                      Vider le champ ne repasse pas en barème d'autorité : on
+                      lit alors « 0 », et la chip du barème est à un clic. */}
                   <Input
                     inputMode="numeric"
-                    value={remiseStr}
-                    onChange={(e) => { setRemiseAuto(false); setRemiseStr(e.target.value.replace(/[^0-9]/g, '')); }}
-                    style={{ width: 68, textAlign: 'right', opacity: remiseAuto ? 0.5 : 1 }}
+                    value={remiseAuto ? '' : String(remiseNum)}
+                    placeholder="—"
+                    onChange={(e) => setRemiseChoix(e.target.value.replace(/[^0-9]/g, '') || '0')}
+                    style={{ width: 68, textAlign: 'right' }}
                     aria-label="Remise famille personnalisée en pourcentage"
                   />
                   <span className="mnd-muted" style={{ fontSize: 11.5 }}>%</span>
@@ -483,7 +493,8 @@ function FamilyModal({
                   {remiseAuto
                     ? <>Le barème suit le foyer : 1 enfant → −10 %, 2 et plus → −15 % — ce compte donne
                         aujourd’hui −{autoPct}%. Un taux saisi à la main devient une remise personnalisée.</>
-                    : <>Remise personnalisée : la main fait foi (0 = pas de remise pour ce compte).</>}
+                    : <>Remise personnalisée · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseNum}%</b> — la main fait foi
+                        (0 = pas de remise pour ce compte). Revenir au barème : touchez « Barème du foyer ».</>}
                   {' '}Posée d’office sur les rendez-vous des membres, hors forfaits — déjà réduits —,
                   et nommée « Remise famille » jusqu’à la facture.
                 </div>
