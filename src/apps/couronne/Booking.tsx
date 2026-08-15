@@ -117,7 +117,20 @@ type Props = {
 
 export default function Booking({ prefill, onClose, toast }: Props) {
   const { branch, currency } = useBranch();
-  const { cats, services } = useVisibleCatalog();
+  /* CE QU'ELLE PEUT RÉSERVER — la carte élaguée à sa mesure. Seules les
+     PRESTATIONS en sortent : les catégories réservables se déduisent d'elles
+     (voir `bookableCats`), donc rien d'invisible ne peut fuir par ce chemin. */
+  const { services } = useVisibleCatalog();
+  /* L'ARBRE ENTIER, à côté. La carte élaguée ne porte que ce que CETTE cliente
+     peut voir — bon pour AFFICHER, faux pour JUGER : le monde d'une prestation
+     se lit en remontant à sa racine, et une racine élaguée fait retomber sa
+     famille sur « le plateau technique ». Le Juste Prix personnel, lui, ne
+     s'applique qu'à l'Atelier (`coefJustePrix`) : jugé sur la carte élaguée il
+     s'ÉTEIGNAIT ici, alors que le comptoir — qui a l'arbre entier —
+     l'appliquait ; les deux surfaces se seraient contredites sur le prix, ce
+     que Ma Couronne ne peut pas se permettre. On affiche la carte, on juge sur
+     l'arbre. */
+  const [tousCats] = useCategories();
   /* Les produits de la Gamme — une composition de forfait peut en porter. */
   const [produits] = useProducts();
   const [appts] = useAppointments();
@@ -212,7 +225,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Les barèmes par atelier : VÈKPÈ™ a les siens, la création ne progresse pas
      comme le resserrage. */
   const [sets] = useBandSets();
-  const pricing = pricingOf(cible ?? undefined, bands, sets, cats);
+  const pricing = pricingOf(cible ?? undefined, bands, sets, tousCats);
   const personalized = isPersonalized(pricing);
   /* LA DURÉE PEUT CROIRE LA CLIENTE, LE PRIX JAMAIS. Tant que la Maison n'a
      pas compté ses locks, la densité qu'elle déclare au tunnel (chips
@@ -221,7 +234,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      un créneau intenable. Le PRIX, lui, reste sur `pricing` : une cliente ne
      peut pas s'auto-tarifer, et le comptage de la Maison l'emportera. */
   const pricingDuree = cible && !cible.lockCount && cible.lockCountDeclare
-    ? pricingOf({ ...cible, lockCount: cible.lockCountDeclare }, bands, sets, cats)
+    ? pricingOf({ ...cible, lockCount: cible.lockCountDeclare }, bands, sets, tousCats)
     : pricing;
   const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0);
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
@@ -237,7 +250,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + prixIci(s), 0);
   /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
   const famForfaitXof = selected
-    .filter((s) => !s.hidePrice && regimeTarifaire(s, cats).k === 'forfait')
+    .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
     .reduce((n, s) => n + prixIci(s), 0);
   const famRemiseXof = famPct > 0 ? Math.round(Math.max(0, knownTotal - famForfaitXof) * (famPct / 100)) : 0;
   const anyHidden = selected.some((s) => s.hidePrice);
@@ -293,8 +306,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Catégories réservables : au moins une prestation visible. */
   /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent
      les champs `order` du Trône — le tunnel doit dérouler la carte dans le
-     même ordre que la Maison la pense. */
-  const bookableCats = catsDansLOrdre(cats).filter((c) => offre.some((s) => s.categoryId === c.id));
+     même ordre que la Maison la pense.
+
+     L'ORDRE SE PREND SUR L'ARBRE ENTIER (15 août) — jamais sur la liste
+     visible. `useVisibleCatalog` ÉLAGUE : une cliente à qui rien de GBÈJÍ™ ne
+     s'adresse ne reçoit pas GBÈJÍ™, mais reçoit toujours ses familles
+     (KLƆKLƆ™, LES SOINS, SÍNSIN™, Styling). Ranger CETTE liste-là, c'était
+     ranger un arbre sans ses branches : les familles orphelines de leur
+     atelier perdaient leur place et fermaient la marche, pendant qu'un
+     atelier resté entier — YÈKPÈ™, la coloration — remontait en tête. La
+     Maison pense KLƆKLƆ · les soins · SÍNSIN · les coiffures, PUIS YÈKPÈ ;
+     l'écran disait le contraire. Le monde se lit sur le même arbre, sinon
+     une famille sans son atelier tombe au « plateau technique ». */
+  const ordreCatalogue = useMemo(() => catsDansLOrdre(tousCats), [tousCats]);
+  const bookableCats = ordreCatalogue.filter((c) => offre.some((s) => s.categoryId === c.id));
   /* Le corps d'un pli : les prestations de CET atelier, dans l'ordre du Trône.
      Le palier ne les trie plus — toutes celles qu'elle peut réserver y sont. */
   const servicesDe = (id: string) => offre.filter((s) => s.categoryId === id).sort((a, b) => a.order - b.order);
@@ -769,8 +794,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 {/* LES MONDES SE DISENT (12 août) : un intertitre quand on passe
                     de l'Atelier au plateau, puis au Studio. */}
                 {bookableCats.map((c, ci) => {
-                  const monde = mondeDeCat(c, cats);
-                  const prec = ci > 0 ? mondeDeCat(bookableCats[ci - 1], cats) : null;
+                  const monde = mondeDeCat(c, tousCats);
+                  const prec = ci > 0 ? mondeDeCat(bookableCats[ci - 1], tousCats) : null;
                   const ouvert = catId === c.id;
                   const svcs = servicesDe(c.id);
                   /* CE QU'ON Y A PRIS, dit sur la ligne même de l'atelier — c'est

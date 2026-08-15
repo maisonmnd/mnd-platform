@@ -8,7 +8,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof } from '../../s
 import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
-import { priceModeOf, sousArbreOf } from '../../shared/catalog';
+import { priceModeOf, sousArbreOf, useCategories } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
    Ponctuel −10 % · Abonnement −15 % (l'entretien et la réparation, 3 prestations minimum).
@@ -26,6 +26,17 @@ type Props = { onClose: () => void; toast: (msg: string) => void };
 export default function Compose({ onClose, toast }: Props) {
   const { currency } = useBranch();
   const { cats, services, products } = useVisibleCatalog();
+  /* ON AFFICHE AVEC LA CARTE ÉLAGUÉE, ON JUGE SUR L'ARBRE ENTIER (15 août).
+     `cats` ne porte que ce que CETTE cliente voit : un atelier dont rien ne
+     s'adresse à elle en disparaît, ses familles restent — l'arbre y est cassé.
+     Deux conséquences réparées ici : ① le Juste Prix personnel ne s'applique
+     qu'à l'Atelier (`coefJustePrix` remonte à la racine), et il s'éteignait
+     quand la racine manquait — le sur-mesure annonçait alors un autre prix que
+     le comptoir ; ② `sousArbreOf` sur l'arbre cassé ne retrouvait plus les
+     familles d'un atelier d'abonnement (GBÈJÍ™ → SÍNSIN™, KLƆKLƆ™…), et
+     l'abonnement pouvait se présenter VIDE. Les groupes affichés, eux,
+     continuent de sortir de la carte élaguée : rien d'invisible ne fuit. */
+  const [tousCats] = useCategories();
   const client = useClient();
   /* LES RÉGLAGES DU SUR-MESURE viennent du Trône (12 août) — remises,
      minimum et ateliers d'abonnement ne sont plus écrits ici. */
@@ -35,7 +46,7 @@ export default function Compose({ onClose, toast }: Props) {
      Réserver montrait les siens — même moteur partout désormais. */
   const [bands] = useModelBands();
   const [sets] = useBandSets();
-  const pricing = pricingOf(client ?? undefined, bands, sets, cats);
+  const pricing = pricingOf(client ?? undefined, bands, sets, tousCats);
   const prixDe = (s: (typeof services)[number]): number => personalPriceXof(s, pricing, services, products);
 
   const [mode, setMode] = useState<'ponctuel' | 'abonnement'>('ponctuel');
@@ -57,13 +68,15 @@ export default function Compose({ onClose, toast }: Props) {
      tout le catalogue visible (l'historique). */
   const sousArbreDe = (liste: string[]): Set<string> => {
     const ids = new Set<string>();
-    for (const id of liste) for (const x of sousArbreOf(cats, id)) ids.add(x);
+    /* Sur l'ARBRE ENTIER : la descendance d'un atelier ne dépend pas de ce que
+       cette cliente-ci peut voir. Le filtrage se fait après, sur les groupes. */
+    for (const id of liste) for (const x of sousArbreOf(tousCats, id)) ids.add(x);
     return ids;
   };
-  const aboSousArbre = useMemo(() => sousArbreDe(sm.aboCats), [cats, sm.aboCats]);
+  const aboSousArbre = useMemo(() => sousArbreDe(sm.aboCats), [tousCats, sm.aboCats]);
   const ponctuelSousArbre = useMemo(
     () => (sm.ponctuelCats.length ? sousArbreDe(sm.ponctuelCats) : null),
-    [cats, sm.ponctuelCats],
+    [tousCats, sm.ponctuelCats],
   );
   const activeGroups = mode === 'abonnement'
     ? groups.filter((g) => aboSousArbre.has(g.cat.id))
