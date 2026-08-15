@@ -2,6 +2,37 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Porter une composition n'est pas être pricé par elle — 15 août
+
+« Où est passé prix par longueur ? court, mi-long et long ? » (Yéman, sur
+YÈKPÈ™ Couleur Sublimation). LE FORMULAIRE TENAIT POUR FORFAIT toute fiche
+portant un `includes`, et lui fermait alors les cinq modèles de prix — grille
+par longueur comprise. Or TROIS fiches portent un geste inclus (un soin
+protéiné à deux semaines) SANS remise de forfait et avec leur prix propre :
+`YÈKPÈ™ Couleur Sublimation` (25 000), `YÈKPÈ™ Couleur + Lumière` (37 000) et
+`WÈWÈ™ + DÀNDÀN™` (38 500). Le MOTEUR ne s'y trompait pas — `forfaitPriceXof`
+rend `undefined` faute de remise, et le prix retombe sur la grille par
+longueur. Les deux dernières PORTAIENT DÉJÀ leurs trois longueurs
+(37 000 / 55 000 / 64 500 · 38 500 / 46 000 / 51 500) : invisibles à l'écran,
+et **effacées au premier enregistrement** — l'écriture n'écrit que le système
+du modèle choisi, et aucun ne l'était. Une donnée vivante que la fiche
+détruisait en silence.
+
+CORRIGÉ À LA RACINE : `regimeBrut` (pricing.ts) ne dit « forfait » que si la
+composition COMMANDE vraiment — MÊME CONDITION que le moteur : une remise
+posée, ou un prix propre à zéro. Le juge et le moteur disent enfin la même
+chose ; au passage la remise famille cesse d'exclure trois fiches qui ne sont
+pas réduites. Côté Catalogue, `prixParComposition` remplace `estForfait` sur
+les quatre gardes du prix : les fiches qui gardent leur prix retrouvent leurs
+modèles, l'enregistrement n'efface plus leurs systèmes, et une bande cuivre
+dit pourquoi (« pose une remise de forfait ou mets son prix à zéro pour
+qu'elle vaille sa composition »). Harnais verifie-prix : 4 vérifications de
+plus (un geste inclus sans remise → régime `longueur`, prix 55 000 en
+mi-long ; une remise posée → `forfait` ; un prix à zéro → `forfait`), tout
+passe. PUBLIÉ, build `20260815205008`, publié @ `8214948`, contrôlé en ligne.
+RESTE À FAIRE PAR YÉMAN : saisir les trois longueurs de `YÈKPÈ™ Couleur
+Sublimation`, qui n'en a encore aucune — la fiche les accepte désormais.
+
 ## Le nom mène à sa fiche · l'interrupteur d'une prestation se voit — 15 août
 
 DEUX DEMANDES DE YÉMAN, le même jour. ① LE CALENDRIER : « quand je clique
