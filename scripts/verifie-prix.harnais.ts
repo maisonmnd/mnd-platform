@@ -3,6 +3,7 @@
 import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
   ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
+  regimeTarifaire,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -239,6 +240,31 @@ dit('la règle d’avant le pourcentage offre toujours', 100,
   remiseGestePct(svc({ id: 'g-v1', offertAvec: { serviceIds: ['g-reprise'] } }), gPico, [gReprise]));
 dit('une règle SANS calibre vaut pour toutes les têtes', true,
   estOfferte(svc({ id: 'g-s2', offertAvec: [{ serviceIds: ['g-reprise'], pct: 100 }] }), gMini, [gReprise]));
+
+/* ── PORTER UNE COMPOSITION N'EST PAS ÊTRE PRICÉ PAR ELLE (15 août) ──
+   Trois fiches du catalogue portent un geste inclus SANS remise de forfait et
+   avec leur prix propre. Le moteur l'a toujours su — `forfaitPriceXof` rend
+   `undefined` faute de remise — mais le JUGE disait « composition du forfait »,
+   et le Catalogue fermait alors à ces fiches le modèle de prix qui les fait
+   vivre : leur grille par longueur devenait invisible, puis s'effaçait au
+   premier enregistrement. Les deux doivent dire la même chose. */
+const cMi: PersonalPricing = pricingOf({ longueur: 'mi-long' } as never, []);
+const fSansRemise = svc({
+  id: 'f-sans', priceXof: 37_000, includes: [{ serviceId: 'x' }],
+  prixParLongueur: { court: 37_000, 'mi-long': 55_000, long: 64_500 },
+} as Partial<Service>);
+const fAvecRemise = svc({
+  id: 'f-avec', priceXof: 0, forfaitRemisePct: 15, includes: [{ serviceId: 'x' }],
+} as Partial<Service>);
+
+dit('un geste inclus SANS remise ne fait pas un forfait', 'longueur',
+  regimeTarifaire(fSansRemise).k);
+dit('… et son prix sort de la grille par longueur', 55_000,
+  personalPriceXof(fSansRemise, cMi, [fSansRemise]));
+dit('une remise posée, elle, fait bien un forfait', 'forfait',
+  regimeTarifaire(fAvecRemise).k);
+dit('un prix propre à zéro aussi', 'forfait',
+  regimeTarifaire(svc({ id: 'f-zero', priceXof: 0, includes: [{ serviceId: 'x' }] } as Partial<Service>)).k);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

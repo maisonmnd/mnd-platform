@@ -411,7 +411,17 @@ export type RegimeClef = 'ferme' | 'forfait' | 'devis' | 'longueur' | 'calibre' 
 export type RegimeTarifaire = { k: RegimeClef; mots: string; justePrix: boolean };
 const regimeBrut = (sv: Service): RegimeTarifaire => {
   if (isFixedPrice(sv)) return { k: 'ferme', mots: 'prix ferme du catalogue', justePrix: false };
-  if (sv.includes?.length) return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
+  /* PORTER UNE COMPOSITION N'EST PAS ÊTRE PRICÉ PAR ELLE (15 août). La
+     condition est celle de `forfaitPriceXof`, mot pour mot : sans remise posée
+     et avec un prix propre, la composition NE COMMANDE PAS — le moteur retombe
+     sur les régimes du dessous (grille par longueur, calibre, comptage…). Le
+     juge, lui, annonçait « composition du forfait » sur trois fiches que le
+     moteur tarifait à la grille par longueur : la fiche disait un prix, la
+     caisse en sonnait un autre, et le Catalogue fermait à ces fiches le
+     modèle de prix qui les faisait vraiment vivre. */
+  if (sv.includes?.length && (sv.forfaitRemisePct !== undefined || sv.priceXof === 0)) {
+    return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
+  }
   if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
   if (sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0) {
     return { k: 'longueur', mots: 'grille par longueur (court · mi-long · long), prix saisis', justePrix: true };

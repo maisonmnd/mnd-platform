@@ -99,6 +99,26 @@ const modeleDe = (svc: Service): SvcForm['modele'] => {
   return k === 'lock' || k === 'calibre' || k === 'longueur' || k === 'modele' ? k : 'fixe';
 };
 
+/** LA COMPOSITION COMMANDE-T-ELLE LE PRIX ? (15 août — « où est passé prix par
+    longueur ? court, mi-long et long ? »)
+
+    PORTER UNE COMPOSITION N'EST PAS ÊTRE PRICÉ PAR ELLE. Le formulaire tenait
+    pour forfait TOUTE prestation portant un `includes`, et lui fermait alors
+    les cinq modèles de prix — grille par longueur comprise. Or trois fiches du
+    catalogue portent un geste inclus (un soin protéiné à deux semaines) SANS
+    remise de forfait et avec leur prix propre : le moteur, lui, ne fait pas
+    l'erreur — `forfaitPriceXof` rend `undefined` faute de remise, et le prix
+    retombe sur la grille par longueur. Deux d'entre elles portaient DÉJÀ leurs
+    trois longueurs (37 000 / 55 000 / 64 500) : invisibles à l'écran, et
+    EFFACÉES au premier enregistrement, puisque l'écriture n'écrit que le
+    système du modèle et qu'aucun modèle n'était choisi.
+
+    Le juge est donc CELUI DU MOTEUR, mot pour mot : la composition commande
+    quand une remise est posée, ou quand le prix propre est à zéro. Sinon la
+    fiche garde ses modèles de prix. */
+const prixParComposition = (f: SvcForm): boolean =>
+  f.estForfait && (f.forfaitRemise.trim() !== '' || (parseInt(f.price.replace(/[^0-9]/g, ''), 10) || 0) === 0);
+
 /** Champs numériques du formulaire : « 45 000 » comme « 45000 » donnent 45000 ;
     une saisie vide rend undefined pour que le champ DISPARAISSE de la fiche au
     lieu d'y écrire un zéro qui vaudrait « gratuit ». */
@@ -757,9 +777,10 @@ export default function Catalogue() {
     ) as Record<string, number>;
     /* UN SEUL MODÈLE COMMANDE (13 août) : l'enregistrement n'écrit QUE le
        système du modèle choisi et EFFACE les autres — plus jamais trois
-       mécanismes empilés sur la même fiche. Un forfait, lui, vaut sa
-       composition : ces champs ne le concernent pas. */
-    const m = svcForm.estForfait ? null : svcForm.modele;
+       mécanismes empilés sur la même fiche. Un forfait PRICÉ PAR SA
+       COMPOSITION, lui, n'a pas de modèle : ces champs ne le concernent pas.
+       Un forfait qui porte son propre prix, si (voir `prixParComposition`). */
+    const m = prixParComposition(svcForm) ? null : svcForm.modele;
     const v6 = {
       code: svcForm.code.trim() || undefined,
       ratePerLock: m === 'lock' ? num(svcForm.rate) : undefined,
@@ -774,8 +795,8 @@ export default function Catalogue() {
       prixParLongueur: m === 'longueur' ? nettoie(svcForm.prixLong) : undefined,
       dureeParLongueur: m === 'longueur' ? nettoie(svcForm.dureeLong) : undefined,
       /* L'interrupteur « suit le modèle » appartient au modèle « Barème » ;
-         un forfait garde le sien tel quel. */
-      ...(svcForm.estForfait ? {} : { scalesWithModel: m === 'modele' ? true : undefined }),
+         un forfait pricé par sa composition garde le sien tel quel. */
+      ...(prixParComposition(svcForm) ? {} : { scalesWithModel: m === 'modele' ? true : undefined }),
       /* LES CALIBRES SERVIS — la liste fait foi (`servesBand`) ; l'ancien
          champ simple `bandId`, fondu dans la liste à l'ouverture, se retire. */
       bandIds: svcForm.bandIds.length ? svcForm.bandIds : undefined,
@@ -1510,7 +1531,7 @@ export default function Catalogue() {
               ) as Record<string, number>;
               /* Le brouillon suit LE MODÈLE CHOISI — la phrase dit ce que
                  l'enregistrement écrira, pas ce que la fiche portait avant. */
-              const m = svcForm.estForfait ? null : svcForm.modele;
+              const m = prixParComposition(svcForm) ? null : svcForm.modele;
               const brouillon = {
                 id: svcForm.id ?? '',
                 categoryId: svcForm.categoryId,
@@ -1539,9 +1560,11 @@ export default function Catalogue() {
                 systèmes s'empilaient comme des réglages cumulables ; on ne
                 savait jamais lequel jouait. Le choix est EXCLUSIF : seuls les
                 champs du modèle choisi s'affichent, et l'enregistrement efface
-                les systèmes des autres. Un forfait vaut sa composition — pas de
-                modèle à choisir. */}
-            {!svcForm.estForfait && (
+                les systèmes des autres. Un forfait PRICÉ PAR SA COMPOSITION
+                (remise posée, ou prix propre à zéro) n'a pas de modèle à
+                choisir — les autres, si : porter un geste inclus ne retire pas
+                à une prestation son propre prix. */}
+            {!prixParComposition(svcForm) && (
               <Field label="Le modèle de prix — un seul commande">
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {([
@@ -1571,9 +1594,20 @@ export default function Catalogue() {
                   {svcForm.modele === 'calibre' && 'Un prix par tranche de locks — le prix de la tranche EST le prix, il ne se recalcule pas.'}
                   {svcForm.modele === 'longueur' && 'Trois prix saisis — court, mi-long, long. La longueur se choisit à la réservation et se fige sur le rendez-vous.'}
                 </div>
+                {/* ELLE PORTE UNE COMPOSITION MAIS GARDE SON PRIX — le dire,
+                    sinon la fiche s'intitule « Le forfait » et propose quand
+                    même un modèle de prix, sans qu'on sache lequel gagne. */}
+                {svcForm.estForfait && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 3, fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.55, color: 'var(--copper-700)' }}>
+                    Cette fiche porte une composition mais garde <b style={{ fontWeight: 500 }}>son propre prix</b> —
+                    le geste inclus l’accompagne, il ne le calcule pas. Pour qu’elle vaille sa
+                    composition, pose une <b style={{ fontWeight: 500 }}>remise de forfait</b> (rubrique
+                    « Ce qu’elle contient ») ou mets son prix à zéro ; le modèle de prix disparaîtra alors.
+                  </div>
+                )}
               </Field>
             )}
-            {!svcForm.estForfait && svcForm.modele === 'lock' && (
+            {!prixParComposition(svcForm) && svcForm.modele === 'lock' && (
               <Field label="Tarif au lock (F CFA par lock)">
                 <Input
                   inputMode="numeric"
@@ -1588,7 +1622,7 @@ export default function Catalogue() {
                 )}
               </Field>
             )}
-            {!svcForm.estForfait && svcForm.modele === 'calibre' && (
+            {!prixParComposition(svcForm) && svcForm.modele === 'calibre' && (
               <Field label="Le prix de chaque calibre">
                 <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
                   {bands.map((b) => (
@@ -1610,7 +1644,7 @@ export default function Catalogue() {
                 </div>
               </Field>
             )}
-            {!svcForm.estForfait && svcForm.modele === 'longueur' && (
+            {!prixParComposition(svcForm) && svcForm.modele === 'longueur' && (
               <Field label="Prix et durée par longueur">
                 <div style={{ display: 'grid', gap: 8 }}>
                   {LONGUEURS.map((l) => (
