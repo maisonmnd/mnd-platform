@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -54,6 +55,13 @@ export default function Calendrier() {
   const clients = useBranchClients();
   const byId = useServicesById();
   const today = todayISO();
+  /* LE NOM MÈNE À LA FICHE (15 août, demande de Yéman). Le carnet dit qui
+     vient ; quand il manque son téléphone — la cloche du rappel barrée le
+     signale — il fallait quitter le Calendrier, ouvrir les Clientes et la
+     retrouver à la main. Toucher son nom ouvre sa fiche ; toucher le reste du
+     bloc ouvre toujours le rituel. */
+  const navigate = useNavigate();
+  const ouvrirFiche = (clientId: string) => navigate(`/customers?id=${clientId}`);
 
   const isPhone = useIsPhone();
   const [view, setView] = useState<'jour' | 'semaine' | 'mois'>('jour');
@@ -409,7 +417,22 @@ export default function Calendrier() {
                   <span className="trc-agenda__time">{a.time}</span>
                   <span className="trc-agenda__main">
                     <span className="trc-agenda__client">
-                      {clientName(a.clientId)}
+                      {/* Le nom mène à sa fiche ici aussi. La ligne est DÉJÀ un
+                          bouton : on ne peut pas en imbriquer un second — un
+                          span qui porte le rôle et la touche Entrée fait le
+                          même geste sans casser le balisage. */}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className={`trc-cal__who ${clientOf(a.clientId)?.phone ? '' : 'is-manquant'}`}
+                        onClick={(e) => { e.stopPropagation(); ouvrirFiche(a.clientId); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); ouvrirFiche(a.clientId); } }}
+                        title={clientOf(a.clientId)?.phone
+                          ? `Ouvrir la fiche de ${clientName(a.clientId)}`
+                          : `${clientName(a.clientId)} n’a pas de téléphone — ouvrir sa fiche pour l’inscrire`}
+                      >
+                        {clientName(a.clientId)}
+                      </span>
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
                     </span>
@@ -501,7 +524,19 @@ export default function Calendrier() {
                           ligne. C'est le nom qui doit survivre à la coupe, pas le
                           rituel — on lit un carnet pour savoir qui vient. */}
                       <div className="trc-cal__appt-title">
-                        {a.time} · {clientName(a.clientId)}
+                        {a.time} ·{' '}
+                        <button
+                          type="button"
+                          className={`trc-cal__who ${clientOf(a.clientId)?.phone ? '' : 'is-manquant'}`}
+                          draggable={false}
+                          onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          onClick={(e) => { e.stopPropagation(); ouvrirFiche(a.clientId); }}
+                          title={clientOf(a.clientId)?.phone
+                            ? `Ouvrir la fiche de ${clientName(a.clientId)}`
+                            : `${clientName(a.clientId)} n’a pas de téléphone — ouvrir sa fiche pour l’inscrire`}
+                        >
+                          {clientName(a.clientId)}
+                        </button>
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         {/* L'INDIGO SE DIT EN TOUTES LETTRES. La couleur seule
                             voulait dire « au fauteuil en ce moment » — et il

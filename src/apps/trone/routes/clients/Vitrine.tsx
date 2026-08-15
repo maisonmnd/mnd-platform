@@ -768,6 +768,17 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </div>
         </div>
 
+        {/* DEUX NIVEAUX, DEUX GESTES — dit une fois, en tête des sections.
+            L'interrupteur de l'atelier éteint tout ce qu'il contient ; celui
+            d'une prestation ne coupe QU'ELLE. La question de Yéman (15 août)
+            portait exactement là : masquer WÈWÈ™ à Façon sans perdre LES SOINS. */}
+        <div style={{ background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 4, padding: '11px 14px', fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--copper-700)' }}>
+          L’interrupteur de l’<b style={{ fontWeight: 500 }}>atelier</b> éteint tout ce qu’il contient.
+          Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle — masquer
+          « WÈWÈ™ à Façon » laisse LES SOINS entiers. Une prestation masquée disparaît de la
+          Vitrine, de Ma Couronne et des recommandations ; le comptoir, lui, la garde.
+        </div>
+
         {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
             l'arbre, chaque famille derrière son atelier (12 août) — et LES
             MONDES SE DISENT : un intertitre quand on passe de l'Atelier au
@@ -908,12 +919,26 @@ function RecoResolue({ client }: { client: ReturnType<typeof useBranchClients>[0
   );
 }
 
+/* UNE PRESTATION, SON INTERRUPTEUR (15 août, demande de Yéman : « masquer
+   WÈWÈ™ à Façon sans masquer tout l'atelier »). Le geste existait déjà — la
+   carte entière bascule — mais il ne se VOYAIT pas : une pastille cochée se
+   lit comme une décoration, pas comme une commande, quand l'atelier juste
+   au-dessus porte, lui, un vrai interrupteur. La carte porte donc le MÊME
+   interrupteur, en plus petit, et dit son état en toutes lettres. */
 function ToggleCard({ name, sub, on, onToggle }: { name: string; sub: string; on: boolean; onToggle: () => void }) {
   return (
-    <button className={`trc-toggle ${on ? 'is-on' : ''}`} onClick={onToggle}>
+    <button
+      className={`trc-toggle ${on ? 'is-on' : ''}`}
+      onClick={onToggle}
+      aria-pressed={on}
+      title={on ? `Masquer « ${name} » — elle seule, l'atelier ne bouge pas` : `Remettre « ${name} » sur le tapis`}
+    >
       <div className="trc-toggle__row">
         <span className="trc-toggle__name">{name}</span>
-        <span className="trc-toggle__check">{on ? '✓' : ''}</span>
+        <span className="trc-toggle__ctrl">
+          <span className={`trc-toggle__switch ${on ? 'is-on' : ''}`} aria-hidden="true" />
+          <span className="trc-toggle__state">{on ? 'Visible' : 'Masquée'}</span>
+        </span>
       </div>
       <span className="trc-toggle__sub">{sub}</span>
     </button>

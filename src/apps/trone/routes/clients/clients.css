@@ -650,6 +650,22 @@
 .trc-cal__appt--muted { opacity: 0.55; }
 .trc-cal__appt-title { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.1; }
 .trc-cal__appt--deep .trc-cal__appt-title { color: var(--color-ivoire); }
+/* LE NOM MÈNE À SA FICHE — un filet pointillé sous le nom, pas un lien bleu :
+   la Maison n'a pas de liens bleus. En cuivre quand son téléphone manque,
+   parce que c'est justement là qu'on a besoin d'ouvrir sa fiche. */
+.trc-cal__who {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--copper-300);
+  transition: border-color var(--dur-base) var(--ease-soft);
+}
+.trc-cal__who:hover { border-bottom-color: var(--color-copper); border-bottom-style: solid; }
+.trc-cal__who.is-manquant { border-bottom-color: var(--color-copper); }
+.trc-cal__appt--deep .trc-cal__who { border-bottom-color: var(--copper-200); }
 .trc-cal__appt-sub { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
 .trc-cal__appt--deep .trc-cal__appt-sub { color: var(--indigo-100); }
 
@@ -766,20 +782,41 @@
 .trc-toggle__row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; width: 100%; }
 .trc-toggle__name { font-family: var(--font-serif); font-size: 16px; color: var(--ink); line-height: 1.15; }
 .trc-toggle.is-on .trc-toggle__name { color: var(--color-indigo); }
-.trc-toggle__check {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid var(--hairline);
-  color: var(--color-ivoire);
-  font-size: 11px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* L'interrupteur de la prestation — le MÊME que celui de l'atelier, en plus
+   petit, avec son état dit en toutes lettres. Une pastille cochée se lisait
+   comme une décoration : on ne devinait pas qu'une prestation se masque
+   toute seule, sans toucher à son atelier. */
+.trc-toggle__ctrl { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.trc-toggle__switch {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--color-argile);
+  transition: background var(--dur-base) var(--ease-soft);
 }
-.trc-toggle.is-on .trc-toggle__check { background: var(--color-copper); border-color: var(--color-copper); }
+.trc-toggle__switch.is-on { background: var(--color-copper); }
+.trc-toggle__switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-ivoire);
+  transition: transform var(--dur-base) var(--ease-soft);
+}
+.trc-toggle__switch.is-on::after { transform: translateX(16px); }
+.trc-toggle__state {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trc-toggle.is-on .trc-toggle__state { color: var(--copper-700); }
 .trc-toggle__sub { font-size: 11px; color: var(--ink-soft); }
 
 .trc-switch {
