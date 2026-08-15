@@ -43,6 +43,33 @@ export function poserBlocage(champs: Omit<Blocage, 'id'>): Blocage {
   return b;
 }
 
+/** LE SALON FERMÉ PAR UNE RÉSERVATION (15 août) — « quand quelqu'un réserve,
+    le salon est bloqué pour ce temps ». Le blocage porte l'identifiant du
+    rendez-vous : il se repose sans se dédoubler quand l'heure change, et
+    s'efface avec lui quand le rituel est annulé. Sans maître : c'est la Maison
+    entière qui ne reçoit plus, pas un fauteuil.
+
+    Ce n'est pas une absence, c'est une vente — le motif le dit, pour qu'on ne
+    « libère » pas la plage en croyant nettoyer un oubli. */
+export function fermerLeSalonPour(p: {
+  apptId: string; branchId: string; date: string; debut: string; fin: string; qui?: string;
+}): void {
+  const marque = `rdv:${p.apptId}`;
+  blocagesStore.set((prev) => [
+    ...prev.filter((b) => b.motif?.startsWith(marque) !== true),
+    {
+      id: `blk-priv-${p.apptId}`, branchId: p.branchId, date: p.date,
+      debut: p.debut, fin: p.fin,
+      motif: `${marque} · Salon Souverain${p.qui ? ` — ${p.qui}` : ''}`,
+    },
+  ]);
+}
+
+/** La Maison rouvre : le rituel a été annulé ou déplacé hors de sa date. */
+export function rouvrirLeSalonDe(apptId: string): void {
+  blocagesStore.set((prev) => prev.filter((b) => !b.motif?.startsWith(`rdv:${apptId}`)));
+}
+
 export function retirerBlocage(id: string): void {
   blocagesStore.set((prev) => prev.filter((b) => b.id !== id));
 }

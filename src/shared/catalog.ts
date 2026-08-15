@@ -178,6 +178,15 @@ export type Service = {
       Les règles se posent au Catalogue ; elles ne se négocient pas au
       fauteuil. Le juge est `remiseGestePct` (shared/pricing). */
   offertAvec?: GesteOffert | GesteOffert[];
+  /** LE SALON SOUVERAIN (15 août, décision de Yéman) — une prestation qui
+      ferme la Maison. Réserver « Le Salon Souverain · Une heure » ne prend pas
+      un fauteuil : il prend LE SALON, pour toute sa durée, et personne d'autre
+      n'y entre. `maxTetes` borne la privatisation : deux têtes, pas davantage.
+
+      Un simple prix ne suffisait pas à le dire — d'où ce marqueur, que le
+      carnet et le tunnel lisent pour poser le blocage et refuser la troisième
+      tête. Le juge est `estPrivatisation` (shared/pricing). */
+  privatise?: { maxTetes: number };
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;

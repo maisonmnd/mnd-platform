@@ -69,6 +69,11 @@ type SvcForm = {
       tous). Une LISTE : le shampoing est offert avec une Reprise ET à moitié
       prix avec une coloration. */
   gestes: { serviceIds: string[]; bandIds: string[]; pct: string }[];
+  /** LE SALON SOUVERAIN (15 août) — elle ferme la Maison, et pour combien de
+      têtes au plus. Le plafond se règle ici : deux aujourd'hui, autre chose
+      demain, sans passer par le code. */
+  privatise: boolean;
+  maxTetes: string;
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
   estForfait: boolean; // un forfait porte une composition ; une prestation, non
@@ -84,7 +89,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [],
+  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [], privatise: false, maxTetes: '2',
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -567,6 +572,8 @@ export default function Catalogue() {
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
       reserveFamilles: !!svc.reserveFamilles,
+      privatise: !!svc.privatise,
+      maxTetes: String(svc.privatise?.maxTetes ?? 2),
       gestes: gestesDe(svc).map((g) => ({
         serviceIds: [...g.serviceIds], bandIds: [...(g.bandIds ?? [])],
         pct: String(Number.isFinite(Number(g.pct)) ? Number(g.pct) : 100),
@@ -777,6 +784,9 @@ export default function Catalogue() {
          sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
          modale RDV. */
       reserveFamilles: svcForm.reserveFamilles || undefined,
+      privatise: svcForm.privatise
+        ? { maxTetes: Math.max(1, parseInt(svcForm.maxTetes, 10) || 1) }
+        : undefined,
       /* Les gestes sans déclencheur ne s'enregistrent pas : une règle qui ne
          se déclenche jamais est du bruit dans la fiche. */
       offertAvec: (() => {
@@ -1911,6 +1921,39 @@ export default function Catalogue() {
 
               {rubrique === 'tetes' && (
                 <Bloc titre="Qui peut la prendre" aide="les têtes à qui elle est proposée — et prixée">
+                  {/* LE SALON SOUVERAIN (15 août) — « quand quelqu'un réserve,
+                      le salon est bloqué pour ce temps ; maximum 2 têtes ».
+                      Le plafond est un CHAMP, pas une constante : la Maison
+                      change d'avis sans qu'on touche au code. */}
+                  <Field label="Elle privatise le salon">
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="trv-minibtn"
+                        style={svcForm.privatise ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                        onClick={() => setSvcForm({ ...svcForm, privatise: !svcForm.privatise })}
+                      >
+                        {svcForm.privatise ? 'Oui — la Maison ferme' : 'Non — un fauteuil parmi d’autres'}
+                      </button>
+                      {svcForm.privatise && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <span className="mnd-muted" style={{ fontSize: 12 }}>au plus</span>
+                          <Input
+                            inputMode="numeric"
+                            style={{ width: 68, textAlign: 'center' }}
+                            value={svcForm.maxTetes}
+                            onChange={(e) => setSvcForm({ ...svcForm, maxTetes: e.target.value.replace(/[^0-9]/g, '') })}
+                            aria-label="Nombre de têtes au plus"
+                          />
+                          <span className="mnd-muted" style={{ fontSize: 12 }}>tête{(parseInt(svcForm.maxTetes, 10) || 0) > 1 ? 's' : ''}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                      Réservée, elle ne prend pas un fauteuil : elle prend le salon. Toute sa durée est
+                      bloquée au calendrier, personne d’autre n’y entre, et le rituel refuse la tête de trop.
+                    </div>
+                  </Field>
             <Field label="Les calibres qu'elle sert">
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {bands.map((b) => {
