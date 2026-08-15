@@ -184,6 +184,75 @@ export type Appointment = {
   subId?: string;
 };
 
+/* ── LES SÉANCES DE SUITE (15 août) ───────────────────────────────────
+   « Il a pris un soin de reconstruction intensive 2 séances. Il va payer une
+   séance et réserver sa deuxième aujourd'hui sans payer. » — et « ça peut
+   arriver qu'on finisse en 1 séance ».
+
+   Le nombre de séances ne se sait donc PAS à la prise : le poser d'avance
+   ferait promettre une venue qui n'aura peut-être pas lieu. La série se
+   construit à mesure — on rattache la séance suivante au rituel déjà facturé,
+   le jour où l'on sait qu'elle est nécessaire.
+
+   La règle de valeur existait déjà (`apptTotalXof` : une séance 2+ vaut zéro,
+   partout) ; ce qui manquait, c'était le geste pour la poser au comptoir. */
+
+/** Le rituel qui PORTE le prix d'une série — sa séance 1. */
+export const teteDeSerie = (l: readonly Appointment[], sid: string): Appointment | undefined =>
+  l.filter((a) => a.seriesId === sid).sort((a, b) => (a.seriesIndex ?? 1) - (b.seriesIndex ?? 1))[0];
+
+/** RATTACHER une séance à un rituel déjà facturé. Le parent devient la séance 1
+    s'il ne l'était pas encore, la nouvelle prend le rang suivant, et TOUS les
+    membres voient leur total remis à jour — sans quoi le carnet dirait
+    « séance 3/2 ». Pure : elle rend la nouvelle liste. */
+export const attacheSeance = (
+  l: readonly Appointment[], apptId: string, parentId: string,
+): Appointment[] => {
+  const enfant = l.find((a) => a.id === apptId);
+  const parent = l.find((a) => a.id === parentId);
+  if (!enfant || !parent || parent.id === enfant.id) return [...l];
+  /* La série du parent, ou une série qui naît sur lui. */
+  const sid = parent.seriesId ?? parent.id;
+  const membres = l.filter((a) => a.seriesId === sid && a.id !== apptId);
+  const rangs = membres.map((a) => a.seriesIndex ?? 1);
+  /* Le parent n'était pas encore en série : il en devient la tête. */
+  const rangMax = rangs.length ? Math.max(...rangs) : 1;
+  const rang = rangMax + 1;
+  return l.map((a) => {
+    if (a.id === apptId) return { ...a, seriesId: sid, seriesIndex: rang, seriesTotal: rang };
+    if (a.id === parent.id && !parent.seriesId) return { ...a, seriesId: sid, seriesIndex: 1, seriesTotal: rang };
+    if (a.seriesId === sid) return { ...a, seriesTotal: rang };
+    return a;
+  });
+};
+
+/** DÉTACHER une séance — elle redevient un rituel qui se facture. Les restants
+    se renumérotent, et une série retombée à UN membre n'en est plus une : ses
+    marques s'effacent, sinon le carnet afficherait « séance 1/1 · incluse » sur
+    un rituel parfaitement encaissable. */
+export const detacheSeance = (l: readonly Appointment[], apptId: string): Appointment[] => {
+  const enfant = l.find((a) => a.id === apptId);
+  const sid = enfant?.seriesId;
+  if (!enfant || !sid) return [...l];
+  const restants = l
+    .filter((a) => a.seriesId === sid && a.id !== apptId)
+    .sort((a, b) => (a.seriesIndex ?? 1) - (b.seriesIndex ?? 1));
+  const total = restants.length;
+  const rangDe = new Map(restants.map((a, i) => [a.id, i + 1]));
+  return l.map((a) => {
+    if (a.id === apptId) {
+      const { seriesId: _s, seriesIndex: _i, seriesTotal: _t, ...nu } = a;
+      return nu as Appointment;
+    }
+    if (a.seriesId !== sid) return a;
+    if (total <= 1) {
+      const { seriesId: _s, seriesIndex: _i, seriesTotal: _t, ...nu } = a;
+      return nu as Appointment;
+    }
+    return { ...a, seriesIndex: rangDe.get(a.id) ?? a.seriesIndex, seriesTotal: total };
+  });
+};
+
 /** QUI PORTE CE RITUEL AU COMPTE — celle qui a payé quand quelqu'un l'a offert,
     la cliente sinon. Un seul juge : la dépense de la fiche, les points de
     fidélité et le nom porté par la facture doivent désigner la même personne,

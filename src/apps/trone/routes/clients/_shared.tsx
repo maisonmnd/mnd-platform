@@ -11,6 +11,7 @@ import {
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
+  attacheSeance, detacheSeance,
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
 import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
@@ -788,6 +789,16 @@ export function RdvModal({
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
   /* Couverture par l'abonnement : rituel « inclus » (prix 0, décompté du quota). */
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
+  /* LA SÉANCE DE SUITE (15 août) — de quel rituel déjà facturé celle-ci est la
+     suite. Vide = un rituel qui se facture normalement. À la réouverture, on
+     retrouve le parent par la tête de sa série. */
+  const [suiteDe, setSuiteDe] = useState<string>(() => {
+    if (!appt?.seriesId || (appt.seriesIndex ?? 1) <= 1) return '';
+    const tete = appointmentsStore.get()
+      .filter((x) => x.seriesId === appt.seriesId && x.id !== appt.id)
+      .sort((a, b) => (a.seriesIndex ?? 1) - (b.seriesIndex ?? 1))[0];
+    return tete?.id ?? '';
+  });
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
   const [cats] = useCategories();
@@ -849,6 +860,21 @@ export function RdvModal({
      son Juste Prix personnalisent le tarif de référence. Quand il n'y a rien à
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
+  /* LES RITUELS AUXQUELS RATTACHER UNE SUITE — les siens, non annulés, hors
+     celui-ci et hors séances de suite (on se rattache à la tête, pas au
+     wagon). Du plus récent au plus ancien : la suite d'aujourd'hui appartient
+     presque toujours à la dernière venue. */
+  const rituelsPorteurs = useMemo(
+    () => branchAppts
+      .filter((a) => a.clientId === clientId && a.id !== appt?.id
+        && a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1)
+      .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+      .slice(0, 30),
+    [branchAppts, clientId, appt?.id],
+  );
+  const estSuite = !!suiteDe && rituelsPorteurs.some((a) => a.id === suiteDe);
+  /* Les prestations du rituel que le Catalogue annonce à plusieurs séances. */
+  const multiSeances = chosen.filter((sv) => (sv.sessions ?? 1) > 1);
   const [sets] = useBandSets();
   /* LA LONGUEUR TRAVAILLÉE, choisie ici — et le rendez-vous FIGE la sienne :
      le relire ne le retarife jamais à la longueur d'aujourd'hui. Le point de
@@ -1072,7 +1098,14 @@ export function RdvModal({
       return;
     }
     if (appt) {
-      appointmentsStore.set((prev) =>
+      /* LA SÉRIE SE POSE APRÈS L'ÉCRITURE (15 août) — `attacheSeance` a besoin
+         de voir le rendez-vous à jour pour renuméroter toute la série. */
+      const poseLaSerie = (l: Appointment[]): Appointment[] => {
+        const avant = appt.seriesId && (appt.seriesIndex ?? 1) > 1 ? appt.seriesId : '';
+        if (estSuite) return attacheSeance(l, appt.id, suiteDe);
+        return avant ? detacheSeance(l, appt.id) : l;
+      };
+      appointmentsStore.set((prev) => poseLaSerie(
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
@@ -1110,7 +1143,7 @@ export function RdvModal({
                 depositXof: effCovered ? 0 : depositXof }
             : x,
         ),
-      );
+      ));
       /* LE STOCK SUIT LE STATUT, quel que soit le chemin. Le bouton du Carnet
          n'était pas le seul à écrire « honoré » : ce sélecteur aussi — et il
          contournait la consommation comme le rembobinage. */
@@ -1155,6 +1188,7 @@ export function RdvModal({
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
+
       /* LES SEANCES DUES PAR UN FORFAIT SE POSENT AU CARNET. Un forfait qui
          promet « les 3 premiers entretiens » ne les promettait qu'en toutes
          lettres : rien ne savait ce qui restait du, ces gestes n'entraient dans
@@ -1198,7 +1232,13 @@ export function RdvModal({
           });
         }
       }
-      appointmentsStore.set((prev) => [...prev, created, ...suites]);
+      /* SÉANCE DE SUITE : elle se rattache au rituel qui porte le prix une
+         fois qu'elle EXISTE — renuméroter la série suppose de la voir dans la
+         liste. */
+      appointmentsStore.set((prev) => {
+        const avec = [...prev, created, ...suites];
+        return estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
+      });
     }
     onClose();
   };
@@ -1248,7 +1288,7 @@ export function RdvModal({
             </span>
             {!sansPrix && (
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 23, color: 'var(--copper-200)', whiteSpace: 'nowrap' }}>
-                {effCovered ? 'inclus' : argent(totalXof)}
+                {effCovered ? 'inclus' : estSuite ? 'séance incluse' : argent(totalXof)}
               </span>
             )}
           </div>
@@ -1716,6 +1756,45 @@ export function RdvModal({
             titre="Le prix"
             aide={rdvPersonalized && rdvClient?.lockCount ? `son prix · ${rdvClient.lockCount} locks` : undefined}
           />
+          {/* LA SÉANCE DE SUITE (15 août, cas Ahmed Taofiki) — « il a pris un
+              soin 2 séances, il paie une séance et réserve la deuxième sans
+              payer », et « ça peut arriver qu'on finisse en 1 séance ». Le
+              nombre de séances ne se sait donc pas à la prise : la série se
+              construit à mesure, en rattachant celle-ci au rituel qui porte
+              déjà le prix. Rien à encaisser ici — `apptTotalXof` met une
+              séance 2+ à zéro partout, et le carnet lui refuse « Encaisser ». */}
+          {rituelsPorteurs.length > 0 && !effCovered && (
+            <Field label="Séance de suite">
+              <Select value={suiteDe} onChange={(e) => setSuiteDe(e.target.value)}>
+                <option value="">Non — ce rituel se facture</option>
+                {rituelsPorteurs.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {frShort(a.date)} · {apptServices(a, byId).map((sv) => sv.name).join(' + ').slice(0, 60) || 'rituel'}
+                    {' · '}{argent(apptTotalXof(a, byId))}
+                  </option>
+                ))}
+              </Select>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {estSuite
+                  ? 'Séance incluse : rien à encaisser ici — le rituel choisi porte le prix des deux, et le carnet refusera « Encaisser » sur celle-ci.'
+                  /* CE QUE LE CATALOGUE PROMET (15 août) — une prestation à
+                     plusieurs séances le dit ici, au moment de poser la suite.
+                     Le comptoir ne peut pas deviner qu'un soin en promet deux,
+                     et les séances dues restaient invisibles jusqu'à ce qu'on
+                     y repense. On ne les crée PAS d'avance : « ça peut arriver
+                     qu'on finisse en 1 séance ». */
+                  : multiSeances.length > 0
+                    ? `${multiSeances.map((sv) => `${sv.name} en promet ${sv.sessions}`).join(' · ')} — la suivante se pose ici, le jour où elle est nécessaire, et vaudra 0 F.`
+                    : 'À poser le jour où l’on sait qu’une séance de plus est nécessaire — le soin qui tient en une seule fois n’en réserve aucune.'}
+              </div>
+            </Field>
+          )}
+          {estSuite && (
+            <div className="mnd-bande" style={{ padding: '12px 14px', fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
+              Ce rituel est une <b>séance de suite</b> — il vaut 0 F et ne s’encaisse pas.
+              Le prix, la remise et l’acompte se règlent sur le rituel qui porte la série.
+            </div>
+          )}
           <Field label="Le prix">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {([
