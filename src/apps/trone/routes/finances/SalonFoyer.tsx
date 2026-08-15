@@ -333,6 +333,9 @@ export default function SalonFoyer() {
      ouverts ET la table écrite ; le comptoir ne traduit plus « j'ai pris pour
      le marché » en « prélèvement associés ». ─── */
   const [mvtOuvert, setMvtOuvert] = useState(false);
+  /* La fenêtre d'écriture des caisses indépendantes (15 août) — le même geste
+     qu'au foyer, sur des registres qui tiennent leur propre monnaie. */
+  const [caisseMvtOuvert, setCaisseMvtOuvert] = useState(false);
   const [geste, setGeste] = useState<Geste>('foyer');
   const [fMvtUni, setFMvtUni] = useState({
     date: todayISO(), motif: 'Maison', sousMotif: '', note: '',
@@ -447,6 +450,22 @@ export default function SalonFoyer() {
     () => (caisseActive ? mouvementsDe(mvtsCaisse, caisseActive.id) : []),
     [mvtsCaisse, caisseActive],
   );
+  /* LE REGISTRE PAR JOURNÉES (15 août) — le même geste qu'au journal du foyer :
+     chaque journée s'ouvre sur un filet cuivre et donne son total avant qu'on
+     lise ses lignes. Ici le total est un NET (les entrées moins les sorties) :
+     une caisse voit passer les deux sens, et « ce qui a bougé ce jour-là » n'a
+     de sens qu'au solde. `mouvementsDe` trie déjà du plus récent au plus
+     ancien : le groupement conserve cet ordre. */
+  const mvtsParJour = useMemo(() => {
+    const jours: { date: string; items: typeof mvtsActifs; net: number }[] = [];
+    for (const m of mvtsActifs) {
+      const signe = m.sens === 'entree' ? m.montant : -m.montant;
+      const dernier = jours[jours.length - 1];
+      if (dernier && dernier.date === m.date) { dernier.items.push(m); dernier.net += signe; }
+      else jours.push({ date: m.date, items: [m], net: signe });
+    }
+    return jours;
+  }, [mvtsActifs]);
 
   /* LE POINT DU JOUR (15 août) — ce qui a bougé AUJOURD'HUI dans les caisses
      indépendantes, une ligne par caisse touchée. Calculé pour TOUTES les
@@ -552,6 +571,7 @@ export default function SalonFoyer() {
       ...(postesCaisse.length ? { items: postesCaisse } : {}),
     }]);
     setFMvt((f) => ({ ...f, label: '', montant: '', postes: [] }));
+    setCaisseMvtOuvert(false);
   };
 
   const supprime = <T extends { id: string }>(set: (fn: (prev: T[]) => T[]) => void, id: string, quoi: string) => {
@@ -1509,6 +1529,184 @@ export default function SalonFoyer() {
         </div>
       )}
 
+      {/* ═══ LA FENÊTRE D'ÉCRITURE D'UNE CAISSE (15 août) — le même modèle
+          qu'au foyer : le montant en héros, le sens en pastilles, le motif et
+          ses postes dessous. Une caisse tient sa propre monnaie : le taux ne
+          paraît que si elle en a une autre que la maison. ═══ */}
+      {caisseMvtOuvert && caisseActive && (
+        <Modal title="Inscrire un mouvement." onClose={() => setCaisseMvtOuvert(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ textAlign: 'center', paddingTop: 4 }}>
+              <div className="trc-microlabel" style={{ letterSpacing: '.2em' }}>Montant</div>
+              <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
+                {postesCaisse.length > 0 ? (
+                  /* LA SOMME DES POSTES FAIT LOI — on ne saisit pas deux
+                     vérités pour le même mouvement. */
+                  <span style={{
+                    width: 220, textAlign: 'right', display: 'inline-block',
+                    borderBottom: '1px solid var(--copper-300)',
+                    fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)', padding: '2px 6px',
+                  }}>
+                    {postesCaisse.reduce((n, po) => n + po.amountXof, 0).toLocaleString('fr-FR')}
+                  </span>
+                ) : (
+                  <input
+                    value={fMvt.montant}
+                    onChange={(e) => setFMvt({ ...fMvt, montant: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="0"
+                    autoFocus
+                    aria-label={'Montant en ' + deviseActive}
+                    style={{
+                      width: 220, textAlign: 'right', background: 'transparent',
+                      border: 'none', borderBottom: '1px solid var(--copper-300)',
+                      fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
+                      padding: '2px 6px', outline: 'none',
+                    }}
+                  />
+                )}
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--copper-700)' }}>
+                  {deviseActive === 'XOF' ? 'F' : deviseActive}
+                </span>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5 }}>
+                {postesCaisse.length > 0
+                  ? postesCaisse.length + ' poste' + (postesCaisse.length > 1 ? 's' : '') + ' additionnés'
+                  : caisseActive.nom}
+              </div>
+            </div>
+
+            <div>
+              <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qu’est-ce qui s’est passé ?</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <Pastille actif={fMvt.sens === 'entree'} point="var(--trf-success, #4A6B4F)" onClick={() => setFMvt({ ...fMvt, sens: 'entree' })}>
+                  Entrée
+                </Pastille>
+                <Pastille actif={fMvt.sens === 'sortie'} point="var(--trf-error, #A03D2E)" onClick={() => setFMvt({ ...fMvt, sens: 'sortie' })}>
+                  Sortie
+                </Pastille>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+                {fMvt.sens === 'entree'
+                  ? 'De l’argent entre dans cette caisse — report de solde, versement reçu.'
+                  : 'De l’argent sort de cette caisse — une dépense, un virement fait.'}
+              </div>
+            </div>
+
+            <Field label="Description">
+              <Input
+                value={fMvt.label}
+                onChange={(e) => setFMvt({ ...fMvt, label: e.target.value })}
+                placeholder="Report de solde, frais notaire, virement reçu…"
+              />
+            </Field>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 9 }}>
+                <span className="trc-microlabel">Motif · facultatif</span>
+                <button type="button" className="tre-link-btn" style={{ marginLeft: 'auto' }} onClick={() => setMotifsOuvert(true)}>
+                  Gérer les motifs
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {motifs.map((m) => (
+                  <Pastille
+                    key={m.id}
+                    actif={fMvt.motif === m.name}
+                    onClick={() => setFMvt({ ...fMvt, motif: fMvt.motif === m.name ? '' : m.name, sousMotif: '' })}
+                  >
+                    {m.name}
+                  </Pastille>
+                ))}
+              </div>
+              {motifCaisse && motifCaisse.subs.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
+                  {motifCaisse.subs.map((sm) => (
+                    <Pastille
+                      key={sm}
+                      actif={fMvt.sousMotif === sm}
+                      onClick={() => setFMvt({ ...fMvt, sousMotif: fMvt.sousMotif === sm ? '' : sm })}
+                    >
+                      {sm}
+                    </Pastille>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="trc-microlabel" style={{ marginBottom: 9 }}>Détail des postes · facultatif</div>
+              {fMvt.postes.map((po) => (
+                <div key={po.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+                  <Input
+                    value={po.label}
+                    onChange={(e) => majPosteCaisse(po.id, { label: e.target.value })}
+                    placeholder="Ex. frais notaire"
+                    style={{ flex: 1, minWidth: 0 }}
+                    aria-label="Libellé du poste"
+                  />
+                  <Input
+                    inputMode="decimal"
+                    value={po.amountXof ? String(po.amountXof) : ''}
+                    onChange={(e) => majPosteCaisse(po.id, { amountXof: litMontant(e.target.value) })}
+                    placeholder="0"
+                    style={{ width: 110, textAlign: 'right', flex: 'none' }}
+                    aria-label="Montant du poste"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => retirePosteCaisse(po.id)}
+                    aria-label="Retirer ce poste"
+                    style={{ flex: 'none', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 15, padding: '0 4px' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={ajoutePosteCaisse}
+                style={{
+                  width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
+                  border: '1px dashed var(--copper-500)', borderRadius: 3,
+                  background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
+                }}
+              >
+                + Détailler ce mouvement (optionnel)
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: enDevise ? '1fr 1fr' : '1fr', gap: 12 }}>
+              <Field label="Date"><Input type="date" value={fMvt.date} onChange={(e) => setFMvt({ ...fMvt, date: e.target.value })} /></Field>
+              {enDevise && (
+                <Field label={'Taux (1 ' + deviseActive + ' en ' + currency + ')'}>
+                  <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} placeholder="655" />
+                </Field>
+              )}
+            </div>
+
+            {enDevise && litMontant(fMvt.montant) > 0 && litMontant(fMvt.taux) > 0 && (
+              <div className="mnd-bande" style={{ padding: '10px 12px', fontFamily: 'var(--font-sans)', fontSize: 12 }}>
+                Contre-valeur indicative : {fmtMoney(Math.round(litMontant(fMvt.montant) * litMontant(fMvt.taux)), currency)} — n’entre dans aucun total MND.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="ghost" style={{ flex: 1 }} onClick={() => setCaisseMvtOuvert(false)}>Annuler</Button>
+              <Button
+                variant="copper"
+                style={{ flex: 2 }}
+                onClick={ajouteMouvement}
+                disabled={(postesCaisse.length ? postesCaisse.reduce((n, po) => n + po.amountXof, 0) : litMontant(fMvt.montant)) <= 0
+                  || !fMvt.label.trim() || (enDevise && litMontant(fMvt.taux) <= 0)}
+              >
+                Inscrire
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* ═══════ CAISSES INDÉPENDANTES — mondes étanches ═══════ */}
       {tab === 'caisses' && (
         <div>
@@ -1565,120 +1763,16 @@ export default function SalonFoyer() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                <Field label="Date"><Input type="date" value={fMvt.date} onChange={(e) => setFMvt({ ...fMvt, date: e.target.value })} /></Field>
-                <Field label="Sens">
-                  <Select value={fMvt.sens} onChange={(e) => setFMvt({ ...fMvt, sens: e.target.value as 'entree' | 'sortie' })}>
-                    <option value="entree">Entrée</option>
-                    <option value="sortie">Sortie</option>
-                  </Select>
-                </Field>
-                <Field label="Description"><Input value={fMvt.label} onChange={(e) => setFMvt({ ...fMvt, label: e.target.value })} placeholder="Report de solde, frais notaire, virement reçu…" /></Field>
-                <Field label={`Montant (${deviseActive})`}><Input inputMode="decimal" value={fMvt.montant} onChange={(e) => setFMvt({ ...fMvt, montant: e.target.value })} placeholder={enDevise ? '200' : '45 000'} /></Field>
-                {enDevise && (
-                  <Field label={`Taux (1 ${deviseActive} en ${currency})`}>
-                    <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} placeholder="655" />
-                  </Field>
-                )}
-              </div>
-
-              {/* LE MÊME MODÈLE QU'AU FOYER (14 août) : un motif, son détail,
-                  et plusieurs postes sur une même sortie. Les motifs sont les
-                  mêmes registres — une seule liste à tenir pour toute la
-                  maison. */}
-              <div style={{ marginTop: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 9 }}>
-                  <span className="trc-microlabel">Motif · facultatif</span>
-                  <button type="button" className="tre-link-btn" style={{ marginLeft: 'auto' }} onClick={() => setMotifsOuvert(true)}>
-                    Gérer les motifs
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {motifs.map((m) => (
-                    <Pastille
-                      key={m.id}
-                      actif={fMvt.motif === m.name}
-                      onClick={() => setFMvt({ ...fMvt, motif: fMvt.motif === m.name ? '' : m.name, sousMotif: '' })}
-                    >
-                      {m.name}
-                    </Pastille>
-                  ))}
-                </div>
-                {motifCaisse && motifCaisse.subs.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
-                    {motifCaisse.subs.map((s) => (
-                      <Pastille
-                        key={s}
-                        actif={fMvt.sousMotif === s}
-                        onClick={() => setFMvt({ ...fMvt, sousMotif: fMvt.sousMotif === s ? '' : s })}
-                      >
-                        {s}
-                      </Pastille>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: 14 }}>
-                <div className="trc-microlabel" style={{ marginBottom: 9 }}>Détail des postes · facultatif</div>
-                {fMvt.postes.map((p) => (
-                  <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 }}>
-                    <Input
-                      value={p.label}
-                      onChange={(e) => majPosteCaisse(p.id, { label: e.target.value })}
-                      placeholder="Ex. frais notaire"
-                      style={{ flex: 1, minWidth: 0 }}
-                      aria-label="Libellé du poste"
-                    />
-                    <Input
-                      inputMode="decimal"
-                      value={p.amountXof ? String(p.amountXof) : ''}
-                      onChange={(e) => majPosteCaisse(p.id, { amountXof: litMontant(e.target.value) })}
-                      placeholder="0"
-                      style={{ width: 110, textAlign: 'right', flex: 'none' }}
-                      aria-label="Montant du poste"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => retirePosteCaisse(p.id)}
-                      aria-label="Retirer ce poste"
-                      style={{ flex: 'none', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 15, padding: '0 4px' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={ajoutePosteCaisse}
-                  style={{
-                    width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
-                    border: '1px dashed var(--copper-500)', borderRadius: 3,
-                    background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
-                  }}
-                >
-                  + Détailler ce mouvement (optionnel)
+              {/* LE MÊME GESTE QU'AU FOYER (15 août) — « pour les caisses
+                  indépendantes, faire le même modale de dépenses en ouvrant
+                  l'onglet ». Le formulaire à sept champs alignés sous le solde
+                  a laissé la place à une fenêtre : le montant en héros, le
+                  sens en pastilles, le motif et ses postes dessous. Un seul
+                  modèle d'écriture pour toute la maison. */}
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button className="trf-act trf-act--primary" onClick={() => setCaisseMvtOuvert(true)}>
+                  ＋ Inscrire un mouvement
                 </button>
-                {postesCaisse.length > 0 && (
-                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
-                    {postesCaisse.length} poste{postesCaisse.length > 1 ? 's' : ''} · le montant vaudra{' '}
-                    {fmtCaisse(postesCaisse.reduce((s, p) => s + p.amountXof, 0), deviseActive)}
-                  </div>
-                )}
-              </div>
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  className="trf-act"
-                  onClick={ajouteMouvement}
-                  disabled={litMontant(fMvt.montant) <= 0 || !fMvt.label.trim() || (enDevise && litMontant(fMvt.taux) <= 0)}
-                >
-                  Inscrire
-                </button>
-                {enDevise && litMontant(fMvt.montant) > 0 && litMontant(fMvt.taux) > 0 && (
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                    Contre-valeur indicative : {fmtMoney(Math.round(litMontant(fMvt.montant) * litMontant(fMvt.taux)), currency)} — n'entre dans aucun total MND.
-                  </span>
-                )}
                 <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8 }}>
                   <button
                     className="trf-act trf-act--ghost"
@@ -1722,7 +1816,17 @@ export default function SalonFoyer() {
 
               <div style={{ marginTop: 16 }}>
                 {mvtsActifs.length === 0 && <div className="trf-empty">Registre vide.</div>}
-                {mvtsActifs.map((m) => (
+                {mvtsParJour.map((j) => (
+                  <Fragment key={j.date}>
+                    <div className="trf-jour">
+                      <span className="trf-jour__d">
+                        {frJourLong(j.date)} · {j.items.length} mouvement{j.items.length > 1 ? 's' : ''}
+                      </span>
+                      <span className="trf-jour__t" style={j.net < 0 ? { color: 'var(--trf-error)' } : undefined}>
+                        {j.net < 0 ? '− ' : '+ '}{fmtCaisse(Math.abs(j.net), deviseActive)}
+                      </span>
+                    </div>
+                    {j.items.map((m) => (
                   editMvt?.id === m.id ? (
                     <div key={m.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
@@ -1760,7 +1864,8 @@ export default function SalonFoyer() {
                   ) : (
                     <div key={m.id} className="trf-tally">
                       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                        {frDay(m.date)} · {m.label}
+                        {/* La date a quitté la ligne : la journée la porte au-dessus. */}
+                        {m.label}
                         {m.taux ? ` · au taux de ${m.taux.toLocaleString('fr-FR')} (≈ ${fmtMoney(Math.round(m.montant * m.taux), currency)}, indicatif)` : ''}
                       </span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
@@ -1772,6 +1877,8 @@ export default function SalonFoyer() {
                       </span>
                     </div>
                   )
+                ))}
+                  </Fragment>
                 ))}
               </div>
             </Panel>
