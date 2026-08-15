@@ -419,6 +419,26 @@ export default function SalonFoyer() {
     [mvtsCaisse, caisseActive],
   );
 
+  /* LE POINT DU JOUR (15 août) — ce qui a bougé AUJOURD'HUI dans les caisses
+     indépendantes, une ligne par caisse touchée. Calculé pour TOUTES les
+     caisses, pas seulement celle affichée : le bas de page fait le point de la
+     journée, pas de la pastille choisie. Aucune somme entre les lignes — une
+     caisse en euros et une caisse en dollars ne s'additionnent pas. */
+  const pointDuJour = useMemo(() => {
+    const jour = todayISO();
+    return mesCaisses
+      .map((c) => {
+        const duJour = mouvementsDe(mvtsCaisse, c.id).filter((m) => m.date === jour);
+        const entrees = duJour.filter((m) => m.sens === 'entree').reduce((n, m) => n + m.montant, 0);
+        const sorties = duJour.filter((m) => m.sens === 'sortie').reduce((n, m) => n + m.montant, 0);
+        return {
+          id: c.id, nom: c.nom, devise: deviseDeCaisse(c, currency), n: duJour.length,
+          entrees, sorties, net: entrees - sorties, solde: soldeCaisse(mvtsCaisse, c.id),
+        };
+      })
+      .filter((j) => j.n > 0);
+  }, [mesCaisses, mvtsCaisse, currency]);
+
   /** Un solde se dit dans SA monnaie — jamais reconverti. Par la couche
       currency (`fmtIn`, comme les caisses de Dépenses) : deux formateurs pour
       les mêmes billets divergeaient déjà sur les décimales (12 août). */
@@ -1425,12 +1445,6 @@ export default function SalonFoyer() {
       {/* ═══════ CAISSES INDÉPENDANTES — mondes étanches ═══════ */}
       {tab === 'caisses' && (
         <div>
-          <div className="trf-guard" style={{ marginTop: 8 }}>
-            Mondes étanches : ces registres n'ont AUCUN lien avec les revenus, les charges ou les totaux MND.
-            Leurs soldes ne s'additionnent jamais au salon — ils paraissent au tableau de bord à titre informatif seulement.
-            Créez-en autant que la Maison en tient : par héritage, par projet, par monnaie.
-          </div>
-
           {/* Les caisses en pastilles — le registre de celle qu'on choisit vit dessous. */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 18, alignItems: 'center' }}>
             {mesCaisses.map((c) => (
@@ -1695,6 +1709,42 @@ export default function SalonFoyer() {
               </div>
             </Panel>
           )}
+
+          {/* LE POINT DU JOUR (15 août) — ce qui est entré et sorti AUJOURD'HUI,
+              caisse par caisse. Chacune tient sa propre monnaie : les lignes ne
+              s'additionnent donc pas entre elles, et on ne feint pas un total
+              unique qui ne voudrait rien dire. */}
+          <Panel title={`Le point du jour · ${frDay(todayISO())}`}>
+            {pointDuJour.length === 0 ? (
+              <div className="trf-empty">Aucun mouvement inscrit aujourd'hui.</div>
+            ) : (
+              pointDuJour.map((j) => (
+                <div key={j.id} className="trf-tally">
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
+                    <strong style={{ color: 'var(--color-indigo)' }}>{j.nom}</strong>
+                    {' · '}{j.n} mouvement{j.n > 1 ? 's' : ''}
+                    {' · solde '}{fmtCaisse(j.solde, j.devise)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--trf-success)' }}>
+                      + {fmtCaisse(j.entrees, j.devise)}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--trf-error)' }}>
+                      − {fmtCaisse(j.sorties, j.devise)}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 600, color: j.net < 0 ? 'var(--trf-error)' : 'var(--color-indigo)' }}>
+                      {j.net < 0 ? '−' : '+'} {fmtCaisse(Math.abs(j.net), j.devise)}
+                    </span>
+                  </span>
+                </div>
+              ))
+            )}
+            {pointDuJour.length > 1 && (
+              <div className="trf-empty" style={{ marginTop: 10 }}>
+                Chaque caisse tient sa monnaie : ces lignes ne s'additionnent pas entre elles.
+              </div>
+            )}
+          </Panel>
         </div>
       )}
 
