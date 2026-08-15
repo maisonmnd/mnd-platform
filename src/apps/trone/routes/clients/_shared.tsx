@@ -874,29 +874,21 @@ export function RdvModal({
         && a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1)
       .map((a) => {
         const soins = apptServices(a, byId);
-        /* LE SOIN QUI PORTE LES SÉANCES (15 août — « besoin de voir le soin
-           qui porte 2 séances »). La liste disait les prestations à la file,
-           tronquées au 60ᵉ caractère : on lisait « … + WÈWÈ · Le » et rien ne
-           désignait celui qui promet une suite. C'est LUI qu'on nomme. */
+        /* CE QU'ON NOMME (15 août, 2ᵉ passe) — le soin qui promet une suite, et
+           LUI SEUL. La première version empilait « (+ 7 autres) » et le prix du
+           rituel : deux nombres qui ne concernent pas la séance qu'on pose, et
+           que Yéman a lus comme les siens. On ne dit que ce qui sert. */
         const multi = soins.filter((sv) => (sv.sessions ?? 1) > 1);
-        const reste = soins.length - multi.length;
         const dit = multi.length
-          ? `${multi.map((sv) => `${sv.name} · ${sv.sessions} séances`).join(' + ')}${reste > 0 ? ` (+ ${reste} autre${reste > 1 ? 's' : ''})` : ''}`
-          : soins.length
-            ? `${soins[0].name}${soins.length > 1 ? ` (+ ${soins.length - 1} autre${soins.length > 2 ? 's' : ''})` : ''}`
-            : 'rituel';
-        return { a, dit, aDesSeances: multi.length > 0 };
+          ? multi.map((sv) => sv.name).join(' + ')
+          : soins[0]?.name ?? 'rituel';
+        return { a, dit, seances: multi[0]?.sessions ?? 0, aDesSeances: multi.length > 0 };
       })
-      /* Ceux qui promettent des séances en tête : c'est là qu'on rattache. */
-      .sort((x, y) => (Number(y.aDesSeances) - Number(x.aDesSeances))
-        || `${y.a.date}${y.a.time}`.localeCompare(`${x.a.date}${x.a.time}`))
       .slice(0, 30),
     [branchAppts, clientId, appt?.id, byId],
   );
   const porteur = rituelsPorteurs.find((r) => r.a.id === suiteDe);
   const estSuite = !!porteur;
-  /* Les prestations du rituel que le Catalogue annonce à plusieurs séances. */
-  const multiSeances = chosen.filter((sv) => (sv.sessions ?? 1) > 1);
   const [sets] = useBandSets();
   /* LA LONGUEUR TRAVAILLÉE, choisie ici — et le rendez-vous FIGE la sienne :
      le relire ne le retarife jamais à la longueur d'aujourd'hui. Le point de
@@ -1785,35 +1777,34 @@ export function RdvModal({
               construit à mesure, en rattachant celle-ci au rituel qui porte
               déjà le prix. Rien à encaisser ici — `apptTotalXof` met une
               séance 2+ à zéro partout, et le carnet lui refuse « Encaisser ». */}
-          {rituelsPorteurs.length > 0 && !effCovered && (
-            <Field label="Séance de suite">
-              <Select value={suiteDe} onChange={(e) => setSuiteDe(e.target.value)}>
-                <option value="">Non — ce rituel se facture</option>
-                {rituelsPorteurs.map((r) => (
-                  <option key={r.a.id} value={r.a.id}>
-                    {r.aDesSeances ? '◆ ' : ''}{frShort(r.a.date)} · {r.dit} · {argent(apptTotalXof(r.a, byId))}
-                  </option>
-                ))}
-              </Select>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                {estSuite
-                  ? `Séance incluse de « ${porteur?.dit} » du ${frShort(porteur!.a.date)} — rien à encaisser ici : ce rituel-là porte le prix, et le carnet refusera « Encaisser » sur celle-ci.`
-                  /* CE QUE LE CATALOGUE PROMET (15 août) — une prestation à
-                     plusieurs séances le dit ici, au moment de poser la suite.
-                     Le comptoir ne peut pas deviner qu'un soin en promet deux,
-                     et les séances dues restaient invisibles jusqu'à ce qu'on
-                     y repense. On ne les crée PAS d'avance : « ça peut arriver
-                     qu'on finisse en 1 séance ». */
-                  : multiSeances.length > 0
-                    ? `${multiSeances.map((sv) => `${sv.name} en promet ${sv.sessions}`).join(' · ')} — la suivante se pose ici, le jour où elle est nécessaire, et vaudra 0 F.`
-                    : 'À poser le jour où l’on sait qu’une séance de plus est nécessaire — le soin qui tient en une seule fois n’en réserve aucune.'}
+          {/* LA SÉANCE DE SUITE NE SE CHOISIT PLUS ICI (15 août, 2ᵉ passe).
+              Le sélecteur listait les rituels PASSÉS de la cliente : ouvert
+              depuis un rituel déjà facturé, il invitait à le rattacher EN
+              ARRIÈRE — un rendez-vous à 133 200 F passait à « séance incluse »,
+              donc à zéro, d'un clic dans une liste qu'on lisait de travers.
+              « C'est quoi + 7 autres, c'est quoi le prix de 119 000 F ? » :
+              c'étaient ceux de L'AUTRE rituel, et rien ne le disait.
+
+              Le rattachement part désormais du bon bout — menu ⋯ du rituel qui
+              porte le soin → « Poser la séance suivante ». Ici, on ne fait plus
+              que DIRE l'état, et le défaire s'il est faux. */}
+          {estSuite && porteur && (
+            <div className="mnd-bande" style={{ padding: '13px 15px' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                Séance {(appt?.seriesIndex ?? 2)} de « {porteur.dit} »
               </div>
-            </Field>
-          )}
-          {estSuite && (
-            <div className="mnd-bande" style={{ padding: '12px 14px', fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
-              Ce rituel est une <b>séance de suite</b> — il vaut 0 F et ne s’encaisse pas.
-              Le prix, la remise et l’acompte se règlent sur le rituel qui porte la série.
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
+                Le rituel du {frShort(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''} —
+                rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
+              </div>
+              <button
+                type="button"
+                className="trc-disc"
+                style={{ marginTop: 10 }}
+                onClick={() => setSuiteDe('')}
+              >
+                Détacher — ce rituel se facture
+              </button>
             </div>
           )}
           <Field label="Le prix">
