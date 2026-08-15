@@ -5,7 +5,7 @@ import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/co
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
-  useCategories, useServices, useProducts,
+  useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
   type CatalogCategory, type Service, type Product, type PriceMode, type Maison,
@@ -381,6 +381,25 @@ export default function Catalogue() {
     return parEnsemble.flatMap((r) => [r, ...rang.filter((c) => c.parentId === r.id)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories]);
+
+  /* LES PRESTATIONS RANGÉES COMME AU RENDEZ-VOUS (15 août — « organise la
+     liste des services dans Catalogue pour qu'on se retrouve facilement comme
+     dans RDV »). Le sélecteur de déclencheurs listait les 60 prestations à la
+     file, dans l'ordre brut du magasin : on cherchait un shampoing entre une
+     pédicure et un module. Même rangement que la modale de rendez-vous —
+     par monde, puis par atelier, chacun dans son ordre saisi. */
+  const prestaParAtelier = useMemo(() => {
+    const rangees = catsDansLOrdre(categories)
+      .map((c) => ({
+        cat: c,
+        list: services.filter((sv) => sv.categoryId === c.id).sort((a, b) => a.order - b.order),
+      }))
+      .filter((g) => g.list.length);
+    const orphelines = services
+      .filter((sv) => !categories.some((c) => c.id === sv.categoryId))
+      .sort((a, b) => a.order - b.order);
+    return { rangees, orphelines };
+  }, [categories, services]);
 
   /* Replier tout un ensemble d'un geste : c'est ce qui rend les 24 catégories
      tenables à l'écran. */
@@ -1432,14 +1451,31 @@ export default function Catalogue() {
                         ))}
                       </optgroup>
                     )}
-                    <optgroup label="Une prestation précise">
-                      {services
-                        .filter((sv) => sv.id !== svcForm.id)
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((sv) => (
-                          <option key={sv.id} value={sv.id}>{sv.name}</option>
-                        ))}
-                    </optgroup>
+                    {/* RANGÉES COMME AU RENDEZ-VOUS (15 août) — l'ordre
+                        alphabétique mêlait les mondes : on cherchait un
+                        shampoing entre une pédicure et un module. Par monde,
+                        puis par atelier, chacun dans son ordre saisi. */}
+                    {prestaParAtelier.rangees.map((grp, gj) => {
+                      const libres = grp.list.filter((sv) => sv.id !== svcForm.id);
+                      if (!libres.length) return null;
+                      const monde = mondeDeCat(grp.cat, categories);
+                      const prec = gj > 0 ? mondeDeCat(prestaParAtelier.rangees[gj - 1].cat, categories) : null;
+                      return (
+                        <Fragment key={`inc-${grp.cat.id}`}>
+                          {(gj === 0 || monde !== prec) && <optgroup label={`━━ ${mondeLabel(monde)} ━━`} />}
+                          <optgroup label={`${grp.cat.fon} · ${grp.cat.label}`}>
+                            {libres.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                          </optgroup>
+                        </Fragment>
+                      );
+                    })}
+                    {prestaParAtelier.orphelines.some((sv) => sv.id !== svcForm.id) && (
+                      <optgroup label="Autres">
+                        {prestaParAtelier.orphelines
+                          .filter((sv) => sv.id !== svcForm.id)
+                          .map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                   <Input
                     inputMode="numeric"
@@ -1842,9 +1878,27 @@ export default function Catalogue() {
                           }}
                         >
                           <option value="">Ajouter un déclencheur…</option>
-                          {services
-                            .filter((x) => x.id !== svcForm.id && !g.serviceIds.includes(x.id))
-                            .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                          {prestaParAtelier.rangees.map((grp, gj) => {
+                            const libres = grp.list.filter((x) => x.id !== svcForm.id && !g.serviceIds.includes(x.id));
+                            if (!libres.length) return null;
+                            const monde = mondeDeCat(grp.cat, categories);
+                            const prec = gj > 0 ? mondeDeCat(prestaParAtelier.rangees[gj - 1].cat, categories) : null;
+                            return (
+                              <Fragment key={grp.cat.id}>
+                                {(gj === 0 || monde !== prec) && <optgroup label={`━━ ${mondeLabel(monde)} ━━`} />}
+                                <optgroup label={`${grp.cat.fon} · ${grp.cat.label}`}>
+                                  {libres.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                                </optgroup>
+                              </Fragment>
+                            );
+                          })}
+                          {prestaParAtelier.orphelines.some((x) => x.id !== svcForm.id && !g.serviceIds.includes(x.id)) && (
+                            <optgroup label="Autres">
+                              {prestaParAtelier.orphelines
+                                .filter((x) => x.id !== svcForm.id && !g.serviceIds.includes(x.id))
+                                .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                            </optgroup>
+                          )}
                         </Select>
                       </div>
                       {g.serviceIds.length > 0 && (
