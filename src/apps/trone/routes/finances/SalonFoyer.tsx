@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -101,6 +101,12 @@ const litMontant = (s: string): number => {
 };
 const litXof = (s: string): number => Math.round(litMontant(s));
 
+/** LE JOUR ENTIER, DIT COMME ON LE DIT (15 août) — « jeudi 14 août ». Le
+    journal se lit par JOURNÉES, pas par lignes : sans le jour de la semaine,
+    une date nue ne se situe pas dans la semaine qu'on vient de vivre. */
+const frJourLong = (iso: string): string =>
+  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '—';
+
 const frDay = (iso: string): string =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -189,6 +195,21 @@ export default function SalonFoyer() {
   const env = enveloppesDuMois(benefice, cfg);
   const poidsCharges = poidsDesCharges(revenu, chargesMois);
   const duMois = prelevesDuMois(prelevements, branch.id, month).sort((a, b) => b.date.localeCompare(a.date));
+  /* LE JOURNAL PAR JOURNÉES (15 août, demande de Yéman) — « besoin du total de
+     cette journée-là du 14 août ». Une liste plate de retraits ne répond pas à
+     « combien est sorti ce jour-là » : il fallait additionner de tête. Chaque
+     journée porte donc son compte de lignes et son total, et les lignes
+     vivent dessous. `duMois` est déjà trié du plus récent au plus ancien : le
+     groupement conserve cet ordre. */
+  const retraitsParJour = useMemo(() => {
+    const jours: { date: string; items: typeof duMois; total: number }[] = [];
+    for (const p of duMois) {
+      const dernier = jours[jours.length - 1];
+      if (dernier && dernier.date === p.date) { dernier.items.push(p); dernier.total += p.amountXof; }
+      else jours.push({ date: p.date, items: [p], total: p.amountXof });
+    }
+    return jours;
+  }, [duMois]);
   const preleve = duMois.reduce((s, p) => s + p.amountXof, 0);
   const ecart = env.prelevement - preleve; // négatif = le foyer a trop pris
   const dette = detteEnCours(prets, branch.id);
@@ -1186,7 +1207,15 @@ export default function SalonFoyer() {
               DÉDUITS d'un libellé : ce sont les premiers à devoir se corriger. */}
           <Panel title={`Les retraits de ${monthTitle(month)}`}>
             {duMois.length === 0 && <div className="trf-empty">Aucun retrait ce mois — le registre est vide, pas en panne.</div>}
-            {duMois.map((p) => (
+            {retraitsParJour.map((j) => (
+              <Fragment key={j.date}>
+                <div className="trf-jour">
+                  <span className="trf-jour__d">
+                    {frJourLong(j.date)} · {j.items.length} retrait{j.items.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="trf-jour__t">{fmtMoney(j.total, currency)}</span>
+                </div>
+                {j.items.map((p) => (
               editPrel?.id === p.id ? (
                 <div key={p.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
@@ -1215,7 +1244,8 @@ export default function SalonFoyer() {
               ) : (
                 <div key={p.id} className="trf-tally">
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                    {frDay(p.date)} · <strong style={{ color: 'var(--color-indigo)' }}>{p.beneficiaire}</strong> · {p.motif}{p.note ? ` — ${p.note}` : ''}
+                    {/* La date a quitté la ligne : la journée la porte au-dessus. */}
+                    <strong style={{ color: 'var(--color-indigo)' }}>{p.beneficiaire}</strong> · {p.motif}{p.note ? ` — ${p.note}` : ''}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--color-indigo)' }}>{fmtMoney(p.amountXof, currency)}</span>
@@ -1224,6 +1254,8 @@ export default function SalonFoyer() {
                   </span>
                 </div>
               )
+            ))}
+              </Fragment>
             ))}
           </Panel>
         </div>

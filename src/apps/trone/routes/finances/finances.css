@@ -792,3 +792,11 @@
 .trf-envcard--go { cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; transition: background 160ms ease, border-color 160ms ease; }
 .trf-envcard--go:hover { background: var(--surface-raised, var(--color-ivoire)); border-color: var(--color-copper); }
 .trf-envcard--go:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* LE JOURNAL PAR JOURNÉES (15 août) — l'en-tête d'une journée : ce qu'elle
+   pèse, à droite, avant même de lire ses lignes. */
+.trf-jour { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px 0 7px; border-top: 1px solid var(--color-copper); margin-top: 4px; }
+.trf-jour:first-of-type { margin-top: 0; }
+.trf-jour__d { font-family: var(--font-sans); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.trf-jour__t { font-family: var(--font-serif); font-size: 16px; color: var(--copper-700); white-space: nowrap; }
+.trf-jour + .trf-tally { border-top: none; }
