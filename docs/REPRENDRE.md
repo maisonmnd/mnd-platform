@@ -2,6 +2,33 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le nom mène à sa fiche · l'interrupteur d'une prestation se voit — 15 août
+
+DEUX DEMANDES DE YÉMAN, le même jour. ① LE CALENDRIER : « quand je clique
+Prisca Lokovi sur l'horloge, ça doit ouvrir sa fiche pour que je remplisse le
+numéro ». Le carnet dit qui vient ; quand le téléphone manque — la cloche du
+rappel barrée le signale — il fallait quitter le Calendrier, ouvrir les
+Clientes et la retrouver à la main. Toucher SON NOM ouvre sa fiche
+(`/customers?id=`, la même porte que la recherche globale) ; toucher le reste
+du bloc ouvre toujours le rituel. Filet pointillé sous le nom, EN CUIVRE quand
+le téléphone manque, et l'infobulle le dit. Vue jour ET agenda du téléphone
+(là, un `span role=button` : la ligne est déjà un bouton). CONSÉQUENCE
+ASSUMÉE : on ne peut plus saisir le bloc PAR LE NOM pour le glisser — le reste
+du bloc déplace toujours le rendez-vous.
+
+② LA RÉGIE DE LA VITRINE : « masquer certaines prestations, comme les WÈWÈ™ à
+Façon — je ne veux pas tout l'atelier ». LE GESTE EXISTAIT DÉJÀ (la carte
+entière bascule, `hiddenServices` côté Maison / `vitrineMasques.services` côté
+cliente) — il ne se VOYAIT pas : une pastille cochée se lit comme une
+décoration, surtout quand l'atelier juste au-dessus porte, lui, un vrai
+interrupteur. La carte porte donc le MÊME interrupteur, en plus petit
+(`trc-toggle__switch`), avec son état en toutes lettres (Visible / Masquée),
+et une bande en tête des sections dit les deux niveaux : l'atelier éteint tout
+ce qu'il contient, la prestation ne coupe qu'elle. LEÇON : quand une demande
+porte sur une fonction qui existe, c'est l'affordance qu'il faut réparer, pas
+le moteur — chercher d'abord, coder ensuite. PUBLIÉ, build `20260815201117`,
+publié @ `5974cb9`, contrôlé en ligne (bundles Calendrier et Vitrine servis).
+
 ## L'arbre élagué mentait — ordre, Juste Prix, abonnement — 15 août
 
 « Sur Ma Couronne l'atelier YÈKPÈ doit venir en dernier » (Yéman) : l'écran
