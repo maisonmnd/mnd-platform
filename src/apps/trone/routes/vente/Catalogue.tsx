@@ -1328,7 +1328,7 @@ export default function Catalogue() {
       })}
 
       {svcForm && (
-        <Modal title={svcForm.id ? (svcForm.estForfait ? 'Le forfait.' : 'La prestation.') : (svcForm.estForfait ? 'Nouveau forfait.' : 'Nouvelle prestation.')} onClose={() => setSvcForm(null)} width={600}>
+        <Modal title={svcForm.id ? (svcForm.estForfait ? 'Le forfait.' : 'La prestation.') : (svcForm.estForfait ? 'Nouveau forfait.' : 'Nouvelle prestation.')} onClose={() => setSvcForm(null)} width={900}>
           {/* 24 px entre les blocs, 14 a l'interieur : c'est l'ecart qui dit
               ou un sujet finit et ou le suivant commence. */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

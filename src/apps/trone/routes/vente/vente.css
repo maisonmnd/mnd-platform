@@ -1059,3 +1059,8 @@
 .trv-fiche__tete .puce.is-on {
   background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire);
 }
+
+/* La fiche élargie (15 août) — le volet respire, le rail garde sa mesure.
+   Les pastilles d'un choix ne se coupent plus en deux lignes. */
+.trv-fiche__volet .trv-palier-chip { white-space: nowrap; }
+.trv-fiche__volet .mnd-field__label { white-space: nowrap; }
