@@ -12,6 +12,9 @@ import {
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
   attacheSeance, detacheSeance,
+} from '../../../../shared/agenda';
+import { fermerLeSalonPour, rouvrirLeSalonDe } from '../../../../shared/blocages';
+import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
 import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
@@ -1111,6 +1114,24 @@ export function RdvModal({
       setError('Ajoutez au moins une prestation.');
       return;
     }
+    /* LE SALON SOUVERAIN FERME LA MAISON (15 août) — « quand quelqu'un
+       réserve, le salon est bloqué pour ce temps ». La plage se pose au NOM du
+       rendez-vous : elle se repose sans se dédoubler quand l'heure change, et
+       se lève dès que le rituel est annulé ou que la prestation quitte le
+       rituel. Sans maître : personne ne reçoit, pas même un autre fauteuil. */
+    const reglerLeSalon = (id: string, statut: Appointment['status']) => {
+      const priv = chosen.find((sv) => sv.privatise);
+      if (!priv || statut === 'annulé') { rouvrirLeSalonDe(id); return; }
+      const debutMin = timeToMin(time);
+      const finMin = debutMin + (chosen.reduce((n, sv) => n + sv.durationMin, 0) || priv.durationMin);
+      const enHeure = (m: number) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+      fermerLeSalonPour({
+        apptId: id, branchId: branch.id, date,
+        debut: enHeure(debutMin), fin: enHeure(Math.min(finMin, 24 * 60)),
+        qui: rdvClient?.name,
+      });
+    };
+
     if (appt) {
       /* LA SÉRIE SE POSE APRÈS L'ÉCRITURE (15 août) — `attacheSeance` a besoin
          de voir le rendez-vous à jour pour renuméroter toute la série. */
@@ -1158,6 +1179,7 @@ export function RdvModal({
             : x,
         ),
       ));
+      reglerLeSalon(appt.id, chosenStatus);
       /* LE STOCK SUIT LE STATUT, quel que soit le chemin. Le bouton du Carnet
          n'était pas le seul à écrire « honoré » : ce sélecteur aussi — et il
          contournait la consommation comme le rembobinage. */
@@ -1253,6 +1275,7 @@ export function RdvModal({
         const avec = [...prev, created, ...suites];
         return estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
       });
+      reglerLeSalon(created.id, chosenStatus);
     }
     onClose();
   };
