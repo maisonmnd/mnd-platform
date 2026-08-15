@@ -785,3 +785,10 @@
 }
 .trf-coffre-suggest__rev { font-size: 12.5px; color: var(--color-indigo); }
 .trf-coffre-suggest__chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+/* L'ENVELOPPE DU FOYER SE CLIQUE (15 août) — elle mène à ses retraits. Les
+   deux autres portent un bouton qui agit ; celle-ci n'en avait pas, et le
+   chiffre « pris » restait un cul-de-sac. Fondu sans rebond, comme le reste. */
+.trf-envcard--go { cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; transition: background 160ms ease, border-color 160ms ease; }
+.trf-envcard--go:hover { background: var(--surface-raised, var(--color-ivoire)); border-color: var(--color-copper); }
+.trf-envcard--go:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }

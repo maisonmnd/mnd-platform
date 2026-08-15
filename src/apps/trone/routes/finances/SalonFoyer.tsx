@@ -961,11 +961,23 @@ export default function SalonFoyer() {
               ] as const).map((e) => {
                 const reste = e.budget - e.pris;
                 const part = e.budget > 0 ? Math.min(100, Math.round((e.pris / e.budget) * 100)) : 0;
+                /* LA CASE DU FOYER SE CLIQUE (15 août) — elle mène à ses
+                   retraits, au journal. Ses deux sœurs portent un bouton qui
+                   agit ; elle n'en avait pas, et « 39 400 F pris » ne menait
+                   nulle part : pour savoir QUI avait pris QUOI, il fallait
+                   deviner l'onglet. Un vrai <button> — donc au clavier aussi. */
+                const Case = e.k === 'foyer' ? 'button' : 'div';
                 return (
-                  <div key={e.k} style={{
-                    background: 'var(--surface-card)', border: '1px solid var(--hairline)',
-                    borderLeft: `3px solid ${e.accent}`, borderRadius: 4, padding: '14px 15px',
-                  }}>
+                  <Case
+                    key={e.k}
+                    {...(e.k === 'foyer'
+                      ? { type: 'button' as const, className: 'trf-envcard--go', onClick: () => setTab('journal'), title: 'Voir les retraits du foyer' }
+                      : {})}
+                    style={{
+                      background: 'var(--surface-card)', border: '1px solid var(--hairline)',
+                      borderLeft: `3px solid ${e.accent}`, borderRadius: 4, padding: '14px 15px',
+                    }}
+                  >
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{e.t}</div>
                     <div className="mnd-muted" style={{ fontSize: 11.5 }}>{e.pct} % du bénéfice</div>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--color-indigo)', marginTop: 6 }}>
@@ -981,6 +993,11 @@ export default function SalonFoyer() {
                           </b></>
                         : e.k === 'foyer' ? 'rien pris ce mois' : 'rien mis au coffre ce mois'}
                     </div>
+                    {e.k === 'foyer' && (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 9 }}>
+                        Voir les retraits →
+                      </div>
+                    )}
                     {e.k !== 'foyer' && (!dotationInscrite(e.k === 'reinv' ? 'reinvestissement' : 'fiscale') || (dotationInscrite(e.k === 'reinv' ? 'reinvestissement' : 'fiscale')?.amountXof !== e.budget)) && e.budget > 0 && (
                       <button
                         className="trf-act"
@@ -990,7 +1007,7 @@ export default function SalonFoyer() {
                         {e.pris > 0 ? `Ajuster à ${fmtMoney(e.budget, currency)}` : 'Mettre au coffre'}
                       </button>
                     )}
-                  </div>
+                  </Case>
                 );
               })}
             </div>
