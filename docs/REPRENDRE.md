@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'arbre élagué mentait — ordre, Juste Prix, abonnement — 15 août
+
+« Sur Ma Couronne l'atelier YÈKPÈ doit venir en dernier » (Yéman) : l'écran
+ouvrait sur la coloration, puis KLƆKLƆ · les soins · SÍNSIN · les coiffures.
+CE N'ÉTAIT PAS UN ORDRE À CHANGER — c'était le bon ordre, cassé à
+l'affichage. `useVisibleCatalog` ÉLAGUE la carte à la mesure de la cliente :
+un atelier dont aucune prestation ne s'adresse à elle disparaît, mais ses
+FAMILLES restent. L'arbre y est donc cassé — et le tunnel rangeait CETTE
+liste-là (`catsDansLOrdre(cats)`, un second tri après celui de `bridges`) :
+les familles orphelines de leur atelier (KLƆKLƆ™, LES SOINS, SÍNSIN™,
+Styling — toutes filles de GBÈJÍ™, absent) tombaient dans le repli « arbre
+cassé » qui ferme la marche, pendant que YÈKPÈ™, atelier resté entier,
+remontait en tête. Reproduit à l'identique sur les vraies données avant de
+toucher au code. DÉSORMAIS : l'ordre se prend sur l'ARBRE ENTIER
+(`useCategories`), le filtre visible s'applique APRÈS (`offre`, donc rien
+d'invisible ne fuit) — et `mondeDeCat` lit le même arbre, sinon une famille
+sans sa racine tombe au « plateau technique » et l'intertitre ment aussi.
+Ordre rendu : KLƆKLƆ · LES SOINS · SÍNSIN · Styling · YÈKPÈ — celui du
+Catalogue, sans toucher à une seule donnée. Le changer un jour = les flèches
+du Catalogue au Trône, comme avant.
+
+MÊME RACINE, deux défauts plus graves trouvés en chemin et corrigés :
+① LE JUSTE PRIX S'ÉTEIGNAIT. `coefJustePrix` n'applique le coefficient
+personnel qu'à l'ATELIER, et il remonte à la racine pour le savoir : jugé sur
+la carte élaguée, la racine manquante le faisait échouer fermé (×1) — pendant
+que le comptoir, qui a l'arbre entier, l'appliquait. Ma Couronne annonçait un
+autre prix que la caisse, exactement ce qu'elle ne doit jamais faire.
+`pricingOf` reçoit l'arbre entier au tunnel ET au sur-mesure. ② L'ABONNEMENT
+POUVAIT PARAÎTRE VIDE : `sousArbreOf` sur l'arbre cassé ne retrouvait plus
+les familles d'un atelier d'abonnement (GBÈJÍ™ → SÍNSIN™, KLƆKLƆ™…).
+RÈGLE À RETENIR : **on affiche avec la carte élaguée, on JUGE sur l'arbre
+entier.** Tout juge qui remonte à une racine (monde, sous-arbre, Juste Prix)
+doit recevoir `useCategories`, jamais `useVisibleCatalog().cats`. Vérifié :
+les autres surfaces (Tabs, Vitrine, Catalogue, Caisse, JustePrix) passent
+déjà l'arbre entier. PUBLIÉ le 15 août — trone + couronne, build
+`20260815195506`, publié @ `96e660c`, `version.json` en ligne contrôlé.
+
 ## Le papier ne coupe plus le rituel — 15 août
 
 Constaté par Yéman sur un vrai relevé : « 75 000 F » en face de
