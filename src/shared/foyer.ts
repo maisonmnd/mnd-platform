@@ -368,6 +368,23 @@ export function doterAuCoffre(p: {
   }]);
 }
 
+/** ANNULER LA DOTATION D'UN MOIS (15 août) — elle sort du coffre comme elle y
+    est entrée : d'un seul geste, sans laisser de ligne de retrait. Ce n'est
+    pas un virement (l'argent n'a pas quitté la maison), c'est une décision
+    reprise — et sans ce chemin, la seule issue était d'aller chercher la
+    ligne dans le registre de l'épargne pour la supprimer à la croix.
+
+    Ne touche QUE la ligne de dotation de cette branche pour ce mois, par son
+    identifiant — l'ancien sans branche compris, comme `doterAuCoffre`. Les
+    versements libres et les virements restent intacts. */
+export function annuleDotation(p: { branchId: string; enveloppe: EnveloppeReserve; mois: string }): void {
+  const id = dotationId(p.branchId, p.enveloppe, p.mois);
+  const legacy = dotationIdLegacy(p.enveloppe, p.mois);
+  coffreStore.set((prev) => prev.filter((m) => !(
+    (m.id === id || (m.id === legacy && m.branchId === p.branchId)) && m.enveloppe === p.enveloppe
+  )));
+}
+
 /** Un versement libre dans une enveloppe — hors dotation mensuelle. */
 export function verserDansEnveloppe(p: {
   branchId: string; enveloppe: EnveloppeReserve; amountXof: number; date: string; note?: string;

@@ -2,7 +2,7 @@
    Lancé par `node scripts/verifie-prix.mjs`. */
 import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
-  ouverteDesVenue, servesBand, estOfferte, prixDansPanier,
+  ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -174,45 +174,71 @@ dit('rien du tout : pas de personnalisation', false,
 dit('une table VIDE ne personnalise pas', false,
   isPersonalized(pricingOf({ priceCoef: 1, prixFixes: {} }, [])));
 
-/* ── LE GESTE OFFERT (15 août) ──
-   « Quand les Pico et Galaxy font une réservation de repriseOff essentielle ou
-   élaborée, le shampoingOff est offert quand il est sélectionné. » La règle
-   dépend du PANIER : elle ne se prouve pas prestation par prestation. */
-const repriseOff = svc({ id: 'sv-repriseOff', name: 'SÍNSIN Essentielle · La Reprise', priceXof: 60_000 });
-const repriseElOff = svc({ id: 'sv-repriseOff-el', name: 'SÍNSIN Élaborée · La Reprise', priceXof: 75_000 });
-const soinOff = svc({ id: 'sv-soinOff', name: 'Le Soin', priceXof: 15_000 });
-const shampoingOff = svc({
-  id: 'sv-shamp', name: 'KƆKLƆ Essentiel · Le Shampoing', priceXof: 10_000,
-  offertAvec: { serviceIds: ['sv-repriseOff', 'sv-repriseOff-el'], bandIds: ['cal-picoOff'] },
+/* ── LES GESTES DE LA MAISON (15 août) ──
+   « Quand les Pico et Galaxy font une réservation de reprise essentielle ou
+   élaborée, le shampoing est offert quand il est sélectionné » — puis « 50 %
+   le shampoing dès qu'une coloration est sélectionnée ». Deux règles sur la
+   même prestation, et une règle qui dépend du PANIER : elle ne se prouve pas
+   prestation par prestation. */
+const gReprise = svc({ id: 'g-reprise', name: 'SÍNSIN Essentielle · La Reprise', priceXof: 60_000 });
+const gRepriseEl = svc({ id: 'g-reprise-el', name: 'SÍNSIN Élaborée · La Reprise', priceXof: 75_000 });
+const gColo = svc({ id: 'g-colo', name: 'La Coloration', priceXof: 25_000 });
+const gSoin = svc({ id: 'g-soin', name: 'Le Soin', priceXof: 15_000 });
+const gShamp = svc({
+  id: 'g-shamp', name: 'KƆKLƆ Essentiel · Le Shampoing', priceXof: 10_000,
+  offertAvec: [
+    { serviceIds: ['g-reprise', 'g-reprise-el'], bandIds: ['g-cal-pico'], pct: 100 },
+    { serviceIds: ['g-colo'], pct: 50 },
+  ],
 });
-const bandesOff: ModelBand[] = [
-  { id: 'cal-miniOff', label: 'Mini', maxLocks: 280, coef: 1, durCoef: 1 } as ModelBand,
-  { id: 'cal-picoOff', label: 'Pico', maxLocks: 550, coef: 1, durCoef: 1 } as ModelBand,
+const gBandes: ModelBand[] = [
+  { id: 'g-cal-mini', label: 'Mini', maxLocks: 280, coef: 1, durCoef: 1 } as ModelBand,
+  { id: 'g-cal-pico', label: 'Pico', maxLocks: 550, coef: 1, durCoef: 1 } as ModelBand,
 ];
-const picoOff = pricingOf({ lockCount: 527, priceCoef: 1 }, bandesOff);
-const miniOff = pricingOf({ lockCount: 240, priceCoef: 1 }, bandesOff);
+const gPico = pricingOf({ lockCount: 527, priceCoef: 1 }, gBandes);
+const gMini = pricingOf({ lockCount: 240, priceCoef: 1 }, gBandes);
 
+/* Le geste ENTIER — offert. */
 dit('Pico + reprise essentielle : le shampoing est offert', true,
-  estOfferte(shampoingOff, picoOff, [shampoingOff, repriseOff]));
+  estOfferte(gShamp, gPico, [gShamp, gReprise]));
 dit('… et il vaut 0 F dans ce rituel', 0,
-  prixDansPanier(shampoingOff, picoOff, [shampoingOff, repriseOff]));
+  prixDansPanier(gShamp, gPico, [gShamp, gReprise]));
 dit('la reprise, elle, garde son prix', 60_000,
-  prixDansPanier(repriseOff, picoOff, [shampoingOff, repriseOff]));
+  prixDansPanier(gReprise, gPico, [gShamp, gReprise]));
 dit('reprise ÉLABORÉE : offert aussi', true,
-  estOfferte(shampoingOff, picoOff, [shampoingOff, repriseElOff]));
+  estOfferte(gShamp, gPico, [gShamp, gRepriseEl]));
 dit('shampoing SEUL : il se paie', 10_000,
-  prixDansPanier(shampoingOff, picoOff, [shampoingOff]));
+  prixDansPanier(gShamp, gPico, [gShamp]));
 dit('un autre rituel ne déclenche rien', 10_000,
-  prixDansPanier(shampoingOff, picoOff, [shampoingOff, soinOff]));
-dit('MINI avec la reprise : le geste ne vaut pas pour elle', 10_000,
-  prixDansPanier(shampoingOff, miniOff, [shampoingOff, repriseOff]));
-dit('calibre inconnu : on n’offre pas sur une supposition', false,
-  estOfferte(shampoingOff, pricingOf({ priceCoef: 1 }, bandesOff), [shampoingOff, repriseOff]));
-dit('sans règle au Catalogue, rien n’est offert', false,
-  estOfferte(svc({ id: 'sv-nu' }), picoOff, [repriseOff]));
-dit('une règle SANS calibre vaut pour toutes les têtes', true,
-  estOfferte(svc({ id: 'sv-s2', offertAvec: { serviceIds: ['sv-repriseOff'] } }), miniOff, [repriseOff]));
+  prixDansPanier(gShamp, gPico, [gShamp, gSoin]));
+dit('MINI avec la reprise : ce geste-là ne vaut pas pour elle', 10_000,
+  prixDansPanier(gShamp, gMini, [gShamp, gReprise]));
+dit('calibre inconnu : on n’offre pas sur une supposition', 0,
+  remiseGestePct(gShamp, pricingOf({ priceCoef: 1 }, gBandes), [gShamp, gReprise]));
+dit('sans règle au Catalogue, aucun geste', 0,
+  remiseGestePct(svc({ id: 'g-nu' }), gPico, [gReprise]));
 
+/* LE DEMI-GESTE — la coloration, sans calibre : pour toutes les têtes. */
+dit('coloration : le shampoing tombe de moitié', 5_000,
+  prixDansPanier(gShamp, gPico, [gShamp, gColo]));
+dit('… y compris sur une MINI, la règle n’ayant pas de calibre', 5_000,
+  prixDansPanier(gShamp, gMini, [gShamp, gColo]));
+dit('… et ce n’est pas « offert »', false,
+  estOfferte(gShamp, gPico, [gShamp, gColo]));
+dit('le geste vaut bien 50 %', 50,
+  remiseGestePct(gShamp, gPico, [gShamp, gColo]));
+
+/* LES GESTES NE SE CUMULENT PAS — 100 + 50 ferait un prix négatif. */
+dit('reprise ET coloration : le plus généreux gagne', 0,
+  prixDansPanier(gShamp, gPico, [gShamp, gReprise, gColo]));
+dit('… et sur une MINI, c’est la coloration qui parle', 5_000,
+  prixDansPanier(gShamp, gMini, [gShamp, gReprise, gColo]));
+
+/* LA FORME ANCIENNE — un objet sans pourcentage vaut 100 %. */
+dit('la règle d’avant le pourcentage offre toujours', 100,
+  remiseGestePct(svc({ id: 'g-v1', offertAvec: { serviceIds: ['g-reprise'] } }), gPico, [gReprise]));
+dit('une règle SANS calibre vaut pour toutes les têtes', true,
+  estOfferte(svc({ id: 'g-s2', offertAvec: [{ serviceIds: ['g-reprise'], pct: 100 }] }), gMini, [gReprise]));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

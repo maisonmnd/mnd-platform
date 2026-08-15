@@ -81,6 +81,9 @@ export const longueurLabel = (id: LongueurId | undefined): string =>
 export const suitLongueur = (sv: Pick<Service, 'prixParLongueur'>): boolean =>
   Object.values(sv.prixParLongueur ?? {}).some((v) => typeof v === 'number');
 
+/** Un geste de la maison — voir `Service.offertAvec`. */
+export type GesteOffert = { serviceIds: string[]; bandIds?: string[]; pct?: number };
+
 export type Service = {
   id: string;
   categoryId: string;
@@ -162,12 +165,19 @@ export type Service = {
       ne se propose qu'aux têtes rattachées à un compte famille. Absent =
       ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
   reserveFamilles?: boolean;
-  /** LE GESTE OFFERT (15 août, décision de Yéman) — cette prestation tombe à
-      ZÉRO quand l'une des `serviceIds` est au même rituel, pour les calibres
-      `bandIds` (vide = tous). Le shampoing est offert aux Pico et Galaxy qui
-      viennent pour une Reprise : la règle se pose au Catalogue, elle ne se
-      négocie pas au fauteuil. Le juge est `estOfferte` (shared/pricing). */
-  offertAvec?: { serviceIds: string[]; bandIds?: string[] };
+  /** LES GESTES DE LA MAISON (15 août, décisions de Yéman) — cette prestation
+      perd `pct` % de son prix quand l'une des `serviceIds` est au même rituel,
+      pour les calibres `bandIds` (vide = tous). 100 = offerte.
+
+      Deux gestes coexistent sur le shampoing : OFFERT aux Pico et Galaxy qui
+      viennent pour une Reprise, MOITIÉ PRIX dès qu'une coloration est au
+      rituel. D'où une LISTE — quand plusieurs gestes s'appliquent, c'est le
+      plus généreux qui gagne. La forme objet reste lue : c'est celle des
+      règles posées avant que le pourcentage n'existe (elles valent 100 %).
+
+      Les règles se posent au Catalogue ; elles ne se négocient pas au
+      fauteuil. Le juge est `remiseGestePct` (shared/pricing). */
+  offertAvec?: GesteOffert | GesteOffert[];
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;

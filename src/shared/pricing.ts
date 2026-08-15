@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import { mondeDeCat, priceModeOf, type CatalogCategory, type LongueurId, type Service } from './catalog';
+import { mondeDeCat, priceModeOf, type CatalogCategory, type GesteOffert, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
@@ -503,35 +503,61 @@ export const forfaitPriceXof = (
    ne se propose qu'aux têtes rattachées à un compte famille. Le défaut FERMÉ
    (false) protège les appels qui ne se prononcent pas : un pack famille ne
    fuit jamais vers une tête seule par oubli d'un écran. */
-/* ── LE GESTE OFFERT (15 août) ────────────────────────────────────────
-   Une prestation dont le prix tombe à ZÉRO parce qu'une AUTRE est au même
-   rituel — le shampoing offert aux Pico et Galaxy qui viennent pour une
-   Reprise. La règle dépend du PANIER, pas de la seule fiche : elle ne peut
-   donc pas vivre dans `personalPriceXof`, qui ne voit qu'une prestation à
-   la fois. Toutes les surfaces qui totalisent un rituel passent par ici —
-   comptoir, tunnel de Ma Couronne, facture — pour que le prix dit soit le
-   prix payé. */
-export const estOfferte = (sv: Service, p: PersonalPricing, panier: readonly Service[]): boolean => {
+/* ── LES GESTES DE LA MAISON (15 août) ────────────────────────────────
+   Une prestation dont le prix baisse — jusqu'à zéro — parce qu'une AUTRE est
+   au même rituel : le shampoing OFFERT aux Pico et Galaxy qui viennent pour
+   une Reprise, à MOITIÉ PRIX dès qu'une coloration est au rituel.
+
+   La règle dépend du PANIER, pas de la seule fiche : elle ne peut donc pas
+   vivre dans `personalPriceXof`, qui ne voit qu'une prestation à la fois.
+   Toutes les surfaces qui totalisent un rituel passent par ici — comptoir,
+   tunnel de Ma Couronne, acompte — pour que le prix dit soit le prix payé. */
+
+/** Les gestes d'une prestation, quelle que soit la forme stockée. La forme
+    objet est celle d'avant le pourcentage : elle vaut 100 %. */
+export const gestesDe = (sv: Service): GesteOffert[] => {
   const r = sv.offertAvec;
-  if (!r || !r.serviceIds?.length) return false;
-  /* Bornée à des calibres ? La tête doit en être — un calibre inconnu ne
-     donne rien : on n'offre pas sur une supposition. */
-  if (r.bandIds?.length) {
-    const band = bandForService(sv, p);
-    if (!band || !r.bandIds.includes(band.id)) return false;
-  }
-  return panier.some((x) => x.id !== sv.id && r.serviceIds.includes(x.id));
+  if (!r) return [];
+  return (Array.isArray(r) ? r : [r]).filter((g) => g?.serviceIds?.length);
 };
 
-/** LE PRIX D'UNE PRESTATION DANS SON RITUEL — zéro si elle est offerte,
-    son prix personnel sinon. C'est ce juge que les totaux doivent appeler. */
+/** LE GESTE QUI S'APPLIQUE, en % du prix — 0 si aucun. Quand plusieurs
+    règles tombent ensemble (une Reprise ET une coloration au même rituel),
+    c'est LA PLUS GÉNÉREUSE qui gagne : elles ne se cumulent pas, sans quoi
+    deux gestes de 50 et 100 % feraient un prix négatif. */
+export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number => {
+  let mieux = 0;
+  for (const g of gestesDe(sv)) {
+    /* Bornée à des calibres ? La tête doit en être — un calibre inconnu ne
+       donne rien : on n'offre pas sur une supposition. */
+    if (g.bandIds?.length) {
+      const band = bandForService(sv, p);
+      if (!band || !g.bandIds.includes(band.id)) continue;
+    }
+    if (!panier.some((x) => x.id !== sv.id && g.serviceIds.includes(x.id))) continue;
+    const pct = Number.isFinite(Number(g.pct)) ? Math.max(0, Math.min(100, Math.round(Number(g.pct)))) : 100;
+    if (pct > mieux) mieux = pct;
+  }
+  return mieux;
+};
+
+/** Offerte tout court — le geste vaut 100 %. */
+export const estOfferte = (sv: Service, p: PersonalPricing, panier: readonly Service[]): boolean =>
+  remiseGestePct(sv, p, panier) >= 100;
+
+/** LE PRIX D'UNE PRESTATION DANS SON RITUEL — son prix personnel, diminué du
+    geste qui s'applique. C'est ce juge que les totaux doivent appeler. */
 export const prixDansPanier = (
   sv: Service,
   p: PersonalPricing,
   panier: readonly Service[],
   catalogue?: readonly Service[],
   produits?: readonly { id: string; priceXof: number }[],
-): number => (estOfferte(sv, p, panier) ? 0 : personalPriceXof(sv, p, catalogue, produits));
+): number => {
+  const plein = personalPriceXof(sv, p, catalogue, produits);
+  const pct = remiseGestePct(sv, p, panier);
+  return pct > 0 ? Math.round(plein * (1 - pct / 100)) : plein;
+};
 
 export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false): boolean =>
   servesBand(sv, bandForService(sv, p))

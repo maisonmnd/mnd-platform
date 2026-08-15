@@ -20,7 +20,7 @@ import {
   beneficeReel, poidsDesCharges,
   prelevesDuMois, detteEnCours, pretSigneXof, pretDepassementId, pretDepassementIdLegacy,
   caissesDe, deviseDeCaisse, soldeCaisse, mouvementsDe,
-  soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre,
+  soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre, annuleDotation,
   verserDansEnveloppe, retirerDeEnveloppe, supprimeLigneEpargne, modifieLigneEpargne, ENVELOPPES_RESERVE,
   BENEFICIAIRES, MOTIFS_PRELEVEMENT, DEVISES_CAISSE, RESERVE_LABELS, PARTAGE_DEFAUT,
   useMotifsFoyer, motifsFoyerStore, totalPostes, type PosteFoyer,
@@ -250,6 +250,14 @@ export default function SalonFoyer() {
   const dotationInscrite = (e: EnveloppeReserve) => dotationDuMois(coffre, branch.id, e, month);
   const inscrireDotation = (e: EnveloppeReserve, montant: number) =>
     doterAuCoffre({ branchId: branch.id, enveloppe: e, mois: month, amountXof: montant, date: dateDansMois(month) });
+  /* ANNULER UNE DOTATION (15 août) — une décision se reprend. Elle sort du
+     coffre comme elle y est entrée, d'un geste ; il fallait sinon descendre
+     dans le registre de l'épargne chercher la ligne et la croix. On confirme :
+     c'est de l'argent, et le geste ne se rejoue pas tout seul. */
+  const annulerDotation = (e: EnveloppeReserve, montant: number) => {
+    if (!window.confirm(`Annuler la dotation de ${fmtMoney(montant, currency)} en ${RESERVE_LABELS[e]} ? Elle ressort du coffre.`)) return;
+    annuleDotation({ branchId: branch.id, enveloppe: e, mois: month });
+  };
 
   const epargneInscrite = mvtsEnveloppe(coffre, branch.id)
     .filter((m) => m.kind === 'depot' && m.date.slice(0, 7) === month)
@@ -1028,6 +1036,15 @@ export default function SalonFoyer() {
                         {e.pris > 0 ? `Ajuster à ${fmtMoney(e.budget, currency)}` : 'Mettre au coffre'}
                       </button>
                     )}
+                    {e.k !== 'foyer' && e.pris > 0 && (
+                      <button
+                        className="trf-act trf-act--ghost"
+                        style={{ marginTop: 8 }}
+                        onClick={() => annulerDotation(e.k === 'reinv' ? 'reinvestissement' : 'fiscale', e.pris)}
+                      >
+                        Annuler la dotation
+                      </button>
+                    )}
                   </Case>
                 );
               })}
@@ -1368,12 +1385,6 @@ export default function SalonFoyer() {
             </div>
           </div>
 
-          <div className="trf-guard" style={{ marginTop: 18 }}>
-            Mettre de côté est un SEUL geste : la dotation entre directement au Coffre-fort, où la seule sortie
-            autorisée est un virement. L'argent est à l'abri au moment même où vous décidez de l'épargner.
-            Ces lignes-là ne sont visibles que de vous — le reste du personnel voit le coffre sans elles.
-          </div>
-
           <Panel title={`Dotations de ${monthTitle(month)} — proposées par le Partage`}>
             {ENVELOPPES_RESERVE.map((e) => {
               const propose = e === 'reinvestissement' ? env.reinvest : env.reserve;
@@ -1384,11 +1395,18 @@ export default function SalonFoyer() {
                     {RESERVE_LABELS[e]} · proposé {fmtMoney(propose, currency)}
                     {inscrite && <> · <span style={{ color: 'var(--trf-success)' }}>au coffre — {fmtMoney(inscrite.amountXof, currency)}</span></>}
                   </span>
-                  {(!inscrite || inscrite.amountXof !== propose) && propose > 0 && (
-                    <button className="trf-act" onClick={() => inscrireDotation(e, propose)}>
-                      {inscrite ? `Ajuster à ${fmtMoney(propose, currency)}` : 'Mettre au coffre'}
-                    </button>
-                  )}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {(!inscrite || inscrite.amountXof !== propose) && propose > 0 && (
+                      <button className="trf-act" onClick={() => inscrireDotation(e, propose)}>
+                        {inscrite ? `Ajuster à ${fmtMoney(propose, currency)}` : 'Mettre au coffre'}
+                      </button>
+                    )}
+                    {inscrite && (
+                      <button className="trf-act trf-act--ghost" onClick={() => annulerDotation(e, inscrite.amountXof)}>
+                        Annuler la dotation
+                      </button>
+                    )}
+                  </span>
                 </div>
               );
             })}

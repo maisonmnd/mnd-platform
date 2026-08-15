@@ -16,7 +16,7 @@ import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, estOfferte, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -586,9 +586,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const priceLabel = (s: Service, pct = 0) => {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';
-    /* Offerte par la règle du Catalogue : on le DIT, dans la liste comme au
-       récapitulatif — c'est ce qui donne envie de l'ajouter au rituel. */
-    if (estOfferte(s, pricing, selected)) return 'Offert';
+    /* Le geste de la maison se DIT, dans la liste comme au récapitulatif —
+       c'est ce qui donne envie de l'ajouter au rituel. */
+    const geste = remiseGestePct(s, pricing, selected);
+    if (geste >= 100) return 'Offert';
+    if (geste > 0) return `${fmtMoney(prixIci(s), currency)} · −${geste} %`;
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
     const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, services, produits) * (1 - pct / 100)), currency);
     return mode === 'variable' ? `à partir de ${amount}` : amount;

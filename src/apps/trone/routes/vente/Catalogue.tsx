@@ -14,7 +14,7 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
-import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, type PersonalPricing } from '../../../../shared/pricing';
+import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
@@ -64,10 +64,11 @@ type SvcForm = {
   bandIds: string[];
   /** Réservée aux comptes famille (14 août — le Pack Famille). */
   reserveFamilles: boolean;
-  /** LE GESTE OFFERT (15 août) — elle tombe à zéro quand l'une de ces
-      prestations est au même rituel, pour ces calibres (vide = tous). */
-  offertAvec: string[];
-  offertBands: string[];
+  /** LES GESTES DE LA MAISON (15 août) — elle perd `pct` % de son prix quand
+      l'une de ces prestations est au même rituel, pour ces calibres (vide =
+      tous). Une LISTE : le shampoing est offert avec une Reprise ET à moitié
+      prix avec une coloration. */
+  gestes: { serviceIds: string[]; bandIds: string[]; pct: string }[];
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
   estForfait: boolean; // un forfait porte une composition ; une prestation, non
@@ -83,7 +84,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, offertAvec: [], offertBands: [],
+  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [],
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -531,8 +532,10 @@ export default function Catalogue() {
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
       reserveFamilles: !!svc.reserveFamilles,
-      offertAvec: svc.offertAvec?.serviceIds ?? [],
-      offertBands: svc.offertAvec?.bandIds ?? [],
+      gestes: gestesDe(svc).map((g) => ({
+        serviceIds: [...g.serviceIds], bandIds: [...(g.bandIds ?? [])],
+        pct: String(Number.isFinite(Number(g.pct)) ? Number(g.pct) : 100),
+      })),
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -716,9 +719,18 @@ export default function Catalogue() {
          sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
          modale RDV. */
       reserveFamilles: svcForm.reserveFamilles || undefined,
-      offertAvec: svcForm.offertAvec.length
-        ? { serviceIds: svcForm.offertAvec, bandIds: svcForm.offertBands.length ? svcForm.offertBands : undefined }
-        : undefined,
+      /* Les gestes sans déclencheur ne s'enregistrent pas : une règle qui ne
+         se déclenche jamais est du bruit dans la fiche. */
+      offertAvec: (() => {
+        const gardes = svcForm.gestes
+          .filter((g) => g.serviceIds.length > 0)
+          .map((g) => ({
+            serviceIds: g.serviceIds,
+            bandIds: g.bandIds.length ? g.bandIds : undefined,
+            pct: Math.max(1, Math.min(100, parseInt(g.pct, 10) || 100)),
+          }));
+        return gardes.length ? gardes : undefined;
+      })(),
     };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
@@ -1780,71 +1792,112 @@ export default function Catalogue() {
                 Ma Couronne, accueil et modale de rendez-vous. Le Pack Famille vit ici.
               </div>
             </Field>
-            {/* LE GESTE OFFERT (15 août, décision de Yéman) : « quand les Pico
-                et Galaxy font une réservation de reprise essentielle ou
-                élaborée, le shampoing est offert ». La règle se pose ICI, sur
-                la prestation OFFERTE — elle tombe à zéro dès qu'un de ses
-                déclencheurs est au même rituel. Elle vaut au comptoir comme
-                dans le tunnel de Ma Couronne : même juge (`estOfferte`), donc
-                le prix annoncé est le prix encaissé. */}
-            <Field label="Offerte avec une autre prestation">
-              <Select
-                value=""
-                onChange={(e) => {
-                  const id = e.target.value;
-                  if (id && !svcForm.offertAvec.includes(id)) setSvcForm({ ...svcForm, offertAvec: [...svcForm.offertAvec, id] });
-                }}
-              >
-                <option value="">Ajouter un déclencheur…</option>
-                {services
-                  .filter((x) => x.id !== svcForm.id && !svcForm.offertAvec.includes(x.id))
-                  .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-              </Select>
-              {svcForm.offertAvec.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                  {svcForm.offertAvec.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      className="trv-minibtn"
-                      title="Retirer ce déclencheur"
-                      onClick={() => setSvcForm({ ...svcForm, offertAvec: svcForm.offertAvec.filter((x) => x !== id) })}
-                    >
-                      {services.find((x) => x.id === id)?.name ?? 'prestation retirée'} ×
-                    </button>
-                  ))}
-                </div>
-              )}
-              {svcForm.offertAvec.length > 0 && (
-                <>
-                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 4 }}>
-                    Pour quels calibres ? Aucune coche : pour toutes les têtes.
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {bands.map((b) => {
-                      const on = svcForm.offertBands.includes(b.id);
-                      return (
+            {/* LES GESTES DE LA MAISON (15 août, décisions de Yéman) :
+                « quand les Pico et Galaxy font une réservation de reprise
+                essentielle ou élaborée, le shampoing est offert » puis
+                « 50 % le shampoing dès qu'une coloration est sélectionnée ».
+                DEUX règles sur la même prestation — d'où une liste, et un
+                pourcentage par règle. Elles se posent ICI, sur la prestation
+                qui BAISSE, et valent au comptoir comme dans le tunnel de Ma
+                Couronne : même juge (`remiseGestePct`), donc le prix annoncé
+                est le prix encaissé. */}
+            <Field label="Les gestes de la maison">
+              <div style={{ display: 'grid', gap: 10 }}>
+                {svcForm.gestes.map((g, gi) => {
+                  const majGeste = (patch: Partial<typeof g>) => setSvcForm({
+                    ...svcForm,
+                    gestes: svcForm.gestes.map((x, i) => (i === gi ? { ...x, ...patch } : x)),
+                  });
+                  return (
+                    <div key={gi} className="mnd-bande" style={{ padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                          Elle perd
+                        </span>
+                        <Input
+                          inputMode="numeric"
+                          style={{ width: 74 }}
+                          value={g.pct}
+                          onChange={(e) => majGeste({ pct: e.target.value.replace(/[^0-9]/g, '') })}
+                        />
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                          % de son prix{(parseInt(g.pct, 10) || 0) >= 100 ? ' — elle est offerte' : ''}, avec :
+                        </span>
                         <button
-                          key={b.id}
                           type="button"
                           className="trv-minibtn"
-                          style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
-                          onClick={() => setSvcForm({
-                            ...svcForm,
-                            offertBands: on ? svcForm.offertBands.filter((x) => x !== b.id) : [...svcForm.offertBands, b.id],
-                          })}
+                          style={{ marginLeft: 'auto' }}
+                          title="Retirer ce geste"
+                          onClick={() => setSvcForm({ ...svcForm, gestes: svcForm.gestes.filter((_, i) => i !== gi) })}
                         >
-                          {b.name ?? bandRange(b, bands)}
+                          Retirer
                         </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                Elle passe à 0 F dès qu'une des prestations ci-dessus est au même rituel — le prix
-                plein reste affiché, barré, pour que la cliente voie le geste. Sans déclencheur :
-                elle se paie toujours.
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <Select
+                          value=""
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            if (id && !g.serviceIds.includes(id)) majGeste({ serviceIds: [...g.serviceIds, id] });
+                          }}
+                        >
+                          <option value="">Ajouter un déclencheur…</option>
+                          {services
+                            .filter((x) => x.id !== svcForm.id && !g.serviceIds.includes(x.id))
+                            .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                        </Select>
+                      </div>
+                      {g.serviceIds.length > 0 && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                          {g.serviceIds.map((id) => (
+                            <button
+                              key={id}
+                              type="button"
+                              className="trv-minibtn"
+                              title="Retirer ce déclencheur"
+                              onClick={() => majGeste({ serviceIds: g.serviceIds.filter((x) => x !== id) })}
+                            >
+                              {services.find((x) => x.id === id)?.name ?? 'prestation retirée'} ×
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 4 }}>
+                        Pour quels calibres ? Aucune coche : pour toutes les têtes.
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {bands.map((b) => {
+                          const on = g.bandIds.includes(b.id);
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              className="trv-minibtn"
+                              style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                              onClick={() => majGeste({ bandIds: on ? g.bandIds.filter((x) => x !== b.id) : [...g.bandIds, b.id] })}
+                            >
+                              {b.name ?? bandRange(b, bands)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="trv-minibtn"
+                style={{ marginTop: svcForm.gestes.length ? 10 : 0 }}
+                onClick={() => setSvcForm({ ...svcForm, gestes: [...svcForm.gestes, { serviceIds: [], bandIds: [], pct: '100' }] })}
+              >
+                ＋ Ajouter un geste
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+                Son prix baisse dès qu'un des déclencheurs est au même rituel — le prix plein reste
+                affiché, barré, pour que la cliente voie le geste. Deux gestes qui tombent ensemble ne
+                se cumulent pas : c'est le plus généreux qui s'applique. Sans geste : elle se paie
+                toujours plein tarif.
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">
