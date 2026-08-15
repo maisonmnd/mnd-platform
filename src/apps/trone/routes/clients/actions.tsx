@@ -24,7 +24,7 @@ import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, apptTotalXof, forfaitTauxPct, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, forfaitTauxPct, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -302,6 +302,61 @@ function PalierEnc({ n, titre, aide }: { n: number; titre: string; aide?: string
       {aide && <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>{aide}</span>}
     </div>
   );
+}
+
+/** ÉMETTRE LA FACTURE D'UN RITUEL NON ENCAISSÉ (15 août) — « comment je gère
+    une facture impayée ? Je dois l'envoyer au client, j'ai besoin de
+    télécharger la pièce. »
+
+    Jusqu'ici, une pièce ne naissait qu'à l'ENCAISSEMENT : un rituel rendu et
+    non payé n'avait rien à envoyer, et il fallait ressaisir ses lignes à la
+    main dans Factures & devis pour réclamer son dû.
+
+    La série est MND, jamais F : la série F est forcée « payée » par le
+    constructeur, et la lecture des résidus (F + envoyée = encaissement
+    annulé) resterait fausse. Cette pièce-ci naît « envoyée » — un dû réclamé,
+    pas un franc encaissé. Elle n'entre dans aucune caisse et ne change pas
+    l'état de paiement du rituel : encaisser plus tard suivra son chemin
+    normal.
+
+    Idempotente : un rituel qui porte déjà sa facture ouverte ne la réémet pas
+    — deux réclamations pour la même dette, c'est une dette qui double. */
+export function factureAEnvoyer(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  branchId: string,
+): { ok: true; inv: Invoice; deja: boolean } | { ok: false; erreur: string } {
+  const du = apptDueXof(appt, byId);
+  if (du <= 0) return { ok: false, erreur: 'Ce rituel ne doit rien — il n’y a pas de facture à réclamer.' };
+  const dejaLa = invoicesStore.get().find((i) => i.apptId === appt.id && i.kind === 'facture' && i.status !== 'payée');
+  if (dejaLa) return { ok: true, inv: dejaLa, deja: true };
+
+  const services = apptServices(appt, byId);
+  const brut = services.reduce((n, sv) => n + svcPriceForAppt(appt, sv), 0);
+  const net = apptNetXof(appt, byId);
+  /* UNE LIGNE PAR PRESTATION, à leur prix plein : la cliente doit reconnaître
+     son rituel dans la pièce. L'écart avec le net (remise, forfait) se dit en
+     remise globale plutôt que de se cacher dans les prix. */
+  const lignes = services.length
+    ? services.map((sv) => ligneFacture(sv.name, svcPriceForAppt(appt, sv)))
+    : [ligneFacture(apptLabel(appt, byId), net)];
+  const remise = services.length && brut > net ? brut - net : 0;
+  const inv = nouvelleFacture({
+    branchId,
+    serie: 'MND',
+    status: 'envoyée',
+    clientId: apptPayeurId(appt),
+    clientName: appt.clientName,
+    lines: lignes,
+    globalDiscountXof: remise || undefined,
+    discountLabel: remise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
+    theme: 'Aube',
+    master: appt.master,
+    note: `Rituel du ${appt.date}${(appt.paidXof ?? 0) > 0 ? ` · déjà réglé ${appt.paidXof} — reste ${du}` : ''}`,
+  });
+  const avecLien: Invoice = { ...inv, apptId: appt.id };
+  invoicesStore.set((prev) => [avecLien, ...prev]);
+  return { ok: true, inv: avecLien, deja: false };
 }
 
 export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {

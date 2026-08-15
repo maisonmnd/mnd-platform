@@ -688,7 +688,10 @@ function ChipChoix({ actif, onClick, title, children, petit }: {
   );
 }
 
-export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | 'date' | 'time' | 'master' | 'note'>>;
+export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | 'date' | 'time' | 'master' | 'note'>>
+  /** Le rituel déjà facturé dont ce nouveau rendez-vous est la séance suivante
+      (15 août) — la modale s'ouvre déjà rattachée, il ne reste que la date. */
+  & { suiteDe?: string };
 
 const RDV_STATUSES: Appointment['status'][] = ['en attente', 'confirmé', 'honoré', 'annulé'];
 
@@ -793,6 +796,7 @@ export function RdvModal({
      suite. Vide = un rituel qui se facture normalement. À la réouverture, on
      retrouve le parent par la tête de sa série. */
   const [suiteDe, setSuiteDe] = useState<string>(() => {
+    if (initial?.suiteDe) return initial.suiteDe;
     if (!appt?.seriesId || (appt.seriesIndex ?? 1) <= 1) return '';
     const tete = appointmentsStore.get()
       .filter((x) => x.seriesId === appt.seriesId && x.id !== appt.id)
@@ -868,11 +872,29 @@ export function RdvModal({
     () => branchAppts
       .filter((a) => a.clientId === clientId && a.id !== appt?.id
         && a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1)
-      .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+      .map((a) => {
+        const soins = apptServices(a, byId);
+        /* LE SOIN QUI PORTE LES SÉANCES (15 août — « besoin de voir le soin
+           qui porte 2 séances »). La liste disait les prestations à la file,
+           tronquées au 60ᵉ caractère : on lisait « … + WÈWÈ · Le » et rien ne
+           désignait celui qui promet une suite. C'est LUI qu'on nomme. */
+        const multi = soins.filter((sv) => (sv.sessions ?? 1) > 1);
+        const reste = soins.length - multi.length;
+        const dit = multi.length
+          ? `${multi.map((sv) => `${sv.name} · ${sv.sessions} séances`).join(' + ')}${reste > 0 ? ` (+ ${reste} autre${reste > 1 ? 's' : ''})` : ''}`
+          : soins.length
+            ? `${soins[0].name}${soins.length > 1 ? ` (+ ${soins.length - 1} autre${soins.length > 2 ? 's' : ''})` : ''}`
+            : 'rituel';
+        return { a, dit, aDesSeances: multi.length > 0 };
+      })
+      /* Ceux qui promettent des séances en tête : c'est là qu'on rattache. */
+      .sort((x, y) => (Number(y.aDesSeances) - Number(x.aDesSeances))
+        || `${y.a.date}${y.a.time}`.localeCompare(`${x.a.date}${x.a.time}`))
       .slice(0, 30),
-    [branchAppts, clientId, appt?.id],
+    [branchAppts, clientId, appt?.id, byId],
   );
-  const estSuite = !!suiteDe && rituelsPorteurs.some((a) => a.id === suiteDe);
+  const porteur = rituelsPorteurs.find((r) => r.a.id === suiteDe);
+  const estSuite = !!porteur;
   /* Les prestations du rituel que le Catalogue annonce à plusieurs séances. */
   const multiSeances = chosen.filter((sv) => (sv.sessions ?? 1) > 1);
   const [sets] = useBandSets();
@@ -1767,16 +1789,15 @@ export function RdvModal({
             <Field label="Séance de suite">
               <Select value={suiteDe} onChange={(e) => setSuiteDe(e.target.value)}>
                 <option value="">Non — ce rituel se facture</option>
-                {rituelsPorteurs.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {frShort(a.date)} · {apptServices(a, byId).map((sv) => sv.name).join(' + ').slice(0, 60) || 'rituel'}
-                    {' · '}{argent(apptTotalXof(a, byId))}
+                {rituelsPorteurs.map((r) => (
+                  <option key={r.a.id} value={r.a.id}>
+                    {r.aDesSeances ? '◆ ' : ''}{frShort(r.a.date)} · {r.dit} · {argent(apptTotalXof(r.a, byId))}
                   </option>
                 ))}
               </Select>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                 {estSuite
-                  ? 'Séance incluse : rien à encaisser ici — le rituel choisi porte le prix des deux, et le carnet refusera « Encaisser » sur celle-ci.'
+                  ? `Séance incluse de « ${porteur?.dit} » du ${frShort(porteur!.a.date)} — rien à encaisser ici : ce rituel-là porte le prix, et le carnet refusera « Encaisser » sur celle-ci.`
                   /* CE QUE LE CATALOGUE PROMET (15 août) — une prestation à
                      plusieurs séances le dit ici, au moment de poser la suite.
                      Le comptoir ne peut pas deviner qu'un soin en promet deux,

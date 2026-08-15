@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -16,7 +16,7 @@ import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptNetXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
-import { honorAppointment, PayAppointmentModal } from './actions';
+import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -100,7 +100,7 @@ export default function Carnet() {
   const mesDomainesCarnet = useStore(staffAccessStore)[0][moiCarnet?.user_id ?? ''] ?? {};
   const sansPrix = !voitLesPrix(moiCarnet?.role, mesDomainesCarnet);
 
-  const { currency } = useBranch();
+  const { currency, branch } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
@@ -110,6 +110,17 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const navigate = useNavigate();
+  /* ÉMETTRE LA FACTURE D'UN RITUEL IMPAYÉ (15 août) — la pièce naît « envoyée »
+     dans Factures & devis, où elle s'imprime, se télécharge en PDF et
+     s'adresse par WhatsApp. On y va aussitôt : émettre une pièce sans la voir
+     n'apprend rien à personne. */
+  const emettreFacture = (a: Appointment) => {
+    const r = factureAEnvoyer(a, byId, branch.id);
+    setMenuFor(null);
+    if (!r.ok) { window.alert(r.erreur); return; }
+    navigate(`/factures?id=${r.inv.id}`);
+  };
   /* La recherche peut arriver par l'adresse — c'est ainsi qu'un chiffre du
      Catalogue ouvre le rendez-vous qui le compose quand aucune facture n'y est
      rattachee : on ne peut pas ouvrir une piece qui n'existe pas, on ouvre donc
@@ -342,6 +353,35 @@ export default function Carnet() {
                 {canEncaisser && !sansPrix && (
                   <button onClick={() => { setPayAppt(a); setMenuFor(null); }}>
                     Encaisser {dueX > 0 ? `· reste ${fmtMoney(dueX, currency)}` : '(pourboire)'}
+                  </button>
+                )}
+                {canEncaisser && !sansPrix && dueX > 0 && (
+                  <button onClick={() => emettreFacture(a)}>
+                    Émettre la facture · {fmtMoney(dueX, currency)} dû
+                  </button>
+                )}
+                {/* POSER LA SÉANCE SUIVANTE (15 août) — « je dois choisir la
+                    date du prochain rituel ; là c'est une date fixe ». Le
+                    rattachement se faisait depuis la modale du rendez-vous
+                    NOUVEAU, qu'il fallait d'abord créer et re-remplir. On part
+                    du rituel qui porte le soin : ses prestations sont reprises,
+                    la série est déjà nouée, il ne reste que LA DATE à choisir. */}
+                {a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1 && (
+                  <button
+                    onClick={() => {
+                      setModal({
+                        initial: {
+                          clientId: a.clientId,
+                          serviceIds: a.serviceIds,
+                          master: a.master,
+                          date: todayISO(),
+                          suiteDe: a.id,
+                        },
+                      });
+                      setMenuFor(null);
+                    }}
+                  >
+                    ＋ Poser la séance suivante
                   </button>
                 )}
                 <button onClick={() => { setModal({ appt: a }); setMenuFor(null); }}>Modifier le rendez-vous</button>
