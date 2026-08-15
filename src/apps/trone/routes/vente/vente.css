@@ -991,3 +991,71 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ═══ LA FICHE PRESTATION EN SIX RUBRIQUES (15 août — maquette validée) ═══
+   Un rail à gauche, une rubrique à droite. Trois écrans de défilement se
+   parcouraient de haut en bas sans qu'on sache où l'on était ; on choisit
+   maintenant sa rubrique, et le rail dit ce que chacune contient sans qu'il
+   faille y entrer. */
+.trv-fiche { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 0; margin: -4px -2px 0; }
+.trv-fiche__rail {
+  display: flex; flex-direction: column; padding: 6px 0;
+  border-right: 1px solid var(--line); background: var(--color-parchemin, #F3EDE1);
+  border-radius: 3px 0 0 3px;
+}
+.trv-fiche__rail button {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: 0; border-left: 3px solid transparent;
+  padding: 10px 16px; font: inherit; font-family: var(--font-sans); font-size: 13px;
+  color: var(--ink-soft); line-height: 1.3;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.trv-fiche__rail button:hover { background: rgba(185, 122, 74, .07); color: var(--ink); }
+.trv-fiche__rail button.is-active {
+  background: var(--surface-card); border-left-color: var(--color-copper); color: var(--color-indigo);
+}
+.trv-fiche__rail button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trv-fiche__rail .n {
+  display: block; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--copper-700); margin-bottom: 1px;
+}
+.trv-fiche__rail .etat {
+  float: right; font-size: 11px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; margin-left: 8px;
+}
+.trv-fiche__volet { padding: 4px 0 0 20px; min-width: 0; }
+.trv-fiche__volet > section { gap: 14px; }
+
+@media (max-width: 680px) {
+  .trv-fiche { grid-template-columns: 1fr; }
+  .trv-fiche__rail {
+    flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line);
+    border-radius: 3px 3px 0 0;
+  }
+  .trv-fiche__rail button { border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; width: auto; }
+  .trv-fiche__rail button.is-active { border-left-color: transparent; border-bottom-color: var(--color-copper); }
+  .trv-fiche__rail .etat { float: none; display: block; }
+  .trv-fiche__volet { padding: 16px 0 0; }
+}
+
+/* Le bandeau de la fiche — indigo, jamais obsidienne. */
+.trv-fiche__tete {
+  background: var(--color-indigo); color: var(--color-ivoire);
+  border-radius: 3px; padding: 14px 18px 13px; margin: -4px -2px 14px;
+}
+.trv-fiche__tete .l1 {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.trv-fiche__tete .nom { font-family: var(--font-serif); font-size: 20px; line-height: 1.2; min-width: 0; }
+.trv-fiche__tete .prix {
+  font-family: var(--font-serif); font-size: 23px; color: var(--copper-200, #E3C9AE);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.trv-fiche__tete .l2 { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+.trv-fiche__tete .puce {
+  font-family: var(--font-sans); font-size: 11px; color: var(--ink-invert-soft, #C9C3DB);
+  border: 1px solid var(--hairline-invert, rgba(251,248,242,.28)); border-radius: 999px; padding: 1px 10px;
+}
+.trv-fiche__tete .puce.is-on {
+  background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire);
+}

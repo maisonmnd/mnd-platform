@@ -119,6 +119,19 @@ const nettoie = (saisi: Partial<Record<LongueurId, string>>): Partial<Record<Lon
     d'explication : elle se lisait comme une notice, pas comme un outil. Les
     blocs disent ou l'on se trouve ; les explications qui restent tiennent en
     une ligne, a cote du titre, la ou on les cherche. */
+/** LES SIX RUBRIQUES DE LA FICHE (15 août — maquette validée). Chacune porte
+    une question, pas un degré de difficulté : « avancée » ne disait pas ce
+    qu'on y trouvait, seulement que c'était rare. */
+const RUBRIQUES = [
+  { k: 'identite', t: 'L’identité' },
+  { k: 'prix', t: 'Le prix' },
+  { k: 'temps', t: 'Le temps' },
+  { k: 'contient', t: 'Ce qu’elle contient' },
+  { k: 'tetes', t: 'Qui peut la prendre' },
+  { k: 'gestes', t: 'Les gestes' },
+] as const;
+type Rubrique = (typeof RUBRIQUES)[number]['k'];
+
 function Bloc({ titre, aide, children }: { titre: string; aide?: string; children: ReactNode }) {
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -169,6 +182,9 @@ export default function Catalogue() {
   const { branch, currency } = useBranch();
   const [categories, setCategories] = useCategories();
   const [services, setServices] = useServices();
+  /* La rubrique ouverte. Toute fiche s'ouvre sur son identité — on relit un
+     nom bien plus souvent qu'on ne refait un barème. */
+  const [rubrique, setRubrique] = useState<Rubrique>('identite');
   const [products, setProducts] = useProducts();
   /* Les calibres, triés : ils commandent la saisie des planchers du tarif au lock. */
   const [rawBands] = useModelBands();
@@ -697,6 +713,29 @@ export default function Catalogue() {
       durationMax: dureeJourHaute > dureeJour ? String(dureeJourHaute) : '',
     } : f));
   }, [cleInclus, svcForm, jourMeme.length, dureeJour, dureeJourHaute]);
+
+  /* CE QUE LE RAIL DIT DE CHAQUE RUBRIQUE — un chiffre, jamais une phrase :
+     il sert à savoir ce qui est rempli SANS y entrer. « — » quand rien n'y
+     est posé, ce qui vaut invitation plutôt que reproche. */
+  const etatRubrique = (k: Rubrique): string => {
+    if (!svcForm) return '';
+    switch (k) {
+      case 'identite': return svcForm.name.trim() ? '✓' : '—';
+      case 'prix': {
+        const v = num(svcForm.price);
+        return svcForm.priceMode === 'devis' ? 'sur devis' : v ? fmtMoney(v, currency) : '—';
+      }
+      case 'temps': {
+        const m = num(svcForm.durationMin) ?? 0;
+        const h = m >= 60 ? `${Math.round(m / 60 * 10) / 10} h` : m ? `${m} min` : '—';
+        return svcForm.sessions > 1 ? `${h} · ${svcForm.sessions}×` : h;
+      }
+      case 'contient': return svcForm.includes.length ? String(svcForm.includes.length) : '—';
+      case 'tetes': return svcForm.reserveFamilles ? 'familles'
+        : svcForm.bandIds.length ? `${svcForm.bandIds.length} calibres` : 'toutes';
+      case 'gestes': return svcForm.gestes.length ? String(svcForm.gestes.length) : '—';
+    }
+  };
 
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
@@ -1293,11 +1332,67 @@ export default function Catalogue() {
           {/* 24 px entre les blocs, 14 a l'interieur : c'est l'ecart qui dit
               ou un sujet finit et ou le suivant commence. */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <Bloc titre="L’essentiel">
+          {/* ═══ LA FICHE EN SIX RUBRIQUES (15 août — maquette validée) ═══
+              Trois écrans de défilement, et une rubrique « Tarification
+              avancée » où vivaient les calibres, les comptes famille, les
+              gestes et le code ERP : quatre choses qui ne parlent pas de prix.
+              « Avancée » ne disait pas ce qu'on y trouvait — seulement que
+              c'était rare.
+
+              Chaque rubrique répond désormais à une question qu'on se pose :
+              qu'est-ce que c'est · combien · combien de temps · que promet-elle
+              en plus · à quelles têtes · quand baisse-t-elle. Aucun champ n'a
+              été supprimé ni réécrit : ils ont changé de place, c'est tout. */}
+          {/* LE BANDEAU QUI NE QUITTE PAS L'ÉCRAN — le nom et le prix qu'on
+              est en train de poser. Ils vivaient au milieu du défilement : on
+              réglait un tarif sans le voir, et l'on ne savait plus quelle
+              prestation on tenait après deux écrans de champs. */}
+          <div className="trv-fiche__tete">
+            <div className="l1">
+              <span className="nom">{svcForm.name.trim() || (svcForm.estForfait ? 'Nouveau forfait' : 'Nouvelle prestation')}</span>
+              <span className="prix">
+                {svcForm.priceMode === 'devis' ? 'sur devis' : num(svcForm.price) ? fmtMoney(num(svcForm.price)!, currency) : '—'}
+              </span>
+            </div>
+            <div className="l2">
+              <span className="puce">{cats.find((c) => c.id === svcForm.categoryId)?.label ?? 'sans catégorie'}</span>
+              <span className="puce">{svcForm.palier}</span>
+              <span className="puce">{etatRubrique('temps')}</span>
+              {svcForm.includes.length > 0 && (
+                <span className="puce is-on">
+                  Forfait · {svcForm.includes.length} ligne{svcForm.includes.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {svcForm.gestes.length > 0 && (
+                <span className="puce is-on">{svcForm.gestes.length} geste{svcForm.gestes.length > 1 ? 's' : ''}</span>
+              )}
+            </div>
+          </div>
+          <div className="trv-fiche">
+            <nav className="trv-fiche__rail" role="tablist" aria-label="Rubriques de la fiche">
+              {RUBRIQUES.map((r, i) => (
+                <button
+                  key={r.k}
+                  role="tab"
+                  type="button"
+                  aria-selected={rubrique === r.k}
+                  className={rubrique === r.k ? 'is-active' : ''}
+                  onClick={() => setRubrique(r.k)}
+                >
+                  <span className="n">Rubrique {i + 1}</span>
+                  {r.t}
+                  <span className="etat">{etatRubrique(r.k)}</span>
+                </button>
+              ))}
+            </nav>
+
+            <div className="trv-fiche__volet">
+              {rubrique === 'identite' && (
+                <Bloc titre="L’identité" aide="ce qu'elle est, et sous quel nom la cliente la reconnaît">
               <Field label="Nom de la prestation">
                 <Input value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })} placeholder="Ex. Création microlocks" />
               </Field>
-              <div className="tr-grid tr-grid--2">
+                  <div className="tr-grid tr-grid--2">
                 <Field label="Catégorie ™">
                   <Select value={svcForm.categoryId} onChange={(e) => setSvcForm({ ...svcForm, categoryId: e.target.value })}>
                     {cats.map((c) => (
@@ -1305,44 +1400,10 @@ export default function Catalogue() {
                     ))}
                   </Select>
                 </Field>
-                <Field label={svcForm.priceMode === 'variable' ? 'Prix de départ (F CFA)' : svcForm.priceMode === 'devis' ? 'Prix indicatif (facultatif)' : 'Prix (F CFA)'}>
-                  <Input inputMode="numeric" value={svcForm.price} onChange={(e) => setSvcForm({ ...svcForm, price: e.target.value })} placeholder="45 000" />
-                </Field>
-              </div>
-              <Field label="Mode de prix">
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                  {PRICE_MODES.map((m) => (
-                    <button
-                      key={m.k}
-                      type="button"
-                      className={`trv-palier-chip ${svcForm.priceMode === m.k ? 'is-active' : ''}`}
-                      onClick={() => setSvcForm({ ...svcForm, priceMode: m.k })}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                  {/* L'aide tient sur la meme ligne que les boutons : trois mots
-                      suffisent, un paragraphe sous chaque champ ne se lit plus. */}
-                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                    {svcForm.priceMode === 'fixe' ? 'facturé tel quel'
-                      : svcForm.priceMode === 'variable' ? 'affiché « à partir de », montant fixé au fauteuil'
-                      : 'aucun prix affiché, montant donné au cas par cas'}
-                  </span>
-                </div>
+              <Field label="Code ERP">
+                <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
               </Field>
-              <div className="tr-grid tr-grid--2">
-                <Field label="Durée (minutes)">
-                  <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />
-                </Field>
-                <Field label="Nombre de séances">
-                  <span className="trv-stepper">
-                    <button className="trv-sq" onClick={() => setSvcForm({ ...svcForm, sessions: Math.max(1, svcForm.sessions - 1) })}>−</button>
-                    <span className="val" style={{ fontSize: 18 }}>{svcForm.sessions}</span>
-                    <button className="trv-sq" onClick={() => setSvcForm({ ...svcForm, sessions: Math.min(12, svcForm.sessions + 1) })}>+</button>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>séance{svcForm.sessions > 1 ? 's' : ''}</span>
-                  </span>
-                </Field>
-              </div>
+                  </div>
               <div className="tr-grid tr-grid--2">
                 <Field label="Palier d’expérience">
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -1368,18 +1429,241 @@ export default function Catalogue() {
                   placeholder="Ce que cette prestation accomplit, en une ou deux phrases souveraines…"
                 />
               </Field>
-            </Bloc>
-            {/* ── LE TARIF AU LOCK ──────────────────────────────────────────
-                Ce que la densité fait varier se compte lock par lock : la
-                création VÈKPÈ™, le resserrage SÍNSIN™, le démontage PLT·70.
-                Le plancher de chaque calibre empêche un petit compte de locks
-                de tomber sous le tarif de la Maison — le temps de fauteuil ne
-                descend pas aussi vite que le nombre de locks. */}
-            {/* ── LES PRESTATIONS INCLUSES ──────────────────────────────────
-                Un forfait n'est pas une phrase : c'est un ensemble de gestes
-                reels. Tant qu'ils n'etaient que du texte, rien ne savait ce
-                qui restait du a la cliente, ces gestes ne comptaient dans
-                aucune statistique, et les seances de suivi se perdaient. */}
+                </Bloc>
+              )}
+
+              {rubrique === 'prix' && (
+                <Bloc titre="Le prix" aide="combien elle vaut, et sur quoi ce montant se calcule">
+                  <div className="tr-grid tr-grid--2">
+                <Field label={svcForm.priceMode === 'variable' ? 'Prix de départ (F CFA)' : svcForm.priceMode === 'devis' ? 'Prix indicatif (facultatif)' : 'Prix (F CFA)'}>
+                  <Input inputMode="numeric" value={svcForm.price} onChange={(e) => setSvcForm({ ...svcForm, price: e.target.value })} placeholder="45 000" />
+                </Field>
+              <Field label="Prix haut affiché">
+                <Input inputMode="numeric" value={svcForm.priceTo} onChange={(e) => setSvcForm({ ...svcForm, priceTo: e.target.value })} placeholder="« de 15 000 à 25 000 »" />
+              </Field>
+                  </div>
+              <Field label="Mode de prix">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                  {PRICE_MODES.map((m) => (
+                    <button
+                      key={m.k}
+                      type="button"
+                      className={`trv-palier-chip ${svcForm.priceMode === m.k ? 'is-active' : ''}`}
+                      onClick={() => setSvcForm({ ...svcForm, priceMode: m.k })}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                  {/* L'aide tient sur la meme ligne que les boutons : trois mots
+                      suffisent, un paragraphe sous chaque champ ne se lit plus. */}
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                    {svcForm.priceMode === 'fixe' ? 'facturé tel quel'
+                      : svcForm.priceMode === 'variable' ? 'affiché « à partir de », montant fixé au fauteuil'
+                      : 'aucun prix affiché, montant donné au cas par cas'}
+                  </span>
+                </div>
+              </Field>
+            {(() => {
+              const clef = svcForm.id ?? '__nouvelle__';
+              const longueurPosee = Object.values(svcForm.prixLong).some((v) => v?.trim())
+                || Object.values(svcForm.dureeLong).some((v) => v?.trim());
+              /* CE QUI DECIDE DE L'OUVERTURE — le code ERP en est exclu : presque
+                 toutes les prestations en portent un, et le compter ouvrirait le
+                 bloc partout, ce qui reviendrait a ne l'avoir jamais replie. */
+              const reglee = !!svcForm.rate.trim() || !!svcForm.tarifMode
+                || Object.values(svcForm.floors).some((v) => v?.trim())
+                || longueurPosee || !!svcForm.priceTo.trim() || !!svcForm.durationMax.trim();
+              const ouvert = reglee || avanceOuverte === clef;
+              /* REPLIE, LE BLOC DIT CE QU'IL CONTIENT : rien ne se cache
+                 derriere un titre muet. */
+              const resume = [
+                svcForm.rate.trim() ? `${fmtMoney(num(svcForm.rate) ?? 0, currency)} le lock` : null,
+                Object.values(svcForm.floors).filter((v) => v?.trim()).length
+                  ? `${Object.values(svcForm.floors).filter((v) => v?.trim()).length} planchers` : null,
+                longueurPosee ? 'prix par longueur' : null,
+                svcForm.code.trim() || null,
+              ].filter(Boolean).join(' · ') || 'tarif au lock, planchers, prix par longueur';
+              return (
+            <BlocPliant
+              titre="Le barème détaillé"
+              resume={resume}
+              ouvert={ouvert}
+              onBascule={() => setAvanceOuverte(ouvert && !reglee ? null : clef)}
+            >
+            {/* LA RÈGLE, DITE EN DIRECT — le même juge que l'étiquette des
+                lignes (`regimeTarifaire`) relit le formulaire à chaque frappe :
+                on voit ce que les champs du dessous FONT au prix, au lieu de
+                le déduire champ par champ (13 août). */}
+            {(() => {
+              const planchersSaisis = Object.fromEntries(
+                Object.entries(svcForm.floors).map(([k, v]) => [k, num(v)]).filter(([, v]) => v !== undefined),
+              ) as Record<string, number>;
+              /* Le brouillon suit LE MODÈLE CHOISI — la phrase dit ce que
+                 l'enregistrement écrira, pas ce que la fiche portait avant. */
+              const m = svcForm.estForfait ? null : svcForm.modele;
+              const brouillon = {
+                id: svcForm.id ?? '',
+                categoryId: svcForm.categoryId,
+                name: svcForm.name,
+                priceMode: svcForm.priceMode,
+                hidePrice: svcForm.priceMode === 'devis',
+                scalesWithModel: m === 'modele',
+                ratePerLock: m === 'lock' ? num(svcForm.rate) : undefined,
+                tarifMode: m === 'lock' ? 'lock' : m === 'calibre' ? 'calibre' : undefined,
+                includes: svcForm.includes.length ? svcForm.includes : undefined,
+                priceFloors: m === 'calibre' && Object.keys(planchersSaisis).length ? planchersSaisis : undefined,
+                prixParLongueur: m === 'longueur' ? nettoie(svcForm.prixLong) : undefined,
+              } as unknown as Service;
+              const regime = regimeTarifaire(brouillon, cats);
+              return (
+                <div style={{ padding: '11px 14px', background: 'var(--color-sable)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55 }}>
+                  <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ce qui fait son prix · </span>
+                  {regime.mots}
+                  {regime.justePrix
+                    ? ' — puis le Juste Prix de la cliente s’applique (Finances › Le Juste Prix).'
+                    : ' — le Juste Prix de la cliente ne s’applique pas.'}
+                </div>
+              );
+            })()}
+            {/* LE MODÈLE DE PRIX — UN SEUL COMMANDE (13 août). Les trois
+                systèmes s'empilaient comme des réglages cumulables ; on ne
+                savait jamais lequel jouait. Le choix est EXCLUSIF : seuls les
+                champs du modèle choisi s'affichent, et l'enregistrement efface
+                les systèmes des autres. Un forfait vaut sa composition — pas de
+                modèle à choisir. */}
+            {!svcForm.estForfait && (
+              <Field label="Le modèle de prix — un seul commande">
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {([
+                    { v: 'fixe' as const, t: 'Prix fixe' },
+                    { v: 'modele' as const, t: 'Barème du modèle' },
+                    { v: 'lock' as const, t: 'Comptage des locks' },
+                    { v: 'calibre' as const, t: 'Prix par calibre' },
+                    { v: 'longueur' as const, t: 'Grille par longueur' },
+                  ]).map((c) => (
+                    <button
+                      key={c.v}
+                      type="button"
+                      className="trv-minibtn"
+                      onClick={() => setSvcForm({ ...svcForm, modele: c.v })}
+                      style={svcForm.modele === c.v
+                        ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
+                        : undefined}
+                    >
+                      {c.t}
+                    </button>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                  {svcForm.modele === 'fixe' && 'Le prix du catalogue, le même pour toutes les têtes. Seul le Juste Prix personnel d’une cliente peut encore le moduler.'}
+                  {svcForm.modele === 'modele' && 'Prix de base × le coefficient de la tranche de la cliente — le barème s’édite dans Finances › Le Juste Prix.'}
+                  {svcForm.modele === 'lock' && 'Locks comptés × tarif, sans plancher. Tant que la tête n’est pas comptée, le prix s’annonce « dès ».'}
+                  {svcForm.modele === 'calibre' && 'Un prix par tranche de locks — le prix de la tranche EST le prix, il ne se recalcule pas.'}
+                  {svcForm.modele === 'longueur' && 'Trois prix saisis — court, mi-long, long. La longueur se choisit à la réservation et se fige sur le rendez-vous.'}
+                </div>
+              </Field>
+            )}
+            {!svcForm.estForfait && svcForm.modele === 'lock' && (
+              <Field label="Tarif au lock (F CFA par lock)">
+                <Input
+                  inputMode="numeric"
+                  value={svcForm.rate}
+                  onChange={(e) => setSvcForm({ ...svcForm, rate: e.target.value })}
+                  placeholder="Ex. 100"
+                />
+                {svcForm.rate && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                    250 locks → {fmtMoney(250 * (num(svcForm.rate) ?? 0), currency)}.
+                  </div>
+                )}
+              </Field>
+            )}
+            {!svcForm.estForfait && svcForm.modele === 'calibre' && (
+              <Field label="Le prix de chaque calibre">
+                <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
+                  {bands.map((b) => (
+                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, width: 66, color: 'var(--ink-soft)' }}>
+                        {b.name ?? bandRange(b, bands)}
+                      </span>
+                      <Input
+                        inputMode="numeric"
+                        value={svcForm.floors[b.id] ?? ''}
+                        onChange={(e) => setSvcForm({ ...svcForm, floors: { ...svcForm.floors, [b.id]: e.target.value } })}
+                        placeholder="—"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                  Une case vide : la tranche retombe sur le prix du catalogue.
+                </div>
+              </Field>
+            )}
+            {!svcForm.estForfait && svcForm.modele === 'longueur' && (
+              <Field label="Prix et durée par longueur">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {LONGUEURS.map((l) => (
+                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 108px 96px', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
+                        {l.label}
+                        <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 6 }}>{l.hint}</span>
+                      </span>
+                      <Input
+                        inputMode="numeric"
+                        value={svcForm.prixLong[l.id] ?? ''}
+                        onChange={(e) => setSvcForm({ ...svcForm, prixLong: { ...svcForm.prixLong, [l.id]: e.target.value } })}
+                        placeholder="prix"
+                      />
+                      <Input
+                        inputMode="numeric"
+                        value={svcForm.dureeLong[l.id] ?? ''}
+                        onChange={(e) => setSvcForm({ ...svcForm, dureeLong: { ...svcForm.dureeLong, [l.id]: e.target.value } })}
+                        placeholder="min"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                  Une case vide retombe sur le prix et la durée de l’essentiel.
+                </div>
+              </Field>
+            )}
+            {/* LES CALIBRES QU'ELLE SERT (13 août). À 300 locks, DEUX créations
+                s'affichaient prixées : Création Medium ne portait pas la
+                restriction de ses sœurs — et rien à l'écran ne permettait de la
+                poser. Vaut aussi pour un forfait (GBÈJÍ™ Fidélité sert Micro et
+                Nano). Le juge est `servesBand` : hors de ces calibres, la
+                prestation n'est ni proposée ni prixée — « hors calibre ». */}
+            </BlocPliant>
+              );
+            })()}
+                </Bloc>
+              )}
+
+              {rubrique === 'temps' && (
+                <Bloc titre="Le temps" aide="ce qu'elle occupe au fauteuil, et en combien de venues">
+              <div className="tr-grid tr-grid--2">
+                <Field label="Durée (minutes)">
+                  <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />
+                </Field>
+                <Field label="Nombre de séances">
+                  <span className="trv-stepper">
+                    <button className="trv-sq" onClick={() => setSvcForm({ ...svcForm, sessions: Math.max(1, svcForm.sessions - 1) })}>−</button>
+                    <span className="val" style={{ fontSize: 18 }}>{svcForm.sessions}</span>
+                    <button className="trv-sq" onClick={() => setSvcForm({ ...svcForm, sessions: Math.min(12, svcForm.sessions + 1) })}>+</button>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>séance{svcForm.sessions > 1 ? 's' : ''}</span>
+                  </span>
+                </Field>
+              </div>
+              <Field label="Durée haute">
+                <Input inputMode="numeric" value={svcForm.durationMax} onChange={(e) => setSvcForm({ ...svcForm, durationMax: e.target.value })} placeholder="« 3h à 4h30 »" />
+              </Field>
+                </Bloc>
+              )}
+
+              {rubrique === 'contient' && (
+                <>
             {svcForm.estForfait && (
             <Bloc titre="La composition" aide="ce que le forfait couvre réellement">
             <Field label="Prestations et produits inclus">
@@ -1616,178 +1900,17 @@ export default function Catalogue() {
             )}
             </Bloc>
             )}
-            {(() => {
-              const clef = svcForm.id ?? '__nouvelle__';
-              const longueurPosee = Object.values(svcForm.prixLong).some((v) => v?.trim())
-                || Object.values(svcForm.dureeLong).some((v) => v?.trim());
-              /* CE QUI DECIDE DE L'OUVERTURE — le code ERP en est exclu : presque
-                 toutes les prestations en portent un, et le compter ouvrirait le
-                 bloc partout, ce qui reviendrait a ne l'avoir jamais replie. */
-              const reglee = !!svcForm.rate.trim() || !!svcForm.tarifMode
-                || Object.values(svcForm.floors).some((v) => v?.trim())
-                || longueurPosee || !!svcForm.priceTo.trim() || !!svcForm.durationMax.trim();
-              const ouvert = reglee || avanceOuverte === clef;
-              /* REPLIE, LE BLOC DIT CE QU'IL CONTIENT : rien ne se cache
-                 derriere un titre muet. */
-              const resume = [
-                svcForm.rate.trim() ? `${fmtMoney(num(svcForm.rate) ?? 0, currency)} le lock` : null,
-                Object.values(svcForm.floors).filter((v) => v?.trim()).length
-                  ? `${Object.values(svcForm.floors).filter((v) => v?.trim()).length} planchers` : null,
-                longueurPosee ? 'prix par longueur' : null,
-                svcForm.code.trim() || null,
-              ].filter(Boolean).join(' · ') || 'tarif au lock, calibres, longueur, code ERP';
-              return (
-            <BlocPliant
-              titre="Tarification avancée"
-              resume={resume}
-              ouvert={ouvert}
-              onBascule={() => setAvanceOuverte(ouvert && !reglee ? null : clef)}
-            >
-            {/* LA RÈGLE, DITE EN DIRECT — le même juge que l'étiquette des
-                lignes (`regimeTarifaire`) relit le formulaire à chaque frappe :
-                on voit ce que les champs du dessous FONT au prix, au lieu de
-                le déduire champ par champ (13 août). */}
-            {(() => {
-              const planchersSaisis = Object.fromEntries(
-                Object.entries(svcForm.floors).map(([k, v]) => [k, num(v)]).filter(([, v]) => v !== undefined),
-              ) as Record<string, number>;
-              /* Le brouillon suit LE MODÈLE CHOISI — la phrase dit ce que
-                 l'enregistrement écrira, pas ce que la fiche portait avant. */
-              const m = svcForm.estForfait ? null : svcForm.modele;
-              const brouillon = {
-                id: svcForm.id ?? '',
-                categoryId: svcForm.categoryId,
-                name: svcForm.name,
-                priceMode: svcForm.priceMode,
-                hidePrice: svcForm.priceMode === 'devis',
-                scalesWithModel: m === 'modele',
-                ratePerLock: m === 'lock' ? num(svcForm.rate) : undefined,
-                tarifMode: m === 'lock' ? 'lock' : m === 'calibre' ? 'calibre' : undefined,
-                includes: svcForm.includes.length ? svcForm.includes : undefined,
-                priceFloors: m === 'calibre' && Object.keys(planchersSaisis).length ? planchersSaisis : undefined,
-                prixParLongueur: m === 'longueur' ? nettoie(svcForm.prixLong) : undefined,
-              } as unknown as Service;
-              const regime = regimeTarifaire(brouillon, cats);
-              return (
-                <div style={{ padding: '11px 14px', background: 'var(--color-sable)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55 }}>
-                  <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ce qui fait son prix · </span>
-                  {regime.mots}
-                  {regime.justePrix
-                    ? ' — puis le Juste Prix de la cliente s’applique (Finances › Le Juste Prix).'
-                    : ' — le Juste Prix de la cliente ne s’applique pas.'}
-                </div>
-              );
-            })()}
-            {/* LE MODÈLE DE PRIX — UN SEUL COMMANDE (13 août). Les trois
-                systèmes s'empilaient comme des réglages cumulables ; on ne
-                savait jamais lequel jouait. Le choix est EXCLUSIF : seuls les
-                champs du modèle choisi s'affichent, et l'enregistrement efface
-                les systèmes des autres. Un forfait vaut sa composition — pas de
-                modèle à choisir. */}
-            {!svcForm.estForfait && (
-              <Field label="Le modèle de prix — un seul commande">
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {([
-                    { v: 'fixe' as const, t: 'Prix fixe' },
-                    { v: 'modele' as const, t: 'Barème du modèle' },
-                    { v: 'lock' as const, t: 'Comptage des locks' },
-                    { v: 'calibre' as const, t: 'Prix par calibre' },
-                    { v: 'longueur' as const, t: 'Grille par longueur' },
-                  ]).map((c) => (
-                    <button
-                      key={c.v}
-                      type="button"
-                      className="trv-minibtn"
-                      onClick={() => setSvcForm({ ...svcForm, modele: c.v })}
-                      style={svcForm.modele === c.v
-                        ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
-                        : undefined}
-                    >
-                      {c.t}
-                    </button>
-                  ))}
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                  {svcForm.modele === 'fixe' && 'Le prix du catalogue, le même pour toutes les têtes. Seul le Juste Prix personnel d’une cliente peut encore le moduler.'}
-                  {svcForm.modele === 'modele' && 'Prix de base × le coefficient de la tranche de la cliente — le barème s’édite dans Finances › Le Juste Prix.'}
-                  {svcForm.modele === 'lock' && 'Locks comptés × tarif, sans plancher. Tant que la tête n’est pas comptée, le prix s’annonce « dès ».'}
-                  {svcForm.modele === 'calibre' && 'Un prix par tranche de locks — le prix de la tranche EST le prix, il ne se recalcule pas.'}
-                  {svcForm.modele === 'longueur' && 'Trois prix saisis — court, mi-long, long. La longueur se choisit à la réservation et se fige sur le rendez-vous.'}
-                </div>
-              </Field>
-            )}
-            {!svcForm.estForfait && svcForm.modele === 'lock' && (
-              <Field label="Tarif au lock (F CFA par lock)">
-                <Input
-                  inputMode="numeric"
-                  value={svcForm.rate}
-                  onChange={(e) => setSvcForm({ ...svcForm, rate: e.target.value })}
-                  placeholder="Ex. 100"
-                />
-                {svcForm.rate && (
-                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                    250 locks → {fmtMoney(250 * (num(svcForm.rate) ?? 0), currency)}.
-                  </div>
-                )}
-              </Field>
-            )}
-            {!svcForm.estForfait && svcForm.modele === 'calibre' && (
-              <Field label="Le prix de chaque calibre">
-                <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                  {bands.map((b) => (
-                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, width: 66, color: 'var(--ink-soft)' }}>
-                        {b.name ?? bandRange(b, bands)}
-                      </span>
-                      <Input
-                        inputMode="numeric"
-                        value={svcForm.floors[b.id] ?? ''}
-                        onChange={(e) => setSvcForm({ ...svcForm, floors: { ...svcForm.floors, [b.id]: e.target.value } })}
-                        placeholder="—"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  Une case vide : la tranche retombe sur le prix du catalogue.
-                </div>
-              </Field>
-            )}
-            {!svcForm.estForfait && svcForm.modele === 'longueur' && (
-              <Field label="Prix et durée par longueur">
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {LONGUEURS.map((l) => (
-                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 108px 96px', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>
-                        {l.label}
-                        <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 6 }}>{l.hint}</span>
-                      </span>
-                      <Input
-                        inputMode="numeric"
-                        value={svcForm.prixLong[l.id] ?? ''}
-                        onChange={(e) => setSvcForm({ ...svcForm, prixLong: { ...svcForm.prixLong, [l.id]: e.target.value } })}
-                        placeholder="prix"
-                      />
-                      <Input
-                        inputMode="numeric"
-                        value={svcForm.dureeLong[l.id] ?? ''}
-                        onChange={(e) => setSvcForm({ ...svcForm, dureeLong: { ...svcForm.dureeLong, [l.id]: e.target.value } })}
-                        placeholder="min"
-                      />
+                  {!svcForm.estForfait && (
+                    <div className="trf-empty">
+                      Cette prestation ne promet rien d'autre qu'elle-même. Ouvrez une composition
+                      depuis « ＋ Nouveau forfait » si elle doit en couvrir d'autres.
                     </div>
-                  ))}
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  Une case vide retombe sur le prix et la durée de l’essentiel.
-                </div>
-              </Field>
-            )}
-            {/* LES CALIBRES QU'ELLE SERT (13 août). À 300 locks, DEUX créations
-                s'affichaient prixées : Création Medium ne portait pas la
-                restriction de ses sœurs — et rien à l'écran ne permettait de la
-                poser. Vaut aussi pour un forfait (GBÈJÍ™ Fidélité sert Micro et
-                Nano). Le juge est `servesBand` : hors de ces calibres, la
-                prestation n'est ni proposée ni prixée — « hors calibre ». */}
+                  )}
+                </>
+              )}
+
+              {rubrique === 'tetes' && (
+                <Bloc titre="Qui peut la prendre" aide="les têtes à qui elle est proposée — et prixée">
             <Field label="Les calibres qu'elle sert">
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {bands.map((b) => {
@@ -1837,6 +1960,11 @@ export default function Catalogue() {
                 qui BAISSE, et valent au comptoir comme dans le tunnel de Ma
                 Couronne : même juge (`remiseGestePct`), donc le prix annoncé
                 est le prix encaissé. */}
+                </Bloc>
+              )}
+
+              {rubrique === 'gestes' && (
+                <Bloc titre="Les gestes de la maison" aide="quand son prix baisse parce qu'une autre est au même rituel">
             <Field label="Les gestes de la maison">
               <div style={{ display: 'grid', gap: 10 }}>
                 {svcForm.gestes.map((g, gi) => {
@@ -1954,20 +2082,11 @@ export default function Catalogue() {
                 toujours plein tarif.
               </div>
             </Field>
-            <div className="tr-grid tr-grid--2">
-              <Field label="Code ERP">
-                <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
-              </Field>
-              <Field label="Prix haut affiché">
-                <Input inputMode="numeric" value={svcForm.priceTo} onChange={(e) => setSvcForm({ ...svcForm, priceTo: e.target.value })} placeholder="« de 15 000 à 25 000 »" />
-              </Field>
-              <Field label="Durée haute">
-                <Input inputMode="numeric" value={svcForm.durationMax} onChange={(e) => setSvcForm({ ...svcForm, durationMax: e.target.value })} placeholder="« 3h à 4h30 »" />
-              </Field>
+                </Bloc>
+              )}
             </div>
-            </BlocPliant>
-              );
-            })()}
+          </div>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setSvcForm(null)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveSvc}>Enregistrer la prestation</Button>
