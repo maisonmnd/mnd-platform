@@ -78,7 +78,10 @@ async function loadSeal(): Promise<string | null> {
 export type PdfLine = { label: string; qty: number; unit: string; total: string };
 
 export type InvoicePdfData = {
-  kind: 'facture' | 'devis';
+  /** LE RELEVÉ DE COMPTE (15 août) — ni une facture ni un devis : l'état de
+      ce qu'une cliente doit, rituel par rituel. Même papier, même en-tête ;
+      seuls le titre et le nom du fichier changent. */
+  kind: 'facture' | 'devis' | 'releve';
   number: string;
   houseName: string;
   houseSub?: string;
@@ -130,7 +133,7 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   doc.setFont('times', 'normal');
   doc.setTextColor(COPPER);
   doc.setFontSize(15);
-  doc.text(d.kind === 'devis' ? 'DEVIS' : 'FACTURE', W - M, y, { align: 'right' });
+  doc.text(d.kind === 'devis' ? 'DEVIS' : d.kind === 'releve' ? 'RELEVÉ DE COMPTE' : 'FACTURE', W - M, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(SOFT);
@@ -230,7 +233,7 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   doc.setTextColor(SOFT);
   doc.text('Le cheveu est une couronne. La Maison veille.', W / 2, 285, { align: 'center' });
 
-  const filename = `${d.kind === 'devis' ? 'Devis' : 'Facture'}-${d.number}.pdf`;
+  const filename = `${d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture'}-${d.number}.pdf`;
   doc.save(filename);
   return filename;
 }

@@ -5,6 +5,7 @@ import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/co
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
+import { invoicePdf } from '../../../../shared/pdf';
 import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -1414,6 +1415,35 @@ function Customer360({
     .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
   const due = owing.reduce((s, a) => s + apptDueXof(a, byId), 0);
+  /* LE RELEVÉ DE COMPTE — un rituel par ligne, à ce qu'il RESTE à payer (pas
+     à son prix plein : ce qui a déjà été versé n'est plus dû, et un relevé
+     qui le réclamerait serait faux). Le numéro porte la date du jour et
+     l'identifiant de la cliente : deux relevés du même jour ne se confondent
+     pas, et aucun compteur de facture n'est consommé — un relevé ne se
+     comptabilise pas, il constate. */
+  const releveDeCompte = async () => {
+    if (!owing.length) return;
+    const lignes = owing.map((a) => ({
+      label: `${frShort(a.date)} · ${apptLabel(a, byId)}`,
+      qty: 1,
+      unit: fmtMoney(apptDueXof(a, byId), currency),
+      total: fmtMoney(apptDueXof(a, byId), currency),
+    }));
+    await invoicePdf({
+      kind: 'releve',
+      number: `${todayISO().replace(/-/g, '')}-${client.id.slice(-4).toUpperCase()}`,
+      houseName: maisonNom(),
+      date: todayISO(),
+      clientName: client.name,
+      clientPhone: client.phone,
+      lines: lignes,
+      subtotal: fmtMoney(due, currency),
+      total: fmtMoney(due, currency),
+      reste: fmtMoney(due, currency),
+      status: 'à régler',
+      note: `Relevé arrêté au ${frLong(todayISO())} · ${owing.length} rituel${owing.length > 1 ? 's' : ''} non soldé${owing.length > 1 ? 's' : ''}.`,
+    });
+  };
 
   const myPoints = pointsHistory.filter((e) => e.clientId === client.id).slice(0, 4);
 
@@ -1662,7 +1692,16 @@ function Customer360({
                 <span className="trc-due__label">Solde dû · {owing.length} rituel{owing.length > 1 ? 's' : ''}</span>
                 <span className="trc-due__amount">{fmtMoney(due, currency)}</span>
               </div>
-              <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+              <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+                {/* LE RELEVÉ DE COMPTE (15 août, demande de Yéman) — « comme ça
+                    il voit toutes les factures impayées ». Le solde dû
+                    s'affichait ici depuis toujours, mais rien ne permettait de
+                    l'ADRESSER : réclamer trois rituels voulait dire émettre
+                    trois factures, ou recopier le détail à la main. Une seule
+                    pièce, un rituel par ligne, le total en bas. */}
+                <Button variant="ghost" size="sm" onClick={() => void releveDeCompte()}>Relevé de compte</Button>
+                <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+              </span>
             </div>
           )}
           {/* LE COMPTE S'OUVRE D'ICI. La carte annonçait un compte et un avoir
