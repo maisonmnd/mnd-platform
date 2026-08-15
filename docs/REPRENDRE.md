@@ -24,6 +24,18 @@ ligne par prestation (`factureAEnvoyer`) — elles n'étaient touchées que par 
 défaut ①. RESTE : `invoicePdf` ne pagine toujours pas — un relevé de plus
 d'une vingtaine de rituels déborderait sous le pied de page.
 
+PUBLIÉ le 15 août — **trone et couronne**, build `20260815192655`, publié
+@ `07a3e4f` (l'accordéon de Ma Couronne part dans le même envoi). Le motif du
+« ça ne change rien » était là : `npm run build` ne remplit que `dist/` en
+local, il NE PUBLIE PAS — la mise en ligne, c'est `build-sites.mjs` puis
+`publie.mjs`. Vérifié en ligne, pas seulement lancé : `version.json` servi =
+le build du jour, le bundle `pdf-*.js` servi porte trois `splitTextToSize` et
+plus aucun `slice(0,60)`, le bundle `Customers-*.js` porte « prestations » et
+« autres ». PIÈGE À CONNAÎTRE au moment de vérifier : le nom du fichier est
+déterministe (`Releve-<AAAAMMJJ>-<4 derniers du compte>.pdf`) — un second
+relevé du même jour pour la même cliente s'enregistre en « … (1).pdf » et
+l'onglet resté ouvert continue d'afficher l'ancien.
+
 ## Le rituel en un écran : l'accordéon des ateliers — 15 août
 
 Maquette validée par Yéman (`public/maquette-reservation.html`), écran 1
