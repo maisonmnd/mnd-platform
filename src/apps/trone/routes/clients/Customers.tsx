@@ -33,7 +33,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptNetXof, cadenceLabel, frLong, frShort, frDay,
+  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
@@ -1420,15 +1420,29 @@ function Customer360({
      qui le réclamerait serait faux). Le numéro porte la date du jour et
      l'identifiant de la cliente : deux relevés du même jour ne se confondent
      pas, et aucun compteur de facture n'est consommé — un relevé ne se
-     comptabilise pas, il constate. */
+     comptabilise pas, il constate.
+
+     LE RITUEL SE RÉSUME (15 août) : `apptResume` et non `apptLabel`, et LE
+     COMPTE OUVRE LA LIGNE dès qu'il y a plusieurs gestes — « 3 prestations ·
+     A + B + C ». Un rituel entier se présentait sous le seul nom de sa
+     première prestation, coupé net par le papier : 75 000 F semblaient
+     réclamés pour un shampoing. La QUANTITÉ reste à 1 — la ligne compte des
+     RITUELS, et son prix unitaire est ce qu'il en reste à payer. */
   const releveDeCompte = async () => {
     if (!owing.length) return;
-    const lignes = owing.map((a) => ({
-      label: `${frShort(a.date)} · ${apptLabel(a, byId)}`,
-      qty: 1,
-      unit: fmtMoney(apptDueXof(a, byId), currency),
-      total: fmtMoney(apptDueXof(a, byId), currency),
-    }));
+    const lignes = owing.map((a) => {
+      /* Le compte se prend sur les prestations RETROUVÉES au catalogue, comme
+         le résumé : une prestation retirée du catalogue ne doit pas faire
+         annoncer trois noms puis n'en montrer que deux. */
+      const n = apptServices(a, byId).length;
+      const resume = apptResume(a, byId);
+      return {
+        label: `${frShort(a.date)} · ${n > 1 ? `${n} prestations · ` : ''}${resume}`,
+        qty: 1,
+        unit: fmtMoney(apptDueXof(a, byId), currency),
+        total: fmtMoney(apptDueXof(a, byId), currency),
+      };
+    });
     await invoicePdf({
       kind: 'releve',
       number: `${todayISO().replace(/-/g, '')}-${client.id.slice(-4).toUpperCase()}`,

@@ -63,17 +63,42 @@ import {
    occasions de se tromper d'un cran — la même raison qui a laissé le palier
    vide à l'index 1. */
 
+/* LE RITUEL EN UN ÉCRAN — 15 août 2026, maquette validée par Yéman
+   (« Le rituel en un écran »). L'objectif et les prestations ne font plus
+   qu'un ACCORDÉON À SECTION UNIQUE : les ateliers restent listés du haut en
+   bas, celui qu'on ouvre déplie ses prestations et referme le précédent. On
+   coche, on descend, on coche encore — sans jamais quitter la page.
+
+   Ce qui cassait : une prestation d'un AUTRE atelier coûtait un retour en
+   arrière, donc deux gestes par ajout — six allers-retours pour un panier de
+   trois prestations, c'est-à-dire un péage sur les paniers les plus élevés.
+
+   Une seule section ouverte à la fois, et non plusieurs : sur téléphone, deux
+   ateliers dépliés font défiler l'écran sur trois hauteurs et l'on perd de vue
+   ce qu'on a coché. La ligne de l'atelier REFERMÉ porte le compte
+   (« 2 · 35 000 F ») — rien ne se perd en se repliant.
+
+   LE RITUEL SE RELIT AVANT SON MOMENT (écran 2 de la même maquette) : le
+   récapitulatif n'a plus d'écran à lui — il OUVRE celui du moment, prestations,
+   remises et total au-dessus du jour et de l'heure. Le prix ne se découvre
+   donc plus tout à la fin, et le geste se scelle depuis le panier collant.
+
+   VOTRE RITUEL · LE MOMENT · LA CONFIRMATION : trois temps, plus l'acompte
+   quand la Maison en demande un. Les index 1, 2 et 4 sont des orphelins — les
+   écrans gardent leurs numéros. Renuméroter pour combler un trou du milieu,
+   c'est autant d'occasions de se tromper d'un cran. */
+
 /* L'écran d'envie précède tout le reste, et les tableaux de titres ne le
    connaissent pas : il porte ses mots lui-même. */
 const QUIZ = -1;
 
-const TITLES = ['Votre objectif.', '—', 'Les prestations.', 'Le créneau.', 'Récapitulatif.', 'L’acompte.', 'Confirmé.'];
+const TITLES = ['Votre rituel.', '—', '—', 'Le moment.', '—', 'L’acompte.', 'Confirmé.'];
 const EYEBROWS = [
-  'Réserver · 1 décision',
+  'Réserver · votre rituel',
   '—',
-  'Réserver · prestations',
-  'Réserver · disponibilité',
-  'Réserver · les quatre temps',
+  '—',
+  'Réserver · le moment',
+  '—',
   'Réserver · Mobile Money',
   'Réserver · scellé',
 ];
@@ -147,9 +172,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const [variante, setVariante] = useState(0);
   const [envie, setEnvie] = useState<EnvieKey | null>(null);
   const [elan, setElan] = useState<ElanKey | null>(null);
+  /* L'ATELIER OUVERT — un seul à la fois (accordéon à section unique).
+     `null` = tout est replié ; une prestation déjà désignée ouvre le sien. */
   const [catId, setCatId] = useState<string | null>(prefService?.categoryId ?? null);
-  /* Une poignée de choix à la fois (Zenoti : 5–10 idéal) — au-delà de dix, la
-     liste se coupe à huit et « Voir les N autres » la rouvre d'un geste. */
+  /* Une poignée de choix à la fois (Zenoti : 5–10 idéal) — au-delà de dix, le
+     pli se coupe à huit et « Voir les N autres » le rouvre d'un geste. Se
+     remet à zéro à chaque atelier ouvert : la coupe est celle du pli courant. */
   const [voirTout, setVoirTout] = useState(false);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
   const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
@@ -267,9 +295,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      les champs `order` du Trône — le tunnel doit dérouler la carte dans le
      même ordre que la Maison la pense. */
   const bookableCats = catsDansLOrdre(cats).filter((c) => offre.some((s) => s.categoryId === c.id));
-  const catServices = offre.filter((s) => s.categoryId === catId).sort((a, b) => a.order - b.order);
-  /* TOUTES les prestations de l'objectif choisi : le palier ne les trie plus. */
-  const stepServices = catServices;
+  /* Le corps d'un pli : les prestations de CET atelier, dans l'ordre du Trône.
+     Le palier ne les trie plus — toutes celles qu'elle peut réserver y sont. */
+  const servicesDe = (id: string) => offre.filter((s) => s.categoryId === id).sort((a, b) => a.order - b.order);
 
   const toggleService = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -309,9 +337,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      catalogue peut arriver du serveur après le premier rendu). */
   const vue = step === QUIZ && !quizActif ? 0 : step;
   const premierEcran = quizActif ? QUIZ : 0;
-  /* Sept écrans avec le quiz, six sans : le compte dit la vérité de CE parcours. */
-  const total = quizActif ? 7 : 6;
-  const rang = (s: number) => (s === QUIZ ? 1 : (s > 1 ? s : s + 1) + (quizActif ? 1 : 0));
+  /* LE COMPTE DIT LA VÉRITÉ DE CE PARCOURS-CI : votre rituel · le moment · la
+     confirmation, plus le quiz s'il s'ouvre et l'acompte si la Maison en
+     demande un sur ces prestations. Il bouge donc pendant qu'elle compose —
+     c'est le prix de l'honnêteté : annoncer trois écrans puis en imposer un
+     quatrième vaut moins qu'un dénominateur qui suit la vérité. */
+  const total = 3 + (quizActif ? 1 : 0) + (hasDeposit ? 1 : 0);
+  const rang = (s: number) => {
+    if (s === QUIZ) return 1;
+    const q = quizActif ? 1 : 0;
+    if (s === 0) return 1 + q;
+    if (s === 3) return 2 + q;
+    if (s === 5) return 3 + q;
+    return total; // 6 · confirmé — toujours le dernier
+  };
 
   /* SON ENVIE S'INSCRIT AU DOSSIER dès qu'elle la dit — la Maison la lit au
      Trône même si la réservation n'aboutit pas. La dernière seulement : une
@@ -364,6 +403,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     ? freeSlots(selIso, master, totalDuration, appts, services, branch.id)
     : [];
 
+  /* LE MOMENT EST POSÉ quand toutes les séances ont le leur — c'est lui qui
+     arme le bouton du panier collant (l'écran ne se quitte plus tout seul en
+     touchant une heure). */
+  const momentComplet = sessionDates.length >= totalSessions;
+  const dernierMoment = sessionDates[sessionDates.length - 1];
+
   /* ---- Densité déclarée (12 août) — la question ne se pose qu'au créneau,
      et seulement quand elle compte : tête jamais comptée par la Maison, et au
      moins une prestation qui suit le modèle. Elle règle la DURÉE, pas le prix. */
@@ -383,16 +428,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const back = () => {
     if (paying) return;
     if (step === QUIZ) { onClose(); return; }
-    /* Depuis l'objectif : on retourne à l'envie quand le quiz existe — elle a pu
+    /* Depuis son rituel : on retourne à l'envie quand le quiz existe — elle a pu
        l'enjamber d'un mot, elle doit pouvoir y revenir du même geste. */
     if (step === 0) { if (quizActif) setStep(QUIZ); else onClose(); return; }
-    /* Depuis le récapitulatif : revenir programmer la dernière séance. */
-    if (step === 4) {
-      setSessionDates((prev) => prev.slice(0, -1));
-      setSelIso(null); setTime(null);
-      setStep(3);
-      return;
-    }
+    /* Depuis l'acompte : revenir au moment — ses séances restent posées, elle
+       les corrige sur place si elle le veut. */
+    if (step === 5) { setStep(3); return; }
     if (step === 3) {
       /* Séance déjà posée dans la série : dépiler pour la reprendre. */
       if (sessionDates.length > 0) {
@@ -401,11 +442,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         return;
       }
       setSelIso(null); setTime(null);
-      setStep(2);
+      /* Les étapes 1 et 2 n'existent plus : depuis le créneau, on remonte à
+         l'accordéon — son atelier ouvert et ses cases cochées intacts. */
+      setStep(0);
       return;
     }
-    /* L'étape 1 n'existe plus : depuis les prestations, on remonte à l'objectif. */
-    setStep(step === 2 ? 0 : step - 1);
+    setStep(step - 1);
   };
 
   /* ---- Écriture dans l'agenda partagé ----
@@ -636,7 +678,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {/* POUR QUI ? — le sélecteur de tête (TEMPS 2). Ne paraît que si la
             Maison a validé des mineurs sur son compte : réserver pour Keli est
             un geste, pas un détour. */}
-        {tetes.length > 0 && (vue === 0 || vue === 2) && (
+        {tetes.length > 0 && vue === 0 && (
           <div className="mc-pourqui">
             <span className="mc-pourqui__lb">Pour</span>
             <button type="button" className={`mc-pourqui__chip ${!pourId ? 'is-on' : ''}`} onClick={() => setPourId('')}>
@@ -719,43 +761,130 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           </div>
         )}
 
-        {/* -------- 1 · objectif -------- */}
+        {/* -------- 1 · votre rituel · l'accordéon des ateliers -------- */}
         {vue === 0 && (
           bookableCats.length > 0 ? (
-            <div className="mc-stack mc-fade">
-              {/* LES MONDES SE DISENT (12 août) : un intertitre quand on passe
-                  de l'Atelier au plateau, puis au Studio. */}
-              {bookableCats.map((c, ci) => {
-                const monde = mondeDeCat(c, cats);
-                const prec = ci > 0 ? mondeDeCat(bookableCats[ci - 1], cats) : null;
-                return (
-                  <Fragment key={c.id}>
-                    {(ci === 0 || monde !== prec) && (
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700, #7C4C2C)', margin: ci === 0 ? '0 0 2px' : '14px 0 2px' }}>
-                        {mondeLabel(monde)}
+            <div className="mc-fade">
+              <div className="mc-acclist">
+                {/* LES MONDES SE DISENT (12 août) : un intertitre quand on passe
+                    de l'Atelier au plateau, puis au Studio. */}
+                {bookableCats.map((c, ci) => {
+                  const monde = mondeDeCat(c, cats);
+                  const prec = ci > 0 ? mondeDeCat(bookableCats[ci - 1], cats) : null;
+                  const ouvert = catId === c.id;
+                  const svcs = servicesDe(c.id);
+                  /* CE QU'ON Y A PRIS, dit sur la ligne même de l'atelier — c'est
+                     ce qui autorise le pli à se refermer sans rien perdre. Les
+                     prestations à prix de salon ne s'additionnent pas. */
+                  const prisIci = svcs.filter((s) => selectedIds.includes(s.id));
+                  const sommeIci = prisIci
+                    .filter((s) => !s.hidePrice)
+                    .reduce((n, s) => n + prixIci(s), 0);
+                  const montres = ouvert && !voirTout && svcs.length > 10 ? svcs.slice(0, 8) : svcs;
+                  return (
+                    <Fragment key={c.id}>
+                      {(ci === 0 || monde !== prec) && (
+                        <div className="mc-mondelabel">{mondeLabel(monde)}</div>
+                      )}
+                      <div className={`mc-acc ${ouvert ? 'is-open' : ''}`}>
+                        <button
+                          type="button"
+                          className="mc-acc__head"
+                          aria-expanded={ouvert}
+                          onClick={() => {
+                            /* Section unique : ouvrir referme le précédent, et
+                               retoucher la même ligne replie tout. */
+                            setCatId(ouvert ? null : c.id);
+                            setVoirTout(false);
+                          }}
+                        >
+                          <span className="mc-acc__id">
+                            <span className="mc-acc__fon">{c.fon}</span>
+                            <span className="mc-acc__sub">{c.label}</span>
+                          </span>
+                          {prisIci.length > 0 && (
+                            <span className="mc-acc__count">
+                              {prisIci.length} · {sommeIci > 0 ? fmtMoney(sommeIci, currency) : 'en salon'}
+                            </span>
+                          )}
+                          <span className="mc-acc__chev" aria-hidden="true">›</span>
+                        </button>
+
+                        {ouvert && (
+                          <div className="mc-acc__body">
+                            {montres.map((s) => {
+                              const on = selectedIds.includes(s.id);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  className={`mc-presta ${on ? 'is-on' : ''}`}
+                                  aria-pressed={on}
+                                  onClick={() => toggleService(s.id)}
+                                >
+                                  <span className="mc-presta__box" aria-hidden="true" />
+                                  <span className="mc-presta__body">
+                                    <span className="mc-presta__name">{s.name}</span>
+                                    {/* LA MAÎTRESSE NE SE DIT PAS ICI — décision du
+                                        10 août : les mains sont l'affaire de la
+                                        maison, la cliente choisit un rituel. La
+                                        description tient sur UNE ligne (~20 % du
+                                        texte est lu) — le poème vit ailleurs. */}
+                                    <span className="mc-presta__meta">
+                                      {priceLabel(s)} · {fmtDuration(s.durationMin)}
+                                    </span>
+                                    {s.description && (
+                                      <span className="mc-presta__meta mc-presta__desc">{s.description}</span>
+                                    )}
+                                    {s.sessions > 1 && (
+                                      <span className="mc-pillseal">Série · {s.sessions} séances · prix unique</span>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                            {/* Une poignée à la fois : au-delà de dix, huit d'abord —
+                                celles déjà choisies hors de la coupe restent comptées
+                                sur la ligne de l'atelier comme au panier. */}
+                            {!voirTout && svcs.length > 10 && (
+                              <button
+                                type="button"
+                                className="mc-textbtn mc-acc__more"
+                                onClick={() => setVoirTout(true)}
+                              >
+                                Voir les {svcs.length - 8} autres prestations →
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <button
-                      className="mc-rowcard"
-                      onClick={() => {
-                        /* Le palier n'est plus demandé : l'objectif mène aux
-                           prestations. `setCatId` est OBLIGATOIRE ici : sans lui,
-                           qui n'arrivait ni du quiz ni d'une offre trouvait une
-                           liste VIDE — l'objectif ne désignait jamais sa catégorie. */
-                        setCatId(c.id);
-                        setVoirTout(false);
-                        setStep(2);
-                      }}
-                    >
-                      <div>
-                        <div className="mc-rowcard__fon">{c.fon}</div>
-                        <div className="mc-rowcard__sub">{c.label}</div>
-                      </div>
-                      <span className="mc-rowcard__arrow">→</span>
-                    </button>
-                  </Fragment>
-                );
-              })}
+                    </Fragment>
+                  );
+                })}
+              </div>
+
+              {/* LE PANIER COLLANT : total, compte et durée sous les yeux, et
+                  « Continuer » en zone du pouce. Vide, il dit le geste qui
+                  manque plutôt qu'un zéro. */}
+              <div className={`mc-multibar ${selectedIds.length ? '' : 'mc-multibar--empty'}`}>
+                <div className="mc-multibar__info">
+                  <span className="mc-multibar__count">
+                    {selectedIds.length ? totalLabel : 'Aucune prestation choisie'}
+                  </span>
+                  <span className="mc-multibar__meta">
+                    {selectedIds.length
+                      ? `${selectedIds.length} prestation${selectedIds.length > 1 ? 's' : ''} · ${fmtDuration(totalDuration)}`
+                      : 'Ouvrez un atelier pour commencer'}
+                  </span>
+                </div>
+                <button
+                  className="mc-cta mc-cta--copper mc-multibar__cta"
+                  disabled={selectedIds.length === 0}
+                  onClick={() => { setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
+                >
+                  Continuer
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mc-emptyzone">
@@ -771,79 +900,65 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           )
         )}
 
-        {/* -------- 2 · prestations (sélection multiple) -------- */}
-        {vue === 2 && (
-          <div className="mc-fade">
-            <div className="mc-stack">
-              {(voirTout || stepServices.length <= 10 ? stepServices : stepServices.slice(0, 8)).map((s) => {
-                const on = selectedIds.includes(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    className={`mc-svccard ${on ? 'is-on' : ''}`}
-                    aria-pressed={on}
-                    onClick={() => toggleService(s.id)}
-                  >
-                    <div className="mc-svccard__top">
-                      <div className="mc-svccard__name">{s.name}</div>
-                      <span className="mc-svccard__box" aria-hidden />
-                    </div>
-                    {/* LA MAÎTRESSE NE SE DIT PAS ICI — décision du 10 août : les
-                        mains sont l'affaire de la maison, la cliente choisit un
-                        rituel. La description se tient sur UNE ligne (~20 % du
-                        texte est lu) — le poème vit ailleurs. */}
-                    <div className="mc-svccard__meta">
-                      {priceLabel(s)} · {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''}
-                    </div>
-                    {s.description && <div className="mc-svccard__meta mc-svccard__desc">{s.description}</div>}
-                    {s.sessions > 1 && (
-                      <span className="mc-pillseal">Série · {s.sessions} séances · prix unique</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Une poignée à la fois : au-delà de dix, huit d'abord — celles déjà
-                choisies hors de la coupe restent comptées dans la barre. */}
-            {!voirTout && stepServices.length > 10 && (
-              <button className="mc-textbtn" style={{ marginTop: 12 }} onClick={() => setVoirTout(true)}>
-                Voir les {stepServices.length - 8} autres prestations →
-              </button>
-            )}
+        {/* -------- 2 · orphelin — les prestations vivent dans l'accordéon -------- */}
 
-            {stepServices.length > 0 && (
-              <div className="mc-multibar">
-                <div className="mc-multibar__info">
-                  <span className="mc-multibar__count">
-                    {selectedIds.length} sélectionnée{selectedIds.length > 1 ? 's' : ''}
-                  </span>
-                  <span className="mc-multibar__meta">
-                    {selectedIds.length
-                      ? `${totalLabel} · ${fmtDuration(totalDuration)}`
-                      : 'Choisissez une ou plusieurs prestations.'}
-                  </span>
-                </div>
-                <button
-                  className="mc-cta mc-cta--copper mc-multibar__cta"
-                  disabled={selectedIds.length === 0}
-                  onClick={() => { setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
-                >
-                  Continuer
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* -------- 4 · créneau -------- */}
+        {/* -------- 3 · le moment -------- */}
         {vue === 3 && selected.length > 0 && (
           <div className="mc-fade">
-            {(discountPct > 0 || prefService) && (
-              <div className="mc-prefillnote">
-                {summaryLabel}
-                {discountPct > 0 ? ` · ${offerLabel ?? 'offre appliquée'} · −${discountPct} %` : ` · ${fmtDuration(totalDuration)}`}
+            {/* LE RITUEL SE RELIT EN ENTIER AVANT SON MOMENT (maquette écran 2,
+                validée le 15 août) : le récapitulatif n'a plus d'écran à lui —
+                il ouvre celui-ci. Elle relit ce qu'elle a composé, avec son
+                total, AVANT de choisir son jour ; le parcours tient en trois
+                temps — votre rituel · le moment · la confirmation. */}
+            <div className="mc-recapcard mc-recapcard--tete">
+              <div className="mc-micro-eyebrow mc-recapcard__et">Votre rituel</div>
+              {selected.map((s) => (
+                <div key={s.id} className="mc-recapcard__svcline">
+                  <div>
+                    <div className="mc-recapcard__svcname">{s.name}</div>
+                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)}</div>
+                  </div>
+                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct)}</div>
+                </div>
+              ))}
+              {discountPct > 0 && knownTotal > 0 && (
+                <div className="mc-recapcard__deal">
+                  {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(knownTotal, currency)}</s>
+                </div>
+              )}
+              {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite
+                  avec son taux et ses francs — hors forfaits, déjà réduits. */}
+              {famRemiseXof > 0 && (
+                <div className="mc-recapcard__deal">
+                  Remise famille · −{famPct} %{famForfaitXof > 0 ? ' (hors forfaits)' : ''} · −{fmtMoney(famRemiseXof, currency)}
+                </div>
+              )}
+              <div className="mc-hairline" />
+              <div className="mc-recapcard__total">
+                <span>Total{anyHidden && !allHidden ? ' connu' : ''}</span>
+                <span>{totalLabel}</span>
               </div>
-            )}
+              <div className="mc-recapcard__meta">
+                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
+                {master ? ` · avec ${master}${masterVaries ? ' et son équipe' : ''}` : ''}
+              </div>
+              {(personalized && pricing.band && cible?.lockCount) || pricing.longueur ? (
+                /* Une phrase qui dit D'OÙ viennent ces prix — locks et longueur
+                   de fiche (11 août) : personnaliser en silence, c'est laisser
+                   la cliente croire à une erreur quand le tarif diffère. La
+                   couronne décrite est celle de la TÊTE servie (12 août). */
+                <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
+                  {beneficiaire ? `Ses prix — établis pour la couronne de ${beneficiaire.name}` : 'Vos prix — établis pour votre couronne'}
+                  {personalized && pricing.band && cible?.lockCount ? ` de ${cible.lockCount} locks` : ''}
+                  {pricing.longueur ? ` · longueur ${longueurLabel(pricing.longueur)}` : ''}.
+                </div>
+              ) : null}
+              {anyHidden && !allHidden && (
+                <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
+              )}
+              <div className="mc-recapcard__meta">Maison · {branch.name}</div>
+            </div>
+
             {totalSessions > 1 && (
               <div className="mc-sessionhead">
                 <div className="mc-sessionhead__row">
@@ -878,7 +993,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   <span className="mc-sessionhead__hint">Touchez une séance pour la reprendre.</span>
                 )}
                 <span className="mc-sessionhead__note">
-                  La prestation est réglée une fois — les séances suivantes sont incluses.
+                  La prestation est réglée une fois — les séances suivantes sont incluses
+                  {hasDeposit ? ' · acompte sur la 1ʳᵉ' : ''}.
                 </span>
               </div>
             )}
@@ -887,7 +1003,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 pas dans le temps d'une Jumbo. Sa réponse règle la DURÉE du
                 créneau ; le prix, lui, attend le comptage de la Maison. */}
             {besoinDensite && (
-              <div className="mc-pourqui" style={{ paddingBottom: 18 }}>
+              <div className="mc-pourqui" style={{ paddingTop: 22, paddingBottom: 18 }}>
                 <span className="mc-pourqui__lb" style={{ width: '100%' }}>
                   Vos locks — pour réserver le bon nombre d’heures
                 </span>
@@ -910,6 +1026,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 </span>
               </div>
             )}
+            <div className="mc-micro-eyebrow mc-stepkicker">Le jour</div>
             <div className="mc-calnav">
               <button onClick={() => setMonthIdx(Math.max(0, monthIdx - 1))} disabled={monthIdx === 0}>‹</button>
               <span>{month.label}</span>
@@ -938,133 +1055,96 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               )}
             </div>
             <div className="mc-callegend">
-              <span />Jours avec créneaux libres · {fmtDuration(totalDuration)} · maître {master}{masterVaries ? ' +' : ''}
+              <span />Jours avec créneaux libres · {fmtDuration(totalDuration)}
             </div>
 
             {selIso && (
-              <div className="mc-fade" style={{ marginTop: 20 }}>
-                <div className="mc-micro-eyebrow" style={{ marginBottom: 10 }}>{dayLabelIso(selIso)} · heures libres</div>
+              <div className="mc-fade">
+                <div className="mc-micro-eyebrow mc-stepkicker">L’heure · {dayLabelIso(selIso)}</div>
                 <div className="mc-stack">
-                  {dayTimes.map((t) => (
-                    <button
-                      key={t}
-                      className="mc-slotcard"
-                      onClick={() => {
-                        if (!selIso) return;
-                        const next = [...sessionDates, { iso: selIso, time: t }];
-                        setSessionDates(next);
-                        setTime(t);
-                        if (next.length < totalSessions) {
-                          setSelIso(null); setTime(null); setMonthIdx(0);
-                        } else {
-                          setStep(4);
-                        }
-                      }}
-                    >
-                      <div>
-                        <div className="mc-slotcard__time">{t}</div>
-                        <div className="mc-slotcard__who">{fmtDuration(totalDuration)}</div>
-                      </div>
-                      <span className="mc-slotcard__free">Libre</span>
-                    </button>
-                  ))}
+                  {dayTimes.map((t) => {
+                    const choisi = time === t && sessionDates.some((sd) => sd.iso === selIso && sd.time === t);
+                    return (
+                      <button
+                        key={t}
+                        className={`mc-slotcard ${choisi ? 'is-sel' : ''}`}
+                        aria-pressed={choisi}
+                        onClick={() => {
+                          if (!selIso) return;
+                          /* ON NE QUITTE PLUS L'ÉCRAN EN CHOISISSANT SON HEURE
+                             (maquette écran 2) : un second toucher CORRIGE la
+                             dernière séance au lieu d'en empiler une de trop. */
+                          const choix = { iso: selIso, time: t };
+                          const next = sessionDates.length >= totalSessions
+                            ? [...sessionDates.slice(0, totalSessions - 1), choix]
+                            : [...sessionDates, choix];
+                          setSessionDates(next);
+                          setTime(t);
+                          if (next.length < totalSessions) {
+                            setSelIso(null); setTime(null); setMonthIdx(0);
+                          }
+                        }}
+                      >
+                        <div>
+                          <div className="mc-slotcard__time">{t}</div>
+                          <div className="mc-slotcard__who">{fmtDuration(totalDuration)}</div>
+                        </div>
+                        <span className="mc-slotcard__free">{choisi ? 'Votre heure' : 'Libre'}</span>
+                      </button>
+                    );
+                  })}
                   {dayTimes.length === 0 && <div className="mc-emptyline">Plus de créneau ce jour — choisissez un autre jour.</div>}
                 </div>
               </div>
             )}
 
-            {/* LE PANIER SUIT LA CLIENTE (maquette écran 4) : au créneau aussi,
-                prestations, durée et total restent sous les yeux — le prix
-                découvert tard fait fuir, le prix qui accompagne rassure. */}
-            <div className="mc-multibar mc-multibar--info">
-              <div className="mc-multibar__info">
-                <span className="mc-multibar__count">{summaryLabel}</span>
-                <span className="mc-multibar__meta">{totalLabel} · {fmtDuration(totalDuration)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* -------- 5 · récapitulatif -------- */}
-        {vue === 4 && selected.length > 0 && selIso && time && (
-          <div className="mc-fade">
-            <div className="mc-recapcard">
-              {selected.map((s) => (
-                <div key={s.id} className="mc-recapcard__svcline">
-                  <div>
-                    <div className="mc-recapcard__svcname">{s.name}</div>
-                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)}</div>
+            {/* LES QUATRE TEMPS de la venue — ils vivaient sur l'écran du
+                récapitulatif ; ils se lisent maintenant une fois le moment
+                posé, juste avant de sceller. */}
+            {momentComplet && (
+              <div className="mc-fade">
+                <div className="mc-sectionlabel">Les quatre temps</div>
+                {QUATRE_TEMPS.map((t) => (
+                  <div key={t.no} className="mc-temps">
+                    <span className="mc-temps__no">{t.no}</span>
+                    <div>
+                      <div className="mc-temps__n">{t.n}</div>
+                      <div className="mc-temps__g">{t.g}</div>
+                    </div>
                   </div>
-                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct)}</div>
-                </div>
-              ))}
-              {discountPct > 0 && knownTotal > 0 && (
-                <div className="mc-recapcard__deal">
-                  {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(knownTotal, currency)}</s>
-                </div>
-              )}
-              {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite
-                  avec son taux et ses francs — hors forfaits, déjà réduits. */}
-              {famRemiseXof > 0 && (
-                <div className="mc-recapcard__deal">
-                  Remise famille · −{famPct} %{famForfaitXof > 0 ? ' (hors forfaits)' : ''} · −{fmtMoney(famRemiseXof, currency)}
-                </div>
-              )}
-              <div className="mc-hairline" />
-              <div className="mc-recapcard__total">
-                <span>Total{anyHidden && !allHidden ? ' connu' : ''}</span>
-                <span>{totalLabel}</span>
+                ))}
               </div>
-              <div className="mc-recapcard__meta">
-                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
+            )}
+
+            {/* LE PANIER SUIT LA CLIENTE (maquette écran 4) : au moment aussi,
+                total et durée restent sous les yeux — le prix découvert tard
+                fait fuir, le prix qui accompagne rassure. Il porte désormais LE
+                GESTE : le moment choisi s'y inscrit, et le bouton scelle. */}
+            <div className="mc-multibar">
+              <div className="mc-multibar__info">
+                <span className="mc-multibar__count">{totalLabel}</span>
+                <span className="mc-multibar__meta">
+                  {momentComplet && dernierMoment
+                    ? `${dayLabelIso(dernierMoment.iso)} · ${dernierMoment.time} · ${fmtDuration(totalDuration)}`
+                    : totalSessions > 1
+                      ? `Séance ${sessionDates.length + 1} sur ${totalSessions} — choisissez son moment`
+                      : 'Choisissez le jour, puis l’heure'}
+                </span>
               </div>
-              {(personalized && pricing.band && cible?.lockCount) || pricing.longueur ? (
-                /* Une phrase qui dit D'OÙ viennent ces prix — locks et longueur
-                   de fiche (11 août) : personnaliser en silence, c'est laisser
-                   la cliente croire à une erreur quand le tarif diffère. La
-                   couronne décrite est celle de la TÊTE servie (12 août). */
-                <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
-                  {beneficiaire ? `Ses prix — établis pour la couronne de ${beneficiaire.name}` : 'Vos prix — établis pour votre couronne'}
-                  {personalized && pricing.band && cible?.lockCount ? ` de ${cible.lockCount} locks` : ''}
-                  {pricing.longueur ? ` · longueur ${longueurLabel(pricing.longueur)}` : ''}.
-                </div>
-              ) : null}
-              {anyHidden && !allHidden && (
-                <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
-              )}
-              <div className="mc-hairline" />
-              {sessionDates.map((sd, i) => (
-                <div key={i} className="mc-recapcard__line">
-                  <span>{totalSessions > 1 ? `Séance ${i + 1}/${totalSessions}` : 'Créneau'}</span>
-                  <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
-                </div>
-              ))}
-              {totalSessions > 1 && (
-                <div className="mc-recapcard__meta">
-                  Série liée · la prestation est réglée une fois — les séances 2 à {totalSessions} sont incluses{hasDeposit ? ' · acompte sur la 1ʳᵉ' : ''}.
-                </div>
-              )}
-              <div className="mc-recapcard__line"><span>Maison</span><span>{branch.name}</span></div>
+              <button
+                className="mc-cta mc-cta--copper mc-multibar__cta"
+                disabled={!momentComplet || paying}
+                onClick={() => (hasDeposit ? setStep(5) : settle())}
+              >
+                {hasDeposit ? 'Continuer · acompte' : 'Réserver'}
+              </button>
             </div>
-
-            <div className="mc-sectionlabel">Les quatre temps</div>
-            {QUATRE_TEMPS.map((t) => (
-              <div key={t.no} className="mc-temps">
-                <span className="mc-temps__no">{t.no}</span>
-                <div>
-                  <div className="mc-temps__n">{t.n}</div>
-                  <div className="mc-temps__g">{t.g}</div>
-                </div>
-              </div>
-            ))}
-
-            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 6 }} onClick={() => (hasDeposit ? setStep(5) : settle())} disabled={paying}>
-              {hasDeposit ? 'Continuer · acompte' : 'Confirmer la réservation'}
-            </button>
           </div>
         )}
 
-        {/* -------- 6 · acompte (taux de la Maison) --------
+        {/* -------- 4 · orphelin — le récapitulatif ouvre l'écran du moment -------- */}
+
+        {/* -------- 5 · acompte (taux de la Maison) --------
             DIRE VRAI, dans les deux voies. Rails KkiaPay branchés : la cliente
             paie POUR DE BON, et l'acompte n'est réputé reçu qu'après vérification
             serveur. Rails éteints (pas de clé publique au build) : elle envoie

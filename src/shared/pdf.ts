@@ -179,12 +179,29 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(INK);
+  /* LA PRESTATION SE REPLIE, ELLE NE SE COUPE PLUS (15 août). La ligne était
+     tranchée à 60 caractères, sans le dire : un rituel de trois gestes
+     n'affichait que le premier, et le prix du tout se lisait en face du geste
+     le moins cher. Elle tient désormais sur TROIS lignes dans sa colonne — les
+     noms de la Maison font 45 signes chacun, deux lignes n'en portaient pas
+     deux — et au-delà les points de suspension AVOUENT la coupe. */
+  const COL = W - M - 58 - (M + 3) - 4;
+  const INTER = 4.4;
+  const MAX_LIGNES = 3;
   for (const l of d.lines) {
-    y += 8;
-    doc.text(l.label.slice(0, 60), M + 3, y - 1.5);
-    doc.text(String(l.qty), W - M - 58, y - 1.5, { align: 'right' });
-    doc.text(l.unit, W - M - 32, y - 1.5, { align: 'right' });
-    doc.text(l.total, W - M - 3, y - 1.5, { align: 'right' });
+    /* Mesurer le texte TEL QU'IL SERA TRACÉ : `doc.text` translittère le fon au
+       dernier moment (KƆKLƆ™ → KLOKLO™), la découpe doit voir la même chaîne. */
+    const replie = doc.splitTextToSize(pdfSafe(l.label), COL) as string[];
+    const bouts = replie.length ? replie.slice(0, MAX_LIGNES) : [''];
+    if (replie.length > MAX_LIGNES) {
+      bouts[MAX_LIGNES - 1] = `${bouts[MAX_LIGNES - 1].slice(0, -1)}…`;
+    }
+    const base = y + 6.5;
+    bouts.forEach((t, i) => doc.text(t, M + 3, base + i * INTER));
+    doc.text(String(l.qty), W - M - 58, base, { align: 'right' });
+    doc.text(l.unit, W - M - 32, base, { align: 'right' });
+    doc.text(l.total, W - M - 3, base, { align: 'right' });
+    y += 8 + (bouts.length - 1) * INTER;
     doc.setDrawColor('#e3dacb');
     doc.setLineWidth(0.2);
     doc.line(M, y, W - M, y);

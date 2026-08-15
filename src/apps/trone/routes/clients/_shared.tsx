@@ -285,6 +285,21 @@ export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé
 export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
   apptServices(a, byId).map((s) => s.name).join(' + ') || '—';
 
+/** LE RITUEL RÉSUMÉ EN UNE LIGNE COURTE — pour les pièces où la place est
+    comptée (relevé, facture : la colonne PRESTATION tient sur deux lignes).
+    `apptLabel` colle TOUS les noms bout à bout ; sur le papier, la ligne était
+    coupée net et une cliente lisait « KƆKLƆ · Le Shampoing » en face de
+    75 000 F — le prix d'un rituel entier attribué au geste le moins cher
+    (constaté par Yéman, 15 août). Ici, au-delà de trois prestations, le compte
+    prend la parole : « A + B + 2 autres ». Rien n'est caché en silence. */
+export const apptResume = (a: Appointment, byId: Map<string, Service>, max = 3) => {
+  const noms = apptServices(a, byId).map((s) => s.name);
+  if (!noms.length) return '—';
+  if (noms.length <= max) return noms.join(' + ');
+  const reste = noms.length - (max - 1);
+  return `${noms.slice(0, max - 1).join(' + ')} + ${reste} autres`;
+};
+
 /* ---------- Rappel WhatsApp (cloche sur un RDV à venir) ----------
    Un seul endroit pour le message ET la fenêtre du rappel, partagé par
    Le Carnet, le Calendrier et le Tableau de bord — le libellé reste identique

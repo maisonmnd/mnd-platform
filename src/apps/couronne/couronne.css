@@ -11,6 +11,9 @@
   --mc-success: #4a7a5b;
   --mc-warning: #b97a4a;
   --mc-error: #9b4a45;
+  /* Filet intérieur : sépare deux lignes d'une même carte sans la découper —
+     plus discret que --hairline, qui borde les cartes entre elles. */
+  --mc-hairline-soft: rgba(20, 20, 27, 0.07);
 }
 
 /* ---------- L'app — le vrai viewport ---------- */
@@ -107,8 +110,8 @@
 }
 
 /* Retour tactile discret sur les cartes cliquables. */
-.mc-rowcard:active,
-.mc-svccard:active,
+.mc-acc__head:active,
+.mc-presta:active,
 .mc-slotcard:active,
 .mc-paycard:active,
 .mc-recocard:active,
@@ -1203,25 +1206,115 @@
 .mc-quizreco .mc-textbtn { margin-top: 10px; }
 .mc-quizskip { margin-top: 28px; }
 
-/* -------- étape 1 · objectif -------- */
-.mc-rowcard {
-  text-align: left;
-  cursor: pointer;
+/* -------- étape 1 · votre rituel — l'accordéon des ateliers --------
+   MAQUETTE VALIDÉE (« Le rituel en un écran », 15 août) : les sept ateliers
+   restent listés du haut en bas ; celui qu'on ouvre déplie ses prestations et
+   REFERME le précédent. Une seule section ouverte — deux plis ouverts font
+   défiler le téléphone sur trois hauteurs et l'on perd de vue ce qu'on a
+   coché. La ligne refermée porte son compte (« 2 · 35 000 F ») : rien ne se
+   perd en se repliant. */
+.mc-acclist { display: flex; flex-direction: column; gap: 8px; }
+
+.mc-mondelabel {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  margin: 14px 0 2px;
+}
+.mc-mondelabel:first-child { margin-top: 0; }
+
+.mc-acc {
   background: var(--surface-card);
   border: 1px solid var(--hairline);
   border-radius: 4px;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-sans);
+  overflow: hidden;
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-rowcard:hover { border-color: var(--color-indigo); }
-.mc-rowcard__fon { font-size: 13px; letter-spacing: 0.08em; color: var(--color-indigo); font-weight: var(--weight-medium); }
-.mc-rowcard__sub { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
-.mc-rowcard__arrow { font-size: 14px; color: var(--accent); }
+.mc-acc:hover { border-color: var(--color-indigo); }
+.mc-acc.is-open { border-color: var(--color-indigo); }
+.mc-acc__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 15px 16px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.mc-acc__id { min-width: 0; }
+.mc-acc__fon { display: block; font-size: 13px; letter-spacing: 0.08em; color: var(--color-indigo); font-weight: var(--weight-medium); }
+.mc-acc__sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
+/* Ce qu'on a pris dans l'atelier replié — la raison d'oser le refermer. */
+.mc-acc__count {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mc-acc__chev { flex: 0 0 auto; margin-left: auto; font-size: 15px; color: var(--accent); transition: transform 0.18s var(--ease-soft); }
+.mc-acc__count + .mc-acc__chev { margin-left: 8px; }
+.mc-acc.is-open .mc-acc__chev { transform: rotate(90deg); }
+.mc-acc__body { border-top: 1px solid var(--hairline); animation: mc-fade 0.22s var(--ease-soft); }
+.mc-acc__more { display: block; width: 100%; text-align: left; padding: 12px 16px 14px; }
+
+/* Une prestation dans son pli : la case à gauche, le prix sous le nom. */
+.mc-presta {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--mc-hairline-soft);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 0.2s var(--ease-soft);
+}
+.mc-presta:first-child { border-top: 0; }
+.mc-presta.is-on { background: var(--color-sable); }
+.mc-presta__box {
+  position: relative;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  margin-top: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-card);
+  transition: var(--transition-base);
+}
+.mc-presta.is-on .mc-presta__box { border-color: var(--color-copper); background: var(--color-copper); }
+.mc-presta.is-on .mc-presta__box::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--color-ivoire);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.mc-presta__body { min-width: 0; }
+.mc-presta__name { display: block; font-family: var(--font-serif); font-size: 18px; line-height: 1.25; color: var(--color-indigo); }
+.mc-presta__meta { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
+.mc-presta__desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mc-presta .mc-pillseal { margin-top: 8px; }
 
 /* -------- étape 2 · palier -------- */
 .mc-paliercard {
@@ -1242,49 +1335,8 @@
 .mc-paliercard__name { font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo); }
 .mc-paliercard__sub { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 
-/* -------- étape 3 · prestation -------- */
-.mc-svccard {
-  text-align: left;
-  cursor: pointer;
-  background: var(--surface-card);
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
-  padding: 16px;
-  font-family: var(--font-sans);
-  transition: border-color 0.2s var(--ease-soft);
-}
-.mc-svccard:hover { border-color: var(--color-indigo); }
-.mc-svccard__top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.mc-svccard__name { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
-.mc-svccard__price { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); flex: 0 0 auto; }
-.mc-svccard__meta { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
-.mc-svccard .mc-pillseal { margin-top: 8px; }
-
-/* Sélection multiple : la carte devient une bascule (case cochée cuivre). */
-.mc-svccard { width: 100%; }
-.mc-svccard.is-on { border-color: var(--color-copper); background: var(--color-sable); }
-.mc-svccard__box {
-  position: relative;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
-  background: var(--surface-card);
-  transition: var(--transition-base);
-}
-.mc-svccard.is-on .mc-svccard__box { border-color: var(--color-copper); background: var(--color-copper); }
-.mc-svccard.is-on .mc-svccard__box::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
-  border: solid var(--color-ivoire);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
+/* La carte-prestation pleine largeur (`mc-svccard`) est morte le 15 août avec
+   l'écran des prestations : elle vit désormais en ligne de pli, `mc-presta`. */
 
 /* Barre de synthèse — total vivant + « Continuer », responsive (revient à la ligne). */
 /* LA BARRE-RÉCAP DU TUNNEL (maquette écran 4, validée le 10 août) : indigo,
@@ -1309,13 +1361,23 @@
 .mc-multibar__info { flex: 1 1 160px; min-width: 0; }
 .mc-multibar__count { display: block; font-family: var(--font-serif); font-size: 18px; color: var(--color-ivoire); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-multibar__meta { display: block; font-size: 12px; font-weight: 400; color: var(--indigo-200); margin-top: 2px; }
-/* Variante INFO (créneau) : le panier reste sous les yeux, sans bouton. */
-.mc-multibar--info { justify-content: flex-start; }
+/* La variante INFO (panier muet au créneau) est morte le 15 août : la barre y
+   porte désormais le geste — le moment choisi et le bouton qui scelle. */
 .mc-multibar__cta { width: auto; flex: 0 1 auto; min-width: 150px; padding: 14px 22px; }
 .mc-multibar__cta:disabled { opacity: 0.4; cursor: default; }
+/* Variante VIDE (accordéon, rien de coché) : le panier se tait — sable et non
+   indigo — et dit le geste qui manque plutôt qu'un total à zéro. */
+.mc-multibar--empty {
+  background: var(--color-sable);
+  border-color: var(--hairline);
+  box-shadow: none;
+}
+.mc-multibar--empty .mc-multibar__count { font-family: var(--font-sans); font-size: 14px; color: var(--ink-soft); }
+.mc-multibar--empty .mc-multibar__meta { color: var(--ink-soft); }
 
 /* Entête de séance — série multi-séances (Séance k / N) */
 .mc-sessionhead {
+  margin-top: 20px;
   margin-bottom: 14px;
   padding: 12px 14px;
   background: var(--color-sable);
@@ -1416,9 +1478,21 @@
 .mc-slotcard__time { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
 .mc-slotcard__who { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-slotcard__free { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mc-success); }
+/* L'heure retenue — on ne quitte plus l'écran en la choisissant, elle doit
+   donc se voir (maquette écran 2 : l'heure choisie passe en indigo). */
+.mc-slotcard.is-sel { background: var(--color-indigo); border-color: var(--color-indigo); }
+.mc-slotcard.is-sel .mc-slotcard__time { color: var(--color-ivoire); }
+.mc-slotcard.is-sel .mc-slotcard__who { color: var(--indigo-200); }
+.mc-slotcard.is-sel .mc-slotcard__free { color: var(--copper-200); }
 
-/* -------- étape 5 · récapitulatif -------- */
+/* Le titre d'un temps de l'écran — « Le jour », « L'heure ». */
+.mc-stepkicker { display: block; margin: 24px 0 10px; }
+
+/* -------- récapitulatif — la carte du rituel -------- */
 .mc-recapcard { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; padding: 18px; }
+/* En tête de l'écran du moment (15 août) : le rituel relu avant son jour. */
+.mc-recapcard--tete { border-color: var(--copper-300); }
+.mc-recapcard__et { display: block; margin-bottom: 9px; }
 .mc-recapcard__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .mc-recapcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
 .mc-recapcard__price { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); flex: 0 0 auto; }
@@ -2164,13 +2238,8 @@
 .mc-dots i.is-fait { background: var(--color-copper, #B97A4A); }
 
 /* La description d'une prestation tient sur UNE ligne dans le tunnel —
-   ~20 % du texte est lu ; le poème vit ailleurs. */
-.mc-svccard__desc {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+   ~20 % du texte est lu ; le poème vit ailleurs. Sa règle vit désormais avec
+   `mc-presta__desc`, dans le pli de l'atelier. */
 
 /* L'acompte dit son pourquoi — une promesse, pas une caution. */
 .mc-depositcard__why {

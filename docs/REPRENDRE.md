@@ -1,6 +1,72 @@
 # Reprendre — état de la Maison
 
-État au 14 août 2026. À lire en premier dans une nouvelle session.
+État au 15 août 2026. À lire en premier dans une nouvelle session.
+
+## Le papier ne coupe plus le rituel — 15 août
+
+Constaté par Yéman sur un vrai relevé : « 75 000 F » en face de
+« KLOKLO™ Essentiel · Le Shampoing », le prix d'un rituel entier attribué à
+son geste le moins cher. DEUX CAUSES. ① `pdf.ts` tranchait le libellé à
+`label.slice(0, 60)` — SANS LE DIRE : les noms de la Maison font 45 signes,
+le premier remplissait la ligne et les suivants disparaissaient. La colonne
+PRESTATION se REPLIE désormais sur TROIS lignes (`splitTextToSize` sur 109 mm,
+mesuré APRÈS translittération du fon puisque `doc.text` translittère au dernier
+moment), la hauteur de rangée suit, et au-delà les points de suspension
+AVOUENT la coupe. Vaut pour toutes les pièces — facture, devis, relevé, reçu.
+② Le relevé (`Customers.releveDeCompte`) posait `apptLabel` (tous les noms
+collés bout à bout, donc coupés) ; il pose maintenant `apptResume` (_shared) —
+jusqu'à trois noms, puis « A + B + N autres » — précédé du COMPTE dès qu'il y
+a plusieurs gestes : « Ven. 29 mai · 3 prestations · … ». La QUANTITÉ reste à
+1 : la ligne compte des RITUELS, son prix unitaire est ce qu'il en reste à
+payer. Mesures vérifiées au harnais jsPDF (1 à 5 prestations : aucune ligne
+ne déborde, aucune n'est coupée). Les FACTURES, elles, émettaient déjà une
+ligne par prestation (`factureAEnvoyer`) — elles n'étaient touchées que par le
+défaut ①. RESTE : `invoicePdf` ne pagine toujours pas — un relevé de plus
+d'une vingtaine de rituels déborderait sous le pied de page.
+
+## Le rituel en un écran : l'accordéon des ateliers — 15 août
+
+Maquette validée par Yéman (`public/maquette-reservation.html`), écran 1
+construit. CE QUI CASSAIT : choisir une prestation d'un AUTRE atelier coûtait
+un retour en arrière — deux gestes par ajout, six allers-retours pour un
+panier de trois prestations, c'est-à-dire un péage sur les paniers les plus
+élevés. Désormais les deux écrans « Votre objectif » et « Les prestations »
+n'en font qu'UN : ① UN ACCORDÉON À SECTION UNIQUE (`mc-acc`, `mc-presta`) —
+les ateliers restent listés du haut en bas, celui qu'on ouvre déplie ses
+prestations et REFERME le précédent (`catId` = l'atelier ouvert, `null` = tout
+replié). Une seule section : deux plis ouverts font défiler le téléphone sur
+trois hauteurs et l'on perd de vue ce qu'on a coché. ② LA LIGNE REFERMÉE PORTE
+SON COMPTE — « 2 · 35 000 F », somme des prix DU PANIER (`prixIci`, geste
+offert compris ; « en salon » quand tout y est à prix masqué) : rien ne se perd
+en se repliant. ③ LE PANIER COLLANT (`mc-multibar`) tient le total, le compte
+et la durée, et « Continuer » vit dedans ; vide, il passe au sable
+(`mc-multibar--empty`) et dit le geste qui manque plutôt qu'un zéro. Les
+intertitres de MONDE et la coupe à huit prestations (« Voir les N autres »,
+`voirTout`, remis à zéro à chaque pli ouvert) survivent, dans le pli.
+`mc-rowcard` et `mc-svccard` sont MORTS (CSS retiré).
+
+ÉCRAN 2 CONSTRUIT DANS LA FOULÉE — LE RITUEL SE RELIT AVANT SON MOMENT :
+le récapitulatif n'a plus d'écran à lui, il OUVRE celui du créneau
+(`mc-recapcard--tete`) — prestations et prix, offre, remise famille, total,
+« N prestations · durée · avec X », provenance des prix (locks + longueur),
+« Maison · branche ». Puis « Le jour », « L'heure » (`mc-stepkicker`). ①
+CHOISIR SON HEURE NE QUITTE PLUS L'ÉCRAN : le créneau retenu passe en indigo
+(`mc-slotcard.is-sel`, « Votre heure ») et un SECOND TOUCHER CORRIGE la
+dernière séance au lieu d'en empiler une de trop. ② LE PANIER COLLANT PORTE LE
+GESTE : total, moment choisi, et « Réserver » (ou « Continuer · acompte »),
+armé par `momentComplet`. ③ Les QUATRE TEMPS se lisent une fois le moment posé,
+juste avant de sceller ; la note de série porte désormais « acompte sur la
+1ʳᵉ ». Le parcours : VOTRE RITUEL · LE MOMENT · LA CONFIRMATION — `total` vaut
+3 (+1 si le quiz s'ouvre, +1 si ces prestations demandent un acompte) et bouge
+donc pendant qu'elle compose : un dénominateur qui suit la vérité vaut mieux
+qu'annoncer trois écrans puis en imposer un quatrième. Les index 1, 2 et 4 sont
+orphelins (les écrans gardent leurs numéros) ; retour depuis l'acompte = le
+moment, séances intactes. `mc-multibar--info` est mort.
+
+RESTE DE LA MAQUETTE, non construit : LA CARTE ÉDITION SOUVERAINE
+(privatisation du salon) — la maquette la donne elle-même pour un placeholder :
+son nom, ses conditions (jour, plage, nombre de têtes, acompte) et le registre
+où la demande entre restent à trancher par Yéman.
 
 ## Le modèle des dépenses porté au foyer et aux caisses — 14 août
 
