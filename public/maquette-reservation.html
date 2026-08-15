@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le rituel en un écran — Maquette · Maison MND</title>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE;
+    --indigo:#1E2150; --indigo-2:#2C3068; --cuivre:#B97A4A; --cuivre-p:#E3C9AE;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --serif:Georgia,'Cormorant Garamond','Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1060px;margin:0 auto;padding:52px 22px 90px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 13px}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(36px,6vw,58px);line-height:1.05;letter-spacing:-.015em;color:var(--indigo);margin:0 0 16px;text-wrap:balance}
+  .chapeau{max-width:62ch;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:58px}
+  h2{font-family:var(--serif);font-weight:400;font-size:26px;color:var(--indigo);margin:0 0 6px}
+  .sous{font-size:13.5px;color:var(--encre-d);margin:0 0 22px;max-width:62ch}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.duo{grid-template-columns:1fr}}
+  .mal{background:var(--ivoire);border:1px solid var(--filet);border-left:3px solid #A03D2E;border-radius:3px;padding:16px 18px}
+  .mal h3{font-family:var(--serif);font-weight:400;font-size:18px;color:var(--indigo);margin:0 0 5px}
+  .mal p{margin:0;font-size:13.5px;color:var(--encre-d)}
+
+  .reco{background:var(--indigo);color:var(--ivoire);border-radius:4px;padding:24px 26px}
+  .reco .t{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cuivre-p);margin:0 0 10px}
+  .reco p{margin:0 0 12px;font-family:var(--serif);font-size:21px;line-height:1.45}
+  .reco p:last-child{margin:0;font-family:var(--sans);font-size:13.5px;color:#C9C3DB;line-height:1.7}
+  .reco b{color:var(--cuivre-p);font-weight:400}
+
+  /* ── Téléphone ── */
+  .scene{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:26px;align-items:start}
+  .tel{background:var(--sable);border-radius:22px;padding:12px}
+  .tel .ecran{background:var(--parchemin);border-radius:14px;overflow:hidden;border:1px solid var(--filet)}
+  .cap{text-align:center;font-size:12px;color:var(--encre-d);margin-top:10px}
+  .cap b{color:var(--indigo);font-weight:500}
+
+  .barre{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 0;font-size:12px;color:var(--encre-d)}
+  .jauge{height:2px;background:var(--filet);margin:11px 16px 0;border-radius:2px;overflow:hidden}
+  .jauge i{display:block;height:100%;width:33%;background:var(--cuivre)}
+  .ttl{font-family:var(--serif);font-size:27px;color:var(--indigo);margin:12px 16px 2px;line-height:1.1}
+  .kicker{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cuivre);margin:14px 16px 0}
+
+  .pour{display:flex;gap:6px;overflow-x:auto;padding:14px 16px 0}
+  .pour button{flex:none;border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:6px 13px;font:inherit;font-size:12.5px;color:var(--encre-d);cursor:pointer}
+  .pour button.on{background:var(--indigo);border-color:var(--indigo);color:var(--ivoire)}
+
+  .liste{padding:14px 16px 0;display:flex;flex-direction:column;gap:7px}
+  .acc{border:1px solid var(--filet);border-radius:3px;background:var(--ivoire);overflow:hidden}
+  .acc>summary,.acc .tete{
+    display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;list-style:none;
+    background:none;border:0;width:100%;text-align:left;font:inherit;
+  }
+  .acc .tete:hover{background:rgba(185,122,74,.05)}
+  .acc .nom{font-family:var(--sans);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--indigo);display:block}
+  .acc .dit{font-size:12px;color:var(--encre-d);display:block;margin-top:1px}
+  .acc .compte{margin-left:auto;flex:none;font-size:11.5px;color:var(--cuivre);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .acc .chev{flex:none;color:var(--cuivre);font-size:15px;transition:transform 180ms ease}
+  .acc.ouvert .chev{transform:rotate(90deg)}
+  .acc .corps{display:none;border-top:1px solid var(--filet);padding:4px 0}
+  .acc.ouvert .corps{display:block}
+
+  .presta{display:flex;gap:11px;align-items:flex-start;padding:11px 14px;cursor:pointer;border-top:1px solid rgba(217,207,188,.5)}
+  .presta:first-child{border-top:0}
+  .presta:hover{background:rgba(185,122,74,.04)}
+  .presta .case{flex:none;width:17px;height:17px;border:1px solid var(--filet);border-radius:2px;background:var(--parchemin);margin-top:3px;display:grid;place-items:center;font-size:11px;color:transparent}
+  .presta.on .case{background:var(--cuivre);border-color:var(--cuivre);color:var(--ivoire)}
+  .presta .n{font-family:var(--serif);font-size:16px;color:var(--indigo);line-height:1.25}
+  .presta .m{font-size:12px;color:var(--encre-d);margin-top:2px;font-variant-numeric:tabular-nums}
+
+  /* La carte souveraine */
+  .souv{margin:16px 16px 0;background:var(--indigo);border:1px solid var(--indigo);border-radius:3px;overflow:hidden;position:relative}
+  .souv::before{content:"";position:absolute;inset:0;border:1px solid rgba(227,201,174,.34);border-radius:2px;margin:4px;pointer-events:none}
+  .souv .h{padding:17px 18px;cursor:pointer;display:block;background:none;border:0;width:100%;text-align:left;font:inherit}
+  .souv .et{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--cuivre-p);margin-bottom:7px}
+  .souv .t{font-family:var(--serif);font-size:22px;color:var(--ivoire);line-height:1.2}
+  .souv .s{font-size:12px;color:#C9C3DB;margin-top:5px;line-height:1.6}
+  .souv .a{display:inline-block;margin-top:11px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-p);border-bottom:1px solid rgba(227,201,174,.5);padding-bottom:2px}
+  .souv .corps{display:none;padding:0 18px 18px}
+  .souv.ouvert .corps{display:block}
+  .souv .champ{margin-top:12px}
+  .souv label{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#9F9AB8;margin-bottom:5px}
+  .souv .faux{background:rgba(251,248,242,.07);border:1px solid rgba(227,201,174,.3);border-radius:2px;padding:9px 11px;font-size:13px;color:var(--ivoire)}
+  .souv .faux.vide{color:#8C87A5}
+  .souv .note{font-size:11.5px;color:#9F9AB8;margin-top:12px;line-height:1.6}
+
+  /* Le panier collant */
+  .panier{position:sticky;bottom:0;background:var(--indigo);color:var(--ivoire);margin-top:16px;padding:13px 16px;display:flex;align-items:center;gap:12px}
+  .panier .g{min-width:0}
+  .panier .q{font-family:var(--serif);font-size:17px;line-height:1.2}
+  .panier .d{font-size:12px;color:#C9C3DB;font-variant-numeric:tabular-nums;margin-top:1px}
+  .panier .btn{margin-left:auto;flex:none;background:var(--cuivre);border:0;border-radius:3px;color:var(--ivoire);padding:11px 20px;font:inherit;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+  .panier.vide{background:var(--sable);color:var(--encre-d)}
+  .panier.vide .q{color:var(--encre-d);font-size:14px}
+  .panier.vide .btn{background:var(--filet);color:#A79E8F;cursor:not-allowed}
+
+  .listes{display:grid;gap:1px;background:var(--filet);border:1px solid var(--filet);border-radius:3px;margin-top:8px}
+  .li{background:var(--ivoire);padding:14px 17px;display:grid;grid-template-columns:1fr 1fr;gap:18px;font-size:13.5px}
+  .li .a{color:var(--encre-d)}
+  .li .b{color:var(--encre)}
+  .li .b b{color:var(--indigo);font-weight:500}
+  .li.tete{background:var(--indigo);color:var(--cuivre-p);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase}
+  .li.tete .a,.li.tete .b{color:inherit}
+  @media(max-width:620px){.li{grid-template-columns:1fr;gap:3px}.li.tete{display:none}}
+
+  footer{margin-top:66px;border-top:1px solid var(--filet);padding-top:20px;font-size:13px;color:var(--encre-d)}
+  footer b{color:var(--indigo);font-weight:500}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="eyebrow">Maison MND · Ma Couronne · Réserver</p>
+  <h1>Le rituel en un écran.</h1>
+  <p class="chapeau">
+    Deux corrections au parcours de réservation : <b>la privatisation du salon</b>, qui n'existait
+    nulle part et se perdait donc en messages, et <b>le retour en arrière</b> imposé à chaque
+    prestation d'un autre atelier — celui qui casse justement les paniers les plus élevés.
+    Rien n'est construit : à valider d'abord.
+  </p>
+
+  <section>
+    <h2>Ce qui casse</h2>
+    <div class="duo">
+      <div class="mal">
+        <h3>La demande qu'on ne peut pas faire</h3>
+        <p>Une cliente qui veut privatiser le salon ne trouve aucune porte. Elle écrit, on répond,
+        et la demande vit dans une conversation — pas dans le carnet.</p>
+      </div>
+      <div class="mal">
+        <h3>Le retour en arrière</h3>
+        <p>Choisir un atelier, puis ses prestations, puis <em>revenir</em> pour l'atelier suivant.
+        Chaque ajout coûte deux gestes ; le panier à trois prestations demande six allers-retours.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ma recommandation</h2>
+    <div class="reco">
+      <p class="t">Un seul motif, pas trois</p>
+      <p>Un <b>accordéon à section unique</b> : les sept ateliers restent listés du haut en bas de
+      l'écran, celui qu'on ouvre déplie ses prestations et referme le précédent. On coche, on
+      descend, on coche encore — <b>sans jamais quitter la page</b>.</p>
+      <p>
+        Une section unique plutôt que plusieurs ouvertes : sur téléphone, deux ateliers dépliés
+        font déjà défiler l'écran sur trois hauteurs, et l'on perd de vue ce qu'on a coché. Le
+        compte apparaît sur la ligne de l'atelier refermé — « 2 · 35 000 F » — donc rien ne se perd
+        en se repliant. Le récapitulatif reste collé en bas : il porte le total, le temps, et le
+        bouton qui mène au créneau. La réservation passe de <b>six étapes à trois</b>.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>La maquette</h2>
+    <p class="sous">
+      Les deux écrans sont vivants : dépliez un atelier, cochez des prestations, ouvrez la carte
+      Privatisation. Le récapitulatif suit.
+    </p>
+
+    <div class="scene">
+
+      <div>
+        <div class="tel">
+          <div class="ecran">
+            <div class="barre"><span>← Annuler</span><span>1 / 3</span></div>
+            <div class="jauge"><i></i></div>
+            <p class="kicker" style="margin-top:12px">Réserver · votre rituel</p>
+            <h3 class="ttl">Votre rituel.</h3>
+
+            <div class="pour">
+              <button class="on" type="button">Moi</button>
+              <button type="button">Johane</button>
+              <button type="button">Mahou</button>
+              <button type="button">Rad</button>
+            </div>
+
+            <div class="liste" id="ateliers"></div>
+
+            <div class="souv" id="souv">
+              <button class="h" type="button" id="souvH">
+                <div class="et">Édition Souveraine</div>
+                <div class="t">Le Salon, rien qu'à vous.</div>
+                <div class="s">La Maison ferme ses portes et n'ouvre que pour vous et les vôtres.
+                  Une équipe entière, un thé, le temps qu'il faut.</div>
+                <span class="a">Demander une privatisation</span>
+              </button>
+              <div class="corps">
+                <div class="champ">
+                  <label>L'occasion</label>
+                  <div class="faux vide">Anniversaire, veille de mariage, entre sœurs…</div>
+                </div>
+                <div class="champ">
+                  <label>Combien de têtes</label>
+                  <div class="faux">4</div>
+                </div>
+                <div class="champ">
+                  <label>La date souhaitée</label>
+                  <div class="faux vide">Nous en conviendrons ensemble</div>
+                </div>
+                <p class="note">Sur devis — la Maison vous rappelle sous 24 h pour en fixer les
+                termes. Votre demande entre au carnet dès maintenant.</p>
+              </div>
+            </div>
+
+            <div class="panier vide" id="panier">
+              <div class="g">
+                <div class="q" id="pq">Aucune prestation choisie</div>
+                <div class="d" id="pd">Ouvrez un atelier pour commencer</div>
+              </div>
+              <button class="btn" type="button" id="pb">Continuer</button>
+            </div>
+          </div>
+        </div>
+        <p class="cap"><b>Écran 1</b> — tout se choisit ici. Les ateliers ne se quittent jamais.</p>
+      </div>
+
+      <div>
+        <div class="tel">
+          <div class="ecran">
+            <div class="barre"><span>← Retour</span><span>2 / 3</span></div>
+            <div class="jauge"><i style="width:66%"></i></div>
+            <p class="kicker" style="margin-top:12px">Réserver · le moment</p>
+            <h3 class="ttl">Le moment.</h3>
+
+            <div style="padding:14px 16px 0">
+              <div style="background:var(--ivoire);border:1px solid var(--filet);border-radius:3px;padding:14px 15px">
+                <div style="font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--cuivre);margin-bottom:9px">Votre rituel</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px">
+                  <span>WÈWÈ™ · Le Soin La Purification</span><span style="font-variant-numeric:tabular-nums">22 000 F</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid var(--filet);font-size:13px">
+                  <span>SÍNSIN™ Essentielle · La Reprise</span><span style="font-variant-numeric:tabular-nums">60 000 F</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid var(--filet);font-size:13px">
+                  <span>KƆKLƆ™ Essentiel · Le Shampoing</span>
+                  <span style="font-variant-numeric:tabular-nums"><s style="color:var(--encre-d)">10 000 F</s> <b style="color:var(--cuivre)">offert</b></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0 0;margin-top:6px;border-top:1px solid var(--cuivre);font-family:var(--serif);font-size:19px;color:var(--indigo)">
+                  <span>Total</span><span style="font-variant-numeric:tabular-nums">82 000 F</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--encre-d);margin-top:4px">3 prestations · 3 h 30 · avec Brice</div>
+              </div>
+            </div>
+
+            <p class="kicker">Le jour</p>
+            <div style="display:flex;gap:6px;overflow-x:auto;padding:10px 16px 0">
+              <span style="flex:none;border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 14px;font-size:12.5px;color:var(--encre-d);text-align:center">lun.<br /><b style="font-family:var(--serif);font-size:17px;color:var(--indigo)">17</b></span>
+              <span style="flex:none;border:1px solid var(--cuivre);background:var(--cuivre);border-radius:3px;padding:8px 14px;font-size:12.5px;color:var(--ivoire);text-align:center">mar.<br /><b style="font-family:var(--serif);font-size:17px">18</b></span>
+              <span style="flex:none;border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 14px;font-size:12.5px;color:var(--encre-d);text-align:center">mer.<br /><b style="font-family:var(--serif);font-size:17px;color:var(--indigo)">19</b></span>
+              <span style="flex:none;border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 14px;font-size:12.5px;color:var(--encre-d);text-align:center">jeu.<br /><b style="font-family:var(--serif);font-size:17px;color:var(--indigo)">20</b></span>
+            </div>
+
+            <p class="kicker">L'heure</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px 18px">
+              <span style="border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 15px;font-size:13px;color:var(--encre-d)">08:30</span>
+              <span style="border:1px solid var(--indigo);background:var(--indigo);border-radius:3px;padding:8px 15px;font-size:13px;color:var(--ivoire)">10:00</span>
+              <span style="border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 15px;font-size:13px;color:var(--encre-d)">14:00</span>
+              <span style="border:1px solid var(--filet);background:var(--ivoire);border-radius:3px;padding:8px 15px;font-size:13px;color:var(--encre-d)">16:30</span>
+            </div>
+
+            <div class="panier">
+              <div class="g">
+                <div class="q">82 000 F</div>
+                <div class="d">mar. 18 août · 10:00 · 3 h 30</div>
+              </div>
+              <button class="btn" type="button">Réserver</button>
+            </div>
+          </div>
+        </div>
+        <p class="cap"><b>Écran 2</b> — le rituel se relit en entier avant de choisir son moment.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qui change</h2>
+    <div class="listes">
+      <div class="li tete"><span class="a">Aujourd'hui</span><span class="b">Demain</span></div>
+      <div class="li">
+        <span class="a">Six étapes, dont deux pour choisir un seul atelier.</span>
+        <span class="b"><b>Trois étapes</b> : votre rituel · le moment · la confirmation.</span>
+      </div>
+      <div class="li">
+        <span class="a">Une prestation d'un autre atelier coûte un retour en arrière.</span>
+        <span class="b">Les sept ateliers restent sous les yeux. <b>On déplie, on coche, on descend.</b></span>
+      </div>
+      <div class="li">
+        <span class="a">Un atelier refermé ne dit plus ce qu'on y avait pris.</span>
+        <span class="b">Sa ligne porte le compte : <b>« 2 · 35 000 F »</b>. Rien ne se perd en se repliant.</span>
+      </div>
+      <div class="li">
+        <span class="a">La privatisation n'existe nulle part — elle se demande par message.</span>
+        <span class="b">Une <b>carte Édition Souveraine</b> sous les ateliers, visible en permanence. La demande entre au carnet.</span>
+      </div>
+      <div class="li">
+        <span class="a">Le total n'apparaît qu'à la fin.</span>
+        <span class="b">Le récapitulatif est <b>collé en bas</b> : total, durée, et le bouton vers le créneau.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>À valider avant construction.</b> Le mot « privatisation » est un placeholder — dites-moi
+    comment la Maison la nomme, et à quelles conditions elle s'accorde (jour, plage, nombre de
+    têtes, acompte). Si le parcours vous va, je le bâtis.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var ATELIERS = [
+    { n:'YÈKPÈ™', d:'Coloration', p:[
+      ['YÈKPÈ™ Lumière · La Brillance Signature', 37000, '1 h'],
+      ['YÈKPÈ™ Couleur · La Révélation Végétale', 45000, '2 h']]},
+    { n:'FÍNFÍN™', d:'La Renaissance', p:[
+      ['FÍNFÍN™ Légère · La Réparation Douce', 15000, '45 min'],
+      ['FÍNFÍN™ Profonde · La Restauration', 90000, '3 h']]},
+    { n:'KƆKLƆ™', d:'Les lavages rituels', p:[
+      ['KƆKLƆ™ Essentiel · Le Shampoing « Le Souffle »', 10000, '30 min'],
+      ['KƆKLƆ™ Signature · Le Shampoing « L’Ancrage »', 18000, '1 h']]},
+    { n:'Les Soins', d:'Hydrater, purifier, reconstruire', p:[
+      ['DÀNDÀN™ · Le Soin Hydratant', 20000, '1 h'],
+      ['WÈWÈ™ · Le Soin La Purification', 22000, '1 h'],
+      ['VÍVÍVÓ™ · Le Soin L’Activateur de Pousse', 6000, '20 min']]},
+    { n:'SÍNSIN™', d:'Les reprises de racines', p:[
+      ['SÍNSIN™ Essentielle · La Reprise', 60000, '1 h'],
+      ['SÍNSIN™ Élaborée · La Reprise Longue Durée', 75000, '2 h']]},
+    { n:'Styling & Coiffures', d:'Les sorties signature', p:[
+      ['Nattes Couronne', 25000, '1 h 30'],
+      ['Vanilles Signature', 30000, '2 h']]},
+    { n:'Retouches', d:'Après une création', p:[
+      ['Retouches Post Création', 20000, '1 h']]}
+  ];
+  var choisi = {}, ouvert = -1;
+  var hote = document.getElementById('ateliers');
+  var fr = function(n){ return n.toLocaleString('fr-FR').replace(/ | /g,' ') + ' F'; };
+
+  function dessine(){
+    hote.innerHTML = '';
+    ATELIERS.forEach(function(a, i){
+      var d = document.createElement('div');
+      d.className = 'acc' + (ouvert === i ? ' ouvert' : '');
+      var pris = (choisi[i] || []).length;
+      var somme = (choisi[i] || []).reduce(function(s, k){ return s + a.p[k][1]; }, 0);
+      var t = document.createElement('button');
+      t.type = 'button'; t.className = 'tete';
+      t.innerHTML = '<span style="min-width:0"><span class="nom">' + a.n + '</span><span class="dit">' + a.d + '</span></span>'
+        + '<span class="compte">' + (pris ? pris + ' · ' + fr(somme) : '') + '</span>'
+        + '<span class="chev">›</span>';
+      t.addEventListener('click', function(){ ouvert = ouvert === i ? -1 : i; dessine(); });
+      d.appendChild(t);
+      var c = document.createElement('div'); c.className = 'corps';
+      a.p.forEach(function(pr, k){
+        var on = (choisi[i] || []).indexOf(k) >= 0;
+        var l = document.createElement('div');
+        l.className = 'presta' + (on ? ' on' : '');
+        l.innerHTML = '<span class="case">✓</span><span><span class="n">' + pr[0] + '</span>'
+          + '<span class="m">' + fr(pr[1]) + ' · ' + pr[2] + '</span></span>';
+        l.addEventListener('click', function(){
+          var L = choisi[i] || (choisi[i] = []);
+          var j = L.indexOf(k); if (j >= 0) L.splice(j, 1); else L.push(k);
+          dessine();
+        });
+        c.appendChild(l);
+      });
+      d.appendChild(c);
+      hote.appendChild(d);
+    });
+    majPanier();
+  }
+
+  function majPanier(){
+    var n = 0, total = 0;
+    ATELIERS.forEach(function(a, i){
+      (choisi[i] || []).forEach(function(k){ n++; total += a.p[k][1]; });
+    });
+    var p = document.getElementById('panier');
+    var priv = document.getElementById('souv').classList.contains('ouvert');
+    if (!n && !priv) {
+      p.className = 'panier vide';
+      document.getElementById('pq').textContent = 'Aucune prestation choisie';
+      document.getElementById('pd').textContent = 'Ouvrez un atelier pour commencer';
+      document.getElementById('pb').textContent = 'Continuer';
+      return;
+    }
+    p.className = 'panier';
+    document.getElementById('pq').textContent = n ? fr(total) : 'Privatisation';
+    document.getElementById('pd').textContent =
+      (n ? n + ' prestation' + (n > 1 ? 's' : '') : 'demande')
+      + (priv ? ' · privatisation demandée' : '');
+    document.getElementById('pb').textContent = 'Continuer';
+  }
+
+  document.getElementById('souvH').addEventListener('click', function(){
+    document.getElementById('souv').classList.toggle('ouvert');
+    majPanier();
+  });
+  dessine();
+})();
+</script>
+</body>
+</html>
