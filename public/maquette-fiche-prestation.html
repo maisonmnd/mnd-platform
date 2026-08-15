@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La fiche prestation — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --serif: Georgia, 'Cormorant Garamond', 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchemin);
+    color: var(--encre);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1080px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--cuivre); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo);
+    margin: 0 0 18px; text-wrap: balance;
+  }
+  .chapeau { max-width: 60ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+
+  section { margin-top: 64px; }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 27px; color: var(--indigo);
+    margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  .sous { font-size: 13.5px; color: var(--encre-d); margin: 0 0 24px; max-width: 62ch; }
+
+  /* ── Les griefs ── */
+  .griefs { display: grid; gap: 1px; background: var(--filet); border: 1px solid var(--filet); border-radius: 3px; }
+  .grief { background: var(--ivoire); padding: 16px 18px; display: grid; grid-template-columns: 130px 1fr; gap: 18px; align-items: baseline; }
+  .grief dt { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre); }
+  .grief dd { margin: 0; font-size: 14px; color: var(--encre-d); }
+  .grief dd b { color: var(--encre); font-weight: 500; }
+  @media (max-width: 620px) { .grief { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* ── Le nouvel ordre ── */
+  .ordre { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .carte {
+    background: var(--ivoire); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre);
+    border-radius: 3px; padding: 17px 19px;
+  }
+  .carte h3 { font-family: var(--serif); font-weight: 400; font-size: 19px; color: var(--indigo); margin: 0 0 3px; }
+  .carte .q { font-size: 12.5px; color: var(--cuivre); font-style: italic; margin: 0 0 10px; }
+  .carte ul { margin: 0; padding-left: 16px; font-size: 13.5px; color: var(--encre-d); }
+  .carte li { margin-bottom: 2px; }
+  .venu { display: inline-block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+          color: var(--cuivre); border: 1px solid var(--cuivre-p); border-radius: 2px; padding: 0 5px; margin-left: 5px; }
+
+  /* ── La maquette ── */
+  .scene { background: var(--sable); border-radius: 4px; padding: 26px; overflow-x: auto; }
+  .modale {
+    min-width: 720px; background: var(--ivoire); border: 1px solid var(--filet); border-radius: 4px;
+    box-shadow: 0 18px 44px rgba(30,33,80,.16); overflow: hidden;
+  }
+  .m-tete { background: var(--indigo); color: var(--ivoire); padding: 18px 24px 16px; }
+  .m-tete .l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  .m-tete h4 { font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .m-prix { font-family: var(--serif); font-size: 25px; color: var(--cuivre-p); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .m-tete .l2 { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 11.5px; color: #C9C3DB; }
+  .puce { border: 1px solid rgba(251,248,242,.28); border-radius: 999px; padding: 1px 10px; }
+  .puce.on { background: var(--cuivre); border-color: var(--cuivre); color: var(--ivoire); }
+
+  .m-corps { display: grid; grid-template-columns: 216px 1fr; min-height: 430px; }
+  @media (max-width: 760px) { .m-corps { grid-template-columns: 1fr; } }
+
+  .rail { background: var(--parchemin); border-right: 1px solid var(--filet); padding: 12px 0; }
+  .rail button {
+    display: block; width: 100%; text-align: left; background: none; border: 0;
+    border-left: 3px solid transparent; padding: 11px 18px; cursor: pointer;
+    font: inherit; font-size: 13.5px; color: var(--encre-d); line-height: 1.35;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  }
+  .rail button:hover { background: rgba(185,122,74,.07); color: var(--encre); }
+  .rail button[aria-selected="true"] { background: var(--ivoire); border-left-color: var(--cuivre); color: var(--indigo); }
+  .rail button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: -2px; }
+  .rail .n { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre); margin-bottom: 1px; }
+  .rail .etat { float: right; font-size: 11px; color: var(--encre-d); font-variant-numeric: tabular-nums; }
+  .rail hr { border: 0; border-top: 1px solid var(--filet); margin: 10px 18px; }
+
+  .volet { padding: 22px 26px 26px; }
+  .volet[hidden] { display: none; }
+  .volet > h5 {
+    font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--indigo); margin: 0 0 3px;
+  }
+  .volet > .aide { font-size: 12.5px; color: var(--encre-d); margin: 0 0 18px; max-width: 54ch; }
+
+  .champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+  .champ label { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); margin-bottom: 5px; }
+  .faux {
+    background: var(--parchemin); border: 1px solid var(--filet); border-radius: 3px;
+    padding: 9px 11px; font-size: 14px; color: var(--encre); min-height: 38px;
+  }
+  .faux.vide { color: #A79E8F; }
+  .large { grid-column: 1 / -1; }
+
+  .segments { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg {
+    border: 1px solid var(--filet); border-radius: 3px; background: var(--parchemin);
+    padding: 7px 15px; font-size: 12.5px; color: var(--encre-d); cursor: default;
+  }
+  .seg.on { background: var(--indigo); border-color: var(--indigo); color: var(--ivoire); }
+  .seg.cu { background: var(--cuivre); border-color: var(--cuivre); color: var(--ivoire); }
+
+  .bande {
+    background: var(--sable); border: 1px solid var(--filet); border-radius: 3px;
+    padding: 12px 14px; font-size: 12.5px; color: var(--encre-d); margin-top: 16px; line-height: 1.6;
+  }
+  .bande b { color: var(--indigo); font-weight: 500; }
+  .compte { display: flex; justify-content: space-between; gap: 14px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+  .compte + .compte { border-top: 1px solid var(--filet); }
+
+  .ligne-inc { display: grid; grid-template-columns: 1fr 92px 26px; gap: 8px; align-items: end; margin-top: 12px; }
+  .ajout {
+    width: 100%; margin-top: 10px; border: 1px dashed var(--cuivre); border-radius: 3px;
+    background: transparent; color: var(--cuivre); padding: 9px; font: inherit; font-size: 13px; cursor: default;
+  }
+
+  .m-pied {
+    display: flex; gap: 10px; align-items: center; justify-content: flex-end;
+    border-top: 1px solid var(--filet); background: var(--parchemin); padding: 14px 24px;
+  }
+  .m-pied .note { margin-right: auto; font-size: 11.5px; color: var(--encre-d); }
+  .btn { border-radius: 3px; padding: 10px 22px; font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; cursor: default; }
+  .btn.g { background: transparent; border: 1px solid var(--filet); color: var(--encre-d); }
+  .btn.c { background: var(--cuivre); border: 1px solid var(--cuivre); color: var(--ivoire); }
+
+  .legende { font-size: 12.5px; color: var(--encre-d); margin-top: 14px; text-align: center; }
+
+  /* ── Ce qui change ── */
+  .changes { display: grid; gap: 1px; background: var(--filet); border: 1px solid var(--filet); border-radius: 3px; }
+  .change { background: var(--ivoire); padding: 15px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: baseline; font-size: 13.5px; }
+  .change .av { color: var(--encre-d); }
+  .change .ap { color: var(--encre); }
+  .change .ap b { color: var(--indigo); font-weight: 500; }
+  .change-tete { background: var(--indigo); color: var(--cuivre-p); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+  .change-tete .av, .change-tete .ap { color: inherit; }
+  @media (max-width: 620px) { .change { grid-template-columns: 1fr; gap: 3px; } .change-tete { display: none; } }
+
+  footer { margin-top: 72px; border-top: 1px solid var(--filet); padding-top: 22px; font-size: 13px; color: var(--encre-d); }
+  footer b { color: var(--indigo); font-weight: 500; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND · Le Trône · Catalogue</p>
+  <h1>La fiche prestation.</h1>
+  <p class="chapeau">
+    Trois écrans de défilement, et une rubrique nommée « Tarification avancée » où l'on a rangé
+    les calibres, les comptes famille, les gestes et le code ERP — quatre choses qui ne parlent pas
+    de prix. <b>Voici l'ordre que je propose.</b> Rien n'est encore construit : à valider d'abord.
+  </p>
+
+  <section>
+    <h2>Ce qui ne va pas</h2>
+    <p class="sous">Quatre défauts, tous de rangement — aucun champ n'est de trop, ils sont mal placés.</p>
+    <dl class="griefs">
+      <div class="grief">
+        <dt>Le fourre-tout</dt>
+        <dd><b>« Tarification avancée »</b> contient les calibres servis, la réserve aux familles, les gestes de la maison et le code ERP. Aucun n'est une question de tarif.</dd>
+      </div>
+      <div class="grief">
+        <dt>Le temps coupé</dt>
+        <dd>La <b>durée</b> est en haut, le <b>nombre de séances</b> à côté d'elle, mais la <b>durée haute</b> tout en bas et les <b>échéances</b> au milieu. Une même question, quatre endroits.</dd>
+      </div>
+      <div class="grief">
+        <dt>Le prix caché</dt>
+        <dd>Le récapitulatif qui dit ce que vaut le forfait vit au milieu du défilement. On règle un prix sans le voir.</dd>
+      </div>
+      <div class="grief">
+        <dt>Tout, toujours</dt>
+        <dd>Une prestation simple traverse le composeur de forfait, les échéances et la remise — dix champs qui ne la concernent pas.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Le nouvel ordre</h2>
+    <p class="sous">
+      Six rubriques, chacune répondant à une question que vous vous posez vraiment. Plus rien ne
+      s'appelle « avancé » : une chose est rangée là où on la cherche, pas selon sa rareté.
+    </p>
+    <div class="ordre">
+      <div class="carte">
+        <h3>L'identité</h3>
+        <p class="q">Qu'est-ce que c'est ?</p>
+        <ul>
+          <li>Nom, catégorie, description</li>
+          <li>Palier, maître assigné</li>
+          <li>Code ERP <span class="venu">venu de « avancée »</span></li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Le prix</h3>
+        <p class="q">Combien, et comment ?</p>
+        <ul>
+          <li>Mode : fixe, variable, sur devis</li>
+          <li>Prix, prix haut affiché <span class="venu">venu de « avancée »</span></li>
+          <li>Ce qui fait son prix</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Le temps</h3>
+        <p class="q">Combien de temps, combien de fois ?</p>
+        <ul>
+          <li>Durée, durée haute <span class="venu">réunies</span></li>
+          <li>Nombre de séances <span class="venu">réuni</span></li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Ce qu'elle contient</h3>
+        <p class="q">Que promet-elle en plus ?</p>
+        <ul>
+          <li>Prestations et produits inclus</li>
+          <li>Échéances en semaines</li>
+          <li>Remise du forfait</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Qui peut la prendre</h3>
+        <p class="q">À quelles têtes s'adresse-t-elle ?</p>
+        <ul>
+          <li>Les calibres servis <span class="venu">venu de « avancée »</span></li>
+          <li>Réservée aux comptes famille <span class="venu">venu de « avancée »</span></li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Les gestes</h3>
+        <p class="q">Quand baisse-t-elle de prix ?</p>
+        <ul>
+          <li>Offerte avec une reprise</li>
+          <li>Moitié prix avec une coloration</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>La maquette</h2>
+    <p class="sous">
+      Cliquez les rubriques dans la colonne de gauche : c'est ainsi que la fiche se parcourra.
+      Le nom et le prix restent au bandeau, quelle que soit la rubrique ouverte.
+    </p>
+
+    <div class="scene">
+      <div class="modale">
+
+        <div class="m-tete">
+          <div class="l1">
+            <h4>YÈKPÈ™ Couleur Sublimation · La Transformation Totale</h4>
+            <span class="m-prix">25 000 F</span>
+          </div>
+          <div class="l2">
+            <span class="puce">YÈKPÈ™ · Coloration</span>
+            <span class="puce">Souveraineté</span>
+            <span class="puce">4 h · 2 séances</span>
+            <span class="puce on">Forfait · 1 prestation incluse</span>
+          </div>
+        </div>
+
+        <div class="m-corps">
+          <nav class="rail" role="tablist" aria-label="Rubriques de la fiche">
+            <button role="tab" aria-selected="true" aria-controls="v1" id="t1">
+              <span class="n">Rubrique 1</span>L'identité
+            </button>
+            <button role="tab" aria-selected="false" aria-controls="v2" id="t2">
+              <span class="n">Rubrique 2</span>Le prix <span class="etat">25 000 F</span>
+            </button>
+            <button role="tab" aria-selected="false" aria-controls="v3" id="t3">
+              <span class="n">Rubrique 3</span>Le temps <span class="etat">4 h</span>
+            </button>
+            <hr />
+            <button role="tab" aria-selected="false" aria-controls="v4" id="t4">
+              <span class="n">Rubrique 4</span>Ce qu'elle contient <span class="etat">1</span>
+            </button>
+            <button role="tab" aria-selected="false" aria-controls="v5" id="t5">
+              <span class="n">Rubrique 5</span>Qui peut la prendre <span class="etat">toutes</span>
+            </button>
+            <button role="tab" aria-selected="false" aria-controls="v6" id="t6">
+              <span class="n">Rubrique 6</span>Les gestes <span class="etat">—</span>
+            </button>
+          </nav>
+
+          <div>
+            <div class="volet" id="v1" role="tabpanel" aria-labelledby="t1">
+              <h5>L'identité</h5>
+              <p class="aide">Ce que la prestation est, et sous quel nom la cliente la reconnaîtra.</p>
+              <div class="champs">
+                <div class="champ large">
+                  <label>Nom de la prestation</label>
+                  <div class="faux">YÈKPÈ™ Couleur Sublimation · La Transformation Totale</div>
+                </div>
+                <div class="champ">
+                  <label>Catégorie</label>
+                  <div class="faux">YÈKPÈ™ · Coloration</div>
+                </div>
+                <div class="champ">
+                  <label>Code ERP</label>
+                  <div class="faux">ATL·III·SUB·C</div>
+                </div>
+                <div class="champ large">
+                  <label>Palier d'expérience</label>
+                  <div class="segments">
+                    <span class="seg">Fondation</span>
+                    <span class="seg">Élévation</span>
+                    <span class="seg on">Souveraineté</span>
+                  </div>
+                </div>
+                <div class="champ">
+                  <label>Maître assigné</label>
+                  <div class="faux">Team</div>
+                </div>
+                <div class="champ large">
+                  <label>Description · la voix de la maison</label>
+                  <div class="faux">Double technique complète : décoloration intégrale, puis coloration d'oxydation sur l'ensemble de la chevelure. Protection du cuir chevelu et soin reconstructeur protéiné post-technique inclus à 2 semaines.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="volet" id="v2" role="tabpanel" aria-labelledby="t2" hidden>
+              <h5>Le prix</h5>
+              <p class="aide">Combien elle vaut, et sur quoi ce montant se calcule.</p>
+              <div class="champs">
+                <div class="champ large">
+                  <label>Mode de prix</label>
+                  <div class="segments">
+                    <span class="seg on">Fixe</span>
+                    <span class="seg">Variable</span>
+                    <span class="seg">Sur devis</span>
+                  </div>
+                </div>
+                <div class="champ">
+                  <label>Prix (F CFA)</label>
+                  <div class="faux">25 000</div>
+                </div>
+                <div class="champ">
+                  <label>Prix haut affiché</label>
+                  <div class="faux vide">« de 15 000 à 25 000 »</div>
+                </div>
+              </div>
+              <div class="bande">
+                <b>Ce qui fait son prix</b> — composition du forfait moins sa remise, aux prix de la
+                cliente, puis son Juste Prix s'applique. Prix fixe : le même pour toutes.
+              </div>
+            </div>
+
+            <div class="volet" id="v3" role="tabpanel" aria-labelledby="t3" hidden>
+              <h5>Le temps</h5>
+              <p class="aide">Ce qu'elle occupe au fauteuil, et en combien de venues.</p>
+              <div class="champs">
+                <div class="champ">
+                  <label>Durée (minutes)</label>
+                  <div class="faux">240</div>
+                </div>
+                <div class="champ">
+                  <label>Durée haute</label>
+                  <div class="faux vide">« 3 h à 4 h 30 »</div>
+                </div>
+                <div class="champ">
+                  <label>Nombre de séances</label>
+                  <div class="faux">2 séances</div>
+                </div>
+              </div>
+              <div class="bande">
+                <div class="compte"><span>Visite d'ouverture · le jour même</span><span>4 h 00</span></div>
+                <div class="compte"><span>Séances à venir · 1 rendez-vous séparé</span><span>1 h 00</span></div>
+                <p style="margin:8px 0 0">La durée ne retient que le jour même : les séances à échéance sont d'autres rendez-vous.</p>
+              </div>
+            </div>
+
+            <div class="volet" id="v4" role="tabpanel" aria-labelledby="t4" hidden>
+              <h5>Ce qu'elle contient</h5>
+              <p class="aide">Les prestations et produits que le forfait couvre réellement, et quand ils sont dus.</p>
+              <div class="ligne-inc">
+                <div class="champ">
+                  <label>Prestation incluse</label>
+                  <div class="faux">GBÌGBÌ™ Protéiné · Le Soin Reconstructeur post-technique</div>
+                </div>
+                <div class="champ">
+                  <label>Semaines</label>
+                  <div class="faux">2</div>
+                </div>
+                <div class="champ">
+                  <label>&nbsp;</label>
+                  <div class="faux" style="text-align:center; color:var(--encre-d)">✕</div>
+                </div>
+              </div>
+              <button class="ajout" type="button" tabindex="-1">+ Ajouter une ligne au forfait</button>
+              <div class="bande">
+                <div class="compte"><span>Valeur des prestations incluses</span><span>25 000 F</span></div>
+                <div class="compte"><span>Prix du forfait</span><span>25 000 F</span></div>
+                <div class="compte"><span><b>Ni remise ni majoration</b></span><span><b>0 F · 0 %</b></span></div>
+                <p style="margin:8px 0 0">« Semaines » dit quand la prestation est due. Les échéances deviennent des rendez-vous posés au carnet, couverts par le forfait, à 0 F.</p>
+              </div>
+            </div>
+
+            <div class="volet" id="v5" role="tabpanel" aria-labelledby="t5" hidden>
+              <h5>Qui peut la prendre</h5>
+              <p class="aide">Les têtes à qui elle est proposée — et prixée. Hors de là, elle n'apparaît pas.</p>
+              <div class="champ">
+                <label>Les calibres qu'elle sert</label>
+                <div class="segments">
+                  <span class="seg">Jumbo</span><span class="seg">Medium</span><span class="seg">Mini</span>
+                  <span class="seg">Micro</span><span class="seg">Nano</span><span class="seg">Pico</span>
+                  <span class="seg">Galaxy</span>
+                </div>
+                <p class="aide" style="margin:8px 0 0">Aucune coche : elle sert toutes les têtes, quel que soit le calibre.</p>
+              </div>
+              <div class="champ" style="margin-top:18px">
+                <label>Réservée aux comptes famille</label>
+                <div class="segments"><span class="seg">Non — ouverte à toutes</span></div>
+                <p class="aide" style="margin:8px 0 0">Réservée : seules les têtes rattachées à un compte famille la voient. Le Pack Famille vit ici.</p>
+              </div>
+            </div>
+
+            <div class="volet" id="v6" role="tabpanel" aria-labelledby="t6" hidden>
+              <h5>Les gestes de la maison</h5>
+              <p class="aide">Quand son prix baisse parce qu'une autre prestation est au même rituel.</p>
+              <div class="bande" style="margin-top:0">
+                <b>Aucun geste posé</b> — elle se paie toujours plein tarif.
+              </div>
+              <button class="ajout" type="button" tabindex="-1">+ Ajouter un geste</button>
+              <div class="bande">
+                Exemple, sur le shampoing : <b>100 %</b> avec une Reprise, pour les Pico et Galaxy ·
+                <b>50 %</b> avec une coloration, pour toutes. Deux gestes qui tombent ensemble ne se
+                cumulent pas : le plus généreux s'applique.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-pied">
+          <span class="note">Rubrique 1 sur 6 — rien ne s'enregistre avant le bouton.</span>
+          <button class="btn g" type="button" tabindex="-1">Annuler</button>
+          <button class="btn c" type="button" tabindex="-1">Enregistrer la prestation</button>
+        </div>
+
+      </div>
+    </div>
+    <p class="legende">Maquette interactive — les champs sont figés, seule la navigation répond.</p>
+  </section>
+
+  <section>
+    <h2>Ce qui change, concrètement</h2>
+    <p class="sous">Aucun champ n'est supprimé. Aucune donnée n'est touchée. Seul l'ordre bouge.</p>
+    <div class="changes">
+      <div class="change change-tete"><span class="av">Aujourd'hui</span><span class="ap">Demain</span></div>
+      <div class="change">
+        <span class="av">Un défilement de trois écrans, du nom jusqu'à la durée haute.</span>
+        <span class="ap"><b>Six rubriques</b>, une seule à l'écran, choisies dans la colonne de gauche.</span>
+      </div>
+      <div class="change">
+        <span class="av">« Tarification avancée » contient quatre choses qui ne sont pas des tarifs.</span>
+        <span class="ap">Chacune rejoint la question qu'elle sert. <b>Le mot « avancée » disparaît.</b></span>
+      </div>
+      <div class="change">
+        <span class="av">Le prix se règle au milieu du défilement, sans le voir.</span>
+        <span class="ap">Le prix reste <b>au bandeau</b>, en grand, quelle que soit la rubrique ouverte.</span>
+      </div>
+      <div class="change">
+        <span class="av">Une prestation simple traverse quand même tout le composeur de forfait.</span>
+        <span class="ap">La rubrique <b>Ce qu'elle contient</b> se laisse sauter — la colonne dit si elle est remplie.</span>
+      </div>
+      <div class="change">
+        <span class="av">Durée, séances, durée haute et échéances : quatre endroits.</span>
+        <span class="ap">Tout le temps <b>en une rubrique</b>, avec le compte du jour même et des séances à venir.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>À valider avant construction.</b> Dites-moi ce que vous gardez, ce que vous déplacez, ce que
+    vous refusez — je ne touche au Catalogue qu'après votre accord. Si l'ordre vous va tel quel,
+    un mot suffit et je le bâtis.
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var onglets = Array.prototype.slice.call(document.querySelectorAll('.rail [role="tab"]'));
+    var note = document.querySelector('.m-pied .note');
+    function ouvrir(i) {
+      onglets.forEach(function (t, k) {
+        var actif = k === i;
+        t.setAttribute('aria-selected', actif ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !actif;
+      });
+      note.textContent = 'Rubrique ' + (i + 1) + ' sur ' + onglets.length + ' — rien ne s’enregistre avant le bouton.';
+    }
+    onglets.forEach(function (t, i) {
+      t.addEventListener('click', function () { ouvrir(i); });
+      t.addEventListener('keydown', function (e) {
+        var d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        var n = (i + d + onglets.length) % onglets.length;
+        onglets[n].focus(); ouvrir(n);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
