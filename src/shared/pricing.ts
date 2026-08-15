@@ -503,6 +503,36 @@ export const forfaitPriceXof = (
    ne se propose qu'aux têtes rattachées à un compte famille. Le défaut FERMÉ
    (false) protège les appels qui ne se prononcent pas : un pack famille ne
    fuit jamais vers une tête seule par oubli d'un écran. */
+/* ── LE GESTE OFFERT (15 août) ────────────────────────────────────────
+   Une prestation dont le prix tombe à ZÉRO parce qu'une AUTRE est au même
+   rituel — le shampoing offert aux Pico et Galaxy qui viennent pour une
+   Reprise. La règle dépend du PANIER, pas de la seule fiche : elle ne peut
+   donc pas vivre dans `personalPriceXof`, qui ne voit qu'une prestation à
+   la fois. Toutes les surfaces qui totalisent un rituel passent par ici —
+   comptoir, tunnel de Ma Couronne, facture — pour que le prix dit soit le
+   prix payé. */
+export const estOfferte = (sv: Service, p: PersonalPricing, panier: readonly Service[]): boolean => {
+  const r = sv.offertAvec;
+  if (!r || !r.serviceIds?.length) return false;
+  /* Bornée à des calibres ? La tête doit en être — un calibre inconnu ne
+     donne rien : on n'offre pas sur une supposition. */
+  if (r.bandIds?.length) {
+    const band = bandForService(sv, p);
+    if (!band || !r.bandIds.includes(band.id)) return false;
+  }
+  return panier.some((x) => x.id !== sv.id && r.serviceIds.includes(x.id));
+};
+
+/** LE PRIX D'UNE PRESTATION DANS SON RITUEL — zéro si elle est offerte,
+    son prix personnel sinon. C'est ce juge que les totaux doivent appeler. */
+export const prixDansPanier = (
+  sv: Service,
+  p: PersonalPricing,
+  panier: readonly Service[],
+  catalogue?: readonly Service[],
+  produits?: readonly { id: string; priceXof: number }[],
+): number => (estOfferte(sv, p, panier) ? 0 : personalPriceXof(sv, p, catalogue, produits));
+
 export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false): boolean =>
   servesBand(sv, bandForService(sv, p))
   && ouverteDesVenue(sv, venuesAcquises)

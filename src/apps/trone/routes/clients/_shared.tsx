@@ -18,7 +18,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, estOfferte, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
 import { invoicesStore, invoiceTotal } from '../../../../shared/finance';
 import './clients.css';
 
@@ -909,7 +909,12 @@ export function RdvModal({
     .sort((a, b) => a.order - b.order);
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
-  const grossBase = rdvPersonalized ? chosen.reduce((s, sv) => s + personalPriceXof(sv, pricing, services, produitsGamme), 0) : grossCatalogue;
+  /* LE GESTE OFFERT entre dans le total (15 août) : une prestation offerte
+     par la règle du Catalogue vaut zéro dans SON rituel — le comptoir ne
+     retranche rien à la main, et la facture dira la même chose. */
+  const grossBase = rdvPersonalized
+    ? chosen.reduce((s, sv) => s + prixDansPanier(sv, pricing, chosen, services, produitsGamme), 0)
+    : chosen.reduce((s, sv) => s + (estOfferte(sv, pricing, chosen) ? 0 : prixDeBase(sv, pricing)), 0);
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
      montant convenu (saisi dans la modale) prime alors sur la somme de référence ;
@@ -948,7 +953,8 @@ export function RdvModal({
      Sans montant saisi, le bloc libre garde son prix de départ — zéro pour une
      prestation sur devis, le prix annoncé pour une variable. */
   const prixDe = (sv: Service) =>
-    rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
+    estOfferte(sv, pricing, chosen) ? 0
+      : rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
   const grossLibre = libres.reduce((s, sv) => s + prixDe(sv), 0);
   const grossFixe = Math.max(0, grossBase - grossLibre);
   /* LA PART LIBRE DÉJÀ FIGÉE — retrouvée en ôtant les prix fixes du total
@@ -1317,7 +1323,17 @@ export function RdvModal({
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
                   {/* SON prix PLEIN — la remise éventuelle est une ligne à part (comme la facture). */}
-                  <span style={{ fontSize: 13 }}>{prixFixeDe(sv, pricing) !== undefined
+                  <span style={{ fontSize: 13 }}>{estOfferte(sv, pricing, chosen)
+                      /* LE GESTE DE LA MAISON — le prix plein reste lisible,
+                         barré : la cliente doit VOIR ce qu'on lui offre, sinon
+                         le geste ne compte pas. */
+                      ? <span title="Offert par la règle du Catalogue">
+                          <span style={{ textDecoration: 'line-through', color: 'var(--ink-soft)', marginRight: 6 }}>
+                            {argent(personalPriceXof(sv, pricing, services, produitsGamme))}
+                          </span>
+                          <span style={{ color: 'var(--copper-700)' }}>offert</span>
+                        </span>
+                      : prixFixeDe(sv, pricing) !== undefined
                       /* SON PRIX CONVENU, ET ON LE DIT. Sans la mention, le
                          comptoir lit un montant qui ne colle pas au catalogue
                          et « corrige » — c'est-à-dire efface l'accord. */

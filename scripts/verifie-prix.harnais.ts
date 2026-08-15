@@ -2,7 +2,7 @@
    Lancé par `node scripts/verifie-prix.mjs`. */
 import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
-  ouverteDesVenue, servesBand,
+  ouverteDesVenue, servesBand, estOfferte, prixDansPanier,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -173,6 +173,46 @@ dit('rien du tout : pas de personnalisation', false,
   isPersonalized(pricingOf({ priceCoef: 1 }, [])));
 dit('une table VIDE ne personnalise pas', false,
   isPersonalized(pricingOf({ priceCoef: 1, prixFixes: {} }, [])));
+
+/* ── LE GESTE OFFERT (15 août) ──
+   « Quand les Pico et Galaxy font une réservation de repriseOff essentielle ou
+   élaborée, le shampoingOff est offert quand il est sélectionné. » La règle
+   dépend du PANIER : elle ne se prouve pas prestation par prestation. */
+const repriseOff = svc({ id: 'sv-repriseOff', name: 'SÍNSIN Essentielle · La Reprise', priceXof: 60_000 });
+const repriseElOff = svc({ id: 'sv-repriseOff-el', name: 'SÍNSIN Élaborée · La Reprise', priceXof: 75_000 });
+const soinOff = svc({ id: 'sv-soinOff', name: 'Le Soin', priceXof: 15_000 });
+const shampoingOff = svc({
+  id: 'sv-shamp', name: 'KƆKLƆ Essentiel · Le Shampoing', priceXof: 10_000,
+  offertAvec: { serviceIds: ['sv-repriseOff', 'sv-repriseOff-el'], bandIds: ['cal-picoOff'] },
+});
+const bandesOff: ModelBand[] = [
+  { id: 'cal-miniOff', label: 'Mini', maxLocks: 280, coef: 1, durCoef: 1 } as ModelBand,
+  { id: 'cal-picoOff', label: 'Pico', maxLocks: 550, coef: 1, durCoef: 1 } as ModelBand,
+];
+const picoOff = pricingOf({ lockCount: 527, priceCoef: 1 }, bandesOff);
+const miniOff = pricingOf({ lockCount: 240, priceCoef: 1 }, bandesOff);
+
+dit('Pico + reprise essentielle : le shampoing est offert', true,
+  estOfferte(shampoingOff, picoOff, [shampoingOff, repriseOff]));
+dit('… et il vaut 0 F dans ce rituel', 0,
+  prixDansPanier(shampoingOff, picoOff, [shampoingOff, repriseOff]));
+dit('la reprise, elle, garde son prix', 60_000,
+  prixDansPanier(repriseOff, picoOff, [shampoingOff, repriseOff]));
+dit('reprise ÉLABORÉE : offert aussi', true,
+  estOfferte(shampoingOff, picoOff, [shampoingOff, repriseElOff]));
+dit('shampoing SEUL : il se paie', 10_000,
+  prixDansPanier(shampoingOff, picoOff, [shampoingOff]));
+dit('un autre rituel ne déclenche rien', 10_000,
+  prixDansPanier(shampoingOff, picoOff, [shampoingOff, soinOff]));
+dit('MINI avec la reprise : le geste ne vaut pas pour elle', 10_000,
+  prixDansPanier(shampoingOff, miniOff, [shampoingOff, repriseOff]));
+dit('calibre inconnu : on n’offre pas sur une supposition', false,
+  estOfferte(shampoingOff, pricingOf({ priceCoef: 1 }, bandesOff), [shampoingOff, repriseOff]));
+dit('sans règle au Catalogue, rien n’est offert', false,
+  estOfferte(svc({ id: 'sv-nu' }), picoOff, [repriseOff]));
+dit('une règle SANS calibre vaut pour toutes les têtes', true,
+  estOfferte(svc({ id: 'sv-s2', offertAvec: { serviceIds: ['sv-repriseOff'] } }), miniOff, [repriseOff]));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

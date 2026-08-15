@@ -16,7 +16,7 @@ import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, estOfferte, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -201,11 +201,16 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* `services` + `produits` en arguments : sans eux, un FORFAIT COMPOSÉ ne
      résolvait jamais sa composition ici — Ma Couronne annonçait son priceXof
      stocké (souvent 0 F) au lieu du prix réel de la tête (12 août). */
-  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0);
+  /* LE GESTE OFFERT (15 août) — le prix d'une prestation peut dépendre du
+     PANIER (shampoing offert aux Pico et Galaxy qui viennent pour une
+     Reprise). `prixIci` est le seul juge de prix de ce tunnel : Ma Couronne
+     doit annoncer très exactement ce que le comptoir encaissera. */
+  const prixIci = (s: Service) => prixDansPanier(s, pricing, selected, services, produits);
+  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + prixIci(s), 0);
   /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
   const famForfaitXof = selected
     .filter((s) => !s.hidePrice && regimeTarifaire(s, cats).k === 'forfait')
-    .reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0);
+    .reduce((n, s) => n + prixIci(s), 0);
   const famRemiseXof = famPct > 0 ? Math.round(Math.max(0, knownTotal - famForfaitXof) * (famPct / 100)) : 0;
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
@@ -228,7 +233,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const priced = selected.filter((s) => !s.hidePrice);
   /* L'acompte se calcule sur les prix PERSONNALISÉS — le pourcentage de la
      maison s'applique à ce que la cliente paiera vraiment. */
-  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: personalPriceXof(s, pricing, services, produits) })), discountPct);
+  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixIci(s) })), discountPct);
   const hasDeposit = deposit > 0;
   /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
      pourcentage que s'il est unique — sinon le montant parle seul. */
@@ -236,7 +241,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
   /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
   const depositBase = Math.round(
-    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + personalPriceXof(s, pricing, services, produits), 0) * (1 - discountPct / 100),
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + prixIci(s), 0) * (1 - discountPct / 100),
   );
 
   /* CE QUI LA CONCERNE, ELLE. Les créations existent en cinq versions, une par
@@ -581,6 +586,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const priceLabel = (s: Service, pct = 0) => {
     const mode = priceModeOf(s);
     if (mode === 'devis') return 'Prix en salon';
+    /* Offerte par la règle du Catalogue : on le DIT, dans la liste comme au
+       récapitulatif — c'est ce qui donne envie de l'ajouter au rituel. */
+    if (estOfferte(s, pricing, selected)) return 'Offert';
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
     const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, services, produits) * (1 - pct / 100)), currency);
     return mode === 'variable' ? `à partir de ${amount}` : amount;

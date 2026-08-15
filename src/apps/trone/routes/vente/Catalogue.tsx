@@ -64,6 +64,10 @@ type SvcForm = {
   bandIds: string[];
   /** Réservée aux comptes famille (14 août — le Pack Famille). */
   reserveFamilles: boolean;
+  /** LE GESTE OFFERT (15 août) — elle tombe à zéro quand l'une de ces
+      prestations est au même rituel, pour ces calibres (vide = tous). */
+  offertAvec: string[];
+  offertBands: string[];
   includes: ServiceInclus[]; // prestations reellement couvertes par un forfait
   forfaitRemise: string; // remise du forfait, en % de sa composition
   estForfait: boolean; // un forfait porte une composition ; une prestation, non
@@ -79,7 +83,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false,
+  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, offertAvec: [], offertBands: [],
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -527,6 +531,8 @@ export default function Catalogue() {
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
       reserveFamilles: !!svc.reserveFamilles,
+      offertAvec: svc.offertAvec?.serviceIds ?? [],
+      offertBands: svc.offertAvec?.bandIds ?? [],
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -710,6 +716,9 @@ export default function Catalogue() {
          sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
          modale RDV. */
       reserveFamilles: svcForm.reserveFamilles || undefined,
+      offertAvec: svcForm.offertAvec.length
+        ? { serviceIds: svcForm.offertAvec, bandIds: svcForm.offertBands.length ? svcForm.offertBands : undefined }
+        : undefined,
     };
     if (svcForm.id) {
       patchSvc(svcForm.id, {
@@ -1769,6 +1778,73 @@ export default function Catalogue() {
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                 Réservée : seules les têtes rattachées à un compte famille la voient — tunnel de
                 Ma Couronne, accueil et modale de rendez-vous. Le Pack Famille vit ici.
+              </div>
+            </Field>
+            {/* LE GESTE OFFERT (15 août, décision de Yéman) : « quand les Pico
+                et Galaxy font une réservation de reprise essentielle ou
+                élaborée, le shampoing est offert ». La règle se pose ICI, sur
+                la prestation OFFERTE — elle tombe à zéro dès qu'un de ses
+                déclencheurs est au même rituel. Elle vaut au comptoir comme
+                dans le tunnel de Ma Couronne : même juge (`estOfferte`), donc
+                le prix annoncé est le prix encaissé. */}
+            <Field label="Offerte avec une autre prestation">
+              <Select
+                value=""
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (id && !svcForm.offertAvec.includes(id)) setSvcForm({ ...svcForm, offertAvec: [...svcForm.offertAvec, id] });
+                }}
+              >
+                <option value="">Ajouter un déclencheur…</option>
+                {services
+                  .filter((x) => x.id !== svcForm.id && !svcForm.offertAvec.includes(x.id))
+                  .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </Select>
+              {svcForm.offertAvec.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {svcForm.offertAvec.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className="trv-minibtn"
+                      title="Retirer ce déclencheur"
+                      onClick={() => setSvcForm({ ...svcForm, offertAvec: svcForm.offertAvec.filter((x) => x !== id) })}
+                    >
+                      {services.find((x) => x.id === id)?.name ?? 'prestation retirée'} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+              {svcForm.offertAvec.length > 0 && (
+                <>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 4 }}>
+                    Pour quels calibres ? Aucune coche : pour toutes les têtes.
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {bands.map((b) => {
+                      const on = svcForm.offertBands.includes(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          className="trv-minibtn"
+                          style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                          onClick={() => setSvcForm({
+                            ...svcForm,
+                            offertBands: on ? svcForm.offertBands.filter((x) => x !== b.id) : [...svcForm.offertBands, b.id],
+                          })}
+                        >
+                          {b.name ?? bandRange(b, bands)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                Elle passe à 0 F dès qu'une des prestations ci-dessus est au même rituel — le prix
+                plein reste affiché, barré, pour que la cliente voie le geste. Sans déclencheur :
+                elle se paie toujours.
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">

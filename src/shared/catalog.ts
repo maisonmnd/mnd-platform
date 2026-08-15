@@ -162,6 +162,12 @@ export type Service = {
       ne se propose qu'aux têtes rattachées à un compte famille. Absent =
       ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
   reserveFamilles?: boolean;
+  /** LE GESTE OFFERT (15 août, décision de Yéman) — cette prestation tombe à
+      ZÉRO quand l'une des `serviceIds` est au même rituel, pour les calibres
+      `bandIds` (vide = tous). Le shampoing est offert aux Pico et Galaxy qui
+      viennent pour une Reprise : la règle se pose au Catalogue, elle ne se
+      négocie pas au fauteuil. Le juge est `estOfferte` (shared/pricing). */
+  offertAvec?: { serviceIds: string[]; bandIds?: string[] };
   /** Borne haute d'AFFICHAGE seulement — « de 15 000 à 25 000 F ». N'entre dans
       aucun calcul : `priceXof` porte la borne basse, `ratePerLock` fait le prix. */
   priceToXof?: number;
