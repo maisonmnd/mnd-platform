@@ -423,6 +423,17 @@ const regimeBrut = (sv: Service): RegimeTarifaire => {
     return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
   }
   if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
+  /* LE COMPTAGE AU TARIF DE LA LONGUEUR passe AVANT la grille de prix : quand
+     les deux coexistent, c'est le comptage qui commande et la grille qui sert
+     de plancher (voir `personalPriceXof`). Dire « grille par longueur » ici
+     ferait lire à la Maison l'inverse de ce que la caisse calcule. */
+  if (sv.tarifLockParLongueur && Object.keys(sv.tarifLockParLongueur).length > 0) {
+    return {
+      k: 'lock',
+      mots: 'comptage — locks × le tarif de sa longueur, jamais sous le prix affiché',
+      justePrix: true,
+    };
+  }
   if (sv.prixParLongueur && Object.keys(sv.prixParLongueur).length > 0) {
     return { k: 'longueur', mots: 'grille par longueur (court · mi-long · long), prix saisis', justePrix: true };
   }
@@ -623,9 +634,22 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
 
      En mode automatique (aucun choix pose), on garde le comportement historique
      — `max(comptage, plancher)` — pour ne pas deplacer un prix tout seul. */
-  const auLock = sv.tarifMode === 'lock'
-    ? (p.lockCount && p.lockCount > 0 && sv.ratePerLock ? p.lockCount * sv.ratePerLock : undefined)
-    : perLockPriceXof(sv, p.lockCount, bande);
+  /* LE TARIF AU LOCK PEUT DÉPENDRE DE LA LONGUEUR (16 août) — le même lock ne
+     coûte pas le même geste sur une couronne courte et sur une longue. Quand
+     la grille de tarifs porte la longueur du rendez-vous, elle PRIME sur le
+     tarif unique, et le prix affiché pour cette longueur devient le PLANCHER :
+     le comptage ne fait jamais descendre sous ce que la Maison annonçait
+     (décision de Yéman). Sans comptage, on retombe plus bas sur ce même prix —
+     la tête pas encore comptée garde donc un prix connu. */
+  const tarifLong = p.longueur ? sv.tarifLockParLongueur?.[p.longueur] : undefined;
+  const plancherLong = p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined;
+  const auLock = tarifLong !== undefined
+    ? (p.lockCount && p.lockCount > 0
+      ? Math.max(p.lockCount * tarifLong, plancherLong ?? 0)
+      : undefined)
+    : sv.tarifMode === 'lock'
+      ? (p.lockCount && p.lockCount > 0 && sv.ratePerLock ? p.lockCount * sv.ratePerLock : undefined)
+      : perLockPriceXof(sv, p.lockCount, bande);
   /* Pas d'arrondi au 500 sur un prix au lock non modulé : 113 locks font
      11 300 F, et l'arrondi commercial les transformerait en 11 500 F — un écart
      inventé sur chaque cliente dont le compte de locks n'est pas rond. L'arrondi

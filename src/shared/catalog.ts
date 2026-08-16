@@ -102,6 +102,20 @@ export type Service = {
       sur une création. Quand ce champ est posé, il PRIME sur le coefficient de
       tranche ; le Juste Prix de la cliente s'applique ensuite, comme partout. */
   ratePerLock?: number;
+  /** LE TARIF AU LOCK CHANGE AVEC LA LONGUEUR — 16 août 2026, demande de
+      Yéman : « l'atelier VÈKPÈ au comptage, court 1 100, mi-long 1 200,
+      long 1 300 ». Le même lock ne coûte pas le même geste sur une couronne
+      courte et sur une longue : la matière, le temps et la tension changent.
+
+      Quand ce champ porte la longueur du rendez-vous, il PRIME sur
+      `ratePerLock` (qui reste le tarif unique des prestations qui n'ont pas
+      besoin de cette finesse). Et `prixParLongueur`, s'il existe, devient le
+      PLANCHER : le comptage ne fait jamais descendre en dessous du prix que
+      la Maison affichait pour cette longueur — décision de Yéman, pour
+      qu'une tête basse dans sa tranche ne fasse pas baisser la facture.
+      Sans comptage (tête pas encore comptée), c'est ce même
+      `prixParLongueur` qui s'annonce : le prix reste connu. */
+  tarifLockParLongueur?: Partial<Record<LongueurId, number>>;
   /** Qui commande le prix : le comptage ou la tranche. Voir TarifMode. */
   tarifMode?: TarifMode;
   /** Prestations reellement couvertes par ce forfait. Voir ServiceInclus. */

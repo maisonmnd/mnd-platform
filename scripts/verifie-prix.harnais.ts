@@ -266,5 +266,35 @@ dit('une remise posée, elle, fait bien un forfait', 'forfait',
 dit('un prix propre à zéro aussi', 'forfait',
   regimeTarifaire(svc({ id: 'f-zero', priceXof: 0, includes: [{ serviceId: 'x' }] } as Partial<Service>)).k);
 
+/* ── LE COMPTAGE AU TARIF DE LA LONGUEUR (16 août) ──────────────────
+   « L'atelier VÈKPÈ au comptage : court 1 100, mi-long 1 200, long 1 300 »
+   (Yéman). Le tarif au lock dépend désormais de la longueur travaillée, et le
+   prix affiché pour cette longueur sert de PLANCHER : une tête basse dans sa
+   tranche ne fait pas baisser la facture. */
+const vekpe = svc({
+  id: 'v-jum', priceXof: 80_000,
+  tarifMode: 'lock',
+  tarifLockParLongueur: { court: 1100, 'mi-long': 1200, long: 1300 },
+  prixParLongueur: { court: 80_000, 'mi-long': 100_000, long: 120_000 },
+} as Partial<Service>);
+const tete = (locks: number | undefined, longueur: string): PersonalPricing =>
+  ({ ...pricingOf({ lockCount: locks } as never, []), longueur } as PersonalPricing);
+
+dit('80 locks en court : 80 × 1 100', 88_000, personalPriceXof(vekpe, tete(80, 'court')));
+/* LE PLANCHER MORD SOUVENT, et c'est voulu : 80 × 1 300 = 104 000 reste sous
+   les 120 000 affichés en long. Conséquence assumée du choix de Yéman — le
+   comptage ne peut faire QUE monter le prix, jamais le baisser. */
+dit('80 locks en long : le plancher affiché gagne encore', 120_000,
+  personalPriceXof(vekpe, tete(80, 'long')));
+dit('… mais à 100 locks en long, le comptage passe devant', 130_000,
+  personalPriceXof(vekpe, tete(100, 'long')));
+dit('le plancher tient : 50 locks en court restent au prix affiché', 80_000,
+  personalPriceXof(vekpe, tete(50, 'court')));
+dit('… et en long, c’est le plancher long', 120_000, personalPriceXof(vekpe, tete(50, 'long')));
+dit('tête pas encore comptée : le prix affiché de sa longueur', 100_000,
+  personalPriceXof(vekpe, tete(undefined, 'mi-long')));
+dit('le régime le dit : comptage, pas grille', 'lock', regimeTarifaire(vekpe).k);
+dit('et le prix reste FERME — il se calcule au franc près', true, prixFerme(vekpe, tete(80, 'court')));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

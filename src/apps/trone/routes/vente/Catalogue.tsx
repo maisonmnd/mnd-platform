@@ -14,7 +14,7 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
-import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing } from '../../../../shared/pricing';
+import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing, type ModelBand } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
@@ -84,12 +84,15 @@ type SvcForm = {
        texte. Vides partout = prestation à prix unique. */
   prixLong: Partial<Record<LongueurId, string>>;
   dureeLong: Partial<Record<LongueurId, string>>;
+  /* — LE TARIF AU LOCK, PAR LONGUEUR (16 août) — renseigné, il prime sur le
+       tarif unique, et `prixLong` devient le PLANCHER de chaque longueur. */
+  tarifLong: Partial<Record<LongueurId, string>>;
 };
 
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [], privatise: false, maxTetes: '2',
+  prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [], privatise: false, maxTetes: '2',
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -229,6 +232,8 @@ export default function Catalogue() {
      d'elle-meme quand la prestation en porte deja. */
   const [avanceOuverte, setAvanceOuverte] = useState<string | null>(null);
   const [catForm, setCatForm] = useState<CatForm | null>(null);
+  /* L'atelier qu'on programme au comptage — son identifiant, ou null. */
+  const [progAtelier, setProgAtelier] = useState<string | null>(null);
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -588,6 +593,7 @@ export default function Catalogue() {
       priceTo: svc.priceToXof ? String(svc.priceToXof) : '',
       prixLong: Object.fromEntries(Object.entries(svc.prixParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
       dureeLong: Object.fromEntries(Object.entries(svc.dureeParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
+      tarifLong: Object.fromEntries(Object.entries(svc.tarifLockParLongueur ?? {}).map(([k, v]) => [k, String(v)])),
       modele: modeleDe(svc),
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
@@ -792,8 +798,15 @@ export default function Catalogue() {
       priceToXof: num(svcForm.priceTo),
       /* Même filtre que les planchers : une case vide fait disparaître la
          longueur de la fiche, elle n'y écrit pas un zéro qui vaudrait gratuit. */
-      prixParLongueur: m === 'longueur' ? nettoie(svcForm.prixLong) : undefined,
-      dureeParLongueur: m === 'longueur' ? nettoie(svcForm.dureeLong) : undefined,
+      /* LE COMPTAGE PEUT GARDER SA GRILLE (16 août) : quand des tarifs au lock
+         PAR LONGUEUR sont posés, les prix par longueur ne sont plus le système
+         concurrent — ils en sont le PLANCHER, et le moteur les lit comme tels.
+         Les effacer ici retirerait le filet au premier enregistrement. */
+      tarifLockParLongueur: m === 'lock' ? nettoie(svcForm.tarifLong) : undefined,
+      prixParLongueur: m === 'longueur' || (m === 'lock' && nettoie(svcForm.tarifLong))
+        ? nettoie(svcForm.prixLong) : undefined,
+      dureeParLongueur: m === 'longueur' || (m === 'lock' && nettoie(svcForm.tarifLong))
+        ? nettoie(svcForm.dureeLong) : undefined,
       /* L'interrupteur « suit le modèle » appartient au modèle « Barème » ;
          un forfait pricé par sa composition garde le sien tel quel. */
       ...(prixParComposition(svcForm) ? {} : { scalesWithModel: m === 'modele' ? true : undefined }),
@@ -1091,6 +1104,16 @@ export default function Catalogue() {
                     {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
                   </button>
                   <span className="trv-catblock__tools">
+                    {/* PROGRAMMER TOUT UN ATELIER D'UN GESTE (16 août) — poser
+                        le comptage au lock sur six Créations une par une, c'est
+                        six occasions de se tromper d'un chiffre. */}
+                    <button
+                      className="trv-minibtn"
+                      title="Programmer cet atelier au comptage des locks"
+                      onClick={() => setProgAtelier(cat.id)}
+                    >
+                      Programmer au comptage
+                    </button>
                     <button className="trv-minibtn" title="Modifier la catégorie" onClick={() => setCatForm({ id: cat.id, fon: cat.fon, label: cat.label, enabled: cat.enabled, maison: cat.maison ?? '', code: cat.code ?? '' , parentId: cat.parentId ?? '' })}>
                       Modifier
                     </button>
@@ -1620,6 +1643,42 @@ export default function Catalogue() {
                     250 locks → {fmtMoney(250 * (num(svcForm.rate) ?? 0), currency)}.
                   </div>
                 )}
+                {/* LE TARIF PEUT CHANGER AVEC LA LONGUEUR (16 août). Renseignés,
+                    ces trois-là PRIMENT sur le tarif unique du dessus, et le
+                    prix de la même longueur devient le PLANCHER : le comptage
+                    ne fait jamais descendre sous le prix affiché. */}
+                <div style={{ marginTop: 14, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                  <div className="trc-microlabel" style={{ margin: '0 0 8px' }}>
+                    Le tarif change-t-il avec la longueur ?
+                  </div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 108px 118px', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                      <span>Longueur</span><span>F / lock</span><span>Plancher</span>
+                    </div>
+                    {LONGUEURS.map((l) => (
+                      <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 108px 118px', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>{l.label}</span>
+                        <Input
+                          inputMode="numeric"
+                          value={svcForm.tarifLong[l.id] ?? ''}
+                          onChange={(e) => setSvcForm({ ...svcForm, tarifLong: { ...svcForm.tarifLong, [l.id]: e.target.value } })}
+                          placeholder="—"
+                        />
+                        <Input
+                          inputMode="numeric"
+                          value={svcForm.prixLong[l.id] ?? ''}
+                          onChange={(e) => setSvcForm({ ...svcForm, prixLong: { ...svcForm.prixLong, [l.id]: e.target.value } })}
+                          placeholder="—"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                    Le prix vaut <b style={{ fontWeight: 500 }}>locks × tarif de sa longueur</b>, jamais moins que
+                    le plancher. Tant que la tête n’est pas comptée, c’est le plancher qui s’annonce.
+                    Laisse ces cases vides pour garder un tarif unique.
+                  </div>
+                </div>
               </Field>
             )}
             {!prixParComposition(svcForm) && svcForm.modele === 'calibre' && (
@@ -2201,6 +2260,21 @@ export default function Catalogue() {
         </Modal>
       )}
 
+      {progAtelier && (
+        <ProgrammerAuComptage
+          cat={categories.find((c) => c.id === progAtelier)!}
+          categories={categories}
+          services={services}
+          bandes={bands}
+          currency={currency}
+          onClose={() => setProgAtelier(null)}
+          onAppliquer={(patchs) => {
+            setServices((prev) => prev.map((s) => (patchs[s.id] ? { ...s, ...patchs[s.id] } : s)));
+            setProgAtelier(null);
+          }}
+        />
+      )}
+
       {catForm && (
         <Modal title={catForm.id ? 'La catégorie.' : 'Nouvelle catégorie.'} onClose={() => setCatForm(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -2277,5 +2351,192 @@ export default function Catalogue() {
           pour quelle part. Seul moyen de distinguer deux prestations homonymes. */}
       {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
     </div>
+  );
+}
+
+/* ═══ PROGRAMMER UN ATELIER AU COMPTAGE DES LOCKS ═══════════════════
+   16 août 2026, demande de Yéman : « programme l'atelier VÈKPÈ au comptage
+   avec trois niveaux de prix par longueur — 1 100 / 1 200 / 1 300 du Jumbo au
+   Mini, 1 400 / 1 500 / 1 600 du Micro au Galaxy ».
+
+   Poser cela fiche par fiche, c'est six formulaires et dix-huit chiffres :
+   autant d'occasions de se tromper d'un zéro, et rien pour relire l'ensemble.
+   Ici on saisit DEUX grilles, on dit quels calibres suivent laquelle, et
+   l'aperçu montre — avant d'écrire — ce que chaque prestation deviendra au
+   bas et au haut de sa tranche.
+
+   LE PRIX AFFICHÉ D'AUJOURD'HUI DEVIENT LE PLANCHER (décision de Yéman) : le
+   comptage ne peut que monter le prix, jamais le baisser. Une prestation qui
+   n'a pas encore de grille par longueur garde donc son prix catalogue comme
+   plancher des trois longueurs. */
+type GrilleTarif = { court: string; 'mi-long': string; long: string };
+
+function ProgrammerAuComptage({
+  cat, categories, services, bandes, currency, onClose, onAppliquer,
+}: {
+  cat: CatalogCategory;
+  categories: CatalogCategory[];
+  services: Service[];
+  bandes: ModelBand[];
+  currency: string;
+  onClose: () => void;
+  onAppliquer: (patchs: Record<string, Partial<Service>>) => void;
+}) {
+  /* L'atelier ET ses familles : les Créations vivent souvent un cran plus bas. */
+  const sousArbre = new Set(sousArbreOf(categories, cat.id));
+  /* Les forfaits ne se comptent pas au lock — ils valent leur composition. */
+  const concernees = services
+    .filter((s) => sousArbre.has(s.categoryId) && !s.includes?.length)
+    .sort((a, b) => a.order - b.order);
+
+  const [grilleA, setGrilleA] = useState<GrilleTarif>({ court: '1100', 'mi-long': '1200', long: '1300' });
+  const [grilleB, setGrilleB] = useState<GrilleTarif>({ court: '1400', 'mi-long': '1500', long: '1600' });
+  /* Quels calibres suivent la grille B — les autres suivent la A. */
+  const [enB, setEnB] = useState<string[]>(['cal-micro', 'cal-nano', 'cal-pico', 'cal-galaxy']);
+
+  const n = (v: string) => parseInt(v.replace(/[^0-9]/g, ''), 10) || 0;
+  const grilleDe = (s: Service): GrilleTarif =>
+    (s.bandIds ?? []).some((b) => enB.includes(b)) ? grilleB : grilleA;
+
+  /* Les bornes de la tranche d'une prestation — pour dire ce que ça donne en
+     bas et en haut. Sans calibre servi, on ne promet rien. */
+  const bornes = (s: Service): [number, number] | null => {
+    const servis = bandes.filter((b) => (s.bandIds ?? []).includes(b.id));
+    if (!servis.length) return null;
+    const i0 = bandes.findIndex((b) => b.id === servis[0].id);
+    const bas = i0 > 0 ? (bandes[i0 - 1].maxLocks ?? 0) + 1 : 1;
+    const haut = servis[servis.length - 1].maxLocks ?? bas;
+    return [bas, haut];
+  };
+  /* Le plancher d'une longueur : sa grille de prix si elle en a une, sinon le
+     prix catalogue — jamais rien, sinon le filet n'existerait pas. */
+  const plancherDe = (s: Service, l: LongueurId): number => s.prixParLongueur?.[l] ?? s.priceXof;
+
+  const patchs: Record<string, Partial<Service>> = {};
+  for (const s of concernees) {
+    const g = grilleDe(s);
+    patchs[s.id] = {
+      tarifMode: 'lock',
+      ratePerLock: undefined,
+      tarifLockParLongueur: { court: n(g.court), 'mi-long': n(g['mi-long']), long: n(g.long) },
+      prixParLongueur: {
+        court: plancherDe(s, 'court'),
+        'mi-long': plancherDe(s, 'mi-long'),
+        long: plancherDe(s, 'long'),
+      },
+      scalesWithModel: undefined,
+      priceFloors: undefined,
+    };
+  }
+
+  return (
+    <Modal title={`Programmer ${cat.fon} au comptage.`} onClose={onClose} width={860}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+          Le prix vaudra <b style={{ fontWeight: 500 }}>locks × le tarif de sa longueur</b>, sans jamais
+          descendre sous le prix affiché aujourd’hui — qui devient le plancher. Une tête pas encore
+          comptée s’annonce à ce plancher. {concernees.length} prestation{concernees.length > 1 ? 's' : ''} de
+          cet atelier {concernees.length > 1 ? 'sont' : 'est'} concernée{concernees.length > 1 ? 's' : ''} ;
+          les forfaits n’y sont pas.
+        </div>
+
+        <div className="tr-grid tr-grid--2" style={{ gap: 14 }}>
+          {([['A', grilleA, setGrilleA] as const, ['B', grilleB, setGrilleB] as const]).map(([nom, g, set]) => (
+            <div key={nom} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '14px 16px' }}>
+              <div className="trc-microlabel" style={{ margin: '0 0 10px' }}>Grille {nom} · F par lock</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {LONGUEURS.map((l) => (
+                  <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>{l.label}</span>
+                    <Input
+                      inputMode="numeric"
+                      value={g[l.id as keyof GrilleTarif]}
+                      onChange={(e) => set({ ...g, [l.id]: e.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10 }}>
+                {nom === 'A' ? 'Suivie par tous les calibres non cochés ci-dessous.' : 'Suivie par les calibres cochés ci-dessous.'}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div className="trc-microlabel" style={{ margin: '0 0 8px' }}>Quels calibres suivent la grille B ?</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {bandes.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className="trv-minibtn"
+                style={enB.includes(b.id)
+                  ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
+                  : undefined}
+                onClick={() => setEnB((prev) => (prev.includes(b.id) ? prev.filter((x) => x !== b.id) : [...prev, b.id]))}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* L'APERÇU — ce que chaque fiche deviendra, avant d'écrire. */}
+        <div>
+          <div className="trc-microlabel" style={{ margin: '0 0 8px' }}>Ce que ça donnera</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {concernees.map((s) => {
+              const g = grilleDe(s);
+              const b = bornes(s);
+              return (
+                <div key={s.id} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{s.name}</span>
+                    <span className="mnd-muted" style={{ fontSize: 11 }}>
+                      grille {grilleDe(s) === grilleB ? 'B' : 'A'}
+                      {b ? ` · ${b[0]}–${b[1]} locks` : ' · aucun calibre servi'}
+                    </span>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.6 }}>
+                    {LONGUEURS.map((l) => {
+                      const tarif = n(g[l.id as keyof GrilleTarif]);
+                      const plancher = plancherDe(s, l.id);
+                      const bas = b ? Math.max(b[0] * tarif, plancher) : plancher;
+                      const haut = b ? Math.max(b[1] * tarif, plancher) : plancher;
+                      return (
+                        <span key={l.id} style={{ marginRight: 14, whiteSpace: 'nowrap' }}>
+                          <b style={{ fontWeight: 500 }}>{l.label}</b> {fmtMoney(bas, currency)}
+                          {haut !== bas ? ` → ${fmtMoney(haut, currency)}` : ''}
+                          <span style={{ color: 'var(--copper-700)' }}> (plancher {fmtMoney(plancher, currency)})</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {concernees.length === 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12 }}>
+                Aucune prestation à programmer dans cet atelier.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button
+            disabled={concernees.length === 0}
+            onClick={() => {
+              if (!window.confirm(`Programmer ${concernees.length} prestation(s) de « ${cat.fon} » au comptage des locks ? Les prix affichés d'aujourd'hui deviennent leurs planchers.`)) return;
+              onAppliquer(patchs);
+            }}
+          >
+            Programmer {concernees.length} prestation{concernees.length > 1 ? 's' : ''}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
