@@ -2,6 +2,29 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Celles qui ne viennent que le samedi — 16 août
+
+« Il y a des clientes qui veulent venir uniquement le samedi. Les prédictions
+doivent toujours aller sur le samedi suivant » (Yéman). `Client.jourPrefere`
+(0 = dimanche … 6 = samedi) : il ne BLOQUE rien — le comptoir pose le
+rendez-vous qu'il veut, elle réserve le créneau qu'elle veut sur Ma Couronne —
+il commande LA PRÉDICTION. Prédire un mardi à qui ne vient que le samedi,
+c'était relancer sur une date qu'elle allait refuser.
+
+L'ORDRE DES RÈGLES COMPTE, et il est le seul possible : ① le cycle se rejoue
+jusqu'à tomber devant nous, ② la date glisse sur SON jour — le premier qui SUIT
+l'échéance, jamais celui d'avant — ③ puis sur un jour OUVERT. Le salon ne
+s'ouvre pas parce qu'une cliente le préfère : un jour préféré fermé glisse donc
+au premier jour ouvert, et la fiche le dit au moment de le choisir plutôt que
+de mentir plus tard.
+
+Sur la fiche 360 : « Elle ne vient que le… », les sept jours lus des RÉGLAGES
+(le jour de fermeture est un choix de la Maison, et il a déjà bougé), ceux qui
+sont fermés marqués comme tels. HARNAIS : 952 cadences d'une samedienne (pas de
+7 à 40 jours × 28 départs) — TOUTES un samedi ; l'échéance du mercredi 19 août
+donne bien le samedi 22, pas le 15 ; et sans préférence l'estimation ne bouge
+pas d'un jour. PUBLIÉ @ `3103f7f`.
+
 ## La cadence regarde devant, et jamais un jour fermé — 16 août
 
 Vu par Yéman sur Prisca : « prochain RDV estimé le **lundi 29 juin** » — un
