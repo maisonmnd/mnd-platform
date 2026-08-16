@@ -2,6 +2,32 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'échelle des Créations va jusqu'au bout — 16 août
+
+MIGRATION **0053 PASSÉE**, contrôlée en base. L'échelle des Créations VÈKPÈ™
+s'arrêtait au Nano (351–450 locks) : au-delà, une couronne Pico ou Galaxy
+n'avait AUCUNE création à réserver — `estProposable` ne lui proposait rien et
+le tunnel restait muet devant elle. Nouveau dernier degré, prix donnés par
+Yéman : **VÈKPÈ™ Création Pico et Galaxy · La Couronne KPÒKPÒ™**
+(`sv-atl-i-pic`, `ATL·I·PIC`, Souveraineté, 3 séances, 12–16 h) —
+court 750 000 · mi-long 800 000 · long 850 000, repli sur le court comme toute
+l'échelle. Catalogue : 83 → 84 prestations. Elle n'est PAS masquée : elle est
+donc déjà visible à la Vitrine et à Ma Couronne.
+
+UNE ÉTIQUETTE RÉPARÉE AU PASSAGE : « VÈKPÈ™ Création Nano » disait « 351 à 450
+locks » dans sa description mais portait `bandIds: ['cal-galaxy']`. Une tête
+NANO ne se voyait donc proposer AUCUNE création, et une GALAXY se voyait
+proposer celle du Nano. Sans le correctif, la nouvelle fiche aggravait le
+désordre (une Galaxy en aurait vu deux). CONTRÔLE PASSÉ : les **sept calibres
+ont désormais une création, et une seule** — Jumbo · Medium · Mini · Micro ·
+Nano · Pico · Galaxy.
+
+RESTE À LA MAIN DE YÉMAN : ① durée et séances sont EXTRAPOLÉES de l'échelle
+(Micro 2 jours, Nano 3 séances / 12 h) — à corriger au Catalogue si la Maison
+compte autrement ; ② le sous-titre « La Couronne KPÒKPÒ™ » est porté par DEUX
+fiches, et la description du Nano dit encore « le sommet de la création MND »,
+ce qui n'est plus vrai.
+
 ## Une annulation qui n'arrive pas doit se dire — 16 août
 
 « Un rituel annulé par Yéman sur son compte Ma Couronne le mercredi 19 août
