@@ -1367,16 +1367,6 @@ function Customer360({
   const [bilanOpen, setBilanOpen] = useState(false);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
-  const linkedIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of appts) if (a.invoiceId) set.add(a.invoiceId);
-    return set;
-  }, [appts]);
-  /* Factures payées hors règlements de RDV (produits, POS) — évite le double comptage. */
-  const paidExtras = myInvoices.filter((i) =>
-    i.kind === 'facture' && i.status === 'payée' && !linkedIds.has(i.id)
-    && !i.lines.some((l) => l.label.startsWith('Règlement ·')),
-  );
   /* CE QU'ELLE A DÉPENSÉ, ET NON CE QU'ELLE A REÇU. Un rituel qu'on lui a
      offert ne compte pas dans sa dépense ; un rituel qu'elle a offert à une
      autre, si — et il ne figure pas dans `appts`, qui ne contient que ses
@@ -1425,6 +1415,36 @@ function Customer360({
   const payesParElle = carnetBranche.filter((a) => a.status === 'honoré' && apptPayeurId(a) === client.id);
   const offertsAElle = honored.filter((a) => a.offertPar && a.offertPar !== client.id);
   const offertsParElle = payesParElle.filter((a) => a.clientId !== client.id);
+
+  /* LE LIEN QUI COMPTE, ET NON LE LIEN TOUT COURT — 16 août 2026.
+
+     « 4 documents à 35 000 F font 140 000 F » (Yéman, sur la fiche de Kèmi qui
+     en affichait 105 000). `linkedIds` se construisait sur TOUS ses
+     rendez-vous : une pièce payée dont le rituel n'est PAS compté — pas encore
+     honoré, ou payé par le compte famille — était donc retranchée des extras…
+     pendant que son rituel, lui, ne comptait pas non plus. L'argent tombait
+     ENTRE DEUX CHAISES et disparaissait du total dépensé, sans que rien ne le
+     signale.
+
+     L'INVARIANT, désormais : une pièce payée compte EXACTEMENT UNE FOIS — par
+     son rituel quand ce rituel est compté, par elle-même sinon. On ne retranche
+     donc que les pièces des rituels DÉJÀ dans `payesParElle`, y compris celles
+     de leurs versements successifs. */
+  const linkedIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of payesParElle) {
+      if (a.invoiceId) set.add(a.invoiceId);
+      for (const p of a.payments ?? []) if (p.invoiceId) set.add(p.invoiceId);
+    }
+    return set;
+  }, [payesParElle]);
+  /* Factures payées hors règlements de RDV (produits, POS) — évite le double
+     comptage. Les pièces « Règlement · … » restent écartées : ce sont les
+     versements partiels d'un rituel, jamais une dépense à part. */
+  const paidExtras = myInvoices.filter((i) =>
+    i.kind === 'facture' && i.status === 'payée' && !linkedIds.has(i.id)
+    && !i.lines.some((l) => l.label.startsWith('Règlement ·')),
+  );
   const spend = payesParElle.reduce((s, a) => s + apptNetXof(a, byId), 0)
     + paidExtras.reduce((s, i) => s + invoiceTotal(i), 0);
   const basketCount = payesParElle.length + paidExtras.length;
