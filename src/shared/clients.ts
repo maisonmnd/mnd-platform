@@ -305,6 +305,26 @@ export function ensureInitiePersona(): string {
 
 export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassage === true;
 
+/** LA DIASPORA — UN SEUL JUGE, ENFIN (16 août 2026).
+
+    La notion vivait à DEUX endroits, et le commentaire de `dePassage`
+    ci-dessus le disait déjà : le CHAMP `diaspora` (lu par les signaux de
+    persona) et le SEGMENT « Diaspora » (lu par le registre des Clientes).
+    Deux vérités pour une notion, donc un compteur qui annonçait « Diaspora 1 »
+    pendant que la Maison en reconnaissait cinquante.
+
+    Ici on lit LES DEUX et on ne casse rien : une fiche marquée d'un côté ou de
+    l'autre est de la diaspora. Les nouveaux marquages écrivent le CHAMP —
+    un segment se renomme et s'efface depuis une liste, et le prédicat
+    casserait en silence.
+
+    CE QUE ÇA COMMANDE : on ne prédit pas le retour de quelqu'un qui vit
+    ailleurs. Elle vient quand elle est au pays ; sa cadence ne dit rien, et la
+    relance qu'on lui envoie ne fait que noyer les vraies (demande de Yéman —
+    la moitié de « celles qui ont glissé » était de la diaspora). */
+export const estDiaspora = (c: Pick<Client, 'diaspora' | 'segments'>): boolean =>
+  c.diaspora === true || (c.segments ?? []).some((s) => s.trim().toLowerCase() === 'diaspora');
+
 /* ---------- Les VISITEURS — un compte, aucune venue ----------
 
    Ouvrir un compte sur Ma Couronne crée une fiche pleine (`ensureClient`) :

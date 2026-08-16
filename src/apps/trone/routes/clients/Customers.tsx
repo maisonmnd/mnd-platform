@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client, type Family } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -191,7 +191,12 @@ const digitsOf = (s: string) => s.replace(/\D/g, '');
    comme un registre de premier rang : bascule La Maison / Diaspora au-dessus
    de la liste, ajout par recherche, retrait d'un geste sur la ligne. */
 const DIASPORA = 'Diaspora';
-const isDiaspora = (c: Client) => c.segments.some((s) => s.trim().toLowerCase() === 'diaspora');
+/* LE JUGE EST PARTAGÉ DEPUIS LE 16 AOÛT (`estDiaspora`, shared/clients) : il
+   lit le SEGMENT comme avant, ET le champ `diaspora` que les autres écrans
+   écrivent. Le registre annonçait « Diaspora 1 » quand la Maison en
+   reconnaissait cinquante — deux vérités pour une notion, et personne ne le
+   voyait. */
+const isDiaspora = (c: Client) => estDiaspora(c);
 /** Href téléphone — garde le + international. */
 const telHref = (s: string) => `tel:${s.replace(/[^+\d]/g, '')}`;
 

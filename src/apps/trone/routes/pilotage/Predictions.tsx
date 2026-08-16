@@ -11,6 +11,7 @@ import {
 } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
 import { tauxDeRealisation } from '../../../../shared/cadence';
+import { clientsStore } from '../../../../shared/clients';
 import './pilotage.css';
 
 /* ═══ LA CADENCE — la salle où la Maison lit ce qu'elle attend ═════
@@ -197,6 +198,16 @@ export default function Predictions() {
      dire qu'elle est venue APRÈS ce qu'on attendait. */
   const realisation = useMemo(() => tauxDeRealisation(venues), [venues]);
 
+  /* ---- MARQUER LA DIASPORA — le geste qui vide la liste du bruit ----
+     On écrit LE CHAMP, jamais le segment : un segment se renomme et s'efface
+     depuis une liste, et le prédicat casserait en silence (doctrine posée sur
+     `dePassage`). Le juge partagé `estDiaspora` lit les deux, donc le registre
+     des Clientes la voit aussitôt. */
+  const marquerDiaspora = (clientId: string, nom: string) => {
+    if (!window.confirm(`${nom} vit à l’étranger ?\n\nElle sortira des prédictions et des relances, et entrera au registre Diaspora. Ses rendez-vous déjà pris continuent de s’afficher normalement.`)) return;
+    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, diaspora: true } : c)));
+  };
+
   /* ---- LA FILE, POUR UNE CAMPAGNE DE RELANCE ---- */
   const exporter = () => {
     const entete = ['Cliente', 'Téléphone', 'Attendue le', 'Statut', 'Cadence', 'Retard (j)', 'Confiance', 'Venues lues', 'Dernier rituel (F)'];
@@ -301,22 +312,34 @@ export default function Predictions() {
         </div>
         <div className="trp-card">
           {enRetard.slice(0, 12).map((l) => (
-            <button
-              key={l.clientId}
-              type="button"
-              className="trp-break__row trp-break__row--click"
-              style={{ width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }}
-              onClick={() => navigate(`/customers?id=${l.clientId}`)}
-            >
-              <span className="trp-break__label">{l.nom}</span>
-              <span className="trp-break__count">
-                {l.cadence.avgDays ? cadenceLabel(l.cadence.avgDays) : 'cadence inconnue'}
-                {' · '}confiance {l.cadence.confidence ?? '—'}
-              </span>
-              <span className="trp-break__num" style={{ color: 'var(--copper-700)' }}>
-                {l.cadence.overdueDays} j
-              </span>
-            </button>
+            <div key={l.clientId} className="trp-glisse">
+              <button
+                type="button"
+                className="trp-glisse__ouvre"
+                onClick={() => navigate(`/customers?id=${l.clientId}`)}
+              >
+                <span className="trp-break__label">{l.nom}</span>
+                <span className="trp-break__count">
+                  {l.cadence.avgDays ? cadenceLabel(l.cadence.avgDays) : 'cadence inconnue'}
+                  {' · '}confiance {l.cadence.confidence ?? '—'}
+                </span>
+                <span className="trp-break__num" style={{ color: 'var(--copper-700)' }}>
+                  {l.cadence.overdueDays} j
+                </span>
+              </button>
+              {/* ON MARQUE LÀ OÙ ON RECONNAÎT (16 août) — la moitié de cette
+                  liste était de la diaspora, et il fallait ouvrir chaque fiche
+                  pour le dire. Un geste, ici : elle sort des prédictions et
+                  entre au registre Diaspora. */}
+              <button
+                type="button"
+                className="trv-minibtn trp-glisse__marque"
+                title={`${l.nom} vit à l’étranger — ne plus prédire son retour`}
+                onClick={() => marquerDiaspora(l.clientId, l.nom)}
+              >
+                Diaspora
+              </button>
+            </div>
           ))}
           {enRetard.length === 0 && (
             <div className="trp-break__empty">Aucune tête n’a glissé — la Maison est à jour.</div>

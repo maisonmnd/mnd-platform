@@ -148,5 +148,25 @@ dit('aucune venue : rien non plus', null, tauxDeRealisation([]));
 dit('trois venues : une seule estimation éprouvée', 1,
   tauxDeRealisation(venuesDe('x', ['2026-01-05', '2026-02-02', '2026-03-02']))?.n);
 
+/* ── ⑤ ON NE PRÉDIT PAS LE RETOUR DE QUI VIT AILLEURS ─────────────
+   « Sur cette liste beaucoup de personnes de la diaspora — comment on fait
+   pour qu'ils n'aient plus de prédictions ? » (Yéman, 16 août). */
+const histoire = [rdv('2026-01-06'), rdv('2026-02-03', 1), rdv('2026-03-03', 2)];
+dit('une tête ordinaire est bien prédite', true, !!predictNextVisit(histoire, [cliente], 'c1', '2026-08-16').iso);
+
+const parLeChamp: Client = { ...cliente, diaspora: true } as Client;
+dit('la diaspora par le CHAMP ne se prédit plus', null,
+  predictNextVisit(histoire, [parLeChamp], 'c1', '2026-08-16').iso);
+
+const parLeSegment: Client = { ...cliente, segments: ['Diaspora'] } as Client;
+dit('… ni par le SEGMENT, l’ancienne vérité', null,
+  predictNextVisit(histoire, [parLeSegment], 'c1', '2026-08-16').iso);
+
+/* MAIS UN RENDEZ-VOUS DÉJÀ PRIS RESTE UN FAIT — elle est au pays, elle vient,
+   et l'écran doit le dire. Le garde de la diaspora ne le touche pas. */
+const prisDiaspora = { ...rdv('2026-09-05'), status: 'confirmé' } as Appointment;
+dit('son rendez-vous déjà pris s’affiche quand même', '2026-09-05',
+  predictNextVisit([...histoire, prisDiaspora], [parLeChamp], 'c1', '2026-08-16').iso);
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

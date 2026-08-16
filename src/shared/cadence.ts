@@ -1,5 +1,5 @@
 import type { Appointment } from './agenda';
-import { estDePassage, type Client } from './clients';
+import { estDePassage, estDiaspora, type Client } from './clients';
 import { openingForIso } from './settings';
 
 /* LA CADENCE D'UNE TÊTE — UN SEUL JUGE, POUR LES DEUX SŒURS.
@@ -175,8 +175,14 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
      vers quelqu'un qui ne reviendra pas, et qui fait ignorer les suivantes.
      Un RDV DÉJÀ PRIS, lui, s'affiche toujours — ci-dessus : c'est un fait,
      pas une prédiction. */
+  /* NI CELLE QUI PASSE, NI CELLE QUI VIT AILLEURS. La diaspora vient quand
+     elle est au pays : sa cadence ne mesure pas un rythme, elle mesure des
+     billets d'avion. Prédire son retour remplissait « celles qui ont glissé »
+     de gens qu'on ne relance pas — et noyait celles qu'il fallait rappeler
+     (16 août). Un rendez-vous DÉJÀ PRIS s'affiche toujours : il est traité
+     plus haut, avant ce garde. */
   const cliente = clients.find((c) => c.id === clientId);
-  if (cliente && estDePassage(cliente)) return none;
+  if (cliente && (estDePassage(cliente) || estDiaspora(cliente))) return none;
 
   const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
   if (honored.length === 0) return none;
