@@ -102,6 +102,65 @@ export const cadenceLabel = (days: number): string => {
   return `tous les ~${days} j`;
 };
 
+/** CE QUE VALENT VRAIMENT LES ESTIMATIONS — le juge éprouvé sur son propre
+    passé (16 août 2026, demande de Yéman : « un taux de réalisation, combien
+    d'estimations se vérifient vraiment »).
+
+    AUCUNE PRÉDICTION N'A JAMAIS ÉTÉ STOCKÉE : on ne peut pas relire ce que la
+    Maison avait annoncé. On la REJOUE donc — pour chaque tête, à chaque venue
+    depuis la troisième, on calcule ce que le juge aurait dit avec les SEULES
+    venues d'avant, puis on compare à la date réelle.
+
+    CE QUE CELA MESURE, EXACTEMENT : la cadence médiane, cœur de la prédiction.
+    Pas les ajustements de calendrier — report d'un jour fermé, jour préféré —
+    qui déplacent la date de quelques jours pour des raisons d'ouverture et ne
+    disent rien de la justesse du rythme lu. Mélanger les deux ferait passer
+    une règle d'agenda pour une erreur de prévision.
+
+    Un écart POSITIF veut dire qu'elle est venue APRÈS ce qu'on attendait —
+    donc que la Maison l'attend trop tôt. */
+export type Realisation = {
+  n: number;
+  dans3: number; dans7: number; dans14: number; // % dans la tolérance
+  ecartMedian: number; // en valeur absolue
+  biais: number; // médiane SIGNÉE — le penchant du juge
+};
+
+export function tauxDeRealisation(venues: { clientId: string; date: string }[]): Realisation | null {
+  const parClient = new Map<string, string[]>();
+  for (const v of venues) parClient.set(v.clientId, [...(parClient.get(v.clientId) ?? []), v.date]);
+  const ecarts: number[] = [];
+  for (const dates of parClient.values()) {
+    const v = [...new Set(dates)].sort();
+    for (let k = 3; k <= v.length; k += 1) {
+      const passe = v.slice(0, k - 1);
+      const gaps: number[] = [];
+      for (let i = 1; i < passe.length; i += 1) {
+        gaps.push(Math.round((fromISO(passe[i]).getTime() - fromISO(passe[i - 1]).getTime()) / 86400000));
+      }
+      const use = gaps.filter((g) => g > 0);
+      /* LE MÊME SEUIL QUE LE JUGE, pas un plus sévère : `predictNextVisit` se
+         prononce dès DEUX venues — donc dès UN intervalle. Exiger deux
+         intervalles ici aurait écarté du calcul les estimations les plus
+         fragiles, celles qui se trompent le plus : le taux annoncé aurait été
+         flatteur. On éprouve le juge tel qu'il parle. */
+      if (!use.length) continue;
+      const med = Math.max(14, medianInt(use));
+      const prevu = addDaysISO(passe[passe.length - 1], med);
+      ecarts.push(Math.round((fromISO(v[k - 1]).getTime() - fromISO(prevu).getTime()) / 86400000));
+    }
+  }
+  if (!ecarts.length) return null;
+  const abs = ecarts.map((e) => Math.abs(e));
+  const part = (j: number) => Math.round((abs.filter((e) => e <= j).length / abs.length) * 100);
+  return {
+    n: ecarts.length,
+    dans3: part(3), dans7: part(7), dans14: part(14),
+    ecartMedian: medianInt(abs),
+    biais: medianInt(ecarts),
+  };
+}
+
 export function predictNextVisit(appts: Appointment[], clients: Client[], clientId: string, today: string): Cadence {
   const none: Cadence = { iso: null, predicted: false, avgDays: null, confidence: null, overdueDays: 0, sample: 0, template: null };
   const mine = appts.filter((a) => a.clientId === clientId);

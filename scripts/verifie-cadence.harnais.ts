@@ -4,7 +4,7 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
@@ -117,6 +117,36 @@ const pris = { ...rdv('2026-08-24'), status: 'confirmé' } as Appointment;
 const c3 = predictNextVisit([rdv('2026-04-01'), pris], [cliente], 'c1', '2026-08-16');
 dit('un rendez-vous déjà pris passe devant', '2026-08-24', c3.iso);
 dit('… et il n’est pas annoncé comme estimé', false, c3.predicted);
+
+/* ── ④ LE TAUX DE RÉALISATION — le juge éprouvé sur son passé ─────
+   Il se rejoue sur l'histoire réelle : on doit pouvoir lui faire confiance,
+   donc on l'éprouve sur des histoires dont on connaît la réponse. */
+const venuesDe = (id: string, dates: string[]) => dates.map((date) => ({ clientId: id, date }));
+
+/* Une tête d'une régularité parfaite : tous les 28 jours, six venues. */
+const parfaite = tauxDeRealisation(venuesDe('p', [
+  '2026-01-05', '2026-02-02', '2026-03-02', '2026-03-30', '2026-04-27', '2026-05-25',
+]));
+dit('régularité parfaite : quatre estimations éprouvées', 4, parfaite?.n);
+dit('… toutes justes au jour près', 100, parfaite?.dans3);
+dit('… écart médian nul', 0, parfaite?.ecartMedian);
+dit('… et aucun penchant', 0, parfaite?.biais);
+
+/* Une tête qui prend TOUJOURS une semaine de retard sur sa cadence : le juge
+   doit l'avouer — « la Maison l'attend trop tôt ». */
+const tardive = tauxDeRealisation(venuesDe('t', [
+  '2026-01-05', '2026-02-02', '2026-03-09', '2026-04-20', '2026-06-08',
+]));
+dit('celle qui traîne : le biais est positif', true, (tardive?.biais ?? 0) > 0);
+
+/* Deux venues seulement : rien à éprouver — il faut un passé pour se juger. */
+dit('deux venues : aucune estimation à éprouver', null, tauxDeRealisation(venuesDe('d', ['2026-01-05', '2026-02-02'])));
+dit('aucune venue : rien non plus', null, tauxDeRealisation([]));
+
+/* Le seuil du juge est le même que celui de la prédiction : DEUX intervalles
+   avant de se prononcer. Trois venues donnent donc UNE estimation éprouvée. */
+dit('trois venues : une seule estimation éprouvée', 1,
+  tauxDeRealisation(venuesDe('x', ['2026-01-05', '2026-02-02', '2026-03-02']))?.n);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

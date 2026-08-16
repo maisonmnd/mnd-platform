@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Segs } from '../../../../ds/components';
+import { Button, Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useSettings, openingForIso } from '../../../../shared/settings';
@@ -9,6 +9,8 @@ import {
   apptNetXof, cadenceLabel, frShort, predictNextVisit, todayISO,
   useBranchAppointments, useBranchClients, useServicesById, type Cadence,
 } from '../clients/_shared';
+import { downloadCsv } from '../finances/_shared';
+import { tauxDeRealisation } from '../../../../shared/cadence';
 import './pilotage.css';
 
 /* ═══ LA CADENCE — la salle où la Maison lit ce qu'elle attend ═════
@@ -38,9 +40,18 @@ const lundiDe = (iso: string): string => {
   return toISO(d);
 };
 
+const MOIS = ['Janv.', 'Févr.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+const joursEntre = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
+const medianeInt = (xs: number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
+};
+
 type Ligne = {
   clientId: string;
   nom: string;
+  tel: string;
   cadence: Cadence;
   /** Ce que vaut son dernier rituel — la mesure la plus honnête de ce que sa
       prochaine venue rapportera. */
@@ -68,6 +79,7 @@ export default function Predictions() {
       out.push({
         clientId: c.id,
         nom: c.name,
+        tel: c.phone ?? '',
         cadence,
         valeurXof: t ? apptNetXof(t, byId) : 0,
       });
@@ -135,17 +147,89 @@ export default function Predictions() {
 
   const joursFermes = reglages.hours.filter((h) => h.closed).length;
 
+  /* ---- LES VENUES HONORÉES, socle des deux analyses qui suivent ----
+     Une série multi-séances compte pour UNE venue : trois séances liées ne
+     disent pas que la tête revient trois fois. */
+  const venues = useMemo(
+    () => appts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1)),
+    [appts],
+  );
+
+  /* ---- LA SAISON — les mois creux ----
+     On compte les venues par mois du calendrier, RAPPORTÉES au nombre d'années
+     où ce mois a été observé : sans cela, un mois vu deux fois pèserait double
+     et le « creux » ne dirait que l'âge de la Maison. L'indice compare chaque
+     mois à la moyenne des mois observés — 1,00 = un mois ordinaire. */
+  const saison = useMemo(() => {
+    const parMois = Array.from({ length: 12 }, () => 0);
+    const anneesVues = Array.from({ length: 12 }, () => new Set<number>());
+    let min = '9999';
+    let max = '0000';
+    for (const a of venues) {
+      const m = Number(a.date.slice(5, 7)) - 1;
+      if (m < 0 || m > 11) continue;
+      parMois[m] += 1;
+      anneesVues[m].add(Number(a.date.slice(0, 4)));
+      if (a.date < min) min = a.date;
+      if (a.date > max) max = a.date;
+    }
+    const moyennes = parMois.map((n, m) => (anneesVues[m].size ? n / anneesVues[m].size : 0));
+    const observes = moyennes.filter((_, m) => anneesVues[m].size > 0);
+    const moyenne = observes.length ? observes.reduce((s, x) => s + x, 0) / observes.length : 0;
+    const moisDHistoire = venues.length ? Math.max(1, Math.round(joursEntre(min, max) / 30)) : 0;
+    return {
+      moyennes, moyenne, moisDHistoire,
+      vus: anneesVues.map((s) => s.size),
+      haut: Math.max(1, ...moyennes),
+    };
+  }, [venues]);
+
+  /* ---- LE TAUX DE RÉALISATION — le juge éprouvé sur SON PROPRE PASSÉ ----
+     Aucune prédiction n'a jamais été stockée : impossible de relire ce que la
+     Maison avait annoncé. On la REJOUE donc. Pour chaque tête, à chaque venue
+     à partir de la troisième, on calcule ce que le juge aurait dit avec les
+     SEULES venues d'avant, puis on le compare à la date réelle.
+
+     Ce que ça mesure exactement : la CADENCE MÉDIANE, cœur de la prédiction —
+     pas les ajustements de calendrier (report d'un jour fermé, jour préféré),
+     qui déplacent la date de quelques jours pour des raisons d'ouverture et
+     n'ont rien à voir avec la justesse du rythme lu. Un écart POSITIF veut
+     dire qu'elle est venue APRÈS ce qu'on attendait. */
+  const realisation = useMemo(() => tauxDeRealisation(venues), [venues]);
+
+  /* ---- LA FILE, POUR UNE CAMPAGNE DE RELANCE ---- */
+  const exporter = () => {
+    const entete = ['Cliente', 'Téléphone', 'Attendue le', 'Statut', 'Cadence', 'Retard (j)', 'Confiance', 'Venues lues', 'Dernier rituel (F)'];
+    const corps = lignes.map((l) => [
+      l.nom,
+      l.tel,
+      l.cadence.iso ?? '',
+      l.cadence.predicted ? 'estimée' : 'au carnet',
+      l.cadence.avgDays ? `${l.cadence.avgDays} j` : '',
+      l.cadence.overdueDays || '',
+      l.cadence.confidence ?? '',
+      l.cadence.sample || '',
+      l.valeurXof || '',
+    ]);
+    downloadCsv(`cadence-${today}.csv`, [entete, ...corps]);
+  };
+
   return (
     <div className="tr-page">
       <PageHead
         eyebrow="Pilotage · la cadence"
         title="Ce que la Maison attend."
         actions={
-          <Segs<'8' | '12'>
-            options={[{ value: '8', label: '8 semaines' }, { value: '12', label: '12 semaines' }]}
-            value={horizonChoisi}
-            onChange={setHorizonChoisi}
-          />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Segs<'8' | '12'>
+              options={[{ value: '8', label: '8 semaines' }, { value: '12', label: '12 semaines' }]}
+              value={horizonChoisi}
+              onChange={setHorizonChoisi}
+            />
+            <Button variant="ghost" size="sm" onClick={exporter} disabled={lignes.length === 0}>
+              Exporter la file (CSV)
+            </Button>
+          </div>
         }
       />
 
@@ -290,6 +374,113 @@ export default function Predictions() {
           </div>
         </section>
       </div>
+
+      {/* ---- LA SAISON — les mois creux ---- */}
+      <section className="tr-section">
+        <div className="trc-microlabel">
+          Les mois creux · {saison.moisDHistoire} mois d’histoire lus
+        </div>
+        <div className="trp-card">
+          {saison.moisDHistoire < 12 ? (
+            <div className="trp-break__sub" style={{ color: 'var(--copper-700)', marginBottom: 12 }}>
+              Moins d’une année complète en carnet — ce que vous lisez ci-dessous est l’HISTOIRE de
+              la Maison, pas une saison. Un mois n’aura de sens de saison qu’une fois vu deux fois.
+            </div>
+          ) : (
+            <div className="trp-break__sub" style={{ marginBottom: 12 }}>
+              Venues par mois, rapportées au nombre d’années où le mois a été observé — sinon un
+              mois vu deux fois pèserait double. L’indice compare à un mois ordinaire.
+            </div>
+          )}
+          <div className="trp-hist">
+            {saison.moyennes.map((v, m) => {
+              const indice = saison.moyenne > 0 ? v / saison.moyenne : 0;
+              const creux = saison.vus[m] > 0 && indice < 0.85;
+              return (
+                <div
+                  key={m}
+                  className="trp-hist__col"
+                  title={saison.vus[m] ? `${MOIS[m]} · ${v.toFixed(1)} venues en moyenne · indice ${indice.toFixed(2)} · ${saison.vus[m]} année(s) observée(s)` : `${MOIS[m]} · jamais observé`}
+                >
+                  <span className="trp-hist__n">{saison.vus[m] ? indice.toFixed(2) : ''}</span>
+                  <div className="trp-hist__stack">
+                    <div
+                      className="trp-hist__part"
+                      style={{
+                        height: `${(v / saison.haut) * 100}%`,
+                        background: creux ? 'var(--copper-300)' : 'var(--color-indigo)',
+                      }}
+                    />
+                  </div>
+                  <span className="trp-hist__x">{MOIS[m]}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="trp-legende">
+            <span><i className="trp-dot trp-dot--pris" /> mois ordinaire ou plein</span>
+            <span><i className="trp-dot trp-dot--est" /> mois creux · indice sous 0,85</span>
+            <span className="mnd-muted">
+              {saison.vus.filter((n) => n === 0).length > 0
+                ? `${saison.vus.filter((n) => n === 0).length} mois jamais observé(s) — barre vide, pas un creux.`
+                : 'Tous les mois ont été observés au moins une fois.'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- LE TAUX DE RÉALISATION — le juge éprouvé sur son passé ---- */}
+      <section className="tr-section">
+        <div className="trc-microlabel">Ce que valent vraiment les estimations</div>
+        <div className="trp-card">
+          {realisation ? (
+            <>
+              <div className="tr-grid tr-grid--4">
+                <div className="trp-tile">
+                  <div className="trp-tile__label">Estimations éprouvées</div>
+                  <div className="trp-tile__value">{realisation.n}</div>
+                  <div className="trp-tile__cap">rejouées sur le passé réel</div>
+                </div>
+                <div className="trp-tile">
+                  <div className="trp-tile__label">Justes à ±7 jours</div>
+                  <div className="trp-tile__value">{realisation.dans7} %</div>
+                  <div className="trp-tile__cap">±3 j : {realisation.dans3} % · ±14 j : {realisation.dans14} %</div>
+                </div>
+                <div className="trp-tile">
+                  <div className="trp-tile__label">Écart médian</div>
+                  <div className="trp-tile__value">{realisation.ecartMedian} j</div>
+                  <div className="trp-tile__cap">en valeur absolue</div>
+                </div>
+                <div className="trp-tile">
+                  <div className="trp-tile__label">Le biais</div>
+                  <div className="trp-tile__value">
+                    {realisation.biais > 0 ? `+${realisation.biais}` : realisation.biais} j
+                  </div>
+                  <div className="trp-tile__cap">
+                    {realisation.biais > 0
+                      ? 'la Maison les attend trop TÔT'
+                      : realisation.biais < 0
+                        ? 'la Maison les attend trop TARD'
+                        : 'sans penchant'}
+                  </div>
+                </div>
+              </div>
+              <div className="trp-break__sub" style={{ marginTop: 14 }}>
+                Aucune prédiction n’a jamais été stockée : on ne peut pas relire ce que la Maison
+                avait annoncé. On la <b>rejoue</b> donc — à chaque venue depuis la troisième, avec
+                les SEULES venues d’avant, puis on compare à la date réelle. Ceci éprouve la
+                cadence médiane, cœur de la prédiction ; pas les reports de jour fermé ni le jour
+                préféré, qui déplacent la date pour des raisons d’ouverture et ne disent rien de la
+                justesse du rythme lu.
+              </div>
+            </>
+          ) : (
+            <div className="trp-break__empty">
+              Pas encore de quoi éprouver : il faut au moins trois venues honorées sur une même tête.
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ---- LES CALCULS, DITS EN CLAIR ---- */}
       <section className="tr-section">
