@@ -2,6 +2,31 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La Cadence — la salle des prédictions — 16 août
+
+« J'aimerais voir le module de l'intelligence, la salle qui gère les
+prédictions des RDV à venir, les graphes liés à l'analyse, les calculs, et
+avoir la possibilité d'aller plus loin » (Yéman). Le juge existait
+(`shared/cadence.ts`) mais ne parlait qu'à l'oreille d'UNE fiche : personne ne
+voyait la charge qui vient, ni qui avait glissé. Nouvelle page **Pilotage → La
+Cadence** (`/cadence`, `pilotage/Predictions.tsx`) :
+
+① EN UN REGARD — attendues sous 7 j (dont combien déjà au carnet), en retard,
+chiffre attendu sous 30 j, cadence médiane de la Maison. ② LA CHARGE QUI VIENT
+— histogramme empilé sur 8 ou 12 semaines, indigo = déjà au carnet, cuivre =
+estimé. FAIT MAIN, aucune librairie de charts (règle de marque). ③ CELLES QUI
+ONT GLISSÉ, par ancienneté, un clic ouvre la fiche. ④ À QUEL RYTHME ELLES
+REVIENNENT — distribution des cadences. ⑤ CE QUE VAUT CHAQUE ESTIMATION —
+haute/moyenne/faible ET le nombre de têtes SANS estimation : la salle dit ce
+qu'elle NE SAIT PAS. ⑥ COMMENT LA MAISON CALCULE — les six règles en clair, et
+la limite dite franchement (ceci lit le passé ; une aide à la relance, pas une
+promesse). ⑦ TOUTES LES TÊTES ATTENDUES, chaque ligne ouvre la fiche.
+
+LA RÈGLE DE CETTE SALLE, à tenir si on l'étend : **elle ne prédit rien de plus
+que le juge.** Elle montre ce qu'il calcule déjà, en dit la méthode, et ouvre
+la fiche pour agir. Une salle de pilotage qui inventerait un chiffre serait
+pire qu'une salle vide. PUBLIÉ @ `7e1fae8`.
+
 ## Celles qui ne viennent que le samedi — 16 août
 
 « Il y a des clientes qui veulent venir uniquement le samedi. Les prédictions
