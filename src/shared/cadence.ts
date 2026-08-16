@@ -1,5 +1,6 @@
 import type { Appointment } from './agenda';
 import { estDePassage, type Client } from './clients';
+import { openingForIso } from './settings';
 
 /* LA CADENCE D'UNE TÊTE — UN SEUL JUGE, POUR LES DEUX SŒURS.
 
@@ -34,6 +35,41 @@ export type Cadence = {
   overdueDays: number; // > 0 si la date estimée est déjà passée
   sample: number; // nombre d'intervalles analysés
   template: Appointment | null; // dernier rituel honoré, à dupliquer
+};
+
+/* ── DEUX RÈGLES POSÉES LE 16 AOÛT (anomalies vues par Yéman sur Prisca) ──
+
+   ① UNE ESTIMATION NE RESTE PAS DANS LE PASSÉ. La fiche annonçait « ≈ lun.
+      29 juin » un 16 août : la cadence ne se posait qu'UNE fois depuis la
+      dernière venue, et si la cliente ne venait pas, la date vieillissait sur
+      place. Le cycle SE REJOUE désormais jusqu'à retomber devant nous — c'est
+      bien ce qu'on attend d'elle, la prochaine fois, pas la fois manquée.
+      `overdueDays` continue de compter depuis la PREMIÈRE échéance : la Maison
+      doit savoir de combien elle est en retard, même si la proposition, elle,
+      regarde devant.
+
+   ② ON NE PROPOSE PAS UN FAUTEUIL PORTE CLOSE. Le 29 juin était un lundi, et
+      la Maison ferme le lundi et le dimanche. La date glisse au prochain jour
+      ouvert — mêmes réglages que le calendrier de réservation
+      (`openingForIso` : jours fermés ET journées exceptionnelles). */
+
+/** Le premier jour ouvert à partir de celui-ci. */
+const prochainJourOuvert = (iso: string): string => {
+  let d = iso;
+  /* Quatorze essais : deux semaines fermées d'affilée n'existent pas, et une
+     boucle sans fin sur un réglage aberrant serait pire que la date brute. */
+  for (let i = 0; i < 14; i += 1) {
+    if (!openingForIso(d).closed) return d;
+    d = addDaysISO(d, 1);
+  }
+  return iso;
+};
+
+/** La cadence rejouée jusqu'à tomber aujourd'hui ou après. */
+const prochaineOccurrence = (depart: string, pas: number, today: string): string => {
+  let iso = depart;
+  for (let i = 0; i < 200 && iso < today; i += 1) iso = addDaysISO(iso, Math.max(1, pas));
+  return iso;
 };
 
 /** Médiane entière — robuste aux visites exceptionnelles. */
@@ -88,11 +124,15 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
     const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
     const confidence: Cadence['confidence'] =
       sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
-    const iso = addDaysISO(visits[visits.length - 1].date, med);
-    return { iso, predicted: true, avgDays: med, confidence, overdueDays: Math.max(0, daysBetween(iso, today)), sample, template };
+    /* L'échéance MANQUÉE reste la mesure du retard ; la date proposée, elle,
+       rejoue le cycle et se pose un jour ouvert. */
+    const echeance = addDaysISO(visits[visits.length - 1].date, med);
+    const iso = prochainJourOuvert(prochaineOccurrence(echeance, med, today));
+    return { iso, predicted: true, avgDays: med, confidence, overdueDays: Math.max(0, daysBetween(echeance, today)), sample, template };
   }
 
   // Une seule visite : cadence par défaut, confiance faible.
-  const iso = addDaysISO(template.date, 30);
-  return { iso, predicted: true, avgDays: 30, confidence: 'faible', overdueDays: Math.max(0, daysBetween(iso, today)), sample: 0, template };
+  const echeance = addDaysISO(template.date, 30);
+  const iso = prochainJourOuvert(prochaineOccurrence(echeance, 30, today));
+  return { iso, predicted: true, avgDays: 30, confidence: 'faible', overdueDays: Math.max(0, daysBetween(echeance, today)), sample: 0, template };
 }

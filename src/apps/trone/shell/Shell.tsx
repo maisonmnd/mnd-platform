@@ -8,11 +8,15 @@ import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
 
-/* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les cinq gestes du
-   comptoir — reste toujours déplié ; le reste se replie, et s'en souvient
-   PAR POSTE (jamais synchronisé : l'habitude d'un écran n'est pas une donnée
-   de la Maison). */
-const QUOTIDIEN = ['/', '/calendrier', '/caisse', '/customers', '/factures'];
+/* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les gestes du comptoir —
+   reste toujours déplié ; le reste se replie, et s'en souvient PAR POSTE
+   (jamais synchronisé : l'habitude d'un écran n'est pas une donnée de la
+   Maison).
+
+   LE CARNET Y ENTRE le 16 août (demande de Yéman) : il vivait sous « Clients &
+   agenda », replié, alors qu'on l'ouvre autant que le Calendrier — c'est là
+   qu'on lit la journée qui vient et qu'on encaisse au passage. */
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
