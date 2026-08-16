@@ -2,6 +2,39 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Une annulation qui n'arrive pas doit se dire — 16 août
+
+« Un rituel annulé par Yéman sur son compte Ma Couronne le mercredi 19 août
+n'est jamais revenu annulé sur le Trône. » Le Calendrier du Trône MASQUE les
+rituels annulés (`status !== 'annulé'` partout) : le créneau serait donc parti
+de l'écran. Il y était encore — l'annulation n'a jamais atteint le serveur.
+
+DEUX SILENCES SE PRÊTAIENT MAIN-FORTE. ① `sync.ts` comptait une poussée
+REFUSÉE PAR LES DROITS comme RÉUSSIE : le chemin `estRefusDeDroit` rendait
+`true`, `planifiePoussee` avançait alors `lastPushed`, et la ligne refusée
+sortait de TOUS les diffs suivants — le geste perdu sans un mot et sans retour
+possible. Les trois chemins rendent désormais `false` : silence sur l'ALERTE
+(une table hors de portée ne fait pas clignoter la pastille — un maître n'a pas
+à voir rouge pour la paie), JAMAIS sur le fait ; le repère ne bouge pas, et si
+les droits s'ouvrent (session rafraîchie) la poussée suivante emporte le geste.
+② UN `update` QUE LA RLS ÉCARTE NE LÈVE AUCUNE ERREUR : il touche zéro ligne,
+et zéro ligne ressemblait à un succès. D'où `ecrisRendezVous`
+(`shared/agenda.ts`) : on écrit, PUIS on demande au serveur ce qu'il a fait —
+`.select()` rend la ligne touchée, aucune ligne rendue = rien n'est arrivé.
+
+TROIS CONSÉQUENCES À L'ÉCRAN. L'annulation ET le déplacement passent par ce
+chemin vérifié (un rituel déplacé ici et resté à sa vieille heure au Trône,
+c'est une cliente qui vient quand personne ne l'attend). Si rien n'est passé,
+une BANDE CUIVRE le dit et RESTE — « le salon garde encore votre créneau », le
+numéro de la maison, un bouton Réessayer : un toast vert qui ment est pire que
+pas de toast. Et LA MAISON EST ENFIN PRÉVENUE — le seul push partait à la
+cliente elle-même, personne au salon n'apprenait qu'un créneau se libérait.
+
+RÈGLE À RETENIR : **un succès annoncé par le client ne prouve rien ; c'est le
+serveur qui dit ce qui est écrit.** Même leçon que le `commit;` resté commenté
+le matin même. PUBLIÉ @ `5f61cdb`. RESTE : le rituel du 19 août est toujours
+vivant au Trône — l'annuler là-bas (Calendrier → le rituel → annuler).
+
 ## Le cycle d'un forfait : les dates posées d'avance — 16 août
 
 « Pourquoi demander ce forfait ? Je veux passer au paiement directement. Le
