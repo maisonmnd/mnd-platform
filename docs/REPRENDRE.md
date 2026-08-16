@@ -140,6 +140,35 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Une pièce payée suit le rituel, même en une ligne — 16 août
+
+« Quand je modifie une ligne d'un RDV, modifie la ligne en facturation même si
+c'est déjà payé. Le montant total et le chiffre d'affaires ne bougent pas »
+(Yéman). Le mécanisme le faisait DÉJÀ sur une pièce payée — mais un garde
+l'écartait dans le cas le plus courant.
+
+L'ENCAISSEMENT D'UN RITUEL À PLUSIEURS GESTES QUI N'A PAS PU SE DÉTAILLER
+(acompte, avoir, règlement en deux fois — voir `detailed`, actions.tsx) pose
+UNE ligne portant les noms COLLÉS : « KƆKLƆ™ Essentiel + SÍNSIN™ Essentielle ».
+Ce libellé n'est le nom d'AUCUNE prestation du catalogue, donc le garde
+`reconstructible` (12 août, qui protège les pièces mixtes) jugeait la pièce
+irreconstructible : elle ne suivait jamais le rituel, quoi qu'on y change.
+
+Or à ce point du code, une pièce d'UNE ligne ne peut plus être qu'un rituel :
+le règlement partiel (« Règlement · … ») et le forfait sont sortis juste
+au-dessus, et une pièce de produits seuls n'est pas LIÉE à un rendez-vous. Elle
+se reconforme donc — au prix plein de chaque geste, l'écart en remise ou en
+ligne d'ajustement.
+
+LES DEUX INVARIANTS DEMANDÉS SONT TENUS ET ÉPROUVÉS : le total ne bouge pas
+d'un franc, et le chiffre d'affaires non plus — il se lit sur le RITUEL
+(`apptNetXof`), que ceci ne touche pas. HARNAIS NEUF **`verifie-facturation`**
+(le sixième) : la pièce payée suit et son total tient (30 000 → 30 000) ;
+l'écart inverse se dit en remise (10 000 → 10 000) ; un règlement partiel ne se
+détaille toujours pas ; une pièce MIXTE reste entière — le flacon ne disparaît
+pas du PDF. RAPPEL : l'alignement ne part QUE d'un enregistrement de la modale
+RDV. PUBLIÉ @ `89ba2b4`.
+
 ## La facture pas encore payée suit le rituel — 16 août
 
 « J'ai mis à jour le RDV de Habibath, pourquoi les lignes de la facture ne se
