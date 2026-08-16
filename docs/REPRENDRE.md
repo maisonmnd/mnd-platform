@@ -2,6 +2,60 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le tunnel sous-vendait les forfaits — 16 août, EN LIGNE
+
+Signalé LATENT le 15, devenu RÉEL le 16 : Yéman a masqué 16 prestations et 15
+catégories à la Vitrine, et le tunnel de réservation résolvait la composition
+d'un forfait sur la carte ÉLAGUÉE — une prestation masquée sortait de la somme
+EN SILENCE. Mesuré sur les données réelles, moteur réel :
+
+| forfait | annoncé | réel |
+| --- | --- | --- |
+| Forfait VÈKPÈ™ Initiation | **17 600** | 176 000 |
+| Forfait VÈKPÈ™ × GBÈJÍ™ | 64 600 | 247 350 |
+| YÈKPÈ™ × 3 | 67 500 | 144 000 |
+| Abonnement GBÈJÍ™ Annuel | 346 800 | 410 550 |
+| Abonnement GBÈJÍ™ Trimestriel | 91 800 | 100 800 |
+
+490 400 F d'écart sur une vente de chacun. `Booking` calcule désormais sur le
+catalogue ENTIER (`tousServices`) — le prix d'un forfait ET `freeSlots`, dont
+la durée se lit sur les rituels DÉJÀ pris, qui peuvent porter une prestation
+masquée à cette cliente-là (la grille promettait des heures occupées).
+`services` (élagué) reste ce qu'elle peut CHOISIR. `Compose` était corrigé la
+veille ; `Tabs` et `MesRendezVous` lisaient déjà le catalogue entier. LA RÈGLE,
+une troisième fois : **on affiche avec la carte élaguée, on JUGE sur l'arbre
+entier.** Publié @ `24196e5`.
+
+## La Reprise Frontale se replie sur Retouches Post Reprise — 16 août
+
+MIGRATION **0052 PASSÉE** (par `0052b_reprise_frontale_execution.sql`). Trois
+prestations disaient le même geste ; les deux « Reprise Frontale » portaient
+l'histoire, « Retouches Post Reprise » porte le barème par calibre (Jumbo/Mini
+4 000 · Medium 5 000 · Nano 12 000 · Micro/Pico 15 000). Tout s'est replié sur
+la troisième : rendez-vous repointés, libellés des pièces réécrits, les deux
+fiches supprimées (85 → 83 prestations), pierres tombales posées, masques
+nettoyés (16 → 14). NE PAS RELANCER.
+
+LES MONTANTS N'ONT PAS BOUGÉ — décision de Yéman. Le script FIGE d'abord le
+prix des rituels qui n'en portaient pas : sans cela, un Élaborée à 15 000 F se
+serait relu 4 000 F au catalogue (`apptTotalXof` retombe sur le catalogue quand
+`priceXof` manque) et la Synthèse aurait perdu la différence. Les cinq pièces
+concernées : MND-R-0029 · 0145 · 0184 à 15 000 F, MND-R-0269 · 0293 à 4 000 F —
+53 000 F, tous payés. Tables de secours `repli_0052_*` : le seul retour en
+arrière, à garder quelques jours.
+
+LE PIÈGE DU JOUR, à ne jamais refaire : la première tentative a rendu
+« Success. No rows returned » **sans rien écrire** — le `commit;` de fin était
+resté commenté, Postgres a donc annulé la transaction à la fermeture. Un succès
+annoncé ne prouve rien ; c'est la LECTURE de la base qui prouve. D'où
+`0052b`, l'exécution PRÊTE À COLLER, sans une ligne à décommenter — le motif à
+suivre pour les prochaines migrations.
+
+RESTE : « Retouches Post Reprise » est MASQUÉE à la Vitrine (`hiddenServices`).
+Toute l'histoire pointe désormais vers une prestation que les clientes ne
+voient pas — rallumer son interrupteur (Vitrine client → la régie) si elle doit
+se réserver.
+
 ## Les forfaits de la carte ont enfin leur vitrine — 16 août
 
 « Le Ponctuel et l'Abonnement vendent les mêmes choses » (Yéman). C'était
