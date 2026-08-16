@@ -169,6 +169,19 @@ export function alignerFacturesDuRituel(
      RDV passe le sien, longueur figée comprise) ; le repli reste l'ancien
      calcul pour ne rien casser d'un appel nu. */
   priceOf: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
+  /** LES PRODUITS DE LA GAMME — ce qu'il ne faut JAMAIS réécrire (16 août).
+      Le garde des pièces mixtes reconnaissait une ligne de rituel à son NOM
+      EXACT au catalogue. Un nom se corrige, et le lien casse alors EN SILENCE,
+      pour toujours : la pièce de reprise de Prisca dit « … · shampoing
+      apporté » quand le catalogue dit « … · Shampoing apporté », et elle a
+      cessé de suivre son rituel sans que rien ne le signale.
+
+      On renverse donc la charge de la preuve : au lieu de reconnaître ce qu'on
+      sait reconstruire, on reconnaît ce qu'il faut PRÉSERVER. Un flacon reste
+      un flacon quel que soit l'âge de la pièce ; une prestation renommée
+      redevient réparable. Sans cette liste, l'ancienne règle stricte
+      s'applique — un appel nu ne peut pas faire disparaître un produit. */
+  produits: readonly { name: string }[] = [],
 ): void {
   /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
      depuis le RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture
@@ -186,6 +199,7 @@ export function alignerFacturesDuRituel(
      la pièce, est une ligne de RITUEL (même d'une composition passée). */
   const nomsPrestations = new Set<string>();
   for (const s of byId.values()) nomsPrestations.add(s.name);
+  const nomsProduits = new Set(produits.map((p) => p.name));
 
   invoicesStore.set((prev) => prev.map((inv) => {
     if (!liee(inv) || inv.kind !== 'facture') return inv;
@@ -239,7 +253,11 @@ export function alignerFacturesDuRituel(
        Le chiffre d'affaires ne bouge pas davantage : il se lit sur le rituel
        (`apptNetXof`), que ceci ne touche pas. */
     const reconstructible = inv.lines.length === 1
-      || inv.lines.every((l) => nomsPrestations.has(l.label) || l.label === LIGNE_AJUSTEMENT);
+      || inv.lines.every((l) => nomsPrestations.has(l.label)
+        || l.label === LIGNE_AJUSTEMENT
+        /* La règle renversée : ce qui n'est pas un produit de la Gamme est un
+           geste, même si son nom a changé depuis. */
+        || (nomsProduits.size > 0 && !nomsProduits.has(l.label)));
     if (!reconstructible) return inv;
 
     /* LES LIGNES DISENT LES VRAIS PRIX, L'ÉCART SE DIT EN REMISE. La première
@@ -1251,7 +1269,7 @@ export function RdvModal({
          de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
          prix pleins — pas le prix catalogue nu. */
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
-      if (maj) alignerFacturesDuRituel(maj, byId, (s) => prixDe(s));
+      if (maj) alignerFacturesDuRituel(maj, byId, (s) => prixDe(s), produitsGamme);
     } else {
       const created: Appointment = {
         id: uid(),
