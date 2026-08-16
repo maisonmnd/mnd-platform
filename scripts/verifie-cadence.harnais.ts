@@ -73,6 +73,43 @@ for (let pas = 7; pas <= 30; pas += 1) {
 dit('672 cadences éprouvées : aucune un lundi ni un dimanche', 0, fermes);
 dit('… et aucune dans le passé', 0, passees);
 
+/* ── ③ CELLES QUI NE VIENNENT QUE LE SAMEDI ──────────────────────── */
+/* « Il y a des clientes qui ne veulent venir que le samedi. Les prédictions
+   doivent toujours aller sur le samedi suivant » (Yéman, 16 août). */
+const samedienne: Client = { ...cliente, id: 'c2', jourPrefere: 6 } as Client;
+const rdv2 = (date: string, i = 0) => ({ ...rdv(date, i), clientId: 'c2' } as Appointment);
+
+let pasSamedi = 0;
+for (let pas = 7; pas <= 40; pas += 1) {
+  for (let depart = 1; depart <= 28; depart += 1) {
+    const d1 = `2026-06-${String(depart).padStart(2, '0')}`;
+    const d2 = new Date(`${d1}T12:00:00`);
+    d2.setDate(d2.getDate() + pas);
+    const iso2 = `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, '0')}-${String(d2.getDate()).padStart(2, '0')}`;
+    const c = predictNextVisit([rdv2(d1), rdv2(iso2, 1)], [samedienne], 'c2', '2026-08-16');
+    if (!c.iso) continue;
+    if (new Date(`${c.iso}T12:00:00`).getDay() !== 6) {
+      pasSamedi += 1;
+      if (pasSamedi <= 3) console.log(`       ⚠ ${c.iso} tombe un ${jourDe(c.iso)}`);
+    }
+  }
+}
+dit('952 cadences d’une samedienne : toutes un samedi', 0, pasSamedi);
+
+/* Le samedi SUIVANT, jamais le précédent : l'échéance du mercredi 19 août
+   donne le samedi 22, pas le 15. */
+const c2 = predictNextVisit(
+  [rdv2('2026-07-22'), rdv2('2026-08-05', 1)], [samedienne], 'c2', '2026-08-16',
+);
+dit('échéance mer. 19 août → samedi 22', '2026-08-22', c2.iso);
+dit('… et la cadence lue reste la vraie', 14, c2.avgDays);
+
+/* Sans préférence, la même histoire garde sa date d'origine. */
+const c2b = predictNextVisit(
+  [rdv('2026-07-22'), rdv('2026-08-05', 1)], [cliente], 'c1', '2026-08-16',
+);
+dit('sans jour préféré, l’estimation ne bouge pas', '2026-08-19', c2b.iso);
+
 /* ── UN VRAI RDV À VENIR N'EST PAS UNE PRÉDICTION ────────────────── */
 /* Il s'affiche tel quel, même un jour fermé : c'est un FAIT posé par la
    Maison, pas une proposition du moteur. */

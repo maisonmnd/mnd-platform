@@ -105,6 +105,16 @@ export type Client = {
       Le comptage de la Maison, quand il arrive, l'emporte sans discussion. */
   lockCountDeclare?: number;
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
+  /** LE JOUR OÙ ELLE PEUT VENIR — 16 août 2026, demande de Yéman : « il y a
+      des clientes qui ne veulent venir que le samedi ». Un chiffre de la
+      semaine JavaScript (0 = dimanche … 6 = samedi).
+
+      Il ne BLOQUE rien : le comptoir pose un rendez-vous le jour qu'il veut, et
+      elle réserve le créneau qu'elle veut sur Ma Couronne. Il commande la
+      PRÉDICTION — « quand la Maison l'attend » se pose alors sur son jour, au
+      premier qui suit l'échéance. Prédire un mardi à qui ne vient que le
+      samedi, c'était relancer sur une date qu'elle allait refuser. */
+  jourPrefere?: number;
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne

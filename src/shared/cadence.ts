@@ -72,6 +72,22 @@ const prochaineOccurrence = (depart: string, pas: number, today: string): string
   return iso;
 };
 
+/** SON JOUR À ELLE — le premier `jour` (0 = dimanche … 6 = samedi) à partir de
+    cette date, celle-ci comprise. « Il y a des clientes qui ne veulent venir
+    que le samedi » (Yéman, 16 août) : prédire un mardi à celles-là, c'est
+    relancer sur une date qu'elles refuseront. */
+const prochainJourDeSemaine = (iso: string, jour: number): string => {
+  const ecart = (jour - fromISO(iso).getDay() + 7) % 7;
+  return ecart === 0 ? iso : addDaysISO(iso, ecart);
+};
+
+/** OÙ SE POSE UNE ESTIMATION — son jour à elle d'abord, la porte ouverte
+    ensuite. L'ordre compte : le salon ne s'ouvre pas parce qu'une cliente le
+    préfère, donc un jour préféré FERMÉ glisse au premier jour ouvert. La fiche
+    prévient au moment de le choisir plutôt que de mentir ici. */
+const poseLaDate = (iso: string, jourPrefere: number | undefined): string =>
+  prochainJourOuvert(jourPrefere === undefined ? iso : prochainJourDeSemaine(iso, jourPrefere));
+
 /** Médiane entière — robuste aux visites exceptionnelles. */
 const medianInt = (xs: number[]): number => {
   const s = [...xs].sort((a, b) => a - b);
@@ -125,14 +141,14 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
     const confidence: Cadence['confidence'] =
       sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
     /* L'échéance MANQUÉE reste la mesure du retard ; la date proposée, elle,
-       rejoue le cycle et se pose un jour ouvert. */
+       rejoue le cycle, se pose sur SON jour, puis sur un jour ouvert. */
     const echeance = addDaysISO(visits[visits.length - 1].date, med);
-    const iso = prochainJourOuvert(prochaineOccurrence(echeance, med, today));
+    const iso = poseLaDate(prochaineOccurrence(echeance, med, today), cliente?.jourPrefere);
     return { iso, predicted: true, avgDays: med, confidence, overdueDays: Math.max(0, daysBetween(echeance, today)), sample, template };
   }
 
   // Une seule visite : cadence par défaut, confiance faible.
   const echeance = addDaysISO(template.date, 30);
-  const iso = prochainJourOuvert(prochaineOccurrence(echeance, 30, today));
+  const iso = poseLaDate(prochaineOccurrence(echeance, 30, today), cliente?.jourPrefere);
   return { iso, predicted: true, avgDays: 30, confidence: 'faible', overdueDays: Math.max(0, daysBetween(echeance, today)), sample: 0, template };
 }

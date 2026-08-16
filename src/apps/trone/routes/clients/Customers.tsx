@@ -26,6 +26,7 @@ import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
 import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
+import { useSettings } from '../../../../shared/settings';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
@@ -1213,6 +1214,20 @@ function Customer360({
   const patch = (p: Partial<Client>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
 
+  /* LES JOURS DE LA SEMAINE, avec ceux que la Maison ferme — lus des réglages,
+     jamais écrits en dur : le jour de fermeture est un choix de la Maison, et
+     il a déjà bougé. Lundi en tête, comme on lit une semaine de travail. */
+  const [reglagesSalon] = useSettings();
+  const JOURS_SEMAINE = useMemo(() => {
+    const cles = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+    const noms = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    return [1, 2, 3, 4, 5, 6, 0].map((n) => ({
+      n,
+      label: noms[n],
+      ferme: !!reglagesSalon.hours.find((h) => h.key === cles[n])?.closed,
+    }));
+  }, [reglagesSalon]);
+
   /* Photo de profil — réduite avant d'être écrite (voir readImageDownscaled).
      Le portrait suit la cliente partout : listes, carnet, factures, Ma Couronne. */
   const onPhoto = async (file?: File) => {
@@ -1910,6 +1925,27 @@ function Customer360({
                   Yéman) : la préférence est À ELLE — elle se dit dans le
                   Profil de Ma Couronne (`preferredMaster` vit toujours, la
                   reco et la réservation le lisent). */}
+              {/* SON JOUR À ELLE (16 août, demande de Yéman : « il y a des
+                  clientes qui ne veulent venir que le samedi »). Il ne bloque
+                  rien — le comptoir pose le rendez-vous qu'il veut — il
+                  commande LA PRÉDICTION : « quand la Maison l'attend » se pose
+                  alors sur son jour, au premier qui suit l'échéance. */}
+              <Field label="Elle ne vient que le… · commande la prédiction">
+                <Select
+                  value={client.jourPrefere === undefined ? '' : String(client.jourPrefere)}
+                  onChange={(e) => patch({ jourPrefere: e.target.value === '' ? undefined : Number(e.target.value) })}
+                >
+                  <option value="">— n’importe quel jour —</option>
+                  {JOURS_SEMAINE.map((j) => (
+                    <option key={j.n} value={j.n}>{j.label}{j.ferme ? ' · la Maison est fermée' : ''}</option>
+                  ))}
+                </Select>
+                {client.jourPrefere !== undefined && JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.ferme && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, color: 'var(--copper-700)' }}>
+                    La Maison est fermée ce jour-là — la prédiction glissera au premier jour ouvert.
+                  </div>
+                )}
+              </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">
                 <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>
                   <option value="">— aucun —</option>
