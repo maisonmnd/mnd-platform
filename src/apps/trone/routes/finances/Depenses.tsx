@@ -1039,85 +1039,131 @@ export default function Depenses() {
 
       {/* ============ MODALE · NOUVELLE DÉPENSE ============ */}
       {open && (
-        <Modal title={editingId ? 'Modifier la dépense' : 'Nouvelle dépense'} onClose={() => setOpen(false)} width={560}>
+        <Modal title={editingId ? 'Modifier la dépense.' : 'Inscrire une dépense.'} onClose={() => setOpen(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <label className="mnd-field">
-              <span className="mnd-field__label">Bénéficiaire</span>
-              <input className="mnd-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ex. Fournisseur · Karité Bénin" />
-            </label>
-            <div style={{ display: 'flex', gap: 14 }}>
-              <label className="mnd-field" style={{ flex: 1 }}>
-                {/* Le montant se compte dans la devise de la caisse choisie : une
-                    dépense depuis la caisse en euros sort des euros du tiroir. */}
-                {(() => {
-                  const fb = branchBoxes.find((b) => b.name === form.cashbox);
-                  const fCur = fb ? cashboxCurrency(fb) : currency;
-                  return (
-                    <span className="mnd-field__label">
-                      Montant · {fmtIn(formTotal, fCur)}{cleanItems.length ? ' · somme des articles' : ''}{fCur !== currency ? ` · caisse en ${fCur}` : ''}
+            {/* ═══ LE MONTANT EST LE HÉROS — 16 août 2026, demande de Yéman :
+                « quand on ouvre Ajouter une dépense, je veux le même modèle que
+                Inscrire un mouvement dans Salon & Foyer ». C'est le nombre
+                qu'on vient écrire : il s'affiche en grand, au centre, avant
+                tout le reste. Les champs alignés à la file — bénéficiaire,
+                puis montant, puis date — faisaient chercher lequel portait la
+                somme. La devise est celle de la CAISSE choisie : une dépense
+                prise sur la caisse en euros sort des euros du tiroir. ═══ */}
+            {(() => {
+              const fb = branchBoxes.find((b) => b.name === form.cashbox);
+              const fCur = fb ? cashboxCurrency(fb) : currency;
+              return (
+                <div style={{ textAlign: 'center', paddingTop: 4 }}>
+                  <div className="trc-microlabel" style={{ letterSpacing: '.2em' }}>Montant</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
+                    {cleanItems.length ? (
+                      /* LA SOMME DES ARTICLES FAIT LOI — on ne saisit plus deux
+                         vérités pour le même achat. */
+                      <span style={{
+                        width: 220, textAlign: 'right', display: 'inline-block',
+                        borderBottom: '1px solid var(--copper-300)',
+                        fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)', padding: '2px 6px',
+                      }}>
+                        {formTotal.toLocaleString('fr-FR')}
+                      </span>
+                    ) : (
+                      <input
+                        value={form.amount}
+                        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))}
+                        inputMode="numeric"
+                        placeholder="0"
+                        autoFocus
+                        aria-label={`Montant en ${fCur}`}
+                        style={{
+                          width: 220, textAlign: 'right', background: 'transparent',
+                          border: 'none', borderBottom: '1px solid var(--copper-300)',
+                          fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
+                          padding: '2px 6px', outline: 'none',
+                        }}
+                      />
+                    )}
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--copper-700)' }}>
+                      {fCur === 'XOF' ? 'F' : fCur}
                     </span>
-                  );
-                })()}
-                {cleanItems.length ? (
-                  <input className="mnd-input" value={fmtMoney(formTotal, currency)} readOnly disabled style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
-                ) : (
-                  <input className="mnd-input" inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="0" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }} />
-                )}
-              </label>
-              <label className="mnd-field" style={{ flex: 'none', width: 180 }}>
-                <span className="mnd-field__label">Date</span>
-                <input className="mnd-input" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
-              </label>
-            </div>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5 }}>
+                    {cleanItems.length > 0
+                      ? `somme de ${cleanItems.length} article${cleanItems.length > 1 ? 's' : ''}`
+                      : ''}
+                    {cleanItems.length > 0 && fCur !== currency ? ' · ' : ''}
+                    {fCur !== currency ? `caisse en ${fCur}` : ''}
+                  </div>
+                </div>
+              );
+            })()}
 
+            {/* LA QUESTION EN MOTS, comme au Salon & Foyer : on répond d'abord
+                à quoi va l'argent, le reste suit. */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
-                <span className="mnd-field__label">Articles de l’achat {form.items.length ? `· ${cleanItems.length}/${form.items.length}` : '· facultatif'}</span>
-                <button className="trf-act" onClick={addItem}>+ Ligne</button>
-              </div>
-              {form.items.length === 0 && (
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-                  Ajoute des lignes pour imputer plusieurs articles à ce même achat — le montant devient leur somme. Sinon, laisse le montant simple ci-dessus.
-                </div>
-              )}
-              {form.items.length > 0 && (
-                <div className="trf-items">
-                  {form.items.map((it) => (
-                    <div className="trf-items__row" key={it.id}>
-                      <input
-                        className="mnd-input" value={it.label} placeholder="Article · ex. Beurre de karité"
-                        onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
-                        style={{ flex: 1 }}
-                      />
-                      <input
-                        className="mnd-input" inputMode="numeric" value={it.amountXof ? String(it.amountXof) : ''} placeholder="0"
-                        onChange={(ev) => patchItem(it.id, (x) => ({ ...x, amountXof: parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10) }))}
-                        style={{ flex: 'none', width: 130, fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}
-                      />
-                      <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeItem(it.id)} aria-label="Retirer la ligne">×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie</div>
+              <div className="trc-microlabel" style={{ marginBottom: 9 }}>À quoi va cet argent ?</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {catNames.map((c) => (
                   <button key={c} className={`trf-chip ${form.category === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, category: c, subcategory: '' }))}>{c}</button>
                 ))}
               </div>
-            </div>
-            {subsOf(form.category).length > 0 && (
-              <div>
-                <div className="mnd-field__label" style={{ marginBottom: 9 }}>Sous-catégorie</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {subsOf(form.category).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9, paddingLeft: 2 }}>
                   {subsOf(form.category).map((c) => (
                     <button key={c} className={`trf-chip ${form.subcategory === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, subcategory: c }))}>{c}</button>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            <label className="mnd-field">
+              <span className="mnd-field__label">Bénéficiaire</span>
+              <input className="mnd-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ex. Fournisseur · Karité Bénin" />
+            </label>
+
+            {/* LE DÉTAIL SE REPLIE — un achat simple n'a rien à détailler, et
+                trois lignes de cases vides encombraient la fenêtre. */}
+            <div>
+              {form.items.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={addItem}
+                  style={{
+                    width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
+                    border: '1px dashed var(--copper-500)', borderRadius: 3,
+                    background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
+                  }}
+                >
+                  + Détailler cet achat (optionnel)
+                </button>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
+                    <span className="mnd-field__label">Articles de l’achat · {cleanItems.length}/{form.items.length}</span>
+                    <button className="trf-act" onClick={addItem}>+ Ligne</button>
+                  </div>
+                  <div className="trf-items">
+                    {form.items.map((it) => (
+                      <div className="trf-items__row" key={it.id}>
+                        <input
+                          className="mnd-input" value={it.label} placeholder="Article · ex. Beurre de karité"
+                          onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
+                          style={{ flex: 1 }}
+                        />
+                        <input
+                          className="mnd-input" inputMode="numeric" value={it.amountXof ? String(it.amountXof) : ''} placeholder="0"
+                          onChange={(ev) => patchItem(it.id, (x) => ({ ...x, amountXof: parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10) }))}
+                          style={{ flex: 'none', width: 130, fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}
+                        />
+                        <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeItem(it.id)} aria-label="Retirer la ligne">×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+                    La somme des articles devient le montant de l’achat.
+                  </div>
+                </>
+              )}
+            </div>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payer depuis quelle caisse</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -1155,6 +1201,12 @@ export default function Depenses() {
                 <button className={`trf-chip ${form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: true }))}>Signalée · à revoir</button>
               </div>
             </div>
+            {/* LA DATE FERME LA FENÊTRE, comme au Salon & Foyer : c'est le
+                dernier réglage, pas une question posée avant le montant. */}
+            <label className="mnd-field">
+              <span className="mnd-field__label">Date</span>
+              <input className="mnd-input" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+            </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
               {saveErr && (
                 <span style={{ marginRight: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--trf-error)' }}>
