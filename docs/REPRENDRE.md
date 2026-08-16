@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le comptage au tarif de la longueur — 16 août
+
+« Programme l'atelier VÈKPÈ au comptage de locks avec 3 niveaux de prix par
+longueur : court 1 100, mi-long 1 200, long 1 300 pour Jumbo à Mini ; Micro à
+Galaxy 1 400, 1 500, 1 600. Create the modal. » (Yéman)
+
+LE MODÈLE NE SAVAIT PAS LE FAIRE — une prestation ne portait qu'UN
+`ratePerLock`. Nouveau champ **`tarifLockParLongueur`** : le même lock ne coûte
+pas le même geste sur une couronne courte et sur une longue.
+
+LE MOTEUR. Quand la grille porte la longueur du rendez-vous, elle PRIME sur le
+tarif unique, et **`prixParLongueur` devient le PLANCHER** — décision de
+Yéman : le comptage ne peut que MONTER le prix, jamais le baisser. Sans
+comptage, ce même plancher s'annonce : une tête pas encore comptée garde un
+prix connu. `regimeBrut` annonce ce régime AVANT la grille par longueur, sinon
+la fiche disait « grille » pendant que la caisse calculait un comptage.
+
+LA FICHE NE SE DÉTRUIT PLUS. Le modèle exclusif (13 août) effaçait
+`prixParLongueur` dès qu'on choisissait « comptage » : le plancher aurait sauté
+au premier enregistrement — même famille de piège que les forfaits la veille.
+Le formulaire du Catalogue gagne les trois tarifs ET leurs planchers.
+
+LA MODALE « Programmer au comptage », sur CHAQUE atelier : deux grilles, les
+calibres qui suivent l'une ou l'autre (pré-réglés Jumbo–Mini / Micro–Galaxy aux
+taux de Yéman, modifiables), et un APERÇU qui dit ce que chaque prestation
+deviendra au bas et au haut de sa tranche AVANT d'écrire. Les forfaits en sont
+exclus — ils valent leur composition. Yéman l'applique elle-même : le catalogue
+est en écriture staff, la clé publique ne peut pas.
+
+CE QUE LE PLANCHER FAIT VRAIMENT — vu au harnais, à savoir avant d'appliquer :
+il mord souvent. 80 locks × 1 300 = 104 000 restent sous les 120 000 affichés
+en long, donc le plancher gagne. Les tranches basses ne bougeront donc presque
+pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 à
+980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
+dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
+
 ## La facture pas encore payée suit le rituel — 16 août
 
 « J'ai mis à jour le RDV de Habibath, pourquoi les lignes de la facture ne se
