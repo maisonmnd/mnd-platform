@@ -2,6 +2,32 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## On ne prédit pas le retour de qui vit ailleurs — 16 août
+
+« Sur cette liste beaucoup de personnes de la diaspora — Célia, Inayat,
+Sydney, Kassira, One Love, Leila. Comment on fait pour qu'ils n'aient plus de
+prédictions ? » (Yéman, en lisant « celles qui ont glissé »). LA DIASPORA VIENT
+QUAND ELLE EST AU PAYS : sa cadence ne mesure pas un rythme, elle mesure des
+billets d'avion. `predictNextVisit` ne la prédit donc plus, exactement comme la
+cliente de passage — et la liste des retards cesse de noyer les vraies
+relances sous des gens qu'on ne relance pas.
+
+UN SEUL JUGE, ENFIN — `estDiaspora` (shared/clients). La notion vivait à DEUX
+endroits, et le code le disait déjà dans le commentaire de `dePassage` : le
+CHAMP `diaspora` (lu par les signaux de persona) et le SEGMENT « Diaspora » (lu
+par le registre des Clientes). Le compteur annonçait « Diaspora 1 » quand la
+Maison en reconnaissait cinquante. Le juge lit LES DEUX — rien ne casse, aucune
+donnée à migrer — et le registre des Clientes passe désormais par lui.
+
+LE GESTE OÙ ON RECONNAÎT : chaque ligne de « celles qui ont glissé » porte un
+bouton **Diaspora**. Un clic, une confirmation qui dit ce qui va se passer, et
+elle sort des prédictions. Il écrit LE CHAMP, jamais le segment — un segment se
+renomme et s'efface depuis une liste, et le prédicat casserait en silence
+(même doctrine que `dePassage`). CE QUI NE CHANGE PAS : un rendez-vous DÉJÀ
+PRIS s'affiche toujours — elle est au pays, elle vient. Le garde ne touche que
+la prédiction. HARNAIS : 4 vérifications de plus, dont le champ ET le segment.
+PUBLIÉ @ `84f206f`.
+
 ## La Cadence — la salle des prédictions — 16 août
 
 « J'aimerais voir le module de l'intelligence, la salle qui gère les
