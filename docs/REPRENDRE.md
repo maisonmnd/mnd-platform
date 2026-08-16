@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les forfaits de la carte ont enfin leur vitrine — 16 août
+
+« Le Ponctuel et l'Abonnement vendent les mêmes choses » (Yéman). C'était
+vrai : deux fois le même mix & match, seuls le taux, le minimum et les ateliers
+ouverts les séparaient. Et l'offre la plus travaillée de la Maison — ses HUIT
+forfaits et abonnements composés au Catalogue — ne paraissait NULLE PART sur Ma
+Couronne. TROIS ONGLETS désormais : les deux premiers restent le composeur (les
+deux régimes sont GARDÉS — décision de Yéman, questionnée), le troisième est
+neuf : LES FORFAITS DE LA CARTE, avec nom, prix, ce qu'ils réunissent, leurs
+séances et leur parole.
+
+LE GESTE SUIT LE FORFAIT (décision de Yéman) : **une seule séance se RÉSERVE**
+— le composeur se ferme, le tunnel s'ouvre posé dessus (`onReserver` →
+`openBooking({ serviceId })`, la garde `ferme('reserver')` tient toujours) —
+**plusieurs séances se DEMANDENT**, parce qu'un cycle de 3 ou 12 mois ne se
+programme pas en enfilade au téléphone. Aujourd'hui 4 / 4. Le pont
+`mnd_couronne_compose` gagne le mode `forfait` (discountPct 0 : le prix est
+celui de la carte, déjà remisé par sa composition) et le Tableau de bord le
+nomme « Forfait de la carte » — la ligne « −0 % » ne s'écrit plus.
+
+TROIS GARDES POSÉES AU PASSAGE. ① `estProposable` filtre la liste comme partout
+(calibre, seuil de venues, réserve aux comptes famille — défaut fermé). ② LE
+PRIX D'UN FORFAIT SE RÉSOUT SUR LE CATALOGUE ENTIER : `personalPriceXof` ne se
+sert du catalogue que pour SOMMER la composition ; sur la carte élaguée, une
+prestation masquée à cette cliente sortait de la somme EN SILENCE et le pack
+s'annonçait moins cher que ce que la caisse encaissera. Même famille que « on
+affiche avec la carte élaguée, on juge sur l'arbre entier ». ③ Un forfait ne se
+compose plus DANS un forfait (on empilait deux remises sur la même prestation).
+VÉRIFIÉ sur les données réelles, moteur réel : les huit forfaits sortent un
+prix, aucun à zéro (27 200 · 176 000 · 37 000 · 38 500 · 410 550 · 100 800 ·
+247 350 · 144 000). PUBLIÉ, build `20260816015402`, publié @ `9e1a680`.
+
+RESTE, MÊME FAMILLE QUE ② : le tunnel `Booking` résout lui aussi la composition
+d'un forfait sur la carte élaguée (`prixIci`, `priceLabel`). Latent tant
+qu'aucun masque n'est posé (0 aujourd'hui) — à corriger avec sa propre
+vérification.
+
 ## Porter une composition n'est pas être pricé par elle — 15 août
 
 « Où est passé prix par longueur ? court, mi-long et long ? » (Yéman, sur
