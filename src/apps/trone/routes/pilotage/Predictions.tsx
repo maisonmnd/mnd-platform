@@ -69,6 +69,12 @@ export default function Predictions() {
   const today = todayISO();
   const [horizonChoisi, setHorizonChoisi] = useState<'8' | '12'>('8');
   const horizon = Number(horizonChoisi);
+  /* LES DEUX LISTES S'OUVRENT (16 août, demande de Yéman : « je veux ouvrir
+     les 30 autres, et plus bas les 64 autres »). La coupe protégeait le temps
+     de rendu, pas la lectrice : celle qu'on cherche est souvent la treizième.
+     On ouvre donc, et on referme du même geste. */
+  const [tousRetards, setTousRetards] = useState(false);
+  const [toutesAttendues, setToutesAttendues] = useState(false);
 
   /* ---- LE CALCUL, une fois pour toute la salle ---- */
   const lignes = useMemo<Ligne[]>(() => {
@@ -311,7 +317,7 @@ export default function Predictions() {
           Celles qui ont glissé · {enRetard.length}
         </div>
         <div className="trp-card">
-          {enRetard.slice(0, 12).map((l) => (
+          {(tousRetards ? enRetard : enRetard.slice(0, 12)).map((l) => (
             <div key={l.clientId} className="trp-glisse">
               <button
                 type="button"
@@ -345,7 +351,11 @@ export default function Predictions() {
             <div className="trp-break__empty">Aucune tête n’a glissé — la Maison est à jour.</div>
           )}
           {enRetard.length > 12 && (
-            <div className="trp-break__sub">et {enRetard.length - 12} autres — les douze plus anciennes d’abord.</div>
+            <button type="button" className="trp-voirtout" onClick={() => setTousRetards((v) => !v)}>
+              {tousRetards
+                ? `Replier — n’en garder que les douze plus anciennes`
+                : `Ouvrir les ${enRetard.length - 12} autres — les douze plus anciennes d’abord`}
+            </button>
           )}
         </div>
       </section>
@@ -551,7 +561,7 @@ export default function Predictions() {
       <section className="tr-section">
         <div className="trc-microlabel">Toutes les têtes attendues · {lignes.length}</div>
         <div className="trp-card">
-          {lignes.slice(0, 40).map((l) => {
+          {(toutesAttendues ? lignes : lignes.slice(0, 40)).map((l) => {
             const ferme = openingForIso(l.cadence.iso!).closed;
             return (
               <button
@@ -580,7 +590,11 @@ export default function Predictions() {
             </div>
           )}
           {lignes.length > 40 && (
-            <div className="trp-break__sub">et {lignes.length - 40} autres, plus loin dans le temps.</div>
+            <button type="button" className="trp-voirtout" onClick={() => setToutesAttendues((v) => !v)}>
+              {toutesAttendues
+                ? 'Replier — n’en garder que les quarante premières'
+                : `Ouvrir les ${lignes.length - 40} autres, plus loin dans le temps`}
+            </button>
           )}
         </div>
       </section>

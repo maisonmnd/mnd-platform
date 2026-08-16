@@ -31,6 +31,23 @@
 .trp-dot--pris { background: var(--color-indigo); }
 .trp-dot--est { background: var(--copper-300); }
 
+/* « Ouvrir les N autres » — la coupe se lève d'un geste, et se remet. */
+.trp-voirtout {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 12px 0 2px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--copper-700);
+  transition: color var(--dur-fast) var(--ease-soft);
+}
+.trp-voirtout:hover { color: var(--color-indigo); }
+
 /* Une ligne de « celles qui ont glissé » : on l'ouvre, ou on la marque. */
 .trp-glisse { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--hairline); }
 .trp-glisse__ouvre {
