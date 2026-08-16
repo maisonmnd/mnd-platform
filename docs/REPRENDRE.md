@@ -166,6 +166,31 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Le seuil de venues se voit enfin — et se règle — 16 août
+
+« GBÈJÍ™ Fidélité n'est visible nulle part dans la sélection des services.
+Why ? » LE JUGE FAISAIT SON TRAVAIL : la fiche porte `desVenue: 3`, la règle
+voulue par la Maison — elle paraît à la 3ᵉ venue honorée, jamais avant.
+Éprouvé sur les données réelles : invisible à 0 et 1 venue, proposable dès 2,
+prix résolu 26 400 F, catégorie active, non masquée. Rien de cassé.
+
+LE DÉFAUT EST AILLEURS, ET IL EST SÉRIEUX : ce champ ne s'affichait NULLE PART
+et ne se réglait NULLE PART — `desVenue` n'apparaissait pas une seule fois dans
+`Catalogue.tsx`. Il commandait pourtant TOUS les écrans de sélection (modale
+RDV, Caisse, Ma Couronne). Une règle qui cache une prestation sans se montrer
+se lit comme une panne : impossible de distinguer « retenue par un seuil » de
+« disparue », et impossible de la lever.
+
+DEUX RÉPARATIONS. ① LA FICHE le règle, rubrique « Qui peut la prendre », à côté
+des calibres et de la réserve aux familles : « Paraît dès la Nᵉ venue », avec
+la conséquence écrite en clair — y compris qu'une VENTE SANS FICHE ne la voit
+jamais, faute de pouvoir compter les venues de personne. ② LA LIGNE du
+Catalogue dit ce qui la retient (seuil, familles, calibres) : on voit d'un
+regard pourquoi une prestation ne paraît pas.
+
+LEÇON, la même que le libellé vieilli : **une règle qui retire quelque chose
+doit le dire là où on la cherche.** PUBLIÉ @ `5044851`.
+
 ## La dépense s'inscrit comme un mouvement du Foyer — 16 août
 
 « Quand on ouvre Ajouter une dépense, je veux que ce soit le même modèle que
