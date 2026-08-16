@@ -13,10 +13,13 @@ import BarreEquipe from './BarreEquipe';
    (jamais synchronisé : l'habitude d'un écran n'est pas une donnée de la
    Maison).
 
-   LE CARNET Y ENTRE le 16 août (demande de Yéman) : il vivait sous « Clients &
-   agenda », replié, alors qu'on l'ouvre autant que le Calendrier — c'est là
-   qu'on lit la journée qui vient et qu'on encaisse au passage. */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures'];
+   LE CARNET ET LE CATALOGUE Y ENTRENT le 16 août (demande de Yéman). Le
+   Carnet vivait sous « Clients & agenda », replié, alors qu'on l'ouvre autant
+   que le Calendrier — c'est là qu'on lit la journée qui vient et qu'on
+   encaisse au passage. Le Catalogue vivait sous « Vente » : c'est pourtant la
+   carte de la Maison, ouverte à chaque prix qu'on vérifie et à chaque
+   prestation qu'on retouche. */
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures', '/catalogue'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
