@@ -166,6 +166,32 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Un libellé vieilli bloquait la facture, en silence — 16 août
+
+« Pour Prisca la facture ne se met pas à jour, pourtant j'ai refait enregistrer
+les modifications. » LA CAUSE, FINE ET SILENCIEUSE : le garde des pièces mixtes
+reconnaissait une ligne de rituel à son NOM EXACT au catalogue. La pièce de
+reprise MND-R-0184 porte « KƆKLƆ™ à Façon Lavage · **s**hampoing apporté »
+quand le catalogue dit aujourd'hui « … · **S**hampoing apporté ». Une
+majuscule. Le nom ne correspondant plus, la pièce était jugée
+irreconstructible et cessait de suivre son rituel POUR TOUJOURS, sans que rien
+ne le signale. Les 335 pièces de reprise (0018) portent toutes des libellés de
+l'ANCIEN ERP : elles étaient toutes dans ce cas.
+
+LA CHARGE DE LA PREUVE EST RENVERSÉE. Au lieu de reconnaître ce qu'on sait
+reconstruire — fragile, un nom se corrige — on reconnaît ce qu'il faut
+PRÉSERVER : les produits de la Gamme. Un flacon reste un flacon quel que soit
+l'âge de la pièce ; une prestation renommée redevient réparable. La modale RDV
+passe désormais la Gamme au juge. LE FILET RESTE : sans cette liste, l'ancienne
+règle stricte s'applique — un appel nu ne peut pas faire disparaître un produit
+qu'il ne connaît pas.
+
+LEÇON, la troisième du jour sur le même motif : **une règle qui reconnaît par
+le NOM casse en silence le jour où le nom change.** Préférer un identifiant,
+ou renverser la question pour reconnaître ce qu'on protège. HARNAIS
+`verifie-facturation` : 3 vérifications de plus, dont le cas de Prisca à
+l'identique. PUBLIÉ @ `2336817`.
+
 ## Une pièce payée suit le rituel, même en une ligne — 16 août
 
 « Quand je modifie une ligne d'un RDV, modifie la ligne en facturation même si
