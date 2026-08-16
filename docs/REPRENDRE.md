@@ -27,6 +27,28 @@ que le juge.** Elle montre ce qu'il calcule déjà, en dit la méthode, et ouvre
 la fiche pour agir. Une salle de pilotage qui inventerait un chiffre serait
 pire qu'une salle vide. PUBLIÉ @ `7e1fae8`.
 
+TROIS AJOUTS le même jour (@ `89dd4e7`). ⑧ LES MOIS CREUX — venues par mois du
+calendrier RAPPORTÉES au nombre d'années où le mois a été observé, sinon un
+mois vu deux fois pèse double et le « creux » ne dit que l'âge de la Maison.
+Indice contre un mois ordinaire, cuivre sous 0,85 ; sous DOUZE MOIS d'histoire
+la salle annonce qu'on lit l'histoire et NON une saison, et un mois jamais
+observé se dit barre vide, jamais creux. ⑨ LE TAUX DE RÉALISATION
+(`tauxDeRealisation`, shared/cadence) — aucune prédiction n'ayant jamais été
+stockée, on REJOUE le juge : à chaque venue depuis la troisième, avec les
+seules venues d'avant, contre la date réelle. Rendus : estimations éprouvées,
+part juste à ±3/±7/±14 j, écart médian, et LE BIAIS (médiane signée) qui dit si
+la Maison les attend trop tôt ou trop tard. Mesure la CADENCE MÉDIANE, pas les
+reports de jour fermé ni le jour préféré — mélanger les deux ferait passer une
+règle d'agenda pour une erreur de prévision. ⑩ L'EXPORT CSV de la file pour une
+campagne de relance (`downloadCsv`, qui neutralise déjà les formules).
+
+LE HARNAIS A TROUVÉ MIEUX QUE MOI : le backtest exigeait DEUX intervalles quand
+le juge se prononce dès UN. Il écartait donc les estimations les plus fragiles —
+celles qui se trompent le plus — et **le taux annoncé aurait été flatteur**.
+Aligné sur le juge. `verifie-cadence` : 6 vérifications de plus (régularité
+parfaite → 100 % à ±3 j et biais nul ; celle qui traîne → biais positif ; deux
+venues → rien à éprouver).
+
 ## Celles qui ne viennent que le samedi — 16 août
 
 « Il y a des clientes qui veulent venir uniquement le samedi. Les prédictions
