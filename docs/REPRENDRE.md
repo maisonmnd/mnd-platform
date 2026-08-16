@@ -2,6 +2,45 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le cycle d'un forfait : les dates posées d'avance — 16 août
+
+« Pourquoi demander ce forfait ? Je veux passer au paiement directement. Le
+paiement en 2 fois. La réservation automatique des dates selon les fréquences
+prédéfinies. Le client ne fait que modifier ou confirmer. Ne jamais choisir les
+dimanches ou lundi. » (Yéman). « DEMANDER CE FORFAIT » EST MORT : un forfait à
+plusieurs séances ouvre son CYCLE (`Cycle.tsx`).
+
+① LA CADENCE NE S'INVENTE PAS — elle est déjà au Catalogue. Chaque ligne porte
+son `afterWeeks` (« dans combien de semaines après la visite d'ouverture ») ;
+les lignes d'une MÊME semaine font UNE séance. Trimestriel : 5 séances
+(semaines 0 · 4 · 6 · 8 · 12). YÈKPÈ™ × 3 : 7. Un produit de la Gamme ne fait
+pas de séance — il se remet au comptoir.
+② LES JOURS FERMÉS SE TIENNENT SEULS : `freeSlots` ne rend AUCUN créneau un
+lundi ni un dimanche (heures du salon), ni sur un jour bloqué, ni au-delà du
+plafond du jour. La proposition avance de jour en jour jusqu'à en trouver un —
+elle ne PEUT pas poser un dimanche. Vérifié sur les cinq forfaits, moteur réel
+et réglages réels : 38 dates proposées, aucune un lundi ou un dimanche, toutes
+croissantes.
+③ ELLE CONFIRME OU DÉPLACE, séance par séance (le jour, puis l'heure — des
+pastilles et non un calendrier : un jour fermé n'y paraît pas).
+④ RÈGLEMENT EN DEUX FOIS 50/50, la 2ᵉ tranche portée par la séance du MILIEU
+(décision de Yéman) : elle sera au fauteuil ce jour-là, personne à relancer.
+⑤ L'ARGENT EST DIT COMME IL EST. Aucun rail ne débite en ligne — ni clé
+KkiaPay, ni MoMo Open API. L'écran ne fait donc PAS semblant : elle envoie par
+Mobile Money et l'annonce, le comptoir vérifie. La doctrine tient : un écran de
+paiement ne s'affiche que s'il débite vraiment.
+⑥ LES N SÉANCES entrent au carnet LIÉES EN SÉRIE ; le forfait est porté par la
+séance 1 (`Appointment.forfait`), les suivantes valent 0 par la règle des
+séries — le cycle ne compte qu'UNE fois dans le chiffre.
+
+LE JUGE DU CYCLE EST LA CADENCE, PAS `sessions` — les deux se contredisent au
+catalogue : **« Forfait VÈKPÈ™ Initiation » annonce 1 séance quand sa cadence
+en dessine 3** (passé au tunnel comme une visite unique, deux séances se
+perdaient), et **l'Abonnement Annuel annonce 24 séances pour 19 semaines
+distinctes**. Les cartes affichent désormais le compte RÉEL. À TRANCHER PAR
+YÉMAN : corriger `sessions` sur ces deux fiches, ou compléter la cadence de
+l'Annuel (5 lignes manquantes ?). PUBLIÉ @ `a29cd05`.
+
 ## Le tunnel sous-vendait les forfaits — 16 août, EN LIGNE
 
 Signalé LATENT le 15, devenu RÉEL le 16 : Yéman a masqué 16 prestations et 15
