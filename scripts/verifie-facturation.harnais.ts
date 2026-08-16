@@ -74,6 +74,25 @@ dit('un libellé vieilli n’empêche plus la pièce de suivre',
   ['KƆKLƆ™ Essentiel', 'SÍNSIN™ Essentielle'], piece().lines.map((l) => l.label));
 dit('… et le total tient toujours', avant4, invoiceTotal(piece()));
 
+/* ── LE GESTE DE LA MAISON SE LIT (16 août — le cas de Kèmi) ────────
+   « Kèmi doit savoir que le shampoing est à 10 000 F et qu'elle a une remise
+   de 100 %. Je ne veux pas simplement le montant 0 F. » La pièce recevait le
+   prix DÉJÀ diminué : un cadeau rendu invisible n'est pas reçu. */
+/* La pièce telle qu'elle était écrite AVANT : le shampoing à 0 F, le cadeau
+   rendu invisible. Le total payé, 20 000 F, est celui du catalogue. */
+pose([ligneFacture('KƆKLƆ™ Essentiel', 0), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+const avant5 = invoiceTotal(piece());
+alignerFacturesDuRituel(
+  appt(['a', 'b']), byId,
+  (s) => s.priceXof,                       // le prix PLEIN
+  GAMME,
+  (s) => (s.id === 'a' ? 100 : 0),         // le shampoing est offert
+);
+dit('la ligne porte son prix plein', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
+dit('… et la remise qui l’efface', [100, 0], piece().lines.map((l) => l.discountPct));
+dit('… le geste ne se compte pas deux fois', undefined, piece().globalDiscountXof);
+dit('… et le total ne bouge pas', avant5, invoiceTotal(piece()));
+
 /* Sans la Gamme en main, l'ancienne règle stricte protège encore : un appel
    nu ne peut pas faire disparaître un produit qu'il ne connaît pas. */
 pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('Huile Kòfí™ 100 ml', 12_000)]);

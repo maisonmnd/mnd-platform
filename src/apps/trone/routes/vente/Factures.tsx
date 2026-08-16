@@ -203,7 +203,10 @@ export default function Factures() {
       clientPhone: clientOf(d)?.phone,
       master: d.master,
       lines: d.lines.map((l) => ({
-        label: l.label,
+        /* LE GESTE SE DIT SUR LE PAPIER AUSSI (16 août) : la pièce écran
+           montrait « remise −100 % », le PDF affichait un 0 F sans raison.
+           Un cadeau qu'on ne voit pas n'est pas reçu. */
+        label: l.discountPct > 0 ? `${l.label} · remise −${l.discountPct} %` : l.label,
         qty: l.qty,
         unit: fmtMoney(l.unitXof, currency),
         total: fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency),

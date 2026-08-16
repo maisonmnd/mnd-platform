@@ -168,6 +168,7 @@ export function alignerFacturesDuRituel(
      45 000 ». L'appelant passe désormais SON contexte tarifaire (la modale
      RDV passe le sien, longueur figée comprise) ; le repli reste l'ancien
      calcul pour ne rien casser d'un appel nu. */
+  /* LE PRIX PLEIN — celui d'avant le geste de la Maison. Voir `gesteOf`. */
   priceOf: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
   /** LES PRODUITS DE LA GAMME — ce qu'il ne faut JAMAIS réécrire (16 août).
       Le garde des pièces mixtes reconnaissait une ligne de rituel à son NOM
@@ -182,6 +183,19 @@ export function alignerFacturesDuRituel(
       redevient réparable. Sans cette liste, l'ancienne règle stricte
       s'applique — un appel nu ne peut pas faire disparaître un produit. */
   produits: readonly { name: string }[] = [],
+  /** LE GESTE DE LA MAISON, EN POURCENTAGE — 16 août 2026.
+
+      « Kèmi doit savoir que le shampoing est à 10 000 F et qu'elle a une
+      remise de 100 %. Je ne veux pas simplement le montant 0 F. Je veux que ça
+      suive l'écriture qu'il y a sur le RDV » (Yéman).
+
+      La pièce recevait le prix DÉJÀ diminué du geste — donc « 0 F », un cadeau
+      rendu invisible. Un cadeau qu'on ne voit pas n'est pas reçu : la cliente
+      lit un shampoing gratuit sans savoir qu'il valait 10 000 F. La ligne
+      porte désormais le PRIX PLEIN et sa remise, comme la modale du rituel
+      l'écrit — `unitXof` × (1 − `discountPct`) vaut exactement ce que la ligne
+      valait avant, donc LE TOTAL NE BOUGE PAS. */
+  gesteOf: (s: Service) => number = () => 0,
 ): void {
   /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
      depuis le RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture
@@ -270,9 +284,13 @@ export function alignerFacturesDuRituel(
        ligne d'ajustement le dit (patron de la reprise 0018). Le total, lui,
        ne bouge toujours pas d'un franc. */
     const pleins = services.map((s) => Math.max(0, Math.round(priceOf(s))));
-    const gross = pleins.reduce((a, b) => a + b, 0);
+    const gestes = services.map((s) => Math.max(0, Math.min(100, Math.round(gesteOf(s)))));
+    /* `gross` est ce que les lignes valent VRAIMENT — geste déduit. C'est lui
+       qu'on compare au total payé, sinon le geste serait compté deux fois :
+       une fois sur la ligne, une fois dans la remise globale. */
+    const gross = pleins.reduce((a, p, i) => a + Math.round(p * (1 - gestes[i] / 100)), 0);
     const lines = services.map((s, i) => ({
-      id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: 0,
+      id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
     }));
     let remiseXof: number | undefined;
     if (!payee) {
@@ -296,7 +314,9 @@ export function alignerFacturesDuRituel(
       && (inv.globalDiscountPct ?? 0) === 0
       && (inv.globalDiscountXof ?? 0) === (remiseXof ?? 0)
       && (inv.discountLabel ?? undefined) === discountLabel
-      && inv.lines.every((l, i) => l.label === lines[i].label && l.qty * l.unitXof === lines[i].unitXof && !l.discountPct);
+      && inv.lines.every((l, i) => l.label === lines[i].label
+        && l.qty * l.unitXof === lines[i].unitXof
+        && (l.discountPct ?? 0) === lines[i].discountPct);
     if (deja) return inv;
     return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof, discountLabel };
   }));
@@ -1074,10 +1094,13 @@ export function RdvModal({
 
      Sans montant saisi, le bloc libre garde son prix de départ — zéro pour une
      prestation sur devis, le prix annoncé pour une variable. */
-  const prixDe = (sv: Service) => {
-    const plein = rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
-    return Math.round(plein * (1 - remiseGestePct(sv, pricing, chosen) / 100));
-  };
+  /* LE PRIX PLEIN ET LE GESTE, SÉPARÉMENT (16 août) — la facture doit pouvoir
+     écrire « 10 000 F · remise −100 % » là où l'écran du rituel l'écrit. Les
+     confondre en un seul nombre rendait le cadeau invisible sur la pièce. */
+  const prixPlein = (sv: Service) =>
+    rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
+  const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
+  const prixDe = (sv: Service) => Math.round(prixPlein(sv) * (1 - gesteDe(sv) / 100));
   const grossLibre = libres.reduce((s, sv) => s + prixDe(sv), 0);
   const grossFixe = Math.max(0, grossBase - grossLibre);
   /* LA PART LIBRE DÉJÀ FIGÉE — retrouvée en ôtant les prix fixes du total
@@ -1269,7 +1292,7 @@ export function RdvModal({
          de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
          prix pleins — pas le prix catalogue nu. */
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
-      if (maj) alignerFacturesDuRituel(maj, byId, (s) => prixDe(s), produitsGamme);
+      if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe);
     } else {
       const created: Appointment = {
         id: uid(),
