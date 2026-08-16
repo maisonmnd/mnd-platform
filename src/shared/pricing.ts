@@ -546,6 +546,26 @@ export const gestesDe = (sv: Service): GesteOffert[] => {
     règles tombent ensemble (une Reprise ET une coloration au même rituel),
     c'est LA PLUS GÉNÉREUSE qui gagne : elles ne se cumulent pas, sans quoi
     deux gestes de 50 et 100 % feraient un prix négatif. */
+/** UNE SEULE FAVEUR À LA FOIS — 16 août 2026, décision de Yéman.
+
+    « Quand un compte famille réserve un service qui a un déclencheur et qui est
+    offert, elle ne bénéficie pas de la remise supplémentaire du compte famille.
+    Ça ferait 2 remises et ça nous ferait perdre beaucoup trop d'argent. Donc
+    c'est l'une ou l'autre, jamais les 2 à la fois. »
+
+    Le geste de la Maison — un shampoing offert parce qu'une Reprise est au
+    rituel — EST déjà l'avantage. Y ajouter le pourcentage du compte famille,
+    c'est faire deux cadeaux pour une venue. La remise famille s'efface donc
+    devant le geste, et sur TOUT le rituel : c'est le sens de « l'une ou
+    l'autre ». Même esprit que la règle du 14 août, où la remise famille ne
+    porte jamais sur la part forfaits — ce qui est déjà réduit ne se remise pas
+    une seconde fois.
+
+    Ce que la Maison donne reste la faveur la PLUS GÉNÉREUSE dans les faits :
+    un shampoing à 10 000 F offert pèse plus que 15 % sur une reprise. */
+export const unGesteDansLePanier = (panier: readonly Service[], p: PersonalPricing): boolean =>
+  panier.some((sv) => remiseGestePct(sv, p, panier) > 0);
+
 export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number => {
   let mieux = 0;
   for (const g of gestesDe(sv)) {

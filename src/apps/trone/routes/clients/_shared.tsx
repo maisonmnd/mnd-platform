@@ -22,7 +22,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
 import { invoicesStore, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import './clients.css';
 
@@ -919,28 +919,9 @@ export function RdvModal({
   const [families] = useFamilies();
   const ficheCliente = clients.find((c) => c.id === clientId);
   const familleDuCompte = ficheCliente?.familyId ? families.find((f) => f.id === ficheCliente.familyId) : undefined;
-  const famPct = remiseFamillePct(familleDuCompte, clients, todayISO());
-  const famAuto = useRef(false);
-  useEffect(() => {
-    if (appt || sansPrix || forfaitOn || covered) return;
-    if (famPct > 0) {
-      const vierge = prixMode === 'plein' && !discountPct && !discountXof;
-      if (vierge || famAuto.current) {
-        famAuto.current = true;
-        setPrixMode('remise');
-        setDiscountPct(famPct);
-        setDiscountXof(0);
-      }
-    } else if (famAuto.current) {
-      famAuto.current = false;
-      setPrixMode('plein');
-      setDiscountPct(0);
-      setDiscountXof(0);
-    }
-    /* Volontairement sur le CHANGEMENT DE TÊTE (et de taux) seulement : réagir
-       aux états du prix referait le geste de la Maison dans son dos. */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, famPct]);
+  /* Le taux du compte, avant la règle du geste — voir `famPct`, plus bas :
+     le juge a besoin du contexte tarifaire, qui n'existe qu'après la longueur. */
+  const famPctCompte = remiseFamillePct(familleDuCompte, clients, todayISO());
 
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
@@ -1015,6 +996,41 @@ export function RdvModal({
      modèle ni Juste Prix — donc « non personnalisée » — se serait vu facturer
      le prix du Court quelle que soit sa longueur. */
   const grossCatalogue = chosen.reduce((s, sv) => s + prixDeBase(sv, pricing), 0);
+
+  /* UNE SEULE FAVEUR À LA FOIS — 16 août 2026, décision de Yéman : « ça ferait
+     2 remises et ça nous ferait perdre beaucoup trop d'argent ». Quand la
+     Maison offre déjà un geste dans ce rituel (un shampoing offert parce
+     qu'une Reprise l'accompagne), la remise du compte famille ne s'y ajoute
+     pas — et sur TOUT le rituel : c'est le sens de « l'une ou l'autre ». Même
+     esprit que les forfaits, où elle ne porte jamais sur ce qui est déjà
+     réduit. Le geste est d'ailleurs le plus généreux des deux : un shampoing
+     à 10 000 F offert pèse plus que 15 % sur une reprise.
+     Déclaré ICI, après `pricing` : le juge du geste a besoin du calibre. */
+  const gesteAuPanier = unGesteDansLePanier(chosen, pricing);
+  const famPct = gesteAuPanier ? 0 : famPctCompte;
+  const famAuto = useRef(false);
+  useEffect(() => {
+    if (appt || sansPrix || forfaitOn || covered) return;
+    if (famPct > 0) {
+      const vierge = prixMode === 'plein' && !discountPct && !discountXof;
+      if (vierge || famAuto.current) {
+        famAuto.current = true;
+        setPrixMode('remise');
+        setDiscountPct(famPct);
+        setDiscountXof(0);
+      }
+    } else if (famAuto.current) {
+      /* Le geste vient d'entrer au rituel : la remise famille posée d'office
+         se retire d'elle-même, sans que la main ait à y penser. */
+      famAuto.current = false;
+      setPrixMode('plein');
+      setDiscountPct(0);
+      setDiscountXof(0);
+    }
+    /* Volontairement sur le CHANGEMENT DE TÊTE (et de taux) seulement : réagir
+       aux états du prix referait le geste de la Maison dans son dos. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, famPct]);
   /* La longueur ne concerne que les prestations qui s'y facturent. Ailleurs, le
      sélecteur n'a rien à commander : on ne le montre pas. */
   const longueurPertinente = chosen.some(suitLongueur);

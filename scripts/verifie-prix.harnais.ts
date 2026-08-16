@@ -3,7 +3,7 @@
 import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
   ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
-  regimeTarifaire,
+  unGesteDansLePanier, regimeTarifaire,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -295,6 +295,32 @@ dit('tête pas encore comptée : le prix affiché de sa longueur', 100_000,
   personalPriceXof(vekpe, tete(undefined, 'mi-long')));
 dit('le régime le dit : comptage, pas grille', 'lock', regimeTarifaire(vekpe).k);
 dit('et le prix reste FERME — il se calcule au franc près', true, prixFerme(vekpe, tete(80, 'court')));
+
+/* ── UNE SEULE FAVEUR À LA FOIS (16 août) ───────────────────────────
+   « Quand un compte famille réserve un service qui a un déclencheur et qui est
+   offert, elle ne bénéficie pas de la remise supplémentaire du compte famille.
+   Ça ferait 2 remises. Donc c'est l'une ou l'autre, jamais les 2 à la fois. »
+   (Yéman) */
+const fRep = svc({ id: 'f-rep', priceXof: 35_000 } as Partial<Service>);
+const fSha = svc({
+  id: 'f-sha', priceXof: 10_000,
+  offertAvec: [{ serviceIds: ['f-rep'], pct: 100 }],
+} as Partial<Service>);
+const nu = pricingOf(undefined, []);
+/* Le taux du compte famille, tel que la fiche le porte. */
+const tauxFamille = 15;
+const famAppliquee = (panier: Service[]) => (unGesteDansLePanier(panier, nu) ? 0 : tauxFamille);
+
+dit('le shampoing est bien offert quand la reprise l’accompagne', 100,
+  remiseGestePct(fSha, nu, [fSha, fRep]));
+dit('un geste au panier se voit', true, unGesteDansLePanier([fSha, fRep], nu));
+dit('… et la remise famille s’efface alors', 0, famAppliquee([fSha, fRep]));
+
+/* Seul, le shampoing n'est pas offert : le déclencheur manque, et la remise
+   famille reprend donc tous ses droits. */
+dit('sans son déclencheur, aucun geste', 0, remiseGestePct(fSha, nu, [fSha]));
+dit('… donc la remise famille s’applique', 15, famAppliquee([fSha]));
+dit('un panier sans geste ne bloque rien', false, unGesteDansLePanier([fRep], nu));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

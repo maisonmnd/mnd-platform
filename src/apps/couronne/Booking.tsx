@@ -16,7 +16,7 @@ import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, useServices, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -174,7 +174,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      celui de la maison : taux posé = personnalisé ; compte muet = barème du
      foyer (1 enfant → 10 %, 2 et plus → 15 %). Jamais sur les forfaits. */
   const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
-  const famPct = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
+  const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
 
   const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
 
@@ -263,6 +263,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const prixIci = (s: Service) => prixDansPanier(s, pricing, selected, tousServices, produits);
   const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + prixIci(s), 0);
   /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
+  /* UNE SEULE FAVEUR À LA FOIS (16 août, décision de Yéman) : quand la Maison
+     offre déjà un geste dans ce rituel, la remise du compte famille ne s'y
+     ajoute pas. Deux cadeaux pour une venue coûtent trop cher, et le geste est
+     le plus généreux des deux. */
+  const gesteAuPanier = unGesteDansLePanier(selected, pricing);
+  const famPct = gesteAuPanier ? 0 : famPctCompte;
   const famForfaitXof = selected
     .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
     .reduce((n, s) => n + prixIci(s), 0);
