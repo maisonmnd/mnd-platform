@@ -222,7 +222,24 @@ export function alignerFacturesDuRituel(
        plus au mouvement de stock. On ne reconforme que ce qu'on sait
        reconstruire : si une ligne n'est ni une prestation du catalogue ni
        l'ajustement, la pièce reste entière. */
-    const reconstructible = inv.lines.every((l) => nomsPrestations.has(l.label) || l.label === LIGNE_AJUSTEMENT);
+    /* UNE PIÈCE À UNE SEULE LIGNE EST LE RITUEL LUI-MÊME — 16 août 2026.
+       « Quand je modifie une ligne d'un RDV, modifie la ligne en facturation
+       même si c'est déjà payé » (Yéman). Le garde du dessus la retenait :
+       l'encaissement d'un rituel à PLUSIEURS gestes qui n'a pas pu se détailler
+       (acompte, avoir, règlement en deux fois) pose UNE ligne portant les noms
+       COLLÉS — « KƆKLƆ™ … + SÍNSIN™ … ». Ce libellé-là n'est le nom d'aucune
+       prestation du catalogue : la pièce était donc jugée irreconstructible et
+       ne suivait jamais le rituel, quoi qu'on y change.
+
+       Or à ce point du code, une pièce d'UNE ligne ne peut plus être qu'un
+       rituel : le règlement partiel (« Règlement · … ») et le forfait sont
+       sortis juste au-dessus, et une pièce de produits seuls n'est pas LIÉE à
+       un rendez-vous. Elle se reconforme donc — au prix plein de chaque geste,
+       l'écart en remise ou en ajustement, et LE TOTAL NE BOUGE PAS D'UN FRANC.
+       Le chiffre d'affaires ne bouge pas davantage : il se lit sur le rituel
+       (`apptNetXof`), que ceci ne touche pas. */
+    const reconstructible = inv.lines.length === 1
+      || inv.lines.every((l) => nomsPrestations.has(l.label) || l.label === LIGNE_AJUSTEMENT);
     if (!reconstructible) return inv;
 
     /* LES LIGNES DISENT LES VRAIS PRIX, L'ÉCART SE DIT EN REMISE. La première
