@@ -166,6 +166,28 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Une pièce payée compte exactement une fois — 16 août
+
+« Le chiffre d'affaires de Kèmi n'est pas conforme aux factures. 4 documents à
+35 000 F font 140 000 F » — sa fiche en affichait 105 000, et elle avait raison.
+
+L'ARGENT TOMBAIT ENTRE DEUX CHAISES. `linkedIds` — l'ensemble des pièces
+retranchées des « extras » pour éviter le double comptage — se construisait sur
+TOUS ses rendez-vous. Une pièce PAYÉE dont le rituel n'est PAS compté (pas
+encore honoré, ou payé par le compte famille) était donc retranchée des
+extras… pendant que son rituel, lui, ne comptait pas non plus. La somme
+disparaissait du total dépensé, du panier moyen et du compte de séances, sans
+que rien ne le signale — et c'était vrai pour toutes les clientes dans ce cas.
+
+L'INVARIANT POSÉ : **une pièce payée compte exactement une fois** — par son
+rituel quand ce rituel est compté, par elle-même sinon. `linkedIds` ne se
+construit donc plus que sur les rituels DÉJÀ dans `payesParElle`, versements
+successifs compris. Les pièces « Règlement · … » restent écartées : ce sont des
+versements partiels, jamais une dépense à part. LIMITE ASSUMÉE : un rituel non
+compté réglé en DEUX pièces ne fait entrer que la première (la seconde porte le
+préfixe « Règlement · ») — cas rare, à revoir s'il se présente. PUBLIÉ @
+`631ac28`.
+
 ## Le geste de la Maison se lit sur la facture — 16 août
 
 « Kèmi doit savoir que le shampoing est à 10 000 F et qu'elle a une remise de
