@@ -166,6 +166,28 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Le geste de la Maison se lit sur la facture — 16 août
+
+« Kèmi doit savoir que le shampoing est à 10 000 F et qu'elle a une remise de
+100 %. Je ne veux pas simplement le montant 0 F. Je veux que ça suive
+l'écriture qu'il y a sur le RDV » (Yéman). La pièce recevait le prix DÉJÀ
+diminué du geste — donc « 0 F ». **Un cadeau qu'on ne voit pas n'est pas reçu**
+: la cliente lisait un shampoing gratuit sans savoir qu'il valait 10 000 F.
+
+LE PRIX PLEIN ET LE GESTE VOYAGENT SÉPARÉMENT. La modale du rituel les
+séparait déjà pour son propre affichage ; elle les passe désormais tels quels à
+la facture (`prixPlein` + `gesteDe`, 5ᵉ paramètre `gesteOf`), et la ligne porte
+`unitXof` = 10 000 avec `discountPct` = 100. L'écran de la pièce savait déjà
+l'écrire (« remise −100 % » et le prix barré) ; le PDF le dit maintenant aussi,
+au lieu d'un 0 F sans raison.
+
+LE TOTAL NE BOUGE PAS — `unitXof` × (1 − `discountPct`) vaut exactement ce que
+la ligne valait. Et LE GESTE NE SE COMPTE PAS DEUX FOIS : `gross` est désormais
+la somme des NETS, sinon la remise globale l'aurait repris une seconde fois.
+HARNAIS : 4 vérifications de plus, dont celle-là précisément. Une a corrigé mon
+fixture et non le code (une pièce posée à 35 000 quand le catalogue en dit
+20 000 fait naître une ligne d'ajustement — c'est juste). PUBLIÉ @ `b4d4537`.
+
 ## Un libellé vieilli bloquait la facture, en silence — 16 août
 
 « Pour Prisca la facture ne se met pas à jour, pourtant j'ai refait enregistrer
