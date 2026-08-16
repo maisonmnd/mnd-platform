@@ -233,8 +233,16 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     for (const id of prev.keys()) if (!next.has(id)) deletes.push(id);
 
     /* Une table hors de portée ne se retente pas : on épargne au serveur des
-       refus certains, et au comptoir une pastille qui clignote pour rien. */
-    if (syncMark.estHorsPortee(table)) return true;
+       refus certains, et au comptoir une pastille qui clignote pour rien.
+
+       MAIS ON NE DIT PLUS « C'EST ÉCRIT » — 16 août 2026. Ce chemin rendait
+       `true`, et l'appelant avançait alors son repère `lastPushed` : la ligne
+       refusée sortait de TOUS les diffs suivants. Le geste était perdu sans un
+       mot, et sans retour possible — c'est ainsi qu'une annulation faite sur Ma
+       Couronne n'est jamais revenue au Trône. Silence sur l'ALERTE, oui ; jamais
+       sur le fait. Le repère ne bouge pas, et si les droits s'ouvrent (session
+       rafraîchie, rôle changé), la poussée suivante emporte le geste. */
+    if (syncMark.estHorsPortee(table)) return false;
     let ok = true;
     if (upserts.length) {
       /* GARDE-FOU ÉCRASEMENT de MASSE (incident du 02-08-2026 : une fenêtre
@@ -274,7 +282,9 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         }
       }
       const { error } = await sb.from(table).upsert(upserts);
-      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
+      /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
+         écrit (voir plus haut) — le repère doit rester en arrière. */
+      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return false; }
       if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
     }
     if (deletes.length) {
@@ -334,7 +344,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         return true;
       } else {
         const { error } = await sb.from(table).delete().in('id', deletes);
-        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return true; }
+        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return false; }
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
+import { ecrisRendezVous, useAppointments, type Appointment } from '../../shared/agenda';
 import { useClients, useFamilies } from '../../shared/clients';
 import { tetesPortees } from '../../shared/accounts';
 import { useServices } from '../../shared/catalog';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
-import { enablePush, pushNotify } from '../../shared/push';
+import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { useExceptionsHoraires } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
 import {
@@ -147,11 +147,26 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     setSelIso(null);
   };
 
-  const reschedule = (t: string) => {
+  /* LE DÉPLACEMENT PORTE LE MÊME RISQUE QUE L'ANNULATION — un rituel déplacé
+     ici et resté à sa vieille heure au Trône, c'est une cliente qui vient
+     quand personne ne l'attend. Même chemin, même vérification, même aveu. */
+  const reschedule = async (t: string) => {
     if (!editing || !selIso) return;
-    const label = `${names(editing)} · ${dayLabelIso(selIso)} à ${t}`;
-    appointmentsStore.set((prev) =>
-      prev.map((x) => (x.id === editing.id ? { ...x, date: selIso, time: t, status: 'en attente' as const } : x))
+    const a = editing;
+    const iso = selIso;
+    setEditing(null);
+    setSelIso(null);
+    const label = `${names(a)} · ${dayLabelIso(iso)} à ${t}`;
+    const transmis = await ecrisRendezVous(a.id, { date: iso, time: t, status: 'en attente' });
+    if (!transmis) {
+      toast('Déplacement non transmis — prévenez la maison.');
+      setNonTransmis({ a: { ...a, date: iso, time: t }, geste: 'déplacement' });
+      return;
+    }
+    void pushNotifyStaff(
+      'Rendez-vous déplacé · Ma Couronne',
+      `${a.clientName ?? 'Une cliente'} · ${label} — à confirmer`,
+      '/trone/#/calendrier',
     );
     const body = `${label} — en attente de confirmation de la maison.`;
     void enablePush(clientId).then((subbed) => {
@@ -159,24 +174,50 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous modifié', body); });
     });
     toast('Rendez-vous déplacé — la maison confirmera.');
-    setEditing(null);
-    setSelIso(null);
   };
 
   /* ---- Annuler : confirmation explicite, l'acompte reste acquis ---- */
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
 
+  /* L'ANNULATION QUI N'ARRIVAIT PAS (16 août) — le rituel du 19 août, annulé
+     ici, n'est jamais revenu annulé au Trône : l'écriture partait, le serveur
+     l'écartait sans un mot, et l'écran félicitait. Trois défauts réparés :
+     ① on DEMANDE au serveur ce qu'il a fait (`ecrisRendezVous`) ; ② si rien
+     n'est passé, on le DIT — une bande cuivre, pas un toast vert qui s'efface ;
+     ③ LA MAISON EST PRÉVENUE : le seul push partait à la cliente elle-même,
+     personne au salon n'apprenait qu'un créneau se libérait. */
+  /* CE QUI N'EST PAS PARTI — le rendez-vous tel qu'elle le veut, et le geste
+     qu'elle a fait. Les deux sont nécessaires pour le redire et le refaire. */
+  const [nonTransmis, setNonTransmis] = useState<{ a: Appointment; geste: 'annulation' | 'déplacement' } | null>(null);
+
+  const annuler = async (a: Appointment) => {
+    const transmis = await ecrisRendezVous(a.id, { status: 'annulé' });
+    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time} — annulé.`;
+    if (transmis) {
+      setNonTransmis(null);
+      void pushNotifyStaff(
+        'Rendez-vous annulé · Ma Couronne',
+        `${a.clientName ?? 'Une cliente'} · ${names(a)} · ${dayLabelIso(a.date)} à ${a.time}`,
+        '/trone/#/calendrier',
+      );
+      void enablePush(clientId).then((subbed) => {
+        if (subbed) void pushNotify(clientId, 'Rendez-vous annulé', body, `${import.meta.env.BASE_URL}#/suivi`);
+        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous annulé', body); });
+      });
+      toast('Rendez-vous annulé — la maison est prévenue.');
+      return;
+    }
+    /* DIRE VRAI : sur ce téléphone il est annulé, au salon il ne l'est pas.
+       Tant qu'elle n'a pas appelé, le créneau lui reste réservé. */
+    setNonTransmis({ a, geste: 'annulation' });
+    toast('Annulation non transmise — prévenez la maison.');
+  };
+
   const confirmCancel = () => {
     if (!cancelling) return;
     const a = cancelling;
-    appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'annulé' as const } : x)));
-    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time} — annulé.`;
-    void enablePush(clientId).then((subbed) => {
-      if (subbed) void pushNotify(clientId, 'Rendez-vous annulé', body, `${import.meta.env.BASE_URL}#/suivi`);
-      else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous annulé', body); });
-    });
-    toast('Rendez-vous annulé.');
     setCancelling(null);
+    void annuler(a);
   };
 
   return (
@@ -201,6 +242,35 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody">
+        {/* L'ANNULATION QUI N'EST PAS PARTIE — elle reste à l'écran tant que le
+            geste n'a pas abouti. Un toast s'efface en deux secondes ; un
+            créneau qu'on croit rendu, non. */}
+        {nonTransmis && (
+          <div className="mc-nontransmis">
+            <b>Votre {nonTransmis.geste} n’est pas arrivée à la maison.</b>
+            <span>
+              {names(nonTransmis.a)} — {nonTransmis.geste === 'annulation'
+                ? `annulé sur ce téléphone, mais le salon garde encore votre créneau du ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}`
+                : `déplacé sur ce téléphone au ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}, mais le salon vous attend encore à l’ancienne heure`}.
+              Appelez la maison{branch.phone ? ` au ${branch.phone}` : ''} — ou réessayez dans un instant.
+            </span>
+            <button
+              className="mc-textbtn"
+              onClick={() => {
+                const { a, geste } = nonTransmis;
+                if (geste === 'annulation') void annuler(a);
+                else void ecrisRendezVous(a.id, { date: a.date, time: a.time, status: 'en attente' })
+                  .then((ok) => {
+                    if (!ok) { toast('Toujours pas transmis — appelez la maison.'); return; }
+                    setNonTransmis(null);
+                    toast('Déplacement transmis — la maison confirmera.');
+                  });
+              }}
+            >
+              Réessayer →
+            </button>
+          </div>
+        )}
         {editing ? (
           /* -------- déplacement : calendrier + heures libres -------- */
           <div className="mc-fade">

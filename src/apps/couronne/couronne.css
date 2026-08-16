@@ -1819,6 +1819,26 @@
 }
 .mc-jour:hover { border-color: var(--color-indigo); }
 .mc-jour.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+
+/* L'ANNULATION QUI N'EST PAS PARTIE (16 août) — elle reste sous les yeux tant
+   que le geste n'a pas abouti. Un toast s'efface en deux secondes ; un créneau
+   qu'on croit rendu, non. */
+.mc-nontransmis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--copper-50);
+  border: 1px solid var(--color-copper);
+  border-left-width: 3px;
+  border-radius: 4px;
+  padding: 13px 15px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--copper-700);
+}
+.mc-nontransmis b { font-weight: var(--weight-medium); font-size: 13.5px; }
+.mc-nontransmis .mc-textbtn { align-self: flex-start; margin-top: 2px; }
 .mc-pack__note { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; text-align: center; }
 
 .mc-cmgroup { margin-bottom: 26px; }

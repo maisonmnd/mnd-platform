@@ -351,6 +351,48 @@ import { bindCollection, bindDocument } from './sync';
 import { supabase } from './supabase';
 bindCollection(appointmentsStore, 'appointments');
 
+/** ÉCRIRE UN RENDEZ-VOUS ET LE SAVOIR — 16 août 2026.
+
+    Un rituel annulé depuis Ma Couronne n'est JAMAIS revenu annulé au Trône
+    (constaté par Yéman sur son rendez-vous du 19 août). Le geste écrivait dans
+    le magasin, le magasin poussait, et la cliente lisait « Rendez-vous
+    annulé » — pendant que le salon gardait le créneau.
+
+    Deux silences se prêtaient main-forte : ① une poussée REFUSÉE par les
+    droits était comptée comme réussie (voir `sync.ts`), donc jamais retentée ;
+    ② un `update` que la RLS écarte ne lève AUCUNE erreur — il touche zéro
+    ligne, et zéro ligne ressemble à un succès.
+
+    D'où ce chemin, pour les gestes qui ENGAGENT la Maison (annuler, déplacer) :
+    on écrit, puis on DEMANDE au serveur ce qu'il a vraiment fait. `.select()`
+    rend la ligne touchée ; aucune ligne rendue = rien n'est arrivé, et l'écran
+    doit le dire au lieu de féliciter. Sans backend (Maison en local), il n'y a
+    rien à transmettre : c'est un succès. */
+export async function ecrisRendezVous(
+  id: string,
+  patch: Partial<Appointment>,
+): Promise<boolean> {
+  appointmentsStore.set((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  if (!supabase) return true;
+  const a = appointmentsStore.get().find((x) => x.id === id);
+  if (!a) return false;
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({ id: a.id, branch_id: a.branchId ?? null, data: a })
+      .eq('id', id)
+      .select('id');
+    if (error) {
+      console.warn('[mnd] écriture du rendez-vous refusée :', error.message);
+      return false;
+    }
+    return (data?.length ?? 0) === 1;
+  } catch (e) {
+    console.warn('[mnd] écriture du rendez-vous injoignable :', e);
+    return false;
+  }
+}
+
 /* EFFACEMENT VOLONTAIRE de TOUS les rendez-vous — chemin dédié qui SUPPRIME
    directement côté serveur (l'app est connectée en staff, la RLS l'autorise),
    CONTOURNANT à dessein le garde-fou anti-suppression-de-masse de la synchro
