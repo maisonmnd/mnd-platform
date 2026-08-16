@@ -1,5 +1,47 @@
 /* Le Trône · Pilotage — tableau de bord & analytics. Préfixe trp-. */
 
+/* ═══ LA CADENCE — la salle des prédictions (16 août) ═══════════════
+   Graphiques FAITS MAIN, comme partout à la Maison : aucune librairie de
+   charts. Deux formes suffisent — un histogramme empilé pour la charge qui
+   vient, des barres couchées pour les distributions. */
+.trp-card {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.trp-hist { display: flex; align-items: flex-end; gap: 6px; height: 190px; }
+.trp-hist__col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; min-width: 0; }
+.trp-hist__n { font-family: var(--font-serif); font-size: 13px; color: var(--color-indigo); height: 18px; }
+.trp-hist__stack {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 2px 2px 0 0;
+  overflow: hidden;
+  background: var(--hover-veil);
+}
+.trp-hist__part--pris { background: var(--color-indigo); }
+.trp-hist__part--est { background: var(--copper-300); }
+.trp-hist__x { font-size: 9.5px; color: var(--ink-soft); margin-top: 6px; white-space: nowrap; }
+.trp-legende { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 14px; font-size: 11px; color: var(--ink-soft); }
+.trp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.trp-dot--pris { background: var(--color-indigo); }
+.trp-dot--est { background: var(--copper-300); }
+
+.trp-bar { display: grid; grid-template-columns: 96px 1fr 34px; gap: 10px; align-items: center; padding: 5px 0; }
+.trp-bar__label { font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); }
+.trp-bar__rail { height: 8px; border-radius: 4px; background: var(--hover-veil); overflow: hidden; }
+.trp-bar__fill { height: 100%; background: var(--color-indigo); border-radius: 4px; transition: width var(--dur-base) var(--ease-soft); }
+.trp-bar__n { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); text-align: right; }
+
+/* La méthode, dite en clair — une salle qui calcule doit pouvoir s'expliquer. */
+.trp-methode { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 9px; }
+.trp-methode li { font-size: 12.5px; line-height: 1.6; color: var(--ink); }
+.trp-methode b { font-weight: var(--weight-medium); color: var(--color-indigo); }
+
 /* ---------- KPI majeurs ---------- */
 .trp-kpi {
   position: relative;

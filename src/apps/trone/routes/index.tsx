@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -26,6 +26,10 @@ export const NAV: TroneGroup[] = [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
+      /* LA CADENCE (16 août) — la salle des prédictions. Le juge existait déjà
+         (`shared/cadence.ts`) mais ne parlait qu'à l'oreille d'UNE fiche ;
+         personne ne voyait la charge qui vient, ni qui a glissé. */
+      { path: '/cadence', label: 'La Cadence', icon: Activity, Component: lazy(() => import('./pilotage/Predictions')) },
     ],
   },
   {
