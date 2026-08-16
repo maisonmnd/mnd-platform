@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La cadence regarde devant, et jamais un jour fermé — 16 août
+
+Vu par Yéman sur Prisca : « prochain RDV estimé le **lundi 29 juin** » — un
+16 août, et un lundi. Deux anomalies dans le même mot.
+
+① L'ESTIMATION VIEILLISSAIT SUR PLACE. `predictNextVisit` ne posait la cadence
+qu'UNE fois depuis la dernière venue : la cliente ne venant pas, la date restait
+là, dans le passé, et la fiche continuait de la signaler. Le cycle SE REJOUE
+désormais jusqu'à retomber devant nous — c'est la prochaine fois qu'on attend,
+pas la fois manquée. **`overdueDays` continue de compter depuis la PREMIÈRE
+échéance** : la proposition regarde devant, le retard regarde derrière, et la
+fiche dit les deux (« En retard de N j » n'a rien perdu).
+
+② ON NE PROPOSE PAS UN FAUTEUIL PORTE CLOSE. La date glisse au prochain jour
+ouvert, sur les MÊMES réglages que le calendrier de réservation
+(`openingForIso` — jours fermés ET journées exceptionnelles, pas une liste de
+jours écrite en dur). `cadence.ts` importe `settings` : aucun cycle, settings
+ne dépend de rien d'autre que `store`. Le juge étant partagé, la fiche du
+Trône, son tableau de bord et l'accueil de Ma Couronne disent tous la même date.
+
+HARNAIS NEUF **`verifie-cadence`** (le cinquième) : 672 cadences éprouvées —
+pas de 7 à 30 jours × 28 départs — aucune un lundi ni un dimanche, aucune dans
+le passé. Un vrai rendez-vous déjà pris passe toujours devant et s'affiche tel
+quel, même un jour fermé : c'est un FAIT posé par la Maison, pas une
+prédiction. Une vérification a corrigé mon attente et non le code (81 jours de
+retard, pas 90).
+
+NAVIGATION : **Le Carnet entre dans « Le quotidien »** (demande de Yéman). Il
+vivait sous « Clients & agenda », replié, alors qu'on l'ouvre autant que le
+Calendrier. Le mécanisme du menu à deux étages le retire tout seul de son
+ancien groupe. PUBLIÉ @ `6d204c8`.
+
 ## Le comptage au tarif de la longueur — 16 août
 
 « Programme l'atelier VÈKPÈ au comptage de locks avec 3 niveaux de prix par
