@@ -166,6 +166,30 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## Une seule faveur à la fois — 16 août
+
+« Quand un compte famille réserve un service qui a un déclencheur et qui est
+offert, elle ne bénéficie pas de la remise supplémentaire du compte famille. Ça
+ferait 2 remises et ça nous fera perdre beaucoup trop d'argent. Donc c'est
+l'une ou l'autre, jamais les 2 à la fois. » (Yéman)
+
+Le geste de la Maison — un shampoing offert parce qu'une Reprise accompagne le
+rituel — EST déjà l'avantage. Y ajouter le pourcentage du compte famille, c'est
+faire deux cadeaux pour une venue. **La remise famille s'efface donc devant le
+geste, et sur TOUT le rituel** : c'est le sens de « l'une ou l'autre ». Même
+esprit que la règle du 14 août, où elle ne porte jamais sur la part forfaits —
+ce qui est déjà réduit ne se remise pas deux fois. Le geste est d'ailleurs le
+plus généreux des deux : un shampoing à 10 000 F offert pèse plus que 15 % sur
+une reprise.
+
+UN SEUL JUGE — `unGesteDansLePanier` (shared/pricing) — pour que les deux
+surfaces disent le même prix : le tunnel de Ma Couronne et la modale du rituel
+au Trône. Côté Trône, la remise famille posée d'office se RETIRE d'elle-même
+dès qu'un geste entre au rituel : la main n'a pas à y penser. CE QUI NE CHANGE
+PAS : sans son déclencheur, le shampoing n'est pas offert et la remise famille
+reprend tous ses droits. HARNAIS `verifie-prix` : 6 vérifications de plus, dont
+les deux sens de la règle. PUBLIÉ @ `f5b6e37`.
+
 ## Une pièce payée compte exactement une fois — 16 août
 
 « Le chiffre d'affaires de Kèmi n'est pas conforme aux factures. 4 documents à
