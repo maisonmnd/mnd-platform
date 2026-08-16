@@ -955,7 +955,10 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 3 }}>
-                    {r.mode === 'abonnement' ? 'Abonnement' : 'Ponctuel'} · −{r.discountPct} % · reçu le {frShort(r.recueLe)}
+                    {/* Un forfait DEMANDÉ n'est pas composé : il vaut le prix de
+                        la carte, et « −0 % » ne dirait rien. */}
+                    {r.mode === 'abonnement' ? 'Abonnement sur-mesure' : r.mode === 'forfait' ? 'Forfait de la carte' : 'Ponctuel sur-mesure'}
+                    {r.discountPct > 0 ? ` · −${r.discountPct} %` : ''} · reçu le {frShort(r.recueLe)}
                     {r.traiteLe ? ` · traité le ${frShort(r.traiteLe)}` : ''}
                   </div>
                   <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
@@ -967,7 +970,9 @@ export default function Dashboard() {
                         <a
                           className="trf-act"
                           style={{ textDecoration: 'none' }}
-                          href={`https://wa.me/${tel}?text=${encodeURIComponent(`Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`)}`}
+                          href={`https://wa.me/${tel}?text=${encodeURIComponent(r.mode === 'forfait'
+                            ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`
+                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`)}`}
                           target="_blank" rel="noopener noreferrer"
                         >
                           Sceller sur WhatsApp

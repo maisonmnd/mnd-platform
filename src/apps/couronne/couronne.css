@@ -1710,7 +1710,10 @@
    SUR-MESURE (Compose)
    ============================================================ */
 
-.mc-modetoggle { display: flex; gap: 10px; margin-top: 18px; }
+/* TROIS ONGLETS depuis le 16 août — ils se replient sur deux lignes plutôt
+   que d'écraser leurs mots sur un petit téléphone. */
+.mc-modetoggle { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.mc-modetoggle .mc-mode { flex: 1 1 30%; min-width: 104px; }
 .mc-mode {
   flex: 1;
   cursor: pointer;
@@ -1729,6 +1732,50 @@
 .mc-mode.is-ritual .mc-mode__name, .mc-mode.is-ritual .mc-mode__sub { color: var(--color-indigo); }
 .mc-mode.is-abo { border-color: var(--color-copper); background: var(--color-sable); }
 .mc-mode.is-abo .mc-mode__name, .mc-mode.is-abo .mc-mode__sub { color: var(--accent-strong); }
+.mc-mode.is-pack { border-color: var(--color-copper); background: var(--copper-50); }
+.mc-mode.is-pack .mc-mode__name, .mc-mode.is-pack .mc-mode__sub { color: var(--accent-strong); }
+
+/* ---- LES FORFAITS DE LA CARTE (16 août) — ceux que la Maison a composés.
+   Ils n'avaient aucune vitrine sur Ma Couronne : le sur-mesure vendait deux
+   fois la même liste de prestations, et l'offre la plus travaillée de la
+   Maison — ses packs, ses cycles — ne paraissait nulle part. */
+.mc-packintro {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+.mc-pack {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--color-copper);
+  border-radius: 4px;
+  padding: 16px 17px 17px;
+  margin-bottom: 12px;
+}
+.mc-pack__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.mc-pack__name { font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--color-indigo); }
+.mc-pack__price { flex: 0 0 auto; font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.mc-pack__price em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-soft); }
+.mc-pack__meta { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); margin-top: 5px; }
+/* Ce qu'il réunit — la vraie raison de le choisir. */
+.mc-pack__quoi { font-size: 12.5px; line-height: 1.5; color: var(--ink); margin-top: 9px; }
+.mc-pack__mot {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin-top: 7px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mc-pack__cta { margin-top: 14px; }
+.mc-pack__note { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; text-align: center; }
 
 .mc-cmgroup { margin-bottom: 26px; }
 .mc-cmgroup__head {

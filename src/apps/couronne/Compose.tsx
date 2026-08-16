@@ -4,15 +4,29 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { composeStore, vitrineConfigStore, surMesureDe, type ComposePayload } from '../../shared/bridges';
 import { useStore } from '../../shared/store';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
 import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
+import { useAppointments, venuesHonorees } from '../../shared/agenda';
+import { useFamilies } from '../../shared/clients';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
-import { priceModeOf, sousArbreOf, useCategories } from '../../shared/catalog';
+import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
    Ponctuel −10 % · Abonnement −15 % (l'entretien et la réparation, 3 prestations minimum).
-   « Composer » publie le payload sur le pont mnd_couronne_compose → Le Trône. */
+   « Composer » publie le payload sur le pont mnd_couronne_compose → Le Trône.
+
+   TROIS ONGLETS DEPUIS LE 16 AOÛT (demande de Yéman : « le Ponctuel et
+   l'Abonnement vendent les mêmes choses »). Les deux premiers restent LE
+   COMPOSEUR — elle bâtit son pack, seuls le taux, le minimum et les ateliers
+   ouverts les séparent. Le troisième est neuf : LES FORFAITS DE LA CARTE, ceux
+   que la Maison a déjà composés au Catalogue. Ils n'avaient aucune vitrine ici
+   alors qu'ils sont son offre la plus travaillée.
+
+   LE GESTE SUIT LE FORFAIT (décision de Yéman) : une seule séance se RÉSERVE —
+   le tunnel s'ouvre dessus, elle choisit son créneau — plusieurs séances se
+   DEMANDENT, parce qu'un cycle de trois mois ou de douze ne se programme pas
+   en enfilade au téléphone : la Maison le cale avec elle. */
 
 /* Catégories éligibles à l'abonnement, PAR IDENTIFIANT — ce sont ceux du
    Catalogue, pas les noms fon. La nomenclature a été refondue : SÍNSIN™
@@ -21,9 +35,14 @@ import { priceModeOf, sousArbreOf, useCategories } from '../../shared/catalog';
    n'existent plus en base — les laisser ici ne levait aucune erreur, ça
    vidait simplement l'abonnement de tout sauf FÍNFÍN™, en silence.
    Toute refonte des catégories doit repasser par cette ligne. */
-type Props = { onClose: () => void; toast: (msg: string) => void };
+type Props = {
+  onClose: () => void;
+  toast: (msg: string) => void;
+  /** Ouvre le tunnel sur un forfait de la carte — une séance, un créneau. */
+  onReserver: (serviceId: string) => void;
+};
 
-export default function Compose({ onClose, toast }: Props) {
+export default function Compose({ onClose, toast, onReserver }: Props) {
   const { currency } = useBranch();
   const { cats, services, products } = useVisibleCatalog();
   /* ON AFFICHE AVEC LA CARTE ÉLAGUÉE, ON JUGE SUR L'ARBRE ENTIER (15 août).
@@ -47,20 +66,51 @@ export default function Compose({ onClose, toast }: Props) {
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const pricing = pricingOf(client ?? undefined, bands, sets, tousCats);
-  const prixDe = (s: (typeof services)[number]): number => personalPriceXof(s, pricing, services, products);
+  /* LE PRIX D'UN FORFAIT SE RÉSOUT SUR LE CATALOGUE ENTIER (16 août) — même
+     règle que l'arbre des catégories. `personalPriceXof` ne se sert de ces deux
+     listes que pour SOMMER la composition d'un forfait : sur la carte élaguée,
+     une prestation masquée à cette cliente sortait de la somme en silence et le
+     pack s'annonçait moins cher que ce que le comptoir encaissera. Elle achète
+     le forfait entier — son prix ne dépend pas de ce qu'on lui montre. */
+  const [tousServices] = useServices();
+  const [tousProduits] = useProducts();
+  const prixDe = (s: Service): number => personalPriceXof(s, pricing, tousServices, tousProduits);
 
-  const [mode, setMode] = useState<'ponctuel' | 'abonnement'>('ponctuel');
+  const [mode, setMode] = useState<'ponctuel' | 'abonnement' | 'forfaits'>('ponctuel');
   const [qty, setQty] = useState<Record<string, number>>({});
   const [done, setDone] = useState<ComposePayload | null>(null);
 
-  /* Prestations composables : visibles, prix affichable. */
+  /* Prestations composables : visibles, prix affichable. UN FORFAIT DE LA CARTE
+     N'EST PAS UNE BRIQUE : il a son onglet, il ne se compose pas dans un autre
+     forfait (on additionnerait deux remises sur la même prestation). */
   const groups = useMemo(
     () =>
       cats
-        .map((c) => ({ cat: c, items: services.filter((s) => s.categoryId === c.id && !s.hidePrice) }))
+        .map((c) => ({ cat: c, items: services.filter((s) => s.categoryId === c.id && !s.hidePrice && !s.includes?.length) }))
         .filter((g) => g.items.length > 0),
     [cats, services]
   );
+
+  /* ---- LES FORFAITS DE LA CARTE ----
+     Le juge d'éligibilité est celui de la Maison (`estProposable`) : calibre
+     servi, seuil de venues atteint, et réserve aux comptes famille. Défaut
+     FERMÉ pour la famille — un pack ne fuit jamais par oubli d'écran. */
+  const [appts] = useAppointments();
+  const [familles] = useFamilies();
+  const aFamille = !!(client?.familyId && familles.some((f) => f.id === client.familyId));
+  const venues = client ? venuesHonorees(appts, client.id) : 0;
+  const forfaits = useMemo(
+    () => services.filter((s) => !!s.includes?.length && !s.hidePrice && estProposable(s, pricing, venues, aFamille)),
+    [services, pricing, venues, aFamille],
+  );
+  /* Ce qu'un forfait contient, en clair. Une ligne « au choix dans l'atelier »
+     se nomme par l'atelier ; un produit, par la Gamme. Une prestation que la
+     Maison lui masque garde son nom générique — le forfait, lui, est offert. */
+  const nomInclus = (inc: ServiceInclus): string => {
+    if (inc.productId) return products.find((p) => p.id === inc.productId)?.name ?? 'Un soin de la Gamme';
+    if (inc.categoryId) return cats.find((c) => c.id === inc.categoryId)?.fon ?? 'Au choix';
+    return services.find((x) => x.id === inc.serviceId)?.name ?? 'Une prestation de la Maison';
+  };
   /* UN ATELIER COCHÉ OUVRE TOUT SON SOUS-ARBRE (12 août) : les prestations de
      GBÈJÍ vivent dans ses FAMILLES (SÍNSIN, KLƆKLƆ…) — comparer l'atelier aux
      seules catégories directes laissait l'abonnement vide quand on le cochait.
@@ -82,8 +132,10 @@ export default function Compose({ onClose, toast }: Props) {
     ? groups.filter((g) => aboSousArbre.has(g.cat.id))
     : (ponctuelSousArbre ? groups.filter((g) => ponctuelSousArbre.has(g.cat.id)) : groups);
 
-  const switchMode = (m: 'ponctuel' | 'abonnement') => {
+  const switchMode = (m: 'ponctuel' | 'abonnement' | 'forfaits') => {
     setMode(m);
+    /* L'onglet des forfaits ne compose rien : la composition l'attend intacte. */
+    if (m === 'forfaits') return;
     /* Chaque régime a SES ateliers — ce qui n'appartient pas au régime choisi
        quitte la composition, dans les deux sens. */
     const scope = m === 'abonnement' ? aboSousArbre : ponctuelSousArbre;
@@ -111,8 +163,6 @@ export default function Compose({ onClose, toast }: Props) {
   const total = subtotal - discount;
   const aboBlocked = mode === 'abonnement' && count < sm.aboMin;
   const canCompose = count > 0 && !aboBlocked;
-  /* Les ateliers d'abonnement, nommés depuis le catalogue visible. */
-  const aboNoms = cats.filter((c) => sm.aboCats.includes(c.id)).map((c) => c.fon).join(' · ') || 'les soins de la Maison';
 
   const bump = (id: string, d: 1 | -1) =>
     setQty((prev) => {
@@ -124,12 +174,14 @@ export default function Compose({ onClose, toast }: Props) {
     });
 
   const compose = () => {
-    if (!canCompose) return;
+    if (!canCompose || mode === 'forfaits') return;
     const payload: ComposePayload = {
       id: uid(),
       createdAt: new Date().toISOString(),
       client: client?.name ?? 'Cliente Ma Couronne',
       clientId: client?.id,
+      /* L'onglet des forfaits ne passe jamais par ici — il DEMANDE, il ne
+         compose pas. Le garde ci-dessus le dit au compilateur comme au lecteur. */
       mode,
       discountPct,
       items: lines.map((l) => ({
@@ -151,6 +203,36 @@ export default function Compose({ onClose, toast }: Props) {
     toast(mode === 'abonnement' ? 'Abonnement sur-mesure transmis.' : 'Rituel sur-mesure transmis.');
   };
 
+  /* ---- DEMANDER UN FORFAIT DE LA CARTE ----
+     Plusieurs séances : la Maison cale le cycle avec elle. Aucune remise
+     composée ici — le prix est celui de la carte, déjà remisé par sa propre
+     composition. */
+  const demanderForfait = (s: Service) => {
+    const prix = prixDe(s);
+    const payload: ComposePayload = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      client: client?.name ?? 'Cliente Ma Couronne',
+      clientId: client?.id,
+      mode: 'forfait',
+      discountPct: 0,
+      items: [{
+        service: s.name,
+        category: cats.find((c) => c.id === s.categoryId)?.fon ?? '',
+        priceXof: prix,
+      }],
+      totalXof: prix,
+    };
+    composeStore.set(payload);
+    void pushNotifyStaff(
+      'Forfait demandé · Ma Couronne',
+      `${payload.client} · ${s.name} · ${fmtMoney(prix, currency)}`,
+      '/trone/#/',
+    );
+    setDone(payload);
+    toast('Demande transmise à la Maison.');
+  };
+
   /* ================= CONFIRMATION ================= */
   if (done) {
     const doneSubtotal = done.items.reduce((a, l) => a + l.priceXof, 0);
@@ -166,7 +248,9 @@ export default function Compose({ onClose, toast }: Props) {
           </p>
           <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
             <div className="mc-recapcard__name">
-              {done.mode === 'abonnement' ? 'Mon abonnement sur-mesure' : 'Mon rituel sur-mesure'}
+              {done.mode === 'abonnement' ? 'Mon abonnement sur-mesure'
+                : done.mode === 'forfait' ? 'Le forfait demandé'
+                  : 'Mon rituel sur-mesure'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
               {done.items.map((l, i) => (
@@ -177,10 +261,14 @@ export default function Compose({ onClose, toast }: Props) {
               ))}
             </div>
             <div className="mc-hairline" />
-            <div className="mc-recapcard__line mc-recapcard__line--deal">
-              <span>{done.mode === 'abonnement' ? 'Avantage abonné' : 'Avantage ponctuel'} · −{done.discountPct} %</span>
-              <span>− {fmtMoney(doneDiscount, currency)}</span>
-            </div>
+            {/* Un forfait de la carte n'a pas d'avantage composé : son prix EST
+                celui de la carte. Annoncer « −0 % » serait un mot pour rien. */}
+            {done.discountPct > 0 && (
+              <div className="mc-recapcard__line mc-recapcard__line--deal">
+                <span>{done.mode === 'abonnement' ? 'Avantage abonné' : 'Avantage ponctuel'} · −{done.discountPct} %</span>
+                <span>− {fmtMoney(doneDiscount, currency)}</span>
+              </div>
+            )}
             <div className="mc-recapcard__total">
               <span>Total</span>
               <span>{fmtMoney(done.totalXof, currency)}{done.mode === 'abonnement' ? <em> / cycle</em> : null}</span>
@@ -204,6 +292,9 @@ export default function Compose({ onClose, toast }: Props) {
         </div>
         <h1 className="mc-flowhead__h1" style={{ marginTop: 6 }}>Votre rituel, votre signature.</h1>
 
+        {/* TROIS ONGLETS — deux pour composer, un pour la carte. Les sous-titres
+            tiennent en trois mots : la liste des ateliers d'abonnement, elle,
+            se lit dans les intertitres du dessous, où elle sert vraiment. */}
         <div className="mc-modetoggle">
           <button className={`mc-mode ${mode === 'ponctuel' ? 'is-ritual' : ''}`} onClick={() => switchMode('ponctuel')}>
             <span className="mc-mode__name">Ponctuel</span>
@@ -211,13 +302,66 @@ export default function Compose({ onClose, toast }: Props) {
           </button>
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
             <span className="mc-mode__name">Abonnement</span>
-            <span className="mc-mode__sub">−{sm.aboPct} % · {aboNoms}</span>
+            <span className="mc-mode__sub">−{sm.aboPct} % · dès {sm.aboMin} soins</span>
           </button>
+          {forfaits.length > 0 && (
+            <button className={`mc-mode ${mode === 'forfaits' ? 'is-pack' : ''}`} onClick={() => switchMode('forfaits')}>
+              <span className="mc-mode__name">Les forfaits</span>
+              <span className="mc-mode__sub">tout faits · {forfaits.length}</span>
+            </button>
+          )}
         </div>
       </div>
 
       <div className="mc-scroll mc-flowbody" style={{ paddingBottom: 8 }}>
-        {activeGroups.length === 0 && (
+        {/* ---------- LES FORFAITS DE LA CARTE ---------- */}
+        {mode === 'forfaits' && (
+          <div className="mc-fade">
+            <div className="mc-packintro">
+              Ceux que la Maison a composés pour vous — leur prix tient déjà compte de ce
+              qu’ils réunissent.
+            </div>
+            {forfaits.map((s) => {
+              const lignes = s.includes ?? [];
+              const noms = lignes.slice(0, 3).map(nomInclus);
+              const reste = lignes.length - noms.length;
+              /* UNE SÉANCE SE RÉSERVE, UN CYCLE SE DEMANDE. */
+              const cycle = s.sessions > 1;
+              return (
+                <div key={s.id} className="mc-pack">
+                  <div className="mc-pack__head">
+                    <span className="mc-pack__name">{s.name}</span>
+                    <span className="mc-pack__price">
+                      {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(prixDe(s), currency)}
+                      {cycle && <em> / cycle</em>}
+                    </span>
+                  </div>
+                  <div className="mc-pack__meta">
+                    {lignes.length} prestation{lignes.length > 1 ? 's' : ''} · {s.sessions} séance{s.sessions > 1 ? 's' : ''}
+                    {' · '}{fmtDuration(s.durationMin)}
+                  </div>
+                  <div className="mc-pack__quoi">
+                    {noms.join(' · ')}{reste > 0 ? ` · et ${reste} autre${reste > 1 ? 's' : ''}` : ''}
+                  </div>
+                  {s.description && <div className="mc-pack__mot">{s.description}</div>}
+                  <button
+                    className={`mc-cta ${cycle ? 'mc-cta--outline' : 'mc-cta--copper'} mc-pack__cta`}
+                    onClick={() => (cycle ? demanderForfait(s) : onReserver(s.id))}
+                  >
+                    {cycle ? 'Demander ce forfait' : 'Réserver ce forfait'}
+                  </button>
+                  {cycle && (
+                    <div className="mc-pack__note">
+                      Plusieurs séances — la Maison vous rappelle pour les caler ensemble.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {mode !== 'forfaits' && activeGroups.length === 0 && (
           <div className="mc-emptyzone">
             <div className="mc-emptyzone__glyph">✦</div>
             <div className="mc-emptyzone__t">Le sur-mesure se prépare.</div>
@@ -228,7 +372,7 @@ export default function Compose({ onClose, toast }: Props) {
             </div>
           </div>
         )}
-        {activeGroups.map((g) => (
+        {mode !== 'forfaits' && activeGroups.map((g) => (
           <div key={g.cat.id} className="mc-cmgroup">
             <div className="mc-cmgroup__head">
               <span className="mc-cmgroup__fon">{g.cat.fon}</span>
@@ -271,7 +415,10 @@ export default function Compose({ onClose, toast }: Props) {
         ))}
       </div>
 
-      {/* -------- pied collant : totaux + verrou abonnement -------- */}
+      {/* -------- pied collant : totaux + verrou abonnement --------
+          L'onglet des forfaits ne compose rien : chaque carte porte son geste,
+          et un pied qui annoncerait « 0 prestation » ne dirait que du vide. */}
+      {mode !== 'forfaits' && (
       <div className="mc-cmfooter">
         {count > 0 && (
           <>
@@ -302,6 +449,7 @@ export default function Compose({ onClose, toast }: Props) {
           Composer · transmettre au Trône
         </button>
       </div>
+      )}
     </div>
   );
 }

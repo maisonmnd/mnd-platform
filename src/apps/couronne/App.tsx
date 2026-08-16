@@ -204,7 +204,17 @@ function Shell() {
           toast={toast}
         />
       )}
-      {composeOpen && <Compose onClose={() => setComposeOpen(false)} toast={toast} />}
+      {/* UN FORFAIT À UNE SÉANCE SE RÉSERVE (16 août) : le composeur se ferme et
+          le tunnel s'ouvre POSÉ dessus — elle n'a plus qu'à choisir son moment.
+          `openBooking` garde sa garde : réservation coupée pour ce compte, le
+          tunnel ne s'ouvre pas et la cliente le lit en toutes lettres. */}
+      {composeOpen && (
+        <Compose
+          onClose={() => setComposeOpen(false)}
+          toast={toast}
+          onReserver={(serviceId) => { setComposeOpen(false); openBooking({ serviceId }); }}
+        />
+      )}
       {notifOpen && <Notifications onClose={() => setNotifOpen(false)} />}
       {rdvOpen && (
         <MesRendezVous

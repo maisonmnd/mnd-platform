@@ -13,7 +13,11 @@ export type ComposePayload = {
   /** L'identifiant de SA fiche (12 août) — le Trône ouvre WhatsApp et la
       fiche sans chercher le nom à la main. Absent sur les vieux payloads. */
   clientId?: string;
-  mode: 'ponctuel' | 'abonnement';
+  /** `forfait` (16 août) — elle ne compose pas, elle DEMANDE un forfait tout
+      fait du catalogue (un cycle de plusieurs séances, que le tunnel ne sait
+      pas programmer d'un coup). Pas de remise composée : le prix est celui de
+      la carte. */
+  mode: 'ponctuel' | 'abonnement' | 'forfait';
   discountPct: number;
   items: { service: string; category: string; priceXof: number }[];
   totalXof: number;
