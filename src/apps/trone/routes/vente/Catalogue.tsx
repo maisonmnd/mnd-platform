@@ -64,6 +64,10 @@ type SvcForm = {
   bandIds: string[];
   /** Réservée aux comptes famille (14 août — le Pack Famille). */
   reserveFamilles: boolean;
+  /** LE SEUIL DE VENUES (16 août) — « paraît dès la Nᵉ venue ». Vide = aucune
+      condition. Il existait en données et commandait TOUS les écrans, sans
+      jamais s'afficher ni se régler : une prestation disparue sans raison. */
+  desVenue: string;
   /** LES GESTES DE LA MAISON (15 août) — elle perd `pct` % de son prix quand
       l'une de ces prestations est au même rituel, pour ces calibres (vide =
       tous). Une LISTE : le shampoing est offert avec une Reprise ET à moitié
@@ -92,7 +96,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, gestes: [], privatise: false, maxTetes: '2',
+  prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, desVenue: '', gestes: [], privatise: false, maxTetes: '2',
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -598,6 +602,7 @@ export default function Catalogue() {
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
       reserveFamilles: !!svc.reserveFamilles,
+      desVenue: svc.desVenue ? String(svc.desVenue) : '',
       privatise: !!svc.privatise,
       maxTetes: String(svc.privatise?.maxTetes ?? 2),
       gestes: gestesDe(svc).map((g) => ({
@@ -818,6 +823,9 @@ export default function Catalogue() {
          sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
          modale RDV. */
       reserveFamilles: svcForm.reserveFamilles || undefined,
+      /* Le seuil de venues — vide ou 0 = aucune condition, et le champ
+         DISPARAÎT de la fiche plutôt que d'y écrire un zéro trompeur. */
+      desVenue: num(svcForm.desVenue) || undefined,
       privatise: svcForm.privatise
         ? { maxTetes: Math.max(1, parseInt(svcForm.maxTetes, 10) || 1) }
         : undefined,
@@ -1305,6 +1313,20 @@ export default function Catalogue() {
                       </div>
                     );
                   })()}
+
+                  {/* CE QUI LA RETIENT SE DIT SUR LA LIGNE — 16 août. Sans
+                      cela, une prestation à seuil se cherche en vain dans
+                      toutes les listes : rien ne distingue « retenue par une
+                      règle » de « disparue ». */}
+                  {(svc.desVenue || svc.reserveFamilles || svc.bandIds?.length) && (
+                    <div className="trv-svc__garde">
+                      {svc.desVenue ? `◈ Paraît dès la ${svc.desVenue}ᵉ venue — invisible avant, partout` : ''}
+                      {svc.desVenue && (svc.reserveFamilles || svc.bandIds?.length) ? ' · ' : ''}
+                      {svc.reserveFamilles ? '◈ Réservée aux comptes famille' : ''}
+                      {svc.reserveFamilles && svc.bandIds?.length ? ' · ' : ''}
+                      {svc.bandIds?.length ? `◈ ${svc.bandIds.length} calibre${svc.bandIds.length > 1 ? 's' : ''} seulement` : ''}
+                    </div>
+                  )}
 
                   <div className="trv-temps">
                     {QUATRE_TEMPS.map((t, i) => (
@@ -2071,6 +2093,36 @@ export default function Catalogue() {
                 {svcForm.bandIds.length
                   ? 'Réservée à ces calibres — pour les autres têtes : « hors calibre », jamais proposée ni prixée.'
                   : 'Aucune coche : elle sert toutes les têtes, quel que soit le calibre.'}
+              </div>
+            </Field>
+            {/* LE SEUIL DE VENUES SE VOIT ENFIN — 16 août 2026. « GBÈJÍ™
+                Fidélité n'est visible nulle part dans la sélection des
+                services. Why ? » (Yéman). Le champ `desVenue` existait, le
+                juge l'appliquait partout (modale RDV, Caisse, Ma Couronne) —
+                mais il ne s'affichait NULLE PART et ne se réglait NULLE PART.
+                Une règle qui cache une prestation sans se montrer se lit comme
+                une panne : impossible de distinguer « retenue par un seuil »
+                de « disparue ». Elle vit ici, avec les autres portes. */}
+            <Field label="Paraît dès la Nᵉ venue">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+                {[0, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="trv-minibtn"
+                    style={(num(svcForm.desVenue) ?? 0) === n
+                      ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
+                      : undefined}
+                    onClick={() => setSvcForm({ ...svcForm, desVenue: n ? String(n) : '' })}
+                  >
+                    {n === 0 ? 'Dès la 1ʳᵉ · aucune condition' : `Dès la ${n}ᵉ`}
+                  </button>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                {num(svcForm.desVenue)
+                  ? `Une tête qui compte moins de ${(num(svcForm.desVenue) ?? 2) - 1} venue${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} honorée${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} ne la voit NULLE PART — ni au comptoir, ni à la Caisse, ni sur Ma Couronne. Une vente sans fiche non plus : on ne peut compter les venues de personne.`
+                  : 'Aucun seuil : elle se propose dès la première venue, et aussi aux ventes sans fiche.'}
               </div>
             </Field>
             <Field label="Réservée aux comptes famille">

@@ -1064,3 +1064,15 @@
    Les pastilles d'un choix ne se coupent plus en deux lignes. */
 .trv-fiche__volet .trv-palier-chip { white-space: nowrap; }
 .trv-fiche__volet .mnd-field__label { white-space: nowrap; }
+
+/* CE QUI RETIENT UNE PRESTATION, dit sur sa ligne (16 août) — seuil de venues,
+   réserve aux familles, calibres servis. Sans cette ligne, une prestation
+   retenue par une règle se cherche en vain dans toutes les listes : rien ne la
+   distinguait d'une prestation disparue. */
+.trv-svc__garde {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--copper-700);
+  margin-top: 6px;
+}
