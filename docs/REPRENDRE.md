@@ -2,6 +2,35 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La facture pas encore payée suit le rituel — 16 août
+
+« J'ai mis à jour le RDV de Habibath, pourquoi les lignes de la facture ne se
+remettent pas à jour ? » Le mécanisme existait depuis le 11 août
+(`alignerFacturesDuRituel`) mais DEUX verrous l'écartaient, chacun suffisant à
+lui seul.
+
+① `inv.status !== 'payée'` — on ne touchait QUE les pièces payées. Or une
+facture ENVOYÉE est une RÉCLAMATION, pas une attestation : rien n'est entré,
+donc rien à protéger, et une réclamation qui ne demande pas ce qui est dû est
+simplement fausse. Elle se réécrit désormais ENTIÈREMENT, total compris,
+exactement comme si on l'émettait aujourd'hui — mêmes lignes, même remise que
+`factureAEnvoyer`. Les brouillons suivent aussi. LA RÈGLE D'OR NE BOUGE PAS :
+sur une pièce PAYÉE, le total reste intouchable et seules les lignes se
+reconforment (l'écart en remise nommée, ou en ligne d'ajustement).
+
+② LE LIEN NE SE LISAIT QUE DANS UN SENS. On cherchait la pièce depuis le
+RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture à envoyer »
+(`factureAEnvoyer`) pose le lien sur LA PIÈCE (`apptId`) et n'écrit rien en
+retour sur le rituel. Une facture née par ce chemin — le cas de Habibath — était
+donc INVISIBLE à l'alignement. Elle se reconnaît maintenant des deux côtés.
+
+Les gardes qui protègent restent en place : une pièce MIXTE (un produit, une
+formation sur la même facture que le rituel) ne se réécrit jamais, un forfait
+garde son nom plutôt que sa composition, et un règlement partiel ne se détaille
+pas après coup. L'alignement ne part QUE d'un enregistrement de la modale RDV :
+une pièce déjà périmée se rattrape en rouvrant le rituel et en réenregistrant.
+PUBLIÉ @ `415629c`.
+
 ## L'échelle des Créations va jusqu'au bout — 16 août
 
 MIGRATION **0053 PASSÉE**, contrôlée en base. L'échelle des Créations VÈKPÈ™
