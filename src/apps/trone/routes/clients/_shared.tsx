@@ -23,7 +23,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
-import { invoicesStore, invoiceTotal } from '../../../../shared/finance';
+import { invoicesStore, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -170,10 +170,16 @@ export function alignerFacturesDuRituel(
      calcul pour ne rien casser d'un appel nu. */
   priceOf: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
 ): void {
+  /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
+     depuis le RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture
+     à envoyer » (`factureAEnvoyer`) pose le lien sur LA PIÈCE — `apptId` — et
+     n'écrit rien en retour sur le rituel. Une facture émise par ce chemin était
+     donc invisible à l'alignement : elle réclamait indéfiniment les prestations
+     du jour de son émission. C'est le second verrou du cas Habibath. */
   const ids = new Set<string>();
   if (appt.invoiceId) ids.add(appt.invoiceId);
   for (const p of appt.payments ?? []) if (p.invoiceId) ids.add(p.invoiceId);
-  if (ids.size === 0) return;
+  const liee = (inv: Invoice): boolean => ids.has(inv.id) || inv.apptId === appt.id;
   const services = apptServices(appt, byId);
   if (services.length === 0) return;
   /* Tous les noms de prestations du catalogue — pour reconnaître ce qui, sur
@@ -182,7 +188,20 @@ export function alignerFacturesDuRituel(
   for (const s of byId.values()) nomsPrestations.add(s.name);
 
   invoicesStore.set((prev) => prev.map((inv) => {
-    if (!ids.has(inv.id) || inv.kind !== 'facture' || inv.status !== 'payée') return inv;
+    if (!liee(inv) || inv.kind !== 'facture') return inv;
+    /* UNE PIÈCE PAS ENCORE PAYÉE SUIT LE RITUEL, TOTAL COMPRIS — 16 août 2026.
+       Le garde ne laissait passer que les factures `payée` : une facture
+       ENVOYÉE — donc une réclamation, pas une attestation — restait figée sur
+       les prestations du jour de son émission. Yéman a modifié le rituel de
+       Habibath, la pièce a continué de réclamer l'ancien.
+
+       La règle d'or ne s'applique QU'À L'ARGENT REÇU : sur une pièce payée, le
+       total est intouchable et seules les lignes se reconforment. Sur une pièce
+       qui n'a rien encaissé, il n'y a aucun argent à protéger — et une
+       réclamation qui ne demande pas ce qui est dû est simplement fausse. Elle
+       se réécrit donc ENTIÈREMENT, comme si on l'émettait aujourd'hui. */
+    const payee = inv.status === 'payée';
+    if (!payee && inv.status !== 'envoyée' && inv.status !== 'brouillon') return inv;
     const total = invoiceTotal(inv);
 
     if (inv.lines.length === 1 && inv.lines[0].label.startsWith('Règlement ·')) {
@@ -221,7 +240,14 @@ export function alignerFacturesDuRituel(
       id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: 0,
     }));
     let remiseXof: number | undefined;
-    if (gross > total) {
+    if (!payee) {
+      /* RIEN N'EST ENTRÉ : la pièce vaut ce que vaut le rituel AUJOURD'HUI —
+         mêmes lignes, même remise et même total qu'une facture émise à
+         l'instant (`factureAEnvoyer`). Pas de ligne d'ajustement : il n'y a
+         pas d'écart à justifier, seulement un montant à réclamer. */
+      const net = apptNetXof(appt, byId);
+      remiseXof = gross > net ? gross - net : undefined;
+    } else if (gross > total) {
       remiseXof = gross - total;
     } else if (gross < total) {
       lines.push({ id: `il-${inv.id}-adj`, label: LIGNE_AJUSTEMENT, qty: 1, unitXof: total - gross, discountPct: 0 });
