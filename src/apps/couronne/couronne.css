@@ -1775,6 +1775,50 @@
   overflow: hidden;
 }
 .mc-pack__cta { margin-top: 14px; }
+
+/* ---- LE CYCLE (16 août) — les séances d'un forfait, posées d'avance.
+   La cadence vient du Catalogue (`afterWeeks`), les jours fermés se tiennent
+   seuls (`freeSlots` ne rend rien un lundi ni un dimanche), et la cliente ne
+   fait que déplacer ce qui ne lui va pas. */
+.mc-seance {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 14px 15px 15px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s var(--ease-soft);
+}
+.mc-seance.is-open { border-color: var(--color-copper); background: var(--copper-50); }
+.mc-seance__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.mc-seance__no {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.mc-seance__quand { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); text-align: right; }
+.mc-seance__quoi { font-size: 12.5px; line-height: 1.5; color: var(--ink); margin-top: 7px; }
+.mc-seance__meta { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); margin-top: 4px; }
+.mc-seance__btn { margin-top: 10px; }
+
+/* Le jour, puis l'heure — des pastilles, jamais un calendrier : les jours
+   fermés n'y paraissent tout simplement pas. */
+.mc-jours { display: flex; flex-wrap: wrap; gap: 6px; }
+.mc-jour {
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 9px 13px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  transition: var(--transition-base);
+}
+.mc-jour:hover { border-color: var(--color-indigo); }
+.mc-jour.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
 .mc-pack__note { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; text-align: center; }
 
 .mc-cmgroup { margin-bottom: 26px; }

@@ -10,6 +10,7 @@ import { uid } from '../../shared/store';
 import { useAppointments, venuesHonorees } from '../../shared/agenda';
 import { useFamilies } from '../../shared/clients';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
+import Cycle, { semainesDuForfait } from './Cycle';
 import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
@@ -79,6 +80,10 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [mode, setMode] = useState<'ponctuel' | 'abonnement' | 'forfaits'>('ponctuel');
   const [qty, setQty] = useState<Record<string, number>>({});
   const [done, setDone] = useState<ComposePayload | null>(null);
+  /* LE FORFAIT À PLUSIEURS SÉANCES OUVRE SON CYCLE (16 août) — il ne se
+     « demande » plus : ses dates se posent à la cadence du Catalogue, elle
+     confirme ou déplace, et règle en deux fois. */
+  const [cycleOuvert, setCycleOuvert] = useState<Service | null>(null);
 
   /* Prestations composables : visibles, prix affichable. UN FORFAIT DE LA CARTE
      N'EST PAS UNE BRIQUE : il a son onglet, il ne se compose pas dans un autre
@@ -203,35 +208,24 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
     toast(mode === 'abonnement' ? 'Abonnement sur-mesure transmis.' : 'Rituel sur-mesure transmis.');
   };
 
-  /* ---- DEMANDER UN FORFAIT DE LA CARTE ----
-     Plusieurs séances : la Maison cale le cycle avec elle. Aucune remise
-     composée ici — le prix est celui de la carte, déjà remisé par sa propre
-     composition. */
-  const demanderForfait = (s: Service) => {
-    const prix = prixDe(s);
-    const payload: ComposePayload = {
-      id: uid(),
-      createdAt: new Date().toISOString(),
-      client: client?.name ?? 'Cliente Ma Couronne',
-      clientId: client?.id,
-      mode: 'forfait',
-      discountPct: 0,
-      items: [{
-        service: s.name,
-        category: cats.find((c) => c.id === s.categoryId)?.fon ?? '',
-        priceXof: prix,
-      }],
-      totalXof: prix,
-    };
-    composeStore.set(payload);
-    void pushNotifyStaff(
-      'Forfait demandé · Ma Couronne',
-      `${payload.client} · ${s.name} · ${fmtMoney(prix, currency)}`,
-      '/trone/#/',
+  /* « DEMANDER CE FORFAIT » EST MORT LE 16 AOÛT — « pourquoi demander ? Je
+     veux passer au paiement directement » (Yéman). Un forfait à plusieurs
+     séances ouvre désormais SON CYCLE (`Cycle.tsx`) : les dates s'y posent à
+     la cadence du Catalogue, elle confirme ou déplace, et règle en deux fois.
+     Le mode `forfait` du pont reste reconnu par le Tableau de bord — une
+     demande partie avant ce jour doit encore se lire. */
+
+  /* ================= LE CYCLE D'UN FORFAIT ================= */
+  if (cycleOuvert) {
+    return (
+      <Cycle
+        forfait={cycleOuvert}
+        onClose={() => setCycleOuvert(null)}
+        onFini={onClose}
+        toast={toast}
+      />
     );
-    setDone(payload);
-    toast('Demande transmise à la Maison.');
-  };
+  }
 
   /* ================= CONFIRMATION ================= */
   if (done) {
@@ -325,8 +319,14 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
               const lignes = s.includes ?? [];
               const noms = lignes.slice(0, 3).map(nomInclus);
               const reste = lignes.length - noms.length;
-              /* UNE SÉANCE SE RÉSERVE, UN CYCLE SE DEMANDE. */
-              const cycle = s.sessions > 1;
+              /* UNE SÉANCE SE RÉSERVE AU TUNNEL, UN CYCLE OUVRE LE SIEN. Le juge
+                 est LA CADENCE (`semainesDuForfait`) et non le champ `sessions`,
+                 qui la contredit sur deux fiches — « Forfait VÈKPÈ™ Initiation »
+                 annonce une séance et sa cadence en dessine trois : passé au
+                 tunnel, deux séances se seraient perdues. */
+              const semaines = semainesDuForfait(s, tousServices);
+              const nbSeances = Math.max(1, semaines.length);
+              const cycle = semaines.length > 1;
               return (
                 <div key={s.id} className="mc-pack">
                   <div className="mc-pack__head">
@@ -337,7 +337,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                     </span>
                   </div>
                   <div className="mc-pack__meta">
-                    {lignes.length} prestation{lignes.length > 1 ? 's' : ''} · {s.sessions} séance{s.sessions > 1 ? 's' : ''}
+                    {lignes.length} prestation{lignes.length > 1 ? 's' : ''} · {nbSeances} séance{nbSeances > 1 ? 's' : ''}
                     {' · '}{fmtDuration(s.durationMin)}
                   </div>
                   <div className="mc-pack__quoi">
@@ -345,14 +345,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   </div>
                   {s.description && <div className="mc-pack__mot">{s.description}</div>}
                   <button
-                    className={`mc-cta ${cycle ? 'mc-cta--outline' : 'mc-cta--copper'} mc-pack__cta`}
-                    onClick={() => (cycle ? demanderForfait(s) : onReserver(s.id))}
+                    className="mc-cta mc-cta--copper mc-pack__cta"
+                    onClick={() => (cycle ? setCycleOuvert(s) : onReserver(s.id))}
                   >
-                    {cycle ? 'Demander ce forfait' : 'Réserver ce forfait'}
+                    Réserver ce forfait
                   </button>
                   {cycle && (
                     <div className="mc-pack__note">
-                      Plusieurs séances — la Maison vous rappelle pour les caler ensemble.
+                      Vos {nbSeances} dates se posent toutes seules, à la cadence de la Maison —
+                      vous n’avez qu’à confirmer. Règlement en deux fois.
                     </div>
                   )}
                 </div>
