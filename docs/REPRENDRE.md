@@ -166,6 +166,27 @@ pas, et les têtes denses paieront plus : Galaxy à 700 locks passe de 750 000 �
 980 000 en court. HARNAIS verifie-prix : 7 vérifications de plus, tout passe —
 dont une qui a corrigé MON attente et non le moteur. PUBLIÉ @ `3218250`.
 
+## La dépense s'inscrit comme un mouvement du Foyer — 16 août
+
+« Quand on ouvre Ajouter une dépense, je veux que ce soit le même modèle que
+Inscrire un mouvement dans Salon & Foyer » (Yéman). Le modèle qu'elle avait
+apporté le 14 août, appliqué à la fenêtre des dépenses :
+
+① LE MONTANT EST LE HÉROS — en grand, au centre, AVANT tout le reste. Les
+champs alignés à la file (bénéficiaire, puis montant, puis date) faisaient
+chercher lequel portait la somme. La devise affichée est celle de la CAISSE
+choisie, et la somme des articles fait loi quand il y en a. ② LA QUESTION EN
+MOTS — « À quoi va cet argent ? » ouvre les catégories, la sous-catégorie suit
+dessous au lieu d'un second bloc titré. ③ LE DÉTAIL SE REPLIE — « + Détailler
+cet achat (optionnel) », même bouton pointillé qu'au Salon & Foyer : un achat
+simple n'a rien à détailler. ④ LA DATE FERME LA FENÊTRE — dernier réglage, pas
+une question posée avant le montant. ⑤ Le titre prend son point, comme toutes
+les fenêtres de la Maison.
+
+LE MODÈLE EST DÉSORMAIS CELUI DE LA MAISON pour toute fenêtre qui inscrit une
+somme : montant en héros, la question en mots, le détail replié, la date en
+dernier. À reprendre tel quel ailleurs. PUBLIÉ @ `bb00b3a`.
+
 ## Une seule faveur à la fois — 16 août
 
 « Quand un compte famille réserve un service qui a un déclencheur et qui est
