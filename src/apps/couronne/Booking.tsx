@@ -15,7 +15,7 @@ import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../.
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
-import { useCategories, useProducts, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
+import { useCategories, useProducts, useServices, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import {
   DOW_LETTERS,
@@ -131,6 +131,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      que Ma Couronne ne peut pas se permettre. On affiche la carte, on juge sur
      l'arbre. */
   const [tousCats] = useCategories();
+  /* LE CATALOGUE ENTIER, pour les mêmes raisons — et pour deux JUGES précis :
+     ① LE PRIX D'UN FORFAIT est la somme de sa composition ; résolue sur la
+     carte élaguée, une prestation masquée sortait de la somme EN SILENCE.
+     Constaté le 16 août, en ligne : le « Forfait VÈKPÈ™ Initiation » s'annonçait
+     17 600 F quand la caisse en encaisse 176 000 — dix fois moins, sur cinq
+     forfaits, 490 400 F d'écart cumulé. Elle achète le pack ENTIER ; son prix
+     ne dépend pas de ce qu'on lui montre.
+     ② LES CRÉNEAUX LIBRES se calculent sur la durée des rituels DÉJÀ pris —
+     ceux des autres clientes, qui peuvent porter une prestation masquée à
+     celle-ci. Sur la carte élaguée, ces rituels comptaient pour moins de temps
+     qu'ils n'en prennent, et le calendrier promettait des heures occupées.
+     `services` (élagué) reste ce qu'elle peut CHOISIR ; `tousServices` est ce
+     avec quoi on CALCULE. */
+  const [tousServices] = useServices();
   /* Les produits de la Gamme — une composition de forfait peut en porter. */
   const [produits] = useProducts();
   const [appts] = useAppointments();
@@ -246,7 +260,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      PANIER (shampoing offert aux Pico et Galaxy qui viennent pour une
      Reprise). `prixIci` est le seul juge de prix de ce tunnel : Ma Couronne
      doit annoncer très exactement ce que le comptoir encaissera. */
-  const prixIci = (s: Service) => prixDansPanier(s, pricing, selected, services, produits);
+  const prixIci = (s: Service) => prixDansPanier(s, pricing, selected, tousServices, produits);
   const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + prixIci(s), 0);
   /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
   const famForfaitXof = selected
@@ -418,14 +432,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
       const past = iso < today;
-      const free = !past && freeSlots(iso, master, totalDuration, appts, services, branch.id).length > 0;
+      const free = !past && freeSlots(iso, master, totalDuration, appts, tousServices, branch.id).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
   }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions]);
 
   const dayTimes = selIso && selected.length
-    ? freeSlots(selIso, master, totalDuration, appts, services, branch.id)
+    ? freeSlots(selIso, master, totalDuration, appts, tousServices, branch.id)
     : [];
 
   /* LE MOMENT EST POSÉ quand toutes les séances ont le leur — c'est lui qui
@@ -659,7 +673,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     if (geste >= 100) return 'Offert';
     if (geste > 0) return `${fmtMoney(prixIci(s), currency)} · −${geste} %`;
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
-    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, services, produits) * (1 - pct / 100)), currency);
+    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, tousServices, produits) * (1 - pct / 100)), currency);
     return mode === 'variable' ? `à partir de ${amount}` : amount;
   };
 
@@ -756,7 +770,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       {/* « Votre tarif » ne se dit QUE si son prix diffère vraiment
                           du catalogue — sinon c'est une flatterie, et la Maison
                           n'en fait pas. */}
-                      {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing, services, produits) !== recoSvc.priceXof
+                      {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing, tousServices, produits) !== recoSvc.priceXof
                         ? ' · votre tarif'
                         : ''}
                     </div>
