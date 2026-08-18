@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Régler par MoMo · Maison MND</title>
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0E1030" />
+<!--
+  RÉGLER PAR MoMo — la page qu'on envoie à une cliente. 18 août 2026.
+
+  Demande de Yéman : « create a share link to QR codes », et, mise devant le
+  choix, « la MoMoPay seule ». Le mot de passe des deux réseaux Wi-Fi vit sur
+  l'écran QR Codes du Trône ; un lien se transfère, se capture d'écran, reste
+  dans une conversation. Cette page-ci n'en porte rien.
+
+  ELLE EST STATIQUE, ET C'EST LA GARANTIE. Aucune base lue, aucune clé, aucune
+  session : elle ne sait que ce que son adresse lui dit. Il n'existe donc rien
+  à en extraire — ni une cliente, ni un chiffre, ni un mot de passe.
+
+    payer.html?m=YEMAN&c=506846            le marchand et son code
+    payer.html?m=YEMAN&c=506846&montant=30000   … et la somme attendue
+
+  Le montant, quand il est là, entre directement dans le code à composer : la
+  cliente appuie, son téléphone compose, elle n'a plus qu'à valider. C'est le
+  geste le plus court entre une facture et l'argent reçu.
+
+  PAS DE QR ICI, ET C'EST VOULU : on ne scanne pas l'écran qu'on tient en main.
+  Un lien reçu par téléphone se règle en composant, pas en photographiant.
+-->
+<style>
+  :root {
+    --nuit: #0E1030;
+    --or: #F2B705;
+    --ivoire: #F6F1E7;
+    --doux: #B8B8C4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--nuit);
+    color: var(--ivoire);
+    font-family: 'Jost', 'Century Gothic', 'Futura', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 22px 18px 40px;
+    min-height: 100vh;
+  }
+  .cadre { position: relative; width: min(100%, 420px); line-height: 0; }
+  .affiche { width: 100%; height: auto; border-radius: 6px; display: block; box-shadow: 0 4px 26px rgba(0, 0, 0, .45); }
+  /* LE CADRE MARCHAND, CORRIGÉ — l'affiche porte « YEMAN » gravé dans ses
+     pixels, et le vrai marchand est ACIA1. On le recouvre plutôt que de
+     laisser une page publique annoncer un nom que la cliente ne verra pas
+     s'afficher sur son téléphone au moment de valider — c'est exactement le
+     moment où un nom qui ne correspond pas fait renoncer à payer.
+     Pas de QR ici : on ne scanne pas l'écran qu'on tient en main. */
+  .marchand {
+    position: absolute; left: 6.2%; top: 62.6%; width: 36.4%; height: 19.6%;
+    background: #0B0D24; border: 1px solid rgba(242, 183, 5, .55); border-radius: 3.2%;
+    display: flex; flex-direction: column; justify-content: center; gap: 2%;
+    padding: 3% 5%; line-height: 1.25;
+  }
+  .marchand i { font-style: normal; color: var(--or); font-size: clamp(7px, 2.2vw, 11px); letter-spacing: .05em; }
+  .marchand b { color: #fff; font-size: clamp(11px, 3.6vw, 19px); letter-spacing: .02em; }
+  .bloc { width: min(100%, 420px); }
+  .titre {
+    font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    font-weight: 300;
+    font-size: 26px;
+    letter-spacing: .01em;
+    margin: 26px 0 4px;
+    text-align: center;
+  }
+  .sous { font-size: 13.5px; color: var(--doux); text-align: center; line-height: 1.6; margin: 0 0 18px; }
+  .composer {
+    display: block;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    background: var(--or);
+    color: #1A1400;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: .02em;
+    padding: 17px 18px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .composer small { display: block; font-weight: 400; font-size: 12px; opacity: .72; margin-top: 3px; letter-spacing: .04em; }
+  .copier {
+    display: block;
+    width: 100%;
+    background: transparent;
+    color: var(--ivoire);
+    border: 1px solid rgba(246, 241, 231, .32);
+    border-radius: 4px;
+    padding: 13px 18px;
+    font: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .ligne {
+    display: flex; justify-content: space-between; gap: 14px;
+    padding: 11px 0; border-bottom: 1px solid rgba(246, 241, 231, .12);
+    font-size: 14px;
+  }
+  .ligne span:first-child { color: var(--doux); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .ligne b { font-weight: 600; letter-spacing: .04em; }
+  .pied {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic; font-size: 13.5px; color: var(--or);
+    margin-top: 26px; text-align: center;
+  }
+  .absent { text-align: center; color: var(--doux); font-size: 14px; line-height: 1.7; padding: 40px 10px; }
+</style>
+</head>
+<body>
+  <div class="cadre">
+    <img class="affiche" src="momopay-affiche.jpg" alt="Payez facilement avec MTN MoMo Pay — L'atelier MND" />
+    <div class="marchand">
+      <i>Nom Marchand</i><b id="nomMarchand">ACIA1</b>
+      <i>Code Marchand</i><b id="codeMarchand">—</b>
+    </div>
+  </div>
+
+  <div class="bloc" id="bloc"></div>
+
+  <div class="pied">mi nyɔ́ ɖɛkpɛ — la maison veille.</div>
+
+<script>
+  var p = new URLSearchParams(location.search);
+  var marchand = (p.get('m') || '').trim();
+  var code = (p.get('c') || '').replace(/[^0-9]/g, '');
+  var montant = (p.get('montant') || '').replace(/[^0-9]/g, '');
+  var bloc = document.getElementById('bloc');
+
+  if (!code) {
+    /* Sans code marchand, la page ne devine rien : elle le DIT plutôt que
+       d'afficher un bouton qui composerait un numéro incomplet. */
+    bloc.innerHTML = '<div class="absent">Ce lien est incomplet — il lui manque le code marchand.<br>Demandez-en un nouveau à la Maison.</div>';
+  } else {
+    var ussd = '*880*41*' + code + '*' + (montant || '') + '#';
+    var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+    bloc.innerHTML =
+      '<div class="titre">' + (montant ? 'À régler · ' + Number(montant).toLocaleString('fr-FR') + ' F' : 'Régler par MoMo') + '</div>' +
+      '<div class="sous">' + (montant
+        ? 'Appuyez : votre téléphone compose le code, le montant est déjà inscrit. Vérifiez le nom du marchand avant de valider.'
+        : 'Appuyez, puis saisissez le montant avant le dièse. Vérifiez le nom du marchand avant de valider.') + '</div>' +
+      '<a class="composer" href="tel:' + encodeURIComponent(ussd) + '">Composer le code' +
+        '<small>' + e(ussd) + '</small></a>' +
+      '<button class="copier" id="copier">Copier le code</button>' +
+      '<div class="ligne"><span>Marchand</span><b>' + e(marchand || 'ACIA1') + '</b></div>' +
+      '<div class="ligne"><span>Code marchand</span><b>' + e(code) + '</b></div>';
+
+    /* Le cadre de l'affiche dit la même chose que la page — une seule vérité,
+       affichée deux fois, jamais deux vérités. */
+    document.getElementById('nomMarchand').textContent = marchand || 'ACIA1';
+    document.getElementById('codeMarchand').textContent = code;
+
+    document.getElementById('copier').onclick = function () {
+      var b = this;
+      navigator.clipboard.writeText(ussd).then(function () {
+        b.textContent = 'Code copié';
+        setTimeout(function () { b.textContent = 'Copier le code'; }, 1800);
+      }).catch(function () { b.textContent = ussd; });
+    };
+  }
+</script>
+</body>
+</html>
