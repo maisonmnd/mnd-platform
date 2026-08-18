@@ -1329,3 +1329,52 @@
   padding: 10px 16px; border-bottom: 1px solid var(--hairline);
   background: var(--surface-card);
 }
+
+/* ═══ LE FIL ET LE TABLEAU AU TÉLÉPHONE — 18 août 2026 ═══
+   Le comptoir n'est pas un bureau : ces deux écrans se lisent debout, un
+   pouce sur l'écran. Le Fil replie sa colonne en pastilles horizontales pour
+   que la conversation arrive tout de suite ; le Tableau se balaie colonne
+   par colonne, chaque colonne s'aimante au bord. */
+
+@media (max-width: 900px) {
+  /* Les fils deviennent des PASTILLES — la liste verticale poussait la
+     conversation sous deux écrans de boutons. Les étiquettes gardent leur
+     ligne ; les fils s'enroulent à côté les uns des autres. */
+  .trf-fil__volet { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 12px 14px; }
+  .trf-fil__label { flex-basis: 100%; margin-bottom: 0; }
+  .trf-fil__canal {
+    width: auto; margin-left: 0; padding: 5px 12px;
+    border: 1px solid var(--hairline); border-radius: 999px;
+  }
+  .trf-fil__canal.est-ouvert {
+    box-shadow: none; border-color: var(--color-copper);
+    background: var(--copper-50);
+  }
+  /* Ce qui m'attend garde toute sa largeur — une demande ne se replie pas. */
+  .trf-fil__att, .trf-fil__vide { flex-basis: 100%; }
+}
+
+@media (max-width: 640px) {
+  .trf-fil { gap: 12px; }
+  .trf-fil__flux { padding: 12px 12px; gap: 13px; }
+  .trf-fil__tete { padding: 11px 12px; }
+  .trf-fil__compo { padding: 10px 12px 13px; }
+  /* La pièce et le fichier prennent la largeur qu'il y a. */
+  .trf-fil__piece, .trf-fil__fichier { max-width: 100%; }
+  /* Les quarts du comptage : deux par ligne, saisissables au pouce. */
+  .trf-fil__compteur label { flex: 1 1 40%; }
+  .trf-fil__compteur input { width: 100%; }
+  .trf-fil__total { flex-basis: 100%; margin-left: 0; text-align: right; }
+}
+
+@media (max-width: 640px) {
+  /* Le tableau se BALAIE. Chaque colonne s'aimante au bord — on passe de
+     Yéman à Brice d'un geste, jamais entre deux. */
+  .trt__cols { scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .trt__col { flex: 0 0 82vw; min-width: 82vw; scroll-snap-align: start; }
+  .trt__corps { min-height: 220px; }
+  .trt__poser { padding: 9px 12px; }
+  .trt__poser > * { flex: 1 1 100%; }
+  .trt__poser .trt__echeance { justify-content: space-between; }
+  .trt__mot { padding: 7px 12px; }
+}
