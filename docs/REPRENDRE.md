@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La devise vit au VERSEMENT — 18 août, PUBLIÉ
+
+Les 100 € de Stevie A. (5 août) invisibles au tiroir EUR et muets sur le PDF :
+`Invoice.fx` n'était écrit qu'à la CRÉATION d'une pièce, et un second versement
+s'inscrit sur une pièce existante sans la réécrire. Depuis le 17 août (une pièce
+par rituel, plusieurs règlements), c'est le cas NORMAL, pas l'exception.
+
+- `InvoicePayment.fx` { code, rate, amount } — les billets réellement tendus,
+  pourboire compris ; `amountXof` reste la seule base comptable.
+- Le repli d'`invoiceReglements` descend le `fx` des pièces d'avant sur leur
+  versement unique : une seule forme à lire partout.
+- Le tiroir en devise (Depenses `boxCredit`) somme les versements, plus la pièce.
+- Document + PDF : chaque ligne de règlement dit ses billets et son taux.
+- RÉPARATION des versements d'avant : dans « Réglé — voir et corriger les
+  règlements », un versement rangé dans un tiroir étranger a un champ « reçu …
+  EUR » — on saisit les billets, le taux s'en déduit. C'est ainsi que Stevie
+  se répare (saisir 100).
+
+## La remise de ligne reste sur SA ligne — 18 août, PUBLIÉ
+
+« Je dois voir la remise de 20 000 F sur la ligne de la prestation avec les
+60 000 F barrés. » À l'émission, les remises de ligne du rituel étaient fondues
+dans `globalDiscountXof` : total juste, ligne muette. Désormais
+`lignesDuRituel()` écrit `discountPct`/`discountXof` sur chaque ligne (index par
+`serviceIds`, même garde qu'`alignerFacturesDuRituel`) ; seule la part restante
+va au global. Le document barre le prix plein et dit « remise −X % puis −Y F » ;
+le PDF aussi — il IGNORAIT `discountXof` jusque dans le calcul de la ligne.
+`totals` (Factures) passe par `ligneNetXof`. L'idempotence d'aligner compare
+aussi la remise en francs.
+
+## Effacer le terminé, et le soin du Fil — 18 août, PUBLIÉ
+
+`puisJeEffacer` : un message par son auteur ; une demande OUVERTE par son auteur
+seul ; TERMINÉE aussi par son destinataire ou le souverain (l'état « éteinte par
+facture » se passe en paramètre). Bouton sur les cartes de « Terminé » et dans
+le fil. Soin du Fil : défilement au dernier message, trait daté entre les jours,
+Entrée envoie (Maj+Entrée à la ligne), survol signalé. Compositeur « Poser une
+carte » en tête du Tableau. Le tout au téléphone : pastilles horizontales (Fil),
+colonnes aimantées 82vw (Tableau).
+
 ## Le Tableau — 18 août, CONSTRUIT ET PUBLIÉ
 
 DEMANDE (Yéman) : « Je veux une organisation avec chaque nom sous une colonne et
