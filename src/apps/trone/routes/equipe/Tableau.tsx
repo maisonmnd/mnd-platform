@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../../../shared/store';
 import { PageHead } from '../_ui';
-import { toast } from '../../../../ds/components';
+import { Button, Input, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff as useMonProfil } from '../../../../shared/auth';
 import { useInvoices, invoiceTotal, invoiceResteXof, invoiceSoldee, invoiceReglements } from '../../../../shared/finance';
 import { fmtMoney } from '../../../../shared/currency';
 import {
-  filStore, useFil, demandesDuTableau, demandeOuverte, puisJeDeplacer, puisJeClore,
-  enRetard, faiteRecemment, estAPrendre, A_PRENDRE,
+  filStore, useFil, nouveauMessage, demandesDuTableau, demandeOuverte, puisJeDeplacer, puisJeClore,
+  enRetard, faiteRecemment, estAPrendre, A_PRENDRE, CANAL_MAISON,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useStaff, staffAccessStore } from './data';
@@ -209,6 +209,35 @@ export default function Tableau() {
     void cle;
   };
 
+  /* ── POSER UNE CARTE DEPUIS LE TABLEAU — 18 août, « comment j'écris dans
+     les cases ? ». La carte naissait dans Le Fil ou sur une facture ; arriver
+     devant le tableau sans pouvoir y écrire était une porte manquante. UN
+     compositeur, en tête — pas un champ par colonne : huit petits champs
+     vides pèseraient plus que ce qu'ils rendent. La carte posée ici est un
+     message du fil de la Maison, comme les autres : un seul registre. */
+  const [brouillon, setBrouillon] = useState('');
+  const [brouillonPour, setBrouillonPour] = useState(A_PRENDRE);
+  const [brouillonEcheance, setBrouillonEcheance] = useState('');
+  const poserUneCarte = () => {
+    const dit = brouillon.trim();
+    if (!dit) return;
+    const dest = brouillonPour === A_PRENDRE
+      ? undefined
+      : membres.find((mb) => (mb.email ?? '').trim().toLowerCase() === brouillonPour);
+    filStore.set((prev) => [...prev, nouveauMessage({
+      branchId: branch.id,
+      canal: CANAL_MAISON,
+      auteurMail: monMail,
+      auteurNom: monNom,
+      texte: dit,
+      demandePour: dest ? (dest.email ?? '').trim().toLowerCase() : A_PRENDRE,
+      demandePourNom: dest ? dest.name : 'À prendre',
+      echeance: brouillonEcheance || undefined,
+    })]);
+    setBrouillon(''); setBrouillonEcheance('');
+    toast(dest ? `Carte posée chez ${dest.name}.` : 'Carte posée — à prendre.');
+  };
+
   const changerEcheance = (m: FilMessage, echeance: string) => {
     filStore.set((prev) => prev.map((x) => (x.id === m.id
       ? { ...x, echeance: echeance || undefined }
@@ -380,6 +409,28 @@ export default function Tableau() {
       />
 
       <div className="trt">
+        <div className="trt__poser">
+          <Input
+            value={brouillon}
+            onChange={(e) => setBrouillon(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') poserUneCarte(); }}
+            placeholder="Poser une carte — que faut-il faire ?"
+            style={{ flex: 1, minWidth: 220 }}
+          />
+          <Select value={brouillonPour} onChange={(e) => setBrouillonPour(e.target.value)} style={{ fontSize: 12, maxWidth: 190 }}>
+            <option value={A_PRENDRE}>À prendre</option>
+            {membres.map((mb) => (
+              <option key={mb.id} value={(mb.email ?? '').trim().toLowerCase()}>{mb.name}</option>
+            ))}
+          </Select>
+          <label className="trt__echeance" style={{ marginTop: 0 }}>
+            Échéance
+            <input type="date" value={brouillonEcheance} onChange={(e) => setBrouillonEcheance(e.target.value)} />
+          </label>
+          <Button variant="copper" size="sm" disabled={!brouillon.trim()} onClick={poserUneCarte}>
+            Poser la carte
+          </Button>
+        </div>
         <div className="trt__mot">
           {choisieId
             ? <><b>Carte prise.</b> Touchez maintenant la colonne où la poser.</>

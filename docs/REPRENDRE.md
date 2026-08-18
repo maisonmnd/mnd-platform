@@ -2,24 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## Le Tableau — 18 août, MAQUETTE À VALIDER
+## Le Tableau — 18 août, CONSTRUIT ET PUBLIÉ
 
 DEMANDE (Yéman) : « Je veux une organisation avec chaque nom sous une colonne et
 ses tâches, et pouvoir déplacer les tâches vers d'autres membres ou quand c'est
-terminé. Comme Monday ou Asana. »
+terminé. Comme Monday ou Asana. » Maquette `public/maquette-le-tableau.html`
+validée le jour même : « construis tous les tableaux de la maquette. Le tableau
+peut suivre le rang. C'est bon comme ça. » — ce qui tranche les quatre
+arbitrages tels que proposés.
 
-`public/maquette-le-tableau.html` — colonnes par personne, glisser-déposer réel
-(et un repli sans souris : toucher la carte, puis la colonne).
+LE PARTI PRIS : **aucune table nouvelle, aucune migration**. Une carte EST une
+demande de `fil_messages` ; la glisser sous un autre nom réécrit `demandePour`
+(et pousse une trace dans `mouvements[]`), la déposer dans « Terminé » pose
+`faitAt`, la ressortir rouvre. `echeance` facultative — le retard se CALCULE,
+jamais ne se coche ; les sans-date se rangent sous un trait. « À prendre » est
+la sentinelle `A_PRENDRE = '*'` (pas une adresse : ne tombe dans le « à
+traiter » de personne). « Terminé » garde 7 jours (`faiteRecemment`) ; une
+demande éteinte par sa facture soldée ne se rouvre pas à la main.
 
-LE PARTI PRIS : **aucune table nouvelle**. Une carte EST une demande de
-`fil_messages` ; la déplacer réécrit `demandePour`, la déposer dans « Terminé »
-pose `faitAt`. Un tableau qui garderait ses propres tâches serait un second
-endroit où demander — et le jour où les deux se contredisent, aucun ne fait foi.
+LE RANG (`demandesDuTableau`) : le souverain voit toutes les colonnes ; le
+maître voit sa colonne, « ce que je demande », et l'à-prendre. Le boss-à-boss
+reste hors de la vue du personnel. Une adresse orpheline (fiche supprimée)
+garde SA colonne « sans fiche » chez le souverain — la faire tomber dans
+à-prendre réécrirait son adresse en silence.
 
-QUATRE ARBITRAGES en attente d'elle : ① l'échéance (le seul champ neuf,
-facultatif, sans migration) ; ② le souverain voit-il toutes les colonnes, alors
-que `messageVisible` limite aujourd'hui une demande à son auteur et à son
-destinataire ; ③ qui a le droit de réadresser ; ④ ce que garde « Terminé ».
+COLMATÉ EN CONSTRUISANT : `argent` était écrit à l'envoi et JAMAIS lu — un
+maître sans prix voyait « 81 000 F » dans le fil. `messageVisible` /
+`messagesDuCanal` / `demandesDuTableau` prennent `sansPrix`. Et `/fil` +
+`/tableau` sont entrés dans `ROUTES_MAITRE` : le Fil a été construit POUR que
+Gérard y pose ses comptages, mais sa porte dépendait d'une case de la matrice.
+
+HUITIÈME HARNAIS : `verifie-fil` (46 assertions) — il REJOUE les deux fuites du
+18 août (boss-à-boss public, argent non filtré) et éprouve rang, déplacement,
+clôture, extinction par facture, échéance, 7 jours, expiration, comptages.
+Leçon au passage : une facture d'essai sans `discountPct`/`globalDiscountPct`
+fait un total NaN — jamais soldée.
+
+Fil.tsx : le compositeur pose l'échéance (visible dès qu'on choisit un
+destinataire) et « En faire une demande · à prendre ».
 
 ## Les maquettes étaient SERVIES en public — 18 août, CORRIGÉ
 

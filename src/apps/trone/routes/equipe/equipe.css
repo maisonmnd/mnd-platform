@@ -1322,3 +1322,10 @@
   border: 1px solid var(--hairline); border-radius: 2px; background: var(--paper);
   font: inherit; color: var(--ink); padding: 2px 5px;
 }
+
+/* Poser une carte — le compositeur du tableau, un seul, en tête. */
+.trt__poser {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--hairline);
+  background: var(--surface-card);
+}
