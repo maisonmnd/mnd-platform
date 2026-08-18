@@ -569,7 +569,22 @@ export default function Carnet() {
       )}
       {/* L'ENCAISSEMENT NE S'OUVRE PAS AU FAUTEUIL. Fermer le bouton ne
           suffisait pas : la modale s'ouvre aussi depuis la fiche du rituel. */}
-      {payAppt && !sansPrix && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {/* Le retour REND la fiche du rituel : l'encaissement l'avait refermée
+          derrière lui, et corriger une prestation obligeait à repasser par le
+          carnet. On relit le rituel dans le magasin — celui qu'on tient en
+          main date de son ouverture, et le versement qu'on vient d'inscrire
+          l'a déjà fait vieillir. */}
+      {payAppt && !sansPrix && (
+        <PayAppointmentModal
+          appt={payAppt}
+          onClose={() => setPayAppt(null)}
+          onRetour={() => {
+            const frais = appointmentsStore.get().find((x) => x.id === payAppt.id) ?? payAppt;
+            setPayAppt(null);
+            setModal({ appt: frais });
+          }}
+        />
+      )}
     </div>
   );
 }

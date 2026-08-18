@@ -498,7 +498,26 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   /* Session prête / connexion / déconnexion : re-tire immédiatement — sous RLS,
      les lignes visibles dépendent de l'utilisateur, et l'hydratation initiale peut
      précéder la restauration de la session (INITIAL_SESSION). */
+  /* LE CANAL SE REJOINT AVEC LA NOUVELLE IDENTITÉ — 17 août 2026.
+
+     Ce bloc ne re-tirait que les DONNÉES. Or le canal temps réel, lui, se
+     joignait au CHARGEMENT DU MODULE — donc en anonyme, la session arrivant
+     toujours après (`getSession` est asynchrone). Et Postgres Changes évalue la
+     RLS avec l'identité du moment où l'on REJOINT : pour un anonyme,
+     `appointments`, `invoices` et `clients` ne contiennent aucune ligne
+     (vérifié : 200, zéro ligne). Aucun événement n'était donc jamais livré, et
+     la Maison ne voyait le travail de l'autre poste qu'en rafraîchissant.
+
+     Seul `catalog_services`, lisible par un anonyme, arrivait en direct — ce
+     qui rendait la panne invisible au diagnostic : « le temps réel marche ».
+     Il marchait, sur la seule table qui n'en avait pas besoin.
+
+     On rejoint donc à chaque changement d'IDENTITÉ. Pas au renouvellement de
+     jeton : il tombe toutes les heures et ne change pas ce que la RLS accorde,
+     tandis que chaque rejointure ouvre une brèche de quelques instants. */
+  let rejoindreLeCanal: () => void = () => {};
   sb.auth.onAuthStateChange((event) => {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') rejoindreLeCanal();
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') void refetch(true);
   });
 
@@ -528,10 +547,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   });
 
   // 3. Application des changements distants (Realtime).
-  sb.channel(`mnd:${table}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table },
+  const surChangement =
       (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
         const items = [...store.get()];
         const at = (id: string) => items.findIndex((x) => x.id === id);
@@ -558,9 +574,19 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         store.set(items);
         applyingRemote = false;
         lastPushed = snapshot(items);
-      },
-    )
-    .subscribe();
+      };
+
+  let canal: ReturnType<typeof sb.channel> | null = null;
+  rejoindreLeCanal = () => {
+    /* On retire l'ancien AVANT d'en ouvrir un neuf. Un doublon transitoire ne
+       ferait pas de mal — le gestionnaire est idempotent, il compare avant
+       d'appliquer — mais un canal anonyme laissé ouvert écoute pour rien. */
+    if (canal) void sb.removeChannel(canal);
+    canal = sb.channel(`mnd:${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, surChangement)
+      .subscribe();
+  };
+  rejoindreLeCanal();
 }
 
 /** Lie un magasin singleton (une valeur) à une ligne de `documents` (clé stable). */
@@ -604,8 +630,13 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     amorce = true;
     await hydrate(true);
   })();
+  /* Même faille qu'en collection : le canal se joignait en anonyme au
+     chargement du module et n'était jamais rejoint. Il se rejoint désormais
+     avec l'identité — voir le commentaire long dans `bindCollection`. */
+  let rejoindreLeCanal: () => void = () => {};
   sb.auth.onAuthStateChange((event) => {
     if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'TOKEN_REFRESHED') return;
+    if (event !== 'TOKEN_REFRESHED') rejoindreLeCanal();
     const premier = !amorce;
     amorce = true;
     void hydrate(premier);
@@ -634,10 +665,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   });
 
   // 3. Application distante (Realtime).
-  sb.channel(`mnd:doc:${key}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'documents', filter: `key=eq.${key}` },
+  const surChangement =
       (payload: { new: Record<string, unknown> }) => {
         const row = payload.new as { data: T } | undefined;
         if (!row) return;
@@ -658,7 +686,18 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         store.set(row.data);
         applyingRemote = false;
         lastPushed = j;
-      },
-    )
-    .subscribe();
+      };
+
+  let canal: ReturnType<typeof sb.channel> | null = null;
+  rejoindreLeCanal = () => {
+    if (canal) void sb.removeChannel(canal);
+    canal = sb.channel(`mnd:doc:${key}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'documents', filter: `key=eq.${key}` },
+        surChangement,
+      )
+      .subscribe();
+  };
+  rejoindreLeCanal();
 }

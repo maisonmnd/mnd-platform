@@ -2,10 +2,291 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le Tableau — 18 août, MAQUETTE À VALIDER
+
+DEMANDE (Yéman) : « Je veux une organisation avec chaque nom sous une colonne et
+ses tâches, et pouvoir déplacer les tâches vers d'autres membres ou quand c'est
+terminé. Comme Monday ou Asana. »
+
+`public/maquette-le-tableau.html` — colonnes par personne, glisser-déposer réel
+(et un repli sans souris : toucher la carte, puis la colonne).
+
+LE PARTI PRIS : **aucune table nouvelle**. Une carte EST une demande de
+`fil_messages` ; la déplacer réécrit `demandePour`, la déposer dans « Terminé »
+pose `faitAt`. Un tableau qui garderait ses propres tâches serait un second
+endroit où demander — et le jour où les deux se contredisent, aucun ne fait foi.
+
+QUATRE ARBITRAGES en attente d'elle : ① l'échéance (le seul champ neuf,
+facultatif, sans migration) ; ② le souverain voit-il toutes les colonnes, alors
+que `messageVisible` limite aujourd'hui une demande à son auteur et à son
+destinataire ; ③ qui a le droit de réadresser ; ④ ce que garde « Terminé ».
+
+## Les maquettes étaient SERVIES en public — 18 août, CORRIGÉ
+
+`public/` est recopié tel quel par Vite : `maquette-le-fil.html` se retrouvait en
+ligne sur les QUATRE sites (vérifié : 200, et trois noms de clientes en clair),
+et dans l'historique des dépôts `gh-pages`, qui sont publics. Le fichier n'était
+pourtant suivi par aucun commit du dépôt source — d'où l'angle mort : la règle
+gardait `supabase/import_v6*.sql`, pas ce qui sort par le BUILD.
+
+`scripts/build-sites.mjs` retire désormais `maquette-*.html` de chaque `dist`
+avant la copie. Elles restent lisibles en développement, là où elles servent.
+La nouvelle maquette ne porte que des initiales.
+
+FAIT le 18 août : `MND_REFONDE=1 node scripts/publie.mjs` — quatre branches
+`gh-pages` reconstruites à neuf (dépôt vierge, un seul commit, poussée en force).
+Vérifié : `maquette-le-fil.html` rend 404 sur les quatre sites, et chaque branche
+ne porte plus qu'UN commit. Les anciens ne sont plus référencés ; GitHub les
+ramasse de son côté, mais qui détenait déjà une empreinte peut encore l'atteindre
+un temps.
+
+RESTE : le dépôt SOURCE, lui, est public et porte des noms réels — une quinzaine
+de fichiers suivis, presque tous en commentaire (« le 13 août, Hermine D. et
+Élodie A. »), plus deux valeurs affichées en dur (`bulletin.html`,
+`certificat/App.tsx`). Audit reproductible : extraire les `"name"` du bloc
+`insert into public.clients` des imports, et les chercher dans `git ls-files`.
+
+## Une pièce par rituel, plusieurs règlements — 17 août, ÉCRIT, PAS PUBLIÉ
+
+**Le code est complet et vérifié ; rien n'est en ligne.** Typecheck 0, les SEPT
+harnais au vert, dont 15 assertions neuves sur le journal des versements.
+
+DEMANDE (Yéman, 17 août) : « Hermine D. devrait avoir tous ces règlements sur
+une même facture avec différentes dates de paiement ou différents moyens de
+paiement. Pas besoin de deux factures différentes le même jour. Ensuite besoin de
+savoir le montant de chaque prestation. Je ne veux pas tout en un bloc. »
+Décision complémentaire : **fusionner aussi les pièces déjà coupées**.
+
+POURQUOI LES DEUX NE FONT QU'UN : un règlement partiel créait une pièce, et cette
+pièce se réduisait à « Règlement · A + B + C ». Le bloc n'était pas un choix
+d'affichage — une pièce qui ne vaut que 30 000 F sur un rituel de 81 000 ne peut
+pas détailler les prestations sans les proratiser. **Le bloc était la conséquence
+du découpage.**
+
+FAIT :
+- `finance.ts` — `InvoicePayment`, `Invoice.payments[]`, et les lectures
+  `invoiceReglements` (repli rétro-compatible sur les pièces d'avant),
+  `invoiceRegleXof`, `invoiceResteXof`, `invoiceSoldee`, `invoiceRegleAu`,
+  `invoiceCaisseAu`. Additif : sans écriture, le comportement est inchangé.
+- `actions.tsx` — l'encaissement inscrit le versement sur LA pièce du rituel au
+  lieu d'en créer une seconde ; les prestations se détaillent TOUJOURS ; le
+  statut suit l'argent (`payée` si soldée, sinon `envoyée`).
+
+- **LES ~20 LECTURES D'ARGENT** sont passées au journal : Synthèse, Bilan
+  mensuel, Tableau de bord, Analytics, Comptes, Dépenses, Coffre, `receipts.ts`.
+  Toutes faisaient `paidInv.filter(date).reduce(invoiceTotal)` ; une pièce à
+  moitié réglée étant désormais `envoyée`, elles auraient effacé l'argent reçu.
+  **La règle est maintenant : le statut ne dit plus ce qui est entré, le
+  VERSEMENT le dit.** `invoiceRegleAu` pour le revenu, `invoiceCaisseAu` pour les
+  billets, `invoiceResteXof` pour les créances.
+- CONSÉQUENCES VOULUES : une caisse est créditée versement par versement (un
+  rituel réglé moitié espèces moitié MoMo crédite DEUX caisses, plus une seule) ;
+  le registre des reçus émet UNE preuve PAR VERSEMENT ; une créance vaut son
+  SOLDE et non le total de la pièce.
+- **L'OUTIL DE FUSION** — « Rassembler les pièces d'un rituel » dans Factures.
+  Les règlements se réunissent sur la pièce la PLUS ANCIENNE (un numéro déjà
+  remis à une cliente ne se réattribue pas), les lignes se détaillent, le rituel
+  se re-pointe sur la survivante. L'aperçu compare « reçu avant » et « reçu
+  après » : ils doivent être égaux, sinon il refuse de se croire.
+- L'assertion « un règlement partiel ne se détaille pas » a été CONSERVÉE : elle
+  ne parle pas de l'encaissement mais de l'alignement des pièces ANCIENNES, dont
+  la ligne unique commence par « Règlement · ». Elle reste vraie.
+
+CE QUE LES 15 CONTRÔLES NEUFS PROTÈGENT : 30 000 F en août et 51 000 en
+septembre comptent dans DEUX mois ; l'avoir entre au revenu mais pas en caisse ;
+et une pièce d'AVANT, sans journal, donne exactement les chiffres d'hier.
+
+## Les KLƆKLƆ™ glissent d'un cran — 17 août, TOUT A ÉTÉ ANNULÉ
+
+⚠ **ÉTAT ACTUEL DE LA BASE : COMME AVANT LA DEMANDE.** Yéman ne s'y retrouvait
+plus dans ce qu'elle lisait et a demandé le retour complet. `0057_retour_a_l_etat_initial.sql`
+a annulé `0054`, `0054c`, `0054d`, `0055` et `0056` d'un seul mouvement, en
+reposant la colonne `data` telle que la photo la plus ANCIENNE la gardait —
+jamais en rejouant les migrations à l'envers, ce qui pouvait s'arrêter au milieu.
+
+CONTRÔLE FINAL : `rituels_differents = 0`, `pieces_differentes = 0`,
+`fiches_differentes = 0`, `prixParLongueur` du module à `null`. Chaque ligne est
+identique AU BIT PRÈS à la photo d'avant. Repères d'origine retrouvés : 18 lignes
+« La Dépose », 18 rituels sur `sv-plt-05-pre-c`, 0 confirmé dégelé, 141 honorés
+gelés à 6 146 200 F.
+
+**Rien de ce qui suit n'est en vigueur.** Les fichiers `0054*`, `0055`, `0056`
+restent au dépôt comme travail préparé, PAS comme migrations passées : les
+relancer refera tout. La suite du chapitre ne se lit que pour ses leçons.
+
+UN ÉCART À CONNAÎTRE SI ON RECOMMENCE : après le retour, le compte est 145
+« Souffle » / 113 « Ancrage », alors que la mesure prise EN COURS DE ROUTE disait
+147 / 111. Le total est le même (276). L'écart vient de l'ordre des choses : la
+mesure intermédiaire a été prise APRÈS que le navigateur eut repoussé son cache
+sur 18 lignes, tandis que `repli_0054` a été photographié DANS la transaction,
+avant que rien ne bouge. **La photo est le vrai « avant » ; une mesure prise en
+cours de migration ne l'est pas.**
+
+Tables de repli en place : `repli_0054_*`, `repli_0054c_*`, `repli_0054d_invoices`,
+`repli_0055_catalog_services`, `repli_0056_appointments`, `repli_0057_*`. Ne PAS
+les supprimer : `repli_0054_*` et `repli_0055` sont désormais la seule photo de
+l'état d'origine, et `repli_0057_*` garde l'état d'après le glissement si Yéman
+veut y revenir.
+
+SI ON REPREND CE CHANTIER : une prestation à la fois, une facture montrée à
+l'écran avant de toucher aux 130 autres. Sept requêtes de contrôle d'affilée sur
+une base de production ne se lisent pas — c'est ce qui a fait perdre pied.
+
+MIGRATION **0054 EXÉCUTÉE** (`0054_kloklo_glisse_dun_cran.sql`, `commit;` passé
+dans l'éditeur SQL) — **le contrôle `0054b` n'a pas encore été relu**. Tant qu'il
+ne l'est pas, ne rien conclure : « Success. No rows returned » ne dit pas ce qui
+est écrit.
+
+Décision de Yéman : la Dépose devient l'Ancrage, l'Ancrage devient le Souffle.
+
+| Avant | Après | Prix du nouveau (court) |
+| --- | --- | --- |
+| KLƆKLƆ™ Prestige · « La Dépose » (`sv-plt-05-pre-c`) | KLƆKLƆ™ Signature · « L'Ancrage » (`sv-plt-05-sig-c`) | 12 000 |
+| KLƆKLƆ™ Signature · « L'Ancrage » (`sv-plt-05-sig-c`) | KLƆKLƆ™ Essentiel · « Le Souffle » (`sv-plt-05-ess-c`) | 8 000 |
+
+**D'UN SEUL `case`, jamais en deux `update`.** Appliqué l'un après l'autre, un
+Prestige descendrait DEUX crans — il deviendrait Signature, puis le second
+passage le prendrait pour un Signature d'origine et le ferait Essentiel. Le
+glissement est simultané par construction : un `case` s'évalue une fois par
+ligne.
+
+**SUR LES DEUX SURFACES.** Les pièces ET les rendez-vous. Renommer la facture
+seule ne tient pas une journée : `alignerFacturesDuRituel` repart des
+`serviceIds` du rituel, et le premier réenregistrement de la modale RDV
+réécrirait la ligne à l'ancien nom. Le carnet et la pièce doivent dire la même
+chose.
+
+L'ARGENT, règle tranchée : **pièce payée = le NOM seul change**, montant, total
+et chiffre d'affaires intacts — elle atteste ce qui est entré. **Pièce envoyée ou
+brouillon = recalculée** au prix du nouveau nom : rien n'est entré, c'est une
+réclamation, elle doit demander le juste prix. Les rendez-vous HONORÉS ou déjà
+facturés **figent leur `priceXof` AVANT** le glissement : sans ce gel, un rituel
+Prestige à 18 000 F se relirait 8 000 F au catalogue et la Synthèse perdrait la
+différence en silence. Les rituels à venir, eux, suivent le nouveau tarif — c'est
+bien ce geste-là que la cliente recevra.
+
+LE PIÈGE ÉVITÉ, à retenir : `src/shared/catalog-v6.ts` **A DÉRIVÉ du catalogue
+vivant**. La semence décrit encore trois fiches par longueur (`·C ·M ·L`,
+`troisLongueurs`) à 15 000 / 28 000 ; le serveur, lui, porte UNE fiche `-c` par
+niveau avec une grille `prixParLongueur`, à 12 000 / 18 000, et des libellés qui
+disent « Le Shampoing » — mot absent de la semence. Écrire le `replace` d'après
+le fichier n'aurait rien remplacé, **sans erreur**. Les libellés et les prix ont
+été relus sur `catalog_services` avant d'écrire une ligne de SQL. La semence
+n'est pas la source de vérité ; le serveur l'est.
+
+Aucune composition de forfait ne cite le Signature ni le Prestige (vérifié) —
+rien à réécrire de ce côté.
+
+CE QUI S'EST RÉELLEMENT PASSÉ — trois fichiers ont été nécessaires, et les deux
+premiers contrôles disaient vrai pour de mauvaises raisons.
+
+**Les RENDEZ-VOUS ont glissé du premier coup** : `reste_prestige = 0`, 18 rituels
+portent Signature (venus de Prestige), 316 portent Essentiel. Ils ne stockent que
+des IDENTIFIANTS — aucune chaîne de caractères n'intervient, rien ne pouvait
+rater.
+
+**Les LIBELLÉS de facture, eux, n'ont pas bougé d'un iota — deux fois.** Le
+`replace()` du 0054 puis du 0054c visait la forme LONGUE lue dans le catalogue
+vivant, `KLƆKLƆ™ Prestige · Le Shampoing « La Dépose »`. Or les pièces portent la
+forme COURTE, `KLƆKLƆ™ Prestige · « La Dépose »` — 32 caractères, contrôlé.
+`replace()` qui ne trouve pas sa chaîne rend le texte inchangé, SANS ERREUR :
+deux no-op silencieux. Réparé par `0054d_kloklo_les_libelles_enfin.sql`, qui
+cherche un MOTIF (`regexp_replace`) absorbant forme courte et longue, apostrophe
+courbe et droite, suffixe de longueur et libellé composite.
+
+**LA LEÇON, et elle vaut pour toute réécriture de pièces : vérifier le catalogue
+ne suffit pas quand on réécrit des FACTURES.** Une facture est un document du
+PASSÉ — elle porte le nom qu'avait la prestation LE JOUR OÙ ELLE A ÉTÉ ÉMISE,
+pas celui d'aujourd'hui. Le catalogue a été renommé depuis (« Le Shampoing »
+ajouté) sans que les pièces suivent. Il faut **lire les libellés dans `invoices`
+et compter les variantes**, jamais les déduire de `catalog_services`. Corollaire :
+un `replace()` exact est un outil dangereux ici — il échoue en silence. Motif,
+toujours.
+
+DEUXIÈME LEÇON, sur les contrôles : « avant = après = 6 820 300, écart nul » a
+été lu comme une preuve que l'argent était protégé. C'était vrai — mais
+trivialement, parce que RIEN n'avait changé. **Un contrôle qui ne peut pas
+échouer ne contrôle rien.** Il faut toujours un compteur POSITIF à côté du
+compteur négatif : combien de lignes portent le NOUVEAU nom. Même faute sur
+`reste_ancien_rdv`, qui comptait les rituels contenant `sig` OU `pre` — or un
+rituel correctement glissé depuis Prestige contient désormais `sig`. Le seul
+signal juste était `pre`, qui devait disparaître.
+
+TROISIÈME LEÇON, qui reste vraie même si la panne n'était pas là : **après une
+migration, on ne relance jamais la migration.** Rejouer le glissement ferait
+descendre un SECOND cran tout ce qui a déjà glissé. Le nom ne dit pas si une
+ligne a reculé ou si elle a bien avancé : les deux disent la même chose. Ce qui
+les distingue, c'est **l'égalité stricte avec la photo d'avant** (`repli_0054`) —
+une ligne revenue en arrière est identique au bit près à sa photo, une ligne qui
+a glissé en diffère. **Toute table de repli mérite ce rôle : ce n'est pas qu'un
+filet de rollback, c'est le seul témoin capable de dire QUI a été touché.**
+
+RÉSULTAT FINAL, contrôlé en base après le 0054d : **zéro « La Dépose »**, les 18
+devenues « Signature · L'Ancrage » (12 payées + 6 envoyées, le compte tombe
+juste), **258 lignes « Le Souffle »** (147 d'origine + 111 ex-Ancrage), rituels à
+`reste_prestige = 0`. Argent des pièces payées **6 741 000 avant, 6 741 000
+après** — et ce contrôle-là pouvait échouer, `repli_0054d` contenant de vraies
+pièces modifiées. Les deux libellés COMPOSITES (« Règlement · KLƆKLƆ™ … + SÍNSIN™
+… + … ») ont survécu intacts : seule la part KLƆKLƆ™ a été réécrite. Un
+remplacement de libellé ENTIER les aurait détruits — raison de plus de passer par
+`regexp_replace` sur un motif plutôt que d'écraser la chaîne.
+
+COSMÉTIQUE NON TRAITÉE (aucune erreur, juste de l'hétérogénéité d'époque) :
+« Le Souffle » coexiste sous deux formes — courte, 34 caractères, 132 lignes,
+émises avant que la fiche gagne « Le Shampoing » ; et longue, 47 caractères,
+123 lignes. Plus une ligne « … « Le Souffle » · Court » (42), vestige des trois
+fiches par longueur, et « à Façon Lavage · shampoing/Shampoing apporté » qui
+diffèrent d'une capitale. À normaliser si Yéman le demande.
+
+TRANCHÉ : les 8 rituels **confirmés** portaient un `priceXof` figé à l'ancien
+tarif (383 000 F au total) — ils auraient annoncé « Signature » et facturé le
+prix du Prestige. Yéman : **la cliente paie le geste qu'elle REÇOIT**. Le gel
+saute sur les confirmés À VENIR (`0056_les_rituels_a_venir_suivent_le_nouveau_tarif.sql`),
+le prix se relit au catalogue le jour de la venue. Les 141 honorés gardent le
+leur — c'est ce gel qui protège la Synthèse. Effet de bord assumé : un rituel
+dégelé relit TOUTES ses prestations au catalogue du jour, pas seulement le
+KLƆKLƆ™. Un confirmé dont la DATE EST PASSÉE n'est pas touché : il n'est plus « à
+venir », et le retarifer réécrirait un chiffre annoncé sans qu'on l'ait décidé.
+
+CONTRÔLÉ APRÈS 0056 : `honoré` **141 rituels, 141 gelés, 6 146 200 F** — aucun
+dégel accidentel, la Synthèse tient. `confirmé` : 3 dégelés, 5 encore gelés
+(245 000 F). `annulé` : 1, inchangé. Les 3 dégelés coûtent **12 000 F** au total
+(−2 000, −8 000, −2 000 sur 138 000 F annoncés) : c'est ce que la Maison renonce
+à demander pour que la cliente paie le geste qu'elle reçoit.
+
+Yéman a aussi tranché de **laisser les libellés d'époque tels quels** — une
+facture porte le nom que la prestation avait le jour de son émission. Les deux
+formes de « Le Souffle » coexistent donc volontairement.
+
+SIGNAL DE CARNET, hors migration : les **5 rituels « confirmé » dont la date est
+PASSÉE** ne sont pas une anomalie de tarif mais de suivi — un rendez-vous dont le
+jour est derrière nous devrait être `honoré` ou `annulé`. Ils gardent leur gel
+(245 000 F), ce qui est correct s'ils ont eu lieu avant le glissement. À traiter
+dans le carnet, pas en SQL.
+
+À SURVEILLER, cause structurelle : `sync.ts` pousse le cache local par-dessus le
+serveur sans jamais comparer les versions. Les gardes existantes ne visent que
+l'écrasement ET la suppression EN MASSE — 18 lignes passent dessous. Tant que ce
+n'est pas corrigé, **toute migration exige que les onglets soient fermés**, et le
+contrôle doit être relancé APRÈS rechargement, jamais seulement avant.
+
+## Le module de reconstruction retrouve sa longueur — 17 août
+
+MIGRATION **0055 À PASSER** (`0055_module_reconstruction_par_longueur.sql`).
+« GBÌGBÌ™ Module · Le Soin Reconstruction » (`sv-plt-40-m`) se vendait 15 000 F
+quelle que soit la tête, sans grille. Yéman garde le prix d'aujourd'hui en
+plancher — même règle que l'atelier VÈKPÈ™ : **court 15 000 · mi-long 20 000 ·
+long 25 000**, `priceXof` inchangé à 15 000 comme repli quand la longueur est
+inconnue. Une grille par longueur est un prix ÉCRIT : elle neutralise le
+coefficient de tranche et sort au franc près, sans arrondi au 500 F ; le Juste
+Prix personnel continue de s'appliquer, c'est un accord par CLIENTE, pas une
+taille. Les voisins GBÌGBÌ™ (Protéiné 15 000, Essentiel, Profond) gardent leur
+prix — seul le Module était demandé.
+
 ## On ne prédit pas le retour de qui vit ailleurs — 16 août
 
 « Sur cette liste beaucoup de personnes de la diaspora — Célia, Inayat,
-Sydney, Kassira, One Love, Leila. Comment on fait pour qu'ils n'aient plus de
+Sydney, Kassira, One L., Leila. Comment on fait pour qu'ils n'aient plus de
 prédictions ? » (Yéman, en lisant « celles qui ont glissé »). LA DIASPORA VIENT
 QUAND ELLE EST AU PAYS : sa cadence ne mesure pas un rythme, elle mesure des
 billets d'avion. `predictNextVisit` ne la prédit donc plus, exactement comme la
@@ -587,7 +868,7 @@ Sublimation`, qui n'en a encore aucune — la fiche les accepte désormais.
 ## Le nom mène à sa fiche · l'interrupteur d'une prestation se voit — 15 août
 
 DEUX DEMANDES DE YÉMAN, le même jour. ① LE CALENDRIER : « quand je clique
-Prisca Lokovi sur l'horloge, ça doit ouvrir sa fiche pour que je remplisse le
+Prisca L. sur l'horloge, ça doit ouvrir sa fiche pour que je remplisse le
 numéro ». Le carnet dit qui vient ; quand le téléphone manque — la cloche du
 rappel barrée le signale — il fallait quitter le Calendrier, ouvrir les
 Clientes et la retrouver à la main. Toucher SON NOM ouvre sa fiche
@@ -1863,7 +2144,7 @@ cas d'exception. Corrigé dans `RdvModal` (clients/_shared) :
 
 ## La fiche née sur une branche fantôme — trouvé et corrigé le 10 août au soir
 
-Premier vrai test d'inscription (Valerie Ahouansou, yemanboya2@) : la fiche et
+Premier vrai test d'inscription (Valerie A., yemanboya2@) : la fiche et
 sa déclaration d'enfant n'apparaissaient PAS au Trône. Cause :
 `ensureClient` (couronne/lib) posait `branchesStore.get()[0]?.id ?? 'maison'` —
 sur un téléphone PAS ENCORE HYDRATÉ, c'est la branche par défaut du code, pas

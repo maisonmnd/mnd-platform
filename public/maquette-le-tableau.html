@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Tableau — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --brique:    #96412E;
+    --serif: Georgia, 'Cormorant Garamond', 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchemin); color: var(--encre);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 34px);
+    color: var(--indigo); margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); margin: 0 0 6px; }
+  .chapeau { max-width: 62ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 64px; }
+  .intro { max-width: 68ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+
+  /* ── L'écran ── */
+  .tableau {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire);
+    overflow: hidden; box-shadow: 0 1px 0 rgba(42,39,34,.04);
+  }
+  .tableau__tete {
+    background: var(--indigo); color: #EFEAE0; padding: 13px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .tableau__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: #fff; margin: 0; }
+  .tableau__tete .compte { font-size: 12px; color: #B9BAD4; letter-spacing: .02em; }
+  .filtres { margin-left: auto; display: flex; gap: 7px; flex-wrap: wrap; }
+  .filtre {
+    font-size: 11.5px; border: 1px solid #575A87; border-radius: 999px;
+    padding: 3px 11px; color: #D8D5E4; background: transparent;
+  }
+  .filtre.is-on { border-color: var(--cuivre); background: rgba(185,122,74,.22); color: #F6E7DA; }
+
+  .tableau__mot {
+    padding: 8px 18px; font-size: 12.5px; color: var(--encre-d);
+    border-bottom: 1px solid var(--filet); background: #fff; min-height: 35px;
+  }
+  .tableau__mot b { color: var(--indigo); font-weight: 500; }
+
+  .cols { display: flex; gap: 0; align-items: stretch; overflow-x: auto; }
+  .col {
+    flex: 1 0 258px; min-width: 258px; border-right: 1px solid var(--filet);
+    display: flex; flex-direction: column; background: var(--ivoire);
+  }
+  .col:last-child { border-right: none; }
+  .col--fait { background: #F6F2E9; }
+  .col--prendre { background: #F8F4EC; }
+
+  .col__tete { padding: 13px 14px 11px; border-bottom: 1px solid var(--filet); display: flex; gap: 10px; align-items: flex-start; }
+  .av {
+    width: 30px; height: 30px; flex: none; border-radius: 999px; background: var(--sable);
+    color: var(--indigo); font-size: 11px; display: flex; align-items: center; justify-content: center;
+    letter-spacing: .04em;
+  }
+  .av--vide { background: transparent; border: 1px dashed var(--filet); color: var(--encre-d); }
+  .av--fait { background: var(--indigo); color: #fff; }
+  .col__qui { min-width: 0; }
+  .col__nom { font-family: var(--serif); font-size: 17px; color: var(--indigo); line-height: 1.2; }
+  .col__rang { font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--encre-d); }
+  .col__somme { font-size: 11.5px; color: var(--encre-d); margin-top: 3px; }
+  .col__somme b { color: var(--encre); font-weight: 500; }
+  .col__somme .retard { color: var(--brique); }
+
+  .col__corps {
+    padding: 11px 11px 26px; display: flex; flex-direction: column; gap: 9px;
+    flex: 1; min-height: 330px; transition: background .16s ease;
+  }
+  .col__corps.est-cible { background: var(--cuivre-f); box-shadow: inset 0 0 0 1px var(--cuivre-p); }
+  .col__vide { font-size: 12px; color: var(--encre-d); font-style: italic; padding: 6px 3px; }
+
+  /* ── La carte ── */
+  .tache {
+    border: 1px solid var(--filet); border-left: 3px solid var(--indigo-2);
+    border-radius: 3px; background: #fff; padding: 10px 12px; cursor: grab;
+    transition: box-shadow .16s ease, opacity .16s ease;
+  }
+  .tache:hover { box-shadow: 0 1px 4px rgba(42,39,34,.10); }
+  .tache.est-prise { opacity: .38; }
+  .tache.est-choisie { box-shadow: 0 0 0 2px var(--cuivre); }
+  .tache--retard { border-left-color: var(--brique); }
+  .tache--faite { border-left-color: var(--filet); background: #FCFAF6; }
+  .tache--faite .tache__texte { color: var(--encre-d); }
+
+  .chip {
+    display: inline-block; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--encre-d); margin-bottom: 5px;
+  }
+  .chip--retard { color: var(--brique); }
+  .chip--jour { color: var(--cuivre); }
+  .tache__texte { font-size: 13.5px; line-height: 1.5; margin: 0; }
+
+  .piece {
+    margin-top: 8px; border: 1px solid var(--filet); border-left: 2px solid var(--indigo-2);
+    border-radius: 3px; background: var(--ivoire); padding: 7px 9px;
+  }
+  .piece__quoi { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--encre-d); }
+  .piece__titre { font-family: var(--serif); font-size: 14.5px; color: var(--indigo); line-height: 1.25; }
+  .piece__meta { font-size: 11px; color: var(--encre-d); display: flex; gap: 9px; flex-wrap: wrap; margin-top: 1px; }
+
+  .tache__pied { font-size: 11px; color: var(--encre-d); margin-top: 8px; }
+  .tache__trace { font-size: 11px; color: var(--cuivre); margin-top: 5px; }
+  .tache__jointe { font-size: 11px; color: var(--encre-d); margin-top: 6px; }
+  .tache__jointe::before { content: '— '; }
+
+  .case { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11.5px; color: var(--encre-d); }
+  .case input { accent-color: var(--cuivre); width: 14px; height: 14px; }
+
+  .mode-emploi {
+    display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 18px;
+    border-top: 1px solid var(--filet); background: #fff; font-size: 12px; color: var(--encre-d);
+  }
+  .mode-emploi b { color: var(--encre); font-weight: 500; }
+
+  /* ── Blocs de texte ── */
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 18px; margin-top: 22px; }
+  .carte { border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); padding: 18px 20px; }
+  .carte h3 { margin-bottom: 8px; }
+  .carte p { margin: 0; font-size: 14px; color: var(--encre-d); }
+  .carte p + p { margin-top: 10px; }
+  .carte b { color: var(--encre); font-weight: 500; }
+
+  .decision {
+    border: 1px solid var(--cuivre-p); border-left: 3px solid var(--cuivre);
+    background: var(--cuivre-f); border-radius: 4px; padding: 18px 22px; margin-top: 16px;
+  }
+  .decision h3 { color: var(--cuivre); font-family: var(--sans); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 8px; }
+  .decision p { margin: 0 0 10px; font-size: 14px; color: var(--encre-d); }
+  .decision p:last-child { margin-bottom: 0; }
+  .decision b { color: var(--encre); font-weight: 500; }
+
+  .refus { border-top: 1px solid var(--filet); padding-top: 22px; margin-top: 30px; }
+  .refus li { margin-bottom: 10px; color: var(--encre-d); font-size: 14.5px; max-width: 70ch; }
+  .refus b { color: var(--encre); font-weight: 500; }
+  .pied {
+    margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--filet);
+    font-family: var(--serif); font-style: italic; color: var(--cuivre); font-size: 15px;
+  }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Le Tableau.</h1>
+  <p class="chapeau">
+    Les demandes du Fil, vues d’en haut : <b>une colonne par personne</b>, ses tâches dessous.
+    On glisse une carte d’un nom à l’autre pour <b>changer de main</b>, et dans « Terminé » quand
+    c’est fait. Ce n’est pas un second registre — c’est <b>le même</b>, regardé autrement.
+  </p>
+
+  <section>
+    <h2>Pourquoi ce n’est pas un Monday de plus.</h2>
+    <p class="intro">
+      Un tableau qui garde ses propres tâches devient un <b>second endroit où demander</b> : on écrit
+      dans Le Fil, on recopie sur le tableau, et au bout de deux semaines les deux se contredisent.
+      Ici il n’y a rien à recopier — <b>une carte EST une demande du Fil</b>. La déplacer sous un autre
+      nom réadresse la demande ; la déposer dans « Terminé » coche la case ; la ressortir la rouvre.
+    </p>
+    <p class="intro">
+      Et ce que la Maison sait déjà, le tableau le sait aussi : une carte qui porte une facture affiche
+      ce qu’il <b>reste à payer</b> à l’instant où tu la regardes, et <b>s’éteint toute seule</b> quand
+      la facture est soldée. Monday ne connaît pas tes factures ; c’est toute la différence.
+    </p>
+  </section>
+
+  <section>
+    <h2>L’écran.</h2>
+    <p class="intro">
+      <b>Prends une carte et glisse-la</b> — d’un nom à l’autre, ou dans « Terminé ». Sans souris :
+      touche la carte, puis touche la colonne d’arrivée. Les comptes en tête de colonne suivent.
+    </p>
+
+    <div class="tableau" id="tableau">
+      <div class="tableau__tete">
+        <h4>Le Tableau</h4>
+        <span class="compte" id="compteGlobal">7 demandes ouvertes · 2 en retard</span>
+        <div class="filtres">
+          <span class="filtre is-on">Par personne</span>
+          <span class="filtre">Par atelier</span>
+          <span class="filtre">Ce qui porte de l’argent</span>
+        </div>
+      </div>
+
+      <div class="tableau__mot" id="mot">L’atelier MND · mardi 18 août 2026</div>
+
+      <div class="cols">
+
+        <!-- ── À prendre ── -->
+        <section class="col col--prendre" data-col="prendre" data-nom="À prendre">
+          <div class="col__tete">
+            <div class="av av--vide">?</div>
+            <div class="col__qui">
+              <div class="col__nom">À prendre</div>
+              <div class="col__rang">sans destinataire</div>
+              <div class="col__somme" data-somme></div>
+            </div>
+          </div>
+          <div class="col__corps" data-corps>
+            <article class="tache tache--retard" draggable="true" data-xof="0" data-retard="1">
+              <span class="chip chip--retard">En retard · depuis le 20 juin</span>
+              <p class="tache__texte">Clôturer les 5 rituels en souffrance du carnet — Prisca fausse ses prédictions de cadence.</p>
+              <div class="piece">
+                <div class="piece__quoi">Carnet</div>
+                <div class="piece__titre">5 rituels · Prisca, Marie G., Sarah, Kaitlyn, Chloey</div>
+                <div class="piece__meta"><span>20 juin → 12 août</span><span>non clôturés</span></div>
+              </div>
+              <div class="tache__pied">Posée par Yéman B. · 14 août</div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ── Yéman ── -->
+        <section class="col" data-col="yeman" data-nom="Yéman B.">
+          <div class="col__tete">
+            <div class="av">YB</div>
+            <div class="col__qui">
+              <div class="col__nom">Yéman B.</div>
+              <div class="col__rang">Souveraine</div>
+              <div class="col__somme" data-somme></div>
+            </div>
+          </div>
+          <div class="col__corps" data-corps>
+            <article class="tache" draggable="true" data-xof="0" data-retard="0">
+              <span class="chip chip--jour">Aujourd’hui</span>
+              <p class="tache__texte">Créer la ligne remise avec le trait qui apparaît sur la facture, pour Mme Stevie.</p>
+              <div class="piece">
+                <div class="piece__quoi">Facture</div>
+                <div class="piece__titre">MND-2026-0042 · Stevie A.</div>
+                <div class="piece__meta"><span>10 000 F + 100 €</span><span>5 août</span><span>soldée</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Brice A. · 14:21</div>
+            </article>
+
+            <article class="tache" draggable="true" data-xof="0" data-retard="0">
+              <span class="chip">Cette semaine</span>
+              <p class="tache__texte">Vérifier le plancher des créations Medium, Mini et Micro — trois tranches sont encore à zéro.</p>
+              <div class="piece">
+                <div class="piece__quoi">Catalogue</div>
+                <div class="piece__titre">VÈKPÈ™ · Création · tarif au lock</div>
+                <div class="piece__meta"><span>3 tranches à 0 F</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Brice A. · hier</div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ── Brice ── -->
+        <section class="col" data-col="brice" data-nom="Brice A.">
+          <div class="col__tete">
+            <div class="av">BA</div>
+            <div class="col__qui">
+              <div class="col__nom">Brice A.</div>
+              <div class="col__rang">Souverain</div>
+              <div class="col__somme" data-somme></div>
+            </div>
+          </div>
+          <div class="col__corps" data-corps>
+            <article class="tache tache--retard" draggable="true" data-xof="55000" data-retard="1">
+              <span class="chip chip--retard">En retard · 3 semaines</span>
+              <p class="tache__texte">Relancer, et poser un acompte si elle ne peut pas tout.</p>
+              <div class="piece">
+                <div class="piece__quoi">Facture</div>
+                <div class="piece__titre">MND-2026-0018 · Sarah K.</div>
+                <div class="piece__meta"><span>55 000 F</span><span>reste 55 000 F</span><span>envoyée</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Yéman B. · 27 juillet</div>
+            </article>
+
+            <article class="tache" draggable="true" data-xof="0" data-retard="0">
+              <span class="chip">Ce soir</span>
+              <p class="tache__texte">Rapprocher la caisse du 12 août — deux règlements sur la même facture, dont un en Mobile Money.</p>
+              <div class="piece">
+                <div class="piece__quoi">Facture</div>
+                <div class="piece__titre">F-2026-0031 · Hermine D.</div>
+                <div class="piece__meta"><span>81 000 F</span><span>12 août</span><span>payée</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Yéman B. · 09:12</div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ── Gérard ── -->
+        <section class="col" data-col="gerard" data-nom="Gerard T.">
+          <div class="col__tete">
+            <div class="av">GT</div>
+            <div class="col__qui">
+              <div class="col__nom">Gerard T.</div>
+              <div class="col__rang">Maître · sans prix</div>
+              <div class="col__somme" data-somme></div>
+            </div>
+          </div>
+          <div class="col__corps" data-corps>
+            <article class="tache" draggable="true" data-xof="0" data-retard="0">
+              <span class="chip chip--jour">Aujourd’hui</span>
+              <p class="tache__texte">Reprendre les quarts arrière de Jade — le comptage est partiel, il ne porte que le devant.</p>
+              <div class="piece">
+                <div class="piece__quoi">Cliente</div>
+                <div class="piece__titre">Jade K.</div>
+                <div class="piece__meta"><span>93 locks</span><span>devant 43 · 50</span><span>derrière 0 · 0</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Yéman B. · 14:48</div>
+            </article>
+
+            <article class="tache" draggable="true" data-xof="0" data-retard="0">
+              <span class="chip">Jeudi</span>
+              <p class="tache__texte">Préparer les flacons ambrés 100 ml pour la reprise — il en reste quatre.</p>
+              <div class="tache__jointe">capture jointe · stock-flacons.png · 240 Ko</div>
+              <div class="tache__pied">Demandée par Brice A. · hier</div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ── Terminé ── -->
+        <section class="col col--fait" data-col="fait" data-nom="Terminé">
+          <div class="col__tete">
+            <div class="av av--fait">✓</div>
+            <div class="col__qui">
+              <div class="col__nom">Terminé</div>
+              <div class="col__rang">7 derniers jours</div>
+              <div class="col__somme" data-somme></div>
+            </div>
+          </div>
+          <div class="col__corps" data-corps>
+            <article class="tache tache--faite" draggable="true" data-xof="0" data-retard="0" data-faite="1">
+              <span class="chip">Éteinte d’elle-même</span>
+              <p class="tache__texte">Encaisser le solde d’Hermine D..</p>
+              <div class="piece">
+                <div class="piece__quoi">Facture</div>
+                <div class="piece__titre">F-2026-0031 · Hermine D.</div>
+                <div class="piece__meta"><span>81 000 F</span><span>reste 0 F</span><span>soldée</span></div>
+              </div>
+              <label class="case"><input type="checkbox" checked /> La facture est soldée · 12 août</label>
+            </article>
+
+            <article class="tache tache--faite" draggable="true" data-xof="0" data-retard="0" data-faite="1">
+              <span class="chip">Fermée à la main</span>
+              <p class="tache__texte">Les écrits de CE QUE LA MAISON OBSERVE D’ELLE sont défectueux.</p>
+              <label class="case"><input type="checkbox" checked /> Traité par Gerard T. · 14:44</label>
+              <div class="tache__trace">Décoche, ou ressors la carte : elle revient dans la colonne de Yéman.</div>
+            </article>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="mode-emploi">
+        <span><b>Glisser sous un nom</b> — la demande change de destinataire.</span>
+        <span><b>Glisser dans Terminé</b> — la case se coche.</span>
+        <span><b>Ressortir de Terminé</b> — elle se rouvre.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que voit Gérard.</h2>
+    <p class="intro">
+      Le même tableau, ouvert par un maître. La règle posée ce matin ne bouge pas : <b>une demande ne
+      regarde que deux personnes</b> — celle qui demande et celle à qui l’on demande. Gérard voit donc
+      <b>sa colonne</b> et <b>ce qu’il a demandé aux autres</b>. Ce que Brice écrit à Yéman n’est pas
+      grisé chez lui : il n’existe pas.
+    </p>
+
+    <div class="tableau">
+      <div class="tableau__tete">
+        <h4>Le Tableau</h4>
+        <span class="compte">3 demandes · vue de Gerard T.</span>
+      </div>
+      <div class="cols">
+        <section class="col">
+          <div class="col__tete">
+            <div class="av">GT</div>
+            <div class="col__qui">
+              <div class="col__nom">Ce qu’on me demande</div>
+              <div class="col__rang">Maître · sans prix</div>
+              <div class="col__somme"><b>2</b> demandes</div>
+            </div>
+          </div>
+          <div class="col__corps" style="min-height:200px">
+            <article class="tache">
+              <span class="chip chip--jour">Aujourd’hui</span>
+              <p class="tache__texte">Reprendre les quarts arrière de Jade.</p>
+              <div class="piece">
+                <div class="piece__quoi">Cliente</div>
+                <div class="piece__titre">Jade K.</div>
+                <div class="piece__meta"><span>93 locks</span><span>comptage partiel</span></div>
+              </div>
+              <div class="tache__pied">Demandée par Yéman B. · 14:48</div>
+            </article>
+            <article class="tache">
+              <span class="chip">Jeudi</span>
+              <p class="tache__texte">Préparer les flacons ambrés 100 ml.</p>
+              <div class="tache__pied">Demandée par Brice A. · hier</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="col">
+          <div class="col__tete">
+            <div class="av av--vide">→</div>
+            <div class="col__qui">
+              <div class="col__nom">Ce que je demande</div>
+              <div class="col__rang">chez les autres</div>
+              <div class="col__somme"><b>1</b> demande</div>
+            </div>
+          </div>
+          <div class="col__corps" style="min-height:200px">
+            <article class="tache">
+              <span class="chip">Chez Yéman B.</span>
+              <p class="tache__texte">La tête de Jade a repoussé plus vite que prévu — faut-il avancer sa reprise ?</p>
+              <div class="tache__pied">Posée le 17 août · en attente</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="col col--prendre">
+          <div class="col__tete">
+            <div class="av av--vide">·</div>
+            <div class="col__qui">
+              <div class="col__nom">Les souverains</div>
+              <div class="col__rang">hors de sa vue</div>
+            </div>
+          </div>
+          <div class="col__corps" style="min-height:200px">
+            <div class="col__vide">Aucune colonne. Gérard ne sait pas qu’elles existent, ni combien elles portent.</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Les trois gestes.</h2>
+    <div class="grille">
+      <div class="carte">
+        <h3>Réadresser.</h3>
+        <p>Glisser la carte sous un autre nom. La demande <b>change de main</b>, et le fil garde la
+        trace : « réadressée par Yéman à Gérard, le 18 août ». Un travail qui passe d’une main à
+        l’autre sans que rien ne le dise, c’est un travail qui se perd.</p>
+      </div>
+      <div class="carte">
+        <h3>Terminer.</h3>
+        <p>Glisser dans « Terminé » revient à <b>cocher la case</b> — le même geste que dans Le Fil,
+        au même endroit dans la base.</p>
+        <p>Et si la carte porte une facture, elle y tombe <b>toute seule</b> le jour où la facture est
+        soldée : personne n’a à se souvenir de la fermer.</p>
+      </div>
+      <div class="carte">
+        <h3>Reprendre.</h3>
+        <p>Une carte fermée par erreur se ressort de « Terminé » et retrouve sa colonne. C’est ce qui
+        est arrivé ce matin : une demande adressée à Yéman a été fermée par quelqu’un d’autre. Sans
+        retour en arrière, elle était perdue pour elle sans que rien ne le dise.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas.</h2>
+    <ul class="refus">
+      <li><b>Pas de tâches qui n’existent que sur le tableau.</b> Tout vient du Fil. Sinon on écrit à
+      deux endroits, et le jour où les deux ne disent plus la même chose, aucun des deux ne fait foi.</li>
+      <li><b>Pas de colonnes « en cours » et « bloqué ».</b> Un état qu’il faut penser à changer à la
+      main finit toujours par mentir. Deux états seulement — <b>ouverte</b> ou <b>faite</b> — et le
+      retard se calcule tout seul depuis l’échéance.</li>
+      <li><b>Pas de budget ni de points par carte.</b> L’argent de la Maison se lit sur les factures et
+      dans le coffre, pas dans une colonne de tableau qu’on remplit à la louche.</li>
+      <li><b>Pas de colonne pour une personne qui n’a pas de compte.</b> Une colonne au nom de
+      quelqu’un qui ne se connecte jamais, c’est une corbeille où l’on range ce qu’on ne veut pas
+      faire.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ce qu’il faut trancher avant de construire.</h2>
+
+    <div class="decision">
+      <h3>① L’échéance — la seule chose qui manque</h3>
+      <p>Aujourd’hui une demande n’a <b>pas de date d’échéance</b>. Sans elle, « en retard » et
+      « aujourd’hui » ne peuvent pas exister : le tableau ne saurait qu’empiler.</p>
+      <p><b>Ma proposition :</b> une échéance <b>facultative</b>. Les cartes sans date se rangent en bas
+      de la colonne, sous un trait, plutôt que de se faire passer pour urgentes. C’est le seul champ
+      nouveau — il se loge dans le message existant, sans migration.</p>
+    </div>
+
+    <div class="decision">
+      <h3>② Le souverain voit-il tout le tableau ?</h3>
+      <p>La règle d’aujourd’hui est stricte : <b>auteur et destinataire, personne d’autre</b>. Elle
+      protège Gérard, mais elle t’empêche aussi de voir ce que Brice demande à Gérard — donc de savoir
+      qui porte quoi dans ta propre Maison.</p>
+      <p><b>Ma proposition :</b> le tableau suit le rang. Le <b>souverain voit toutes les colonnes</b>,
+      parce qu’il répond de la Maison ; le maître ne voit que la sienne et ce qu’il demande. La demande
+      d’un souverain à l’autre reste, elle, invisible au personnel — c’est ce qui a été corrigé ce
+      matin.</p>
+    </div>
+
+    <div class="decision">
+      <h3>③ Qui a le droit de déplacer une carte</h3>
+      <p>Si n’importe qui peut glisser une carte sous un autre nom, chacun peut se débarrasser de son
+      travail en trois secondes.</p>
+      <p><b>Ma proposition :</b> <b>celui qui a demandé</b> et <b>celui à qui l’on a demandé</b> — plus
+      le souverain. Le déplacement laisse sa trace dans le fil, comme la mention « modifié » sur un
+      message repris.</p>
+    </div>
+
+    <div class="decision">
+      <h3>④ Ce que garde la colonne « Terminé »</h3>
+      <p>Sept jours, puis la carte sort du tableau. Elle ne disparaît pas : elle reste dans Le Fil, où
+      les demandes ne s’effacent pas à douze mois comme le bavardage.</p>
+      <p><b>Ma proposition :</b> sept jours à vue, et un lien « tout ce qui a été fait » pour le reste.
+      Une colonne « Terminé » qui garde six mois n’est plus une colonne, c’est une archive qu’on ne
+      lit pas.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça demande, en vrai.</h2>
+    <p class="intro">
+      <b>Aucune table nouvelle, aucune migration.</b> Les cartes sont les demandes de
+      <b>fil_messages</b>, déjà sous RLS, déjà en temps réel — donc une carte que Brice déplace bouge
+      sur ton écran sans rafraîchir. Il faut un écran, une entrée dans le rail à côté du Fil, le champ
+      d’échéance, et la trace du déplacement. Le reste existe : les comptes du personnel, la case à
+      cocher, la pièce attachée, et la règle de qui voit quoi.
+    </p>
+  </section>
+
+  <p class="intro" style="font-size:13px; margin-top:30px">
+    Les noms sont réduits à l’initiale — cette page part avec le site, et le dépôt est public.
+  </p>
+
+  <p class="pied">mi nyɔ́ ɖɛkpɛ — la maison veille.</p>
+
+</div>
+
+<script>
+(function () {
+  var tableau = document.getElementById('tableau');
+  if (!tableau) return;
+  var mot = document.getElementById('mot');
+  var global = document.getElementById('compteGlobal');
+  var REPOS = 'L’atelier MND · mardi 18 août 2026';
+  var corps = function () { return Array.prototype.slice.call(tableau.querySelectorAll('[data-corps]')); };
+
+  var fmt = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F'; };
+  var nomDe = function (c) { return c.closest('.col').dataset.nom; };
+
+  /* Les comptes en tête de colonne se RECALCULENT — un chiffre écrit à la main
+     dans la maquette mentirait dès le premier glissement. */
+  function recompter() {
+    var ouvertes = 0, retards = 0;
+    corps().forEach(function (zone) {
+      var col = zone.closest('.col');
+      var cartes = Array.prototype.slice.call(zone.querySelectorAll('.tache'));
+      var xof = cartes.reduce(function (s, c) { return s + Number(c.dataset.xof || 0); }, 0);
+      var tard = cartes.filter(function (c) { return c.dataset.retard === '1' && c.dataset.faite !== '1'; }).length;
+      var cible = col.querySelector('[data-somme]');
+      if (cible) {
+        var bouts = [];
+        bouts.push('<b>' + cartes.length + '</b> ' + (col.dataset.col === 'fait'
+          ? (cartes.length > 1 ? 'terminées' : 'terminée')
+          : (cartes.length > 1 ? 'demandes' : 'demande')));
+        if (xof > 0) bouts.push(fmt(xof) + ' en jeu');
+        if (tard > 0) bouts.push('<span class="retard">' + tard + ' en retard</span>');
+        cible.innerHTML = bouts.join(' · ');
+      }
+      if (col.dataset.col !== 'fait') { ouvertes += cartes.length; retards += tard; }
+      var vide = zone.querySelector('.col__vide');
+      if (cartes.length === 0 && !vide) {
+        var v = document.createElement('div');
+        v.className = 'col__vide';
+        v.textContent = col.dataset.col === 'fait' ? 'Rien de terminé cette semaine.' : 'Rien pour l’instant.';
+        zone.appendChild(v);
+      }
+      if (cartes.length > 0 && vide) vide.remove();
+    });
+    global.textContent = ouvertes + (ouvertes > 1 ? ' demandes ouvertes' : ' demande ouverte')
+      + ' · ' + retards + ' en retard';
+  }
+
+  function marquerFaite(carte, faite, par) {
+    carte.dataset.faite = faite ? '1' : '0';
+    carte.classList.toggle('tache--faite', faite);
+    var ancienne = carte.querySelector('.case');
+    if (ancienne) ancienne.remove();
+    if (faite) {
+      var l = document.createElement('label');
+      l.className = 'case';
+      l.innerHTML = '<input type="checkbox" checked /> Traité par ' + par + ' · à l’instant';
+      carte.appendChild(l);
+    }
+  }
+
+  function tracer(carte, texte) {
+    var t = carte.querySelector('.tache__trace');
+    if (!t) { t = document.createElement('div'); t.className = 'tache__trace'; carte.appendChild(t); }
+    t.textContent = texte;
+  }
+
+  function deposer(carte, zone) {
+    var depart = nomDe(carte);
+    var arrivee = zone.closest('.col').dataset.nom;
+    if (depart === arrivee) { mot.textContent = REPOS; return; }
+    zone.appendChild(carte);
+    if (arrivee === 'Terminé') {
+      marquerFaite(carte, true, 'Yéman B.');
+      tracer(carte, 'Terminée · elle était chez ' + depart + '.');
+      mot.innerHTML = '<b>Terminé.</b> La case est cochée dans Le Fil — ressors la carte pour la rouvrir.';
+    } else if (depart === 'Terminé') {
+      marquerFaite(carte, false);
+      tracer(carte, 'Rouverte et adressée à ' + arrivee + ' · à l’instant.');
+      mot.innerHTML = '<b>Rouverte.</b> Elle revient dans « à traiter » de ' + arrivee + '.';
+    } else {
+      tracer(carte, 'Réadressée par Yéman B. · de ' + depart + ' à ' + arrivee + ' · à l’instant.');
+      mot.innerHTML = '<b>Réadressée à ' + arrivee + '.</b> ' + depart
+        + ' ne l’a plus dans « à traiter » ; le fil garde qui l’a déplacée.';
+    }
+    recompter();
+  }
+
+  /* ── Le glissement ── */
+  var prise = null;
+  tableau.addEventListener('dragstart', function (e) {
+    var carte = e.target.closest('.tache');
+    if (!carte) return;
+    prise = carte; carte.classList.add('est-prise');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', 'tache'); } catch (_) {}
+  });
+  tableau.addEventListener('dragend', function () {
+    if (prise) prise.classList.remove('est-prise');
+    prise = null;
+    corps().forEach(function (z) { z.classList.remove('est-cible'); });
+  });
+  corps().forEach(function (zone) {
+    zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('est-cible'); });
+    zone.addEventListener('dragleave', function (e) { if (!zone.contains(e.relatedTarget)) zone.classList.remove('est-cible'); });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault(); zone.classList.remove('est-cible');
+      if (prise) deposer(prise, zone);
+    });
+  });
+
+  /* ── Sans souris : toucher la carte, puis la colonne ── */
+  var choisie = null;
+  tableau.addEventListener('click', function (e) {
+    if (e.target.matches('input[type=checkbox]')) return;
+    var carte = e.target.closest('.tache');
+    var col = e.target.closest('.col');
+    if (carte) {
+      if (choisie) choisie.classList.remove('est-choisie');
+      choisie = choisie === carte ? null : carte;
+      if (choisie) {
+        choisie.classList.add('est-choisie');
+        mot.innerHTML = '<b>Carte prise.</b> Touche maintenant la colonne où la poser.';
+      } else { mot.textContent = REPOS; }
+      return;
+    }
+    if (col && choisie) {
+      var prise2 = choisie;
+      var zone = col.querySelector('[data-corps]');
+      choisie.classList.remove('est-choisie'); choisie = null;
+      if (zone) deposer(prise2, zone);
+    }
+  });
+
+  recompter();
+})();
+</script>
+</body>
+</html>

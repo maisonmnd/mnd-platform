@@ -26,6 +26,58 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
+/* ── SES RITUELS HABITUELS ────────────────────────────────────────
+   Un modèle prérempli, déduit du carnet. Discret par nature : il propose,
+   il n'ordonne pas — un filet, pas un bouton plein. Actif quand le rituel
+   composé lui correspond déjà, pour qu'on voie qu'on n'a rien à faire. */
+.trc-modele {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  transition: border-color var(--dur-fast) var(--ease-soft),
+              background var(--dur-fast) var(--ease-soft);
+}
+.trc-modele:hover { border-color: var(--copper-300); background: var(--copper-50); }
+.trc-modele.is-active { border-color: var(--color-copper); background: var(--copper-50); }
+.trc-modele__corps {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+}
+.trc-modele.is-active .trc-modele__corps { cursor: default; }
+/* La demande de confirmation — sous le modèle, pas par-dessus l'écran : on
+   voit ce qu'on remplace et par quoi, sans quitter des yeux le rituel. */
+.trc-modele__confirme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border-top: 1px solid var(--copper-300);
+  background: var(--copper-50);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--color-indigo);
+}
+.trc-modele__gestes {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--color-indigo);
+  line-height: 1.35;
+}
+.trc-modele__meta {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+
 .trc-sheet__group {
   padding: 11px 18px;
   background: var(--color-sable);
@@ -2007,3 +2059,35 @@
   outline: 2px solid var(--copper-600);
   outline-offset: 2px;
 }
+
+
+/* ══ UN BLOCAGE QUI SE DIT — 18 août 2026 ════════════════════════
+   Une règle juste qui ne se dit pas devient une panne : on croit
+   l'application cassée. Le cadre porte la raison ET la porte de sortie. */
+.trc-alerte {
+  border: 1px solid var(--copper-300);
+  border-left: 3px solid var(--color-copper);
+  background: var(--copper-50);
+  border-radius: 3px;
+  padding: 11px 13px;
+  color: var(--color-indigo);
+}
+
+/* ══ SON CARNET — notes et comptages lus dans Le Fil ═══════════════
+   Le comptage en tête, parce que c'est le fait qu'on cherche ; les notes
+   ensuite, de la plus récente à la plus ancienne. */
+.trc-comptage {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper);
+  background: var(--copper-50); border-radius: 3px;
+  padding: 9px 12px; margin-bottom: 10px;
+}
+.trc-comptage b { font-family: var(--font-serif); font-weight: 400; font-size: 19px; color: var(--color-indigo); }
+.trc-comptage span { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.trc-comptage__report {
+  margin-left: auto; cursor: pointer; background: none; border: none; padding: 0;
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; color: var(--copper-700);
+}
+.trc-note { border-bottom: 1px solid var(--hairline); padding: 8px 0; font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo); }
+.trc-note:last-of-type { border-bottom: none; }
+.trc-note small { display: block; color: var(--ink-soft); font-size: 11px; margin-top: 2px; }

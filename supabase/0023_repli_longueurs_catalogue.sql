@@ -285,7 +285,7 @@ from variante group by famille having count(*) = 1 order by 1;
 -- update public.appointments a
 -- set data = jsonb_set(a.data, '{longueur}', '"long"')
 -- where a.data ->> 'date' = '2026-06-18'
---   and a.data ->> 'clientName' = 'Tatiana Mama';
+--   and a.data ->> 'clientName' = 'Tatiana M.';
 --
 -- commit;
 

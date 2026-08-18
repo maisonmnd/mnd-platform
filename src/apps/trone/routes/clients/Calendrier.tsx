@@ -779,7 +779,17 @@ export default function Calendrier() {
           onEncaisser={estMaitre ? undefined : (a) => { setEditAppt(null); setPayAppt(a); }}
         />
       )}
-      {payAppt && !estMaitre && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {payAppt && !estMaitre && (
+        <PayAppointmentModal
+          appt={payAppt}
+          onClose={() => setPayAppt(null)}
+          onRetour={() => {
+            const frais = appointmentsStore.get().find((x) => x.id === payAppt.id) ?? payAppt;
+            setPayAppt(null);
+            setEditAppt(frais);
+          }}
+        />
+      )}
     </div>
   );
 }

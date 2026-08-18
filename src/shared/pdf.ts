@@ -100,6 +100,10 @@ export type InvoicePdfData = {
       tout ce qui a été remis (demande de Yéman, 11 août). */
   tip?: string;
   payment?: string;
+  /** LES RÈGLEMENTS, UN PAR UN — « reporte la date du règlement sur la
+      facture » (Yéman, 17 août). Le PDF n'annonçait que le moyen ; c'est la
+      DATE qui prouve. Absent = on retombe sur `payment` seul, comme avant. */
+  reglements?: { date: string; method: string; amount: string }[];
   status?: string;
   note?: string;
 };
@@ -210,12 +214,26 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   // — Totaux —
   y += 10;
   const rx = W - M;
-  const lx = W - M - 70;
+  /* LA COLONNE DES INTITULÉS S'EST ÉLARGIE — 17 août 2026. Elle tenait sur
+     70 mm, taillée pour « Sous-total » et « Total ». Depuis que les règlements
+     s'y disent avec leur date (« Règlement · 12 août 2026 »), l'intitulé
+     rattrapait la valeur et les deux se chevauchaient sur le papier. */
+  const lx = W - M - 116;
   const row = (label: string, value: string, bold = false, color = INK) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(bold ? 11 : 9.5);
     doc.setTextColor(bold ? INDIGO : SOFT);
-    doc.text(label, lx, y);
+    /* ET LE CHEVAUCHEMENT DEVIENT IMPOSSIBLE. Élargir suffisait aujourd'hui ;
+       un libellé plus long demain le referait. On mesure la valeur, on donne à
+       l'intitulé ce qui reste, et on le coupe s'il déborde — une ligne tronquée
+       se lit, deux lignes superposées ne se lisent pas. */
+    const dispo = rx - lx - doc.getTextWidth(value) - 4;
+    let lab = label;
+    if (doc.getTextWidth(lab) > dispo) {
+      while (lab.length > 1 && doc.getTextWidth(`${lab}…`) > dispo) lab = lab.slice(0, -1);
+      lab = `${lab}…`;
+    }
+    doc.text(lab, lx, y);
     doc.setTextColor(color);
     doc.text(value, rx, y, { align: 'right' });
     y += bold ? 8 : 6;
@@ -228,7 +246,11 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   /* Le pourboire se dit APRÈS le total — il ne s'y additionne pas : c'est un
      merci aux mains, pas une ligne de la Maison. */
   if (d.tip) row('Pourboire — merci', d.tip, false, COPPER);
-  if (d.payment) row('Règlement', d.payment);
+  if (d.reglements && d.reglements.length > 0) {
+    for (const r of d.reglements) {
+      row(`Règlement · ${pdfSafe(r.date)}`, `${pdfSafe(r.method)} — ${r.amount}`);
+    }
+  } else if (d.payment) row('Règlement', d.payment);
   if (d.status) row('Statut', d.status);
 
   // — Note —
@@ -344,8 +366,16 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
     doc.text(label, M, y);
     doc.setFontSize(9.5);
     doc.setTextColor(INK);
-    doc.text(value, M + 34, y);
-    y += 6;
+    /* LA VALEUR RESTE DANS LA PAGE. « Objet » porte parfois tout un rituel —
+       trois prestations bout à bout — et le texte sortait par la droite, puis
+       se superposait à la ligne suivante. On le replie sur deux lignes au plus,
+       et la hauteur du bloc suit ce qu'il a réellement écrit. */
+    const VX = M + 36;
+    const bouts = doc.splitTextToSize(value, W - M - VX) as string[];
+    const vues = bouts.slice(0, 2);
+    if (bouts.length > 2) vues[1] = `${vues[1].slice(0, -1)}…`;
+    doc.text(vues, VX, y);
+    y += 6 + (vues.length - 1) * 4.2;
   };
   row('Objet', d.label);
   row('Nature', d.kind);

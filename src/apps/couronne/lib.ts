@@ -60,7 +60,7 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
   if (existing) {
     /* Réaligne la branche si besoin, et complète l'e-mail s'il manque encore.
        UNE BRANCHE INCONNUE DU RÉFÉRENTIEL SE RÉPARE AUSSI : la fiche de
-       Valerie Ahouansou (10 août) était née sur la branche par défaut du code
+       Valerie A. (10 août) était née sur la branche par défaut du code
        — un téléphone pas encore hydraté — et le Trône, qui filtre par la
        vraie, ne la voyait pas. Dès que les branches sont là, on la range. */
     const connues = branchesStore.get();
@@ -180,7 +180,7 @@ export function useEnsureClient(): string {
     /* PAS DE FICHE SUR UNE BRANCHE DEVINÉE. Un téléphone neuf s'inscrit AVANT
        d'avoir hydraté le référentiel : créer la fiche à cet instant la rangeait
        sur la branche par défaut du code — invisible du Trône, qui filtre par la
-       vraie (Valerie Ahouansou, 10 août 2026). On attend la première lecture
+       vraie (Valerie A., 10 août 2026). On attend la première lecture
        des branches ; sans backend, tout est prêt d'emblée. */
     if (!tablePrete('branches')) return;
     /* PAS DE FICHE NEUVE AVANT D'AVOIR LU LE CRM. La même course, côté

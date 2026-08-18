@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useApprenants } from '../equipe/data';
 import { estDePassage, useClients } from '../../../../shared/clients';
-import { useInvoices, invoiceTotal } from '../../../../shared/finance';
+import { useInvoices, invoiceRegleAu, invoiceReglements } from '../../../../shared/finance';
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor, apptPayState, apptDueXof,
   frShort, todayISO, useServicesById, RdvModal, PayStatusPill,
@@ -64,7 +64,12 @@ export default function BilanMensuel() {
 
   const d = useMemo(() => {
     const inMonth = (iso: string) => iso.slice(0, 7) === month;
-    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && inMonth(i.date));
+    /* LES PIÈCES QUI ONT REÇU DE L'ARGENT CE MOIS-CI — 17 août 2026.
+       Depuis qu'une facture porte plusieurs règlements, son STATUT ne dit plus
+       ce qui est entré : une pièce à moitié réglée est « envoyée », et filtrer
+       sur `payée` effacerait l'argent déjà reçu. On ne retient plus la date
+       d'ÉMISSION mais celle des VERSEMENTS. */
+    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceRegleAu(i, month) > 0);
     /* Rituels honorés NON facturés : la facture d'encaissement, quand elle existe,
        les compte déjà — on ne retient donc que ceux sans invoiceId (jamais deux fois). */
     const honoredNoInv = appts.filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && inMonth(a.date));
@@ -72,7 +77,7 @@ export default function BilanMensuel() {
     /* Rituels honorés porteurs de valeur (séances 2..N d'une série = 0). */
     const honoredValue = monthAppts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1));
 
-    const revInv = paidInv.reduce((s, i) => s + invoiceTotal(i), 0);
+    const revInv = paidInv.reduce((s, i) => s + invoiceRegleAu(i, month), 0);
     const revRit = honoredNoInv.reduce((s, a) => s + apptNetXof(a, byId), 0);
     /* Meme correction qu'a l'Analytics : le Bilan annoncait « meme base que la
        Synthese » tout en omettant les reglements de formation. */
@@ -116,7 +121,7 @@ export default function BilanMensuel() {
     const dim = daysInMonth(month);
     const days = Array.from({ length: dim }, (_, i) => {
       const iso = `${month}-${pad2(i + 1)}`;
-      const inv = paidInv.filter((x) => x.date === iso).reduce((s, x) => s + invoiceTotal(x), 0);
+      const inv = paidInv.reduce((s, x) => s + invoiceRegleAu(x, iso), 0);
       const rit = honoredNoInv.filter((a) => a.date === iso).reduce((s, a) => s + apptNetXof(a, byId), 0);
       return { day: i + 1, iso, total: inv + rit };
     });
@@ -125,7 +130,7 @@ export default function BilanMensuel() {
     /* — meilleures clientes du mois (revenu) — */
     const cliMap = new Map<string, { value: number; count: number }>();
     const bumpCli = (k: string, v: number) => { const c = cliMap.get(k) ?? { value: 0, count: 0 }; cliMap.set(k, { value: c.value + v, count: c.count + 1 }); };
-    paidInv.forEach((i) => bumpCli(i.clientName ?? nameOf(i.clientId), invoiceTotal(i)));
+    paidInv.forEach((i) => bumpCli(i.clientName ?? nameOf(i.clientId), invoiceRegleAu(i, month)));
     honoredNoInv.forEach((a) => bumpCli(nameOf(a.clientId), apptNetXof(a, byId)));
     const topClients = Array.from(cliMap.entries()).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value).slice(0, 8);
     const cliMax = Math.max(...topClients.map((c) => c.value), 1);
@@ -147,6 +152,9 @@ export default function BilanMensuel() {
     const svcTotalCount = services.reduce((s, x) => s + x.count, 0);
 
     return {
+      /* Le mois voyage avec ses chiffres : les journaux en aval doivent
+         additionner les VERSEMENTS de ce mois-là, pas le total des pièces. */
+      month,
       paidInv, honoredNoInv, monthAppts, honoredValue,
       revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles, dePassage,
       days, dayMax, topClients, cliMax, services, svcCountMax, svcTotalCount,
@@ -181,8 +189,8 @@ export default function BilanMensuel() {
         .filter((a) => a.date >= from && a.date <= to)
         .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), ...apptLink(a) })),
       ...d.paidInv
-        .filter((i) => i.date >= from && i.date <= to)
-        .map((i) => ({ date: i.date, who: i.clientName ?? nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
+        .filter((i) => invoiceReglements(i).some((p) => p.date >= from && p.date <= to))
+        .map((i) => ({ date: i.date, who: i.clientName ?? nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, d.month), invoiceId: i.id })),
     ].sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
 
   const openRevenueMonth = () => {
@@ -203,7 +211,7 @@ export default function BilanMensuel() {
   const openClient = (name: string) => {
     const rows: DrillRow[] = [
       ...d.honoredNoInv.filter((a) => nameOf(a.clientId) === name).map((a) => ({ date: a.date, who: name, sub: apptLabel(a, byId), amount: apptNetXof(a, byId), ...apptLink(a) })),
-      ...d.paidInv.filter((i) => (i.clientName ?? nameOf(i.clientId)) === name).map((i) => ({ date: i.date, who: name, sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
+      ...d.paidInv.filter((i) => (i.clientName ?? nameOf(i.clientId)) === name).map((i) => ({ date: i.date, who: name, sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, d.month), invoiceId: i.id })),
     ].sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
     setDrill({ title: name, sub: `Le mois de ${monthTitle(month)}`, rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
   };

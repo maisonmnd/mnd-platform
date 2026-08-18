@@ -14,7 +14,7 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
-import { scalesWithModel, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing, type ModelBand } from '../../../../shared/pricing';
+import { scalesWithModel, suitLeModeleRegle, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing, type ModelBand } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import './vente.css';
@@ -1167,13 +1167,13 @@ export default function Catalogue() {
                           locks de la cliente via le barème du Juste Prix. */}
                       <button
                         className="trv-hideprice"
-                        style={scalesWithModel(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
-                        title={scalesWithModel(svc)
+                        style={suitLeModeleRegle(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
+                        title={suitLeModeleRegle(svc)
                           ? 'Suit le modèle de la cliente (barème par tranches de locks) — cliquer pour désactiver'
                           : 'Prix identique quel que soit le modèle — cliquer pour suivre le barème par tranches de locks'}
-                        onClick={() => patchSvc(svc.id, { scalesWithModel: !scalesWithModel(svc) })}
+                        onClick={() => patchSvc(svc.id, { scalesWithModel: !suitLeModeleRegle(svc) })}
                       >
-                        {scalesWithModel(svc) ? '◈ Modèle' : 'Modèle —'}
+                        {suitLeModeleRegle(svc) ? '◈ Modèle' : 'Modèle —'}
                       </button>
                       <button
                         className="trv-hideprice"
@@ -2441,10 +2441,50 @@ function ProgrammerAuComptage({
     .filter((s) => sousArbre.has(s.categoryId) && !s.includes?.length)
     .sort((a, b) => a.order - b.order);
 
-  const [grilleA, setGrilleA] = useState<GrilleTarif>({ court: '1100', 'mi-long': '1200', long: '1300' });
-  const [grilleB, setGrilleB] = useState<GrilleTarif>({ court: '1400', 'mi-long': '1500', long: '1600' });
+  /* ── LA MODALE RELIT CE QUI EST DÉJÀ POSÉ — 17 août 2026 ────────
+     « Quand je change grille A ou B ça n'enregistre pas. Quand je reviens ça
+     retourne aux anciennes variables » (Yéman).
+
+     Elle s'ouvrait sur des tarifs ÉCRITS EN DUR — 1100/1200/1300 et
+     1400/1500/1600 — sans jamais regarder ce que les prestations portaient.
+     Appliquer enregistrait bien ; c'est la RÉOUVERTURE qui mentait, et la
+     Maison croyait son geste perdu. Pire : rouvrir puis appliquer sans y
+     penser aurait réécrit les tarifs avec les valeurs d'usine.
+
+     On lit donc les grilles DANS LES PRESTATIONS. Deux tarifs distincts au
+     plus : le plus bas devient la grille A, le plus haut la grille B, et les
+     calibres qui portent le plus haut se cochent d'eux-mêmes. Rien de posé
+     encore → les valeurs d'usine, comme avant. */
+  const grillesPosees = (() => {
+    const vues = new Map<string, { g: GrilleTarif; court: number; bandIds: string[] }>();
+    for (const sv of concernees) {
+      const t = sv.tarifLockParLongueur;
+      if (!t || (t.court ?? 0) <= 0) continue;
+      const cle = `${t.court}|${t['mi-long']}|${t.long}`;
+      const dejaVu = vues.get(cle);
+      const bandIds = sv.bandIds ?? [];
+      if (dejaVu) dejaVu.bandIds.push(...bandIds);
+      else vues.set(cle, {
+        g: { court: String(t.court ?? ''), 'mi-long': String(t['mi-long'] ?? ''), long: String(t.long ?? '') },
+        court: t.court ?? 0,
+        bandIds: [...bandIds],
+      });
+    }
+    return [...vues.values()].sort((x, y) => x.court - y.court);
+  })();
+
+  const [grilleA, setGrilleA] = useState<GrilleTarif>(
+    () => grillesPosees[0]?.g ?? { court: '1100', 'mi-long': '1200', long: '1300' },
+  );
+  const [grilleB, setGrilleB] = useState<GrilleTarif>(
+    () => (grillesPosees.length > 1 ? grillesPosees[grillesPosees.length - 1].g : { court: '1400', 'mi-long': '1500', long: '1600' }),
+  );
   /* Quels calibres suivent la grille B — les autres suivent la A. */
-  const [enB, setEnB] = useState<string[]>(['cal-micro', 'cal-nano', 'cal-pico', 'cal-galaxy']);
+  const [enB, setEnB] = useState<string[]>(
+    () => (grillesPosees.length > 1
+      ? [...new Set(grillesPosees[grillesPosees.length - 1].bandIds)]
+      : ['cal-micro', 'cal-nano', 'cal-pico', 'cal-galaxy']),
+  );
 
   const n = (v: string) => parseInt(v.replace(/[^0-9]/g, ''), 10) || 0;
   const grilleDe = (s: Service): GrilleTarif =>
@@ -2528,7 +2568,12 @@ function ProgrammerAuComptage({
                   : undefined}
                 onClick={() => setEnB((prev) => (prev.includes(b.id) ? prev.filter((x) => x !== b.id) : [...prev, b.id]))}
               >
-                {b.name}
+                {/* UNE TRANCHE SANS NOM SE VOIT QUAND MÊME — « et qu'est-ce
+                    qu'il y a après Galaxy ??? ». Deux pastilles vides : deux
+                    tranches ajoutées au Juste Prix et jamais nommées. Un bouton
+                    muet n'est pas un bouton, et une tranche qu'on ne peut pas
+                    nommer est une tranche qu'on ne peut pas retirer. */}
+                {b.name?.trim() || `Sans nom · ≤ ${b.maxLocks ?? '∞'} locks`}
               </button>
             ))}
           </div>

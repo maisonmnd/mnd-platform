@@ -278,7 +278,7 @@ having count(distinct k.longueur) > 1;
 -- update public.appointments a
 -- set data = jsonb_set(a.data, '{longueur}', '"long"')
 -- where a.data ->> 'date' = '2026-06-18'
---   and a.data ->> 'clientName' = 'Tatiana Mama'
+--   and a.data ->> 'clientName' = 'Tatiana M.'
 --   and a.data ->> 'longueur' = 'mi-long';
 --
 -- commit;

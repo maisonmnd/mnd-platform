@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Textarea } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
-  useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceTotal, useInvoices,
-  type CoffreMovement,
+  useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
+  type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
 import { todayISO, monthKey } from './_shared';
@@ -118,11 +118,13 @@ export default function Coffre() {
     const linked = new Set(appts.filter((a) => a.invoiceId).map((a) => a.invoiceId));
     return (clientId: string) => {
       const hon = appts.filter((a) => a.branchId === branch.id && a.clientId === clientId && a.status === 'honoré');
+      /* Ce que la cliente a RÉELLEMENT versé sur ses pièces hors rituel — le
+         statut ne suffit plus, une pièce peut être à moitié réglée. */
       const extras = invoices.filter(
-        (i) => i.branchId === branch.id && i.clientId === clientId && i.kind === 'facture' && i.status === 'payée'
+        (i) => i.branchId === branch.id && i.clientId === clientId && i.kind === 'facture'
           && !linked.has(i.id) && !i.lines.some((l) => l.label.startsWith('Règlement ·')),
       );
-      return hon.reduce((s, a) => s + apptNetXof(a, byId), 0) + extras.reduce((s, i) => s + invoiceTotal(i), 0);
+      return hon.reduce((s, a) => s + apptNetXof(a, byId), 0) + extras.reduce((s, i) => s + invoiceRegleXof(i), 0);
     };
   }, [appts, invoices, branch.id, byId]);
 
@@ -256,6 +258,14 @@ function DepositModal({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState('');
+  /* D'OÙ SORT L'ARGENT — 17 août 2026, « le coffre comme caisse ». Un dépôt
+     DÉBITE la caisse nommée : sans elle, les mêmes francs vivraient dans le
+     tiroir et dans le coffre, et la trésorerie les compterait deux fois.
+     « Hors caisse » reste possible pour une mise de côté qui ne sort d'aucun
+     tiroir — une somme reçue ailleurs, portée directement à l'abri. */
+  const [caisses] = useCashboxes();
+  const boxes = caisses.filter((c: Cashbox) => c.branchId === branchId);
+  const [cashbox, setCashbox] = useState(boxes[0]?.name ?? '');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
   const rev = clientId ? clientRevenue(clientId) : 0;
   const clientName = clients.find((c) => c.id === clientId)?.name;
@@ -265,6 +275,7 @@ function DepositModal({
     onSave({
       id: uid(), branchId, kind: 'depot', amountXof: amountNum, date: date || todayISO(),
       clientId: clientId || undefined, clientName: clientName || undefined,
+      cashbox: cashbox || undefined,
       note: note.trim() || undefined,
     });
   };
@@ -272,6 +283,17 @@ function DepositModal({
   return (
     <Modal title="Verser au coffre-fort." onClose={onClose} width={500}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Field label="De quelle caisse sort cet argent ?">
+          <Select value={cashbox} onChange={(e) => setCashbox(e.target.value)}>
+            {boxes.map((c: Cashbox) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+            <option value="">Hors caisse — reçu ailleurs, porté directement à l'abri</option>
+          </Select>
+          <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+            La caisse choisie baisse d'autant : l'argent se déplace, il ne se duplique pas.
+          </div>
+        </Field>
         <Field label="Adosser à une cliente · facultatif">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Choisir la cliente dont on met de côté le revenu…" />
         </Field>

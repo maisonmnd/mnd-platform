@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Fil — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --serif: Georgia, 'Cormorant Garamond', 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchemin); color: var(--encre);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 34px);
+    color: var(--indigo); margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); margin: 0 0 6px; }
+  .chapeau { max-width: 62ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 64px; }
+  .intro { max-width: 66ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+
+  /* ── L'écran ── */
+  .ecran {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire);
+    display: grid; grid-template-columns: 236px 1fr 268px; overflow: hidden;
+    box-shadow: 0 1px 0 rgba(42,39,34,.04);
+  }
+  @media (max-width: 900px) { .ecran { grid-template-columns: 1fr; } }
+  .rail { background: var(--indigo); color: #EFEAE0; padding: 18px 0 22px; }
+  .rail__titre {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    padding: 0 18px 14px; color: #fff;
+  }
+  .rail__label {
+    font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9FA0C0; padding: 16px 18px 7px;
+  }
+  .rail__item {
+    display: flex; align-items: center; gap: 9px; padding: 8px 18px;
+    font-size: 13.5px; color: #D8D5E4;
+  }
+  .rail__item b { font-weight: 500; color: #fff; }
+  .rail__item.is-on { background: rgba(255,255,255,.09); box-shadow: inset 3px 0 0 var(--cuivre); }
+  .pastille {
+    margin-left: auto; background: var(--cuivre); color: #fff; border-radius: 999px;
+    font-size: 10.5px; padding: 1px 7px; letter-spacing: .04em;
+  }
+  .pastille--creux { background: transparent; border: 1px solid #6E6F96; color: #B9BAD4; }
+
+  .fil { padding: 0; display: flex; flex-direction: column; min-height: 520px; }
+  .fil__tete {
+    padding: 14px 20px; border-bottom: 1px solid var(--filet);
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  .fil__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 19px; color: var(--indigo); margin: 0; }
+  .fil__tete span { font-size: 11.5px; color: var(--encre-d); }
+  .fil__corps { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+
+  .msg { display: flex; gap: 11px; }
+  .av {
+    width: 30px; height: 30px; flex: none; border-radius: 999px; background: var(--sable);
+    color: var(--indigo); font-size: 11px; display: flex; align-items: center; justify-content: center;
+    letter-spacing: .04em;
+  }
+  .msg__corps { min-width: 0; }
+  .msg__tete { font-size: 12px; color: var(--encre-d); margin-bottom: 2px; }
+  .msg__tete b { color: var(--indigo); font-weight: 600; font-size: 13px; }
+  .msg__texte { font-size: 14px; }
+
+  /* La pièce attachée — le cœur de l'idée */
+  .piece {
+    margin-top: 8px; border: 1px solid var(--filet); border-left: 3px solid var(--indigo-2);
+    border-radius: 3px; background: #fff; padding: 10px 13px; max-width: 420px;
+  }
+  .piece__quoi { font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--encre-d); }
+  .piece__titre { font-family: var(--serif); font-size: 17px; color: var(--indigo); }
+  .piece__meta { font-size: 12px; color: var(--encre-d); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+  .piece__act { margin-top: 8px; font-size: 12px; color: var(--cuivre); font-weight: 500; }
+
+  /* La demande — un message qui attend quelque chose */
+  .demande {
+    border: 1px solid var(--cuivre-p); border-left: 3px solid var(--cuivre);
+    background: var(--cuivre-f); border-radius: 3px; padding: 11px 13px; margin-top: 8px; max-width: 420px;
+  }
+  .demande__tete {
+    font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--cuivre); margin-bottom: 4px;
+  }
+  .demande__boutons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-size: 12px; border-radius: 3px; padding: 6px 12px;
+    border: 1px solid var(--filet); background: #fff; color: var(--encre); cursor: default;
+  }
+  .btn--cuivre { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+  .btn--fait { background: #fff; border-color: var(--cuivre-p); color: var(--cuivre); }
+
+  .compo {
+    border-top: 1px solid var(--filet); padding: 13px 20px 16px; background: var(--ivoire);
+  }
+  .compo__champ {
+    border: 1px solid var(--filet); border-radius: 3px; background: #fff;
+    padding: 10px 12px; font-size: 13.5px; color: var(--encre-d);
+  }
+  .compo__outils { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+  .puce {
+    font-size: 11.5px; border: 1px solid var(--filet); border-radius: 999px;
+    padding: 4px 11px; color: var(--encre-d); background: #fff;
+  }
+  .puce--on { border-color: var(--cuivre); color: var(--cuivre); background: var(--cuivre-f); }
+
+  .volet { border-left: 1px solid var(--filet); padding: 16px 18px; background: var(--ivoire); }
+  .volet__label { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--encre-d); margin-bottom: 10px; }
+  .att { border-bottom: 1px solid var(--filet); padding: 9px 0; font-size: 13px; }
+  .att:last-child { border-bottom: none; }
+  .att small { display: block; color: var(--encre-d); font-size: 11.5px; }
+
+  /* ── Blocs de texte ── */
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 18px; margin-top: 22px; }
+  .carte { border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); padding: 18px 20px; }
+  .carte h3 { margin-bottom: 8px; }
+  .carte p { margin: 0; font-size: 14px; color: var(--encre-d); }
+  .carte p + p { margin-top: 10px; }
+  .carte b { color: var(--encre); font-weight: 500; }
+
+  .decision {
+    border: 1px solid var(--cuivre-p); border-left: 3px solid var(--cuivre);
+    background: var(--cuivre-f); border-radius: 4px; padding: 18px 22px; margin-top: 16px;
+  }
+  .decision h3 { color: var(--cuivre); font-family: var(--sans); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 8px; }
+  .decision p { margin: 0 0 10px; font-size: 14px; color: var(--encre-d); }
+  .decision p:last-child { margin-bottom: 0; }
+  .decision b { color: var(--encre); font-weight: 500; }
+
+  .refus { border-top: 1px solid var(--filet); padding-top: 22px; margin-top: 30px; }
+  .refus li { margin-bottom: 10px; color: var(--encre-d); font-size: 14.5px; max-width: 68ch; }
+  .refus b { color: var(--encre); font-weight: 500; }
+  .pied {
+    margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--filet);
+    font-family: var(--serif); font-style: italic; color: var(--cuivre); font-size: 15px;
+  }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Le Fil.</h1>
+  <p class="chapeau">
+    Un fil interne pour la Maison — se parler, prendre des notes, et <b>demander qu'une chose soit
+    faite</b>. Ce qui le sépare d'un Slack tient en une phrase : ici, un message peut <b>désigner une
+    pièce</b> — une facture, un rendez-vous, une cliente — et la demande se referme quand la pièce
+    est traitée.
+  </p>
+
+  <section>
+    <h2>Pourquoi pas Slack.</h2>
+    <p class="intro">
+      Slack sait déjà tout faire, mieux et pour rien. La seule raison d'écrire le nôtre est celle-ci :
+      <b>Slack ne connaît pas tes factures</b>. « Peux-tu regarder la facture d'Hermine ? » y reste une
+      phrase ; on recopie un numéro, on change d'écran, on cherche, et personne ne sait si c'est fait.
+      Dans Le Fil, la phrase <b>porte la pièce</b> : on l'ouvre d'un clic, et la demande s'éteint
+      d'elle-même quand la facture est réglée.
+    </p>
+    <p class="intro">
+      Si cette maquette ne te convainc pas sur ce point précis, il ne faut pas la construire — un chat
+      de plus ne vaut pas le travail.
+    </p>
+  </section>
+
+  <section>
+    <h2>L'écran.</h2>
+    <p class="intro">Trois colonnes : à qui l'on parle, ce qui se dit, ce qui attend.</p>
+
+    <div class="ecran">
+
+      <!-- ── La colonne des fils ── -->
+      <div class="rail">
+        <div class="rail__titre">Le Fil.</div>
+
+        <div class="rail__label">Ce qui m'attend</div>
+        <div class="rail__item is-on"><b>À traiter</b><span class="pastille">3</span></div>
+        <div class="rail__item">Mes notes<span class="pastille pastille--creux">7</span></div>
+
+        <div class="rail__label">La Maison</div>
+        <div class="rail__item"><b>Toute la Maison</b></div>
+        <div class="rail__item">Le comptoir<span class="pastille">2</span></div>
+        <div class="rail__item">Les maîtres</div>
+        <div class="rail__item">Le laboratoire</div>
+
+        <div class="rail__label">En tête à tête</div>
+        <div class="rail__item">Brice<span class="pastille">1</span></div>
+        <div class="rail__item">Team</div>
+        <div class="rail__item">Kèmi</div>
+      </div>
+
+      <!-- ── Le fil ── -->
+      <div class="fil">
+        <div class="fil__tete">
+          <h4>Le comptoir</h4>
+          <span>Yéman · Brice · Team · Kèmi</span>
+        </div>
+
+        <div class="fil__corps">
+
+          <div class="msg">
+            <div class="av">Y</div>
+            <div class="msg__corps">
+              <div class="msg__tete"><b>Yéman</b> · 09:12</div>
+              <div class="msg__texte">Hermine a réglé la seconde tranche ce matin, en Mobile Money.</div>
+              <div class="piece">
+                <div class="piece__quoi">Facture</div>
+                <div class="piece__titre">F-2026-0031 · Hermine D.</div>
+                <div class="piece__meta"><span>81 000 F</span><span>12 août</span><span>payée</span></div>
+                <div class="piece__act">Ouvrir la facture</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="av">B</div>
+            <div class="msg__corps">
+              <div class="msg__tete"><b>Brice</b> · 09:20</div>
+              <div class="msg__texte">Vu. Je rapproche la caisse ce soir.</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="av">Y</div>
+            <div class="msg__corps">
+              <div class="msg__tete"><b>Yéman</b> · 09:31</div>
+              <div class="msg__texte">Celle-ci traîne depuis trois semaines.</div>
+              <div class="demande">
+                <div class="demande__tete">Demande à Brice · à traiter</div>
+                <div class="msg__texte">Relancer, et poser un acompte si elle ne peut pas tout.</div>
+                <div class="piece" style="margin-top:9px; border-left-color:var(--cuivre);">
+                  <div class="piece__quoi">Facture</div>
+                  <div class="piece__titre">MND-2026-0018 · Sarah K.</div>
+                  <div class="piece__meta"><span>55 000 F</span><span>reste 55 000 F</span><span>envoyée</span></div>
+                </div>
+                <div class="demande__boutons">
+                  <span class="btn btn--cuivre">Ouvrir la facture</span>
+                  <span class="btn btn--fait">C'est fait</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="av">T</div>
+            <div class="msg__corps">
+              <div class="msg__tete"><b>Team</b> · 10:04</div>
+              <div class="msg__texte">Jade décale à jeudi 10h, elle a prévenu.</div>
+              <div class="piece">
+                <div class="piece__quoi">Rendez-vous</div>
+                <div class="piece__titre">Jade K. · VÈKPÈ™ Création Mini</div>
+                <div class="piece__meta"><span>lun. 17 août · 09:00</span><span>216 000 F</span><span>confirmé</span></div>
+                <div class="piece__act">Ouvrir le rituel</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="compo">
+          <div class="compo__champ">Écrire au comptoir…</div>
+          <div class="compo__outils">
+            <span class="puce">Joindre une facture</span>
+            <span class="puce">Joindre un rituel</span>
+            <span class="puce">Joindre une cliente</span>
+            <span class="puce puce--on">En faire une demande · à Brice</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Ce qui attend ── -->
+      <div class="volet">
+        <div class="volet__label">À traiter · 3</div>
+        <div class="att">
+          Relancer Sarah K.
+          <small>Yéman → Brice · facture MND-2026-0018 · il y a 2 h</small>
+        </div>
+        <div class="att">
+          Clôturer les 5 rituels en souffrance
+          <small>Yéman → Team · carnet · hier</small>
+        </div>
+        <div class="att">
+          Vérifier le plancher des Mini
+          <small>Brice → Yéman · catalogue · hier</small>
+        </div>
+
+        <div class="volet__label" style="margin-top:22px">Mes notes</div>
+        <div class="att">
+          Racheter des flacons ambrés 100 ml
+          <small>lundi</small>
+        </div>
+        <div class="att">
+          Prisca : demander son nouveau numéro
+          <small>samedi · fiche cliente</small>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Les trois gestes.</h2>
+    <div class="grille">
+      <div class="carte">
+        <h3>Dire.</h3>
+        <p>Un message, dans un fil de la Maison ou en tête à tête. Il peut <b>porter une pièce</b> :
+        facture, rituel, cliente. La pièce s'affiche avec son état du moment — pas une capture figée,
+        mais ce que la base dit à l'instant où l'on regarde.</p>
+      </div>
+      <div class="carte">
+        <h3>Demander.</h3>
+        <p>Le même message, marqué <b>demande</b> et adressé à quelqu'un. Il apparaît dans son
+        « À traiter » et y reste jusqu'à ce qu'il dise « c'est fait ».</p>
+        <p>Une demande qui porte une facture <b>se referme d'elle-même</b> quand la facture est
+        soldée : personne n'a à se souvenir de la fermer.</p>
+      </div>
+      <div class="carte">
+        <h3>Noter.</h3>
+        <p>Une note pour soi, ou posée sur une cliente. Les notes de cliente remontent sur sa fiche —
+        c'est le même carnet, pas un second endroit où chercher.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>L'autre porte : demander depuis la pièce.</h2>
+    <p class="intro">
+      C'est le sens qui compte le plus, et celui qu'on oublie de construire. On ne pense pas
+      « j'ouvre le chat » : on est <b>devant une facture</b> et l'on veut que quelqu'un s'en occupe.
+      La demande naît donc là où le travail se trouve — un bouton sur la facture, sur le rituel, sur
+      la fiche cliente — et elle atterrit dans Le Fil, déjà accompagnée de sa pièce.
+    </p>
+    <div class="ecran" style="grid-template-columns:1fr; max-width:520px">
+      <div class="fil" style="min-height:0">
+        <div class="fil__tete"><h4>Facture MND-2026-0018</h4><span>Sarah K. · reste 55 000 F</span></div>
+        <div class="fil__corps" style="gap:10px">
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <span class="btn">Modifier</span>
+            <span class="btn">Ouvrir le rendez-vous</span>
+            <span class="btn btn--cuivre">Demander à quelqu'un de la traiter</span>
+          </div>
+          <p style="margin:6px 0 0; font-size:13.5px; color:var(--encre-d)">
+            Le message part avec la facture attachée, et la demande se referme quand elle est réglée.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas.</h2>
+    <ul class="refus">
+      <li><b>Pas d'émojis, pas de réactions.</b> La règle de la Maison, et une conversation de travail
+      se lit mieux sans.</li>
+      <li><b>Pas de fichiers joints.</b> Ce qui compte est déjà dans la base — une facture, un rituel,
+      une fiche. Ouvrir un dépôt de fichiers, c'est ouvrir un second endroit où chercher, et un jour
+      une photo de cliente qui n'aurait jamais dû sortir du Trône.</li>
+      <li><b>Pas de messages effaçables sans trace.</b> Une demande retirée laisse dire qu'elle l'a
+      été, et par qui : un registre qui s'efface ne prouve plus rien.</li>
+      <li><b>Pas de fils privés invisibles au souverain.</b> Le tête-à-tête existe, mais la Maison
+      reste responsable de ce qui s'y décide sur son argent.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ce qu'il faut trancher avant de construire.</h2>
+
+    <div class="decision">
+      <h3>① Qui voit quoi</h3>
+      <p>Un maître au fauteuil voit-il « Toute la Maison » ? Aujourd'hui, un maître ne voit déjà pas
+      les montants (<b>sansPrix</b>). Un fil où l'on parle de 81 000 F rouvrirait cette porte par la
+      bande.</p>
+      <p><b>Ma proposition :</b> les fils suivent les mêmes droits que les écrans. Un fil qui porte des
+      pièces d'argent n'est visible que de qui a le droit de les lire.</p>
+    </div>
+
+    <div class="decision">
+      <h3>② Les notifications</h3>
+      <p>La cloche du Trône porte déjà 39 avis. Une demande de plus doit-elle sonner sur le téléphone
+      (nous avons déjà l'envoi push), ou seulement s'allumer dans « À traiter » ?</p>
+      <p><b>Ma proposition :</b> le push pour une <b>demande qui m'est adressée</b>, rien pour le
+      reste. Un chat qui sonne à chaque phrase finit en sourdine, et les demandes se perdent avec.</p>
+    </div>
+
+    <div class="decision">
+      <h3>③ Ce qui se garde</h3>
+      <p>Les messages vivent-ils pour toujours ? Le dépôt est public, la base ne l'est pas — mais une
+      conversation de trois ans finit par porter des noms, des numéros, des choses dites vite.</p>
+      <p><b>Ma proposition :</b> les messages s'effacent au bout de douze mois, les <b>demandes</b> et
+      les notes de cliente restent. Ce qui engage se garde, ce qui bavarde s'oublie.</p>
+    </div>
+
+    <div class="decision">
+      <h3>④ L'ampleur du premier pas</h3>
+      <p>Tout d'un coup, ou d'abord le strict nécessaire ? Le cœur utile tient dans : <b>un fil par
+      maison, les demandes, la pièce attachée</b>. Les tête-à-tête, les notes personnelles et les fils
+      par atelier peuvent venir après, sans rien casser.</p>
+      <p><b>Ma proposition :</b> commencer par le cœur, l'utiliser une semaine, ajouter le reste
+      d'après ce qui aura manqué — plutôt que d'après ce qu'on imagine aujourd'hui.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça demande, en vrai.</h2>
+    <p class="intro">
+      Le temps réel est déjà là — les canaux se rejoignent avec l'identité depuis hier, donc un message
+      arrivera sans rafraîchir. Il faut une table <b>messages</b> sous RLS, un écran, et les boutons
+      « demander » posés sur la facture, le rituel et la fiche. Le reste, la Maison le possède déjà :
+      les comptes du personnel, la cloche, l'envoi push, et la façon de lier une pièce.
+    </p>
+  </section>
+
+  <p class="pied">mi nyɔ́ ɖɛkpɛ — la maison veille.</p>
+
+</div>
+</body>
+</html>

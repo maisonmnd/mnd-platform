@@ -7,7 +7,8 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import { expenseOccurrences,
-  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, invoiceTotal, invoiceCashXof, expenseTotal,
+  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
+  type CoffreMovement,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
@@ -50,6 +51,8 @@ export default function Depenses() {
   const [expenses, setExpenses] = useExpenses();
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
+  /* Le coffre : ses dépôts SORTENT d'une caisse depuis le 17 août. */
+  const [coffre] = useCoffre();
   const [categories, setCategories] = useExpenseCategories();
   const [invoices, setInvoices] = useInvoices();
   const appts = useBranchAppointments();
@@ -137,9 +140,12 @@ export default function Depenses() {
      annoncait un autre chiffre. Sur une maison qui encaisse surtout au carnet,
      le resultat s'affichait negatif a tort. */
   const revenue = useMemo(() => {
+    /* Le revenu du mois se lit sur les VERSEMENTS, pas sur le statut des
+       pièces : une facture à moitié réglée est « envoyée », et son argent est
+       pourtant bien entré. */
     const inv = invoices
-      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && monthKey(i.date) === month)
-      .reduce((s, i) => s + invoiceTotal(i), 0);
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture')
+      .reduce((s, i) => s + invoiceRegleAu(i, month), 0);
     const rit = appts
       .filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && monthKey(a.date) === month)
       .reduce((s, a) => s + apptNetXof(a, byId), 0);
@@ -180,14 +186,39 @@ export default function Depenses() {
      compte, jamais des espèces) et l'acompte déjà reçu (entré un autre jour,
      souvent dans une AUTRE caisse — en ligne chez KkiaPay, par exemple). Sans
      cette seconde soustraction, l'acompte est compté deux fois. */
-  const boxCredit = (i: Invoice, boxCur: string, foreign: boolean): number =>
+  /* CE QUE CETTE PIÈCE A MIS DANS CETTE CAISSE, sur les mois retenus.
+
+     Versement par versement, et seulement ceux de LA caisse : un rituel réglé
+     moitié espèces moitié Mobile Money ne crédite plus une seule caisse de son
+     total. Et c'est la date du VERSEMENT qui le range dans son mois, jamais
+     celle de la pièce — c'est toute la raison d'être du journal.
+
+     L'avoir et l'acompte restent hors caisse : un crédit consommé n'est pas une
+     devise, un acompte est entré ailleurs, un autre jour. */
+  const boxCredit = (i: Invoice, name: string, boxCur: string, foreign: boolean, keep: (mk: string) => boolean): number =>
     foreign
-      ? (i.fx && i.fx.code === boxCur ? i.fx.amount : 0)
-      : invoiceCashXof(i);
+      ? (i.fx && i.fx.code === boxCur && keep(monthKey(i.date)) ? i.fx.amount : 0)
+      : invoiceReglements(i)
+          .filter((p) => p.cashbox === name && p.method !== 'Avoir' && p.method !== 'Acompte' && keep(monthKey(p.date ?? '')))
+          .reduce((n, p) => n + p.amountXof, 0);
+
+  /* CE QUE CETTE CAISSE A VERSÉ AU COFFRE — 17 août 2026, « le coffre comme
+     caisse ». Un dépôt qui nomme sa caisse en SORT : sans cette soustraction,
+     les mêmes francs vivraient dans le tiroir et dans le coffre, et la
+     trésorerie les compterait deux fois.
+
+     Seuls les mouvements qui NOMMENT une caisse comptent. Ceux d'avant n'en
+     portent pas : ils ont été saisis comme une mise de côté symbolique, et les
+     rendre débiteurs après coup ferait bouger des soldes déjà arrêtés. */
+  const verseAuCoffre = (name: string, keep: (mk: string) => boolean): number =>
+    coffre
+      .filter((m: CoffreMovement) => m.branchId === branch.id && m.kind === 'depot' && m.cashbox === name && keep(monthKey(m.date)))
+      .reduce((s: number, m: CoffreMovement) => s + m.amountXof, 0);
 
   const boxOf = (name: string) => branchBoxes.find((b) => b.name === name);
   const boxInvoices = (name: string) =>
-    invoices.filter((i) => i.branchId === branch.id && i.status === 'payée' && i.cashbox === name);
+    invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture'
+      && invoiceReglements(i).some((p) => p.cashbox === name && p.method !== 'Avoir' && p.method !== 'Acompte'));
   const boxExpenses = (name: string) =>
     expenses.filter((e) => e.branchId === branch.id && !e.stopped && e.cashbox === name);
 
@@ -196,9 +227,9 @@ export default function Depenses() {
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
-    const inn = boxInvoices(name).filter((i) => keep(monthKey(i.date))).reduce((s, i) => s + boxCredit(i, boxCur, foreign), 0);
+    const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, keep), 0);
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
-    return (box?.openingXof ?? 0) + inn - out;
+    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
@@ -209,8 +240,9 @@ export default function Depenses() {
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
-    const inn = boxInvoices(name).filter((i) => monthKey(i.date) === month).reduce((s, i) => s + boxCredit(i, boxCur, foreign), 0);
-    const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0);
+    const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, (mk) => mk === month), 0);
+    const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0)
+      + verseAuCoffre(name, (mk) => mk === month);
     return { inn, out };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
@@ -229,7 +261,7 @@ export default function Depenses() {
     const foreign = boxCur !== currency;
 
     const inn = boxInvoices(name)
-      .filter((i) => monthKey(i.date) === month)
+      .filter((i) => boxCredit(i, name, boxCur, foreign, (mk) => mk === month) > 0)
       .map((i) => ({
         date: i.date,
         label: i.clientName?.trim() || 'Cliente de passage',
@@ -241,7 +273,7 @@ export default function Depenses() {
              cliente a remis plus que ce que la caisse inscrit. */
           !foreign && (i.tipXof ?? 0) > 0 ? `pourboire ${fmtIn(i.tipXof!, boxCur)} → Pourboires` : null,
         ].filter(Boolean).join(' · '),
-        delta: boxCredit(i, boxCur, foreign),
+        delta: boxCredit(i, name, boxCur, foreign, (mk) => mk === month),
         invoiceId: i.id, // la ligne s'ouvre sur la facture
         expense: undefined as Expense | undefined,
       }));

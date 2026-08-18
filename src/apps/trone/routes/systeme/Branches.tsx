@@ -29,6 +29,7 @@ type BranchForm = {
   name: string;
   city: string;
   address: string;
+  mapsUrl: string;
   country: string;
   dial: string;
   phone: string;
@@ -42,7 +43,7 @@ type BranchForm = {
 };
 
 const emptyForm = (): BranchForm => ({
-  name: '', city: '', address: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
+  name: '', city: '', address: '', mapsUrl: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
   logo: 'copper', pictogram: '◈', masters: [], seats: 4, status: 'paused', curTouched: false,
 });
 
@@ -95,7 +96,7 @@ export default function Branches() {
     setEditId(b.id);
     setNewMaster('');
     setForm({
-      name: b.name, city: b.city, address: b.address, country: b.country, dial: b.dial,
+      name: b.name, city: b.city, address: b.address, mapsUrl: b.mapsUrl ?? '', country: b.country, dial: b.dial,
       phone: b.phone ?? `${b.dial} `, currency: b.currency, logo: asSeal(b.logo),
       pictogram: b.pictogram ?? '◈', masters: [...b.masters], seats: b.seats,
       status: b.status, curTouched: true,
@@ -136,7 +137,8 @@ export default function Branches() {
     }, []);
     if (editId) {
       branchesStore.set((prev) => prev.map((b) => (b.id === editId ? {
-        ...b, name: form.name.trim(), city, address: form.address.trim(), country: form.country,
+        ...b, name: form.name.trim(), city, address: form.address.trim(),
+        mapsUrl: form.mapsUrl.trim() || undefined, country: form.country,
         dial: form.dial, phone: form.phone.trim(), currency: form.currency, logo: form.logo,
         pictogram: form.pictogram, seats: form.seats, masters: cleanMasters,
         status: form.status,
@@ -145,6 +147,7 @@ export default function Branches() {
       const nb: Branch = {
         id: `br-${uid()}`, name: form.name.trim(), city, country: form.country, dial: form.dial,
         phone: form.phone.trim(), currency: form.currency, address: form.address.trim(),
+        mapsUrl: form.mapsUrl.trim() || undefined,
         seats: form.seats, masters: cleanMasters, status: form.status,
         logo: form.logo, pictogram: form.pictogram,
       };
@@ -281,6 +284,17 @@ export default function Branches() {
                 <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} placeholder="Quartier, rue…" />
               </Field>
             </div>
+            <Field label="Lien de localisation — la fiche Google du salon">
+              <Input
+                value={form.mapsUrl}
+                onChange={(e) => patch({ mapsUrl: e.target.value })}
+                placeholder="https://maps.app.goo.gl/…"
+              />
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                C'est lui que porte le QR « Où nous trouver » et le lien qu'on envoie. Sans lui, la carte
+                ne peut chercher que la ville — et mène au centre, pas à la porte.
+              </div>
+            </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Pays">
                 <Select value={form.country} onChange={(e) => onCountry(e.target.value)}>

@@ -36,7 +36,7 @@ export type EnfantDeclare = {
   /** SON NOM À LUI — demandé, jamais déduit du parent. Les enfants portent le
       nom de leur père, et bien des mamans sont inscrites sous leur nom de jeune
       fille : hériter du nom de la déclarante écrivait un nom faux sur la fiche.
-      Le carnet le montre déjà — Christelle Vlavonou porte Enora Hounsounou. */
+      Le carnet le montre déjà — Christelle V. porte Enora H.. */
   nom: string;
   /** OBLIGATOIRE. Sans elle, la minorité ne se prouve pas — et la minorité est
       ce qui ouvre l'accès du parent. Voir `estMineur`. */
@@ -301,8 +301,7 @@ export async function rattacherEnfant(
     déclarante : un enfant déclaré « Mahoussi » par Awa Adamon devenait
     « Mahoussi Adamon ». C'est faux deux fois — l'enfant porte le nom de son
     père, et la maman est souvent inscrite sous son nom de jeune fille. Le carnet
-    le disait déjà : Christelle Vlavonou porte Enora Hounsounou, Jocelyne
-    Satchivi porte Anasthasia Yenoussi. Le nom est donc demandé au parent, et le
+    le disait déjà : Christelle V. porte Enora H., Jocelyne S. porte Anasthasia Y.. Le nom est donc demandé au parent, et le
     comptoir peut le corriger ici — `nomComplet` est ce qu'il a sous les yeux au
     moment de valider. */
 export function validerEnfant(dec: EnfantDeclare, aujourdhui: string, nomComplet?: string): { ok: boolean; erreur?: string } {

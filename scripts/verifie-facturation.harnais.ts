@@ -1,7 +1,7 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
-import { alignerFacturesDuRituel } from '../src/apps/trone/routes/clients/_shared';
-import { invoicesStore, invoiceTotal, ligneFacture, type Invoice } from '../src/shared/finance';
+import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof } from '../src/apps/trone/routes/clients/_shared';
+import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
 
@@ -102,3 +102,80 @@ dit('appel sans la Gamme : la pièce mixte reste intouchée',
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
+
+/* ═══════════════════════════════════════════════════════════════════
+   UNE PIÈCE, PLUSIEURS RÈGLEMENTS — 17 août 2026.
+
+   Ce que ces contrôles protègent : l'argent d'Hermine. Un rituel de 81 000 F
+   réglé 30 000 le 12 août et 51 000 le 28 doit compter DANS DEUX MOIS, pour
+   ses vraies parts. L'ancien modèle en faisait deux factures ; le nouveau en
+   fait une, et c'est le journal des versements qui date l'argent.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const piece2 = (payments?: InvoicePayment[], status: Invoice['status'] = 'payée'): Invoice =>
+  ({
+    id: 'inv2', branchId: 'br', kind: 'facture', number: 'F-2', clientId: 'c1', date: '2026-08-12',
+    lines: [ligneFacture('KƆKLƆ™ Essentiel', 30_000), ligneFacture('SÍNSIN™ Essentielle', 51_000)],
+    globalDiscountPct: 0, theme: 'Aube', status, payments,
+  } as Invoice);
+
+const deuxVersements: InvoicePayment[] = [
+  { id: 'p1', date: '2026-08-12', amountXof: 30_000, method: 'Espèces', cashbox: 'Bocal' },
+  { id: 'p2', date: '2026-09-28', amountXof: 51_000, method: 'MTN MoMo', cashbox: 'MoMo' },
+];
+
+const deux = piece2(deuxVersements);
+dit('le total de la pièce reste celui du rituel', 81_000, invoiceTotal(deux));
+dit('les deux versements se lisent', 81_000, invoiceRegleXof(deux));
+dit('août ne reçoit que sa part', 30_000, invoiceRegleAu(deux, '2026-08'));
+dit('… et septembre la sienne', 51_000, invoiceRegleAu(deux, '2026-09'));
+dit('le jour compte comme le mois', 30_000, invoiceRegleAu(deux, '2026-08-12'));
+dit('la pièce est soldée', true, invoiceSoldee(deux));
+dit('… donc plus rien n’est dû', 0, invoiceResteXof(deux));
+
+/* À MOITIÉ RÉGLÉE : elle est une CRÉANCE de son solde, pas de son total. */
+const moitie = piece2([deuxVersements[0]], 'envoyée');
+dit('la moitié reçue se voit', 30_000, invoiceRegleXof(moitie));
+dit('… le solde est ce qui reste', 51_000, invoiceResteXof(moitie));
+dit('… et la pièce n’est pas soldée', false, invoiceSoldee(moitie));
+
+/* L'AVOIR N'EST PAS DES BILLETS — il compte au revenu, jamais en caisse. */
+const parAvoir = piece2([
+  { id: 'p3', date: '2026-08-12', amountXof: 40_000, method: 'Avoir' },
+  { id: 'p4', date: '2026-08-12', amountXof: 41_000, method: 'Espèces', cashbox: 'Bocal' },
+]);
+dit('le revenu du mois compte l’avoir', 81_000, invoiceRegleAu(parAvoir, '2026-08'));
+dit('… mais la caisse ne prend que les billets', 41_000, invoiceCaisseAu(parAvoir, '2026-08'));
+
+/* LES PIÈCES D'AVANT NE BOUGENT PAS — sans journal, une soldée en vaut un
+   d'une entrée, et les chiffres sont EXACTEMENT ceux d'hier. */
+const ancienne = piece2(undefined);
+dit('une pièce d’avant se lit encore', 81_000, invoiceRegleXof(ancienne));
+dit('… à la date de la pièce', 81_000, invoiceRegleAu(ancienne, '2026-08'));
+dit('… et une non payée d’avant ne compte rien', 0, invoiceRegleXof(piece2(undefined, 'envoyée')));
+
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+
+/* ── LES REMISES DE LIGNE — % puis F, et le cumul avec la globale ── */
+const rdvRemise = {
+  id: 'ap9', branchId: 'br', clientId: 'c1', serviceIds: ['a', 'b'],
+  date: '2026-08-01', time: '10:00', master: 'M', status: 'honoré',
+  remisesLignes: [{ pct: 50 }, { xof: 5_000 }],
+} as Appointment;
+dit('le % s’applique à SA ligne', 5_000, svcNetForAppt(rdvRemise, A, 0));
+dit('… les francs à la sienne', 15_000, svcNetForAppt(rdvRemise, B, 1));
+dit('le total du rituel les déduit', 20_000, apptTotalXof(rdvRemise, byId));
+dit('… et la remise globale vient APRÈS',
+  18_000, apptNetXof({ ...rdvRemise, discountPct: 10 } as Appointment, byId));
+dit('une ligne sans remise ne bouge pas',
+  30_000, apptTotalXof({ ...rdvRemise, remisesLignes: undefined } as Appointment, byId));
+
+/* La pièce écrit le prix PLEIN et la remise en regard — jamais un prix raboté. */
+pose([ligneFacture('x', 1)]);
+alignerFacturesDuRituel({ ...rdvRemise, invoiceId: 'inv1', status: 'honoré' } as Appointment,
+  byId, (s) => s.priceXof);
+dit('la pièce garde les prix pleins', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
+dit('… le pourcentage sur la ligne', [50, 0], piece().lines.map((l) => l.discountPct));
+dit('… et les francs sur la sienne', [undefined, 5_000], piece().lines.map((l) => l.discountXof));
+
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

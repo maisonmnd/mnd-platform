@@ -41,6 +41,20 @@ export type Settings = {
       geste du personnel, qui voit son carnet. */
   maxRdvParJourMaitre?: number;
   maxRdvParJourMaison?: number;
+  /** LE BARÈME DES TRANCHES, SUSPENDU — 17 août 2026, demande de Yéman :
+      « si je décide de suspendre le barème et rajouter des ateliers ou des
+      prestations, besoin d'avoir la main ».
+
+      SUSPENDRE, PAS EFFACER : les coefficients restent écrits sur la page du
+      Juste Prix, intacts, et reprennent tels quels quand elle rallume. Le
+      temps de remanier le catalogue, aucune prestation ne suit plus la taille
+      de la couronne — les prix sont ceux du catalogue, nus.
+
+      Ce que la suspension NE touche pas, et c'est voulu : le coefficient
+      personnel d'une cliente et ses prix fermes (ce sont des accords avec
+      ELLE, pas un barème), ni les prestations au lock ou au calibre (leur prix
+      vient du comptage ou du plancher de tranche, jamais d'un coefficient). */
+  baremeSuspendu?: boolean;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

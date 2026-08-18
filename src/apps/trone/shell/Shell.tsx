@@ -19,7 +19,7 @@ import BarreEquipe from './BarreEquipe';
    encaisse au passage. Le Catalogue vivait sous « Vente » : c'est pourtant la
    carte de la Maison, ouverte à chaque prix qu'on vérifie et à chaque
    prestation qu'on retouche. */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures', '/catalogue'];
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/fil', '/caisse', '/customers', '/factures', '/catalogue'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
@@ -28,6 +28,7 @@ import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, toast } from '../../../ds/components';
 import { useAuth, useStaff, signOut } from '../../../shared/auth';
+import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
@@ -225,13 +226,27 @@ export default function Shell() {
   const quotidien = QUOTIDIEN
     .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
     .filter((it): it is TroneRoute => !!it);
+  const [filTous] = useFil();
+  const [factures] = useInvoices();
+  const monMailShell = (session?.user?.email ?? '').trim().toLowerCase();
   const replies = visibles
     .map((g) => ({ ...g, items: g.items.filter((it) => !QUOTIDIEN.includes(it.path)) }))
     .filter((g) => g.items.length > 0);
+  /* ── UNE DEMANDE QUI ATTEND SE VOIT DEPUIS PARTOUT — 18 août 2026.
+     « Comment savoir si j'ai une nouvelle demande à traiter dans les fils ? »
+     (Yéman). Elle ne se voyait qu'UNE FOIS DANS LE FIL — c'est-à-dire jamais,
+     puisqu'il faut déjà y être. La pastille vit donc dans le menu, à côté du
+     Fil : on la croise en allant ailleurs, et c'est là qu'elle sert. */
+  const demandesQuiAttendent = mesDemandes(filTous, branch.id, monMailShell, factures).length;
   const lien = (it: TroneRoute) => (
     <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item" onClick={closeSide}>
       <it.icon />
       {it.label}
+      {it.path === '/fil' && demandesQuiAttendent > 0 && (
+        <span className="tr-nav__pastille" title={`${demandesQuiAttendent} demande(s) à traiter`}>
+          {demandesQuiAttendent}
+        </span>
+      )}
     </NavLink>
   );
 

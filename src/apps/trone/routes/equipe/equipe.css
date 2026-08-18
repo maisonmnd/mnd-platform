@@ -1053,3 +1053,163 @@
   color: var(--color-indigo);
   margin: 2px 0 6px;
 }
+
+
+/* ══ LE FIL — le registre interne, 18 août 2026 ═══════════════════
+   Deux colonnes : ce qui m'attend, ce qui se dit. La maquette en montrait
+   trois ; la première version n'a qu'un fil, donc la colonne des fils
+   n'aurait porté qu'une ligne — on l'ajoutera le jour où il y en aura
+   plusieurs, pas avant. */
+.trf-fil {
+  display: grid;
+  grid-template-columns: 272px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 900px) { .trf-fil { grid-template-columns: 1fr; } }
+
+.trf-fil__volet {
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-card);
+  padding: 16px 18px;
+}
+.trf-fil__label {
+  font-family: var(--font-sans);
+  font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 10px;
+}
+.trf-fil__vide { font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft); }
+.trf-fil__att {
+  border-bottom: 1px solid var(--hairline);
+  padding: 10px 0; font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo);
+}
+.trf-fil__att:last-child { border-bottom: none; }
+.trf-fil__att small { display: block; color: var(--ink-soft); font-size: 11.5px; margin-top: 2px; }
+
+.trf-fil__corps {
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-card);
+  display: flex; flex-direction: column; min-height: 60vh;
+}
+.trf-fil__tete {
+  padding: 13px 18px; border-bottom: 1px solid var(--hairline);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.trf-fil__tete h4 {
+  font-family: var(--font-serif); font-weight: 300; font-size: 19px;
+  color: var(--color-indigo); margin: 0;
+}
+.trf-fil__tete span { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+
+.trf-fil__flux { padding: 16px 18px; display: flex; flex-direction: column; gap: 15px; flex: 1; }
+.trf-fil__msg { display: flex; gap: 11px; }
+.trf-fil__av {
+  width: 30px; height: 30px; flex: none; border-radius: 999px;
+  background: var(--color-sable); color: var(--color-indigo);
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: .04em;
+  display: flex; align-items: center; justify-content: center;
+}
+.trf-fil__qui { font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); margin-bottom: 2px; }
+.trf-fil__qui b { color: var(--color-indigo); font-weight: 600; font-size: 13px; }
+.trf-fil__texte { font-family: var(--font-sans); font-size: 14px; color: var(--color-indigo); white-space: pre-wrap; }
+
+/* La demande — un message qui attend quelque chose. Close, elle pâlit sans
+   disparaître : ce qui a été demandé reste lisible. */
+.trf-fil__demande {
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper);
+  background: var(--copper-50); border-radius: 3px; padding: 10px 12px;
+}
+.trf-fil__demande.est-close {
+  border-color: var(--hairline); border-left-color: var(--line);
+  background: transparent;
+}
+.trf-fil__demtete {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--copper-700); margin-bottom: 4px;
+}
+.trf-fil__demande.est-close .trf-fil__demtete { color: var(--ink-soft); }
+
+.trf-fil__piece {
+  margin-top: 8px; border: 1px solid var(--hairline); border-left: 3px solid var(--color-indigo);
+  border-radius: 3px; background: var(--paper); padding: 9px 12px; max-width: 460px;
+}
+.trf-fil__piecequoi {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-fil__piecetitre { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); }
+.trf-fil__lien {
+  margin-top: 5px; cursor: pointer; background: none; border: none; padding: 0;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--copper-700);
+}
+
+.trf-fil__compo { border-top: 1px solid var(--hairline); padding: 12px 18px 15px; }
+.trf-fil__outils { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+
+/* Les fils de la colonne — un bouton par fil, discret, l'ouvert marqué au cuivre. */
+.trf-fil__canal {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left; cursor: pointer;
+  background: none; border: none; border-radius: 2px;
+  padding: 6px 8px; margin-left: -8px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo);
+}
+.trf-fil__canal:hover { background: var(--copper-50); }
+.trf-fil__canal.est-ouvert { background: var(--copper-50); box-shadow: inset 2px 0 0 var(--color-copper); }
+.trf-fil__canal span { font-size: 11px; color: var(--ink-soft); }
+
+/* Le comptage — deux moitiés et leur somme, sur une ligne. */
+.trf-fil__compteur {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  margin-top: 9px; padding: 10px 12px;
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper);
+  background: var(--copper-50); border-radius: 3px;
+}
+.trf-fil__compteur label {
+  display: flex; flex-direction: column; gap: 3px;
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-fil__compteur input { width: 84px; padding: 6px 9px; font-size: 13px; text-align: right; }
+.trf-fil__total {
+  font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo);
+  margin-left: auto; align-self: center;
+}
+/* Le comptage tel qu'il se lit dans le fil. */
+.trf-fil__compte {
+  margin-top: 8px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  border-left: 3px solid var(--color-copper); padding: 4px 0 4px 10px;
+}
+.trf-fil__compte b { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); font-weight: 400; }
+.trf-fil__compte span { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+
+/* Reprendre ou effacer sa phrase — discret, dans la ligne de signature. */
+.trf-fil__mini {
+  cursor: pointer; background: none; border: none; padding: 0;
+  font: inherit; font-size: 11.5px; color: var(--copper-700);
+}
+
+/* La pièce jointe — une image se montre, un PDF s' annonce. */
+.trf-fil__fichier {
+  display: block; margin-top: 8px; max-width: 320px;
+  border: 1px solid var(--hairline); border-radius: 3px;
+  padding: 8px; background: var(--paper); text-decoration: none;
+}
+.trf-fil__fichier img { display: block; width: 100%; height: auto; border-radius: 2px; }
+.trf-fil__fichiernom {
+  display: block; font-family: var(--font-serif); font-size: 15px;
+  color: var(--color-indigo); padding: 10px 4px;
+}
+.trf-fil__fichiermeta {
+  display: block; margin-top: 6px; font-family: var(--font-sans);
+  font-size: 11px; color: var(--ink-soft);
+}
+
+/* La case d' une demande — se coche, et se décoche. */
+.trf-fil__case {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; color: var(--color-indigo);
+}
+.trf-fil__case input { width: 15px; height: 15px; accent-color: var(--color-copper); cursor: pointer; }

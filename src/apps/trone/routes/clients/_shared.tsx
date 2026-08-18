@@ -22,7 +22,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, type ModelBand } from '../../../../shared/pricing';
 import { invoicesStore, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import './clients.css';
 
@@ -111,6 +111,23 @@ export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
 /* Série multi-séances : la prestation n'est facturée qu'UNE fois.
    Le montant est porté par la séance 1 ; les séances suivantes valent 0
    (partout : tableau de bord, carnet, synthèse, fidélité, impayés). */
+/** LE PRIX D'UNE LIGNE APRÈS SA PROPRE REMISE — pourcentage d'abord, francs
+    ensuite, jamais négatif. `i` est la position dans `serviceIds`, PAS dans la
+    liste des prestations retrouvées : `apptServices` écarte les fiches
+    disparues du catalogue, et les deux index divergent dès qu'un rituel ancien
+    en porte une. Prendre le mauvais index appliquerait la remise au geste
+    voisin — en silence. */
+export const remiseDeLigne = (a: Appointment, i: number): { pct: number; xof: number } => {
+  const r = a.remisesLignes?.[i];
+  return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
+};
+
+/** Ce que vaut la prestation à la position `i` une fois sa remise appliquée. */
+export const svcNetForAppt = (a: Appointment, s: Service, i: number): number => {
+  const { pct, xof } = remiseDeLigne(a, i);
+  return Math.max(0, Math.round(svcPriceForAppt(a, s) * (1 - pct / 100)) - xof);
+};
+
 export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.seriesIndex && a.seriesIndex > 1) return 0;
   /* Un prix figé l'emporte sur le catalogue : le rituel a été facturé À CE
@@ -119,7 +136,14 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
      ERP, à 3 M F près. La règle des séries reste au-dessus : une séance 2+ ne
      vaut rien, prix figé ou non. */
   if (typeof a.priceXof === 'number') return a.priceXof;
-  return apptServices(a, byId).reduce((sum, s) => sum + svcPriceForAppt(a, s), 0);
+  /* Les remises de LIGNE se retranchent ici — avant la remise globale, qui les
+     trouvera donc déjà déduites. On parcourt `serviceIds` et non la liste des
+     prestations, pour que l'index de la remise soit le bon même si une fiche a
+     disparu du catalogue. */
+  return a.serviceIds.reduce((sum, id, i) => {
+    const s = byId.get(id);
+    return s ? sum + svcNetForAppt(a, s, i) : sum;
+  }, 0);
 };
 
 /** Total après remise du RDV : le pourcentage d'abord, puis la remise en CFA.
@@ -157,6 +181,47 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
    détaille pas après coup — un argent qui n'a couvert qu'une part ne se
    ventile pas ; seul son libellé suit les prestations du jour. */
 const LIGNE_AJUSTEMENT = 'Ajustement · prix consenti ce jour-là';
+
+/** Ce qu'un alignement CHANGERAIT sur une pièce — de quoi montrer avant d'écrire. */
+export type EcartDeConformite = { avant: Invoice; apres: Invoice };
+
+/** LE CONTEXTE TARIFAIRE D'UN RITUEL — une seule définition, pour tous ceux qui
+    lisent un rendez-vous PERSISTÉ (la réparation en masse, un contrôle, un
+    export). La modale garde le sien, qui suit ce que la Maison change à
+    l'écran ; mais la RÉSOLUTION DE LA LONGUEUR est la même des deux côtés, et
+    c'est là que tout se joue.
+
+    C'est précisément l'absence de cette résolution qui a produit les factures
+    au prorata : la caisse appelait `pricingOf(client, …)` sans la longueur
+    FIGÉE du rituel, toute prestation à grille retombait sur son prix « court »,
+    la somme des prix pleins passait sous le net encaissé, et la branche de
+    secours ventilait le total au prorata. Deux écrans, deux prix pour la même
+    tête. Une seule définition, et ils ne peuvent plus se contredire. */
+export function tarifsDuRituel(
+  appt: Appointment,
+  ctx: {
+    client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur'>;
+    bands: ModelBand[];
+    sets: Parameters<typeof pricingOf>[2];
+    cats: Parameters<typeof pricingOf>[3];
+    byId: Map<string, Service>;
+    tousServices: readonly Service[];
+    produits: readonly { id: string; priceXof: number }[];
+  },
+) {
+  const pricing = {
+    ...pricingOf(ctx.client, ctx.bands, ctx.sets, ctx.cats),
+    /* Même ordre que la modale : la longueur figée du rituel prime — relire
+       mars ne le retarife pas —, puis celle de la fiche, puis Mi-Long. */
+    longueur: appt.longueur ?? ctx.client?.longueur ?? 'mi-long',
+  };
+  const chosen = apptServices(appt, ctx.byId);
+  const personnalise = isPersonalized(pricing) && chosen.length > 0;
+  const prixPlein = (sv: Service) =>
+    personnalise ? personalPriceXof(sv, pricing, ctx.tousServices, ctx.produits) : prixDeBase(sv, pricing);
+  const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
+  return { pricing, chosen, prixPlein, gesteDe };
+}
 
 export function alignerFacturesDuRituel(
   appt: Appointment,
@@ -196,7 +261,11 @@ export function alignerFacturesDuRituel(
       l'écrit — `unitXof` × (1 − `discountPct`) vaut exactement ce que la ligne
       valait avant, donc LE TOTAL NE BOUGE PAS. */
   gesteOf: (s: Service) => number = () => 0,
-): void {
+  /** SIMULER — calculer sans rien écrire. Une réparation en masse doit pouvoir
+      se MONTRER avant de s'appliquer : c'est la même mécanique qui juge et qui
+      répare, donc l'aperçu ne peut pas mentir sur ce qui va se passer. */
+  options?: { simuler?: boolean },
+): EcartDeConformite[] {
   /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
      depuis le RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture
      à envoyer » (`factureAEnvoyer`) pose le lien sur LA PIÈCE — `apptId` — et
@@ -208,14 +277,14 @@ export function alignerFacturesDuRituel(
   for (const p of appt.payments ?? []) if (p.invoiceId) ids.add(p.invoiceId);
   const liee = (inv: Invoice): boolean => ids.has(inv.id) || inv.apptId === appt.id;
   const services = apptServices(appt, byId);
-  if (services.length === 0) return;
+  if (services.length === 0) return [];
   /* Tous les noms de prestations du catalogue — pour reconnaître ce qui, sur
      la pièce, est une ligne de RITUEL (même d'une composition passée). */
   const nomsPrestations = new Set<string>();
   for (const s of byId.values()) nomsPrestations.add(s.name);
   const nomsProduits = new Set(produits.map((p) => p.name));
 
-  invoicesStore.set((prev) => prev.map((inv) => {
+  const conformer = (inv: Invoice): Invoice => {
     if (!liee(inv) || inv.kind !== 'facture') return inv;
     /* UNE PIÈCE PAS ENCORE PAYÉE SUIT LE RITUEL, TOTAL COMPRIS — 16 août 2026.
        Le garde ne laissait passer que les factures `payée` : une facture
@@ -284,13 +353,29 @@ export function alignerFacturesDuRituel(
        ligne d'ajustement le dit (patron de la reprise 0018). Le total, lui,
        ne bouge toujours pas d'un franc. */
     const pleins = services.map((s) => Math.max(0, Math.round(priceOf(s))));
-    const gestes = services.map((s) => Math.max(0, Math.min(100, Math.round(gesteOf(s)))));
+    /* LA REMISE DE LA LIGNE, SUR LA LIGNE. Le geste automatique de la Maison
+       (une prestation offerte par la règle du Catalogue) l'emporte quand il
+       joue : on ne remise pas ce qui est déjà donné. Sinon c'est la remise
+       posée à la main au rituel qui s'écrit — et sa part en FRANCS la suit,
+       parce qu'un « 5 000 F de moins » traduit en pourcentage donnerait un
+       nombre à virgule que personne ne relit.
+
+       L'index vient de `serviceIds`, pas de `services` : les deux divergent dès
+       qu'une fiche a disparu du catalogue, et la remise irait au geste voisin. */
+    const posRituel = services.map((sv) => appt.serviceIds.indexOf(sv.id));
+    const mains2 = services.map((_, i) => remiseDeLigne(appt, posRituel[i] >= 0 ? posRituel[i] : i));
+    const gestes = services.map((s, i) => {
+      const auto = Math.max(0, Math.min(100, Math.round(gesteOf(s))));
+      return auto > 0 ? auto : Math.round(mains2[i].pct);
+    });
+    const francs = services.map((s, i) => (Math.round(gesteOf(s)) > 0 ? 0 : Math.round(mains2[i].xof)));
     /* `gross` est ce que les lignes valent VRAIMENT — geste déduit. C'est lui
        qu'on compare au total payé, sinon le geste serait compté deux fois :
        une fois sur la ligne, une fois dans la remise globale. */
-    const gross = pleins.reduce((a, p, i) => a + Math.round(p * (1 - gestes[i] / 100)), 0);
+    const gross = pleins.reduce((a, p, i) => a + Math.max(0, Math.round(p * (1 - gestes[i] / 100)) - francs[i]), 0);
     const lines = services.map((s, i) => ({
       id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
+      ...(francs[i] > 0 ? { discountXof: francs[i] } : {}),
     }));
     let remiseXof: number | undefined;
     if (!payee) {
@@ -319,7 +404,18 @@ export function alignerFacturesDuRituel(
         && (l.discountPct ?? 0) === lines[i].discountPct);
     if (deja) return inv;
     return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof, discountLabel };
-  }));
+  };
+
+  /* `conformer` rend l'objet REÇU quand il n'a rien à corriger (garde
+     d'idempotence plus haut) : l'identité de référence suffit donc à repérer
+     ce qui bouge, sans comparer champ par champ. */
+  const ecarts: EcartDeConformite[] = [];
+  for (const inv of invoicesStore.get()) {
+    const apres = conformer(inv);
+    if (apres !== inv) ecarts.push({ avant: inv, apres });
+  }
+  if (!options?.simuler && ecarts.length > 0) invoicesStore.set((prev) => prev.map(conformer));
+  return ecarts;
 }
 
 /** Le nom d'un forfait ponctuel — « Forfait » quand la Maison n'en a pas donné. */
@@ -835,6 +931,9 @@ export function RdvModal({
      blocs occupaient pourtant la moitié de l'écran. Ils se replient — et
      s'ouvrent d'eux-mêmes quand ils portent déjà quelque chose. */
   const [mainsOuvertes, setMainsOuvertes] = useState<string[]>([]);
+  /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains. */
+  const [remisesL, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(appt?.remisesLignes ?? []);
+  const [remisesOuvertes, setRemisesOuvertes] = useState<string[]>([]);
   const [noteOuverte, setNoteOuverte] = useState(!!appt?.note?.trim());
   const [equipe] = useStaff();
   const mainsDe = (i: number) => mains[i] ?? [];
@@ -904,6 +1003,51 @@ export function RdvModal({
   });
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
+
+  /* ── SES RITUELS HABITUELS ────────────────────────────────────────
+     Une cliente revient pour la même chose. Retaper ses quatre gestes à chaque
+     prise de rendez-vous est un travail de copiste — et une source d'écarts :
+     un geste oublié, et la pièce ne ressemble plus aux précédentes.
+
+     ON NE DEMANDE À PERSONNE D'ENREGISTRER UN MODÈLE. L'habitude est déjà
+     écrite dans le carnet : on regroupe ses rituels passés par COMBINAISON de
+     prestations, on compte, et on propose les trois plus fréquentes. Rien à
+     curer, rien à tenir à jour, et ça vaut pour toutes les têtes dès le
+     premier jour — y compris celles dont personne n'aurait pensé à faire un
+     modèle.
+
+     Deux gardes. Une combinaison dont UNE prestation a disparu du catalogue
+     est écartée : un modèle qui pose un identifiant mort remplirait le rituel
+     d'un vide silencieux — c'est la même faute que juger sur la carte élaguée.
+     Et les rituels ANNULÉS ne comptent pas : ce qu'on n'a pas fait n'est pas
+     une habitude. */
+  const rituelsHabituels = useMemo(() => {
+    if (!clientId) return [];
+    const groupes = new Map<string, { ids: string[]; n: number; dernier: string; master: string }>();
+    for (const a of branchAppts) {
+      if (a.clientId !== clientId || a.status === 'annulé') continue;
+      if (appt && a.id === appt.id) continue;
+      const ids = a.serviceIds ?? [];
+      if (!ids.length || !ids.every((id) => byId.has(id))) continue;
+      const cle = [...ids].sort().join('|');
+      const g = groupes.get(cle);
+      if (!g) {
+        groupes.set(cle, { ids, n: 1, dernier: a.date, master: a.master });
+      } else {
+        g.n += 1;
+        /* Le plus RÉCENT donne l'ordre des gestes et le maître : la dernière
+           fois est la meilleure image de l'habitude d'aujourd'hui. */
+        if (a.date > g.dernier) { g.dernier = a.date; g.ids = ids; g.master = a.master; }
+      }
+    }
+    return [...groupes.values()]
+      .sort((x, y) => y.n - x.n || y.dernier.localeCompare(x.dernier))
+      .slice(0, 3);
+  }, [clientId, branchAppts, byId, appt]);
+
+  /* Le modèle dont on attend le « Remplacer » — un seul à la fois. */
+  const [modeleAConfirmer, setModeleAConfirmer] = useState<string | null>(null);
+
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
@@ -1067,11 +1211,22 @@ export function RdvModal({
   /* LE GESTE OFFERT entre dans le total (15 août) : une prestation offerte
      par la règle du Catalogue vaut zéro dans SON rituel — le comptoir ne
      retranche rien à la main, et la facture dira la même chose. */
+  /* LE TOTAL DU RITUEL, REMISES DE LIGNE DÉDUITES. Elles se retranchent ICI,
+     avant la remise globale — c'est l'ordre annoncé à Yéman le 17 août : la
+     ligne d'abord, l'ensemble ensuite. */
+  const remiseLigneAt = (i: number) => {
+    const r = remisesL[i];
+    return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
+  };
+  const apresRemiseLigne = (brut: number, i: number) => {
+    const r = remiseLigneAt(i);
+    return Math.max(0, Math.round(brut * (1 - r.pct / 100)) - r.xof);
+  };
   const grossBase = rdvPersonalized
-    ? chosen.reduce((s, sv) => s + prixDansPanier(sv, pricing, chosen, services, produitsGamme), 0)
+    ? chosen.reduce((s, sv) => s + apresRemiseLigne(prixDansPanier(sv, pricing, chosen, services, produitsGamme), serviceIds.indexOf(sv.id)), 0)
     : chosen.reduce((s, sv) => {
         const pct = remiseGestePct(sv, pricing, chosen);
-        return s + Math.round(prixDeBase(sv, pricing) * (1 - pct / 100));
+        return s + apresRemiseLigne(Math.round(prixDeBase(sv, pricing) * (1 - pct / 100)), serviceIds.indexOf(sv.id));
       }, 0);
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
@@ -1097,7 +1252,22 @@ export function RdvModal({
      montant, et deux champs le réécriraient l'un après l'autre. */
   const libres = chosen.filter(estLibre);
   const seulPrixLibre = libres.length === 1;
-  const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged && !refreshPrice;
+  /* UNE REMISE QU'ON VIENT DE POSER DÉGÈLE LE PRIX — 18 août 2026.
+
+     Le gel protège l'histoire : relire un rituel de mars ne le retarife pas. Mais
+     il l'emporterait aussi sur un geste qu'on est en train de faire — on pose
+     −50 %, le total ne bouge pas, et la remise « ne marche pas ».
+
+     On compare donc les remises À L'ÉCRAN à celles ENREGISTRÉES : si elles ont
+     changé, c'est une décision d'aujourd'hui et le prix se recalcule. Si elles
+     sont identiques — le cas d'une simple réouverture —, le gel tient. Sans
+     cette comparaison, rouvrir un vieux rituel remisé le retariferait tout seul,
+     ce qui est exactement la faute que le gel existe pour empêcher. */
+  const signatureRemises = (rs: readonly ({ pct?: number; xof?: number } | null | undefined)[] | undefined, n: number) =>
+    Array.from({ length: n }, (_, i) => `${rs?.[i]?.pct ?? 0}/${rs?.[i]?.xof ?? 0}`).join('|');
+  const remisesChangees = signatureRemises(remisesL, serviceIds.length)
+    !== signatureRemises(appt?.remisesLignes, serviceIds.length);
+  const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged && !refreshPrice && !remisesChangees;
   const grossXof = keepFrozen ? (frozenXof as number) : grossBase;
 
   /* LE MONTANT CONVENU NE VAUT QUE POUR LES PRESTATIONS À PRIX LIBRE.
@@ -1116,7 +1286,29 @@ export function RdvModal({
   const prixPlein = (sv: Service) =>
     rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
   const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
-  const prixDe = (sv: Service) => Math.round(prixPlein(sv) * (1 - gesteDe(sv) / 100));
+  /* LA REMISE POSÉE À LA MAIN SUR CETTE LIGNE — 18 août 2026.
+     « La remise par prestation ne marche pas » (Yéman) : le bloc calculait bien
+     « 30 000 F au lieu de 60 000 F », mais la ligne affichait toujours 60 000 et
+     le total du rituel les comptait entiers. La remise ne vivait que dans son
+     propre affichage — elle n'entrait dans AUCUN calcul de la modale.
+
+     Elle entre ici, au seul endroit qui donne le prix d'une ligne : tout ce qui
+     en découle — le montant à droite, le total du bandeau, ce qui part à
+     l'enregistrement — suit d'un coup. Un prix calculé à deux endroits finit
+     toujours par diverger ; celui-ci n'a qu'une source.
+
+     L'index vient de `serviceIds` et non de `chosen` : les deux divergent dès
+     qu'une fiche a disparu du catalogue, et la remise irait au geste voisin. */
+  const remiseLigneDe = (sv: Service) => {
+    const i = serviceIds.indexOf(sv.id);
+    const r = i >= 0 ? remisesL[i] : undefined;
+    return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
+  };
+  const prixDe = (sv: Service) => {
+    const apresGeste = Math.round(prixPlein(sv) * (1 - gesteDe(sv) / 100));
+    const r = remiseLigneDe(sv);
+    return Math.max(0, Math.round(apresGeste * (1 - r.pct / 100)) - r.xof);
+  };
   const grossLibre = libres.reduce((s, sv) => s + prixDe(sv), 0);
   const grossFixe = Math.max(0, grossBase - grossLibre);
   /* LA PART LIBRE DÉJÀ FIGÉE — retrouvée en ôtant les prix fixes du total
@@ -1266,6 +1458,12 @@ export function RdvModal({
                 /* Aucune main nulle part : on n'ecrit rien plutot qu'un tableau
                    de listes vides — le rendez-vous retombe alors sur son maitre. */
                 mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
+                /* Les remises de ligne suivent le même motif que les mains :
+                   alignées sur `serviceIds`, absentes quand aucune n'est posée
+                   — un tableau de nulls sur chaque rituel ne dirait rien. */
+                remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
+                  ? serviceIds.map((_, k) => remisesL[k] ?? null)
+                  : undefined,
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
@@ -1317,6 +1515,9 @@ export function RdvModal({
         serviceIds,
         longueur: longueurPertinente ? longueur : undefined,
         mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
+        remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
+          ? serviceIds.map((_, k) => remisesL[k] ?? null)
+          : undefined,
         date,
         time,
         master,
@@ -1503,6 +1704,70 @@ export function RdvModal({
               ))}
             </Select>
           </div>
+          {/* SES HABITUDES, À UN CLIC — À LA CRÉATION COMME À LA RELECTURE.
+              Demande de Yéman, 17 août : ouvrir un rituel existant doit aussi
+              montrer ses combinaisons. Elles servent alors à comparer autant
+              qu'à composer — « est-ce bien ce qu'elle prend d'habitude ? ».
+
+              UNE SEULE PRÉCAUTION, et elle ne coûte rien au cas courant : si le
+              rituel porte DÉJÀ des gestes et que le modèle en dit d'autres, le
+              clic demande confirmation au lieu d'effacer. Sur un rituel vide,
+              il applique tout de suite — on ne fait pas confirmer un geste qui
+              ne détruit rien. */}
+          {rituelsHabituels.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 7 }}>
+                Ses rituels habituels
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {rituelsHabituels.map((m) => {
+                  const cle = m.ids.join('|');
+                  const noms = m.ids.map((id) => byId.get(id)?.name).filter((n): n is string => !!n);
+                  const duree = m.ids.reduce((s, id) => s + (byId.get(id)?.durationMin ?? 0), 0);
+                  const pose = [...m.ids].sort().join('|') === [...serviceIds].sort().join('|');
+                  const poser = () => {
+                    setServiceIds(m.ids);
+                    /* Les mains repartent à zéro : elles disent QUI a travaillé
+                       ce jour-là, pas ce qui se répète. */
+                    setMains([]);
+                    if (m.master) setMaster(m.master);
+                    setModeleAConfirmer(null);
+                  };
+                  return (
+                    <div key={cle} className={`trc-modele${pose ? ' is-active' : ''}`}>
+                      <button
+                        type="button"
+                        className="trc-modele__corps"
+                        onClick={() => {
+                          if (pose) return;
+                          if (serviceIds.length > 0) setModeleAConfirmer(cle);
+                          else poser();
+                        }}
+                      >
+                        <span className="trc-modele__gestes">{noms.join(' + ')}</span>
+                        <span className="trc-modele__meta">
+                          {m.n} fois · dernier le {frDay(m.dernier)}
+                          {duree > 0 ? ` · ${fmtDureeCourte(duree)}` : ''}
+                          {pose ? ' · c’est le rituel en cours' : ''}
+                        </span>
+                      </button>
+                      {modeleAConfirmer === cle && (
+                        <div className="trc-modele__confirme">
+                          <span>
+                            Remplacer les {serviceIds.length} geste{serviceIds.length > 1 ? 's' : ''} en cours par ce modèle ?
+                          </span>
+                          <span style={{ display: 'flex', gap: 6, flex: 'none' }}>
+                            <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={poser}>Remplacer</button>
+                            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setModeleAConfirmer(null)}>Garder</button>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
             {chosen.map((sv, i) => (
               <div
@@ -1656,6 +1921,84 @@ export function RdvModal({
                   pastilles n'écrasent plus la prestation. Le pli s'ouvre de
                   lui-même dès que des mains sont désignées — on ne cache
                   jamais un choix déjà fait. */}
+              {/* ── LA REMISE DE CETTE PRESTATION ────────────────────────
+                  « Créer les remises en lignes % ou F. À personnaliser. »
+                  (Yéman, 17 août). Un pourcentage OU des francs, sur CE geste
+                  seulement — et les deux se cumulent ensuite avec la remise
+                  globale du rendez-vous, la ligne d'abord.
+
+                  Le bloc reste replié tant que rien n'est posé : neuf lignes
+                  sur dix se vendent au prix annoncé, et deux champs par
+                  prestation rempliraient l'écran d'un cas rare. */}
+              {!sansPrix && (() => {
+                const pos = serviceIds.indexOf(sv.id);
+                const r = remisesL[pos] ?? {};
+                const posee = (r.pct ?? 0) > 0 || (r.xof ?? 0) > 0;
+                const ouverte = posee || remisesOuvertes.includes(sv.id);
+                const plein = svcPriceForAppt({ ...appt, longueur } as Appointment, sv);
+                const net = Math.max(0, Math.round(plein * (1 - (r.pct ?? 0) / 100)) - (r.xof ?? 0));
+                const poser = (patch: { pct?: number; xof?: number }) => setRemisesL((prev) => {
+                  const n = serviceIds.map((_, k) => prev[k] ?? null);
+                  n[pos] = { ...(n[pos] ?? {}), ...patch };
+                  return n;
+                });
+                return (
+                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                      <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                        {posee
+                          ? <>Remise · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{argent(net)}</b> au lieu de {argent(plein)}</>
+                          : 'Au prix annoncé'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setRemisesOuvertes((prev) => (prev.includes(sv.id) ? prev.filter((x) => x !== sv.id) : [...prev, sv.id]))}
+                        style={{
+                          marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+                          font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+                        }}
+                      >
+                        {ouverte ? 'Replier' : 'Remiser cette prestation'}
+                      </button>
+                    </div>
+                    {ouverte && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        {[5, 10, 15, 20, 50, 100].map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            className={`mnd-btn mnd-btn--sm ${(r.pct ?? 0) === v ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                            style={{ flex: 'none' }}
+                            onClick={() => poser({ pct: (r.pct ?? 0) === v ? 0 : v })}
+                          >
+                            −{v}%
+                          </button>
+                        ))}
+                        <input
+                          className="mnd-input"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={r.xof ? String(r.xof) : ''}
+                          onChange={(e) => poser({ xof: Math.max(0, Math.round(Number(e.target.value.replace(/[^\d]/g, '')) || 0)) })}
+                          style={{ width: 96, textAlign: 'right' }}
+                          aria-label="Remise en francs sur cette prestation"
+                        />
+                        <span className="mnd-muted" style={{ fontSize: 11.5 }}>F · après le %</span>
+                        {posee && (
+                          <button
+                            type="button"
+                            className="mnd-btn mnd-btn--ghost mnd-btn--sm"
+                            style={{ flex: 'none' }}
+                            onClick={() => poser({ pct: 0, xof: 0 })}
+                          >
+                            Retirer
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).length > 0 && (() => {
                 const pos = serviceIds.indexOf(sv.id);
                 const desMains = mainsDe(pos);
@@ -1908,7 +2251,7 @@ export function RdvModal({
             titre="Le prix"
             aide={rdvPersonalized && rdvClient?.lockCount ? `son prix · ${rdvClient.lockCount} locks` : undefined}
           />
-          {/* LA SÉANCE DE SUITE (15 août, cas Ahmed Taofiki) — « il a pris un
+          {/* LA SÉANCE DE SUITE (15 août, cas Ahmed T.) — « il a pris un
               soin 2 séances, il paie une séance et réserve la deuxième sans
               payer », et « ça peut arriver qu'on finisse en 1 séance ». Le
               nombre de séances ne se sait donc pas à la prise : la série se
@@ -2252,18 +2595,23 @@ export function RdvModal({
               Enregistrer les modifications
             </Button>
             {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (Yéman, 11 août) :
-                proposer « Encaisser » sur un rituel payé sème la confusion —
-                le geste s'efface et la raison se dit. L'état se lit sur le
-                rendez-vous ENREGISTRÉ : si une modification sauvegardée crée
-                un nouveau reste à payer, le bouton revient de lui-même. */}
+                proposer « Encaisser » sur un rituel payé sème la confusion.
+                MAIS RÉGLÉ N'EST PAS UNE IMPASSE (17 août) : « comment retourner
+                sur les encaissements, je ne peux pas les éditer ». On n'encaisse
+                pas deux fois — on doit pourtant pouvoir RELIRE ce qui a été reçu
+                et corriger un moyen ou une date mal saisis. Le bouton change
+                donc de mot au lieu de disparaître. */}
             {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
-              <div
-                className="mnd-muted"
-                style={{ fontSize: 11.5, textAlign: 'center' }}
-                title="La facture atteste le paiement — l'argent reçu ne bouge pas. Si une modification enregistrée crée un reste à payer, l'encaissement rouvrira ici."
+              <button
+                type="button"
+                onClick={() => onEncaisser(appt)}
+                style={{
+                  alignSelf: 'center', cursor: 'pointer', background: 'none', border: 'none',
+                  padding: 4, font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+                }}
               >
-                Réglé — rien à encaisser sur ce rituel.
-              </div>
+                Réglé — voir et corriger les règlements
+              </button>
             ) : (
               <Button variant="ghost" onClick={() => onEncaisser(appt)}>
                 Encaisser ou poser un acompte

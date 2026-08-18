@@ -5,12 +5,12 @@ import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
-import { appointmentsStore, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
-  useCredits, creditMovementsStore, creditBalanceOf,
-  type Invoice, type InvoiceLine, type PaymentMethod, type CreditHolder,
+  useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceSoldee, useInvoices,
+  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
@@ -345,6 +345,14 @@ export function factureAEnvoyer(
     branchId,
     serie: 'MND',
     status: 'envoyée',
+    /* LA PIÈCE PORTE LE JOUR DU RITUEL, PAS CELUI OÙ ON LA RÉCLAME.
+       Sans cette ligne, `nouvelleFacture` retombait sur aujourd'hui : une
+       facture éditée avec trois semaines de retard datait du jour de la
+       saisie, et le chiffre d'affaires du mois de la prestation partait
+       grossir celui du mois du rattrapage. La voie « Encaisser » le faisait
+       déjà (`invDate = appt.date`) ; celle-ci l'avait oublié.
+       Repli sur aujourd'hui seulement si le rituel n'a pas de date. */
+    date: appt.date || undefined,
     clientId: apptPayeurId(appt),
     clientName: appt.clientName,
     lines: lignes,
@@ -359,7 +367,30 @@ export function factureAEnvoyer(
   return { ok: true, inv: avecLien, deja: false };
 }
 
-export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
+export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
+  appt: Appointment;
+  onClose: () => void;
+  /** RETOUR AU RITUEL — 17 août 2026, demande de Yéman : « quand j'arrive à la
+      page encaisser le rituel je dois pouvoir aller en arrière ». L'écran
+      d'encaissement s'ouvre DEPUIS la fiche du rendez-vous, qui se referme
+      derrière lui : sans ce chemin, revenir corriger une prestation obligeait
+      à fermer, retrouver la ligne au carnet, et rouvrir. */
+  onRetour?: () => void;
+}) {
+  /* LE RITUEL RELU DANS LE MAGASIN À CHAQUE RENDU — 17 août 2026.
+
+     Celui qu'on reçoit en prop a été capturé à l'OUVERTURE de la modale. Tant
+     qu'on encaissait puis fermait, il ne pouvait pas vieillir. Depuis qu'on
+     peut « enregistrer et en ajouter un autre », il ment dès le premier
+     versement : `paidXof`, le reste dû et l'acompte restent ceux d'avant, et le
+     second règlement se calcule sur un solde périmé — c'est ce qui a fait
+     disparaître un des deux encaissements d'Hermine D..
+
+     Le magasin, lui, est à jour à l'instant du geste. Même règle que partout
+     ailleurs ici : on ne juge jamais sur une copie qu'on tient en main. */
+  const [tousLesRdv] = useAppointments();
+  const appt = tousLesRdv.find((a: Appointment) => a.id === apptEntrant.id) ?? apptEntrant;
+
   const { branch, currency } = useBranch();
   const byId = useServicesById();
   const [clients] = useClients();
@@ -388,7 +419,24 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const [categories] = useCategories();
-  const pricing = pricingOf(client, bands, sets, categories);
+  /* LA LONGUEUR DU RITUEL, PAS LE SILENCE — 17 août 2026.
+     `pricingOf` seul ne porte que la longueur de la FICHE, souvent vide : toute
+     prestation à grille retombait alors sur son prix « court », et la caisse
+     calculait d'autres prix que le rendez-vous pour la même tête. Sur le rituel
+     d'Hermine, 22 000 + 20 000 + 25 000 = 67 000 là où la modale disait 81 000.
+
+     La somme des prix pleins passant SOUS le net encaissé, la branche de secours
+     « on répartit pour coller » s'ouvrait et ventilait 81 000 F au prorata :
+     26 597 / 24 179 / 30 224. Total juste, ventilation fausse — et une facture
+     qui ne ressemble plus au rituel qu'elle atteste.
+
+     Même résolution que la modale du rendez-vous, dans le même ordre : la
+     longueur FIGÉE du rituel prime (relire mars ne le retarife pas), puis celle
+     de la fiche, puis Mi-Long — le cas courant au fauteuil. */
+  const pricing = {
+    ...pricingOf(client, bands, sets, categories),
+    longueur: appt.longueur ?? client?.longueur ?? 'mi-long',
+  };
   /* LE FORFAIT DE CAISSE — l'ensemble des gestes à un total négocié, posé ici ou
      déjà promis à la réservation. Il ne touche pas aux prestations : chacune
      reçoit sa part du total au prorata, et les mains, les primes, les
@@ -494,6 +542,27 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
 
+  /* ── UN BLOCAGE DOIT SE DIRE — 18 août 2026 ─────────────────────
+     « Quand je veux encaisser les 100 euros la case est grisée » (Yéman).
+
+     Le bouton se grisait SANS UN MOT. La raison est bonne — un billet en euros
+     doit avoir son tiroir, sinon il fausserait le bocal en francs, et la
+     trésorerie additionnerait des euros à des francs. Mais une règle juste qui
+     ne se dit pas devient une panne : on croit l'application cassée, on
+     n'encaisse pas, et l'argent attend.
+
+     La règle reste ; elle parle, et elle ouvre la porte qu'elle exige. */
+  const [, setCashboxes] = useCashboxes();
+  const creerLaCaisseDevise = () => {
+    const nom = `Tiroir ${payCurrency}`;
+    setCashboxes((prev) => [...prev, {
+      id: `cb-${uid()}`, branchId: branch.id, name: nom, sub: `Billets en ${payCurrency}`,
+      glyph: '', openingXof: 0, currency: payCurrency,
+    }]);
+    setCashbox(nom);
+    toast(`Caisse « ${nom} » créée — les billets en ${payCurrency} y entreront.`);
+  };
+
   /* Reprogrammation automatique : au moment d'encaisser, poser d'un geste le
      prochain RDV (résserrage/soin de suite), même cliente / prestations / maître. */
   const addDaysISO = (iso: string, days: number) => {
@@ -512,10 +581,35 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
     setNextDate(d > todayISO() ? d : addDaysISO(todayISO(), days));
   };
 
+  /* LA PIÈCE DU RITUEL, LUE EN DIRECT — c'est elle qui porte le journal des
+     versements depuis le 17 août. On la relit dans le magasin à chaque rendu :
+     celle qu'on aurait capturée à l'ouverture vieillirait dès la première
+     correction. */
+  const [toutesLesPieces] = useInvoices();
+  const pieceDuRituelOuverte = toutesLesPieces.find((i: Invoice) =>
+    i.kind === 'facture'
+    && (i.apptId === appt.id || i.id === appt.invoiceId
+        || (appt.payments ?? []).some((p) => p.invoiceId === i.id)));
+
+  /* Corriger QUAND et COMMENT — jamais COMBIEN. La correction va sur la pièce
+     (la vérité de l'argent) ET sur le carnet quand il porte le même versement,
+     pour que les deux registres ne divergent pas. */
+  const corrigerVersement = (idVersement: string, patch: Partial<InvoicePayment>) => {
+    if (!pieceDuRituelOuverte) return;
+    const journal = invoiceReglements(pieceDuRituelOuverte)
+      .map((p) => (p.id === idVersement ? { ...p, ...patch } : p));
+    invoicesStore.set((prev) => prev.map((i) => (i.id === pieceDuRituelOuverte.id
+      ? { ...i, payments: journal, payment: journal[0]?.method ?? i.payment, cashbox: journal[0]?.cashbox ?? i.cashbox }
+      : i)));
+    appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+      ? { ...a, payments: (a.payments ?? []).map((p) => (p.id === idVersement ? { ...p, ...patch } : p)) }
+      : a)));
+  };
+
   const submitting = useRef(false); // garde-fou anti double-clic (double facture / double pourboire)
   const fullyPaid = remainingAfter === 0;
 
-  const confirm = () => {
+  const confirm = (garderOuvert = false) => {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
     if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     submitting.current = true;
@@ -544,26 +638,63 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
          pas crediter la caisse du comptoir d'un argent entre un autre jour. */
       const factureTotal = settleTotal + depositCredit;
 
-      /* Le montant facturé ce coup-ci = comptant + avoir appliqué. L'avoir est du
-         REVENU (il compte au CA) mais pas de l'argent physique : on le porte à part
-         (avoirXof), la Synthèse le route hors caisse. */
-      const detailed = fullyPaid && alreadyPaid === 0 && depositCredit === 0 && services.length > 1 && grossSum > 0;
-      const detailRemise = detailed && grossSum > settleTotal ? grossSum - settleTotal : 0;
-      let lines: InvoiceLine[];
-      if (detailed && grossSum >= settleTotal) {
-        lines = services.map((sv, idx) => ligneFacture(sv.name, svcWeights[idx]));
-      } else if (detailed) {
-        const shares = splitByWeights(settleTotal, svcWeights);
-        lines = services.map((sv, idx) => ligneFacture(sv.name, shares[idx]));
-      } else {
-        /* Le forfait donne son nom à la pièce : c'est ce que la cliente a
-           négocié, et c'est sous ce nom qu'elle le relira. */
-        lines = [ligneFacture(
-          fullyPaid && alreadyPaid === 0
-            ? nomForfait || apptLabel(appt, byId)
-            : `Règlement · ${nomForfait || apptLabel(appt, byId)}`,
-          factureTotal,
-        )];
+      /* ── UNE PIÈCE PAR RITUEL, PLUSIEURS RÈGLEMENTS — 17 août 2026 ────
+         « Hermine D. devrait avoir tous ces règlements sur une même facture
+         avec différentes dates de paiement ou différents moyens de paiement.
+         Pas besoin de deux factures différentes le même jour. Ensuite besoin de
+         savoir le montant de chaque prestation. Je ne veux pas tout en un
+         bloc. » (Yéman)
+
+         LA PIÈCE VAUT DÉSORMAIS LE RITUEL ENTIER, pas le versement du jour.
+         C'est ce qui rend le détail honnête : on ne peut pas ventiler trois
+         prestations sur 30 000 F quand le rituel en vaut 81 000 sans les
+         proratiser — et proratiser, c'est écrire des prix que la Maison n'a
+         jamais annoncés. Le bloc « Règlement · A + B + C » était la CONSÉQUENCE
+         du découpage en deux pièces, pas une décision d'affichage.
+
+         Les prestations se détaillent donc TOUJOURS, à leur prix plein, et
+         l'écart avec le net du rituel se lit en remise globale — jamais en
+         rabotant les lignes. */
+      const lignesDuRituel = (): InvoiceLine[] => {
+        if (services.length === 0) return [ligneFacture(nomForfait || apptLabel(appt, byId), net)];
+        const l = services.map((sv, idx) => ligneFacture(sv.name, svcWeights[idx]));
+        /* Cas rare : le net dépasse la somme des prix pleins (montant convenu
+           au-dessus du barème). On l'ajoute en clair plutôt que de gonfler les
+           lignes — même geste que `alignerFacturesDuRituel`. */
+        if (net > grossSum) l.push(ligneFacture('Ajustement · prix consenti ce jour-là', net - grossSum));
+        return l;
+      };
+      const lines = lignesDuRituel();
+      /* La remise se mesure contre le NET DU RITUEL, plus contre le versement :
+         c'est le rituel que la pièce atteste. */
+      const detailRemise = services.length > 0 && grossSum > net ? grossSum - net : 0;
+
+      /* LES VERSEMENTS DE CE PASSAGE. Un par NATURE d'argent, car ils ne
+         voyagent pas ensemble : le comptant entre en caisse, l'avoir est un
+         crédit consommé, l'acompte est entré un autre jour dans une autre
+         caisse. Les confondre en un seul montant, c'est perdre la trace de
+         ce qui est réellement passé au comptoir. */
+      const versements: InvoicePayment[] = [];
+      if (depositCredit > 0) {
+        versements.push({
+          id: `ip-${uid()}`,
+          date: appt.depositConfirmedAt ?? invDate,
+          amountXof: depositCredit,
+          method: 'Acompte',
+          note: 'Acompte reçu avant le comptoir',
+        });
+      }
+      if (amount > 0) {
+        versements.push({
+          id: `ip-${uid()}`, date: payDate, amountXof: amount,
+          method: pay, cashbox: activeBox,
+        });
+      }
+      if (avoirApplied > 0) {
+        versements.push({
+          id: `ip-${uid()}`, date: payDate, amountXof: avoirApplied,
+          method: 'Avoir', note: 'Réglé par avoir — crédit du compte',
+        });
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
          en mention (forClientId). */
@@ -575,10 +706,21 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       const forfaitNote = forfaitPose
         ? `${nomForfait} · ${fmtMoney(forfaitNum, currency)} au lieu de ${fmtMoney(grossActuel, currency)}`
         : '';
-      const inv: Invoice = nouvelleFacture({
+      /* LA PIÈCE DU RITUEL, S'IL EN A DÉJÀ UNE. Un second règlement s'y INSCRIT
+         au lieu d'ouvrir une pièce jumelle le même jour. Le lien se lit des
+         trois côtés — la pièce nomme son rituel, le rituel nomme sa dernière
+         facture, et chaque versement du carnet nomme la sienne — parce qu'aucun
+         seul ne couvre tous les chemins d'émission. */
+      const pieceDuRituel = invoicesStore.get().find((i) =>
+        i.kind === 'facture'
+        && (i.apptId === appt.id || i.id === appt.invoiceId
+            || (appt.payments ?? []).some((p) => p.invoiceId === i.id)));
+
+      const creee: Invoice = nouvelleFacture({
         branchId: branch.id,
-        /* Série F : l'encaissement de rituel. Le constructeur la force « payée » —
-           c'est ce qui garde vraie la lecture des résidus (F + envoyée = annulé). */
+        /* Série F : l'encaissement de rituel. Le constructeur la force
+           « payée » ; on rétablit ensuite le statut d'après l'argent REÇU —
+           une pièce à moitié réglée est une créance, pas une attestation. */
         serie: 'F',
         clientId: payerId,
         date: invDate,
@@ -608,7 +750,43 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
            n'est pas une devise étrangère). Le rituel reste chiffré en {currency}. */
         fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       });
-      invoicesStore.set((prev) => [inv, ...prev]);
+
+      /* LE STATUT SUIT L'ARGENT, IL NE LE DÉCIDE PAS. Soldée quand les
+         versements couvrent le total ; sinon « envoyée » — et les écrans de
+         créances la comptent alors pour ce qui RESTE, pas pour son total. */
+      const solder = (i: Invoice): Invoice =>
+        ({ ...i, status: invoiceSoldee(i) ? 'payée' : 'envoyée' });
+
+      let inv: Invoice;
+      if (pieceDuRituel) {
+        const journal = [...invoiceReglements(pieceDuRituel), ...versements];
+        const premier = journal[0];
+        inv = solder({
+          ...pieceDuRituel,
+          /* Les lignes se reconforment au rituel d'aujourd'hui — c'est la même
+             pièce qui grandit, pas une pièce neuve. */
+          lines,
+          globalDiscountPct: 0,
+          globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
+          discountLabel: detailRemise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
+          payments: journal,
+          /* Reflet du PREMIER versement : les écrans qui ne lisent qu'un moyen
+             de paiement continuent de dire vrai. */
+          payment: premier?.method ?? pieceDuRituel.payment,
+          cashbox: premier?.cashbox ?? pieceDuRituel.cashbox,
+          avoirXof: ((pieceDuRituel.avoirXof ?? 0) + avoirApplied) || undefined,
+          depositCreditXof: ((pieceDuRituel.depositCreditXof ?? 0) + depositCredit) || undefined,
+          tipXof: ((pieceDuRituel.tipXof ?? 0) + (partage.length > 0 ? tip : 0)) || undefined,
+          note: [forfaitNote, avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
+          apptId: appt.id,
+        });
+        const fige = inv;
+        invoicesStore.set((prev) => prev.map((x) => (x.id === fige.id ? fige : x)));
+      } else {
+        inv = solder({ ...creee, payments: versements, apptId: appt.id });
+        const fige = inv;
+        invoicesStore.set((prev) => [fige, ...prev]);
+      }
       /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
       if (avoirApplied > 0) {
         creditMovementsStore.set((prev) => [...prev, {
@@ -730,7 +908,20 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
       rescheduled = true;
     }
 
-    onClose();
+    /* RESTER POUR LE SECOND RÈGLEMENT — « je veux enregistrer un premier
+       paiement sur cette facture, et ensuite le deuxième mode de paiement dans
+       la même facture sans sortir ». Le versement est écrit ; on remet les
+       champs à zéro pour le suivant, et le bandeau du reste dû se recalcule
+       tout seul depuis le magasin. Fermer aurait obligé à retrouver le rituel
+       au carnet entre deux moyens de paiement. */
+    if (garderOuvert) {
+      submitting.current = false;
+      setAmountStr('');
+      setAvoirStr('0');
+      setTipStr('0');
+    } else {
+      onClose();
+    }
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
     const avoirMsg = avoirApplied > 0 ? ` (dont ${fmtMoney(avoirApplied, currency)} par avoir)` : '';
     const payMsg = settleTotal > 0
@@ -755,6 +946,19 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
   return (
     <Modal title="Encaisser le rituel" onClose={onClose} width={440}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* LE CHEMIN DU RETOUR, EN HAUT — là où l'œil cherche à revenir. */}
+        {onRetour && (
+          <button
+            type="button"
+            onClick={onRetour}
+            style={{
+              alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none',
+              padding: 0, font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+            }}
+          >
+            ‹ Retour au rituel
+          </button>
+        )}
         {/* ═══ LE BANDEAU VIVANT (14 août, maquette validée) — il ne bouge
             jamais. Le nombre qu'on cherche en ouvrant, c'est le RESTE À
             ENCAISSER : il vivait au milieu de la coulée, après le total, le
@@ -882,12 +1086,61 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
             Annuler l’encaissement ({fmtMoney(alreadyPaid, currency)})
           </button>
         )}
-        {(appt.payments ?? []).length > 0 && (
+        {/* Le journal vit sur la PIÈCE depuis le 17 août ; le carnet n'en garde
+            qu'un écho. Se fier à `appt.payments` cachait le bloc entier quand la
+            pièce, elle, portait bien ses versements. */}
+        {((pieceDuRituelOuverte ? invoiceReglements(pieceDuRituelOuverte).length : 0)
+          + (appt.payments ?? []).length) > 0 && (
           <div style={{ padding: '10px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>
               Versements déjà reçus
             </div>
-            {(appt.payments ?? []).map((v) => (
+            {/* CORRIGER UN VERSEMENT — 17 août 2026. On rectifie QUAND et
+                COMMENT l'argent est entré : une date saisie de travers range le
+                règlement dans le mauvais mois, un moyen erroné fausse la caisse.
+
+                LE MONTANT NE SE RETOUCHE PAS ICI, et c'est délibéré : changer
+                une somme reçue, c'est dire qu'on a encaissé autre chose que ce
+                qu'atteste la pièce. Ce geste-là existe, il s'appelle « Annuler
+                l'encaissement », il supprime la facture et le dit. Le laisser
+                passer pour une correction de frappe reviendrait à réécrire un
+                chiffre d'affaires sans trace. */}
+            {pieceDuRituelOuverte && invoiceReglements(pieceDuRituelOuverte).map((v) => (
+              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                <Input
+                  type="date"
+                  value={v.date}
+                  onChange={(e) => corrigerVersement(v.id, { date: e.target.value || v.date })}
+                  style={{ width: 138, flex: 'none', fontSize: 12 }}
+                  aria-label="Jour où cet argent est entré"
+                />
+                <Select
+                  value={v.method}
+                  onChange={(e) => corrigerVersement(v.id, { method: e.target.value })}
+                  style={{ width: 128, flex: 'none', fontSize: 12 }}
+                  aria-label="Moyen de ce versement"
+                >
+                  {[...new Set([v.method, ...methods, 'Avoir', 'Acompte'])].filter(Boolean).map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </Select>
+                <Select
+                  value={v.cashbox ?? ''}
+                  onChange={(e) => corrigerVersement(v.id, { cashbox: e.target.value || undefined })}
+                  style={{ width: 118, flex: 'none', fontSize: 12 }}
+                  aria-label="Caisse créditée"
+                >
+                  <option value="">— hors caisse</option>
+                  {branchBoxes.map((c) => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </Select>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(v.amountXof, currency)}
+                </span>
+              </div>
+            ))}
+            {!pieceDuRituelOuverte && (appt.payments ?? []).map((v) => (
               <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 3 }}>
                 <span>{v.date}{v.method ? ` · ${v.method}` : ''}{v.cashbox ? ` · ${v.cashbox}` : ''}</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(v.amountXof, currency)}</span>
@@ -1094,9 +1347,34 @@ export function PayAppointmentModal({ appt, onClose }: { appt: Appointment; onCl
           )}
         </div>
 
+        {/* ENREGISTRER SANS SORTIR — le second moyen de paiement s'inscrit sur
+            LA MÊME facture. N'apparaît que s'il resterait quelque chose à
+            encaisser après ce versement : proposer « un autre règlement » sur
+            un rituel soldé n'aurait aucun sens. */}
+        {fxBlocked && (
+          <div className="trc-alerte" style={{ marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
+              Aucune caisse ne tient des billets en <b>{payCurrency}</b>. Un billet étranger ne peut pas
+              entrer dans une caisse en {currency} — la trésorerie additionnerait des euros à des francs.
+            </div>
+            <Button variant="copper" size="sm" style={{ marginTop: 9 }} onClick={creerLaCaisseDevise}>
+              Créer la caisse « Tiroir {payCurrency} »
+            </Button>
+          </div>
+        )}
+        {settleTotal > 0 && remainingAfter > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => confirm(true)}
+            disabled={(fxOn && fxAmount <= 0) || fxBlocked}
+            style={{ marginTop: 4 }}
+          >
+            Enregistrer ce règlement et en ajouter un autre
+          </Button>
+        )}
         <Button
           variant="copper"
-          onClick={confirm}
+          onClick={() => confirm()}
           disabled={(settleTotal <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >

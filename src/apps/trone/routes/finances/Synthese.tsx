@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { expenseOccurrences, useInvoices, useExpenses, invoiceTotal, expenseTotal, cashboxLabel } from '../../../../shared/finance';
+import { expenseOccurrences, useInvoices, useExpenses, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -66,8 +66,13 @@ export default function Synthese() {
   } = useMemo(() => {
     const nameOf = (id: string) => clients.find((c) => c.id === id)?.name;
 
-    const paidInv = invoices.filter(
-      (i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée',
+    /* TOUTES LES FACTURES, PAS SEULEMENT LES SOLDÉES — 17 août 2026.
+       Depuis qu'une pièce peut porter plusieurs règlements, une facture à
+       moitié réglée est « envoyée » : filtrer sur `payée` ferait disparaître
+       l'argent DÉJÀ REÇU dessus. Ce qui compte n'est plus le statut de la
+       pièce mais ses VERSEMENTS, chacun à sa date. */
+    const factInv = invoices.filter(
+      (i) => i.branchId === branch.id && i.kind === 'facture',
     );
     // Rituels honorés non facturés : la facture d'encaissement, quand elle existe,
     // les compte déjà — on ne retient donc que ceux sans invoiceId (jamais deux fois).
@@ -99,7 +104,7 @@ export default function Synthese() {
     );
 
     const revenueOf = (mk: string) =>
-      paidInv.filter((i) => monthKey(i.date) === mk).reduce((s, i) => s + invoiceTotal(i), 0) +
+      factInv.reduce((s, i) => s + invoiceRegleAu(i, mk), 0) +
       honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0) +
       formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0) +
       aboPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
@@ -121,7 +126,10 @@ export default function Synthese() {
     });
 
     // — Détail du mois sélectionné —
-    const invM = paidInv.filter((i) => monthKey(i.date) === month);
+    /* Les pièces qui ont REÇU de l'argent ce mois-ci — pas celles émises ce
+       mois-ci. Une facture d'août encaissée en septembre appartient à
+       septembre, et une facture réglée en deux fois appartient aux deux. */
+    const invM = factInv.filter((i) => invoiceRegleAu(i, month) > 0);
     const ritM = honored.filter((a) => monthKey(a.date) === month);
     const payM = formationPays.filter((p) => p.mk === month);
 
@@ -137,12 +145,17 @@ export default function Synthese() {
     // Revenus par caisse créditée — factures + rituels honorés (pseudo-caisse).
     // La part réglée par AVOIR (avoirXof) est du revenu mais PAS de l'argent
     // physique : elle va au poste « Avoir (crédit) », jamais dans une caisse.
+    /* VERSEMENT PAR VERSEMENT, plus pièce par pièce : un rituel réglé moitié en
+       espèces moitié en Mobile Money crédite DEUX caisses, et l'ancien calcul
+       — total moins l'avoir, rangé dans la seule caisse de la pièce — les
+       confondait en une. */
     const caisseMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => {
-      const av = i.avoirXof ?? 0;
-      const cash = invoiceTotal(i) - av;
-      if (cash > 0) bump(caisseMap, cashboxLabel(i.cashbox), cash);
-      if (av > 0) bump(caisseMap, 'Avoir (crédit)', av);
+      for (const p of invoiceReglements(i)) {
+        if (!(p.date ?? '').startsWith(month) || p.amountXof <= 0) continue;
+        if (p.method === 'Avoir') bump(caisseMap, 'Avoir (crédit)', p.amountXof);
+        else bump(caisseMap, cashboxLabel(p.cashbox), p.amountXof);
+      }
     });
     ritM.forEach((a) => bump(caisseMap, 'Rituels honorés', apptNetXof(a, byId)));
     payM.forEach((p) => bump(caisseMap, 'Académie · formations', p.amount));
@@ -151,10 +164,10 @@ export default function Synthese() {
     // Revenus par mode de paiement (l'avoir a son propre poste, pas une caisse).
     const methodMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => {
-      const av = i.avoirXof ?? 0;
-      const cash = invoiceTotal(i) - av;
-      if (cash > 0) bump(methodMap, i.payment ?? 'Non précisé', cash);
-      if (av > 0) bump(methodMap, 'Avoir (crédit)', av);
+      for (const p of invoiceReglements(i)) {
+        if (!(p.date ?? '').startsWith(month) || p.amountXof <= 0) continue;
+        bump(methodMap, p.method === 'Avoir' ? 'Avoir (crédit)' : (p.method || 'Non précisé'), p.amountXof);
+      }
     });
     ritM.forEach((a) => bump(methodMap, 'Rituel · carnet', apptNetXof(a, byId)));
     payM.forEach((p) => bump(methodMap, 'Académie · formation', p.amount));
@@ -236,7 +249,7 @@ export default function Synthese() {
 
     // Meilleures clientes du mois — factures payées + rituels honorés non facturés
     const cliMap = new Map<string, { value: number; count: number }>();
-    invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceTotal(i)));
+    invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceRegleAu(i, month)));
     ritM.forEach((a) => bump(cliMap, nameOf(a.clientId) ?? 'Cliente', apptNetXof(a, byId)));
     payM.forEach((p) => bump(cliMap, p.who, p.amount));
     const topClients = spread(cliMap).slice(0, 3);
@@ -252,7 +265,8 @@ export default function Synthese() {
         cashbox: i.cashbox ? cashboxLabel(i.cashbox) : '',
         methodKey: i.payment ?? 'Non précisé',
         cashboxKey: cashboxLabel(i.cashbox),
-        amount: invoiceTotal(i),
+        /* Ce que la pièce a rapporté CE MOIS-CI — pas ce qu'elle vaut. */
+        amount: invoiceRegleAu(i, month),
       })),
       ...ritM.map((a) => ({
         key: `r-${a.id}`,

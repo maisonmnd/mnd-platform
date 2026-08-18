@@ -121,7 +121,7 @@ export default function MonMois() {
 
      L'ADRESSE D'ABORD, le nom ensuite. Le nom d'un compte est proposé d'après
      son e-mail au moment de l'autorisation — « Locksmnd » pour
-     locksmnd@gmail.com — quand la fiche, elle, porte « Gerard Tolofon ».
+     locksmnd@gmail.com — quand la fiche, elle, porte « Gerard T. ».
      Deux registres, deux libellés, aucun rattachement : c'est ce qui laissait
      ce membre devant un écran vide alors que tout était bien saisi.
 

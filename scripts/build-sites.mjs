@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { renameSync, writeFileSync, rmSync, cpSync, existsSync } from 'node:fs';
+import { renameSync, writeFileSync, rmSync, cpSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
@@ -82,6 +82,20 @@ for (const site of SITES) {
   }
   writeFileSync(path.join(dist, '.nojekyll'), '');
   writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ build: BUILD_ID }));
+
+  /* LES MAQUETTES NE PARTENT PAS AVEC LE SITE — 18 août 2026.
+
+     Vite recopie `public/` tel quel : une maquette posée là se retrouvait SERVIE
+     sur les quatre sites, et son contenu entrait dans l'historique des dépôts
+     `gh-pages`, qui sont publics. Or une maquette parle de VRAIES pièces pour
+     être crédible — « la facture d'Hermine », « les 93 locks de Jade » — et ce
+     qui est publié une fois ne se reprend jamais tout à fait.
+
+     Elles restent lisibles en développement (localhost:5173/maquette-*.html),
+     là où elles servent. Elles ne sortent pas. */
+  const restees = readdirSync(dist).filter((f) => /^maquette-.*\.html$/i.test(f));
+  for (const f of restees) rmSync(path.join(dist, f));
+  if (restees.length) console.log(`  maquettes retirées du site : ${restees.join(', ')}`);
   cpSync(dist, path.join(out, site.name), { recursive: true });
   rmSync(dist, { recursive: true, force: true });
 }

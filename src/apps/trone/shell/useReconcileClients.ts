@@ -34,7 +34,7 @@ export function useReconcileClients(): void {
   useEffect(() => {
     // L'écriture des fiches exige le personnel (RLS) : n'agir qu'avec une session.
     if (!session) return;
-    /* PAS DE FICHE AVANT D'AVOIR LU (13 août — Hermine Deffon et Elodie Aissi
+    /* PAS DE FICHE AVANT D'AVOIR LU (13 août — Hermine D. et Elodie A.
        ÉCRASÉES). Quand les rendez-vous arrivaient avant les fiches (hydratation
        ou Realtime en retard), chaque clientId semblait orphelin : le hook
        créait une fiche fourre-tout AVEC LE MÊME identifiant, et la poussée de

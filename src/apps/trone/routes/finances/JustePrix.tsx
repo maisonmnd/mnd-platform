@@ -4,8 +4,9 @@ import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore, type Client } from '../../../../shared/clients';
+import { useSettings } from '../../../../shared/settings';
 import { useCategories, useServices, useProducts, catsDansLOrdre, LONGUEURS, type Service } from '../../../../shared/catalog';
-import { tarifModeOf,
+import { suitLeModeleRegle, tarifModeOf,
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
   pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
   bandSetsStore, useBandSets, regimeTarifaire, ecrisCalibresPartout, type ModelBand,
@@ -142,7 +143,9 @@ function BaremeModeles({ currency }: { currency: string }) {
   /* Prestation témoin : celle sur laquelle on lit (et saisit) les montants. Par
      défaut, la première prestation à prix fixe qui suit le modèle. */
   const modelServices = useMemo(
-    () => services.filter((s) => !s.hidePrice && scalesWithModel(s)).sort((a, b) => a.priceXof - b.priceXof),
+    /* Le RÉGLAGE, pas son effet : la page qui suspend le barème ne peut pas
+       se vider elle-même quand on suspend. */
+    () => services.filter((s) => !s.hidePrice && suitLeModeleRegle(s)).sort((a, b) => a.priceXof - b.priceXof),
     [services],
   );
   const fallback = useMemo(() => services.filter((s) => !s.hidePrice), [services]);
@@ -173,7 +176,12 @@ function BaremeModeles({ currency }: { currency: string }) {
   };
   const addBand = () => {
     const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
-    writeToutes((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
+    /* UNE TRANCHE NAÎT AVEC UN NOM — 17 août 2026. Sans nom, elle s'affichait
+       comme une pastille VIDE au Catalogue (« et qu'est-ce qu'il y a après
+       Galaxy ??? ») : deux tranches ajoutées ici, invisibles là-bas. Un nom par
+       défaut se corrige d'un clic ; une chose sans nom ne se corrige pas,
+       parce qu'on ne sait pas ce qu'elle est. */
+    writeToutes((prev) => [...prev, { id: `mb-${uid()}`, name: 'Nouvelle tranche', maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
   const resetBands = () => {
     if (!window.confirm('Rétablir le barème recommandé (7 tranches, Jumbo → Pico → Galaxy) ? Vos tranches actuelles seront remplacées.')) return;
@@ -458,11 +466,57 @@ export default function JustePrix() {
     setClients((prev) => prev.map((c) => (c.branchId === branch.id && (c.priceCoef ?? 1) !== 1 ? { ...c, priceCoef: 1 } : c)));
   };
 
+  /* Le barème suspendu — un seul réglage, lu et écrit ici, appliqué par
+     `scalesWithModel` (pricing.ts) pour que personne ne puisse l'oublier. */
+  const [reglages, setSettings] = useSettings();
+  const suspendu = reglages.baremeSuspendu === true;
+
+  /* Le bandeau vit dans les DEUX rendus : c'est en remaniant le catalogue —
+     donc souvent sans cliente ni prestation choisie — qu'on a besoin de
+     suspendre. Le cacher là aurait rendu l'interrupteur introuvable au moment
+     précis où il sert. */
+  const bandeauSuspension = (
+    <>
+      {/* ── SUSPENDRE LE BARÈME ──────────────────────────────────────
+        « Si je décide de suspendre le barème et rajouter des ateliers ou des
+        prestations, besoin d'avoir la main » (Yéman, 17 août).
+
+        SUSPENDRE, PAS EFFACER : les coefficients restent écrits juste en
+        dessous, intacts, et reprennent tels quels au rallumage. Le temps de
+        remanier le catalogue, aucune prestation ne suit plus la taille de la
+        couronne. */}
+    <div className={`trf-suspens${suspendu ? ' is-off' : ''}`}>
+      <span className="trf-suspens__texte">
+        <b>{suspendu ? 'Barème suspendu' : 'Barème actif'}</b>
+        {suspendu
+          ? ' — aucune prestation ne suit la taille de la couronne. Les coefficients ci-dessous sont gardés au chaud ; ils reprendront tels quels.'
+          : ' — la taille de la couronne module les prix des prestations réglées sur « ◈ Modèle ».'}
+      </span>
+      <button
+        type="button"
+        className={`mnd-btn mnd-btn--sm ${suspendu ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+        style={{ flex: 'none' }}
+        onClick={() => setSettings((p) => ({ ...p, baremeSuspendu: !suspendu }))}
+      >
+        {suspendu ? 'Reprendre le barème' : 'Suspendre le barème'}
+      </button>
+    </div>
+    {suspendu && (
+      <div className="trf-suspens__note">
+        Ne sont pas suspendus, et c'est voulu : le coefficient personnel d'une cliente et ses prix
+        fermes — ce sont des accords avec elle, pas un barème — ni les prestations au lock ou au
+        calibre, dont le prix vient du comptage ou du plancher de leur tranche.
+      </div>
+    )}
+    </>
+  );
+
   if (!client || !service) {
     return (
       <div className="mnd-rise">
         <Eyebrow>Tarification par le modèle</Eyebrow>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0' }}>Le Juste Prix.</h2>
+        {bandeauSuspension}
         <BaremeModeles currency={currency} />
         <div className="trf-empty" style={{ marginTop: 18 }}>Ajoutez une cliente et une prestation pour lire l’aperçu de son prix.</div>
       </div>
@@ -485,6 +539,8 @@ export default function JustePrix() {
           <span style={{ color: 'var(--copper-200)' }}>Le barème par tranches de locks fixe le tarif ; vous l’éditez par coefficient ou par montant. La cliente ne voit qu’un seul nombre — juste.</span>
         </div>
       </div>
+
+      {bandeauSuspension}
 
       {/* Anciens coefficients des leviers — bandeau de neutralisation. */}
       {legacyCoefCount > 0 && (

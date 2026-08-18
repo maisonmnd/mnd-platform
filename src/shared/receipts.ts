@@ -1,4 +1,4 @@
-import { invoiceCashXof, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
+import { invoiceReglements, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
 import type { Appointment, ApptPayment } from './agenda';
 
 /* Le registre des encaissements — TOUT ce que la Maison reçoit, d'où que ça vienne.
@@ -114,19 +114,29 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
      l'avoir (pas des billets) et moins l'acompte déjà reçu (entré un autre jour).
      Le pourboire ne crédite PLUS la caisse de la facture : il sort en ①bis. */
   for (const i of s.invoices) {
-    if (i.branchId !== s.branchId || i.status !== 'payée') continue;
+    if (i.branchId !== s.branchId) continue;
     const versement = versementDeFacture.get(i.id) ?? dernierVersementDeFacture.get(i.id);
-    const cash = invoiceCashXof(i);
-    if (cash > 0) {
+    /* UNE PREUVE PAR VERSEMENT — 17 août 2026. Une pièce peut désormais être
+       réglée en plusieurs fois, à des dates et par des moyens différents : une
+       seule ligne par facture les aurait fondus en un montant sans date vraie.
+       Le filtre sur `payée` tombe avec eux — une pièce à moitié réglée a bel et
+       bien fait entrer de l'argent.
+
+       L'avoir et l'acompte n'entrent pas ici : le premier est un crédit
+       consommé (pas des billets), le second est entré un autre jour et se
+       présente à sa propre section. */
+    const enBillets = invoiceReglements(i).filter((p) => p.method !== 'Avoir' && p.method !== 'Acompte');
+    for (const p of enBillets) {
+      if (p.amountXof <= 0) continue;
       out.push({
-        id: `r-inv-${i.id}`,
+        id: `r-inv-${i.id}-${p.id}`,
         kind: 'facture',
-        date: versement?.date ?? i.date,
+        date: p.date || versement?.date || i.date,
         clientId: i.clientId,
         clientName: i.clientName ?? s.nameOf(i.clientId),
-        amountXof: cash,
-        method: i.payment ?? 'Espèces',
-        cashbox: i.cashbox,
+        amountXof: p.amountXof,
+        method: p.method || 'Espèces',
+        cashbox: p.cashbox,
         ref: i.number,
         label: i.lines.map((l) => l.label).join(' + ') || 'Règlement',
         invoiceId: i.id,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
@@ -20,6 +20,9 @@ import {
 import { ageDe, estMineur, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
+import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
+import { useAuth } from '../../../../shared/auth';
+import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory, cercleSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
@@ -1138,6 +1141,30 @@ function Customer360({
   const [fixEdit, setFixEdit] = useState<null | { sid: string; montant: string }>(null);
   const [invoices] = useInvoices();
   const [pointsHistory] = usePointsHistory();
+  /* Le carnet de la tête — lu dans Le Fil, écrit dans Le Fil. */
+  const { session: maSession } = useAuth();
+  const [equipeFil] = useStaff();
+  const [tousFil] = useFil();
+  const monMailFiche = (maSession?.user?.email ?? '').trim().toLowerCase();
+  const monNomFiche = equipeFil.find((m) => (m.email ?? '').trim().toLowerCase() === monMailFiche)?.name
+    || monMailFiche.split('@')[0] || 'La maison';
+  const notesTete = notesDeLaCliente(tousFil, branch.id, client.id);
+  const comptageRecent = dernierComptage(tousFil, branch.id, client.id);
+  const [noteTexte, setNoteTexte] = useState('');
+  const poserLaNote = () => {
+    const dit = noteTexte.trim();
+    if (!dit) return;
+    filStore.set((prev) => [...prev, nouveauMessage({
+      branchId: branch.id,
+      canal: canalCliente(client.id),
+      auteurMail: monMailFiche,
+      auteurNom: monNomFiche,
+      texte: dit,
+      piece: { kind: 'cliente', id: client.id, label: client.name },
+    })]);
+    setNoteTexte('');
+    toast('Note posée sur sa fiche.');
+  };
   const [sessions] = useClientSessions();
   const [subs] = useSubscribers();
   const [plans] = usePlans();
@@ -1708,6 +1735,60 @@ function Customer360({
             </div>
           </div>
         )}
+
+        {/* ── LE CARNET DE LA TÊTE — notes et comptages, 18 août 2026 ──
+            « Je voudrais avoir l'option d'attacher une note à une fiche cliente
+            aussi », puis « le comptage des locks » et « parfois c'est Gérard
+            qui compte… il n'a pas accès aux fiches, mais ils ont accès à leurs
+            fils ».
+
+            D'où la forme : les notes VIVENT DANS LE FIL et se lisent ici. Un
+            maître sans droit sur le CRM peut donc poser un comptage, et le
+            nombre paraît sur la fiche avec le nom de qui l'a compté. Sans cette
+            lecture, son comptage serait resté dans une conversation. */}
+        <div>
+          <span className="trc-microlabel">Son carnet · {notesTete.length}</span>
+          {comptageRecent && (
+            <div className="trc-comptage">
+              <b>{totalDuComptage(comptageRecent.comptage)} locks</b>
+              <span>
+                {comptageEnClair(comptageRecent.comptage)}
+                {' — '}compté par {comptageRecent.auteurNom}, {comptageRecent.at.slice(0, 10).split('-').reverse().join('/')}
+              </span>
+              {totalDuComptage(comptageRecent.comptage) !== (client.lockCount ?? 0) && (
+                <button
+                  type="button"
+                  className="trc-comptage__report"
+                  onClick={() => clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+                    ? { ...c, lockCount: totalDuComptage(comptageRecent.comptage) }
+                    : c)))}
+                >
+                  Reporter sur la fiche · {client.lockCount ?? 0} → {totalDuComptage(comptageRecent.comptage)}
+                </button>
+              )}
+            </div>
+          )}
+          {notesTete.length === 0 && (
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune note. Écrivez la première.</div>
+          )}
+          {notesTete.map((n) => (
+            <div key={n.id} className="trc-note">
+              <div>{n.texte}</div>
+              <small>{n.auteurNom} · {n.at.slice(0, 10).split('-').reverse().join('/')} {n.at.slice(11)}</small>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <input
+              className="mnd-input"
+              value={noteTexte}
+              onChange={(e) => setNoteTexte(e.target.value)}
+              placeholder="Une note sur cette tête…"
+              style={{ flex: 1, minWidth: 180, padding: '7px 10px', fontSize: 13 }}
+              onKeyDown={(e) => { if (e.key === 'Enter') poserLaNote(); }}
+            />
+            <Button variant="ghost" size="sm" disabled={!noteTexte.trim()} onClick={poserLaNote}>Noter</Button>
+          </div>
+        </div>
 
         {/* Fiche financière */}
         <div>

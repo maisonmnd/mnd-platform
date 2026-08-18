@@ -290,7 +290,7 @@ export type PlanIncluded = { serviceId: string; qty: number | null };
                  une fois les 6 consommés, il est épuisé. `priceXof` est le prix
                  total payé, et `validityDays` sa durée de vie.
 
-    Confondre les deux fausse tout le suivi : le pack annuel de Diane Djossinou,
+    Confondre les deux fausse tout le suivi : le pack annuel de Diane D.,
     lu à travers une fenêtre mensuelle, affichait 0 séance utilisée sur 6 alors
     qu'elle les avait toutes consommées entre juin 2025 et juin 2026. */
 export type PlanMode = 'cycle' | 'pack';
@@ -479,7 +479,7 @@ export const cycleWindow = (sub: Subscriber): { start: string; end: string } => 
     · cycle — la fenêtre glissante de l'abonnement récurrent (cycleWindow).
 
     Lire un pack à travers une fenêtre mensuelle est l'erreur qui vide les
-    compteurs : le pack annuel de Diane Djossinou, consommé de juin 2025 à juin
+    compteurs : le pack annuel de Diane D., consommé de juin 2025 à juin
     2026, affichait 0 sur 6 dès qu'on sortait du mois courant. Un pack sans
     échéance court jusqu'à une borne volontairement lointaine plutôt que
     jusqu'à « aujourd'hui » — sinon un rendez-vous PRIS D'AVANCE, déjà couvert

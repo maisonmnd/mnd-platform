@@ -8,7 +8,7 @@ import { useAppointments, tetesVenues } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useApprenants } from '../equipe/data';
 import { estCouronnee, estDePassage, useClients } from '../../../../shared/clients';
-import { useInvoices, invoiceTotal } from '../../../../shared/finance';
+import { useInvoices, invoiceRegleAu, invoiceReglements, type Invoice } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
 import { useClientSessions, isOnline, type ClientSession } from '../../../../shared/activity';
@@ -104,7 +104,9 @@ export default function Analytics() {
     [clients],
   );
   const scopedPaidInvoices = useMemo(
-    () => invoices.filter((i) => (scope === 'toutes' ? true : i.branchId === scope) && i.kind === 'facture' && i.status === 'payée'),
+    /* Toutes les factures : c'est le VERSEMENT qui dit ce qui est entré, pas
+       le statut — une pièce à moitié réglée est « envoyée ». */
+    () => invoices.filter((i) => (scope === 'toutes' ? true : i.branchId === scope) && i.kind === 'facture'),
     [invoices, scope],
   );
 
@@ -122,9 +124,7 @@ export default function Analytics() {
     /* Valeur des rituels honorés, TOUS : c'est le panier moyen et le plus gros
        ticket. Ce n'est PAS le revenu — voir juste en dessous. */
     const honoredXof = honored.reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const revInv = scopedPaidInvoices
-      .filter((i) => i.date >= periodStart && i.date <= today)
-      .reduce((s, i) => s + invoiceTotal(i), 0);
+    const revInv = scopedPaidInvoices.reduce((s, i) => s + regleEntre(i, periodStart, today), 0);
     /* JAMAIS DEUX FOIS. Un rituel encaissé par facture est déjà compté par sa
        facture : on n'ajoute donc que les rituels honorés SANS `invoiceId`.
        Additionner les deux totaux entiers gonflait le revenu de tout ce qui
@@ -180,16 +180,22 @@ export default function Analytics() {
         invoiceId: a.invoiceId,
       }));
 
-  /** Factures payées d'une fenêtre. */
+  /** Ce qu'une pièce a REÇU dans une fenêtre — versement par versement. */
+  const regleEntre = (i: Invoice, from: string, to: string): number =>
+    invoiceReglements(i)
+      .filter((p) => (p.date ?? '') >= from && (p.date ?? '') <= to)
+      .reduce((n, p) => n + p.amountXof, 0);
+
+  /** Factures ayant reçu de l'argent dans une fenêtre. */
   const invoiceRows = (from: string, to: string): DrillRow[] =>
     scopedPaidInvoices
-      .filter((i) => i.date >= from && i.date <= to)
+      .filter((i) => regleEntre(i, from, to) > 0)
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .map((i) => ({
         date: i.date,
         who: i.clientName ?? nameOf(i.clientId),
         sub: `Facture ${i.number}`,
-        amount: invoiceTotal(i),
+        amount: regleEntre(i, from, to),
         invoiceId: i.id,
       }));
 
@@ -404,9 +410,7 @@ export default function Analytics() {
       const appt = scopedAppts
         .filter((a) => a.status === 'honoré' && !a.invoiceId && a.date.slice(0, 7) === mk)
         .reduce((s, a) => s + apptNetXof(a, byId), 0);
-      const inv = scopedPaidInvoices
-        .filter((x) => x.date.slice(0, 7) === mk)
-        .reduce((s, x) => s + invoiceTotal(x), 0);
+      const inv = scopedPaidInvoices.reduce((s, x) => s + invoiceRegleAu(x, mk), 0);
       return { mk, label: d.toLocaleDateString('fr-FR', { month: 'narrow' }).toUpperCase(), total: appt + inv };
     });
   }, [scopedAppts, scopedPaidInvoices, byId]);

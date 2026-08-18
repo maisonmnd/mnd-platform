@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
-import { useInvoices, useExpenses, invoiceTotal, invoiceCashXof, expenseTotal } from '../../../../shared/finance';
+import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, expenseTotal, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
@@ -92,15 +92,21 @@ export default function Dashboard() {
        des revenus « réels » qui n'avaient jamais eu lieu. */
     const realized = (a: Appointment) => !a.invoiceId && a.status === 'honoré';
     const realizedAppts = appts.filter(realized);
-    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée');
+    /* TOUTES LES FACTURES : c'est le VERSEMENT qui dit ce qui est entré, plus
+       le statut de la pièce. Une facture à moitié réglée est « envoyée » ;
+       filtrer sur `payée` effacerait l'argent déjà reçu dessus. */
+    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture');
 
     /* `cut` : borne haute du jour (comparaison à jour égal) — absent, le mois entier. */
     const apptRev = (mk: string, cut?: string) => realizedAppts
       .filter((a) => monthKey(a.date) === mk && (!cut || a.date <= cut))
       .reduce((s, a) => s + apptNetXof(a, byId), 0);
-    const invRev = (mk: string, cut?: string) => paidInv
-      .filter((i) => monthKey(i.date) === mk && (!cut || i.date <= cut))
-      .reduce((s, i) => s + invoiceTotal(i), 0);
+    const invRev = (mk: string, cut?: string) => paidInv.reduce(
+      (s, i) => s + invoiceReglements(i)
+        .filter((p) => (p.date ?? '').startsWith(mk) && (!cut || p.date <= cut))
+        .reduce((n, p) => n + p.amountXof, 0),
+      0,
+    );
     const exp = (mk: string, cut?: string) =>
       expenses
         .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped && (!cut || e.date <= cut))
@@ -118,7 +124,7 @@ export default function Dashboard() {
        + factures payées + formation) : le graphe 7 jours reste cohérent avec le KPI. */
     const dayRev = (iso: string) =>
       realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptNetXof(a, byId), 0)
-      + paidInv.filter((i) => i.date === iso).reduce((s, i) => s + invoiceTotal(i), 0)
+      + paidInv.reduce((s, i) => s + invoiceRegleAu(i, iso), 0)
       + formPays.filter((p) => p.iso === iso).reduce((s, p) => s + p.amount, 0);
 
     const rev7 = Array.from({ length: 7 }, (_, i) => {
@@ -188,12 +194,17 @@ export default function Dashboard() {
 
     const pay = new Map<string, { count: number; total: number }>();
     for (const i of invoices) {
-      if (i.branchId !== branch.id || monthKey(i.date) !== thisMonth || i.kind !== 'facture' || i.status !== 'payée') continue;
-      const k = i.payment ?? 'Autre';
-      const cur = pay.get(k) ?? { count: 0, total: 0 };
-      cur.count += 1;
-      cur.total += invoiceTotal(i);
-      pay.set(k, cur);
+      if (i.branchId !== branch.id || i.kind !== 'facture') continue;
+      /* Un versement par moyen : un rituel réglé moitié espèces moitié Mobile
+         Money compte dans les DEUX, chacun pour sa part. */
+      for (const p of invoiceReglements(i)) {
+        if (!(p.date ?? '').startsWith(thisMonth) || p.amountXof <= 0) continue;
+        const k = p.method || 'Autre';
+        const cur = pay.get(k) ?? { count: 0, total: 0 };
+        cur.count += 1;
+        cur.total += p.amountXof;
+        pay.set(k, cur);
+      }
     }
     const encaissements = [...pay].map(([k, v]) => ({ id: k, label: k, ...v }));
     // Formation de l'Académie — un encaissement du mois, tous parcours confondus.
@@ -258,10 +269,10 @@ export default function Dashboard() {
     const rows = invoices.filter(
       (i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'envoyée' && !dejaComptees.has(i.id),
     );
-    const total = rows.reduce(
-      (s, i) => s + Math.max(0, invoiceCashXof(i)),
-      0,
-    );
+    /* CE QUI RESTE DÛ, pas ce que la pièce vaut : une facture à moitié réglée
+       est une créance de son SOLDE. Compter son total réclamerait deux fois
+       l'argent déjà reçu. */
+    const total = rows.reduce((s, i) => s + invoiceResteXof(i), 0);
     return { count: rows.length, total };
   }, [invoices, branch.id, unpaid.overdue.rows]);
 
@@ -526,8 +537,8 @@ export default function Dashboard() {
         // d'où l'on encaisse — plutôt que de mener à une facture qui n'existe pas.
         .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
       ...invoices
-        .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === iso)
-        .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceTotal(i), invoiceId: i.id })),
+        .filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceRegleAu(i, iso) > 0)
+        .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, iso), invoiceId: i.id })),
       // Formation de l'Académie — hors branche, mais bien du revenu de la Maison.
       // La ligne s'ouvre sur l'Académie, où vit le dossier de l'apprenant·e.
       ...apprenants.flatMap((ap) =>
@@ -559,15 +570,17 @@ export default function Dashboard() {
 
   /** Les factures d'un moyen de paiement — chacune ouvrable. */
   const openPayMethod = (method: string) => {
+    const partDuMoyen = (i: Invoice) => invoiceReglements(i)
+      .filter((p) => (p.date ?? '').startsWith(thisMonth) && (p.method || 'Autre') === method)
+      .reduce((n, p) => n + p.amountXof, 0);
     const rows: DrillRow[] = invoices
-      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée'
-        && monthKey(i.date) === thisMonth && (i.payment ?? 'Autre') === method)
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture' && partDuMoyen(i) > 0)
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .map((i) => ({
         who: i.clientName || nameOf(i.clientId),
         sub: `${i.number}${i.fx ? ` · ${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : ''}`,
         date: i.date,
-        amount: invoiceTotal(i),
+        amount: partDuMoyen(i),
         invoiceId: i.id,
       }));
     setDrill({

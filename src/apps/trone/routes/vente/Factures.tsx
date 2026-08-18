@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useSearchParams } from 'react-router-dom';
-import { MapPin, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { CalendarClock, MapPin, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -9,10 +9,16 @@ import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
-import { Avatar, ClientPicker, frDay } from '../clients/_shared';
+import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
+import { useModelBands, useBandSets } from '../../../../shared/pricing';
+import { useCategories, useProducts } from '../../../../shared/catalog';
+import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
-import { useInvoices, usePaymentMethods, invoiceTotal, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
-import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { filStore, nouveauMessage } from '../../../../shared/fil';
+import { useAuth } from '../../../../shared/auth';
+import { useStaff } from '../equipe/data';
+import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
+import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -68,6 +74,23 @@ const fold = (s?: string) =>
 /** Colonnes de la feuille — proportions du Carnet. */
 const GRID = '92px 1fr 1.2fr 1fr 0.9fr 128px';
 
+/* ── LE REGISTRE SE RANGE PAR MOIS ─────────────────────────────────
+   Une liste de plusieurs centaines de pièces sans repère oblige à lire chaque
+   date pour savoir où l'on est. Les documents arrivent déjà triés du plus
+   récent au plus ancien : il suffit d'ouvrir un intertitre quand le mois
+   change, et d'y porter le compte et le total du mois.
+
+   La clé est le préfixe ISO `YYYY-MM` — pas un objet Date. Un mois construit
+   par `new Date(iso)` bascule d'un jour selon le fuseau, et le 1ᵉʳ août
+   tomberait en juillet pour les pièces du matin. */
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const moisCle = (iso: string) => (iso ?? '').slice(0, 7);
+const moisLabel = (cle: string) => {
+  const [an, m] = cle.split('-');
+  return `${MOIS_FR[Number(m) - 1] ?? cle} ${an}`;
+};
+
 type EditState = { mode: 'new' | 'edit'; draft: Invoice };
 
 export default function Factures() {
@@ -78,6 +101,9 @@ export default function Factures() {
   const [methods] = usePaymentMethods();
 
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
+  /* Le mois choisi, ou « tous ». Il coupe le registre avant le rangement :
+     choisir août ne laisse qu'août, et le total en tête devient celui d'août. */
+  const [moisFilter, setMoisFilter] = useState('tous');
   /* Recherche — une cliente, un numéro. La maison cherche « Aïcha » sans accent
      ni majuscule : on compare des chaînes aplaties, sinon « Aicha » ne trouve rien. */
   const [q, setQ] = useState('');
@@ -103,8 +129,21 @@ export default function Factures() {
     () => invoices.filter((i) => i.branchId === branch.id).sort((a, b) => b.date.localeCompare(a.date)),
     [invoices, branch.id],
   );
+  /* Les mois où la maison a réellement écrit quelque chose — pas une plage de
+     douze mois dont dix seraient vides. Les documents sont déjà triés du plus
+     récent au plus ancien, l'ordre des clés suit donc tout seul. */
+  const moisDisponibles = useMemo(() => {
+    const vus: string[] = [];
+    branchDocs.forEach((d) => {
+      const cle = moisCle(d.date);
+      if (cle && !vus.includes(cle)) vus.push(cle);
+    });
+    return vus;
+  }, [branchDocs]);
+
   const filtered = branchDocs
     .filter((d) => statusFilter === 'tous' || d.status === statusFilter)
+    .filter((d) => moisFilter === 'tous' || moisCle(d.date) === moisFilter)
     .filter((d) => {
       const needle = fold(q);
       if (!needle) return true;
@@ -126,6 +165,277 @@ export default function Factures() {
 
   /* Position GPS partagée par la cliente (livraison Ma Couronne) — ouvre l'itinéraire. */
   const geoDest = selected ? geoDestFromNote(selected.note) : null;
+
+  /* ── LE RITUEL DERRIÈRE LA PIÈCE ────────────────────────────────
+     Le lien se lit des DEUX CÔTÉS, jamais d'un seul : la pièce mémorise son
+     rendez-vous (`apptId`, posé quand un devis est accepté), et le rendez-vous
+     mémorise sa dernière facture (`invoiceId`, posé à l'encaissement). Une
+     facture née par le second chemin — le cas courant au comptoir — n'a PAS
+     d'`apptId` : ne lire que celui-là la laisserait orpheline, et c'est
+     exactement le défaut qui rendait l'alignement aveugle en août. */
+  const [appointments] = useAppointments();
+  const rituelDe = (d: Invoice | null | undefined): Appointment | null => {
+    if (!d) return null;
+    if (d.apptId) {
+      const parLaPiece = appointments.find((a) => a.id === d.apptId);
+      if (parLaPiece) return parLaPiece;
+    }
+    return appointments.find((a) => a.invoiceId === d.id) ?? null;
+  };
+  const rituelLie = rituelDe(selected);
+
+  /* On retient l'IDENTIFIANT, pas l'objet : après un enregistrement dans la
+     modale, l'objet capturé serait périmé et la fiche rouvrirait sur l'état
+     d'avant. On le relit dans le magasin à chaque rendu. */
+  const [rdvOuvertId, setRdvOuvertId] = useState<string | null>(null);
+  const rdvOuvert = rdvOuvertId ? appointments.find((a) => a.id === rdvOuvertId) ?? null : null;
+
+  /* ── LE JOUR DU PASSAGE N'EST PAS LA DATE DE LA PIÈCE ───────────
+     Une pièce porte DEUX dates, et elles ne coïncident que par hasard. La
+     sienne est comptable : elle range la facture dans son mois et date
+     l'argent. Celle de la VENUE appartient au rendez-vous — c'est le jour où
+     la cliente est venue.
+
+     Une facture éditée le 17 pour un rituel du 13 écrivait « votre passage ·
+     17 août » : une phrase fausse, adressée à quelqu'un qui sait très bien
+     quand elle est venue. On lit donc le rituel quand il existe, et on ne
+     retombe sur la date de la pièce que faute de mieux. La date comptable,
+     elle, ne bouge pas — la déplacer changerait le mois du chiffre. */
+  const jourDuPassage = (d: Invoice) => rituelDe(d)?.date ?? d.date;
+
+  /* ── METTRE UNE PIÈCE AU COFFRE ─────────────────────────────────
+     « Dans factures et devis je peux envoyer des montants directement au
+     coffre ? » (Yéman, 17 août) — et, sur la façon de compter : « le coffre
+     comme caisse ».
+
+     L'argent SE DÉPLACE, il ne se duplique pas : le dépôt nomme la caisse d'où
+     il sort, et cette caisse baisse d'autant. Sans ce lien, les mêmes francs
+     vivraient dans le tiroir et dans le coffre, et chaque écran dirait vrai
+     séparément — l'erreur qu'on ne voit jamais.
+
+     On propose ce qui a été REÇU sur la pièce, et la caisse de son premier
+     versement : neuf fois sur dix c'est ce qu'on met de côté, et le reste se
+     corrige d'un champ. */
+  /* Le jour local — jamais `toISOString()`, qui bascule d'un jour selon le
+     fuseau et daterait un dépôt de la veille. */
+  const jourLocalIso = () => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  };
+  const [caisses] = useCashboxes();
+  const boxesBranche = caisses.filter((c) => c.branchId === branch.id);
+  /* ── DEMANDER QU'ON S'EN OCCUPE — 18 août 2026 ──────────────────
+     La porte qui compte le plus, et celle qu'on oublie de construire : on ne
+     pense pas « j'ouvre le fil », on est DEVANT une facture et l'on veut que
+     quelqu'un s'en charge. La demande naît donc ici, déjà accompagnée de sa
+     pièce, et va se poser dans Le Fil. */
+  const { session: maSession } = useAuth();
+  const [equipeFil] = useStaff();
+  const monMailFil = (maSession?.user?.email ?? '').trim().toLowerCase();
+  const monNomFil = equipeFil.find((m) => (m.email ?? '').trim().toLowerCase() === monMailFil)?.name
+    || monMailFil.split('@')[0] || 'La maison';
+  const [demandePour, setDemandePour] = useState<Invoice | null>(null);
+  const [demandeQui, setDemandeQui] = useState('');
+  const [demandeQuoi, setDemandeQuoi] = useState('');
+  const envoyerLaDemande = () => {
+    if (!demandePour) return;
+    const dest = equipeFil.find((m) => m.id === demandeQui);
+    if (!dest) return;
+    const reste = invoiceResteXof(demandePour);
+    filStore.set((prev) => [...prev, nouveauMessage({
+      branchId: branch.id,
+      canal: 'maison',
+      auteurMail: monMailFil,
+      auteurNom: monNomFil,
+      texte: demandeQuoi.trim() || `Traiter la facture ${demandePour.number}.`,
+      piece: {
+        kind: 'facture',
+        id: demandePour.id,
+        label: `${demandePour.number} · ${demandePour.clientName ?? clientOf(demandePour)?.name ?? 'Cliente'} · ${fmtMoney(invoiceTotal(demandePour), currency)}${reste > 0 ? ` · reste ${fmtMoney(reste, currency)}` : ''}`,
+      },
+      demandePour: (dest.email ?? '').trim().toLowerCase(),
+      demandePourNom: dest.name,
+      argent: true,
+    })]);
+    toast(`Demande adressée à ${dest.name} — elle se fermera quand la facture sera réglée.`);
+    setDemandePour(null); setDemandeQui(''); setDemandeQuoi('');
+  };
+
+  const [auCoffre, setAuCoffre] = useState<Invoice | null>(null);
+  const [coffreMontant, setCoffreMontant] = useState('');
+  const [coffreCaisse, setCoffreCaisse] = useState('');
+  const ouvrirLeCoffre = (d: Invoice) => {
+    setCoffreMontant(String(invoiceRegleXof(d)));
+    setCoffreCaisse(invoiceReglements(d).find((p) => p.cashbox)?.cashbox ?? boxesBranche[0]?.name ?? '');
+    setAuCoffre(d);
+  };
+  const verserAuCoffre = () => {
+    if (!auCoffre) return;
+    const montant = Math.max(0, Math.round(Number(coffreMontant.replace(/[^\d]/g, '')) || 0));
+    if (montant <= 0) return;
+    coffreStore.set((prev) => [...prev, {
+      id: uid(), branchId: branch.id, kind: 'depot', amountXof: montant, date: jourLocalIso(),
+      clientId: auCoffre.clientId || undefined,
+      clientName: auCoffre.clientName ?? clientOf(auCoffre)?.name,
+      cashbox: coffreCaisse || undefined,
+      note: `Facture ${auCoffre.number}`,
+    }]);
+    toast(`${fmtMoney(montant, currency)} au coffre${coffreCaisse ? ` — sortis de ${coffreCaisse}` : ''}.`);
+    setAuCoffre(null);
+  };
+
+  /* ── LA CONFORMITÉ AU RITUEL ────────────────────────────────────
+     Des pièces portent des lignes VENTILÉES AU PRORATA du total au lieu du
+     prix de chaque geste — 26 597 / 24 179 / 30 224 pour un rituel qui vaut
+     28 000 / 28 000 / 25 000. Le total est juste, la ventilation ne l'est pas,
+     et la facture ne ressemble plus au rendez-vous qu'elle atteste.
+
+     La cause est corrigée à la source (la caisse ignorait la longueur figée du
+     rituel), mais les pièces déjà émises gardent leurs lignes. On les répare
+     avec LA MÊME mécanique qui les aligne quand on réenregistre un rituel —
+     jamais une seconde règle écrite pour l'occasion, qui divergerait à son
+     tour. Elle simule d'abord : on montre, puis on écrit.
+
+     LA RÈGLE D'OR TIENT : une pièce PAYÉE garde son total au franc près, seules
+     ses lignes se reconforment (l'écart part en remise ou en ajustement). Une
+     pièce non payée se réécrit entièrement — elle ne réclamait pas ce qui est dû. */
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const [cats] = useCategories();
+  const [produits] = useProducts();
+  const byId = useServicesById();
+  const [ecarts, setEcarts] = useState<EcartDeConformite[] | null>(null);
+  const [scanEnCours, setScanEnCours] = useState(false);
+
+  const parcourirLesRituels = (simuler: boolean): EcartDeConformite[] => {
+    const trouves: EcartDeConformite[] = [];
+    for (const a of appointments) {
+      if (a.branchId !== branch.id) continue;
+      const t = tarifsDuRituel(a, {
+        client: clients.find((c) => c.id === a.clientId),
+        bands, sets, cats, byId,
+        tousServices: services,
+        produits,
+      });
+      if (t.chosen.length === 0) continue;
+      trouves.push(...alignerFacturesDuRituel(a, byId, t.prixPlein, produits, t.gesteDe, { simuler }));
+    }
+    return trouves;
+  };
+
+  /* ── FUSIONNER LES PIÈCES D'UN MÊME RITUEL ──────────────────────
+     Avant le journal des versements, chaque règlement partiel ouvrait SA
+     facture : Hermine a deux pièces du 12 août, 30 000 en espèces et 51 000 en
+     Mobile Money, chacune réduite à un bloc « Règlement · A + B + C ».
+
+     On les rassemble sur la PLUS ANCIENNE — c'est elle que la cliente a reçue
+     en premier, et un numéro déjà remis ne se réattribue pas. La pièce
+     survivante prend les lignes du rituel, détaillées, et le journal reçoit
+     tous les versements des pièces fondues, chacun avec sa date et son moyen.
+
+     L'INVARIANT : la somme reçue ne bouge pas d'un franc. L'aperçu le montre
+     colonne contre colonne, et c'est le seul chiffre qui interdit d'appliquer
+     s'il diffère. */
+  type FusionProposee = {
+    apptId: string;
+    garde: Invoice;
+    fondues: Invoice[];
+    apres: Invoice;
+    recuAvant: number;
+    recuApres: number;
+  };
+  const [fusions, setFusions] = useState<FusionProposee[] | null>(null);
+
+  const chercherLesFusions = (): FusionProposee[] => {
+    const parRituel = new Map<string, Invoice[]>();
+    for (const i of invoices) {
+      if (i.branchId !== branch.id || i.kind !== 'facture') continue;
+      const r = rituelDe(i);
+      if (!r) continue;
+      parRituel.set(r.id, [...(parRituel.get(r.id) ?? []), i]);
+    }
+    const out: FusionProposee[] = [];
+    for (const [apptId, pieces] of parRituel) {
+      if (pieces.length < 2) continue;
+      const a = appointments.find((x) => x.id === apptId);
+      if (!a) continue;
+      /* La plus ancienne d'abord — par date, puis par numéro à date égale. */
+      const ordre = [...pieces].sort((x, y) => x.date.localeCompare(y.date) || x.number.localeCompare(y.number));
+      const garde = ordre[0];
+      const fondues = ordre.slice(1);
+      const t = tarifsDuRituel(a, {
+        client: clients.find((c) => c.id === a.clientId),
+        bands, sets, cats, byId, tousServices: services, produits,
+      });
+      const lignes = t.chosen.map((sv) => ({
+        id: `il-${uid()}`, label: sv.name, qty: 1,
+        unitXof: t.prixPlein(sv), discountPct: t.gesteDe(sv),
+      }));
+      const journal = ordre.flatMap((p) => invoiceReglements(p));
+      const recuAvant = ordre.reduce((s, p) => s + invoiceRegleXof(p), 0);
+      const brut = lignes.reduce((s, l) => s + l.unitXof * (1 - l.discountPct / 100), 0);
+      const apresBase: Invoice = {
+        ...garde,
+        lines: lignes.length > 0 ? lignes : garde.lines,
+        globalDiscountPct: 0,
+        /* Le rituel ne peut pas valoir moins que ce qui a été encaissé : si
+           l'écart penchait dans ce sens, la remise effacerait de l'argent
+           réellement reçu. On ne remise donc que le surplus. */
+        globalDiscountXof: brut > recuAvant ? Math.round(brut - recuAvant) : undefined,
+        payments: journal,
+        payment: journal[0]?.method ?? garde.payment,
+        cashbox: journal[0]?.cashbox ?? garde.cashbox,
+        note: [garde.note, ...fondues.map((f) => f.note)].filter(Boolean).join(' · ') || undefined,
+        apptId,
+      };
+      const apres: Invoice = { ...apresBase, status: invoiceSoldee(apresBase) ? 'payée' : 'envoyée' };
+      out.push({ apptId, garde, fondues, apres, recuAvant, recuApres: invoiceRegleXof(apres) });
+    }
+    return out;
+  };
+
+  const appliquerLesFusions = () => {
+    const liste = fusions ?? [];
+    if (liste.length === 0) { setFusions(null); return; }
+    const aSupprimer = new Set(liste.flatMap((f) => f.fondues.map((x) => x.id)));
+    const remplacees = new Map(liste.map((f) => [f.garde.id, f.apres]));
+    setInvoices((prev) => prev
+      .filter((i) => !aSupprimer.has(i.id))
+      .map((i) => remplacees.get(i.id) ?? i));
+    /* Le rituel doit pointer la pièce SURVIVANTE — sinon le carnet mènerait à
+       une facture qui n'existe plus, et l'alignement la chercherait en vain. */
+    appointmentsStore.set((prev) => prev.map((a) => {
+      const f = liste.find((x) => x.apptId === a.id);
+      if (!f) return a;
+      return {
+        ...a,
+        invoiceId: f.apres.id,
+        payments: (a.payments ?? []).map((p) => (p.invoiceId && aSupprimer.has(p.invoiceId)
+          ? { ...p, invoiceId: f.apres.id } : p)),
+      };
+    }));
+    const n = liste.reduce((s, f) => s + f.fondues.length, 0);
+    setFusions(null);
+    toast(`${liste.length} rituel${liste.length > 1 ? 's' : ''} rassemblé${liste.length > 1 ? 's' : ''} — ${n} pièce${n > 1 ? 's' : ''} fondue${n > 1 ? 's' : ''}.`);
+  };
+
+  const ouvrirLaConformite = () => {
+    setScanEnCours(true);
+    /* Le parcours est synchrone : on laisse le rendu poser l'état d'attente
+       avant de bloquer le fil, sinon le bouton reste muet sur 400 rituels. */
+    setTimeout(() => {
+      setEcarts(parcourirLesRituels(true));
+      setScanEnCours(false);
+    }, 0);
+  };
+
+  const appliquerLaConformite = () => {
+    const faits = parcourirLesRituels(false);
+    setEcarts(null);
+    toast(faits.length > 0
+      ? `${faits.length} pièce${faits.length > 1 ? 's' : ''} reconformée${faits.length > 1 ? 's' : ''} au rituel.`
+      : 'Rien à reconformer.');
+  };
 
   /* Écrit le document sélectionné (déjà enregistré) dans le magasin. */
   const patchSelected = (patch: Partial<Invoice>) => {
@@ -202,6 +512,11 @@ export default function Factures() {
       clientName: clientNameForPdf(d),
       clientPhone: clientOf(d)?.phone,
       master: d.master,
+      /* Le papier dit QUAND, pas seulement COMMENT — un versement par ligne,
+         avec sa date et sa part. */
+      reglements: invoiceReglements(d)
+        .filter((p) => p.amountXof > 0)
+        .map((p) => ({ date: fmtDateFr(p.date), method: p.method, amount: fmtMoney(p.amountXof, currency) })),
       lines: d.lines.map((l) => ({
         /* LE GESTE SE DIT SUR LE PAPIER AUSSI (16 août) : la pièce écran
            montrait « remise −100 % », le PDF affichait un 0 F sans raison.
@@ -486,6 +801,66 @@ export default function Factures() {
     );
   };
 
+  /* CE QUI EST RÉELLEMENT ENTRÉ sur une pièce : son total si elle est soldée,
+     sinon le seul acompte déjà reçu. Une facture envoyée n'a rien rapporté tant
+     qu'elle n'est pas réglée — la compter au total gonflerait le mois d'un
+     argent qui n'est pas là. `depositCreditXof` est la part encaissée AVANT le
+     comptoir : elle est entrée, elle compte, même si la pièce reste ouverte. */
+  const percuDe = (d: Invoice) =>
+    d.status === 'payée' ? invoiceTotal(d) : (d.depositCreditXof ?? 0);
+
+  /* Le registre rangé par mois. Les documents arrivent triés du plus récent au
+     plus ancien : on ouvre un intertitre quand le mois change, et on y porte le
+     compte, ce qui est entré, et ce qui reste dû. Les totaux se comptent sur la
+     liste AFFICHÉE — filtrer sur « payée » donne le perçu du filtre, pas celui
+     du mois entier, et c'est bien ce qu'on veut lire. */
+  const renderParMois = (docs: Invoice[], avecArgent = true) => {
+    const parMois = new Map<string, { n: number; percu: number; du: number }>();
+    docs.forEach((d) => {
+      const cle = moisCle(d.date);
+      const m = parMois.get(cle) ?? { n: 0, percu: 0, du: 0 };
+      m.n += 1;
+      m.percu += percuDe(d);
+      m.du += Math.max(0, invoiceTotal(d) - percuDe(d));
+      parMois.set(cle, m);
+    });
+    const out: ReactNode[] = [];
+    let courant = '';
+    docs.forEach((d) => {
+      const cle = moisCle(d.date);
+      if (cle !== courant) {
+        courant = cle;
+        const m = parMois.get(cle) ?? { n: 0, percu: 0, du: 0 };
+        out.push(
+          <div key={`mois-${cle}`} className="trv-mois">
+            <span className="trv-mois__nom">{moisLabel(cle)}</span>
+            <span className="trv-mois__n">{m.n} pièce{m.n > 1 ? 's' : ''}</span>
+            {avecArgent ? (
+              <span className="trv-mois__chiffres">
+                <span className="trv-mois__percu">
+                  <em>perçu</em> {fmtMoney(m.percu, currency)}
+                </span>
+                {m.du > 0 && (
+                  <span className="trv-mois__du">
+                    <em>reste</em> {fmtMoney(m.du, currency)}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="trv-mois__chiffres">
+                <span className="trv-mois__percu">
+                  <em>total</em> {fmtMoney(m.percu + m.du, currency)}
+                </span>
+              </span>
+            )}
+          </div>,
+        );
+      }
+      out.push(renderRow(d));
+    });
+    return out;
+  };
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -514,6 +889,18 @@ export default function Factures() {
             <button className="trv-search__clear" title="Effacer la recherche" onClick={() => setQ('')}>✕</button>
           )}
         </span>
+        <Button variant="ghost" size="sm" onClick={ouvrirLaConformite} disabled={scanEnCours}>
+          {scanEnCours ? 'Lecture des rituels…' : 'Conformité au rituel'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setFusions(chercherLesFusions())}>
+          Rassembler les pièces d'un rituel
+        </Button>
+        <Select value={moisFilter} onChange={(e) => setMoisFilter(e.target.value)} style={{ fontSize: 12, maxWidth: 180 }}>
+          <option value="tous">Tous les mois</option>
+          {moisDisponibles.map((cle) => (
+            <option key={cle} value={cle}>{moisLabel(cle)}</option>
+          ))}
+        </Select>
         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} style={{ fontSize: 12, maxWidth: 200 }}>
           <option value="tous">Tous les statuts</option>
           <option value="brouillon">Brouillon</option>
@@ -666,6 +1053,62 @@ export default function Factures() {
                     ))}
                   </select>
                 </div>
+                {/* LA REMISE EN FRANCS SE COMMANDE ICI, ET S'EFFACE.
+                    Elle s'affichait sur le document sans qu'aucun champ ne
+                    puisse la reprendre : posée depuis le rendez-vous, elle
+                    restait prisonnière de la pièce. Une remise qu'on ne peut
+                    pas retirer n'est pas une remise, c'est une erreur figée.
+
+                    Elle porte parfois un NOM — « Remise famille » pour
+                    l'avantage d'un compte famille. On l'affiche, pour qu'on
+                    sache ce qu'on efface ; et l'effacer emporte le nom avec le
+                    montant, un intitulé sans somme ne voulant rien dire. */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                    {draft.discountLabel ?? 'Remise manuelle'}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      className="mnd-input"
+                      style={{ width: 96, padding: '6px 10px', fontSize: 11.5, textAlign: 'right' }}
+                      placeholder="0"
+                      inputMode="numeric"
+                      value={draft.globalDiscountXof ?? ''}
+                      onChange={(e) => {
+                        const n = Math.max(0, Math.round(Number(e.target.value.replace(/[^\d]/g, '')) || 0));
+                        patchDraft(n > 0
+                          ? { globalDiscountXof: n }
+                          : { globalDiscountXof: undefined, discountLabel: undefined });
+                      }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)' }}>F</span>
+                    <button
+                      className="trv-minibtn"
+                      title="Retirer la remise manuelle"
+                      disabled={!draft.globalDiscountXof}
+                      style={{ opacity: draft.globalDiscountXof ? 1 : 0.35 }}
+                      onClick={() => patchDraft({ globalDiscountXof: undefined, discountLabel: undefined })}
+                    >
+                      Retirer
+                    </button>
+                  </span>
+                </div>
+                {/* D'OÙ VIENT CETTE REMISE. Quand elle est née du rendez-vous,
+                    `alignerFacturesDuRituel` la REPOSE à chaque enregistrement
+                    du rituel. La retirer ici ne vaut donc que pour cette pièce,
+                    jusqu'au prochain enregistrement — et l'écran doit le dire,
+                    sans quoi on croit à une panne quand elle revient. */}
+                {(() => {
+                  const r = rituelDe(draft);
+                  if (!r || !(r.discountXof || r.remiseFamille)) return null;
+                  return (
+                    <div className="trv-pdf-hint" style={{ marginTop: 6 }}>
+                      Cette remise vient du rendez-vous : la retirer ici ne vaut que pour cette pièce,
+                      et le prochain enregistrement du rituel la reposera. Pour la retirer à la source,
+                      ouvre le rendez-vous.
+                    </div>
+                  );
+                })()}
               </div>
 
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
@@ -696,6 +1139,42 @@ export default function Factures() {
 
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
                 <div className="trv-sec-label">Statut & règlement</div>
+                {/* LA DATE DE LA PIÈCE SE CORRIGE ICI. Elle n'avait aucun champ :
+                    une facture mal datée l'était pour toujours. Or c'est elle
+                    qui range la pièce dans son mois — donc qui décide de quel
+                    mois est le chiffre. Sur un carnet en retard, c'est la
+                    différence entre un mois de juin vide et un mois d'août
+                    gonflé de prestations qui n'y ont pas eu lieu. */}
+                <div className="tr-grid tr-grid--2" style={{ gap: 8, marginBottom: 8 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Date de la pièce</span>
+                    <input
+                      className="mnd-input"
+                      type="date"
+                      style={{ padding: '7px 10px', fontSize: 12 }}
+                      value={draft.date}
+                      onChange={(e) => patchDraft({ date: e.target.value || draft.date })}
+                    />
+                  </label>
+                  {(() => {
+                    const r = rituelDe(draft);
+                    if (!r || !r.date || r.date === draft.date) return null;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'flex-end' }}>
+                        <button
+                          className="trv-minibtn"
+                          style={{ alignSelf: 'flex-start' }}
+                          onClick={() => patchDraft({ date: r.date })}
+                        >
+                          Dater du rituel · {frDay(r.date)}
+                        </button>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                          Le rituel a eu lieu un autre jour que la pièce.
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
                 <div className="tr-grid tr-grid--2" style={{ gap: 8 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Statut</span>
@@ -749,6 +1228,29 @@ export default function Factures() {
                   Supprimer
                 </Button>
               </div>
+              {/* LE RITUEL S'OUVRE ICI, PAS DANS UN AUTRE ÉCRAN. Corriger une
+                  prestation obligeait à quitter la pièce pour le Carnet, à y
+                  retrouver la cliente, puis à revenir vérifier ce que la facture
+                  était devenue. La modale du Carnet est le MÊME composant :
+                  l'enregistrer réaligne les pièces liées, et celle qui est
+                  ouverte se réécrit sous les yeux — on ne change pas d'écran. */}
+              {rituelLie && (
+                <button className="trv-rdv-btn" onClick={() => setRdvOuvertId(rituelLie.id)}>
+                  <CalendarClock size={14} strokeWidth={1.75} />
+                  <span>
+                    Ouvrir le rendez-vous
+                    <em>{frDay(rituelLie.date)} · {rituelLie.time}</em>
+                  </span>
+                </button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => { setDemandePour(selected); setDemandeQui(''); setDemandeQuoi(''); }}>
+                Demander à quelqu'un de la traiter
+              </Button>
+              {invoiceRegleXof(selected) > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => ouvrirLeCoffre(selected)}>
+                  Mettre au coffre — {fmtMoney(invoiceRegleXof(selected), currency)}
+                </Button>
+              )}
               <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
               {geoDest && (
                 <a
@@ -821,7 +1323,7 @@ export default function Factures() {
               <div className="trv-doc__sep">· — ✦ — ·</div>
 
               <div className="trv-doc__passage">
-                Votre passage · {fmtDateFr(active.date)}{active.master ? ` · avec ${active.master}` : ''}
+                Votre passage · {fmtDateFr(jourDuPassage(active))}{active.master ? ` · avec ${active.master}` : ''}
               </div>
               <div style={{ marginTop: 12 }}>
                 {active.lines.map((l) => {
@@ -904,12 +1406,46 @@ export default function Factures() {
                 <div className="txt">{active.note?.trim() || defaultNote}</div>
               </div>
 
-              {active.status === 'payée' && active.payment && (
-                <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Réglé par</div>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{active.payment}</div>
-                </div>
-              )}
+              {/* LE RÈGLEMENT DIT AUSSI QUAND — 17 août 2026, demande de Yéman :
+                  « reporte la date du règlement sur la facture ». La pièce
+                  annonçait le moyen sans le jour. Or c'est la DATE qui prouve :
+                  une cliente qui demande quand elle a payé, un rapprochement de
+                  caisse, un litige — tous cherchent le jour, pas le canal.
+
+                  Plusieurs versements se disent un par un, chacun avec sa date,
+                  son moyen et sa part : c'est ce que la pièce porte désormais,
+                  et le taire reviendrait à la faire mentir par omission. */}
+              {(() => {
+                const journal = invoiceReglements(active).filter((p) => p.amountXof > 0);
+                if (journal.length === 0) return null;
+                return (
+                  <div style={{ marginTop: 18, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 7 }}>
+                      {journal.length > 1 ? 'Règlements' : 'Réglé par'}
+                    </div>
+                    {journal.map((p) => (
+                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>
+                          {p.method}
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginLeft: 8 }}>
+                            le {fmtDateFr(p.date)}
+                          </span>
+                        </span>
+                        {journal.length > 1 && (
+                          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>
+                            {fmtMoney(p.amountXof, currency)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {invoiceResteXof(active) > 0 && (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 6 }}>
+                        Reste dû · {fmtMoney(invoiceResteXof(active), currency)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="trv-doc__foot">
                 <div className="trv-doc__fon">mi nyɔ́ ɖɛkpɛ</div>
@@ -938,14 +1474,198 @@ export default function Factures() {
         {factures.length === 0 && (
           <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture — la maison attend son premier encaissement.'}</div>
         )}
-        {factures.map(renderRow)}
+        {renderParMois(factures)}
 
         <div className="trc-sheet__group">Devis ({devis.length})</div>
         {devis.length === 0 && (
           <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente.'}</div>
         )}
-        {devis.map(renderRow)}
+        {renderParMois(devis, false)}
       </div>
+
+      {/* LA MODALE DU CARNET, OUVERTE DEPUIS LA PIÈCE. Même composant, mêmes
+          gardes : enregistrer réaligne les factures liées (une pièce payée
+          garde son total, les lignes seules se reconforment), et le registre
+          au-dessus se réécrit sans qu'on ait rien à recharger. */}
+      {rdvOuvert && (
+        <RdvModal appt={rdvOuvert} onClose={() => setRdvOuvertId(null)} />
+      )}
+
+      {demandePour && (
+        <Modal title="Demander qu'on s'en occupe." onClose={() => setDemandePour(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
+              La demande part dans <b style={{ color: 'var(--color-indigo)' }}>Le Fil</b> avec la facture
+              attachée, et <b style={{ color: 'var(--color-indigo)' }}>se referme d'elle-même</b> quand
+              elle sera réglée — personne n'aura à s'en souvenir.
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>À qui</span>
+              <Select value={demandeQui} onChange={(e) => setDemandeQui(e.target.value)} style={{ fontSize: 12 }}>
+                <option value="">Choisir…</option>
+                {equipeFil.filter((m) => m.branchId === branch.id).map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </Select>
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Ce qu'il faut faire</span>
+              <textarea
+                className="mnd-input"
+                rows={2}
+                value={demandeQuoi}
+                onChange={(e) => setDemandeQuoi(e.target.value)}
+                placeholder={`Traiter la facture ${demandePour.number}.`}
+                style={{ padding: '8px 10px', fontSize: 13, resize: 'vertical' }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="copper" style={{ flex: 1 }} disabled={!demandeQui} onClick={envoyerLaDemande}>Demander</Button>
+              <Button variant="ghost" onClick={() => setDemandePour(null)}>Annuler</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {auCoffre && (
+        <Modal title="Mettre au coffre." onClose={() => setAuCoffre(null)} width={460}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
+              Facture <b style={{ color: 'var(--color-indigo)' }}>{auCoffre.number}</b> · {auCoffre.clientName ?? clientOf(auCoffre)?.name ?? 'Cliente'}
+              {' — '}{fmtMoney(invoiceRegleXof(auCoffre), currency)} reçus.
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Montant mis de côté</span>
+              <input
+                className="mnd-input"
+                inputMode="numeric"
+                value={coffreMontant}
+                onChange={(e) => setCoffreMontant(e.target.value)}
+                style={{ padding: '8px 10px', fontSize: 13, textAlign: 'right' }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>De quelle caisse sort cet argent ?</span>
+              <Select value={coffreCaisse} onChange={(e) => setCoffreCaisse(e.target.value)} style={{ fontSize: 12 }}>
+                {boxesBranche.map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+                <option value="">Hors caisse — reçu ailleurs</option>
+              </Select>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)' }}>
+                Elle baissera d'autant : l'argent se déplace, il ne se duplique pas.
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="copper" style={{ flex: 1 }} onClick={verserAuCoffre}>Verser au coffre</Button>
+              <Button variant="ghost" onClick={() => setAuCoffre(null)}>Annuler</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* L'APERÇU DE LA FUSION. « Reçu avant » et « reçu après » doivent être
+          ÉGAUX sur chaque ligne : c'est l'argent de la cliente, il ne peut ni
+          apparaître ni disparaître parce qu'on range des pièces. */}
+      {fusions && (
+        <Modal title="Rassembler les pièces d'un même rituel." onClose={() => setFusions(null)} width={720}>
+          {fusions.length === 0 ? (
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
+              Aucun rituel ne porte deux factures. Rien à rassembler.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, marginBottom: 12 }}>
+                <strong>{fusions.length} rituel{fusions.length > 1 ? 's' : ''}</strong> portent plusieurs factures.
+                Les règlements seront réunis sur la pièce la plus ancienne, détaillée prestation par prestation ;
+                les autres numéros disparaîtront du registre.
+              </div>
+              <div className="trv-conf">
+                <div className="trv-conf__head">
+                  <span>Pièce gardée</span><span>Fondues</span><span>Reçu avant</span><span>Reçu après</span><span>Versements</span>
+                </div>
+                {fusions.map((f) => {
+                  const bouge = f.recuAvant !== f.recuApres;
+                  return (
+                    <div key={f.apptId} className={`trv-conf__row${bouge ? ' is-move' : ''}`}>
+                      <span>{f.garde.number}</span>
+                      <span>{f.fondues.map((x) => x.number).join(', ')}</span>
+                      <span>{fmtMoney(f.recuAvant, currency)}</span>
+                      <span>{fmtMoney(f.recuApres, currency)}</span>
+                      <span>{(f.apres.payments ?? []).length}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {fusions.some((f) => f.recuAvant !== f.recuApres) && (
+                <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--trv-error)' }}>
+                  Une ligne voit l'argent reçu changer — ça ne devrait jamais arriver.
+                  N'applique pas, et signale-le-moi.
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <Button variant="copper" style={{ flex: 1 }} onClick={appliquerLesFusions}>
+                  Rassembler {fusions.length} rituel{fusions.length > 1 ? 's' : ''}
+                </Button>
+                <Button variant="ghost" onClick={() => setFusions(null)}>Ne rien changer</Button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+
+      {/* L'APERÇU AVANT D'ÉCRIRE. La colonne « total » est le contrôle qui
+          compte : sur une pièce payée elle doit être IDENTIQUE des deux côtés.
+          Une seule ligne où elle bouge, et il faut s'arrêter. */}
+      {ecarts && (
+        <Modal title="Conformité des pièces au rituel." onClose={() => setEcarts(null)} width={720}>
+          {ecarts.length === 0 ? (
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
+              Toutes les pièces liées à un rituel disent déjà ce que le rituel dit.
+              Rien à corriger.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, marginBottom: 12 }}>
+                <strong>{ecarts.length} pièce{ecarts.length > 1 ? 's' : ''}</strong> ne détaille{ecarts.length > 1 ? 'nt' : ''} pas
+                le rituel comme le rendez-vous l'écrit. Leurs lignes vont se reconformer.
+                Sur une pièce payée, <strong>le total ne bouge pas</strong> — l'écart part en remise ou en ajustement.
+              </div>
+              <div className="trv-conf">
+                <div className="trv-conf__head">
+                  <span>Pièce</span><span>Statut</span><span>Total avant</span><span>Total après</span><span>Lignes</span>
+                </div>
+                {ecarts.map(({ avant, apres }) => {
+                  const tAvant = invoiceTotal(avant);
+                  const tApres = invoiceTotal(apres);
+                  const bouge = tAvant !== tApres;
+                  return (
+                    <div key={avant.id} className={`trv-conf__row${bouge ? ' is-move' : ''}`}>
+                      <span>{avant.number}</span>
+                      <span>{avant.status}</span>
+                      <span>{fmtMoney(tAvant, currency)}</span>
+                      <span>{bouge ? fmtMoney(tApres, currency) : '— inchangé'}</span>
+                      <span>{avant.lines.length} → {apres.lines.length}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {ecarts.some(({ avant, apres }) => avant.status === 'payée' && invoiceTotal(avant) !== invoiceTotal(apres)) && (
+                <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--trv-error)' }}>
+                  Une pièce PAYÉE verrait son total changer — ça ne devrait jamais arriver.
+                  N'applique pas, et signale-le-moi.
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <Button variant="copper" style={{ flex: 1 }} onClick={appliquerLaConformite}>
+                  Reconformer {ecarts.length} pièce{ecarts.length > 1 ? 's' : ''}
+                </Button>
+                <Button variant="ghost" onClick={() => setEcarts(null)}>Ne rien changer</Button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
 
     </div>
   );

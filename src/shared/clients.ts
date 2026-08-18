@@ -127,7 +127,7 @@ export type Client = {
   birthday?: string; // ISO — anniversaire de la cliente (voir joursAvantAnniversaire)
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
-  /** Compte famille auquel la cliente est rattachée (ex. Famille Adamon). Le
+  /** Compte famille auquel la cliente est rattachée (ex. Famille A.). Le
       porte-monnaie d'avoir et le paiement des factures vivent alors sur le compte
       famille — c'est le parent payeur qui règle. Absent = compte individuel. */
   familyId?: string;
@@ -146,7 +146,7 @@ export type Client = {
 export type Family = {
   id: string;
   branchId: string;
-  name: string; // « Famille Adamon »
+  name: string; // « Famille A. »
   payerClientId?: string; // le parent payeur (une des clientes rattachées, ou une fiche dédiée)
   note?: string;
   /** LA REMISE FAMILLE (%) — l'avantage du compte, posé d'office sur les

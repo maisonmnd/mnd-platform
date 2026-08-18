@@ -1,0 +1,27 @@
+
+/* La pastille des demandes — le seul chiffre du menu, donc il doit compter. */
+.tr-nav__pastille {
+  margin-left: auto;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 3px 7px;
+  letter-spacing: .04em;
+}
+
+/* La pastille des demandes — le seul chiffre du menu, donc il doit compter.
+   Cuivre : la Maison le lit comme un appel, pas comme une décoration. */
+.tr-nav__pastille {
+  margin-left: auto;
+  background: var(--color-copper);
+  color: var(--color-ivoire);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 3px 7px;
+  letter-spacing: .04em;
+}

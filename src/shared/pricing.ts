@@ -2,6 +2,7 @@ import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import { mondeDeCat, priceModeOf, type CatalogCategory, type GesteOffert, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
+import { settingsStore } from './settings';
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
    de locks : 100, 204, 450…) et de son Juste Prix (coefficient personnel).
@@ -164,8 +165,30 @@ export const scalesWithModel = (s: Pick<Service, 'name' | 'categoryId'> & { id?:
      l'eleve. Les identifiants de la liste ('sinsin', 'finfin', 'cat-finfin')
      ne correspondaient d'ailleurs a aucune categorie reelle du catalogue v6.
      Seul le champ explicite fait foi desormais. */
-  return s.scalesWithModel === true;
+  if (baremeSuspendu()) return false;
+  return suitLeModeleRegle(s);
 };
+
+/** LE RÉGLAGE, ET NON SON EFFET. Deux écrans doivent lire l'interrupteur tel
+    qu'il est POSÉ, sans tenir compte de la suspension : le Catalogue, dont le
+    bouton ◈ le bascule — sinon suspendre l'aurait fait mentir sur toutes les
+    lignes, et un clic aurait rallumé ce qui était déjà allumé — et la page du
+    Juste Prix, qui choisit sa prestation témoin parmi celles qui suivent le
+    modèle. Suspendre ne doit pas vider la page qui sert à suspendre. */
+export const suitLeModeleRegle = (s: Pick<Service, 'name' | 'categoryId'> & { id?: string; scalesWithModel?: boolean }): boolean =>
+  !isFixedPrice(s) && s.scalesWithModel === true;
+
+/** LE BARÈME EST-IL SUSPENDU ? Un seul verrou, ici, parce que les quatorze
+    endroits qui demandent « cette prestation suit-elle le modèle ? » passent
+    tous par `scalesWithModel`. Suspendre en un point qu'aucun appelant ne peut
+    oublier vaut mieux qu'un drapeau à faire circuler dans dix signatures : le
+    jour où l'on en oublie une, un seul écran garderait l'ancien prix, et c'est
+    l'écart qu'on ne voit pas.
+
+    Lu paresseusement pour ne pas nouer les modules au chargement. */
+function baremeSuspendu(): boolean {
+  try { return settingsStore.get().baremeSuspendu === true; } catch { return false; }
+}
 
 /** Arrondi commercial — au 500 F, un prix se dit sans virgule au comptoir. */
 export const roundPrice = (x: number): number => Math.round(x / 500) * 500;

@@ -10,7 +10,7 @@ import {
   type Client, type Family,
 } from '../../../../shared/clients';
 import {
-  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal,
+  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -181,7 +181,9 @@ export default function Comptes() {
      écriture d'usage débite le compte. Réservé aux factures NON liées à un rituel
      (celles-là se soldent par « Encaisser le rituel » — invariant deux-registres). */
   const settleInvoiceByAvoir = (inv: Invoice, holder: CreditHolder) => {
-    const total = invoiceTotal(inv);
+    /* CE QUI RESTE DÛ, pas le total : une pièce déjà réglée à moitié ne se
+       solde que de son solde, sinon l'avoir paierait deux fois la même part. */
+    const total = invoiceResteXof(inv);
     const bal = creditBalanceOf(credits, holder);
     if (total <= 0 || bal < total) return;
     if (!window.confirm(`Solder la facture ${inv.number} (${fmtMoney(total, currency)}) par l'avoir du compte ? Le solde d'avoir passera à ${fmtMoney(bal - total, currency)}.`)) return;
@@ -507,7 +509,7 @@ export default function Comptes() {
                 <div>
                   <div className="trc-microlabel" style={{ marginBottom: 8 }}>Factures impayées · {dueInvoices.length}</div>
                   {dueInvoices.map(({ inv, linkedToAppt }) => {
-                    const total = invoiceTotal(inv);
+                    const total = invoiceResteXof(inv);
                     const canSettle = !linkedToAppt && total > 0 && bal >= total;
                     return (
                       <div key={inv.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
@@ -638,7 +640,7 @@ function FamilyModal({
     <Modal title={family ? 'Modifier le compte famille.' : 'Nouveau compte famille.'} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Nom du compte">
-          <Input value={name} placeholder="Ex. Famille Adamon" onChange={(e) => setName(e.target.value)} />
+          <Input value={name} placeholder="Ex. Famille A." onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="Membres du compte">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

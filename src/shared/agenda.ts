@@ -47,6 +47,20 @@ export type Appointment = {
 
       Absent ou vide pour une ligne = on retombe sur `master`. */
   mains?: string[][];
+  /** LA REMISE D'UNE PRESTATION — 17 août 2026, demande de Yéman :
+      « créer les remises en lignes % ou F, à personnaliser ».
+
+      Tableau PARALLÈLE à `serviceIds`, comme `mains` — et pour la même raison :
+      un rituel peut porter deux fois le même geste, et l'un peut être offert
+      quand l'autre ne l'est pas. Indexer par prestation les confondrait.
+
+      Le POURCENTAGE s'applique d'abord, les FRANCS ensuite — l'ordre de la
+      remise globale, pour qu'une seule règle s'apprenne. Les deux étages se
+      cumulent avec la remise globale du rendez-vous (décision de Yéman) : la
+      ligne d'abord, l'ensemble ensuite.
+
+      Vide ou absent sur une ligne = pas de remise. */
+  remisesLignes?: ({ pct?: number; xof?: number } | null)[];
   /** LA LONGUEUR TRAVAILLÉE CE JOUR-LÀ. Elle commande le prix et la durée des
       prestations qui se facturent à la longueur (voir `prixParLongueur`).
 
@@ -176,7 +190,7 @@ export type Appointment = {
   coverServiceId?: string;
   /** QUEL abonnement couvre ce rituel. Sans lui, la couverture se rattache à la
       CLIENTE — et une cliente qui porte deux packs voit ses rendez-vous décomptés
-      deux fois, une fois sur chaque. Carolle Odoutan en portait deux simultanément
+      deux fois, une fois sur chaque. Carolle O. en portait deux simultanément
       dans l'ancien ERP ; c'est ce qui a rendu ce champ nécessaire.
       Il affranchit aussi le décompte des dates : un pack saisi après coup couvre
       des séances antérieures à son enregistrement, et le lien explicite les

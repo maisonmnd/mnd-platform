@@ -12,6 +12,14 @@ export type Branch = {
   dial: string;
   currency: string;
   address: string;
+  /** LE LIEN DE LOCALISATION — 18 août 2026. L'adresse écrite ne suffit pas à
+      poser un point sur une carte : « Cotonou, Bénin » cherché tel quel mène au
+      centre de la ville, pas à la porte du salon. Yéman a donné le lien court
+      de sa fiche Google (`maps.app.goo.gl/…`), qui, lui, pointe l'endroit exact.
+
+      Il vit sur la BRANCHE parce que chaque salon a le sien, et il se saisit
+      dans Système › Branches — jamais écrit en dur, jamais deviné. */
+  mapsUrl?: string;
   seats: number;
   masters: string[];
   status: 'active' | 'paused';

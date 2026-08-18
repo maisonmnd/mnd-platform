@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { asset } from '../../../../shared/asset';
+import { useBranch } from '../../../../shared/branches';
+import { toast } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
 import { maisonNom } from '../../../../shared/identite';
@@ -18,7 +21,16 @@ import './clients.css';
    écran, tourné vers la cliente — elle scanne, on referme. */
 
 /* Ce qu'un code montre quand il occupe tout l'écran. */
-type Grand = { titre: string; phrase: string; valeur: string };
+type Grand = {
+  titre: string;
+  phrase: string;
+  valeur: string;
+  /** L'AFFICHE DE LA MAISON, à la place du carré nu — 18 août 2026. Yéman a
+      fait faire une affiche MoMoPay à ses couleurs : la montrer entière vaut
+      mieux qu'un QR posé sur du blanc, parce qu'elle dit déjà le marchand, le
+      code USSD et le geste. Absente ailleurs : les réseaux Wi-Fi n'en ont pas. */
+  affiche?: string;
+};
 
 /* Le format Wi-Fi que tous les téléphones savent lire : WIFI:T:WPA;S:…;P:…;;
    Les caractères que le format réserve s'échappent — un mot de passe qui
@@ -193,9 +205,46 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
       <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(15px, 2.2vw, 20px)', color: '#45454F', textAlign: 'center', maxWidth: '46ch', lineHeight: 1.5 }}>
         {g.phrase}
       </div>
-      <div style={{ width: 'min(64vw, 56vh)', height: 'min(64vw, 56vh)', margin: '26px 0 14px' }}>
-        <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-      </div>
+      {g.affiche ? (
+        /* L'AFFICHE, SON CADRE MARCHAND CORRIGÉ — 18 août 2026.
+           « Là où il y a mon Nom Marchand il faut mettre le QR code de Mobile
+           Money de la maison avec le nom ACIA1 » (Yéman).
+
+           Le JPEG porte « YEMAN » gravé dans ses pixels ; je ne peux pas le
+           repeindre. On RECOUVRE donc son cadre noir par un panneau qui dit
+           juste — le carré à scanner et le vrai nom du marchand. Le cadre du
+           dessous ne se voit plus, mais il est toujours là : la correction
+           durable est une affiche ré-exportée par qui l'a dessinée.
+
+           Les proportions sont en POURCENTAGES de l'image, pas en pixels :
+           l'affiche se redimensionne avec l'écran, le panneau la suit. */
+        <div style={{ position: 'relative', margin: '22px 0 14px', lineHeight: 0 }}>
+          <img
+            src={asset(g.affiche)}
+            alt=""
+            style={{ height: 'min(66vh, 96vw)', width: 'auto', borderRadius: 4, boxShadow: '0 2px 18px rgba(30,33,80,.13)', display: 'block' }}
+          />
+          <div
+            style={{
+              position: 'absolute', left: '6.2%', top: '62.6%', width: '36.4%', height: '19.6%',
+              background: '#0B0D24', border: '1px solid rgba(242,183,5,.55)', borderRadius: '3.2%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5%', padding: '2.4%',
+            }}
+          >
+            <div style={{ height: '86%', aspectRatio: '1 / 1', background: '#fff', padding: '3%', borderRadius: 2, flex: 'none' }}>
+              <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
+            </div>
+            <div style={{ lineHeight: 1.25, minWidth: 0 }}>
+              <div style={{ color: '#F2B705', fontSize: 'clamp(8px, 1.15vh, 15px)', letterSpacing: '.06em' }}>Nom Marchand</div>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(11px, 1.7vh, 24px)', letterSpacing: '.02em' }}>ACIA1</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ width: 'min(64vw, 56vh)', height: 'min(64vw, 56vh)', margin: '26px 0 14px' }}>
+          <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
+        </div>
+      )}
       <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: '#9E6238' }}>
         mi nyɔ́ ɖɛkpɛ — la maison veille.
       </div>
@@ -217,7 +266,50 @@ export default function QrCodes() {
   const [preuve] = usePointageConfig();
   const codeJour = preuve.codeDate === todayISO() ? (preuve.codeValeur ?? '') : '';
 
+  const { branch } = useBranch();
   const [grand, setGrand] = useState<Grand | null>(null);
+
+  /* ── LES LIENS QU'ON ENVOIE — 18 août 2026 ──────────────────────
+     « C'est des liens individuels, pas un seul lien pour toute la page » puis
+     « juste pour MoMoPay et la localisation du salon » (Yéman).
+
+     Deux liens, et deux seulement. Le Wi-Fi n'en a pas : ses mots de passe
+     s'affichent au comptoir le temps d'un scan, alors qu'un lien se transfère,
+     se capture d'écran et reste dans une conversation. Le code du jour non
+     plus — il sert à pointer, et un lien qui pointe pour vous n'est plus une
+     preuve de présence.
+
+     L'adresse se construit sur l'origine COURANTE : jamais de domaine écrit en
+     dur, changer de compte ne casse rien. */
+  const lienAbsolu = (chemin: string) => new URL(asset(chemin), window.location.href).href;
+  /* LE CODE MARCHAND SE LIT DANS LE CODE USSD — il n'a pas de champ à lui, et
+     lui en inventer un ferait deux vérités à tenir d'accord. Dans
+     « *880*41*506846*montant# », c'est le dernier groupe de chiffres : le
+     préfixe de l'opérateur passe avant, le montant vient après. */
+  const codeMarchand = (momoUssd.match(/\d{4,}/g) ?? []).slice(-1)[0] ?? '';
+  const lienMomo = () => {
+    const u = new URL(lienAbsolu('payer.html'));
+    if (momoMarchand) u.searchParams.set('m', momoMarchand);
+    u.searchParams.set('c', codeMarchand);
+    return u.href;
+  };
+  /* La localisation : l'adresse de la branche, telle que la Maison l'a écrite,
+     confiée à une carte. Sans adresse, pas de lien — on ne devine pas où l'on
+     est. */
+  const adresseComplete = [branch.address, branch.city, branch.country].filter(Boolean).join(', ');
+  /* LE LIEN DE LA FICHE PRIME SUR L'ADRESSE ÉCRITE — 18 août 2026. Chercher
+     « Cotonou, Bénin » posait le point au centre de la ville : une cliente qui
+     suit ce carré arrive dans le bon quartier et cherche encore. Le lien court
+     de la fiche Google, lui, désigne la porte. L'adresse reste le repli quand
+     aucun lien n'est saisi — mieux vaut la ville que rien. */
+  const lienPlan = branch.mapsUrl?.trim()
+    || (adresseComplete ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresseComplete)}` : '');
+  const planPrecis = !!branch.mapsUrl?.trim();
+  const copier = (lien: string, quoi: string) => {
+    navigator.clipboard.writeText(lien)
+      .then(() => toast(`Lien ${quoi} copié — collez-le dans WhatsApp.`))
+      .catch(() => window.prompt(`Copiez ce lien ${quoi} :`, lien));
+  };
 
   const imprimerMomo = () => imprime(carteA5({
     titre: 'Régler par MoMo.',
@@ -280,12 +372,71 @@ export default function QrCodes() {
           <button
             type="button"
             className="mnd-btn mnd-btn--copper"
-            onClick={() => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand} — le montant en francs.`, valeur: momoQr })}
+            onClick={() => setGrand({
+              titre: 'Régler par MoMo.',
+              phrase: `Marchand ${momoMarchand} — le montant en francs.`,
+              valeur: momoQr,
+              affiche: 'momopay-affiche.jpg',
+            })}
           >
             Afficher au comptoir
           </button>
           <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimerMomo}>
             Imprimer la carte A5
+          </button>
+          {/* LE LIEN QU'ON ENVOIE. Il mène à une page STATIQUE qui ne sait que
+              ce que son adresse lui dit — ni base, ni clé, ni session. Rien à
+              en extraire, donc rien à protéger. */}
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--ghost"
+            disabled={!codeMarchand}
+            title={codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement'}
+            onClick={() => copier(lienMomo(), 'de paiement')}
+          >
+            Copier le lien à envoyer
+          </button>
+        </div>
+      </div>
+
+      {/* ④bis OÙ NOUS TROUVER — 18 août 2026, « juste pour MoMoPay et la
+          localisation du salon ». Le carré se scanne au comptoir ; le lien
+          s'envoie à celle qui cherche la porte. Sans adresse renseignée, la
+          carte le dit au lieu de mener nulle part. */}
+      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+        <div style={{ width: 96, height: 96, flex: 'none', border: `1px ${lienPlan ? 'solid var(--hairline)' : 'dashed var(--copper-300)'}`, borderRadius: 3, padding: 5, background: '#f6f1e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {lienPlan
+            ? <QrSvg valeur={lienPlan} style={{ width: '100%', height: '100%', display: 'block' }} />
+            : <span style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--copper-700)', textAlign: 'center' }}>adresse à écrire</span>}
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
+            Où nous trouver.
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
+            {lienPlan
+              ? (planPrecis
+                ? <>La cliente scanne, sa carte s'ouvre sur <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>la fiche du salon</b> — la porte, pas le quartier. Le lien s'envoie aussi par message.</>
+                : <>Ce carré ne mène qu'à <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{adresseComplete}</b> — le centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu'il désigne la porte.</>)
+              : <>Aucune adresse ni lien pour cette branche — Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--copper"
+            disabled={!lienPlan}
+            onClick={() => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan })}
+          >
+            Afficher au comptoir
+          </button>
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--ghost"
+            disabled={!lienPlan}
+            onClick={() => copier(lienPlan, 'de localisation')}
+          >
+            Copier le lien à envoyer
           </button>
         </div>
       </div>

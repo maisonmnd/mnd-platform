@@ -389,6 +389,67 @@
 .trv-search__clear:hover { color: var(--color-copper); }
 
 /* ---------- La feuille — même registre que le Carnet ---------- */
+/* ── L'INTERTITRE DE MOIS ─────────────────────────────────────────
+   Il coupe le registre là où le mois change et porte le compte, ce qui est
+   entré et ce qui reste dû. Plus haut qu'une ligne, plus sobre qu'un titre :
+   il se saute des yeux quand on cherche une pièce, il s'arrête quand on
+   cherche un mois. */
+.trv-mois {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 18px 10px;
+  border-top: 1px solid var(--hairline);
+}
+.trv-mois:first-child { border-top: none; }
+.trv-mois__nom {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 300;
+  color: var(--color-indigo);
+  text-transform: capitalize;
+}
+.trv-mois__n {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trv-mois__chiffres {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.trv-mois__percu,
+.trv-mois__du {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--color-indigo);
+  white-space: nowrap;
+}
+.trv-mois__du { color: var(--ink-soft); }
+/* Le mot qui nomme le montant — petit, en capitales, jamais en cuivre sur
+   fond clair (règle de marque) : le cuivre reste l'accent des boutons. */
+.trv-mois__percu em,
+.trv-mois__du em {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-right: 5px;
+}
+@media (max-width: 760px) {
+  .trv-mois { padding: 14px 14px 8px; gap: 8px; }
+  .trv-mois__nom { font-size: 17px; }
+  .trv-mois__chiffres { margin-left: 0; width: 100%; gap: 12px; }
+  .trv-mois__percu, .trv-mois__du { font-size: 14px; }
+}
+
 .trv-sheet { margin-bottom: 26px; }
 .trv-sheet .trv-row__no {
   font-family: var(--font-sans);
@@ -530,6 +591,69 @@
   margin-bottom: 9px;
 }
 .trv-sec-label--copper { color: var(--copper-600); }
+
+/* ── L'APERÇU DE CONFORMITÉ ───────────────────────────────────────
+   Une table nue : ce qui compte est la comparaison des deux totaux, pas
+   l'ornement. La ligne dont le total bouge se signale — elle est légitime
+   sur une pièce non payée, jamais sur une pièce soldée. */
+.trv-conf { border: 1px solid var(--hairline); border-radius: 2px; overflow: auto; max-height: 46vh; }
+.trv-conf__head,
+.trv-conf__row {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr 1fr 1fr 0.7fr;
+  gap: 10px;
+  padding: 8px 12px;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  min-width: 560px;
+}
+.trv-conf__head {
+  position: sticky;
+  top: 0;
+  background: var(--color-sable);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trv-conf__row { border-top: 1px solid var(--hairline); color: var(--color-indigo); }
+.trv-conf__row.is-move { background: var(--copper-50); }
+
+/* ── OUVRIR LE RITUEL DEPUIS LA PIÈCE ─────────────────────────────
+   Un bouton discret, pas un appel à l'action : il sert à corriger, pas à
+   vendre. Filet cuivre et fond ivoire — le cuivre reste un accent, jamais du
+   texte courant sur fond clair. */
+.trv-rdv-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: 2px;
+  color: var(--color-indigo);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.trv-rdv-btn:hover { background: var(--copper-100); }
+.trv-rdv-btn svg { flex: none; color: var(--color-copper); }
+.trv-rdv-btn span { display: flex; flex-direction: column; gap: 2px; }
+.trv-rdv-btn em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ink-soft);
+}
 
 .trv-wa-btn {
   cursor: pointer;

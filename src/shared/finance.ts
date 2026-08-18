@@ -12,12 +12,47 @@ export const PAYMENT_METHODS_DEFAULT: string[] = [
 /** Alias rétro-compatible (liste par défaut). Préférer `usePaymentMethods()`. */
 export const PAYMENT_METHODS = PAYMENT_METHODS_DEFAULT;
 
+/** UN RÈGLEMENT PORTÉ PAR LA PIÈCE — 17 août 2026.
+
+    « Hermine D. devrait avoir tous ces règlements sur une même facture avec
+    différentes dates de paiement ou différents moyens de paiement. Pas besoin
+    de deux factures différentes le même jour. » (Yéman)
+
+    Un rituel réglé en deux fois produisait DEUX pièces, et chacune se réduisait
+    à une ligne « Règlement · A + B + C ». Le bloc n'était pas un caprice : une
+    pièce qui ne vaut que 30 000 F sur un rituel de 81 000 ne peut pas détailler
+    les prestations sans les proratiser — donc sans mentir. Le bloc était la
+    CONSÉQUENCE du découpage.
+
+    Une pièce par rituel, détaillée, et les versements inscrits ici : le détail
+    redevient vrai, et chaque règlement garde SA date, SON moyen et SA caisse —
+    c'est la date du versement qui range l'argent dans le bon mois, jamais celle
+    de la pièce. */
+export type InvoicePayment = {
+  id: string;
+  /** Le jour où l'argent est entré — pas celui de la pièce. */
+  date: string;
+  amountXof: number;
+  method: PaymentMethod;
+  /** Caisse créditée. Absente sur les versements repris de l'ancien modèle. */
+  cashbox?: string;
+  /** Heure d'encaissement HH:mm — journal de caisse. */
+  time?: string;
+  note?: string;
+};
+
 export type InvoiceLine = {
   id: string;
   label: string;
   qty: number;
   unitXof: number;
   discountPct: number; // remise par ligne 5/10/15/20 %
+  /** REMISE DE LIGNE EN FRANCS — 17 août 2026. Le pourcentage ne dit pas tout :
+      « 5 000 F de moins sur la couleur » est un geste qu'on annonce en francs,
+      et le traduire en pourcentage donnerait un nombre à virgule que personne
+      ne relit. Elle s'applique APRÈS le pourcentage, comme au rendez-vous.
+      Absente sur toutes les pièces d'avant — donc zéro, donc rien ne change. */
+  discountXof?: number;
 };
 
 export type Invoice = {
@@ -42,6 +77,12 @@ export type Invoice = {
   theme: 'Rose' | 'Arbre' | 'Oiseau' | 'Voyage' | 'Aube' | 'Souffle';
   status: 'brouillon' | 'envoyée' | 'payée' | 'acceptée';
   payment?: PaymentMethod;
+  /** LE JOURNAL DES RÈGLEMENTS — plusieurs versements sur UNE pièce, chacun
+      avec sa date, son moyen et sa caisse. Absent sur les pièces d'avant le
+      17 août : `invoiceReglements` leur en fabrique un d'une entrée.
+      `payment`, `cashbox` et `time` restent le reflet du PREMIER versement,
+      pour que les écrans qui ne lisent qu'un moyen continuent de dire vrai. */
+  payments?: InvoicePayment[];
   /** Caisse créditée à l’encaissement (POS multi-caisses). */
   cashbox?: string;
   /** Heure d’encaissement HH:mm — journal de caisse. */
@@ -166,8 +207,15 @@ export type ExpenseCategory = { id: string; name: string; subs: string[] };
     CFA. Jamais négatif. Le pourboire (`tipXof`) n'y entre JAMAIS — depuis le
     11 août il ne crédite même plus la caisse de la facture : il vit sur sa
     propre ligne du registre des encaissements, caisse « Pourboires ». */
+/** Ce que vaut UNE ligne, remises de ligne comprises — pourcentage d'abord,
+    francs ensuite, jamais négatif. Une seule définition : trois écrans
+    recalculaient la ligne à la main, et le jour où la remise en francs est
+    arrivée, ils auraient divergé un par un. */
+export const ligneNetXof = (l: InvoiceLine): number =>
+  Math.max(0, l.qty * l.unitXof * (1 - l.discountPct / 100) - (l.discountXof ?? 0));
+
 export const invoiceTotal = (inv: Invoice): number => {
-  const sub = inv.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
+  const sub = inv.lines.reduce((s, l) => s + ligneNetXof(l), 0);
   return Math.max(0, Math.round(sub * (1 - inv.globalDiscountPct / 100)) - (inv.globalDiscountXof ?? 0));
 };
 
@@ -179,6 +227,65 @@ export const invoiceTotal = (inv: Invoice): number => {
     parallèle (12 août) : UNE formule désormais, ici. */
 export const invoiceCashXof = (inv: Invoice): number =>
   invoiceTotal(inv) - (inv.avoirXof ?? 0) - (inv.depositCreditXof ?? 0);
+
+/** LES RÈGLEMENTS D'UNE PIÈCE — la liste, ou sa lecture rétro-compatible.
+
+    Les pièces d'avant le 17 août ne portent pas de journal : elles ont un seul
+    moyen (`payment`), une seule caisse et un statut. On leur en FABRIQUE un
+    d'une entrée quand elles sont soldées, pour que tous les lecteurs — caisse,
+    Synthèse, Bilan, reçus — n'aient plus qu'UNE façon de lire l'argent d'une
+    facture. Sans ce repli, chaque écran aurait dû connaître les deux formes,
+    et c'est ainsi qu'un chiffre finit par diverger d'un écran à l'autre. */
+export const invoiceReglements = (inv: Invoice): InvoicePayment[] => {
+  if (inv.payments && inv.payments.length > 0) return inv.payments;
+  if (inv.status !== 'payée') return [];
+  return [{
+    id: `ip-${inv.id}`,
+    date: inv.date,
+    amountXof: invoiceTotal(inv),
+    method: inv.payment ?? 'Espèces',
+    cashbox: inv.cashbox,
+    time: inv.time,
+  }];
+};
+
+/** CE QUI A ÉTÉ RÉELLEMENT REÇU sur la pièce, tous versements confondus. */
+export const invoiceRegleXof = (inv: Invoice): number =>
+  invoiceReglements(inv).reduce((s, p) => s + p.amountXof, 0);
+
+/** CE QUI RESTE DÛ. Jamais négatif : un trop-perçu est un avoir, pas une dette
+    en creux — il se traite ailleurs, il ne se soustrait pas ici. */
+export const invoiceResteXof = (inv: Invoice): number =>
+  Math.max(0, invoiceTotal(inv) - invoiceRegleXof(inv));
+
+/** La pièce est-elle soldée ? Le STATUT suit l'argent, il ne le décide pas. */
+export const invoiceSoldee = (inv: Invoice): boolean =>
+  invoiceRegleXof(inv) >= invoiceTotal(inv);
+
+/** CE QUI EST ENTRÉ SUR CETTE PIÈCE UN JOUR DONNÉ (`YYYY-MM-DD`).
+
+    Une pièce ne contribue plus « en bloc au jour de sa date » : elle contribue
+    versement par versement, chacun au SIEN. Hermine règle 30 000 F le 12 et
+    51 000 F le 28 — une seule facture, deux mois. Compter la pièce entière au
+    jour de son émission rangerait 51 000 F dans un mois où ils ne sont pas
+    entrés ; c'est la faute que le découpage en deux pièces masquait.
+
+    Passer un préfixe de mois (`YYYY-MM`) donne le mois entier : la comparaison
+    se fait sur le début de la chaîne ISO, jamais sur un objet Date — construire
+    une date pour en extraire un mois fait basculer d'un jour selon le fuseau. */
+export const invoiceRegleAu = (inv: Invoice, prefixeIso: string): number =>
+  invoiceReglements(inv)
+    .filter((p) => (p.date ?? '').startsWith(prefixeIso))
+    .reduce((s, p) => s + p.amountXof, 0);
+
+/** CE QUI EST ENTRÉ EN BILLETS un jour donné — l'avoir et l'acompte écartés.
+    L'avoir est un crédit consommé, pas une devise ; l'acompte est déjà entré
+    ailleurs, un autre jour. Même doctrine que `invoiceCashXof`, mais versement
+    par versement. */
+export const invoiceCaisseAu = (inv: Invoice, prefixeIso: string): number =>
+  invoiceReglements(inv)
+    .filter((p) => (p.date ?? '').startsWith(prefixeIso) && p.method !== 'Avoir' && p.method !== 'Acompte')
+    .reduce((s, p) => s + p.amountXof, 0);
 
 export const INVOICE_THEMES = ['Rose', 'Arbre', 'Oiseau', 'Voyage', 'Aube', 'Souffle'] as const;
 
@@ -368,6 +475,19 @@ export type CoffreMovement = {
   clientId?: string; // dépôt attribué à une cliente (source du revenu mis de côté)
   clientName?: string;
   bank?: string; // virement : banque / compte destinataire
+  /** LA CAISSE D'OÙ L'ARGENT SORT — 17 août 2026, décision de Yéman : « le
+      coffre comme caisse ».
+
+      Sans elle, mettre 50 000 F au coffre ne les retirait d'aucun tiroir : les
+      mêmes francs vivaient dans la caisse créditée à l'encaissement ET dans le
+      coffre. Chaque écran disait vrai séparément, et la trésorerie comptait
+      deux fois. Un dépôt qui NOMME sa caisse la débite d'autant.
+
+      Absente sur tous les mouvements d'avant cette date, et c'est voulu : ils
+      ont été saisis sous l'autre convention, les rendre débiteurs après coup
+      ferait bouger des soldes de caisse déjà arrêtés. Ils restent une mise de
+      côté symbolique ; les nouveaux déplacent vraiment l'argent. */
+  cashbox?: string;
   note?: string;
   /** Dépôt venu des RÉSERVES de Salon & Foyer — un virement interne, pas une
       part de chiffre mise de côté au comptoir. Ces lignes sont réservées au
