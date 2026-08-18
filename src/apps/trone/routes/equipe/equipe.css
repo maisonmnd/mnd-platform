@@ -1378,3 +1378,15 @@
   .trt__poser .trt__echeance { justify-content: space-between; }
   .trt__mot { padding: 7px 12px; }
 }
+
+/* Le trait du jour — une journée se dit une fois, pas sur chaque ligne. */
+.trf-fil__jour {
+  display: flex; align-items: center; gap: 10px; margin: 4px 0 2px;
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-fil__jour::before, .trf-fil__jour::after { content: ''; flex: 1; border-top: 1px solid var(--hairline); }
+
+/* La ligne survolée se signale — on sait sur quoi on s'apprête à agir. */
+.trf-fil__msg { padding: 3px 6px; margin: -3px -6px; border-radius: 3px; transition: background .14s var(--ease-soft); }
+.trf-fil__msg:hover { background: var(--hover-veil); }

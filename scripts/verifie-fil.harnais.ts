@@ -8,7 +8,7 @@
    contrôle rien. Celui-ci peut. */
 import {
   messageVisible, canalVisible, messagesDuCanal, mesDemandes, demandeOuverte,
-  puisJeClore, puisJeReprendre, puisJeDeplacer, demandesDuTableau,
+  puisJeClore, puisJeReprendre, puisJeDeplacer, puisJeEffacer, demandesDuTableau,
   estAPrendre, A_PRENDRE, enRetard, faiteRecemment, messageExpire,
   canalDM, canalNotes, CANAL_MAISON,
   fusionnerComptages, totalDuComptage, comptageComplet,
@@ -93,6 +93,17 @@ dit('une carte à prendre se laisse prendre par n’importe qui', true, puisJeDe
 dit('Gérard ne clôt pas une demande pour Yéman', false, puisJeClore(bossAboss, GERARD));
 dit('Yéman clôt la sienne', true, puisJeClore(bossAboss, YEMAN));
 dit('on ne reprend que sa propre phrase', false, puisJeReprendre(bossAboss, GERARD));
+
+/* ── EFFACER — « supprimer les tâches terminées », 18 août. ── */
+const faite = { ...versGerard, faitAt: '2026-08-18T15:00', faitPar: 'Gérard' };
+dit('une demande OUVERTE ne s’efface que par son auteur', false, puisJeEffacer(versGerard, GERARD, false));
+dit('… et l’auteur le peut', true, puisJeEffacer(versGerard, BRICE, false));
+dit('TERMINÉE, son destinataire peut l’effacer', true, puisJeEffacer(faite, GERARD, false));
+dit('terminée, le souverain aussi', true, puisJeEffacer(faite, YEMAN, true));
+dit('terminée, un tiers non souverain, jamais', false, puisJeEffacer(faite, YEMAN, false));
+dit('éteinte par sa facture (sans faitAt), l’état vrai passe en paramètre', true,
+  puisJeEffacer(versGerard, GERARD, false, true));
+dit('un message ordinaire s’efface par son auteur seul', false, puisJeEffacer(msg({}), GERARD));
 
 /* ── LA DEMANDE S'ÉTEINT AVEC SA FACTURE — le cœur du Fil. ── */
 const facture = (regle: number): Invoice => ({

@@ -195,9 +195,21 @@ export default function Depenses() {
 
      L'avoir et l'acompte restent hors caisse : un crédit consommé n'est pas une
      devise, un acompte est entré ailleurs, un autre jour. */
+  /* LA DEVISE SE LIT AU VERSEMENT — les 100 € de Stevie A., 18 août. Le
+     tiroir lisait `i.fx`, posé sur la pièce à sa création seulement : un
+     second versement en euros sur une pièce existante n'y entrait JAMAIS.
+     Chaque versement porte désormais sa devise (`p.fx`), et le repli de
+     `invoiceReglements` descend le `fx` des pièces d'avant sur leur versement
+     unique — une seule forme à lire. */
   const boxCredit = (i: Invoice, name: string, boxCur: string, foreign: boolean, keep: (mk: string) => boolean): number =>
     foreign
-      ? (i.fx && i.fx.code === boxCur && keep(monthKey(i.date)) ? i.fx.amount : 0)
+      ? invoiceReglements(i)
+          .filter((p) => p.fx && p.fx.code === boxCur
+            /* La caisse du versement fait foi ; les versements d'avant le champ
+               `cashbox` suivent la pièce, qui nommait le tiroir. */
+            && (p.cashbox ?? i.cashbox) === name
+            && keep(monthKey(p.date ?? i.date)))
+          .reduce((n, p) => n + p.fx!.amount, 0)
       : invoiceReglements(i)
           .filter((p) => p.cashbox === name && p.method !== 'Avoir' && p.method !== 'Acompte' && keep(monthKey(p.date ?? '')))
           .reduce((n, p) => n + p.amountXof, 0);
@@ -267,7 +279,12 @@ export default function Depenses() {
         label: i.clientName?.trim() || 'Cliente de passage',
         sub: [
           i.number,
-          i.fx ? `${i.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${i.fx.code}` : null,
+          (() => {
+            /* Les billets étrangers se lisent au versement — même source que le solde. */
+            const dev = invoiceReglements(i).filter((p) => p.fx && p.fx.code === boxCur);
+            const total = dev.reduce((n, p) => n + p.fx!.amount, 0);
+            return total > 0 ? `${total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${boxCur}` : null;
+          })(),
           !foreign && (i.avoirXof ?? 0) > 0 ? `avoir −${fmtIn(i.avoirXof!, boxCur)}` : null,
           /* Le pourboire se DIT sans se compter : il explique pourquoi la
              cliente a remis plus que ce que la caisse inscrit. */

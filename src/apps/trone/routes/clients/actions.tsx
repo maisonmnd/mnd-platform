@@ -8,7 +8,7 @@ import { useClients, clientsStore, useFamilies } from '../../../../shared/client
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
-  invoicesStore, useCashboxes, invoiceTotal, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
+  invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceSoldee, useInvoices,
   type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
@@ -24,7 +24,7 @@ import { useStaff } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, forfaitTauxPct, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -657,7 +657,24 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
          rabotant les lignes. */
       const lignesDuRituel = (): InvoiceLine[] => {
         if (services.length === 0) return [ligneFacture(nomForfait || apptLabel(appt, byId), net)];
-        const l = services.map((sv, idx) => ligneFacture(sv.name, svcWeights[idx]));
+        /* LA REMISE DE LIGNE RESTE SUR SA LIGNE — 18 août 2026 : « je dois
+           voir la remise de 20 000 F sur la ligne de la prestation, avec les
+           60 000 F barrés ». Elle était fondue dans la remise globale de la
+           pièce : le total tombait juste, mais la ligne mentait par omission —
+           on ne savait plus QUELLE prestation portait le geste. La ligne porte
+           donc son prix plein ET sa remise ; seule la part restante (forfait,
+           geste global) va à la remise globale. */
+        /* L'index vient de `serviceIds`, pas de `services` — même garde que
+           dans `alignerFacturesDuRituel` : les deux divergent dès qu'une fiche
+           a quitté le catalogue, et la remise irait au geste voisin. */
+        const posRituel = services.map((sv) => appt.serviceIds.indexOf(sv.id));
+        const l = services.map((sv, idx) => {
+          const ligne = ligneFacture(sv.name, svcWeights[idx]);
+          const r = remiseDeLigne(appt, posRituel[idx] >= 0 ? posRituel[idx] : idx);
+          if (r.pct > 0) ligne.discountPct = r.pct;
+          if (r.xof > 0) ligne.discountXof = r.xof;
+          return ligne;
+        });
         /* Cas rare : le net dépasse la somme des prix pleins (montant convenu
            au-dessus du barème). On l'ajoute en clair plutôt que de gonfler les
            lignes — même geste que `alignerFacturesDuRituel`. */
@@ -665,9 +682,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         return l;
       };
       const lines = lignesDuRituel();
-      /* La remise se mesure contre le NET DU RITUEL, plus contre le versement :
-         c'est le rituel que la pièce atteste. */
-      const detailRemise = services.length > 0 && grossSum > net ? grossSum - net : 0;
+      /* La remise GLOBALE se mesure contre le net des LIGNES — les remises de
+         ligne étant déjà écrites sur elles, ne la mesurer que contre les prix
+         pleins les compterait deux fois. */
+      const netDesLignes = lines.reduce((s, l) => s + ligneNetXof(l), 0);
+      const detailRemise = services.length > 0 && netDesLignes > net ? netDesLignes - net : 0;
 
       /* LES VERSEMENTS DE CE PASSAGE. Un par NATURE d'argent, car ils ne
          voyagent pas ensemble : le comptant entre en caisse, l'avoir est un
@@ -688,6 +707,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: amount,
           method: pay, cashbox: activeBox,
+          /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
+             Posée sur la seule pièce, elle se perdait dès que le versement
+             s'inscrivait sur une pièce existante : tiroir EUR vide, PDF muet. */
+          ...(fxOn && fxAmount > 0 ? { fx: { code: fxCode, rate: fxRateNum, amount: fxAmount } } : {}),
         });
       }
       if (avoirApplied > 0) {
@@ -777,6 +800,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           avoirXof: ((pieceDuRituel.avoirXof ?? 0) + avoirApplied) || undefined,
           depositCreditXof: ((pieceDuRituel.depositCreditXof ?? 0) + depositCredit) || undefined,
           tipXof: ((pieceDuRituel.tipXof ?? 0) + (partage.length > 0 ? tip : 0)) || undefined,
+          /* La devise du jour se dit AUSSI sur la pièce — pour les écrans qui
+             ne lisent qu'elle ; la vérité par versement est dans le journal. */
+          fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : pieceDuRituel.fx,
           note: [forfaitNote, avoirNote, partialNote].filter(Boolean).join(' · ') || undefined,
           apptId: appt.id,
         });
@@ -1135,8 +1161,44 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                     <option key={c.name} value={c.name}>{c.name}</option>
                   ))}
                 </Select>
+                {/* LA DEVISE SE RÉPARE ICI — un versement rangé dans un tiroir
+                    étranger SANS ses billets (encaissé avant le 18 août) se
+                    corrige d'un chiffre : on saisit ce qui a été tendu, le taux
+                    s'en déduit. C'est le seul champ : `amountXof` reste la
+                    vérité comptable, on ne la retouche pas. */}
+                {(() => {
+                  const caisse = branchBoxes.find((c) => c.name === v.cashbox);
+                  const dev = caisse ? cashboxCurrency(caisse) : currency;
+                  if (dev === currency) return null;
+                  return (
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                      reçu
+                      <Input
+                        inputMode="decimal"
+                        value={v.fx?.code === dev ? String(v.fx.amount) : ''}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const n = Math.max(0, Number(e.target.value.replace(',', '.')) || 0);
+                          corrigerVersement(v.id, {
+                            fx: n > 0
+                              ? { code: dev, rate: Math.round((v.amountXof / n) * 100) / 100, amount: n }
+                              : undefined,
+                          });
+                        }}
+                        style={{ width: 74, flex: 'none', fontSize: 12, textAlign: 'right' }}
+                        aria-label={`Billets reçus en ${dev}`}
+                      />
+                      {dev}
+                    </label>
+                  );
+                })()}
                 <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
                   {fmtMoney(v.amountXof, currency)}
+                  {v.fx && (
+                    <span style={{ color: 'var(--copper-700)', marginLeft: 6 }}>
+                      {v.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {v.fx.code}
+                    </span>
+                  )}
                 </span>
               </div>
             ))}

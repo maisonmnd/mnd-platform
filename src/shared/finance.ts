@@ -39,6 +39,14 @@ export type InvoicePayment = {
   /** Heure d'encaissement HH:mm — journal de caisse. */
   time?: string;
   note?: string;
+  /** REÇU EN DEVISE — 18 août 2026, les 100 € de Stevie A. La devise vivait
+      sur la PIÈCE seule (`Invoice.fx`) ; or un second versement s'inscrit sur
+      une pièce existante sans la réécrire, et l'information se perdait : le
+      tiroir EUR restait vide, le PDF taisait les euros. Avec plusieurs
+      règlements, seule LE VERSEMENT sait quel argent était étranger.
+      `amount` = les billets réellement tendus (pourboire compris — on ne
+      découpe pas un billet) ; `amountXof` reste la seule base comptable. */
+  fx?: { code: string; rate: number; amount: number };
 };
 
 export type InvoiceLine = {
@@ -246,6 +254,9 @@ export const invoiceReglements = (inv: Invoice): InvoicePayment[] => {
     method: inv.payment ?? 'Espèces',
     cashbox: inv.cashbox,
     time: inv.time,
+    /* La devise de la pièce d'avant descend sur son versement unique : les
+       lectures par versement (tiroir en devise, PDF) n'ont ainsi qu'UNE forme. */
+    ...(inv.fx ? { fx: inv.fx } : {}),
   }];
 };
 

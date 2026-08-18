@@ -10,7 +10,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   filStore, useFil, nouveauMessage, estDemande, demandeOuverte, messagesDuCanal, mesDemandes,
-  CANAL_MAISON, A_PRENDRE, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
+  CANAL_MAISON, A_PRENDRE, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, puisJeEffacer, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useCategories } from '../../../../shared/catalog';
@@ -121,6 +121,21 @@ export default function Fil() {
   const [canal, setCanal] = useState<string>(CANAL_MAISON);
 
   const messages = messagesDuCanal(tous, branch.id, canal, monMail);
+
+  /* ── ON ARRIVE AU PRÉSENT — 18 août, soin de la page. Un fil se lit comme
+     une conversation : le dernier mot d'abord. Ouvrir sur les messages de la
+     semaine passée obligeait à faire défiler tout l'historique pour savoir où
+     ça en est. On descend au dernier message à l'ouverture du fil et quand un
+     nouveau arrive — sans animation à l'ouverture, pour ne pas voir la page
+     défiler toute seule. */
+  const finDuFil = useRef<HTMLDivElement>(null);
+  const dernierId = messages.at(-1)?.id;
+  const canalPrecedent = useRef(canal);
+  useEffect(() => {
+    const change = canalPrecedent.current !== canal;
+    canalPrecedent.current = canal;
+    finDuFil.current?.scrollIntoView({ behavior: change ? 'auto' : 'smooth', block: 'nearest' });
+  }, [canal, dernierId]);
   const aTraiter = mesDemandes(tous, branch.id, monMail, invoices);
   /* Combien de messages non lus ? On ne suit pas la lecture — ce serait un
      registre de plus. On montre COMBIEN il y a, ce qui suffit à savoir où
@@ -417,10 +432,21 @@ export default function Fil() {
                 Le fil est vide. Écrivez la première phrase.
               </div>
             )}
-            {messages.map((m) => {
+            {messages.map((m, idx) => {
               const ouverte = demandeOuverte(m, invoices);
+              /* LE JOUR SE DIT UNE FOIS — un trait daté sépare les journées,
+                 comme dans tout registre : « le 12 août » se lit en tête de
+                 journée, pas répété sur chaque ligne. */
+              const jour = m.at.slice(0, 10);
+              const jourDavant = idx > 0 ? messages[idx - 1].at.slice(0, 10) : '';
+              const [, mm, jj] = jour.split('-');
+              const litLeJour = jour === aujourdhui ? 'Aujourd’hui' : `${Number(jj)}/${mm}`;
               return (
-                <div key={m.id} className="trf-fil__msg">
+                <div key={m.id}>
+                {jour !== jourDavant && (
+                  <div className="trf-fil__jour"><span>{litLeJour}</span></div>
+                )}
+                <div className="trf-fil__msg">
                   <span className="trf-fil__av">{initiales(m.auteurNom)}</span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="trf-fil__qui">
@@ -430,6 +456,13 @@ export default function Fil() {
                         <>
                           {' · '}
                           <button type="button" className="trf-fil__mini" onClick={() => commencerLaReprise(m)}>Modifier</button>
+                        </>
+                      )}
+                      {/* Effacer suit SA règle — « supprimer les tâches terminées »,
+                          18 août : l'auteur toujours, et une demande TERMINÉE
+                          aussi par qui l'a traitée. */}
+                      {puisJeEffacer(m, monMail, false, estDemande(m) ? !demandeOuverte(m, invoices) : false) && enReprise !== m.id && (
+                        <>
                           {' · '}
                           <button type="button" className="trf-fil__mini" onClick={() => effacer(m)}>Effacer</button>
                         </>
@@ -506,8 +539,10 @@ export default function Fil() {
                     </div>
                   </div>
                 </div>
+                </div>
               );
             })}
+            <div ref={finDuFil} />
           </div>
 
           {/* ── Ce qu'on écrit ── */}
@@ -516,6 +551,12 @@ export default function Fil() {
               rows={2}
               value={texte}
               onChange={(e) => setTexte(e.target.value)}
+              /* ENTRÉE ENVOIE, MAJ+ENTRÉE PASSE À LA LIGNE — la convention de
+                 toute messagerie ; il fallait chercher le bouton à la souris
+                 pour chaque phrase. */
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(); }
+              }}
               placeholder={canal.startsWith('notes:') ? 'Une note pour moi…' : `Écrire — ${titreDuCanal()}`}
             />
             {compteOuvert && (

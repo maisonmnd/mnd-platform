@@ -17,7 +17,7 @@ import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
-import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
+import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
@@ -516,16 +516,32 @@ export default function Factures() {
          avec sa date et sa part. */
       reglements: invoiceReglements(d)
         .filter((p) => p.amountXof > 0)
-        .map((p) => ({ date: fmtDateFr(p.date), method: p.method, amount: fmtMoney(p.amountXof, currency) })),
-      lines: d.lines.map((l) => ({
+        .map((p) => ({
+          date: fmtDateFr(p.date),
+          /* Le versement en devise se dit sur le papier aussi — la cliente
+             doit retrouver les billets qu'elle a tendus. */
+          method: p.fx
+            ? `${p.method} · ${p.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${p.fx.code} reçus (1 ${p.fx.code} = ${p.fx.rate} ${currency})`
+            : p.method,
+          amount: fmtMoney(p.amountXof, currency),
+        })),
+      lines: d.lines.map((l) => {
         /* LE GESTE SE DIT SUR LE PAPIER AUSSI (16 août) : la pièce écran
            montrait « remise −100 % », le PDF affichait un 0 F sans raison.
-           Un cadeau qu'on ne voit pas n'est pas reçu. */
-        label: l.discountPct > 0 ? `${l.label} · remise −${l.discountPct} %` : l.label,
-        qty: l.qty,
-        unit: fmtMoney(l.unitXof, currency),
-        total: fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency),
-      })),
+           Un cadeau qu'on ne voit pas n'est pas reçu. 18 août : même dette
+           pour la remise en FRANCS — le PDF l'ignorait jusque dans le calcul
+           de la ligne. */
+        const remise = [
+          l.discountPct > 0 ? `−${l.discountPct} %` : '',
+          (l.discountXof ?? 0) > 0 ? `−${fmtMoney(l.discountXof!, currency)}` : '',
+        ].filter(Boolean).join(' puis ');
+        return {
+          label: remise ? `${l.label} · remise ${remise}` : l.label,
+          qty: l.qty,
+          unit: fmtMoney(l.unitXof, currency),
+          total: fmtMoney(ligneNetXof(l), currency),
+        };
+      }),
       subtotal: fmtMoney(Math.round(gross), currency),
       discount: disc > 0 ? `− ${fmtMoney(Math.round(disc), currency)}` : undefined,
       total: fmtMoney(net, currency),
@@ -671,7 +687,9 @@ export default function Factures() {
   const totals = active
     ? (() => {
         const gross = active.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
-        const afterLines = active.lines.reduce((s, l) => s + l.qty * l.unitXof * (1 - l.discountPct / 100), 0);
+        /* ligneNetXof — la remise de ligne en FRANCS comptait pour zéro ici :
+           l'écran annonçait des remises qui ne se recoupaient pas avec le total. */
+        const afterLines = active.lines.reduce((s, l) => s + ligneNetXof(l), 0);
         const lineDisc = gross - afterLines;
         const globalDisc = afterLines * (active.globalDiscountPct / 100);
         const manualDisc = active.globalDiscountXof ?? 0;
@@ -1327,15 +1345,24 @@ export default function Factures() {
               </div>
               <div style={{ marginTop: 12 }}>
                 {active.lines.map((l) => {
-                  const net = l.qty * l.unitXof * (1 - l.discountPct / 100);
+                  /* LA REMISE EN FRANCS SE VOIT SUR SA LIGNE — 18 août 2026 :
+                     « les 60 000 F barrés, la vraie remise, puis le nouveau
+                     montant ». Seul le pourcentage se disait ; une remise de
+                     20 000 F laissait la ligne intacte et le total inexpliqué. */
+                  const net = ligneNetXof(l);
+                  const remisee = l.discountPct > 0 || (l.discountXof ?? 0) > 0;
+                  const ditLaRemise = [
+                    l.discountPct > 0 ? `−${l.discountPct}%` : '',
+                    (l.discountXof ?? 0) > 0 ? `−${fmtMoney(l.discountXof!, currency)}` : '',
+                  ].filter(Boolean).join(' puis ');
                   return (
                     <div key={l.id} className="trv-doc__item">
                       <div>
                         <div className="lbl">{l.qty > 1 ? `${l.label} ×${l.qty}` : l.label}</div>
-                        {l.discountPct > 0 && <div className="temps">remise −{l.discountPct}%</div>}
+                        {remisee && <div className="temps">remise {ditLaRemise}</div>}
                       </div>
                       <div style={{ textAlign: 'right', flex: 'none' }}>
-                        {l.discountPct > 0 && <div className="orig">{fmtMoney(l.qty * l.unitXof, currency)}</div>}
+                        {remisee && <div className="orig">{fmtMoney(l.qty * l.unitXof, currency)}</div>}
                         <div className="amt">{fmtMoney(Math.round(net), currency)}</div>
                       </div>
                     </div>
@@ -1430,6 +1457,14 @@ export default function Factures() {
                           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginLeft: 8 }}>
                             le {fmtDateFr(p.date)}
                           </span>
+                          {/* Le versement en devise se dit SUR SA LIGNE — les
+                              100 € de Stevie A. n'apparaissaient nulle part :
+                              la pièce ne portait la devise qu'à sa création. */}
+                          {p.fx && (
+                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginLeft: 8 }}>
+                              {p.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {p.fx.code} reçus · 1 {p.fx.code} = {p.fx.rate} {currency}
+                            </span>
+                          )}
                         </span>
                         {journal.length > 1 && (
                           <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>

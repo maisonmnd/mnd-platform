@@ -9,7 +9,7 @@ import { useInvoices, invoiceTotal, invoiceResteXof, invoiceSoldee, invoiceRegle
 import { fmtMoney } from '../../../../shared/currency';
 import {
   filStore, useFil, nouveauMessage, demandesDuTableau, demandeOuverte, puisJeDeplacer, puisJeClore,
-  enRetard, faiteRecemment, estAPrendre, A_PRENDRE, CANAL_MAISON,
+  puisJeEffacer, enRetard, faiteRecemment, estAPrendre, A_PRENDRE, CANAL_MAISON,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useStaff, staffAccessStore } from './data';
@@ -252,6 +252,15 @@ export default function Tableau() {
       : x)));
   };
 
+  /* EFFACER UNE CARTE TERMINÉE — 18 août, « supprimer les tâches terminées ».
+     Elle disparaît du tableau ET du fil : c'est le même message. Le geste
+     demande confirmation, parce qu'il n'a pas de retour. */
+  const effacerCarte = (m: FilMessage) => {
+    if (!window.confirm('Effacer cette carte terminée ? Elle disparaîtra aussi du Fil, pour tout le monde.')) return;
+    filStore.set((prev) => prev.filter((x) => x.id !== m.id));
+    toast('Carte effacée.');
+  };
+
   const ouvrirLaPiece = (p: FilPiece) => {
     if (p.kind === 'facture') navigate(`/factures?id=${p.id}`);
     else if (p.kind === 'rituel') navigate('/carnet');
@@ -312,14 +321,23 @@ export default function Tableau() {
         )}
 
         {faite ? (
-          puisJeClore(m, monMail) && m.faitAt ? (
-            <label className="trf-fil__case" style={{ marginTop: 7 }}>
-              <input type="checkbox" checked onChange={() => basculerFait(m)} />
-              <span>Traité{m.faitPar ? ` par ${m.faitPar}` : ''} — décocher pour rouvrir</span>
-            </label>
-          ) : (
-            <div className="trt__pied">{m.faitPar ? `Traité par ${m.faitPar}` : 'La facture est soldée'}</div>
-          )
+          <>
+            {puisJeClore(m, monMail) && m.faitAt ? (
+              <label className="trf-fil__case" style={{ marginTop: 7 }}>
+                <input type="checkbox" checked onChange={() => basculerFait(m)} />
+                <span>Traité{m.faitPar ? ` par ${m.faitPar}` : ''} — décocher pour rouvrir</span>
+              </label>
+            ) : (
+              <div className="trt__pied">{m.faitPar ? `Traité par ${m.faitPar}` : 'La facture est soldée'}</div>
+            )}
+            {/* Une carte terminée s'EFFACE — du tableau et du fil, c'est le
+                même message. Par son auteur, son destinataire ou le souverain. */}
+            {puisJeEffacer(m, monMail, estSouverain, true) && (
+              <button type="button" className="trf-fil__mini" style={{ marginTop: 5 }} onClick={() => effacerCarte(m)}>
+                Effacer
+              </button>
+            )}
+          </>
         ) : (
           bouge && (
             <label className="trt__echeance" onClick={(e) => e.stopPropagation()}>

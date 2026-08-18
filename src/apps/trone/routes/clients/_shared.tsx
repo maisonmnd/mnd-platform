@@ -401,7 +401,10 @@ export function alignerFacturesDuRituel(
       && (inv.discountLabel ?? undefined) === discountLabel
       && inv.lines.every((l, i) => l.label === lines[i].label
         && l.qty * l.unitXof === lines[i].unitXof
-        && (l.discountPct ?? 0) === lines[i].discountPct);
+        && (l.discountPct ?? 0) === lines[i].discountPct
+        /* La remise en FRANCS compte aussi — sans elle, corriger un « −20 000 F »
+           en « −15 000 F » passait pour « déjà conforme » et ne s'écrivait pas. */
+        && (l.discountXof ?? 0) === (lines[i].discountXof ?? 0));
     if (deja) return inv;
     return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof, discountLabel };
   };

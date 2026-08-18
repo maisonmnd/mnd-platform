@@ -207,6 +207,28 @@ export const puisJeClore = (m: FilMessage, monMail: string): boolean => {
 export const puisJeReprendre = (m: FilMessage, monMail: string): boolean =>
   m.auteurMail.trim().toLowerCase() === monMail.trim().toLowerCase() && !m.faitAt;
 
+/** EFFACER — 18 août 2026, « supprimer les tâches terminées dans Fil et
+    Tableau ». Un message ordinaire s'efface par son auteur. Une demande
+    OUVERTE aussi — par son auteur seul : elle engage quelqu'un d'autre, et
+    la retirer est le droit de qui l'a posée. Une demande TERMINÉE s'efface
+    par son auteur, son destinataire ou le souverain : le travail est fait,
+    la garder n'engage plus personne — et Le Fil, lui, garde la parole qui
+    l'entourait. */
+export const puisJeEffacer = (
+  m: FilMessage,
+  monMail: string,
+  souverain = false,
+  /* Une demande éteinte PAR SA FACTURE n'a pas de `faitAt` : l'appelant qui
+     tient les factures passe l'état vrai ; par défaut, la case cochée. */
+  terminee: boolean = !!m.faitAt,
+): boolean => {
+  const moi = monMail.trim().toLowerCase();
+  const auteur = m.auteurMail.trim().toLowerCase() === moi;
+  if (!estDemande(m)) return auteur;
+  if (!terminee) return auteur;
+  return auteur || souverain || (m.demandePour ?? '').toLowerCase() === moi;
+};
+
 /** LA DEMANDE EST-ELLE ENCORE OUVERTE ?
 
     Deux façons de la refermer, et la seconde est celle qui compte :
