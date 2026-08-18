@@ -105,6 +105,25 @@ export type FilMessage = {
       par la bande. Les messages ainsi marqués ne lui sont pas montrés —
       décision de Yéman, 18 août : « les fils suivent les droits des écrans ». */
   argent?: boolean;
+
+  /* ── LE TABLEAU — maquette validée le 18 août 2026 ─────────────────
+     « Je veux une organisation avec chaque nom sous une colonne et ses tâches,
+     et pouvoir déplacer les tâches vers d'autres membres ou quand c'est
+     terminé. » Le tableau n'a PAS de table à lui : une carte EST une demande,
+     et ces deux champs sont tout ce qui lui manquait. */
+
+  /** L'ÉCHÉANCE — facultative, décision de la maquette : sans elle, « en
+      retard » et « aujourd'hui » ne peuvent pas exister. Une carte sans date se
+      range en bas de sa colonne, sous un trait — elle ne se fait pas passer
+      pour urgente. */
+  echeance?: string;
+
+  /** LA TRACE DES DÉPLACEMENTS — « un travail qui passe d'une main à l'autre
+      sans que rien ne le dise, c'est un travail qui se perd ». Chaque
+      réadressage s'ajoute ici ; on ne garde pas que le dernier, parce qu'une
+      carte qui a fait trois mains raconte quelque chose que la dernière main
+      ne dit pas. */
+  mouvements?: { parNom: string; deNom: string; aNom: string; at: string }[];
 };
 
 export const filStore = createStore<FilMessage[]>('mnd_fil', []);
@@ -178,6 +197,9 @@ export const poidsEnClair = (o: number): string =>
     demande quand elle n'a plus lieu d'être. */
 export const puisJeClore = (m: FilMessage, monMail: string): boolean => {
   const moi = monMail.trim().toLowerCase();
+  /* Une demande à prendre n'a pas de destinataire : seul son auteur peut la
+     retirer — la clore, c'est dire que le travail n'attend plus personne. */
+  if (estAPrendre(m)) return m.auteurMail.trim().toLowerCase() === moi;
   return (m.demandePour ?? '').toLowerCase() === moi
     || m.auteurMail.trim().toLowerCase() === moi;
 };
@@ -231,6 +253,13 @@ export const canalDM = (a: string, b: string) =>
 
 export const estCanalPrive = (canal: string) => canal.startsWith('notes:') || canal.startsWith('dm:');
 
+/* ── À PRENDRE ─────────────────────────────────────────────────────
+   Une demande SANS destinataire — la colonne de gauche du Tableau. L'étoile
+   est une sentinelle, pas une adresse : aucun courriel ne peut la porter, donc
+   elle ne tombera jamais dans le « à traiter » de quelqu'un par accident. */
+export const A_PRENDRE = '*';
+export const estAPrendre = (m: FilMessage): boolean => m.demandePour === A_PRENDRE;
+
 /** CE MESSAGE ME REGARDE-T-IL ? — 18 août 2026.
 
     « Gérard ne doit pas voir ce que son patron envoie à sa patronne. »
@@ -247,9 +276,18 @@ export const estCanalPrive = (canal: string) => canal.startsWith('notes:') || ca
 
     Un message SANS demande reste ce qu'il est : une parole au fil où il est
     posé, publique s'il est public. */
-export const messageVisible = (m: FilMessage, monMail: string): boolean => {
+export const messageVisible = (m: FilMessage, monMail: string, sansPrix = false): boolean => {
   if (!canalVisible(m.canal, monMail)) return false;
+  /* UN MESSAGE QUI PARLE D'ARGENT ne se montre pas à qui ne voit pas les prix.
+     La règle était écrite ici depuis le matin — mais rien ne l'appliquait :
+     le champ `argent` était posé à l'envoi et jamais lu. Un maître voyait
+     « 81 000 F » dans le fil de la Maison. Colmaté le 18 août, en construisant
+     le Tableau — qui aurait hérité du même trou. */
+  if (sansPrix && m.argent) return false;
   if (!estDemande(m)) return true;
+  /* Une demande À PRENDRE n'a pas encore de destinataire : elle regarde tout
+     le monde, puisque n'importe qui peut la prendre. */
+  if (estAPrendre(m)) return true;
   const moi = monMail.trim().toLowerCase();
   return (m.demandePour ?? '').toLowerCase() === moi
     || m.auteurMail.trim().toLowerCase() === moi;
@@ -347,9 +385,10 @@ export const messagesDuCanal = (
   branchId: string,
   canal: string,
   monMail: string,
+  sansPrix = false,
 ): FilMessage[] =>
   tous
-    .filter((m) => m.branchId === branchId && m.canal === canal && messageVisible(m, monMail))
+    .filter((m) => m.branchId === branchId && m.canal === canal && messageVisible(m, monMail, sansPrix))
     .sort((a, b) => a.at.localeCompare(b.at));
 
 /** CE QUI M'ATTEND — les demandes qui me sont adressées et restent ouvertes. */
@@ -377,4 +416,67 @@ export function messageExpire(m: FilMessage, aujourdhui: string): boolean {
   const p2 = (n: number) => String(n).padStart(2, '0');
   const borne = `${limite.getFullYear()}-${p2(limite.getMonth() + 1)}-${p2(limite.getDate())}`;
   return m.at.slice(0, 10) < borne;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LE TABLEAU — les demandes vues d'en haut. Maquette validée le 18 août :
+   « le tableau peut suivre le rang. C'est bon comme ça. »
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** LES CARTES DU TABLEAU — et la règle du rang, décidée le 18 août.
+
+    Le fil garde sa règle stricte : une demande ne regarde que son auteur et
+    son destinataire. Le tableau, lui, SUIT LE RANG : le souverain voit toutes
+    les colonnes, parce qu'il répond de la Maison — c'est le seul endroit où il
+    peut savoir qui porte quoi. Le maître ne voit que ce qui le touche : ce
+    qu'on lui demande, ce qu'il demande, et ce qui est à prendre.
+
+    La demande d'un souverain à l'autre reste hors de la vue du personnel :
+    c'est la correction du matin même, et le rang ne la rouvre pas. */
+export const demandesDuTableau = (
+  tous: readonly FilMessage[],
+  branchId: string,
+  monMail: string,
+  souverain: boolean,
+  sansPrix = false,
+): FilMessage[] => {
+  const moi = monMail.trim().toLowerCase();
+  return tous
+    .filter((m) => m.branchId === branchId && estDemande(m))
+    .filter((m) => !(sansPrix && m.argent))
+    .filter((m) => souverain
+      || estAPrendre(m)
+      || (m.demandePour ?? '').toLowerCase() === moi
+      || m.auteurMail.trim().toLowerCase() === moi)
+    .sort((a, b) => a.at.localeCompare(b.at));
+};
+
+/** QUI PEUT DÉPLACER UNE CARTE — décision ③ de la maquette : celui qui a
+    demandé, celui à qui l'on a demandé, plus le souverain. Sinon chacun peut se
+    débarrasser de son travail en trois secondes. Une carte à prendre se laisse
+    prendre par n'importe qui : c'est son sens. */
+export const puisJeDeplacer = (m: FilMessage, monMail: string, souverain: boolean): boolean => {
+  if (souverain) return true;
+  if (estAPrendre(m)) return true;
+  const moi = monMail.trim().toLowerCase();
+  return (m.demandePour ?? '').toLowerCase() === moi
+    || m.auteurMail.trim().toLowerCase() === moi;
+};
+
+/** EN RETARD — se CALCULE depuis l'échéance, jamais ne se coche : un état
+    qu'il faut penser à changer à la main finit toujours par mentir. */
+export const enRetard = (m: FilMessage, aujourdhui: string): boolean =>
+  !!m.echeance && m.echeance < aujourdhui;
+
+/** LA COLONNE « TERMINÉ » — sept jours à vue, décision ④ de la maquette. Une
+    colonne qui garde six mois n'est plus une colonne, c'est une archive qu'on
+    ne lit pas. Le reste vit toujours dans le fil. */
+export const JOURS_AU_TABLEAU = 7;
+export function faiteRecemment(m: FilMessage, aujourdhui: string): boolean {
+  if (!m.faitAt) return false;
+  const limite = new Date(`${aujourdhui}T00:00:00`);
+  limite.setDate(limite.getDate() - JOURS_AU_TABLEAU);
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  const borne = `${limite.getFullYear()}-${p2(limite.getMonth() + 1)}-${p2(limite.getDate())}`;
+  return m.faitAt.slice(0, 10) >= borne;
 }

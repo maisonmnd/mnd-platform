@@ -19,7 +19,7 @@ import BarreEquipe from './BarreEquipe';
    encaisse au passage. Le Catalogue vivait sous « Vente » : c'est pourtant la
    carte de la Maison, ouverte à chaque prix qu'on vérifie et à chaque
    prestation qu'on retouche. */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/fil', '/caisse', '/customers', '/factures', '/catalogue'];
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/fil', '/tableau', '/caisse', '/customers', '/factures', '/catalogue'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';

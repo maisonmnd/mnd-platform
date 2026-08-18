@@ -10,7 +10,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   filStore, useFil, nouveauMessage, estDemande, demandeOuverte, messagesDuCanal, mesDemandes,
-  CANAL_MAISON, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
+  CANAL_MAISON, A_PRENDRE, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useCategories } from '../../../../shared/catalog';
@@ -138,6 +138,10 @@ export default function Fil() {
   /* ── Ce qu'on écrit ── */
   const [texte, setTexte] = useState('');
   const [pourQui, setPourQui] = useState('');
+  /* L'ÉCHÉANCE d'une demande — facultative, décision de la maquette du
+     Tableau : sans elle, « en retard » n'existe pas ; avec elle obligatoire,
+     on inventerait des dates. */
+  const [echeance, setEcheance] = useState('');
   const [pieceRef, setPieceRef] = useState('');
   /* ── LE COMPTAGE ────────────────────────────────────────────────
      « Parfois c'est Gérard qui compte, pas moi » : le fil est la porte par
@@ -225,7 +229,11 @@ export default function Fil() {
       setDepotEnCours(false);
       if (!joint) { toast('Le fichier n’a pas pu être déposé — rien n’a été envoyé.'); return; }
     }
-    const dest = equipe.find((m) => m.id === pourQui);
+    /* « À prendre » — une demande sans destinataire, que n'importe qui peut
+       prendre sur le Tableau. La sentinelle n'est pas une adresse : elle ne
+       tombera dans le « à traiter » de personne par accident. */
+    const aPrendre = pourQui === A_PRENDRE;
+    const dest = aPrendre ? undefined : equipe.find((m) => m.id === pourQui);
     const tete = compteOuvert && compteTete ? teteDuBranche.find((c) => c.id === compteTete) : undefined;
     /* Le nouveau COMPLÈTE l'ancien : un quart laissé vide garde ce qu'il
        valait, il ne le remet pas à zéro. */
@@ -246,8 +254,9 @@ export default function Fil() {
       piece: choisie,
       fichier: joint,
       comptage,
-      demandePour: dest ? (dest.email ?? '').trim().toLowerCase() : undefined,
-      demandePourNom: dest?.name,
+      demandePour: aPrendre ? A_PRENDRE : dest ? (dest.email ?? '').trim().toLowerCase() : undefined,
+      demandePourNom: aPrendre ? 'À prendre' : dest?.name,
+      echeance: (aPrendre || dest) && echeance ? echeance : undefined,
       /* UN MESSAGE QUI PORTE UNE FACTURE PARLE D'ARGENT. On le marque sans le
          demander : compter sur la mémoire de celui qui écrit, c'est laisser un
          montant passer sous les yeux d'un maître un jour de presse. */
@@ -263,11 +272,12 @@ export default function Fil() {
         ? { ...c, lockCount: totalDuComptage(comptage) }
         : c)));
     }
-    setTexte(''); setPourQui(''); setPieceRef('');
+    setTexte(''); setPourQui(''); setPieceRef(''); setEcheance('');
     setFichier(null); if (champFichier.current) champFichier.current.value = '';
     setCompteOuvert(false); setCompteTete(''); setAvG(''); setAvD(''); setArG(''); setArD('');
     toast(comptage
       ? `Comptage posé — ${tete?.name} · ${totalDuComptage(comptage)} locks.`
+      : aPrendre ? 'Demande posée — à prendre sur le Tableau.'
       : dest ? `Demande adressée à ${dest.name}.` : 'Message posé au fil.');
   };
 
@@ -582,10 +592,23 @@ export default function Fil() {
               </Select>
               <Select value={pourQui} onChange={(e) => setPourQui(e.target.value)} style={{ fontSize: 12, maxWidth: 220 }}>
                 <option value="">Sans demande</option>
+                <option value={A_PRENDRE}>En faire une demande · à prendre</option>
                 {equipe.filter((m) => m.branchId === branch.id).map((m) => (
                   <option key={m.id} value={m.id}>En faire une demande · {m.name}</option>
                 ))}
               </Select>
+              {pourQui !== '' && (
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                  Échéance
+                  <input
+                    className="mnd-input"
+                    type="date"
+                    value={echeance}
+                    onChange={(e) => setEcheance(e.target.value)}
+                    style={{ padding: '4px 7px', fontSize: 12 }}
+                  />
+                </label>
+              )}
               <Button
                 variant="copper"
                 size="sm"

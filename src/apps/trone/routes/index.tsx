@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -74,6 +74,7 @@ export const NAV: TroneGroup[] = [
          d'elle qu'il parle, et il est hissé au Quotidien (Shell) parce qu'on
          l'ouvre tous les jours. */
       { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
+      { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
       { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
       { path: '/personnel', label: 'Personnel & paie', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
@@ -114,7 +115,12 @@ export const NAV: TroneGroup[] = [
 
    La liste est BLANCHE, jamais noire : un écran nouveau n'est pas ouvert par
    défaut. Ajouter une route ne peut donc pas élargir un accès par distraction. */
-export const ROUTES_MAITRE = ['/mon-mois', '/calendrier'];
+/* LE FIL ET LE TABLEAU sont à TOUT le personnel — c'est leur raison d'être :
+   « parfois c'est Gérard qui compte, pas moi ; il n'a pas accès aux fiches,
+   mais ils ont accès à leurs fils » (18 août). Ce que chacun y VOIT est réglé
+   dedans (`messageVisible`, `demandesDuTableau`, `sansPrix`) — la porte peut
+   donc être ouverte : elle ne donne que sur ce qui regarde la personne. */
+export const ROUTES_MAITRE = ['/mon-mois', '/calendrier', '/fil', '/tableau'];
 
 /* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
    Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
