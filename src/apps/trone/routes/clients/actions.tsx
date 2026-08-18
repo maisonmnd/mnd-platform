@@ -9,7 +9,7 @@ import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type 
 import { useCategories, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
-  useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceSoldee, useInvoices,
+  useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
   type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder,
 } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -18,6 +18,7 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } 
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT } from '../equipe/data';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { useStaff } from '../equipe/data';
@@ -932,6 +933,37 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       };
       appointmentsStore.set((prev) => [...prev, newAppt]);
       rescheduled = true;
+    }
+
+    /* ── L'AVIS GOOGLE DE LA PREMIÈRE VENUE — 18 août 2026 ─────────────
+       « Je veux que mes nouvelles clientes de passage laissent un avis
+       Google une fois la prestation terminée. »
+
+       Le moment est CELUI-CI : le rituel vient d'être soldé, la cliente est
+       encore à la porte, contente. On ouvre WhatsApp avec le message déjà
+       écrit — un seul geste pour l'envoyer, rien ne part sans la main du
+       comptoir. Seulement à la PREMIÈRE pièce soldée de cette tête : une
+       habituée relancée à chaque passage finirait par ne plus rien laisser.
+
+       L'envoi VRAIMENT automatique attend l'API WhatsApp Business (dossier
+       Meta) — ceci est la voie qui marche aujourd'hui, sans clé ni coût. */
+    if (settleTotal > 0 && fullyPaid && (automationsActiveStore.get()['avis-premiere-venue'] !== false)) {
+      const tete = clients.find((c) => c.id === appt.clientId);
+      const tel = (tete?.phone ?? '').replace(/\D/g, '');
+      const lien = (autoConfigStore.get().reviewLink || REVIEW_LINK_DEFAUT).trim();
+      /* Les pièces d'AVANT : celles des autres rituels de cette tête. La pièce
+         de CE rituel s'exclut par son lien au rendez-vous, pas par une
+         variable de bloc. */
+      const dejaReglees = invoicesStore.get().filter((i) =>
+        i.kind === 'facture' && i.clientId === appt.clientId
+        && i.apptId !== appt.id && i.id !== appt.invoiceId
+        && invoiceRegleXof(i) > 0).length;
+      if (tel && lien && dejaReglees === 0) {
+        const prenom = (tete?.name ?? '').trim().split(/\s+/)[0];
+        const mot = `Merci pour votre passage à la Maison MND${prenom ? `, ${prenom}` : ''}. `
+          + `Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lien}`;
+        window.open(waLink(tel, mot), '_blank', 'noopener');
+      }
     }
 
     /* RESTER POUR LE SECOND RÈGLEMENT — « je veux enregistrer un premier

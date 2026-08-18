@@ -227,6 +227,11 @@ export const MOMO_QR_DEFAUT = '506846@momopay';
 export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
 export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
 
+/** Le lien d'avis Google de la Maison — remis par Yéman le 18 août 2026.
+    Public par nature : c'est le lien qu'on DONNE aux clientes. Il se corrige
+    dans Paramètres › Automatisations sans toucher au code. */
+export const REVIEW_LINK_DEFAUT = 'https://g.page/r/CYEt1s4BqvZDEBE/review';
+
 /* ── LE JOURNAL DES ENVOIS (13 août) — table `envois`, 0043.
    Une ligne = UN message à UNE personne par UN canal, avec son verdict.
    ÉCRIT par la fonction planifiée `rappels-j1` (push automatique, WhatsApp/
@@ -253,7 +258,7 @@ export const useEnvois = () => useStore(envoisStore);
 export const autoConfigStore = createStore<AutoConfig>('mnd_auto_config', {
   momoLink: '',
   mapsLink: '',
-  reviewLink: '',
+  reviewLink: REVIEW_LINK_DEFAUT,
   itineraire: '',
   momoQr: MOMO_QR_DEFAUT,
   momoUssd: MOMO_USSD_DEFAUT,

@@ -2,6 +2,27 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'avis Google de la première venue — 18 août, PUBLIÉ
+
+DEMANDE : « Je veux que mes nouvelles clientes de passage laissent un avis
+Google une fois la prestation terminée. » Lien remis par Yéman :
+`REVIEW_LINK_DEFAUT` (g.page/r/CYEt1s4BqvZDEBE/review) — public par nature,
+corrigeable dans Paramètres › Automatisations (`autoConfigStore.reviewLink`,
+le champ existait déjà, rien ne le lisait).
+
+TROIS VOIES, deux construites :
+- **WhatsApp à l'encaissement** (actions.tsx, fin de `confirm`) : rituel soldé
+  + PREMIÈRE pièce réglée de cette tête + fiche avec téléphone → WhatsApp
+  s'ouvre, message écrit, un tap pour envoyer. Une habituée n'est jamais
+  relancée. Interrupteur : `automationsActiveStore['avis-premiere-venue']`
+  (actif par défaut, convention Marketing).
+- **QR « Laissez-nous un avis »** (QrCodes.tsx) : le carré ouvre le FORMULAIRE
+  d'avis, pas la carte ; affichage comptoir + copie du lien.
+- **Envoi vraiment automatique** : EN ATTENTE DE YÉMAN — il faut son compte
+  WhatsApp Business API (vérification Meta, modèle de message approuvé, coût
+  par message). Le tuyau (fonction Edge sur solde) se construit quand elle a
+  les clés. Ne rien commencer sans elles.
+
 ## La devise vit au VERSEMENT — 18 août, PUBLIÉ
 
 Les 100 € de Stevie A. (5 août) invisibles au tiroir EUR et muets sur le PDF :

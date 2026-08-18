@@ -6,7 +6,7 @@ import { toast } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
 import { maisonNom } from '../../../../shared/identite';
-import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
+import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
 import { InvitationCouronne } from './Vitrine';
@@ -259,6 +259,7 @@ export default function QrCodes() {
   const navigate = useNavigate();
   const [autoRaw, setAuto] = useStore(autoConfigStore);
   const momoQr = autoRaw.momoQr || MOMO_QR_DEFAUT;
+  const lienAvis = (autoRaw.reviewLink || REVIEW_LINK_DEFAUT).trim();
   const momoUssd = autoRaw.momoUssd || MOMO_USSD_DEFAUT;
   const momoMarchand = autoRaw.momoMarchand || MOMO_MARCHAND_DEFAUT;
   /* Le code du jour ne se FABRIQUE pas ici — c'est le geste du Comptoir. On
@@ -435,6 +436,46 @@ export default function QrCodes() {
             className="mnd-btn mnd-btn--ghost"
             disabled={!lienPlan}
             onClick={() => copier(lienPlan, 'de localisation')}
+          >
+            Copier le lien à envoyer
+          </button>
+        </div>
+      </div>
+
+      {/* ④ter LAISSEZ-NOUS UN AVIS — 18 août 2026, « je veux que mes nouvelles
+          clientes de passage laissent un avis Google ». Le carré s'imprime pour
+          le comptoir, le lien s'envoie par message — et la Maison le propose
+          d'elle-même par WhatsApp à la première venue soldée. */}
+      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+        <div style={{ width: 96, height: 96, flex: 'none', border: `1px ${lienAvis ? 'solid var(--hairline)' : 'dashed var(--copper-300)'}`, borderRadius: 3, padding: 5, background: '#f6f1e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {lienAvis
+            ? <QrSvg valeur={lienAvis} style={{ width: '100%', height: '100%', display: 'block' }} />
+            : <span style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--copper-700)', textAlign: 'center' }}>lien à écrire</span>}
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
+            Laissez-nous un avis.
+          </div>
+          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
+            {lienAvis
+              ? <>La cliente scanne et le formulaire d’avis Google s’ouvre — pas la carte, <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>l’avis</b>. À l’encaissement d’une <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>première venue</b>, la Maison propose aussi l’envoi WhatsApp d’elle-même.</>
+              : <>Aucun lien d’avis — Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--copper"
+            disabled={!lienAvis}
+            onClick={() => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez — deux phrases suffisent, la Maison vous lit.', valeur: lienAvis })}
+          >
+            Afficher au comptoir
+          </button>
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--ghost"
+            disabled={!lienAvis}
+            onClick={() => copier(lienAvis, 'd’avis Google')}
           >
             Copier le lien à envoyer
           </button>
