@@ -222,6 +222,37 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
   const froidSupprimes = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
 
+  /* LE REGISTRE DE NOS PROPRES ÉCHOS — 18 août 2026, le champ « ce que la
+     maison observe d'elle » qui refusait de finir une phrase.
+
+     Supabase renvoie à l'émetteur ce qu'il vient d'écrire. L'ancien garde ne
+     sautait cet écho que s'il était IDENTIQUE au local — or pendant une
+     saisie, le local a déjà une frappe d'avance : l'écho de la poussée
+     précédente passait le garde et REMBOBINAIT le champ au milieu du mot.
+
+     On note donc CE QU'ON POUSSE, ligne par ligne, et l'on saute tout
+     événement qui rend exactement une de nos poussées récentes — c'est notre
+     écho, pas une nouvelle. Le vrai changement d'un autre poste ne correspond
+     jamais à ce registre et passe toujours. Vingt secondes de mémoire : un
+     écho met moins d'une, et un registre sans fin garderait de vieux états
+     qu'un autre poste pourrait légitimement réécrire à l'identique. */
+  const ECHO_MEMOIRE_MS = 20_000;
+  const echosAttendus = new Map<string, { j: string; at: number }[]>();
+  const noteLesPoussees = (rows: { id: string; data: T }[]) => {
+    const now = Date.now();
+    for (const r of rows) {
+      const liste = (echosAttendus.get(r.id) ?? []).filter((e) => now - e.at < ECHO_MEMOIRE_MS);
+      liste.push({ j: JSON.stringify(r.data), at: now });
+      echosAttendus.set(r.id, liste);
+    }
+  };
+  const estNotreEcho = (id: string, j: string): boolean => {
+    const now = Date.now();
+    const liste = (echosAttendus.get(id) ?? []).filter((e) => now - e.at < ECHO_MEMOIRE_MS);
+    echosAttendus.set(id, liste);
+    return liste.some((e) => e.j === j);
+  };
+
   const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it });
 
   const pushDiff = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]) => {
@@ -281,6 +312,8 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
           return;
         }
       }
+      /* AVANT l'envoi : l'écho peut revenir pendant que la requête vole. */
+      noteLesPoussees(upserts as { id: string; data: T }[]);
       const { error } = await sb.from(table).upsert(upserts);
       /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
          écrit (voir plus haut) — le repère doit rester en arrière. */
@@ -558,15 +591,17 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         } else {
           const row = payload.new as { id: string; data: T };
           const i = at(row.id);
-          /* L'ECHO DE NOTRE PROPRE ECRITURE, et lui seul. Supabase renvoie a
-             l'emetteur ce qu'il vient d'ecrire ; reappliquer cet echo pendant
-             une saisie REMBOBINE le champ, et la frappe se met a sauter.
-
-             On ne saute que ce qui est deja identique en local : un vrai
-             changement venu d'un autre poste passe toujours. Un garde plus
-             large — « ignorer tant qu'une poussee attend » — aurait perdu en
-             silence ce qu'une collegue vient d'enregistrer. */
-          if (i >= 0 && JSON.stringify(items[i]) === JSON.stringify(row.data)) return;
+          const j = JSON.stringify(row.data);
+          /* NOTRE PROPRE ÉCHO, RECONNU AU REGISTRE — 18 août 2026. L'ancien
+             garde (« identique au local ? ») laissait passer l'écho d'une
+             poussée VIEILLE D'UNE FRAPPE : le local avait avancé, l'écho ne
+             lui était plus identique, et il rembobinait la phrase en cours —
+             « la case ne permet pas d'écrire jusqu'au bout » (Yéman, le champ
+             d'observation de la fiche cliente). Ce qu'on a poussé soi-même ne
+             revient jamais s'appliquer ; le changement d'un AUTRE poste ne
+             figure pas au registre et passe toujours. */
+          if (estNotreEcho(row.id, j)) return;
+          if (i >= 0 && JSON.stringify(items[i]) === j) return;
           if (i >= 0) items[i] = row.data;
           else items.push(row.data);
         }

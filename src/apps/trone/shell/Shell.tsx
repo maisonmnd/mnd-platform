@@ -19,7 +19,9 @@ import BarreEquipe from './BarreEquipe';
    encaisse au passage. Le Catalogue vivait sous « Vente » : c'est pourtant la
    carte de la Maison, ouverte à chaque prix qu'on vérifie et à chaque
    prestation qu'on retouche. */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/fil', '/tableau', '/caisse', '/customers', '/factures', '/catalogue'];
+/* Le Fil et le Tableau APRÈS le Catalogue — l'ordre du comptoir d'abord,
+   le registre interne ensuite (Yéman, 18 août). */
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures', '/catalogue', '/fil', '/tableau'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
