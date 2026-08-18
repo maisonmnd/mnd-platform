@@ -958,7 +958,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         i.kind === 'facture' && i.clientId === appt.clientId
         && i.apptId !== appt.id && i.id !== appt.invoiceId
         && invoiceRegleXof(i) > 0).length;
-      if (tel && lien && dejaReglees === 0) {
+      /* L'AVIS SANS MAIN A LA PRIORITÉ — 19 août 2026 : quand l'interrupteur
+         des Paramètres est allumé, c'est la fonction planifiée `avis-google`
+         qui écrit à la cliente (API Meta). Ouvrir WhatsApp ici en plus, ce
+         serait la relancer deux fois pour le même passage. */
+      if (tel && lien && dejaReglees === 0 && autoConfigStore.get().avisAuto !== true) {
         const prenom = (tete?.name ?? '').trim().split(/\s+/)[0];
         const mot = `Merci pour votre passage à la Maison MND${prenom ? `, ${prenom}` : ''}. `
           + `Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lien}`;

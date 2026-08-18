@@ -92,6 +92,54 @@ SMS_FROM=<numéro ou nom d'expéditeur approuvé>
 Autre fournisseur = adapter le seul bloc « ③ SMS » de la fonction (le reste
 ne bouge pas) — demander ce chantier quand le compte existe.
 
+## Étape 5 — L'avis Google sans main (19 août 2026)
+
+« Je veux l'envoi sans main » : la fonction planifiée `avis-google` écrit
+elle-même à chaque **première venue soldée** — le modèle WhatsApp avec le
+prénom et le lien d'avis. Elle réutilise les MÊMES clés Meta que l'étape 3 ;
+si l'étape 3 est faite, il ne reste que quatre gestes.
+
+1. **Déployer la fonction** : Edge Functions → New function → nom exact
+   `avis-google` → coller le contenu ENTIER de
+   `supabase/functions/avis-google/index.ts` → Deploy (désactiver
+   « Verify JWT » si proposé — elle n'accepte que la clé service).
+
+2. **Faire approuver le modèle** dans WhatsApp Manager — nom `avis_google`,
+   langue **fr**, catégorie **Marketing** (une demande d'avis n'est pas de
+   l'« utility » aux yeux de Meta), corps :
+
+   > Merci pour votre passage à la maison, {{1}}. Si l'expérience vous a plu,
+   > un avis nous aiderait beaucoup : {{2}}
+   > À très vite — votre couronne nous tient à cœur.
+
+   ({{1}} = prénom, {{2}} = le lien d'avis — c'est exactement ce que la
+   fonction envoie.) Si Meta refuse un lien en variable de corps, refaire le
+   modèle avec un **bouton URL** et demander l'adaptation de la fonction.
+
+3. **Poser le secret du modèle** (les autres clés servent déjà à rappels-j1) :
+
+   ```
+   WA_TEMPLATE_AVIS=avis_google
+   ```
+
+4. **Poser le réveil** : Integrations → Cron → Create job :
+   - **Name** : `avis-google-heures`
+   - **Schedule** : `30 8-20 * * *` — toutes les heures, de 9 h 30 à 21 h 30
+     à Cotonou : l'avis part dans l'heure qui suit le solde, jamais la nuit.
+   - **Type** : Edge Function → `avis-google` · POST · en-tête
+     `Authorization: Bearer <clé service_role>` comme à l'étape 2.
+
+Puis, DANS LE TRÔNE : Paramètres → Automatisations → allumer
+**« Avis Google sans main · API WhatsApp »**. Tant que l'interrupteur est
+éteint, la fonction ne fait rien (`{ "actif": false }`) et le comptoir garde
+son geste d'un tap ; allumé, la fonction écrit et le comptoir se tait — la
+cliente n'est jamais relancée deux fois.
+
+Garde-fous de la fonction : une seule fois par cliente (sa PREMIÈRE pièce
+réglée, identifiant `env-<facture>-wa-avis` au journal), fenêtre de deux
+jours (un solde du soir est rattrapé le matin, jamais un vieux passage),
+fiche sans téléphone consignée « sans-abonnement » au lieu d'échouer.
+
 ## Ce que le Trône montre
 
 - **Tableau de bord → La tournée du matin** : les rendez-vous de demain, la

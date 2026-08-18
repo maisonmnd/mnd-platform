@@ -218,6 +218,11 @@ export type AutoConfig = {
   wifiSsid?: string;
   wifiPass?: string;
   /** Le second réseau de la maison (l'autre box, l'autre bande) — même règle. */
+  /** L'AVIS SANS MAIN (19 août). Vrai = la fonction planifiée avis-google
+      envoie elle-même le WhatsApp à la première venue soldée, et le comptoir
+      cesse d'ouvrir WhatsApp à l'encaissement. À n'allumer que quand les clés
+      Meta sont posées — sinon plus personne n'envoie rien. */
+  avisAuto?: boolean;
   wifi2Ssid?: string;
   wifi2Pass?: string;
 };
@@ -241,9 +246,11 @@ export const REVIEW_LINK_DEFAUT = 'https://g.page/r/CYEt1s4BqvZDEBE/review';
 export type Envoi = {
   id: string;
   branchId?: string;
-  type: 'rappel-j1';
+  type: 'rappel-j1' | 'avis-google';
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
+  /** La pièce concernée — les envois d'avis n'ont pas de rendez-vous. */
+  invoiceId?: string;
   clientId?: string;
   dateRdv: string;
   heure?: string;

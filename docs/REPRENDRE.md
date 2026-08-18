@@ -18,10 +18,15 @@ TROIS VOIES, deux construites :
   (actif par défaut, convention Marketing).
 - **QR « Laissez-nous un avis »** (QrCodes.tsx) : le carré ouvre le FORMULAIRE
   d'avis, pas la carte ; affichage comptoir + copie du lien.
-- **Envoi vraiment automatique** : EN ATTENTE DE YÉMAN — il faut son compte
-  WhatsApp Business API (vérification Meta, modèle de message approuvé, coût
-  par message). Le tuyau (fonction Edge sur solde) se construit quand elle a
-  les clés. Ne rien commencer sans elles.
+- **Envoi vraiment automatique** : CONSTRUIT le 19 août — fonction planifiée
+   (moule de rappels-j1 : clé
+  service, journal envois idempotent , fenêtre 2
+  jours, première pièce réglée seulement). Interrupteur
+   (Paramètres › Automatisations) : éteint, la
+  fonction rend { actif: false } et le comptoir garde le tap ; allumé, la
+  fonction écrit et le comptoir se tait. RESTE À YÉMAN : dossier Meta +
+  modèle  + secret WA_TEMPLATE_AVIS + cron — guide complet
+  dans docs/BRANCHER-ENVOIS.md, étape 5. NE PAS allumer sans les clés.
 
 ## La devise vit au VERSEMENT — 18 août, PUBLIÉ
 

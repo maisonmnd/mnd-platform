@@ -1715,6 +1715,24 @@ export default function Parametres() {
             <span className="mnd-field__label">Lien Google Avis</span>
             <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} placeholder="https://g.page/r/…/review" />
           </label>
+          {/* L'AVIS SANS MAIN — 19 août 2026. Allumé : la fonction planifiée
+              `avis-google` envoie elle-même le WhatsApp à chaque PREMIÈRE
+              venue soldée, et le comptoir cesse d'ouvrir WhatsApp à
+              l'encaissement. Ne l'allumer qu'une fois les clés Meta posées
+              (docs/BRANCHER-ENVOIS.md, étape 5) — sinon plus personne
+              n'envoie rien. */}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Toggle
+              on={autoCfgRaw.avisAuto === true}
+              onToggle={() => setAutoCfgRaw({ ...autoCfg, avisAuto: autoCfgRaw.avisAuto !== true })}
+              label="Avis Google sans main · API WhatsApp"
+            />
+            <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '46ch' }}>
+              {autoCfgRaw.avisAuto === true
+                ? 'La Maison écrit elle-même à chaque première venue soldée — le comptoir n’ouvre plus WhatsApp.'
+                : 'Éteint : à l’encaissement d’une première venue, WhatsApp s’ouvre au comptoir, un tap pour envoyer. N’allumer qu’avec les clés Meta posées.'}
+            </span>
+          </div>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Itinéraire · texte libre</span>
             <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage." />
