@@ -10,7 +10,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { fmtMoney } from '../../../../shared/currency';
 import {
   filStore, useFil, nouveauMessage, estDemande, demandeOuverte, messagesDuCanal, mesDemandes,
-  CANAL_MAISON, A_PRENDRE, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, puisJeEffacer, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
+  CANAL_MAISON, A_PRENDRE, PRIORITES, canalAtelier, canalNotes, canalDM, estCanalPrive, totalDuComptage, comptageEnClair, puisJeReprendre, puisJeClore, puisJeEffacer, fusionnerComptages, comptageComplet, deposerFichier, adresseSignee, poidsEnClair,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useCategories } from '../../../../shared/catalog';
@@ -157,6 +157,8 @@ export default function Fil() {
      Tableau : sans elle, « en retard » n'existe pas ; avec elle obligatoire,
      on inventerait des dates. */
   const [echeance, setEcheance] = useState('');
+  /* La priorité d'une demande — trois niveaux, tons de la Maison (19 août). */
+  const [priorite, setPriorite] = useState('');
   const [pieceRef, setPieceRef] = useState('');
   /* ── LE COMPTAGE ────────────────────────────────────────────────
      « Parfois c'est Gérard qui compte, pas moi » : le fil est la porte par
@@ -272,6 +274,7 @@ export default function Fil() {
       demandePour: aPrendre ? A_PRENDRE : dest ? (dest.email ?? '').trim().toLowerCase() : undefined,
       demandePourNom: aPrendre ? 'À prendre' : dest?.name,
       echeance: (aPrendre || dest) && echeance ? echeance : undefined,
+      priorite: (aPrendre || dest) && priorite ? priorite as FilMessage['priorite'] : undefined,
       /* UN MESSAGE QUI PORTE UNE FACTURE PARLE D'ARGENT. On le marque sans le
          demander : compter sur la mémoire de celui qui écrit, c'est laisser un
          montant passer sous les yeux d'un maître un jour de presse. */
@@ -287,7 +290,7 @@ export default function Fil() {
         ? { ...c, lockCount: totalDuComptage(comptage) }
         : c)));
     }
-    setTexte(''); setPourQui(''); setPieceRef(''); setEcheance('');
+    setTexte(''); setPourQui(''); setPieceRef(''); setEcheance(''); setPriorite('');
     setFichier(null); if (champFichier.current) champFichier.current.value = '';
     setCompteOuvert(false); setCompteTete(''); setAvG(''); setAvD(''); setArG(''); setArD('');
     toast(comptage
@@ -472,6 +475,9 @@ export default function Fil() {
                     <div className={estDemande(m) ? `trf-fil__demande${ouverte ? '' : ' est-close'}` : ''}>
                       {estDemande(m) && (
                         <div className="trf-fil__demtete">
+                          {m.priorite && ouverte && (
+                            <span className={'tr-prio tr-prio--' + m.priorite} style={{ marginRight: 8 }}>{PRIORITES.find((p) => p.cle === m.priorite)?.nom}</span>
+                          )}
                           {ouverte
                             ? `Demande à ${m.demandePourNom ?? m.demandePour} · à traiter`
                             : `Demande à ${m.demandePourNom ?? m.demandePour} · faite${m.faitPar ? ` par ${m.faitPar}` : ' — la pièce est réglée'}`}
@@ -639,16 +645,22 @@ export default function Fil() {
                 ))}
               </Select>
               {pourQui !== '' && (
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                  Échéance
-                  <input
-                    className="mnd-input"
-                    type="date"
-                    value={echeance}
-                    onChange={(e) => setEcheance(e.target.value)}
-                    style={{ padding: '4px 7px', fontSize: 12 }}
-                  />
-                </label>
+                <>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                    Échéance
+                    <input
+                      className="mnd-input"
+                      type="date"
+                      value={echeance}
+                      onChange={(e) => setEcheance(e.target.value)}
+                      style={{ padding: '4px 7px', fontSize: 12 }}
+                    />
+                  </label>
+                  <Select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={{ fontSize: 12, maxWidth: 150 }}>
+                    <option value="">Sans priorité</option>
+                    {PRIORITES.map((p) => <option key={p.cle} value={p.cle}>Priorité {p.nom.toLowerCase()}</option>)}
+                  </Select>
+                </>
               )}
               <Button
                 variant="copper"

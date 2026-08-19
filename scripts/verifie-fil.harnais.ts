@@ -9,6 +9,7 @@
 import {
   messageVisible, canalVisible, messagesDuCanal, mesDemandes, demandeOuverte,
   puisJeClore, puisJeReprendre, puisJeDeplacer, puisJeEffacer, demandesDuTableau,
+  poidsPriorite,
   estAPrendre, A_PRENDRE, enRetard, faiteRecemment, messageExpire,
   canalDM, canalNotes, CANAL_MAISON,
   fusionnerComptages, totalDuComptage, comptageComplet,
@@ -134,6 +135,12 @@ dit('faite avant-hier : encore au tableau', true, faiteRecemment(msg({ faitAt: '
 dit('faite il y a sept jours pile : encore là', true, faiteRecemment(msg({ faitAt: '2026-08-11T09:00' }), J));
 dit('faite il y a huit jours : sortie du tableau', false, faiteRecemment(msg({ faitAt: '2026-08-10T09:00' }), J));
 dit('jamais faite : pas dans « Terminé »', false, faiteRecemment(msg({}), J));
+
+/* ── LA PRIORITÉ — la haute d'abord, l'ordinaire AVANT la basse. ── */
+dit('haute pèse moins que moyenne', true, poidsPriorite({ priorite: 'haute' }) < poidsPriorite({ priorite: 'moyenne' }));
+dit('moyenne pèse moins que l’ordinaire', true, poidsPriorite({ priorite: 'moyenne' }) < poidsPriorite({}));
+dit('l’ordinaire pèse moins que la basse — « basse » veut dire « ça peut attendre »', true,
+  poidsPriorite({}) < poidsPriorite({ priorite: 'basse' }));
 
 /* ── CE QUI S'OUBLIE, CE QUI RESTE — les demandes ne s'effacent pas. ── */
 dit('un bavardage de treize mois s’efface', true, messageExpire(msg({ at: '2025-07-01T10:00' }), J));

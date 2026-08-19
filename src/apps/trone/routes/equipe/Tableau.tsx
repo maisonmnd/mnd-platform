@@ -10,6 +10,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import {
   filStore, useFil, nouveauMessage, demandesDuTableau, demandeOuverte, puisJeDeplacer, puisJeClore,
   puisJeEffacer, enRetard, faiteRecemment, estAPrendre, A_PRENDRE, CANAL_MAISON,
+  PRIORITES, poidsPriorite,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
 import { useStaff, staffAccessStore } from './data';
@@ -218,6 +219,7 @@ export default function Tableau() {
   const [brouillon, setBrouillon] = useState('');
   const [brouillonPour, setBrouillonPour] = useState(A_PRENDRE);
   const [brouillonEcheance, setBrouillonEcheance] = useState('');
+  const [brouillonPrio, setBrouillonPrio] = useState('');
   const poserUneCarte = () => {
     const dit = brouillon.trim();
     if (!dit) return;
@@ -233,9 +235,16 @@ export default function Tableau() {
       demandePour: dest ? (dest.email ?? '').trim().toLowerCase() : A_PRENDRE,
       demandePourNom: dest ? dest.name : 'À prendre',
       echeance: brouillonEcheance || undefined,
+      priorite: (brouillonPrio || undefined) as FilMessage['priorite'],
     })]);
-    setBrouillon(''); setBrouillonEcheance('');
+    setBrouillon(''); setBrouillonEcheance(''); setBrouillonPrio('');
     toast(dest ? `Carte posée chez ${dest.name}.` : 'Carte posée — à prendre.');
+  };
+
+  const changerPriorite = (m: FilMessage, p: string) => {
+    filStore.set((prev) => prev.map((x) => (x.id === m.id
+      ? { ...x, priorite: (p || undefined) as FilMessage['priorite'] }
+      : x)));
   };
 
   const changerEcheance = (m: FilMessage, echeance: string) => {
@@ -275,9 +284,12 @@ export default function Tableau() {
     const jour = !faite && m.echeance === aujourdhui;
     const bouge = puisJeDeplacer(m, monMail, estSouverain) && !(faite && !m.faitAt);
     const inv = m.piece?.kind === 'facture' ? invoices.find((i) => i.id === m.piece!.id) : undefined;
+    /* Le bord dit la priorité ; le RETARD garde le dernier mot — un retard
+       est une urgence, quoi qu'on ait coché à la création. */
+    const prioClasse = !retard && !faite && m.priorite ? ` prio-${m.priorite}` : '';
     return (
       <article
-        className={`trt__carte${retard ? ' est-retard' : ''}${faite ? ' est-faite' : ''}${priseId === m.id ? ' est-prise' : ''}${choisieId === m.id ? ' est-choisie' : ''}${bouge ? '' : ' sans-main'}`}
+        className={`trt__carte${retard ? ' est-retard' : ''}${faite ? ' est-faite' : ''}${priseId === m.id ? ' est-prise' : ''}${choisieId === m.id ? ' est-choisie' : ''}${bouge ? '' : ' sans-main'}${prioClasse}`}
         draggable={bouge}
         onDragStart={(e) => { if (!bouge) return; setPriseId(m.id); e.dataTransfer.effectAllowed = 'move'; }}
         onDragEnd={() => { setPriseId(null); setCibleSur(null); }}
@@ -287,9 +299,14 @@ export default function Tableau() {
           setChoisieId((v) => (v === m.id ? null : m.id));
         }}
       >
-        {retard && <span className="trt__chip est-retard">En retard · {dateEnClair(m.echeance!)}</span>}
-        {jour && <span className="trt__chip est-jour">Aujourd’hui</span>}
-        {!retard && !jour && m.echeance && !faite && <span className="trt__chip">{dateEnClair(m.echeance)}</span>}
+        <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+          {m.priorite && !faite && (
+            <span className={`tr-prio tr-prio--${m.priorite}`}>{PRIORITES.find((p) => p.cle === m.priorite)?.nom}</span>
+          )}
+          {retard && <span className="trt__chip est-retard" style={{ marginBottom: 0 }}>En retard · {dateEnClair(m.echeance!)}</span>}
+          {jour && <span className="trt__chip est-jour" style={{ marginBottom: 0 }}>Aujourd’hui</span>}
+          {!retard && !jour && m.echeance && !faite && <span className="trt__chip" style={{ marginBottom: 0 }}>{dateEnClair(m.echeance)}</span>}
+        </span>
         {faite && (
           <span className="trt__chip">
             {m.faitAt ? 'Fermée à la main' : 'Éteinte d’elle-même'}
@@ -340,14 +357,25 @@ export default function Tableau() {
           </>
         ) : (
           bouge && (
-            <label className="trt__echeance" onClick={(e) => e.stopPropagation()}>
-              Échéance
-              <input
-                type="date"
-                value={m.echeance ?? ''}
-                onChange={(e) => changerEcheance(m, e.target.value)}
-              />
-            </label>
+            <span style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+              <label className="trt__echeance">
+                Échéance
+                <input
+                  type="date"
+                  value={m.echeance ?? ''}
+                  onChange={(e) => changerEcheance(m, e.target.value)}
+                />
+              </label>
+              <select
+                className="trt__prio-select"
+                value={m.priorite ?? ''}
+                onChange={(e) => changerPriorite(m, e.target.value)}
+                aria-label="Priorité de la carte"
+              >
+                <option value="">Sans priorité</option>
+                {PRIORITES.map((p) => <option key={p.cle} value={p.cle}>{p.nom}</option>)}
+              </select>
+            </span>
           )
         )}
       </article>
@@ -367,16 +395,20 @@ export default function Tableau() {
     vide: string;
   }) => {
     const retards = cartes.filter((m) => !faite && enRetard(m, aujourdhui)).length;
+    const hautes = cartes.filter((m) => !faite && m.priorite === 'haute').length;
     const enJeu = sansPrix ? 0 : cartes
       .filter((m) => !faite && m.piece?.kind === 'facture')
       .reduce((s, m) => {
         const inv = invoices.find((i) => i.id === m.piece!.id);
         return s + (inv ? invoiceResteXof(inv) : 0);
       }, 0);
-    const triees = [...cartes].sort((a, b) =>
-      (a.echeance ?? '9999') < (b.echeance ?? '9999') ? -1
-        : (a.echeance ?? '9999') > (b.echeance ?? '9999') ? 1
-        : a.at.localeCompare(b.at));
+    /* L'ORDRE DE LA COLONNE : le retard d'abord (un retard est une urgence,
+       cochée ou non), puis la priorité, puis l'échéance, puis l'ancienneté.
+       Une clé composée — comparer champ à champ finit toujours par oublier
+       une branche. */
+    const cleDe = (m: FilMessage) =>
+      `${!faite && enRetard(m, aujourdhui) ? 0 : 1}·${poidsPriorite(m)}·${m.echeance ?? '9999'}·${m.at}`;
+    const triees = [...cartes].sort((a, b) => cleDe(a).localeCompare(cleDe(b)));
     const datees = faite ? triees : triees.filter((m) => m.echeance);
     const sansDate = faite ? [] : triees.filter((m) => !m.echeance);
     return (
@@ -391,6 +423,7 @@ export default function Tableau() {
             <div className="trt__somme">
               <b>{cartes.length}</b> {faite ? (cartes.length > 1 ? 'terminées' : 'terminée') : (cartes.length > 1 ? 'demandes' : 'demande')}
               {enJeu > 0 && <> · {fmtMoney(enJeu, currency)} en jeu</>}
+              {hautes > 0 && <> · <span className="est-retard">{hautes} haute{hautes > 1 ? 's' : ''}</span></>}
               {retards > 0 && <> · <span className="est-retard">{retards} en retard</span></>}
             </div>
           </div>
@@ -440,6 +473,10 @@ export default function Tableau() {
             {membres.map((mb) => (
               <option key={mb.id} value={(mb.email ?? '').trim().toLowerCase()}>{mb.name}</option>
             ))}
+          </Select>
+          <Select value={brouillonPrio} onChange={(e) => setBrouillonPrio(e.target.value)} style={{ fontSize: 12, maxWidth: 150 }}>
+            <option value="">Sans priorité</option>
+            {PRIORITES.map((p) => <option key={p.cle} value={p.cle}>Priorité {p.nom.toLowerCase()}</option>)}
           </Select>
           <label className="trt__echeance" style={{ marginTop: 0 }}>
             Échéance

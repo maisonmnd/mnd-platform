@@ -1390,3 +1390,32 @@
 /* La ligne survolée se signale — on sait sur quoi on s'apprête à agir. */
 .trf-fil__msg { padding: 3px 6px; margin: -3px -6px; border-radius: 3px; transition: background .14s var(--ease-soft); }
 .trf-fil__msg:hover { background: var(--hover-veil); }
+
+/* ═══ LA PRIORITÉ — trois niveaux, les tons de la Maison ═══
+   Brique pour ce qui presse, or pour le moyen, indigo doux pour ce qui peut
+   attendre. Jamais le feu tricolore d'un outil du commerce : la charte. */
+.tr-prio {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; border-radius: 999px; padding: 2px 9px 2px 7px;
+  border: 1px solid var(--hairline); color: var(--ink-soft); background: var(--surface-card);
+}
+.tr-prio::before { content: ''; width: 7px; height: 7px; border-radius: 999px; background: var(--hairline); }
+.tr-prio--haute { color: #96412E; border-color: rgba(150, 65, 46, .38); background: rgba(150, 65, 46, .07); }
+.tr-prio--haute::before { background: #96412E; }
+.tr-prio--moyenne { color: #8A6D1F; border-color: rgba(201, 162, 39, .42); background: rgba(201, 162, 39, .09); }
+.tr-prio--moyenne::before { background: #C9A227; }
+.tr-prio--basse { color: var(--indigo-2, #3A3F72); border-color: rgba(58, 63, 114, .32); background: rgba(58, 63, 114, .06); }
+.tr-prio--basse::before { background: #3A3F72; }
+
+/* Le bord de la carte prend la couleur de sa priorité — le retard (brique)
+   garde le dernier mot : un retard EST une urgence, quoi qu'on ait coché. */
+.trt__carte.prio-haute { border-left-color: #96412E; }
+.trt__carte.prio-moyenne { border-left-color: #C9A227; }
+.trt__carte.prio-basse { border-left-color: #7A80B8; }
+
+/* Le sélecteur discret de la carte — même encre que l'échéance. */
+.trt__prio-select {
+  border: 1px solid var(--hairline); border-radius: 2px; background: var(--paper);
+  font-family: var(--font-sans); font-size: 10.5px; color: var(--ink); padding: 2px 4px;
+}

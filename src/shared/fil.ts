@@ -124,7 +124,28 @@ export type FilMessage = {
       carte qui a fait trois mains raconte quelque chose que la dernière main
       ne dit pas. */
   mouvements?: { parNom: string; deNom: string; aNom: string; at: string }[];
+
+  /** LA PRIORITÉ — 19 août 2026, « des niveaux de priorité comme Monday,
+      dans les couleurs de ma charte ». TROIS niveaux, pas cinq : au-delà,
+      plus personne ne sait ce qui sépare « élevé » de « critique » et tout
+      finit en haut. Absente = ordinaire — l'absence est un niveau, le plus
+      courant, et il ne se coche pas. Les couleurs sont celles de la Maison :
+      brique pour ce qui presse, or pour le moyen, indigo doux pour ce qui
+      peut attendre. */
+  priorite?: 'haute' | 'moyenne' | 'basse';
 };
+
+/* ── LA PRIORITÉ SE TRIE ET SE NOMME ─────────────────────────────── */
+export const PRIORITES: { cle: NonNullable<FilMessage['priorite']>; nom: string }[] = [
+  { cle: 'haute', nom: 'Haute' },
+  { cle: 'moyenne', nom: 'Moyenne' },
+  { cle: 'basse', nom: 'Basse' },
+];
+
+/** Le poids d'une carte dans sa colonne — la haute d'abord, l'ordinaire avant
+    la basse : qui marque « basse » dit « ça peut attendre », pas « oubliez ». */
+export const poidsPriorite = (m: Pick<FilMessage, 'priorite'>): number =>
+  m.priorite === 'haute' ? 0 : m.priorite === 'moyenne' ? 1 : m.priorite === 'basse' ? 3 : 2;
 
 export const filStore = createStore<FilMessage[]>('mnd_fil', []);
 export const useFil = () => useStore(filStore);
