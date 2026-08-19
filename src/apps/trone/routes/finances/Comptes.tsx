@@ -10,7 +10,7 @@ import {
   type Client, type Family,
 } from '../../../../shared/clients';
 import {
-  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof,
+  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -793,11 +793,26 @@ function DepositModal({
   const tooMuch = kind === 'remboursement' && amountNum > balance;
   const canSave = holderReady && amountNum > 0 && !tooMuch;
 
+  /* ── L'ARGENT A UNE CAISSE — 19 août 2026 ────────────────────────
+     « Verser un avoir doit aller dans une caisse et être retracé. » Le
+     compte de la cliente se créditait, et les billets n'entraient nulle
+     part : aucun tiroir ne les connaissait. Le dépôt nomme désormais sa
+     caisse (elle ENTRE) et son moyen ; le remboursement aussi (elle SORT).
+     Le relevé de la caisse, dans Dépenses, les montre ligne à ligne. */
+  const [cashboxes] = useCashboxes();
+  const caissesMaison = cashboxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) === currency);
+  const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
+  const [boxName, setBoxName] = useState('');
+  const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
+  const MOYENS = ['Espèces', 'Mobile Money', 'Virement', 'Autre'];
+  const [moyen, setMoyen] = useState(MOYENS[0]);
+
   const save = () => {
     if (!canSave) return;
     creditMovementsStore.set((prev) => [...prev, {
       id: uid(), branchId, holderType: holder.type, holderId: holder.id, kind,
       amountXof: amountNum, date: date || todayISO(), note: note.trim() || undefined,
+      cashbox: caisseActive, method: moyen,
     }]);
     onClose();
   };
@@ -827,6 +842,24 @@ function DepositModal({
         <Field label={`Montant ${kind === 'depot' ? 'versé' : 'remboursé'} (${currency})`}>
           <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
           {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le remboursement dépasse l'avoir disponible.</div>}
+        </Field>
+        <Field label={kind === 'depot' ? 'Moyen de règlement' : 'Rendu par'}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {MOYENS.map((p) => (
+              <button key={p} type="button" className={`tre-chip ${moyen === p ? 'is-on' : ''}`} onClick={() => setMoyen(p)}>{p}</button>
+            ))}
+          </div>
+        </Field>
+        <Field label={kind === 'depot' ? 'Caisse créditée' : 'Caisse débitée'}>
+          {caissesMaison.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {caissesMaison.map((b) => (
+                <button key={b.id} type="button" className={`tre-chip ${caisseActive === b.name ? 'is-on' : ''}`} onClick={() => setBoxName(b.name)}>{b.name}</button>
+              ))}
+            </div>
+          ) : (
+            <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency} — l'écriture citera « Caisse principale ».</span>
+          )}
         </Field>
         <Field label="Date">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -883,7 +916,7 @@ function LedgerModal({
                 <span className={`trf-coffre-row__icon trf-coffre-row__icon--${m.kind === 'depot' ? 'depot' : 'virement'}`}>{m.kind === 'depot' ? '↑' : '↓'}</span>
                 <span className="trf-coffre-row__main">
                   <span className="trf-coffre-row__title">{label(m)}</span>
-                  <span className="trf-coffre-row__meta">{frDay(m.date)}{m.note ? ` · ${m.note}` : ''}</span>
+                  <span className="trf-coffre-row__meta">{frDay(m.date)}{m.cashbox ? ` · ${m.cashbox}` : ''}{m.method ? ` · ${m.method}` : ''}{m.note ? ` · ${m.note}` : ''}</span>
                 </span>
                 <span className={`trf-coffre-row__amount trf-coffre-row__amount--${m.kind === 'depot' ? 'depot' : 'virement'}`}>
                   {m.kind === 'depot' ? '+' : '−'}{fmtMoney(m.amountXof, currency)}

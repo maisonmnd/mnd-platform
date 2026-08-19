@@ -7,11 +7,12 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import { expenseOccurrences,
-  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
-  type CoffreMovement,
+  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
+  type CoffreMovement, type CreditMovement,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
+import { useClients, useFamilies } from '../../../../shared/clients';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -53,6 +54,9 @@ export default function Depenses() {
   const [cashboxes, setCashboxes] = useCashboxes();
   /* Le coffre : ses dépôts SORTENT d'une caisse depuis le 17 août. */
   const [coffre] = useCoffre();
+  const [creditMvts] = useCredits();
+  const [clientes] = useClients();
+  const [familles] = useFamilies();
   const [categories, setCategories] = useExpenseCategories();
   const [invoices, setInvoices] = useInvoices();
   const appts = useBranchAppointments();
@@ -227,6 +231,25 @@ export default function Depenses() {
       .filter((m: CoffreMovement) => m.branchId === branch.id && m.kind === 'depot' && m.cashbox === name && keep(monthKey(m.date)))
       .reduce((s: number, m: CoffreMovement) => s + m.amountXof, 0);
 
+  /* LES AVOIRS DE LA CAISSE — 19 août 2026, « verser un avoir doit aller dans
+     une caisse et être retracé ». Un dépôt d'avoir qui nomme sa caisse y
+     ENTRE (les billets sont dans le tiroir, même si le service n'a pas encore
+     eu lieu) ; un remboursement en SORT. L'USAGE ne bouge rien — c'est le
+     crédit qui se consomme, pas des billets qui passent. Les mouvements
+     d'avant, sans caisse, ne comptent pas : leurs soldes sont arrêtés. */
+  const avoirsDeCaisse = (name: string, keep: (mk: string) => boolean): number =>
+    creditMvts
+      .filter((m) => m.branchId === branch.id && m.cashbox === name
+        && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)))
+      .reduce((s, m) => s + (m.kind === 'depot' ? m.amountXof : -m.amountXof), 0);
+  const avoirsMouvements = (name: string, keep: (mk: string) => boolean) =>
+    creditMvts.filter((m) => m.branchId === branch.id && m.cashbox === name
+      && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)));
+  const porteurDe = (m: CreditMovement): string =>
+    m.holderType === 'family'
+      ? familles.find((f) => f.id === m.holderId)?.name ?? 'Compte famille'
+      : clientes.find((c) => c.id === m.holderId)?.name ?? 'Cliente';
+
   const boxOf = (name: string) => branchBoxes.find((b) => b.name === name);
   const boxInvoices = (name: string) =>
     invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture'
@@ -241,7 +264,7 @@ export default function Depenses() {
     const foreign = boxCur !== currency;
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, keep), 0);
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
-    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep);
+    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
@@ -252,9 +275,12 @@ export default function Depenses() {
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
-    const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, (mk) => mk === month), 0);
+    const avoirs = avoirsMouvements(name, (mk) => mk === month);
+    const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, (mk) => mk === month), 0)
+      + avoirs.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0);
     const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0)
-      + verseAuCoffre(name, (mk) => mk === month);
+      + verseAuCoffre(name, (mk) => mk === month)
+      + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + m.amountXof, 0);
     return { inn, out };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
@@ -308,7 +334,18 @@ export default function Depenses() {
         expense: e as Expense | undefined,
       }));
 
-    const moves = [...inn, ...out].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    /* Les avoirs du mois — l'entrée dit son porteur, la sortie aussi : « être
+       retracé », c'est pouvoir répondre « c'est l'avoir de qui ? » en lisant. */
+    const avoirs = avoirsMouvements(name, (mk) => mk === month).map((m) => ({
+      date: m.date,
+      label: m.kind === 'depot' ? `Avoir versé · ${porteurDe(m)}` : `Avoir remboursé · ${porteurDe(m)}`,
+      sub: [m.method, m.note].filter(Boolean).join(' · ') || 'Comptes & Avoirs',
+      delta: m.kind === 'depot' ? m.amountXof : -m.amountXof,
+      invoiceId: undefined as string | undefined,
+      expense: undefined as Expense | undefined,
+    }));
+
+    const moves = [...inn, ...out, ...avoirs].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
 

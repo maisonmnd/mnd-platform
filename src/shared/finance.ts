@@ -537,6 +537,17 @@ export type CreditMovement = {
   forClientId?: string; // usage : la cliente réellement soignée (membre du compte)
   invoiceId?: string; // usage : facture réglée
   note?: string;
+  /** LA CAISSE QUI A REÇU (dépôt) OU RENDU (remboursement) L'ARGENT — 19 août
+      2026, « verser un avoir doit aller dans une caisse et être retracé ».
+      L'avoir créditait le compte de la cliente et l'argent, lui, n'entrait
+      nulle part : le tiroir qui tenait les billets n'en savait rien. Un dépôt
+      qui nomme sa caisse y ENTRE, un remboursement en SORT ; l'USAGE ne bouge
+      jamais d'argent — c'est un crédit qui se consomme, pas des billets. Les
+      mouvements d'avant n'en portent pas : leurs soldes sont arrêtés, on ne
+      les fait pas bouger après coup (même règle que le coffre). */
+  cashbox?: string;
+  /** Le moyen par lequel l'argent est arrivé — Espèces, Mobile Money… */
+  method?: string;
 };
 /** + pour un dépôt, − pour un usage ou un remboursement. */
 export const creditSignedXof = (m: CreditMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);

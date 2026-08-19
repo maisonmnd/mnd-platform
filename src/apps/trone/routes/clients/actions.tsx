@@ -915,8 +915,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
     /* Pourboire — PARTAGÉ entre toute l'équipe, une ligne par bénéficiaire.
        Jamais dans la facture ni dans le chiffre d'affaires. Possible même si le
-       rituel est déjà soldé. */
-    const partsEcrites = tip > 0 ? addTipPartage(beneficiaires, tip, invDate) : [];
+       rituel est déjà soldé. LA NOTE PORTE LA CLIENTE — 19 août 2026 :
+       « besoin de savoir c'est le pourboire de quelle cliente » ; une part
+       sans provenance ne se relit pas dans « Mon mois ». */
+    const partsEcrites = tip > 0
+      ? addTipPartage(beneficiaires, tip, invDate, client?.name ?? appt.clientName ?? undefined)
+      : [];
     const tipRecorded = tip > 0 && partsEcrites.length > 0;
 
     /* Confirmation d'acompte SANS encaissement : on la persiste quand même.

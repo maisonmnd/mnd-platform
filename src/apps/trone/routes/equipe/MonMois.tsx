@@ -540,16 +540,22 @@ export default function MonMois() {
           ) : (
             <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
               <table className="tre-table">
-                <thead><tr><th>Jour</th><th className="num">Ma part</th></tr></thead>
+                {/* LA CLIENTE SE DIT — 19 août 2026 : « besoin de savoir c'est
+                    le pourboire de quelle cliente ». La note du pourboire porte
+                    son nom depuis ce jour ; les parts d'avant n'en ont pas — le
+                    tiret dit « enregistré avant qu'on le note », pas « anonyme ». */}
+                <thead><tr><th>Jour</th><th>De la part de</th><th className="num">Ma part</th></tr></thead>
                 <tbody>
                   {mesPourboires.map((t) => (
                     <tr key={t.id}>
                       <td>{new Date(`${t.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+                      <td>{t.note?.trim() || <span className="mnd-muted">—</span>}</td>
                       <td className="num">{fmtMoney(t.amountXof, currency)}</td>
                     </tr>
                   ))}
                   <tr>
                     <td style={{ fontWeight: 500 }}>Total du mois</td>
+                    <td />
                     <td className="num">{fmtMoney(totalPourboires, currency)}</td>
                   </tr>
                 </tbody>
