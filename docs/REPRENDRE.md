@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## 0061 — les consultations reviennent · 19 août, À EXÉCUTER
+
+Les trois consultations ÐÓTÓ™ (créées ensemble, sorties du catalogue le
+30 juillet avec le débranchement des semences, non reprises par v6) :
+Yéman en remet DEUX dans l'atelier KÒKÒ™ — Conseil & Diagnostic (5 000 F)
+et Création — Première couronne (10 000 F). « Réparation & Amélioration »
+n'est PAS recréée : « elle est devenue le KÒKÒ Suivi · Diagnostic Locks
+Externes ». Migration 0061, idempotente, ids d'origine gardés (svc-doto-*)
+pour que l'histoire les retrouve. Contrôle : revenus = 2.
+
 ## L'avis Google de la première venue — 18 août, PUBLIÉ
 
 DEMANDE : « Je veux que mes nouvelles clientes de passage laissent un avis
