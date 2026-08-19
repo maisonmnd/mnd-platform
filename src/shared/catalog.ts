@@ -360,6 +360,20 @@ export type Product = {
    les deux un plateau technique qui n'appartient à personne et se vend des deux
    côtés. L'ordre suit le document : le diagnostic ouvre, le plateau relie, le
    Studio ferme. */
+/* ── LA NAISSANCE DE LA COURONNE — 19 août 2026 ─────────────────────
+   « Quand une nouvelle cliente prend une prestation de l'atelier VÈKPÈ,
+   inscris automatiquement dans son profil la date de sa couronne. »
+
+   La règle reconnaît par la CATÉGORIE, jamais par le nom : « une règle qui
+   reconnaît par le NOM casse en silence » (leçon du 18 août). L'atelier
+   VÈKPÈ™ EST l'atelier de la Naissance — tout ce qui s'y vend fonde une
+   couronne, y compris les créations que la Maison ajoutera demain, du moment
+   qu'elle les range dans cet atelier. L'identifiant est celui de la semence,
+   stable depuis le premier jour. */
+export const CATEGORIE_VEKPE = 'atl-i-vekpe';
+export const fondeLaCouronne = (s: Pick<Service, 'categoryId'>): boolean =>
+  s.categoryId === CATEGORIE_VEKPE;
+
 export const CATEGORIES_SEED: CatalogCategory[] = [
   /* ─── Maison 1 · ATELIER MND™ — les locks exclusivement ─── */
   { id: 'koko', code: 'KOKO', fon: 'KÒKÒ™', label: 'Le Diagnostic', maison: 'atelier', enabled: true, order: 0 },

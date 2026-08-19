@@ -7,6 +7,7 @@ import { useStore } from '../../../shared/store';
 import { consultationsQueueStore } from '../../../shared/bridges';
 import { branchesStore, currentBranchStore } from '../../../shared/branches';
 import { tablePrete } from '../../../shared/sync';
+import { servicesStore, fondeLaCouronne } from '../../../shared/catalog';
 import { supabase } from '../../../shared/supabase';
 
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
@@ -110,6 +111,36 @@ export function useReconcileClients(): void {
       });
     })();
   }, [session, appts, invoices, tousClients]);
+
+  /* ── LA COURONNE RATTRAPÉE — 19 août 2026 ─────────────────────────
+     « Fix it for all VÈKPÈ creations » : les couronnes déjà posées dont la
+     fiche est restée muette. Pour chaque cliente SANS « Couronne depuis »
+     qui porte un rituel HONORÉ contenant une création VÈKPÈ, on inscrit la
+     date du PREMIER de ces rituels — la couronne est née ce jour-là, pas au
+     dernier passage. Idempotent : une fiche déjà datée (à la main ou par un
+     passage précédent) n'est jamais réécrite ; le geste vivant est dans
+     `honorAppointment`, ceci n'est que le rattrapage de l'histoire. La
+     reconnaissance passe par la CATÉGORIE (fondeLaCouronne), jamais par le
+     nom. On attend la première lecture du catalogue : sans les fiches de
+     prestations, tout rituel semblerait étranger à VÈKPÈ. */
+  useEffect(() => {
+    if (!session) return;
+    if (!tablePrete('clients') || !tablePrete('appointments') || !tablePrete('catalog_services')) return;
+    const services = new Map(servicesStore.get().map((s) => [s.id, s]));
+    const naissances = new Map<string, string>();
+    for (const a of appts) {
+      if (a.status !== 'honoré' || !a.clientId) continue;
+      if (!a.serviceIds.some((id) => { const sv = services.get(id); return sv && fondeLaCouronne(sv); })) continue;
+      const deja = naissances.get(a.clientId);
+      if (!deja || a.date < deja) naissances.set(a.clientId, a.date);
+    }
+    if (naissances.size === 0) return;
+    const aDater = clientsStore.get().filter((c) => !c.crownSince && naissances.has(c.id));
+    if (aDater.length === 0) return;
+    clientsStore.set((prev) => prev.map((c) => (!c.crownSince && naissances.has(c.id)
+      ? { ...c, crownSince: naissances.get(c.id) }
+      : c)));
+  }, [session, appts, tousClients]);
 
   /* Prospects — chaque consultation en ligne (tunnel Ma Couronne) crée
      automatiquement une fiche « Prospect » (personne en phase de consultation,

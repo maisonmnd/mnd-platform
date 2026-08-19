@@ -6,7 +6,7 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
-import { useCategories, type Service } from '../../../../shared/catalog';
+import { useCategories, fondeLaCouronne, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
@@ -82,6 +82,24 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
      déjà consommé ne reconsomme rien. Un service sans recette ne décrémente
      rien, sans erreur. Voir shared/stock.ts. */
   consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds: appt.serviceIds }, todayISO());
+
+  /* ── LA COURONNE NAÎT ICI — 19 août 2026 ─────────────────────────
+     Un rituel honoré qui porte une création VÈKPÈ inscrit la date de la
+     couronne au profil (« Couronne depuis »), à la date DU RITUEL — pas du
+     clic. SEULEMENT si la fiche n'en porte pas déjà une : une seconde
+     création (refonte) ne rajeunit pas une couronne, et une date posée à la
+     main reste la vérité de la Maison. C'est ce champ qui nourrit le
+     Couronnement (jour 365) — il ne se remplissait qu'à la main, donc
+     presque jamais. S'honore = a eu lieu : l'encaissement, lui, ne fonde
+     rien (on peut payer d'avance une couronne qui n'est pas née). */
+  if (appt.clientId && appt.serviceIds.some((id) => {
+    const sv = byId.get(id);
+    return sv && fondeLaCouronne(sv);
+  })) {
+    clientsStore.set((prev) => prev.map((c) => (c.id === appt.clientId && !c.crownSince
+      ? { ...c, crownSince: appt.date }
+      : c)));
+  }
   return awarded;
 }
 
