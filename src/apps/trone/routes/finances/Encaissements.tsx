@@ -7,6 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
+import { autoriserLaPurge } from '../../../../shared/sync';
 import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { useInvoices, usePayments, useCredits, invoiceReglements } from '../../../../shared/finance';
 import { useApprenants, useSubscribers, staffStore } from '../equipe/data';
@@ -165,6 +166,12 @@ export default function Encaissements() {
     const equipe = staffStore.get()
       .filter((m) => m.branchId === branch.id)
       .map((m) => ({ id: m.id, part: m.partPourboire ?? PART_POURBOIRE_DEFAUT }));
+    /* SANS ÉQUIPE, ON NE TOUCHE À RIEN. Effacer d'abord et repartager entre
+       personne aurait vidé « Mon mois » de tout le monde sans rien rendre. */
+    if (equipe.filter((m) => m.part > 0).length === 0) {
+      window.alert('Aucune fiche du personnel dans cette branche (Personnel & paie) — rien n’a été touché : le repartage n’aurait crédité personne.');
+      return;
+    }
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);
     if (!window.confirm(
       `Reconstruire les parts de pourboire depuis ce registre ?\n\n`
@@ -173,6 +180,11 @@ export default function Encaissements() {
       + `Les parts déjà liées à une facture ne bougent pas.`,
     )) return;
     const orphelines = tipsStore.get().filter((t) => !t.invoiceId).length;
+    /* LA PURGE SE DÉCLARE — sans ce laissez-passer, le garde-fou des
+       suppressions de masse prenait ce grand ménage pour un cache corrompu,
+       le bloquait, et rechargeait les parts depuis le serveur : l'écran
+       semblait ne rien faire. Un laissez-passer, une poussée. */
+    autoriserLaPurge('tips');
     tipsStore.set((prev) => prev.filter((t) => !!t.invoiceId));
     let repartages = 0;
     for (const i of factures) {

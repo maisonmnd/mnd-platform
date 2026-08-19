@@ -193,6 +193,21 @@ type WithId = { id: string; branchId?: string };
 const SANS_SUPPRESSION = new Set(['branches']);
 
 /** Lie un magasin de collection (tableau d'objets à `id`) à une table distante. */
+/* ── LA PURGE DÉCLARÉE — 19 août 2026 ──────────────────────────────
+   Le garde-fou des suppressions bloque tout effacement de masse : c'est lui
+   qui a sauvé les prestations le 23-07 et la branche le 08-08. Mais il ne
+   distinguait pas l'ACCIDENT du GESTE : « reconstruire les parts de
+   pourboire depuis le registre » efface délibérément presque toute la table,
+   et le garde-fou annulait le geste en silence — les parts revenaient du
+   serveur, et l'écran semblait ne rien faire.
+
+   Un écran qui va VOLONTAIREMENT effacer en masse le déclare ici, juste
+   avant d'écrire. Le laissez-passer vaut UNE poussée : consommé aussitôt,
+   utilisé ou non, il ne peut jamais couvrir l'accident de demain. Les tables
+   structurelles restent intouchables — aucun laissez-passer ne les ouvre. */
+const purgesAutorisees = new Set<string>();
+export function autoriserLaPurge(table: string): void { purgesAutorisees.add(table); }
+
 export function bindCollection<T extends WithId>(store: Store<T[]>, table: string): void {
   if (!supabase) return;
   const sb = supabase;
@@ -262,6 +277,10 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     const upserts = items.filter((it) => prev.get(it.id) !== next.get(it.id)).map(rowOf);
     const deletes: string[] = [];
     for (const id of prev.keys()) if (!next.has(id)) deletes.push(id);
+    /* Le laissez-passer de purge se consomme ICI, qu'il serve ou non : une
+       poussée l'épuise, il ne peut pas rester traîner pour couvrir un
+       accident futur. */
+    const purgeVoulue = purgesAutorisees.delete(table);
 
     /* Une table hors de portée ne se retente pas : on épargne au serveur des
        refus certains, et au comptoir une pastille qui clignote pour rien.
@@ -352,7 +371,9 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
          « vider tout » reste interdit : le rembobinage laisse toujours le
          journal debout. */
       const journalRembobinable = table === 'stock_mouvements';
-      const massive = structurelle || videTout || (enMasse && !journalRembobinable);
+      /* Le laissez-passer (consommé en tête de poussée) lève « vider tout »
+         et « en masse » — jamais la protection des tables structurelles. */
+      const massive = structurelle || ((videTout || (enMasse && !journalRembobinable)) && !purgeVoulue);
       if (massive) {
         const motif = structurelle
           ? 'table structurelle — une suppression ne peut venir que du SQL'
