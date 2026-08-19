@@ -128,6 +128,15 @@ export default function Fil() {
       && (m.email ?? '').trim() !== ''),
     [equipe, branch.id, monMail],
   );
+  /* SANS ADRESSE, PAS DE PORTE — MAIS ÇA SE DIT (19 août : « nous sommes 5,
+     il n'y a que 4 employés dans le fil, Aimer n'est pas dans la liste »).
+     Un tête-à-tête est un fil entre deux ADRESSES ; une fiche sans e-mail ne
+     peut pas en avoir. L'écran la cachait EN SILENCE — on croyait la
+     personne oubliée. La voici, grisée, avec le chemin de la réparation. */
+  const sansAdresse = useMemo(
+    () => equipe.filter((m) => m.branchId === branch.id && (m.email ?? '').trim() === ''),
+    [equipe, branch.id],
+  );
   const [canal, setCanal] = useState<string>(CANAL_MAISON);
 
   const messages = messagesDuCanal(tous, branch.id, canal, monMail);
@@ -372,7 +381,12 @@ export default function Fil() {
           <button type="button" className={`trf-fil__canal${canal === CANAL_MAISON ? ' est-ouvert' : ''}`} onClick={() => setCanal(CANAL_MAISON)}>
             Toute la Maison<span>{compteDe(CANAL_MAISON) || ''}</span>
           </button>
-          {ateliers.map((c) => {
+          {/* SEULS LES ATELIERS OÙ L'ON PARLE tiennent une ligne — 19 août :
+              « à quoi sert la liste de toutes les prestations ? ». Quinze fils
+              vides poussaient la conversation sous un écran de silence. Un fil
+              d'atelier NAÎT quand on y écrit ; les endormis attendent dans le
+              sélecteur, à un geste. */}
+          {ateliers.filter((c) => compteDe(canalAtelier(c.id)) > 0 || canal === canalAtelier(c.id)).map((c) => {
             const k = canalAtelier(c.id);
             return (
               <button key={c.id} type="button" className={`trf-fil__canal${canal === k ? ' est-ouvert' : ''}`} onClick={() => setCanal(k)}>
@@ -380,6 +394,19 @@ export default function Fil() {
               </button>
             );
           })}
+          {ateliers.some((c) => compteDe(canalAtelier(c.id)) === 0 && canal !== canalAtelier(c.id)) && (
+            <Select
+              value=""
+              onChange={(e) => { if (e.target.value) setCanal(canalAtelier(e.target.value)); }}
+              style={{ fontSize: 12, marginTop: 4, width: '100%' }}
+              aria-label="Ouvrir le fil d'un atelier"
+            >
+              <option value="">Ouvrir un fil d’atelier…</option>
+              {ateliers.filter((c) => compteDe(canalAtelier(c.id)) === 0 && canal !== canalAtelier(c.id)).map((c) => (
+                <option key={c.id} value={c.id}>{c.fon || c.label}</option>
+              ))}
+            </Select>
+          )}
 
           <div className="trf-fil__label" style={{ marginTop: 16 }}>Pour moi seul</div>
           <button type="button" className={`trf-fil__canal${canal === canalNotes(monMail) ? ' est-ouvert' : ''}`} onClick={() => setCanal(canalNotes(monMail))}>
@@ -393,6 +420,23 @@ export default function Fil() {
               </button>
             );
           })}
+          {/* La fiche sans e-mail se MONTRE au lieu de disparaître — le clic
+              mène là où ça se répare. */}
+          {sansAdresse.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              className="trf-fil__canal"
+              style={{ opacity: 0.55 }}
+              title="Sa fiche n'a pas d'adresse e-mail — un tête-à-tête est un fil entre deux adresses. Renseignez-la dans Personnel & paie."
+              onClick={() => {
+                toast(`${m.name} n'a pas d'adresse e-mail sur sa fiche — renseignez-la dans Personnel & paie pour ouvrir son tête-à-tête.`);
+                navigate('/personnel');
+              }}
+            >
+              {m.name}<span style={{ fontSize: 10, fontStyle: 'italic' }}>sans adresse</span>
+            </button>
+          ))}
 
           <div className="trf-fil__label" style={{ marginTop: 16 }}>À traiter · {aTraiter.length}</div>
           {aTraiter.length === 0 && (
