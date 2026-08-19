@@ -479,6 +479,23 @@ export default function QrCodes() {
           >
             Copier le lien à envoyer
           </button>
+          {/* LE MESSAGE ENTIER, PAS SEULEMENT LE LIEN — 19 août 2026 : « où
+              récupérer le message si la cliente n'a pas WhatsApp sur le numéro
+              de son profil ? ». Nulle part : il ne naissait qu'à l'instant où
+              WhatsApp s'ouvrait. Le voici à copier — pour un SMS, un mail,
+              n'importe quel canal. La même phrase que l'envoi automatique,
+              sans le prénom : on l'ajoute en collant. */}
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--ghost"
+            disabled={!lienAvis}
+            onClick={() => copier(
+              `Merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}`,
+              'd’avis à envoyer (message entier)',
+            )}
+          >
+            Copier le message
+          </button>
         </div>
       </div>
 
