@@ -290,21 +290,28 @@ export default function Prestataires() {
         <div className="tre-prov-grid">
           {branchProviders.map((p) => {
             const due = unpaidOf(p.id);
+            /* LA CARTE RESPIRE — 19 août 2026 : « tout est trop concentré,
+               facile d'appuyer un autre bouton ». Trois zones nettes :
+               l'identité en tête (le dû en pastille, à droite, où l'œil
+               cherche un montant) ; un filet ; puis les gestes en VRAIS
+               boutons — le geste du jour (+ Mission) en cuivre, les lectures
+               à côté, et l'ARCHIVAGE seul à l'autre bord : un geste qui
+               retire ne voisine pas ceux qui servent dix fois par jour. */
             return (
               <div className="tre-prov" key={p.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                <div className="tre-prov__tete">
                   <span className="tre-avatar">{p.name.slice(0, 1)}</span>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="tre-prov__name">{p.name}</div>
                     <div className="tre-prov__meta">{MODE_LABEL[p.mode]}{p.rateXof ? ` · ${fmtMoney(p.rateXof, currency)}` : ''}{p.specialty ? ` · ${p.specialty}` : ''}</div>
                   </div>
+                  {due > 0 && <span className="tre-prov__due-pill">À payer · {fmtMoney(due, currency)}</span>}
                 </div>
-                {due > 0 && <div className="tre-prov__due">À payer · {fmtMoney(due, currency)}</div>}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="tre-link-btn" onClick={() => openMission(p)}>+ Mission</button>
-                  <button className="tre-link-btn" onClick={() => setProviderFor(p)}>Détail ({providerTotals(p.id).count})</button>
-                  <button className="tre-link-btn" onClick={() => openEditProvider(p)}>Modifier</button>
-                  <button className="tre-link-btn tre-link-btn--danger" onClick={() => archiveProvider(p)}>Archiver</button>
+                <div className="tre-prov__actions">
+                  <button type="button" className="tre-prov__btn tre-prov__btn--copper" onClick={() => openMission(p)}>+ Mission</button>
+                  <button type="button" className="tre-prov__btn" onClick={() => setProviderFor(p)}>Détail ({providerTotals(p.id).count})</button>
+                  <button type="button" className="tre-prov__btn" onClick={() => openEditProvider(p)}>Modifier</button>
+                  <button type="button" className="tre-prov__btn tre-prov__btn--danger" onClick={() => archiveProvider(p)}>Archiver</button>
                 </div>
               </div>
             );

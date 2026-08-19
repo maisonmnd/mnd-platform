@@ -1419,3 +1419,51 @@
   border: 1px solid var(--hairline); border-radius: 2px; background: var(--paper);
   font-family: var(--font-sans); font-size: 10.5px; color: var(--ink); padding: 2px 4px;
 }
+
+/* ═══ LA CARTE PRESTATAIRE RESPIRE — 19 août 2026 ═══
+   Trois zones : l'identité (le dû en pastille à droite), un filet, les
+   gestes. De vrais boutons — 34 px de haut, bordés, espacés — au lieu de
+   quatre liens nus de 11 px où le pouce se trompait de porte. L'archivage
+   vit seul à l'autre bord : un geste qui retire ne voisine pas ceux qui
+   servent dix fois par jour. */
+.tre-prov { gap: 0; padding: 0; overflow: hidden; }
+.tre-prov__tete {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 14px 16px;
+}
+.tre-prov__due-pill {
+  flex: none; font-family: var(--font-sans); font-size: 11px; letter-spacing: .04em;
+  color: var(--copper-700); background: var(--copper-50);
+  border: 1px solid var(--copper-300); border-radius: 999px; padding: 4px 11px;
+  white-space: nowrap;
+}
+.tre-prov__actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--surface-card) 60%, var(--paper));
+}
+.tre-prov__btn {
+  cursor: pointer; min-height: 34px; padding: 6px 14px;
+  border: 1px solid var(--hairline); border-radius: 3px;
+  background: var(--surface-card); color: var(--color-indigo);
+  font-family: var(--font-sans); font-size: 12px;
+  transition: border-color .14s var(--ease-soft), background .14s var(--ease-soft);
+}
+.tre-prov__btn:hover { border-color: var(--color-indigo); }
+.tre-prov__btn--copper {
+  background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire);
+  font-weight: 500;
+}
+.tre-prov__btn--copper:hover { border-color: var(--copper-700); background: var(--copper-700); }
+.tre-prov__btn--danger {
+  margin-left: auto;
+  color: #8f3b30; border-color: transparent; background: transparent;
+  font-size: 11.5px;
+}
+.tre-prov__btn--danger:hover { border-color: rgba(143, 59, 48, .35); background: rgba(143, 59, 48, .06); }
+@media (max-width: 480px) {
+  .tre-prov__actions { gap: 6px; }
+  .tre-prov__btn { flex: 1 1 auto; text-align: center; }
+  .tre-prov__btn--danger { flex: 0 0 100%; margin-left: 0; text-align: right; }
+}
