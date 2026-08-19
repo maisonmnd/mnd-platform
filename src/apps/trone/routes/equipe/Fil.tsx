@@ -15,7 +15,7 @@ import {
 } from '../../../../shared/fil';
 import { useCategories } from '../../../../shared/catalog';
 import { dernierComptage } from '../../../../shared/fil';
-import { useStaff } from './data';
+import { useStaff, useAnnuaire, nomDuCompte } from './data';
 import { apptLabel, useServicesById, ClientPicker } from '../clients/_shared';
 import './equipe.css';
 
@@ -95,7 +95,17 @@ export default function Fil() {
      qu'un message ne soit jamais signé « inconnu ». */
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
   const moi = equipe.find((m) => (m.email ?? '').trim().toLowerCase() === monMail);
-  const monNom = moi?.name?.trim() || monMail.split('@')[0] || 'La maison';
+  /* LE NOM DU COMPTE SIGNE — 19 août 2026 : Brice voyait « briceahouansou1 ».
+     L'annuaire (le nom d'Accès & personnel) d'abord ; la fiche du Personnel
+     ensuite — son adresse diffère souvent de celle de connexion ; l'adresse
+     en dernier recours seulement. Et à la LECTURE, chaque signature se
+     résout par l'adresse de l'auteur : les messages d'hier signés d'une
+     adresse se relisent au bon nom, sans réécrire une ligne d'histoire. */
+  const [annuaire] = useAnnuaire();
+  const monNom = nomDuCompte(annuaire, monMail, moi?.name?.trim() || monMail.split('@')[0] || 'La maison');
+  const nomDe = (mail: string | undefined, repli: string): string =>
+    nomDuCompte(annuaire, mail,
+      equipe.find((m) => (m.email ?? '').trim().toLowerCase() === (mail ?? '').toLowerCase())?.name?.trim() || repli);
 
   const aujourdhui = useMemo(() => {
     const d = new Date();
@@ -391,7 +401,7 @@ export default function Fil() {
           {aTraiter.map((m) => (
             <div key={m.id} className="trf-fil__att">
               {m.texte}
-              <small>{m.auteurNom} · {quand(m.at, aujourdhui)}</small>
+              <small>{nomDe(m.auteurMail, m.auteurNom)} · {quand(m.at, aujourdhui)}</small>
               <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', marginTop: 4 }}>
                 {/* LA CASE SE COCHE OÙ LA DEMANDE SE LIT — 18 août 2026 :
                     « avoir un bouton pour cocher que la note a été traitée ».
@@ -450,10 +460,10 @@ export default function Fil() {
                   <div className="trf-fil__jour"><span>{litLeJour}</span></div>
                 )}
                 <div className="trf-fil__msg">
-                  <span className="trf-fil__av">{initiales(m.auteurNom)}</span>
+                  <span className="trf-fil__av">{initiales(nomDe(m.auteurMail, m.auteurNom))}</span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="trf-fil__qui">
-                      <b>{m.auteurNom}</b> · {quand(m.at, aujourdhui)}
+                      <b>{nomDe(m.auteurMail, m.auteurNom)}</b> · {quand(m.at, aujourdhui)}
                       {m.modifieAt && <> · <em style={{ fontStyle: 'normal', color: 'var(--copper-700)' }}>modifié</em></>}
                       {puisJeReprendre(m, monMail) && enReprise !== m.id && (
                         <>
@@ -479,8 +489,8 @@ export default function Fil() {
                             <span className={'tr-prio tr-prio--' + m.priorite} style={{ marginRight: 8 }}>{PRIORITES.find((p) => p.cle === m.priorite)?.nom}</span>
                           )}
                           {ouverte
-                            ? `Demande à ${m.demandePourNom ?? m.demandePour} · à traiter`
-                            : `Demande à ${m.demandePourNom ?? m.demandePour} · faite${m.faitPar ? ` par ${m.faitPar}` : ' — la pièce est réglée'}`}
+                            ? `Demande à ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} · à traiter`
+                            : `Demande à ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} · faite${m.faitPar ? ` par ${m.faitPar}` : ' — la pièce est réglée'}`}
                         </div>
                       )}
                       {enReprise === m.id ? (
@@ -537,7 +547,7 @@ export default function Fil() {
                                l'éteint pas. Clore le travail d'un autre le ferait
                                disparaître de sa liste sans qu'il l'ait fait. */
                             <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                              À {m.demandePourNom ?? m.demandePour} d'y répondre.
+                              À {nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} d'y répondre.
                             </span>
                           )}
                         </div>

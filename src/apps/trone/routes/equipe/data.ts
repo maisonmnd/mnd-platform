@@ -196,6 +196,27 @@ export const AUTOMATIONS = AUTOMATIONS_SEED;
 /** Interrupteurs des automatisations — actives par défaut. */
 export const automationsActiveStore = createStore<Record<string, boolean>>('mnd_automations_active', {});
 
+/* ── L'ANNUAIRE DES COMPTES — 19 août 2026 ─────────────────────────
+   « Quand Brice se connecte, il voudrait voir le nom affiché dans Accès &
+   personnel — mais il voit toujours briceahouansou1. »
+
+   Le NOM DU COMPTE vit dans la table `staff` (celui qu'on modifie dans
+   Accès & personnel) ; or sa liste n'est lisible que du souverain
+   (`list_staff_full`), et les fiches du Personnel portent souvent une AUTRE
+   adresse que celle de connexion (locksmnd@ vs la fiche « Gerard Tolofon »).
+   Le Fil signait donc avec ce qu'il trouvait : le début de l'adresse.
+
+   L'annuaire fait DESCENDRE ces noms là où tous peuvent les lire :
+   adresse → nom, rempli à chaque passage d'un souverain (list_staff_full
+   rend une liste vide aux autres — pas une erreur), lu par le Fil et le
+   Tableau pour signer ET pour résoudre les vieux messages à l'affichage,
+   sans réécrire une ligne d'histoire. */
+export const annuaireStore = createStore<Record<string, string>>('mnd_annuaire', {});
+export const useAnnuaire = () => useStore(annuaireStore);
+/** Le nom d'une adresse — l'annuaire d'abord, sinon le repli fourni. */
+export const nomDuCompte = (annuaire: Record<string, string>, mail: string | undefined, repli: string): string =>
+  (mail && annuaire[mail.trim().toLowerCase()]?.trim()) || repli;
+
 export type AutoConfig = {
   momoLink: string;
   mapsLink: string;
@@ -859,6 +880,7 @@ bindCollection(certifsStore, 'certifications');
 bindDocument(segmentNotesStore, 'mnd_segment_notes');
 bindDocument(automationsStore, 'mnd_automations');
 bindDocument(automationsActiveStore, 'mnd_automations_active');
+bindDocument(annuaireStore, 'mnd_annuaire');
 bindDocument(autoConfigStore, 'mnd_auto_config');
 bindCollection(envoisStore, 'envois');
 bindDocument(recoStateStore, 'mnd_reco_state');

@@ -13,7 +13,7 @@ import {
   PRIORITES, poidsPriorite,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
-import { useStaff, staffAccessStore } from './data';
+import { useStaff, staffAccessStore, useAnnuaire, nomDuCompte } from './data';
 import { voitLesPrix } from '../index';
 import './equipe.css';
 
@@ -67,7 +67,12 @@ export default function Tableau() {
 
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
   const maFiche = equipe.find((m) => (m.email ?? '').trim().toLowerCase() === monMail);
-  const monNom = maFiche?.name?.trim() || monMail.split('@')[0] || 'La maison';
+  /* Le nom du COMPTE signe et s'affiche — même règle que le Fil (19 août). */
+  const [annuaire] = useAnnuaire();
+  const monNom = nomDuCompte(annuaire, monMail, maFiche?.name?.trim() || monMail.split('@')[0] || 'La maison');
+  const nomDe = (mail: string | undefined, repli: string): string =>
+    nomDuCompte(annuaire, mail,
+      equipe.find((mb) => (mb.email ?? '').trim().toLowerCase() === (mail ?? '').toLowerCase())?.name?.trim() || repli);
 
   /* LE RANG — le profil serveur fait foi (c'est lui que la RLS lit) ; sans
      profil, on traite en maître : le rang le plus bas est le seul défaut sûr. */
@@ -155,7 +160,7 @@ export default function Tableau() {
 
     if (cible.genre === 'fait') {
       if (!puisJeClore(m, monMail) && !estSouverain) {
-        toast(`À ${m.demandePourNom ?? m.demandePour} d'y répondre — on ne clôt pas le travail d'un autre.`);
+        toast(`À ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} d'y répondre — on ne clôt pas le travail d'un autre.`);
         return;
       }
       filStore.set((prev) => prev.map((x) => (x.id === m.id
@@ -175,7 +180,7 @@ export default function Tableau() {
 
     const versMail = cible.genre === 'membre' ? cible.mail : A_PRENDRE;
     const versNom = cible.genre === 'membre' ? cible.nom : 'À prendre';
-    const deNom = m.demandePourNom ?? m.demandePour ?? '';
+    const deNom = nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '') ?? '';
     if ((m.demandePour ?? '').toLowerCase() === versMail && !etaitClose) return;
 
     filStore.set((prev) => prev.map((x) => (x.id === m.id
@@ -330,7 +335,7 @@ export default function Tableau() {
           </div>
         )}
 
-        <div className="trt__pied">Demandée par {m.auteurNom} · {m.at.slice(0, 10) === aujourdhui ? m.at.slice(11) : dateEnClair(m.at.slice(0, 10))}</div>
+        <div className="trt__pied">Demandée par {nomDe(m.auteurMail, m.auteurNom)} · {m.at.slice(0, 10) === aujourdhui ? m.at.slice(11) : dateEnClair(m.at.slice(0, 10))}</div>
         {(m.mouvements?.length ?? 0) > 0 && (
           <div className="trt__trace">
             Réadressée par {m.mouvements!.at(-1)!.parNom} · de {m.mouvements!.at(-1)!.deNom || 'à prendre'} à {m.mouvements!.at(-1)!.aNom}
@@ -543,7 +548,7 @@ export default function Tableau() {
                       .filter((m) => m.auteurMail.trim().toLowerCase() === monMail && !deQui(m, monMail) && !estAPrendre(m))
                       .map((m) => (
                         <div key={m.id}>
-                          <span className="trt__chip">Chez {m.demandePourNom ?? m.demandePour}</span>
+                          <span className="trt__chip">Chez {nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')}</span>
                           <Carte m={m} />
                         </div>
                       ))}

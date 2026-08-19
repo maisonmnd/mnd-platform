@@ -8,6 +8,7 @@ import { consultationsQueueStore } from '../../../shared/bridges';
 import { branchesStore, currentBranchStore } from '../../../shared/branches';
 import { tablePrete } from '../../../shared/sync';
 import { servicesStore, fondeLaCouronne } from '../../../shared/catalog';
+import { annuaireStore } from '../routes/equipe/data';
 import { supabase } from '../../../shared/supabase';
 
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
@@ -111,6 +112,29 @@ export function useReconcileClients(): void {
       });
     })();
   }, [session, appts, invoices, tousClients]);
+
+  /* ── L'ANNUAIRE DES COMPTES SE REMPLIT — 19 août 2026 ─────────────
+     Le nom de chaque compte (celui d'Accès & personnel) descend dans le
+     document `mnd_annuaire`, lisible de tous : c'est lui qui signe le Fil et
+     le Tableau. `list_staff_full` rend une liste vide à qui n'est pas
+     souverain — pas une erreur — donc l'appel est sans danger partout, et
+     l'annuaire se rafraîchit à chaque passage d'un souverain. */
+  useEffect(() => {
+    if (!session || !supabase) return;
+    void supabase.rpc('list_staff_full').then(({ data, error }) => {
+      if (error || !data || (data as { email: string }[]).length === 0) return;
+      const frais: Record<string, string> = {};
+      for (const r of data as { email: string; name: string | null }[]) {
+        const mail = (r.email ?? '').trim().toLowerCase();
+        if (mail && r.name?.trim()) frais[mail] = r.name.trim();
+      }
+      if (Object.keys(frais).length === 0) return;
+      const actuel = annuaireStore.get();
+      const change = Object.entries(frais).some(([k, v]) => actuel[k] !== v)
+        || Object.keys(actuel).length !== Object.keys(frais).length;
+      if (change) annuaireStore.set(frais);
+    });
+  }, [session]);
 
   /* ── LA COURONNE RATTRAPÉE — 19 août 2026 ─────────────────────────
      « Fix it for all VÈKPÈ creations » : les couronnes déjà posées dont la
