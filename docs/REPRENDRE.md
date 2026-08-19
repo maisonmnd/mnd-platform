@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La sauvegarde de la Maison — 19 août, CODE PUBLIÉ, GESTES DE YÉMAN EN ATTENTE
+
+L'audit du jour (points forts/faibles) a désigné la sauvegarde comme manque
+le plus grave. L'export manuel des Paramètres existait mais lit CE QUE LE
+POSTE VOIT — une table perdue au serveur disparaît de tous les postes et des
+exports suivants (les formulaires, 30 juillet). Construit : 0064
+(sauvegarde_maison() — découvre les tables via information_schema, souverain
+ou clé service ; coffre privé ), fonction Edge sauvegarde-nuit
+(un cliché/nuit, 60 j de garde), bouton « Photographie du serveur » dans
+Paramètres › Sauvegarde. EN ATTENTE : exécuter 0064, coller la fonction,
+poser le cron 0 2 * * * — guide BRANCHER-ENVOIS étape 6. RESTAURATION depuis
+un cliché : geste guidé à demander le jour venu, pas d'écran.
+
 ## 0061 — les consultations reviennent · 19 août, À EXÉCUTER
 
 Les trois consultations ÐÓTÓ™ (créées ensemble, sorties du catalogue le
