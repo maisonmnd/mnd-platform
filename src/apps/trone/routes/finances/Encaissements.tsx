@@ -1,13 +1,15 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Input, Segs } from '../../../../ds/components';
+import { Button, Input, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
-import { useInvoices, usePayments, useCredits } from '../../../../shared/finance';
-import { useApprenants, useSubscribers } from '../equipe/data';
+import { useStaff as useMonProfil } from '../../../../shared/auth';
+import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import { useInvoices, usePayments, useCredits, invoiceReglements } from '../../../../shared/finance';
+import { useApprenants, useSubscribers, staffStore } from '../equipe/data';
 import { buildReceipts, totalBy, receiptKindLabel, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
 import { apptLabel, useServicesById } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv } from './_shared';
@@ -147,6 +149,41 @@ export default function Encaissements() {
 
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');
+
+  /* ── RECONSTRUIRE LES PARTS DEPUIS CETTE LISTE — 19 août 2026 ─────
+     « Je n'ai pas beaucoup de pourboires, je préfère aller dans mes
+     encaissements-pourboires et extraire la liste. » Les parts d'avant le
+     lien (les doublons des encaissements refaits du 11 et du 14 août) ne
+     peuvent pas être triées une à une : rien ne dit d'où chacune venait.
+     Alors on ne trie pas — ON REPART DE LA VÉRITÉ : ce registre. Toutes
+     les parts SANS pièce s'effacent, et chaque pourboire de la liste se
+     repartage entre l'équipe, daté, nommé, LIÉ à sa facture. Les parts déjà
+     liées ne bougent pas. Souverain seulement : ce geste réécrit l'argent
+     des mains de toute l'équipe. */
+  const monProfil = useMonProfil();
+  const reconstruireLesParts = () => {
+    const equipe = staffStore.get()
+      .filter((m) => m.branchId === branch.id)
+      .map((m) => ({ id: m.id, part: m.partPourboire ?? PART_POURBOIRE_DEFAUT }));
+    const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);
+    if (!window.confirm(
+      `Reconstruire les parts de pourboire depuis ce registre ?\n\n`
+      + `Toutes les parts SANS facture liée (celles d'avant le 19 août, doublons compris) seront effacées chez chacun, `
+      + `puis les ${factures.length} pourboire(s) du registre seront repartagés entre l'équipe. `
+      + `Les parts déjà liées à une facture ne bougent pas.`,
+    )) return;
+    const orphelines = tipsStore.get().filter((t) => !t.invoiceId).length;
+    tipsStore.set((prev) => prev.filter((t) => !!t.invoiceId));
+    let repartages = 0;
+    for (const i of factures) {
+      if (tipsStore.get().some((t) => t.invoiceId === i.id)) continue;
+      const jour = invoiceReglements(i)[0]?.date ?? i.date;
+      const nom = i.clientName ?? clients.find((c) => c.id === i.clientId)?.name;
+      addTipPartage(equipe, i.tipXof!, jour, nom, i.id);
+      repartages++;
+    }
+    toast(`${orphelines} ancienne(s) part(s) effacée(s) · ${repartages} pourboire(s) repartagé(s) depuis le registre.`);
+  };
   const [q, setQ] = useState('');
   /* Un total ne vaut que si l'on peut l'ouvrir : cliquer « Espèces » ou
      « Caisse Principale » restreint le registre du dessous aux entrées qui le
@@ -415,7 +452,14 @@ export default function Encaissements() {
             {shown.length} encaissement{shown.length > 1 ? 's' : ''} · {monthTitle(month)}
             {method && ` · ${method}`}{box && ` · ${box}`}
           </span>
-          <span>{fmtMoney(total, currency)}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+            {kind === 'pourboire' && monProfil?.role === 'souverain' && (
+              <Button size="sm" variant="ghost" onClick={reconstruireLesParts}>
+                Reconstruire les parts de l’équipe
+              </Button>
+            )}
+            {fmtMoney(total, currency)}
+          </span>
         </div>
         {shown.length === 0 ? (
           <div className="trf-empty" style={{ marginTop: 14 }}>
