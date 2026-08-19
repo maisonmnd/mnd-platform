@@ -14,6 +14,7 @@ import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
+import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
@@ -398,6 +399,9 @@ export default function Factures() {
     const liste = fusions ?? [];
     if (liste.length === 0) { setFusions(null); return; }
     const aSupprimer = new Set(liste.flatMap((f) => f.fondues.map((x) => x.id)));
+    /* Le pourboire SUIT la pièce survivante — il ne meurt pas avec la pièce
+       fondue : l'argent a bien été remis, seule la pièce change de nom. */
+    for (const fu of liste) repointerPourboires(fu.fondues.map((x) => x.id), fu.apres.id);
     const remplacees = new Map(liste.map((f) => [f.garde.id, f.apres]));
     setInvoices((prev) => prev
       .filter((i) => !aSupprimer.has(i.id))
@@ -645,6 +649,12 @@ export default function Factures() {
        numéro) et libère la préparation du Laboratoire qu'elle réglait. */
     if (doc) retirerParReferences([doc.number]);
     detacherFacture([id]);
+    /* « Quand je supprime une facture de pourboire, ça doit supprimer le
+       pourboire inscrit chez chacun » — 19 août. Les parts LIÉES partent avec
+       la pièce ; celles d'avant le lien restent : on ne devine pas à qui
+       appartenait un pourboire sans pièce. */
+    const partsRetirees = retirerPourboiresDesFactures([id]);
+    if (partsRetirees > 0) toast(`${partsRetirees} part(s) de pourboire retirée(s) avec la pièce.`);
     if (editing?.draft.id === id) setEditing(null);
     if (selectedId === id) setSelectedId(null);
   };

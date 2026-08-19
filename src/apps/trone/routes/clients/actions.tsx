@@ -17,7 +17,7 @@ import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
-import { addTipPartage, repartirPourboire, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT } from '../equipe/data';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -176,6 +176,11 @@ export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: 
        libérée plutôt que murée sur une facture disparue. */
     retirerParReferences(aSupprimer.map((i) => i.number));
     detacherFacture(aSupprimer.map((i) => i.id));
+    /* Les parts de pourboire de ces pièces s'en vont avec elles — 19 août :
+       « quand je supprime une facture de pourboire, ça doit supprimer le
+       pourboire inscrit chez chacun ». L'encaissement annulé, personne n'a
+       touché cet argent. */
+    retirerPourboiresDesFactures(ids);
   }
   /* ANNULER UN ENCAISSEMENT N'EFFACE QUE DE L'ARGENT. Ce geste faisait aussi
      retomber le rituel de « honoré » à « confirmé » et reprenait les points de
@@ -632,6 +637,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
     if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     submitting.current = true;
+    /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
+    let idPieceEncaissee: string | undefined;
     if (settleTotal > 0) {
       /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
          (sans acompte CRÉDITÉ ni règlement antérieur), pour que la cliente voie le
@@ -832,6 +839,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         const fige = inv;
         invoicesStore.set((prev) => [fige, ...prev]);
       }
+      idPieceEncaissee = inv.id;
       /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
       if (avoirApplied > 0) {
         creditMovementsStore.set((prev) => [...prev, {
@@ -919,7 +927,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        « besoin de savoir c'est le pourboire de quelle cliente » ; une part
        sans provenance ne se relit pas dans « Mon mois ». */
     const partsEcrites = tip > 0
-      ? addTipPartage(beneficiaires, tip, invDate, client?.name ?? appt.clientName ?? undefined)
+      ? addTipPartage(beneficiaires, tip, invDate, client?.name ?? appt.clientName ?? undefined, idPieceEncaissee)
       : [];
     const tipRecorded = tip > 0 && partsEcrites.length > 0;
 

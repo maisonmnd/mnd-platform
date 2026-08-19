@@ -8,7 +8,42 @@ import { bindCollection } from './sync';
    c'est de l'argent dû aux maîtres. En collection, chaque ligne s'upserte par
    id : plus aucun écrasement croisé. */
 
-export type Tip = { id: string; staffId: string; amountXof: number; date: string; note?: string; branchId?: string };
+export type Tip = {
+  id: string;
+  staffId: string;
+  amountXof: number;
+  date: string;
+  note?: string;
+  branchId?: string;
+  /** LA PIÈCE QUI A PORTÉ CE POURBOIRE — 19 août 2026 : « quand je supprime
+      une facture de pourboire, ça doit supprimer le pourboire inscrit chez
+      chacun ». Sans ce lien, une part était introuvable une fois écrite : la
+      facture partait, les parts restaient, et « Mon mois » gonflait de
+      pourboires que personne n'avait touchés. Absent sur les parts d'avant ce
+      jour — elles ne peuvent pas être reliées après coup. */
+  invoiceId?: string;
+};
+
+/** LES PARTS D'UNE PIÈCE SUPPRIMÉE S'EN VONT AVEC ELLE. Rend le nombre de
+    parts retirées — un geste d'argent se dit, il ne s'estime pas. */
+export function retirerPourboiresDesFactures(ids: Iterable<string>): number {
+  const vises = new Set(ids);
+  if (vises.size === 0) return 0;
+  const avant = tipsStore.get();
+  const retires = avant.filter((t) => t.invoiceId && vises.has(t.invoiceId)).length;
+  if (retires > 0) tipsStore.set((prev) => prev.filter((t) => !(t.invoiceId && vises.has(t.invoiceId))));
+  return retires;
+}
+
+/** À LA FUSION DES PIÈCES, le pourboire SUIT la survivante — il ne meurt pas
+    avec la pièce fondue : l'argent a bien été remis, seule la pièce change. */
+export function repointerPourboires(deIds: Iterable<string>, versId: string): void {
+  const vises = new Set(deIds);
+  if (vises.size === 0) return;
+  tipsStore.set((prev) => prev.map((t) => (t.invoiceId && vises.has(t.invoiceId)
+    ? { ...t, invoiceId: versId }
+    : t)));
+}
 
 export const tipsStore = createStore<Tip[]>('mnd_tips_v2', []);
 bindCollection(tipsStore, 'tips');
@@ -68,11 +103,13 @@ export function addTipPartage(
   montantXof: number,
   date: string,
   note?: string,
+  invoiceId?: string,
 ): { staffId: string; amountXof: number }[] {
   const parts = repartirPourboire(montantXof, membres);
   if (!parts.length) return [];
   const lignes: Tip[] = parts.map((p) => ({
     id: `tp-${uid()}`, staffId: p.staffId, amountXof: p.amountXof, date, note,
+    ...(invoiceId ? { invoiceId } : {}),
   }));
   tipsStore.set((prev) => [...prev, ...lignes]);
   return parts;
