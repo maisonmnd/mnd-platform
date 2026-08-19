@@ -1227,25 +1227,61 @@ export default function Depenses() {
                     <span className="mnd-field__label">Articles de l’achat · {cleanItems.length}/{form.items.length}</span>
                     <button className="trf-act" onClick={addItem}>+ Ligne</button>
                   </div>
+                  {/* QUANTITÉ × PRIX = TOTAL DE LIGNE — 19 août : « ajouter
+                      quantité et montant pour avoir le total ». On écrivait
+                      « 6 ganches * 300 » dans le libellé et on posait la
+                      multiplication de tête. La quantité vide vaut 1 : un
+                      article d'avant (montant seul) se relit tel quel. Le
+                      total de ligne s'ÉCRIT à la saisie (amountXof = qté ×
+                      prix) — c'est lui que tous les écrans somment. */}
                   <div className="trf-items">
-                    {form.items.map((it) => (
-                      <div className="trf-items__row" key={it.id}>
-                        <input
-                          className="mnd-input" value={it.label} placeholder="Article · ex. Beurre de karité"
-                          onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
-                          style={{ flex: 1 }}
-                        />
-                        <input
-                          className="mnd-input" inputMode="numeric" value={it.amountXof ? String(it.amountXof) : ''} placeholder="0"
-                          onChange={(ev) => patchItem(it.id, (x) => ({ ...x, amountXof: parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10) }))}
-                          style={{ flex: 'none', width: 130, fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}
-                        />
-                        <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeItem(it.id)} aria-label="Retirer la ligne">×</button>
-                      </div>
-                    ))}
+                    {form.items.map((it) => {
+                      const majTotal = (x: typeof it, qty: number | undefined, unit: number | undefined) => ({
+                        ...x, qty, unitXof: unit, amountXof: Math.max(0, Math.round((qty ?? 1) * (unit ?? 0))),
+                      });
+                      return (
+                        <div className="trf-items__row" key={it.id}>
+                          <input
+                            className="mnd-input" value={it.label} placeholder="Article · ex. Ganches"
+                            onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
+                            style={{ flex: 1, minWidth: 130 }}
+                          />
+                          <input
+                            className="mnd-input" inputMode="numeric"
+                            value={it.qty != null ? String(it.qty) : ''}
+                            placeholder="Qté"
+                            title="Quantité — vide vaut 1"
+                            onChange={(ev) => patchItem(it.id, (x) => {
+                              const brut = ev.target.value.replace(/[^0-9]/g, '');
+                              return majTotal(x, brut === '' ? undefined : parseInt(brut, 10), x.unitXof ?? x.amountXof);
+                            })}
+                            style={{ flex: 'none', width: 58, textAlign: 'right' }}
+                          />
+                          <span className="mnd-muted" style={{ flex: 'none', fontSize: 12 }}>×</span>
+                          <input
+                            className="mnd-input" inputMode="numeric"
+                            value={(it.unitXof ?? it.amountXof) ? String(it.unitXof ?? it.amountXof) : ''}
+                            placeholder="Prix"
+                            title="Prix unitaire"
+                            onChange={(ev) => patchItem(it.id, (x) => {
+                              const unit = parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10);
+                              return majTotal(x, x.qty, unit);
+                            })}
+                            style={{ flex: 'none', width: 96, textAlign: 'right' }}
+                          />
+                          <span
+                            style={{ flex: 'none', width: 108, textAlign: 'right', fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
+                            title="Total de la ligne — quantité × prix"
+                          >
+                            {it.amountXof > 0 ? fmtMoney(it.amountXof, currency) : '—'}
+                          </span>
+                          <button className="trf-iconbtn trf-iconbtn--danger" onClick={() => removeItem(it.id)} aria-label="Retirer la ligne">×</button>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
-                    La somme des articles devient le montant de l’achat.
+                    Quantité × prix fait le total de la ligne ; la somme des lignes devient le montant de l’achat. Quantité vide = 1.
                   </div>
                 </>
               )}

@@ -123,7 +123,13 @@ export type Invoice = {
 };
 
 /** Ligne d'une dépense — plusieurs articles peuvent être imputés à un même achat. */
-export type ExpenseItem = { id: string; label: string; amountXof: number };
+/** Un article d'une dépense. `amountXof` est TOUJOURS le total de la ligne —
+    c'est lui que tous les écrans somment. Quantité et prix unitaire (19 août :
+    « ajouter quantité et montant pour avoir le total ») ne sont que sa
+    provenance : quand ils sont posés, amountXof = qty × unitXof, écrit à la
+    saisie — jamais recalculé à la lecture, pour que les articles d'avant
+    (montant seul) restent exacts tels quels. */
+export type ExpenseItem = { id: string; label: string; amountXof: number; qty?: number; unitXof?: number };
 
 export type Expense = {
   id: string;
