@@ -559,6 +559,7 @@ function FormsSection() {
   const [fillId, setFillId] = useState<string | null>(null);
 
   const active = forms.filter((f) => !f.archived);
+  const archives = forms.filter((f) => f.archived);
   const archivedCount = forms.filter((f) => f.archived).length;
   const open = forms.find((f) => f.id === openId && !f.archived) ?? null;
   const filling = forms.find((f) => f.id === fillId && !f.archived) ?? null;
@@ -650,7 +651,33 @@ function FormsSection() {
           </div>
         ))}
       </div>
-      {archivedCount > 0 && <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 14 }}>{archivedCount} formulaire(s) archivé(s).</div>}
+      {/* ── LES ARCHIVÉS SE RETROUVENT — 19 août 2026 ─────────────────
+          « Je parlais des formulaires des consultations — les retrouver et
+          voir lesquels remettre dans l'ERP. » Un formulaire archivé
+          disparaissait de PARTOUT : ni liste, ni retour — une seule ligne
+          disait leur nombre, sans un nom. Une archive dont on ne peut rien
+          ressortir n'est pas une archive, c'est une corbeille. Les voici,
+          chacun avec son geste de retour. */}
+      {archives.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div className="trc-microlabel" style={{ color: 'var(--ink-soft)' }}>Archivés · {archives.length}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {archives.map((f) => (
+              <div key={f.id} style={{ background: 'var(--hover-veil)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '11px 18px', display: 'flex', alignItems: 'center', gap: 14, opacity: 0.85 }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink)', flex: 1, minWidth: 0 }}>{f.name}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--ink-soft)', flex: 'none' }}>{f.eyebrow} · {f.questions.length} questions</span>
+                <button
+                  type="button"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)', letterSpacing: '.06em', textTransform: 'uppercase', flex: 'none' }}
+                  onClick={() => mutate(f.id, (x) => ({ ...x, archived: false }))}
+                >
+                  Remettre dans l’ERP
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
