@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
-import { expensesStore, expenseCategoriesStore, type Expense } from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense } from '../../../../shared/finance';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -146,7 +146,38 @@ export default function Prestataires() {
     setMissions((prev) => prev.filter((x) => x.id !== id));
   };
 
-  /* ---------- Paiement (confirmation signée) + charge dans les Dépenses ---------- */
+  /* ---------- Paiement (confirmation signée) + charge dans les Dépenses ----------
+
+     LA CHARGE CITE UNE CAISSE, PAS UN MOYEN — 19 août 2026, « quand je paie
+     les prestataires, je veux que l'écriture vienne directement en dépenses
+     dans Caisse principale ». Le champ `cashbox` recevait le MOYEN de
+     règlement (« Espèces », « Mobile Money ») : la dépense montait bien à la
+     Synthèse, mais aucune caisse ne la reconnaissait comme sienne — le
+     tiroir n'était jamais débité, et l'argent sorti restait compté dedans.
+     Le moyen reste sur la mission (le reçu le dit) ; la caisse est choisie
+     au paiement, Caisse principale en tête. */
+  const [cashboxes] = useCashboxes();
+  const caissesMaison = cashboxes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+  const caisseParDefaut = (caissesMaison.find((c) => c.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
+  const [payCaisse, setPayCaisse] = useState('');
+  const caisseActive = caissesMaison.some((c) => c.name === payCaisse) ? payCaisse : caisseParDefaut;
+
+  /* LES ÉCRITURES D'AVANT SE RÉPARENT SEULES : une charge de prestataire dont
+     la « caisse » est en réalité un moyen de règlement se repointe vers la
+     caisse par défaut. Idempotent, et jamais si une vraie caisse portait ce
+     nom-là. */
+  useEffect(() => {
+    if (caissesMaison.length === 0) return;
+    const nomsDeCaisses = new Set(cashboxes.map((c) => c.name));
+    const egarees = expensesStore.get().filter((e) =>
+      e.id.startsWith('exp-ms-') && e.branchId === branch.id
+      && PAY_METHODS.includes(e.cashbox) && !nomsDeCaisses.has(e.cashbox));
+    if (egarees.length === 0) return;
+    const ids = new Set(egarees.map((e) => e.id));
+    expensesStore.set((prev) => prev.map((e) => (ids.has(e.id) ? { ...e, cashbox: caisseParDefaut } : e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashboxes, branch.id]);
+
   const confirmPayment = () => {
     if (!payFor) return;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
@@ -158,7 +189,7 @@ export default function Prestataires() {
       label: `Prestataire · ${providerName(payFor.providerId)} — ${payFor.label}`,
       amountXof: payFor.amountXof,
       date: paidAt.slice(0, 10),
-      cashbox: payMethod,
+      cashbox: caisseActive,
       category: CHARGE_CATEGORY,
     };
     // La charge remonte dans les Dépenses & la Synthèse (résultat).
@@ -451,6 +482,28 @@ export default function Prestataires() {
                   <button key={p} type="button" className={`tre-chip ${payMethod === p ? 'is-on' : ''}`} onClick={() => setPayMethod(p)}>{p}</button>
                 ))}
               </div>
+            </Field>
+            {/* D'OÙ SORT L'ARGENT — la caisse débitée par la charge. Sans elle,
+                la dépense montait à la Synthèse mais aucun tiroir ne maigrissait. */}
+            <Field label="Caisse débitée">
+              {caissesMaison.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {caissesMaison.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`tre-chip ${caisseActive === c.name ? 'is-on' : ''}`}
+                      onClick={() => setPayCaisse(c.name)}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="mnd-muted" style={{ fontSize: 12 }}>
+                  Aucune caisse en {currency} — la charge citera « Caisse principale ».
+                </span>
+              )}
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPayFor(null)}>Annuler</Button>
