@@ -210,34 +210,39 @@ export function InvitationCouronne({ surComptoir }: {
         <div style={{ marginTop: 8, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-indigo)', wordBreak: 'break-all' }}>
           {lienCouronne}
         </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-          <Button variant="copper" size="sm" onClick={imprimer}>Imprimer la carte A5</Button>
+      </div>
+      {/* LES GESTES À DROITE, EN COLONNE — 19 août : « arrange les boutons du
+          même côté que les autres ». Cette carte était la seule de la page à
+          poser ses boutons sous le texte ; l'œil devait chercher une nouvelle
+          place à chaque carte. Même colonne, même ordre que ses voisines :
+          l'affichage d'abord, l'impression, puis la copie. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
+        {surComptoir && (
           <Button
-            variant="ghost"
+            variant="copper"
             size="sm"
-            onClick={() => {
-              void navigator.clipboard.writeText(lienCouronne).then(
-                () => toast('Lien copié — collez-le dans WhatsApp ou un statut.'),
-                () => toast(`Le lien : ${lienCouronne}`),
-              );
-            }}
+            onClick={() => surComptoir({
+              titre: 'Ma Couronne.',
+              phrase: 'Scannez — votre couronne vous reconnaît.',
+              valeur: lienCouronne,
+            })}
           >
-            Copier le lien
+            Afficher au comptoir
           </Button>
-          {surComptoir && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => surComptoir({
-                titre: 'Ma Couronne.',
-                phrase: 'Scannez — votre couronne vous reconnaît.',
-                valeur: lienCouronne,
-              })}
-            >
-              Afficher au comptoir
-            </Button>
-          )}
-        </div>
+        )}
+        <Button variant={surComptoir ? 'ghost' : 'copper'} size="sm" onClick={imprimer}>Imprimer la carte A5</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            void navigator.clipboard.writeText(lienCouronne).then(
+              () => toast('Lien copié — collez-le dans WhatsApp ou un statut.'),
+              () => toast(`Le lien : ${lienCouronne}`),
+            );
+          }}
+        >
+          Copier le lien
+        </Button>
       </div>
     </div>
   );
