@@ -140,6 +140,35 @@ réglée, identifiant `env-<facture>-wa-avis` au journal), fenêtre de deux
 jours (un solde du soir est rattrapé le matin, jamais un vieux passage),
 fiche sans téléphone consignée « sans-abonnement » au lieu d'échouer.
 
+## Étape 6 — La sauvegarde de nuit (19 août 2026)
+
+Le serveur se photographie chaque nuit — toutes les tables, découvertes à
+l'exécution — et range le cliché dans le compartiment privé `sauvegardes`
+(60 jours de garde, un cliché par jour). C'est l'assurance contre le mal du
+30 juillet : une table perdue au serveur disparaît de tous les postes, et
+les exports d'après ne la portent plus.
+
+1. **Exécuter la migration 0064** (SQL Editor) — la fonction
+   `sauvegarde_maison()` et le coffre `sauvegardes`.
+2. **Déployer la fonction** : Edge Functions → New function → nom exact
+   `sauvegarde-nuit` → coller ENTIER
+   `supabase/functions/sauvegarde-nuit/index.ts` → Deploy (désactiver
+   « Verify JWT »).
+3. **Poser le réveil** : Integrations → Cron → Create job :
+   - **Name** : `sauvegarde-nuit` · **Schedule** : `0 2 * * *` (3 h à
+     Cotonou, la maison dort)
+   - **Type** : Edge Function → `sauvegarde-nuit` · POST · en-tête
+     `Authorization: Bearer <clé service_role>`.
+4. **Essai immédiat** : Run now — réponse attendue
+   `{ "cliche": "maison-…", "octets": …, "lignes": …, "tables": … }`, et le
+   fichier visible dans Storage → sauvegardes.
+
+À la main, sans attendre la nuit : Paramètres → Sauvegarde de la Maison →
+**« Photographie du serveur (complète) »** — le même cliché, téléchargé
+(souverain seulement). Restaurer UNE table perdue depuis un cliché est un
+geste guidé (le JSON porte tout, table par table) — demander ce chantier le
+jour venu plutôt que d'improviser.
+
 ## Ce que le Trône montre
 
 - **Tableau de bord → La tournée du matin** : les rendez-vous de demain, la

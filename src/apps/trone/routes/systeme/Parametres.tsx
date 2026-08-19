@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
+import { supabase } from '../../../../shared/supabase';
 import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
 import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
@@ -467,6 +468,36 @@ function SauvegardeCard() {
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
         <Button variant="copper" onClick={doExport}>Exporter toute la Maison (JSON)</Button>
+        {/* LA PHOTOGRAPHIE DU SERVEUR — 19 août. L'export ci-contre lit ce que
+            CE POSTE voit ; quand le serveur perd une table, les postes
+            s'alignent et l'export d'après ne contient plus rien (les
+            formulaires du 30 juillet, perdus trois semaines sans un bruit).
+            Ceci interroge la BASE elle-même : toutes les tables, découvertes
+            à l'exécution, comptes du personnel compris. Souverain seulement —
+            la fonction le vérifie côté serveur. */}
+        <Button
+          variant="ghost"
+          onClick={() => {
+            void (async () => {
+              if (!supabase) { toast('Serveur non configuré.'); return; }
+              toast('Photographie du serveur en cours…');
+              const { data, error } = await supabase.rpc('sauvegarde_maison');
+              if (error) { toast(`Refusé : ${error.message}`); return; }
+              const d = new Date();
+              const p2 = (n: number) => String(n).padStart(2, '0');
+              const nom = `maison-mnd-serveur-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}.json`;
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+              a.download = nom;
+              a.click();
+              URL.revokeObjectURL(a.href);
+              const meta = data as { nb_tables?: number; lignes?: number };
+              toast(`Photographie du serveur téléchargée — ${meta.nb_tables ?? '?'} tables, ${meta.lignes ?? '?'} lignes.`);
+            })();
+          }}
+        >
+          Photographie du serveur (complète)
+        </Button>
         <Button variant="ghost" onClick={() => openPicker('add')}>Restaurer depuis un fichier…</Button>
         <Button variant="ghost" onClick={() => openPicker('update')}>Mettre à jour depuis un fichier (écrase l’existant)…</Button>
         <Button variant="ghost" onClick={() => openPicker('replace')}>Remplacer toute la Maison par un fichier…</Button>
