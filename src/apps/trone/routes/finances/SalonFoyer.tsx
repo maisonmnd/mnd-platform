@@ -268,7 +268,7 @@ export default function SalonFoyer() {
   /* `fPre` et `fPret` sont partis avec leurs formulaires (14 août) : la
      fenêtre « Inscrire un mouvement » écrit à leur place. */
   /* Le retrait en cours de correction — un seul à la fois, édité EN PLACE. */
-  const [editPrel, setEditPrel] = useState<null | { id: string; date: string; beneficiaire: string; motif: string; note: string; montant: string }>(null);
+  const [editPrel, setEditPrel] = useState<null | { id: string; date: string; beneficiaire: string; motif: string; note: string; montant: string; postes: PosteFoyer[] }>(null);
   const [fRes, setFRes] = useState({ date: todayISO(), enveloppe: 'reinvestissement' as EnveloppeReserve, sens: 'dotation' as 'dotation' | 'retrait', note: '', montant: '' });
   /* Le refus d'un retrait qui dépasse l'enveloppe se dit à côté du bouton. */
   const [vrsErr, setVrsErr] = useState<string | null>(null);
@@ -307,23 +307,34 @@ export default function SalonFoyer() {
   const avecCourant = (liste: readonly string[], courant: string): string[] =>
     liste.includes(courant) || !courant ? [...liste] : [courant, ...liste];
 
-  const ouvreEditionPrel = (p: { id: string; date: string; beneficiaire: string; motif: string; note?: string; amountXof: number }) =>
+  /* LES POSTES SUIVENT LA MODIFICATION — 19 août : « j'avais détaillé les
+     dépenses ; quand j'appuie Modifier je ne vois plus les lignes ». Le
+     formulaire ignorait `items` : les postes d'un retrait détaillé ne se
+     voyaient nulle part, et l'enregistrement aurait écrasé leur somme d'un
+     montant tapé à la main. Les postes s'éditent désormais dans le même
+     formulaire, et quand il y en a, LE MONTANT EST LEUR SOMME — jamais autre
+     chose (la règle du modèle, foyer.ts). */
+  const ouvreEditionPrel = (p: { id: string; date: string; beneficiaire: string; motif: string; note?: string; amountXof: number; items?: PosteFoyer[] }) =>
     setEditPrel({
       id: p.id, date: p.date, beneficiaire: p.beneficiaire, motif: p.motif,
       note: p.note ?? '', montant: String(p.amountXof),
+      postes: (p.items ?? []).map((x) => ({ ...x })),
     });
+
+  const postesEditNets = (editPrel?.postes ?? []).filter((x) => x.label.trim() && x.amountXof > 0);
+  const montantEdit = editPrel ? totalPostes(postesEditNets, litXof(editPrel.montant)) : 0;
 
   const sauvePrelevement = () => {
     if (!editPrel) return;
-    const montant = litXof(editPrel.montant);
-    if (montant <= 0) return;
+    if (montantEdit <= 0) return;
     setPrelevements((prev) => prev.map((p) => (p.id === editPrel.id ? {
       ...p,
       date: editPrel.date,
       beneficiaire: editPrel.beneficiaire,
       motif: editPrel.motif,
       note: editPrel.note.trim() || undefined,
-      amountXof: montant,
+      amountXof: montantEdit,
+      items: postesEditNets.length ? postesEditNets : undefined,
     } : p)));
     setEditPrel(null);
   };
@@ -1268,10 +1279,50 @@ export default function SalonFoyer() {
                       </Select>
                     </Field>
                     <Field label="Note (libre)"><Input value={editPrel.note} onChange={(e) => setEditPrel({ ...editPrel, note: e.target.value })} /></Field>
-                    <Field label={`Montant (${currency})`}><Input inputMode="numeric" value={editPrel.montant} onChange={(e) => setEditPrel({ ...editPrel, montant: e.target.value })} /></Field>
+                    <Field label={`Montant (${currency})`}>
+                      {postesEditNets.length > 0
+                        ? <Input value={fmtMoney(montantEdit, currency)} readOnly title="La somme des postes fait le montant — modifiez les postes." style={{ opacity: 0.75 }} />
+                        : <Input inputMode="numeric" value={editPrel.montant} onChange={(e) => setEditPrel({ ...editPrel, montant: e.target.value })} />}
+                    </Field>
+                  </div>
+                  {/* LES POSTES DU RETRAIT — le détail qu'elle avait écrit, enfin
+                      visible et modifiable ici. Un poste vidé s'en va à
+                      l'enregistrement ; la somme des postes FAIT le montant. */}
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {editPrel.postes.map((x) => (
+                      <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Input
+                          value={x.label}
+                          placeholder="Poste — marché, pharmacie, taxi…"
+                          onChange={(e) => setEditPrel({ ...editPrel, postes: editPrel.postes.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })}
+                          style={{ flex: 1, minWidth: 160 }}
+                        />
+                        <Input
+                          inputMode="numeric"
+                          value={x.amountXof > 0 ? String(x.amountXof) : ''}
+                          placeholder="0"
+                          onChange={(e) => setEditPrel({ ...editPrel, postes: editPrel.postes.map((y) => (y.id === x.id ? { ...y, amountXof: litXof(e.target.value) } : y)) })}
+                          style={{ width: 110, flex: 'none', textAlign: 'right' }}
+                        />
+                        <button
+                          className="trf-iconbtn"
+                          title="Retirer ce poste"
+                          onClick={() => setEditPrel({ ...editPrel, postes: editPrel.postes.filter((y) => y.id !== x.id) })}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="trf-act trf-act--ghost"
+                      style={{ alignSelf: 'flex-start' }}
+                      onClick={() => setEditPrel({ ...editPrel, postes: [...editPrel.postes, { id: uid(), label: '', amountXof: 0 }] })}
+                    >
+                      + Ajouter un poste
+                    </button>
                   </div>
                   <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <button className="trf-act" onClick={sauvePrelevement} disabled={litXof(editPrel.montant) <= 0}>Enregistrer</button>
+                    <button className="trf-act" onClick={sauvePrelevement} disabled={montantEdit <= 0}>Enregistrer</button>
                     <button className="trf-act trf-act--ghost" onClick={() => setEditPrel(null)}>Annuler</button>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
                       Changer la date pour un autre mois déplace ce retrait dans ce mois-là — et son budget.
@@ -1280,9 +1331,16 @@ export default function SalonFoyer() {
                 </div>
               ) : (
                 <div key={p.id} className="trf-tally">
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)', minWidth: 0 }}>
                     {/* La date a quitté la ligne : la journée la porte au-dessus. */}
                     <strong style={{ color: 'var(--color-indigo)' }}>{p.beneficiaire}</strong> · {p.motif}{p.note ? ` — ${p.note}` : ''}
+                    {/* Le détail se LIT sur la ligne — il n'était visible nulle
+                        part une fois écrit (19 août). */}
+                    {(p.items?.length ?? 0) > 0 && (
+                      <span style={{ display: 'block', fontSize: 11.5, marginTop: 2 }}>
+                        {p.items!.map((x) => `${x.label} ${fmtMoney(x.amountXof, currency)}`).join(' · ')}
+                      </span>
+                    )}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--color-indigo)' }}>{fmtMoney(p.amountXof, currency)}</span>
