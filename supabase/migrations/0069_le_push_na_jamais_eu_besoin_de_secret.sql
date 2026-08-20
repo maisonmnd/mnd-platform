@@ -22,6 +22,12 @@
 -- déjà le travail. Trois migrations de clé pour un problème d'abonnement.
 -- ═══════════════════════════════════════════════════════════════════
 
+/* L'ANCIENNE SIGNATURE PART D'ABORD. Garder appelle_fonction_edge(text)
+   à côté de appelle_fonction_edge(text, jsonb DEFAULT) rendrait tout appel
+   à un seul argument AMBIGU — « function is not unique » — et casserait
+   rappels_j1_soir_sql() et sauvegarde_nuit_sql() du même coup. */
+drop function if exists public.appelle_fonction_edge(text);
+
 create or replace function public.appelle_fonction_edge(nom text, corps jsonb default '{}'::jsonb)
 returns bigint
 language plpgsql
