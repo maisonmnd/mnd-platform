@@ -365,14 +365,19 @@ export default function Carnet() {
                     rattachement se faisait depuis la modale du rendez-vous
                     NOUVEAU, qu'il fallait d'abord créer et re-remplir. On part
                     du rituel qui porte le soin : ses prestations sont reprises,
-                    la série est déjà nouée, il ne reste que LA DATE à choisir. */}
-                {a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1 && (
+                    la série est déjà nouée, il ne reste que LA DATE à choisir.
+                    SEULEMENT CE QUI Y DONNE DROIT (20 août) : le geste ne se
+                    propose que si le rituel contient une prestation à
+                    plusieurs séances, et ne reprend QUE celles-là — le
+                    shampoing d'une séance n'a rien à faire dans une suite. */}
+                {a.status !== 'annulé' && (a.seriesIndex ?? 1) <= 1
+                  && a.serviceIds.some((id) => (byId.get(id)?.sessions ?? 1) > 1) && (
                   <button
                     onClick={() => {
                       setModal({
                         initial: {
                           clientId: a.clientId,
-                          serviceIds: a.serviceIds,
+                          serviceIds: a.serviceIds.filter((id) => (byId.get(id)?.sessions ?? 1) > 1),
                           master: a.master,
                           date: todayISO(),
                           suiteDe: a.id,

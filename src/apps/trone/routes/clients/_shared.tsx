@@ -1194,7 +1194,14 @@ export function RdvModal({
   /* Mémoïsé : le comptage balaie le carnet ENTIER, et cette modale re-rend à
      chaque frappe — le chemin de saisie le plus chaud de l'application. */
   const venuesTete = useMemo(() => venuesHonorees(tousLesRdv, clientId), [tousLesRdv, clientId]);
-  const proposables = remaining.filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte));
+  /* SÉANCE INCLUSE : SEULEMENT CE QUI Y DONNE DROIT (20 août). Une suite ne
+     refait pas tout le rituel — elle poursuit les soins qui promettent
+     plusieurs séances. Le sélecteur ne propose donc que les prestations
+     multi-séances DU RITUEL PARENT : retirée d'un ×, une création terminée en
+     une séance s'y retrouve si la main se ravise, et rien d'autre n'entre. */
+  const proposables = remaining
+    .filter((sv) => !estSuite || (porteur?.a.serviceIds.includes(sv.id) && (sv.sessions ?? 1) > 1))
+    .filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte));
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
@@ -1720,7 +1727,10 @@ export function RdvModal({
               clic demande confirmation au lieu d'effacer. Sur un rituel vide,
               il applique tout de suite — on ne fait pas confirmer un geste qui
               ne détruit rien. */}
-          {rituelsHabituels.length > 0 && (
+          {/* Pas d'habitudes sur une SÉANCE INCLUSE (20 août) : un clic y
+              remplacerait les soins de la suite par un rituel entier — à
+              zéro franc. La suite ne propose que ce qui y donne droit. */}
+          {!estSuite && rituelsHabituels.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 7 }}>
                 Ses rituels habituels
@@ -2283,6 +2293,8 @@ export function RdvModal({
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
                 Le rituel du {frShort(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''} —
                 rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
+                Seuls les soins à plusieurs séances sont repris : une création
+                déjà terminée en une seule séance se retire d'un ✕, au palier ②.
               </div>
               <button
                 type="button"
