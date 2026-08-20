@@ -56,6 +56,17 @@ rendez-vous. Tester à 18 h sur un RDV du lendemain 09:00 ne déclenche
 rien — sa fenêtre était le matin même. Poser le RDV d'essai à ~24 h.
 LEÇON : avant de réparer un chemin, vérifier qu'un autre ne fait pas déjà
 le travail. Trois migrations de clé pour un problème d'abonnement.
+PROUVÉ le 20 août 18:27 : pousse_les_rappels_sql() → 200 {"sent":5}, cinq
+appareils touchés, le téléphone a vibré.
+
+ATTENTION LE JOUR DES CLÉS META. Si rappels-j1 se met à marcher (clé
+secrète sb_secret_… au Vault), la Maison enverra DEUX push pour le même
+rendez-vous : rappels-j1 pousse via push-notify mode `to-client` et tient
+son journal `envois`, tandis que mnd-push-rappels pousse via le mode
+`reminders` et tient le sien, `push_reminders` — les deux journaux
+s'ignorent. AVANT de brancher le WhatsApp, choisir : soit retirer le bloc
+① PUSH de rappels-j1 (il ne fera plus que WhatsApp + SMS), soit désactiver
+le job mnd-push-rappels. NE PAS laisser les deux vivants.
 
 DEUX MIGRATIONS POUR LA MÊME LEÇON, prise des deux côtés. 0067 élargit le
 contrôle de forme (« ou sb_secret_… ») — et 0068 le SUPPRIME : un contrôle
