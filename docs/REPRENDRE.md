@@ -2,6 +2,22 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Demander partout, compte-fiche, rappels sans clé — 20 août, PUBLIÉ
+
+La DERNIÈRE pièce de la liste du Fil est posée : DemanderModal (composant
+unique) sur le RITUEL (RdvModal) et la FICHE cliente (Customers), en plus de
+la facture — destinataire ou à-prendre, échéance, priorité, pièce attachée.
+Le lien compte-fiche : StaffMember.compteMail (« E-mail de connexion · si
+différent », Personnel & paie) + adresseDe() qui fait foi partout (Fil,
+Tableau, MonMois, Factures) — la racine de « Praticien », des signatures
+d'adresse et des tête-à-tête invisibles. GESTE DE YÉMAN : renseigner le champ
+sur les fiches dont le compte diffère (Gérard : locksmnd@).
+0066 : la clé service quitte le job cron pour le VAULT, prouvée par la base
+(_role_du_jeton refuse une clé anon/tronquée EN LE DISANT). Jobs cron =
+SQL Snippet : rappels_j1_soir_sql() à 0 17 * * *. EN COURS chez Yéman :
+poser les deux secrets Vault (edge_base_url posé en clair — adresse
+publique — et service_role_key), viser « clé service VALIDE » au contrôle.
+
 ## La sauvegarde de la Maison — 20 août, EN SERVICE (0065, sans clé)
 
 PREMIER CLICHÉ PRIS le 20 août 07:39 : 3 281 lignes, 91 tables, 3,4 Mo.
