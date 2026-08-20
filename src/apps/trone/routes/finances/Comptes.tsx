@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -220,6 +220,33 @@ export default function Comptes() {
 
   const MOT_MVT: Record<string, string> = { depot: 'Dépôt', usage: 'Usage', remboursement: 'Remboursement' };
 
+  /* ── LES AVOIRS ÉPUISÉS GARDENT LEUR HISTOIRE — 20 août 2026 ──────
+     « Quand l'avoir est à 0, c'est passé. Mais besoin de voir comment a été
+     utilisé l'avoir du client. » L'onglet ne listait que les soldes
+     positifs : un avoir consommé disparaissait AVEC tout son registre —
+     précisément ce qu'on veut relire (qui a versé, quels rituels l'ont
+     consommé, quand). Un porteur qui a EU des mouvements garde sa ligne,
+     à zéro, avec la porte vers son registre. */
+  const avoirsEteints = useMemo(() => {
+    const aBouge = (h: CreditHolder) => credits.some((m) => m.holderType === h.type && m.holderId === h.id);
+    const dernier = (h: CreditHolder) => credits
+      .filter((m) => m.holderType === h.type && m.holderId === h.id)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    const totalVerse = (h: CreditHolder) => credits
+      .filter((m) => m.holderType === h.type && m.holderId === h.id && m.kind === 'depot')
+      .reduce((s, m) => s + m.amountXof, 0);
+    const desFamilles = branchFamilies
+      .map((f) => ({ holder: { type: 'family' as const, id: f.id }, nom: f.name }))
+      .filter((r) => famBalance(branchFamilies.find((f) => f.id === r.holder.id)!) === 0 && aBouge(r.holder));
+    const desClientes = branchClients
+      .filter((c) => !c.familyId)
+      .map((c) => ({ holder: { type: 'client' as const, id: c.id }, nom: c.name }))
+      .filter((r) => balOf(r.holder) === 0 && aBouge(r.holder));
+    return [...desFamilles, ...desClientes]
+      .map((r) => ({ ...r, mvt: dernier(r.holder), verse: totalVerse(r.holder) }))
+      .sort((a, b) => (b.mvt?.date ?? '').localeCompare(a.mvt?.date ?? ''));
+  }, [branchFamilies, branchClients, credits]);
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -424,6 +451,28 @@ export default function Comptes() {
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{fmtMoney(totalAvoirs, currency)}</span>
               </div>
             </Card>
+          )}
+
+          {/* L'HISTOIRE DES AVOIRS CONSOMMÉS — à zéro, mais pas effacés. */}
+          {avoirsEteints.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="trc-microlabel" style={{ color: 'var(--ink-soft)' }}>Avoirs épuisés · l’histoire reste · {avoirsEteints.length}</div>
+              <Card style={{ padding: 0, overflow: 'hidden' }}>
+                {avoirsEteints.map((r) => (
+                  <div key={`${r.holder.type}-${r.holder.id}`} style={{
+                    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+                    padding: '11px 16px', borderBottom: '1px solid var(--hairline)', opacity: 0.85,
+                  }}>
+                    <span style={{ flex: '1 1 200px', minWidth: 0, fontFamily: 'var(--font-serif)', fontSize: 15.5, color: 'var(--color-indigo)' }}>{r.nom}</span>
+                    <span className="mnd-muted" style={{ flex: 'none', fontSize: 12 }}>
+                      {fmtMoney(r.verse, currency)} versés en tout
+                      {r.mvt ? ` · dernier mouvement ${frDay(r.mvt.date)}` : ''}
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={() => setLedgerHolder(r.holder)}>Voir comment il a servi</Button>
+                  </div>
+                ))}
+              </Card>
+            </div>
           )}
 
           {branchFamilies.length > lignesAvoirs.length && (
@@ -895,10 +944,18 @@ function LedgerModal({
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   const balance = creditBalanceOf(credits, holder);
   const nameOf = (id?: string) => clients.find((c) => c.id === id)?.name;
-  const label = (m: CreditMovement) =>
-    m.kind === 'depot' ? 'Dépôt d’avoir'
-    : m.kind === 'remboursement' ? 'Remboursement'
-    : `Réglé${m.forClientId ? ` · ${nameOf(m.forClientId) ?? 'membre'}` : ''}`;
+  /* L'USAGE NOMME SA FACTURE — 20 août : « besoin de voir comment a été
+     utilisé l'avoir ». « Réglé · Faith » disait qui, jamais QUOI : la pièce
+     se retrouve par son numéro, et s'ouvre d'un clic. */
+  const [invoices] = useInvoices();
+  const navigate = useNavigate();
+  const factureDe = (m: CreditMovement) => invoices.find((i) => i.id === m.invoiceId);
+  const label = (m: CreditMovement) => {
+    if (m.kind === 'depot') return 'Dépôt d’avoir';
+    if (m.kind === 'remboursement') return 'Remboursement';
+    const inv = factureDe(m);
+    return `Réglé${inv ? ` · ${inv.number}` : ''}${m.forClientId ? ` · ${nameOf(m.forClientId) ?? 'membre'}` : ''}`;
+  };
 
   return (
     <Modal title={`Avoir · ${title}`} onClose={onClose} width={500}>
@@ -917,6 +974,15 @@ function LedgerModal({
                 <span className="trf-coffre-row__main">
                   <span className="trf-coffre-row__title">{label(m)}</span>
                   <span className="trf-coffre-row__meta">{frDay(m.date)}{m.cashbox ? ` · ${m.cashbox}` : ''}{m.method ? ` · ${m.method}` : ''}{m.note ? ` · ${m.note}` : ''}</span>
+                  {m.kind === 'usage' && factureDe(m) && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/factures?id=${m.invoiceId}`)}
+                      style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
+                    >
+                      Ouvrir la facture →
+                    </button>
+                  )}
                 </span>
                 <span className={`trf-coffre-row__amount trf-coffre-row__amount--${m.kind === 'depot' ? 'depot' : 'virement'}`}>
                   {m.kind === 'depot' ? '+' : '−'}{fmtMoney(m.amountXof, currency)}
