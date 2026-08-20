@@ -12,11 +12,35 @@ différent », Personnel & paie) + adresseDe() qui fait foi partout (Fil,
 Tableau, MonMois, Factures) — la racine de « Praticien », des signatures
 d'adresse et des tête-à-tête invisibles. GESTE DE YÉMAN : renseigner le champ
 sur les fiches dont le compte diffère (Gérard : locksmnd@).
-0066 : la clé service quitte le job cron pour le VAULT, prouvée par la base
-(_role_du_jeton refuse une clé anon/tronquée EN LE DISANT). Jobs cron =
-SQL Snippet : rappels_j1_soir_sql() à 0 17 * * *. EN COURS chez Yéman :
-poser les deux secrets Vault (edge_base_url posé en clair — adresse
-publique — et service_role_key), viser « clé service VALIDE » au contrôle.
+0066 : la clé service quitte le job cron pour le VAULT. Les deux secrets
+sont posés, et les DEUX jobs du soir tournent en SQL Snippet —
+rappels-j1-soir (0 17 * * *) et sauvegarde-nuit (0 2 * * *), tous deux
+actifs. RESTE : le 401 des rappels.
+
+## Le 401 « réservé au cron » — 20 août, EN COURS (0067 puis 0068)
+
+rappels-j1 répondait 401 « réservé au cron » à chaque appel — le même mal
+qui avait fait échouer la voie Edge de la sauvegarde. La cause, trouvée en
+comparant avec les ANCIENS jobs qui, eux, obtiennent des 200
+(mnd-staff-rdv-1h toutes les 15 min, mnd-push-rappels chaque heure) : leur
+clé n'est PAS celle du Vault, et n'est pas un JWT — le tableau de bord
+faisait copier un jeton service_role là où les fonctions Edge portent une
+autre clé. Le remède : recopier la clé QUI MARCHE depuis la commande d'un
+job réussi, de base à base, sans qu'elle passe par l'écran.
+
+DEUX MIGRATIONS POUR LA MÊME LEÇON, prise des deux côtés. 0067 élargit le
+contrôle de forme (« ou sb_secret_… ») — et 0068 le SUPPRIME : un contrôle
+de forme bénit les mauvaises clés (0067) et bloque les bonnes (0068). Le
+seul juge est l'essai réel : la fonction répond 200 ou 401, et
+net._http_response garde le verdict lisible. Le portier ne vérifie plus
+que la PRÉSENCE des deux secrets ; délai d'appel porté à 15 s (5 s ne
+suffisaient pas à trois rendez-vous).
+
+LIRE LE VERDICT D'UN APPEL (le journal `envois` reste muet si l'appel n'a
+pas abouti — c'est net._http_response qui parle) :
+  select id, created, status_code, timed_out,
+         left(coalesce(error_msg, content, ''), 300)
+  from net._http_response order by id desc limit 5;
 
 ## La sauvegarde de la Maison — 20 août, EN SERVICE (0065, sans clé)
 
