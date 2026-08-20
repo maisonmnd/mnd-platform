@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { sameName } from '../../../../shared/text';
-import { useStaff, ordonneEquipe, type StaffMember } from './data';
+import { useStaff, ordonneEquipe, type StaffMember, adresseDe } from './data';
 import { QrSvg, lienDuJour } from './Comptoir';
 import { useSettings } from '../../../../shared/settings';
 import {
@@ -128,7 +128,7 @@ export default function MonMois() {
      L'adresse, elle, ne se paraphrase pas. On la lit sur la fiche du
      personnel ; le nom reste le repli pour les fiches qui n'en portent pas. */
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
-  const moi = equipe.find((m) => monMail && (m.email ?? '').trim().toLowerCase() === monMail)
+  const moi = equipe.find((m) => monMail && adresseDe(m) === monMail)
     ?? equipe.find((m) => sameName(m.name, me?.name ?? ''))
     ?? null;
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';

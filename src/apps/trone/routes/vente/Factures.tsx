@@ -15,6 +15,7 @@ import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
+import { adresseDe } from '../equipe/data';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
@@ -254,7 +255,7 @@ export default function Factures() {
         id: demandePour.id,
         label: `${demandePour.number} · ${demandePour.clientName ?? clientOf(demandePour)?.name ?? 'Cliente'} · ${fmtMoney(invoiceTotal(demandePour), currency)}${reste > 0 ? ` · reste ${fmtMoney(reste, currency)}` : ''}`,
       },
-      demandePour: (dest.email ?? '').trim().toLowerCase(),
+      demandePour: adresseDe(dest),
       demandePourNom: dest.name,
       argent: true,
     })]);

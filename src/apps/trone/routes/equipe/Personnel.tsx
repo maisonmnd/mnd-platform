@@ -155,6 +155,7 @@ type StaffForm = {
   branchId: string;
   phone: string;
   email: string;
+  compteMail: string;
   since: string;
   salaire: string;
   auFauteuil: boolean;
@@ -172,7 +173,7 @@ type StaffForm = {
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
-  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
+  name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', compteMail: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
 });
 
@@ -735,7 +736,7 @@ export default function Personnel() {
   const openEdit = (m: StaffMember) => {
     setEditId(m.id);
     setForm({
-      name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, since: m.since,
+      name: m.name, role: m.role, branchId: m.branchId, phone: m.phone, email: m.email, compteMail: m.compteMail ?? '', since: m.since,
       salaire: String(m.salaireXof), auFauteuil: m.auFauteuil,
       partPourboire: String(m.partPourboire ?? 1),
       commissionne: m.commissionne === true,
@@ -761,12 +762,12 @@ export default function Personnel() {
     };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
-        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), since: form.since, salaireXof, auFauteuil: form.auFauteuil, partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0), commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined, ...dossier }
+        ? { ...m, name: form.name.trim(), role: form.role, branchId: form.branchId, phone: form.phone.trim(), email: form.email.trim(), compteMail: form.compteMail.trim() || undefined, since: form.since, salaireXof, auFauteuil: form.auFauteuil, partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0), commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined, ...dossier }
         : m));
     } else {
       const nm: StaffMember = {
         id: `st-${uid()}`, branchId: form.branchId, name: form.name.trim(), role: form.role,
-        phone: form.phone.trim(), email: form.email.trim(), since: form.since, auFauteuil: form.auFauteuil,
+        phone: form.phone.trim(), email: form.email.trim(), compteMail: form.compteMail.trim() || undefined, since: form.since, auFauteuil: form.auFauteuil,
         partPourboire: Math.max(0, Number(String(form.partPourboire).replace(',', '.')) || 0),
         commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined,
         salaireXof, commPrestaXof: 0, commProduitXof: 0, primeXof: 0,
@@ -1440,6 +1441,14 @@ export default function Personnel() {
               </Field>
               <Field label="Email">
                 <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} inputMode="email" placeholder="prenom@mnd.bj" />
+              </Field>
+              {/* LE LIEN FICHE ↔ COMPTE — 20 août. L'adresse avec laquelle la
+                  personne SE CONNECTE au Trône, quand elle diffère du contact
+                  (locksmnd@ vs la fiche « Gerard T. »). C'est elle qui fait
+                  foi pour le Fil, le Tableau et « Mon mois ». Vide = l'Email
+                  ci-dessus sert aux deux. */}
+              <Field label="E-mail de connexion · si différent">
+                <Input value={form.compteMail} onChange={(e) => setForm({ ...form, compteMail: e.target.value })} inputMode="email" placeholder="le compte avec lequel il/elle se connecte" />
               </Field>
             </div>
             <Field label="Fonction au salon">

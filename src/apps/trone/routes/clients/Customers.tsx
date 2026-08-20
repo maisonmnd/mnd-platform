@@ -42,6 +42,7 @@ import {
   type Cadence,
 } from './_shared';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
+import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 
@@ -1392,6 +1393,7 @@ function Customer360({
      lit sur Ma Couronne, l'impression reste. L'ancien lien direct vers la
      papeterie amnésique est parti avec elle. */
   const [bilanOpen, setBilanOpen] = useState(false);
+  const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
   /* CE QU'ELLE A DÉPENSÉ, ET NON CE QU'ELLE A REÇU. Un rituel qu'on lui a
@@ -1884,9 +1886,23 @@ function Customer360({
           <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
             {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
           </button>
+          {/* LA TROISIÈME PORTE « DEMANDER » — 20 août, dernière pièce de la
+              liste du Fil : la facture et le rituel l'avaient, la fiche non.
+              La demande part avec LA CLIENTE attachée : celui qui la reçoit
+              ouvre sa fiche d'un clic. */}
+          <button className="trc-c360-linkbtn" onClick={() => setDemanderOuvert(true)} title="La demande part dans Le Fil et sur le Tableau, la fiche attachée">
+            Demander à quelqu’un de s’en occuper →
+          </button>
         </div>
         {bilanOpen && (
           <BilanModal client={client} honored={honored} byId={byId} branchId={client.branchId} onClose={() => setBilanOpen(false)} />
+        )}
+        {demanderOuvert && (
+          <DemanderModal
+            piece={{ kind: 'cliente', id: client.id, label: client.name }}
+            sousTitre={`La fiche de ${client.name}`}
+            onClose={() => setDemanderOuvert(false)}
+          />
         )}
         </>
         )}

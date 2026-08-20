@@ -24,6 +24,7 @@ import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock'
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, type ModelBand } from '../../../../shared/pricing';
 import { invoicesStore, invoiceTotal, type Invoice } from '../../../../shared/finance';
+import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
@@ -924,6 +925,8 @@ export function RdvModal({
   const byId = useServicesById();
 
   const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? clients[0]?.id ?? '');
+  /* La porte « Demander » du rituel — l'autre porte de la maquette du Fil. */
+  const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
   /* LES MAINS, prestation par prestation. Un tableau parallele a `serviceIds` :
      le rituel peut porter deux fois le meme geste, et pas forcement par les
@@ -2620,6 +2623,12 @@ export function RdvModal({
                 Encaisser ou poser un acompte
               </Button>
             ))}
+            {/* L'AUTRE PORTE DE LA MAQUETTE DU FIL — 20 août : « Demander »
+                naît LÀ OÙ LE TRAVAIL SE TROUVE. La dernière pièce de la liste
+                de Yéman : la porte existait sur la facture, pas sur le rituel. */}
+            <Button variant="ghost" onClick={() => setDemanderOuvert(true)}>
+              Demander à quelqu’un de s’en occuper
+            </Button>
             {/* LA DESTRUCTION QUITTE LA PILE (14 août). Annuler et supprimer
                 s'alignaient, pleine largeur, avec Enregistrer et Encaisser :
                 quatre boutons de même poids dont deux qui détruisent — une
@@ -2655,6 +2664,17 @@ export function RdvModal({
           </div>
         )}
       </div>
+      {demanderOuvert && appt && (
+        <DemanderModal
+          piece={{
+            kind: 'rituel',
+            id: appt.id,
+            label: `${clients.find((c) => c.id === appt.clientId)?.name ?? appt.clientName ?? 'Cliente'} · ${appt.date} ${appt.time} · ${apptLabel(appt, byId)}`,
+          }}
+          sousTitre={`Le rituel de ${clients.find((c) => c.id === appt.clientId)?.name ?? appt.clientName ?? 'la cliente'} · ${appt.date}`}
+          onClose={() => setDemanderOuvert(false)}
+        />
+      )}
     </Modal>
   );
 }

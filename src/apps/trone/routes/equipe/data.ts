@@ -55,6 +55,15 @@ export type StaffMember = {
   role: string;
   phone: string;
   email: string;
+  /** L'E-MAIL DE CONNEXION — le lien fiche ↔ compte (20 août 2026).
+
+      L'identité vivait en deux registres reliés par UN espoir : que l'e-mail
+      de la fiche soit celui du compte. Or Gérard se connecte avec une
+      adresse et sa fiche en porte une autre — d'où la fenêtre « Praticien »,
+      les signatures d'adresse, les tête-à-tête invisibles. Ce champ dit LE
+      compte avec lequel la personne se connecte ; `email` reste son adresse
+      de contact. `adresseDe()` fait foi partout où l'identité compte. */
+  compteMail?: string;
   since: string; // ISO — l'ancienneté se calcule dynamiquement
   auFauteuil: boolean; // exécute des prestations
   /** L'ORDRE D'AFFICHAGE, décidé à la main dans Personnel & paie.
@@ -111,6 +120,13 @@ export const STAFF_SEED: StaffMember[] = [];
 
 export const staffStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
 export const useStaff = () => useStore(staffStore);
+
+/** L'ADRESSE QUI FAIT FOI pour une fiche — celle du COMPTE d'abord, celle de
+    contact en repli. Toute identité (signatures, tête-à-tête, colonnes du
+    Tableau) passe par ici : deux écrans qui résolvent différemment donnent
+    deux personnes différentes. */
+export const adresseDe = (m: Pick<StaffMember, 'email' | 'compteMail'>): string =>
+  ((m.compteMail ?? '').trim() || (m.email ?? '').trim()).toLowerCase();
 
 /** L'ÉQUIPE DANS L'ORDRE VOULU. Une seule fonction, appelée partout où des
     noms s'alignent : les pastilles du rendez-vous, celles de « Mon mois »,

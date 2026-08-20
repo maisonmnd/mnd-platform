@@ -15,7 +15,7 @@ import {
 } from '../../../../shared/fil';
 import { useCategories } from '../../../../shared/catalog';
 import { dernierComptage } from '../../../../shared/fil';
-import { useStaff, useAnnuaire, nomDuCompte } from './data';
+import { useStaff, useAnnuaire, nomDuCompte, adresseDe } from './data';
 import { apptLabel, useServicesById, ClientPicker } from '../clients/_shared';
 import './equipe.css';
 
@@ -94,7 +94,7 @@ export default function Fil() {
      retrouve sur la fiche du personnel ; à défaut, l'adresse fait le nom, pour
      qu'un message ne soit jamais signé « inconnu ». */
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
-  const moi = equipe.find((m) => (m.email ?? '').trim().toLowerCase() === monMail);
+  const moi = equipe.find((m) => adresseDe(m) === monMail);
   /* LE NOM DU COMPTE SIGNE — 19 août 2026 : Brice voyait « briceahouansou1 ».
      L'annuaire (le nom d'Accès & personnel) d'abord ; la fiche du Personnel
      ensuite — son adresse diffère souvent de celle de connexion ; l'adresse
@@ -105,7 +105,7 @@ export default function Fil() {
   const monNom = nomDuCompte(annuaire, monMail, moi?.name?.trim() || monMail.split('@')[0] || 'La maison');
   const nomDe = (mail: string | undefined, repli: string): string =>
     nomDuCompte(annuaire, mail,
-      equipe.find((m) => (m.email ?? '').trim().toLowerCase() === (mail ?? '').toLowerCase())?.name?.trim() || repli);
+      equipe.find((m) => adresseDe(m) === (mail ?? '').toLowerCase())?.name?.trim() || repli);
 
   const aujourdhui = useMemo(() => {
     const d = new Date();
@@ -124,8 +124,8 @@ export default function Fil() {
   );
   const autres = useMemo(
     () => equipe.filter((m) => m.branchId === branch.id
-      && (m.email ?? '').trim().toLowerCase() !== monMail
-      && (m.email ?? '').trim() !== ''),
+      && adresseDe(m) !== monMail
+      && adresseDe(m) !== ''),
     [equipe, branch.id, monMail],
   );
   /* SANS ADRESSE, PAS DE PORTE — MAIS ÇA SE DIT (19 août : « nous sommes 5,
@@ -134,7 +134,7 @@ export default function Fil() {
      peut pas en avoir. L'écran la cachait EN SILENCE — on croyait la
      personne oubliée. La voici, grisée, avec le chemin de la réparation. */
   const sansAdresse = useMemo(
-    () => equipe.filter((m) => m.branchId === branch.id && (m.email ?? '').trim() === ''),
+    () => equipe.filter((m) => m.branchId === branch.id && adresseDe(m) === ''),
     [equipe, branch.id],
   );
   const [canal, setCanal] = useState<string>(CANAL_MAISON);
@@ -165,7 +165,7 @@ export default function Fil() {
     if (canal === canalNotes(monMail)) return 'Mes notes';
     const at = ateliers.find((c) => canalAtelier(c.id) === canal);
     if (at) return at.fon || at.label;
-    const qui = autres.find((m) => canalDM(monMail, m.email ?? '') === canal);
+    const qui = autres.find((m) => canalDM(monMail, adresseDe(m)) === canal);
     return qui ? qui.name : 'Le Fil';
   };
 
@@ -290,7 +290,7 @@ export default function Fil() {
       piece: choisie,
       fichier: joint,
       comptage,
-      demandePour: aPrendre ? A_PRENDRE : dest ? (dest.email ?? '').trim().toLowerCase() : undefined,
+      demandePour: aPrendre ? A_PRENDRE : dest ? adresseDe(dest) : undefined,
       demandePourNom: aPrendre ? 'À prendre' : dest?.name,
       echeance: (aPrendre || dest) && echeance ? echeance : undefined,
       priorite: (aPrendre || dest) && priorite ? priorite as FilMessage['priorite'] : undefined,
@@ -413,7 +413,7 @@ export default function Fil() {
             Mes notes<span>{compteDe(canalNotes(monMail)) || ''}</span>
           </button>
           {autres.map((m) => {
-            const k = canalDM(monMail, m.email ?? '');
+            const k = canalDM(monMail, adresseDe(m));
             return (
               <button key={m.id} type="button" className={`trf-fil__canal${canal === k ? ' est-ouvert' : ''}`} onClick={() => setCanal(k)}>
                 {m.name}<span>{compteDe(k) || ''}</span>

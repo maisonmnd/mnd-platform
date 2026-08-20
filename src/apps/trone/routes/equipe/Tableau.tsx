@@ -13,7 +13,7 @@ import {
   PRIORITES, poidsPriorite,
   type FilMessage, type FilPiece,
 } from '../../../../shared/fil';
-import { useStaff, staffAccessStore, useAnnuaire, nomDuCompte } from './data';
+import { useStaff, staffAccessStore, useAnnuaire, nomDuCompte, adresseDe } from './data';
 import { voitLesPrix } from '../index';
 import './equipe.css';
 
@@ -66,13 +66,13 @@ export default function Tableau() {
   const [acces] = useStore(staffAccessStore);
 
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
-  const maFiche = equipe.find((m) => (m.email ?? '').trim().toLowerCase() === monMail);
+  const maFiche = equipe.find((m) => adresseDe(m) === monMail);
   /* Le nom du COMPTE signe et s'affiche — même règle que le Fil (19 août). */
   const [annuaire] = useAnnuaire();
   const monNom = nomDuCompte(annuaire, monMail, maFiche?.name?.trim() || monMail.split('@')[0] || 'La maison');
   const nomDe = (mail: string | undefined, repli: string): string =>
     nomDuCompte(annuaire, mail,
-      equipe.find((mb) => (mb.email ?? '').trim().toLowerCase() === (mail ?? '').toLowerCase())?.name?.trim() || repli);
+      equipe.find((mb) => adresseDe(mb) === (mail ?? '').toLowerCase())?.name?.trim() || repli);
 
   /* LE RANG — le profil serveur fait foi (c'est lui que la RLS lit) ; sans
      profil, on traite en maître : le rang le plus bas est le seul défaut sûr. */
@@ -118,7 +118,7 @@ export default function Tableau() {
      ce que portent les autres colonnes, ni qu'elles existent. */
   const membres = useMemo(
     () => equipe
-      .filter((mb) => mb.branchId === branch.id && (mb.email ?? '').trim() !== '')
+      .filter((mb) => mb.branchId === branch.id && adresseDe(mb) !== '')
       .sort((a, b) => (a.ordre ?? 900) - (b.ordre ?? 900) || a.name.localeCompare(b.name)),
     [equipe, branch.id],
   );
@@ -130,7 +130,7 @@ export default function Tableau() {
      adresse en silence. Chaque adresse orpheline garde sa colonne, marquée. */
   const orphelines = useMemo(() => {
     if (!estSouverain) return [];
-    const connus = new Set(membres.map((mb) => (mb.email ?? '').trim().toLowerCase()));
+    const connus = new Set(membres.map((mb) => adresseDe(mb)));
     const vus = new Map<string, string>();
     for (const m of ouvertes) {
       const mail = (m.demandePour ?? '').toLowerCase();
@@ -230,14 +230,14 @@ export default function Tableau() {
     if (!dit) return;
     const dest = brouillonPour === A_PRENDRE
       ? undefined
-      : membres.find((mb) => (mb.email ?? '').trim().toLowerCase() === brouillonPour);
+      : membres.find((mb) => adresseDe(mb) === brouillonPour);
     filStore.set((prev) => [...prev, nouveauMessage({
       branchId: branch.id,
       canal: CANAL_MAISON,
       auteurMail: monMail,
       auteurNom: monNom,
       texte: dit,
-      demandePour: dest ? (dest.email ?? '').trim().toLowerCase() : A_PRENDRE,
+      demandePour: dest ? adresseDe(dest) : A_PRENDRE,
       demandePourNom: dest ? dest.name : 'À prendre',
       echeance: brouillonEcheance || undefined,
       priorite: (brouillonPrio || undefined) as FilMessage['priorite'],
@@ -476,7 +476,7 @@ export default function Tableau() {
           <Select value={brouillonPour} onChange={(e) => setBrouillonPour(e.target.value)} style={{ fontSize: 12, maxWidth: 190 }}>
             <option value={A_PRENDRE}>À prendre</option>
             {membres.map((mb) => (
-              <option key={mb.id} value={(mb.email ?? '').trim().toLowerCase()}>{mb.name}</option>
+              <option key={mb.id} value={adresseDe(mb)}>{mb.name}</option>
             ))}
           </Select>
           <Select value={brouillonPrio} onChange={(e) => setBrouillonPrio(e.target.value)} style={{ fontSize: 12, maxWidth: 150 }}>
@@ -507,7 +507,7 @@ export default function Tableau() {
           />
           {estSouverain
             ? membres.map((mb) => {
-              const mail = (mb.email ?? '').trim().toLowerCase();
+              const mail = adresseDe(mb);
               return (
                 <Colonne
                   key={mb.id}
