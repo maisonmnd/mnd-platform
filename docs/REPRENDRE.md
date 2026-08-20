@@ -35,6 +35,28 @@ LEÇON : ne jamais recopier une clé « depuis ce qui marche » sans savoir ce
 qu'elle EST — deux fonctions peuvent réussir avec des clés de portée
 opposée. Lire le préfixe coûte un caractère et tranche tout.
 
+## Le push n'a jamais eu besoin de secret — 20 août (0069)
+
+FIN DE LA CHASSE, et son démenti. push-notify contient DÉJÀ un mode
+`reminders` qui fait les rappels J-1 (fenêtre 22–24 h avant, journal
+push_reminders, idempotent) et NE DEMANDE AUCUN SECRET — seule la
+passerelle exige une clé, et la publiable lui suffit. Le job
+`mnd-push-rappels` l'appelle CHAQUE HEURE et répond 200 depuis toujours.
+Son `{"sent":0}` n'était pas une panne : « aucun abonnement ne correspond ».
+LA VRAIE CAUSE du « mon téléphone n'a pas vibré » : les abonnements
+pendaient à des fiches clientes SUPPRIMÉES (comptes d'essai Ma Couronne
+yemanboya1@/yemanboya2@ — 7 appareils au total). Remède : repointer
+push_subscriptions.client_id vers la fiche gardée.
+0069 ajoute un corps à appelle_fonction_edge(nom, corps) et
+`pousse_les_rappels_sql()` pour déclencher le balayage à la demande.
+rappels-j1 (le 401) ne sert plus qu'au WhatsApp et au SMS — en attente des
+clés Meta/Twilio. Le PUSH ne l'a jamais attendue.
+PIÈGE DE LA FENÊTRE : un rappel J-1 ne part qu'entre 22 et 24 h avant le
+rendez-vous. Tester à 18 h sur un RDV du lendemain 09:00 ne déclenche
+rien — sa fenêtre était le matin même. Poser le RDV d'essai à ~24 h.
+LEÇON : avant de réparer un chemin, vérifier qu'un autre ne fait pas déjà
+le travail. Trois migrations de clé pour un problème d'abonnement.
+
 DEUX MIGRATIONS POUR LA MÊME LEÇON, prise des deux côtés. 0067 élargit le
 contrôle de forme (« ou sb_secret_… ») — et 0068 le SUPPRIME : un contrôle
 de forme bénit les mauvaises clés (0067) et bloque les bonnes (0068). Le
