@@ -2,18 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## La sauvegarde de la Maison — 19 août, CODE PUBLIÉ, GESTES DE YÉMAN EN ATTENTE
+## La sauvegarde de la Maison — 20 août, EN SERVICE (0065, sans clé)
 
-L'audit du jour (points forts/faibles) a désigné la sauvegarde comme manque
-le plus grave. L'export manuel des Paramètres existait mais lit CE QUE LE
-POSTE VOIT — une table perdue au serveur disparaît de tous les postes et des
-exports suivants (les formulaires, 30 juillet). Construit : 0064
-(sauvegarde_maison() — découvre les tables via information_schema, souverain
-ou clé service ; coffre privé `sauvegardes`), fonction Edge sauvegarde-nuit
-(un cliché/nuit, 60 j de garde), bouton « Photographie du serveur » dans
-Paramètres › Sauvegarde. EN ATTENTE : exécuter 0064, coller la fonction,
-poser le cron 0 2 * * * — guide BRANCHER-ENVOIS étape 6. RESTAURATION depuis
-un cliché : geste guidé à demander le jour venu, pas d'écran.
+PREMIER CLICHÉ PRIS le 20 août 07:39 : 3 281 lignes, 91 tables, 3,4 Mo.
+La voie Edge (0064 + fonction sauvegarde-nuit) échouait en 401 — la clé
+service collée dans l'en-tête du cron casse pour un caractère invisible.
+0065 supprime la clé de l'équation : le cron est un SQL SNIPPET interne
+(`select public.sauvegarde_nuit_sql();`, 0 2 * * *) ; _photographie_maison()
+découvre les tables et S'EXCLUT elle-même du cliché (l'œuf et la poule) ;
+coffre = table sauvegardes_nuit, un cliché/jour, 14 j de garde, lecture
+souveraine ; le bouton « Photographie du serveur » des Paramètres reste la
+mémoire longue (télécharger chaque semaine, ranger hors Supabase). La
+fonction Edge et le bucket restent déployés mais ne servent plus.
+RESTAURER depuis un cliché : geste guidé à demander le jour venu.
 
 ## 0061 — les consultations reviennent · 19 août, À EXÉCUTER
 
