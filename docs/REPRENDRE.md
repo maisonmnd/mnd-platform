@@ -20,13 +20,20 @@ actifs. RESTE : le 401 des rappels.
 ## Le 401 « réservé au cron » — 20 août, EN COURS (0067 puis 0068)
 
 rappels-j1 répondait 401 « réservé au cron » à chaque appel — le même mal
-qui avait fait échouer la voie Edge de la sauvegarde. La cause, trouvée en
-comparant avec les ANCIENS jobs qui, eux, obtiennent des 200
-(mnd-staff-rdv-1h toutes les 15 min, mnd-push-rappels chaque heure) : leur
-clé n'est PAS celle du Vault, et n'est pas un JWT — le tableau de bord
-faisait copier un jeton service_role là où les fonctions Edge portent une
-autre clé. Le remède : recopier la clé QUI MARCHE depuis la commande d'un
-job réussi, de base à base, sans qu'elle passe par l'écran.
+qui avait fait échouer la voie Edge de la sauvegarde. LA CAUSE, trouvée en
+lisant les 10 premiers caractères de la clé du Vault (`left(cle, 10)` — un
+marqueur de format, pas un secret) : elle commençait par `sb_publishab…`.
+C'était la clé PUBLIABLE. Les anciens jobs qui obtiennent des 200
+(mnd-staff-rdv-1h toutes les 15 min, mnd-push-rappels chaque heure) la
+portent aussi — leurs fonctions ne vérifient rien — mais rappels-j1 (comme
+sauvegarde-nuit avant elle) compare l'Authorization à SA clé secrète et
+refuse tout le reste. Depuis le début on présentait la clé publique.
+LE REMÈDE : la clé SECRÈTE (`sb_secret_…`), Project Settings → API Keys →
+Secret keys → Reveal, posée au Vault par vault.update_secret. Ni la
+publiable, ni le vieux jeton `eyJ…` des Legacy keys.
+LEÇON : ne jamais recopier une clé « depuis ce qui marche » sans savoir ce
+qu'elle EST — deux fonctions peuvent réussir avec des clés de portée
+opposée. Lire le préfixe coûte un caractère et tranche tout.
 
 DEUX MIGRATIONS POUR LA MÊME LEÇON, prise des deux côtés. 0067 élargit le
 contrôle de forme (« ou sb_secret_… ») — et 0068 le SUPPRIME : un contrôle
