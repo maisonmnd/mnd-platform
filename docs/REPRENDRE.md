@@ -2,6 +2,49 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le journal des gestes — 21 août, PUBLIÉ · migration 0070 À COLLER
+
+« Je dois tracker systématiquement qui fait quoi et quand sur Le Trône. » Né
+d'une question restée sans réponse : QUI a créé le rendez-vous de Diane C. du
+18 août ? La base ne pouvait pas le dire — aucun champ d'auteur nulle part, et
+`updated_at` ne parle que de la dernière écriture. RIEN D'AVANT N'EST
+RÉCUPÉRABLE, et l'écran le dit lui-même sur un mois vide.
+
+LA GREFFE EST UNIQUE : `pushDiff` dans sync.ts, le point par lequel passe toute
+écriture de toute collection. Il sait déjà distinguer posé (absent d'avant) /
+modifié / effacé — c'est le vocabulaire du journal. Instrumenter les 28 écrans
+aurait laissé des trous, et un journal troué ment plus qu'il n'informe (leçon
+du registre des encaissements, la veille).
+
+TROIS PRÉCAUTIONS, dans cet ordre : ① la greffe ne s'exécute qu'APRÈS une
+écriture réussie — les chemins bloqués par les garde-fous sortent plus haut ;
+② elle n'attend rien (`void`) et avale ses erreurs — une trace manquée ne doit
+JAMAIS faire échouer la vente qu'elle observe ; ③ elle ne connaît que
+`CARTE_DES_TABLES` — une liste qui AUTORISE, jamais une liste d'exclusions,
+pour qu'une collection nouvelle n'y tombe pas par accident.
+
+`shared/journal.ts` : le type `Geste`, la carte des tables (écran + comment
+nommer une pièce), `NOM_DES_CHAMPS` (sans lui le journal dirait
+« priceXof: 60000 → 15000 »), `champsChanges`, et `poseLIdentite` — sync.ts vit
+sous shared/ et ne peut pas lire l'annuaire (sous apps/trone/) : chaque app
+POSE son identité. Le Trône dans useReconcileClients, Ma Couronne dans son App
+(porte 'couronne', « Une cliente »). `parNom` est FIGÉ à l'inscription.
+
+ARBITRAGES DE YÉMAN : lecture souveraine seulement · 12 mois glissants · ce
+qu'une main touche (pas la mécanique) · les gestes des clientes inscrits sous
+leur porte d'entrée.
+
+0070 : table en AJOUT SEUL (aucune politique UPDATE/DELETE — le contrôle
+compte `politiques_de_retouche` et doit rendre **0**), lecture `is_souverain()`,
+hors Realtime, **journal exclu de `_photographie_maison()`** (sinon la
+sauvegarde de 3,4 Mo doublait en semaines), purge des 12 mois ATTELÉE à
+`sauvegarde_nuit_sql()` — aucun cron nouveau.
+
+Écran : Système → Journal des gestes (`routes/systeme/Journal.tsx`), lu au
+SERVEUR à chaque mois, jamais lié à un magasin local. Harnais
+`verifie-journal` — dix harnais désormais ; son assertion la plus importante
+est la dernière : une inscription qui échoue ne jette pas.
+
 ## L'argent a un nom — 21 août, PUBLIÉ
 
 « Dans dépenses je veux voir le revenu de quelle cliente je suis en train de
