@@ -129,8 +129,23 @@ export default function Depenses() {
 
   /* Une recurrente active pese sur CHAQUE mois qu'elle traverse, pas seulement
      sur celui de sa saisie — `expenseOccurrences` dit combien de fois. */
+  /* PAR ORDRE DE DATE, JAMAIS DE SAISIE — 21 août 2026. La liste rendait
+     l'ordre brut du magasin : une dépense du 7 août pouvait suivre une du
+     21, et relire un mois demandait de sauter d'une ligne à l'autre. Du plus
+     RÉCENT au plus ancien, comme le registre des encaissements et comme
+     l'export CSV le faisait déjà de son côté.
+
+     L'identifiant tranche les ex æquo : deux dépenses du même jour doivent
+     garder le même ordre d'un poste à l'autre, sinon la liste se réarrangerait
+     toute seule au gré des synchronisations.
+
+     Une récurrente porte la date de sa SAISIE : elle se range donc au jour où
+     l'engagement a été pris, y compris sur les mois qu'elle traverse ensuite —
+     c'est bien la date de la dépense, il n'y en a pas d'autre. */
   const monthExp = useMemo(
-    () => expenses.filter((e) => e.branchId === branch.id && expenseOccurrences(e, month) > 0),
+    () => expenses
+      .filter((e) => e.branchId === branch.id && expenseOccurrences(e, month) > 0)
+      .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : (a.date < b.date ? 1 : -1))),
     [expenses, branch.id, month],
   );
   const poids = (e: typeof expenses[number]) => expenseTotal(e) * expenseOccurrences(e, month);
@@ -387,7 +402,9 @@ export default function Depenses() {
   const recurringAll = useMemo(
     () => expenses
       .filter((e) => e.branchId === branch.id && !e.stopped && e.recurring)
-      .sort((a, b) => (a.date < b.date ? 1 : -1)),
+      /* Même départage que `monthExp` : à date égale, l'identifiant tranche,
+         pour que l'ordre ne bouge pas d'un poste à l'autre. */
+      .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : (a.date < b.date ? 1 : -1))),
     [expenses, branch.id],
   );
   const recurringVisible = recurringAll.filter(matches);
@@ -784,8 +801,9 @@ export default function Depenses() {
   const exportCsv = () => {
     const rows: (string | number)[][] = [
       ['Libellé', 'Date', 'Caisse', 'Catégorie', 'Sous-catégorie', 'Articles', `Montant (${currency})`],
-      ...[...monthExp]
-        .sort((a, b) => (a.date < b.date ? 1 : -1))
+      /* `monthExp` est déjà rangé par date — l'export et l'écran disent
+         désormais la même chose, dans le même ordre. */
+      ...monthExp
         .map((e) => [
           e.label, e.date, e.cashbox, e.category, e.subcategory ?? '',
           (e.items ?? []).map((it) => `${it.label} (${csvAmt(it.amountXof)})`).join(' + '),
