@@ -217,6 +217,32 @@ export const expenseOccurrences = (e: Expense, mk: string): number => {
 export const expenseTotal = (e: Expense): number =>
   e.items && e.items.length ? e.items.reduce((s, it) => s + it.amountXof, 0) : e.amountXof;
 
+/** LES REVENUS D'UNE DÉPENSE, BORNÉS PAR CE QU'ELLE A COÛTÉ.
+
+    UNE DÉPENSE NE PEUT PAS CONSOMMER PLUS QU'ELLE N'A DÉPENSÉ. L'invariant
+    paraît évident ; il ne l'était pas. Le 21 août, cocher un revenu AVANT de
+    saisir le montant lui prenait tout son reste (le sélecteur retombait sur
+    « prends tout » quand rien ne manquait encore) : une dépense de 3 000 F
+    déclarait 40 000 F pris, et le revenu de la cliente s'affichait « épuisé »
+    partout ailleurs.
+
+    Le geste est réparé à la saisie, mais la borne vit ICI — au plus près de la
+    lecture. Une écriture douteuse, d'où qu'elle vienne, ne peut plus fausser
+    le reste d'un revenu ni la ligne de provenance : ce qui dépasse est ignoré,
+    en cascade, dans l'ordre où les revenus ont été désignés. */
+export const sourcesDe = (e: Expense): DepenseSource[] => {
+  const sources = e.sources ?? [];
+  if (sources.length === 0) return sources;
+  let reste = expenseTotal(e);
+  const bornees: DepenseSource[] = [];
+  for (const s of sources) {
+    const part = Math.min(s.xof, Math.max(0, reste));
+    reste -= part;
+    if (part > 0) bornees.push(part === s.xof ? s : { ...s, xof: part });
+  }
+  return bornees;
+};
+
 /** CE QUE LES DÉPENSES ONT DÉJÀ PRIS, revenu par revenu. Une seule passe pour
     tout l'écran : le sélecteur pose la question pour chaque revenu de la
     caisse, et interroger la liste des dépenses à chaque ligne la relirait
@@ -230,7 +256,7 @@ export const partsPrisesParRevenu = (
   const pris = new Map<string, number>();
   for (const e of expenses) {
     if (e.id === sauf || !e.sources) continue;
-    for (const s of e.sources) pris.set(s.ref, (pris.get(s.ref) ?? 0) + s.xof);
+    for (const s of sourcesDe(e)) pris.set(s.ref, (pris.get(s.ref) ?? 0) + s.xof);
   }
   return pris;
 };
@@ -239,7 +265,7 @@ export const partsPrisesParRevenu = (
     Ce n'est pas une faute : une dépense peut dépasser ce que la caisse sait
     nommer, et le dire vaut mieux que l'inventer. */
 export const partNonNommee = (e: Expense): number =>
-  Math.max(0, expenseTotal(e) - (e.sources ?? []).reduce((s, x) => s + x.xof, 0));
+  Math.max(0, expenseTotal(e) - sourcesDe(e).reduce((s, x) => s + x.xof, 0));
 
 /** LE REVENU EST-IL ENTAMÉ PAR CETTE DÉPENSE-LÀ ? Vrai quand aucune dépense
     ANTÉRIEURE n'y a puisé — c'est la question de Yéman : « quand j'ai entamé
@@ -250,7 +276,7 @@ export const partNonNommee = (e: Expense): number =>
 export const entameLeRevenu = (
   expenses: readonly Expense[], dep: Expense, ref: string,
 ): boolean => !expenses.some((e) => e.id !== dep.id
-  && (e.sources ?? []).some((s) => s.ref === ref)
+  && sourcesDe(e).some((s) => s.ref === ref)
   && (e.date < dep.date || (e.date === dep.date && e.id < dep.id)));
 
 export type Budget = { id: string; branchId: string; category: string; monthlyXof: number };

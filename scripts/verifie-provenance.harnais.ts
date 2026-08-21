@@ -5,7 +5,7 @@
    qu'il reste de chaque revenu, et QUAND un revenu neuf a été entamé. */
 
 import {
-  partsPrisesParRevenu, partNonNommee, entameLeRevenu,
+  partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type Expense, type DepenseSource,
 } from '../src/shared/finance';
 
@@ -82,6 +82,35 @@ dit('rB : reste 7 000', 7_000, revenuRB - (pris.get('rB') ?? 0));
 const figee = dep('d7', '2026-08-19', 5_000, [{ ref: 'rA', nom: 'Assetina S.', date: '2026-08-19', xof: 5_000 }]);
 dit('le nom est porté par la dépense elle-même', 'Assetina S.', figee.sources![0].nom);
 dit('… et la date du versement aussi', '2026-08-19', figee.sources![0].date);
+
+/* ── ⑥ UNE DÉPENSE NE CONSOMME PAS PLUS QU'ELLE N'A COÛTÉ ────
+   LE CAS DU 21 AOÛT, chez Yéman : cocher un revenu AVANT de saisir le montant
+   prenait tout son reste. Une dépense de 3 000 F déclarait 40 000 F pris, et
+   le revenu de la cliente s'affichait « épuisé » — 37 000 F disparus d'un
+   écran à l'autre. La borne vit au plus près de la LECTURE : une écriture
+   douteuse, d'où qu'elle vienne, ne peut plus fausser le reste d'un revenu. */
+const abusive = dep('d8', '2026-08-21', 3_000, [src('rE', 40_000, 'Ghislain A.')]);
+dit('la part est ramenée au coût de la dépense', 3_000, sourcesDe(abusive)[0].xof);
+dit('… donc rien n’est sans nom', 0, partNonNommee(abusive));
+dit('… et le revenu n’est grevé que de 3 000', 3_000, partsPrisesParRevenu([abusive]).get('rE'));
+dit('… il reste bien 37 000 au versement', 37_000,
+  40_000 - (partsPrisesParRevenu([abusive]).get('rE') ?? 0));
+
+/* La cascade : le premier revenu désigné sert en premier, le suivant ne prend
+   que ce qui reste à couvrir, et celui qui n'a plus de place disparaît. */
+const troisPourDeux = dep('d9', '2026-08-21', 50_000, [
+  src('rF', 30_000), src('rG', 40_000), src('rH', 10_000),
+]);
+dit('cascade : le premier garde sa part', 30_000, sourcesDe(troisPourDeux)[0].xof);
+dit('cascade : le second est rogné au besoin', 20_000, sourcesDe(troisPourDeux)[1].xof);
+dit('cascade : le troisième disparaît', 2, sourcesDe(troisPourDeux).length);
+dit('cascade : la somme fait le coût, jamais plus', 50_000,
+  sourcesDe(troisPourDeux).reduce((n, s) => n + s.xof, 0));
+
+/* Une dépense honnête n'est pas touchée — la borne ne réécrit rien. */
+dit('une dépense juste traverse la borne intacte', [12_000, 48_000],
+  sourcesDe(troisDepenses[0]).map((s) => s.xof));
+dit('une dépense muette reste muette', 0, sourcesDe(dep('d10', '2026-08-18', 9_000)).length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

@@ -8,7 +8,7 @@ import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import { expenseOccurrences,
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
-  partsPrisesParRevenu, partNonNommee, entameLeRevenu,
+  partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
@@ -469,6 +469,24 @@ export default function Depenses() {
   const designeXof = form.sources.reduce((s, x) => s + x.xof, 0);
   const resteADesigner = Math.max(0, formTotal - designeXof);
 
+  /* LES PARTS SUIVENT LE MONTANT. Baisser le montant d'une dépense (ou retirer
+     un article) laissait des parts plus grandes que la dépense elle-même : le
+     revenu de la cliente restait grevé de la différence. Ce qui dépasse est
+     rendu, en cascade, dans l'ordre où les revenus ont été désignés. On ne
+     REMONTE jamais tout seul, en revanche : rendre est une correction, prendre
+     davantage serait un geste — il appartient à la main. */
+  useEffect(() => {
+    setForm((f) => {
+      let reste = formTotal;
+      const ajustees = f.sources
+        .map((s) => { const part = Math.min(s.xof, Math.max(0, reste)); reste -= part; return { ...s, xof: part }; })
+        .filter((s) => s.xof > 0);
+      const inchange = ajustees.length === f.sources.length
+        && ajustees.every((s, i) => s.xof === f.sources[i].xof);
+      return inchange ? f : { ...f, sources: ajustees };
+    });
+  }, [formTotal]);
+
   /* COCHER PREND CE QU'IL FAUT, PAS PLUS. Le remplissage en cascade : le revenu
      coché donne le minimum entre ce qu'il lui reste et ce qui manque encore à
      la dépense. Décocher rend tout. */
@@ -480,9 +498,15 @@ export default function Depenses() {
         return { ...f, sources: f.sources.filter((s) => s.ref !== ref) };
       }
       const dejaIci = f.sources.reduce((s, x) => s + x.xof, 0);
+      /* CE QUI MANQUE, ET RIEN DE PLUS. Il y avait ici un repli « si rien ne
+         manque, prends tout le revenu » — pensé pour le cas où le montant
+         n'était pas encore saisi. Il faisait exactement le contraire de ce
+         qu'il faut : cocher avant de taper le montant vidait le revenu de la
+         cliente (3 000 F dépensés, 40 000 F déclarés pris, « épuisé » partout
+         ailleurs). Sans montant, il n'y a rien à nommer — on attend. */
       const manque = Math.max(0, formTotal - dejaIci);
       const dispo = ligne.r.amountXof - (dejaPris.get(ref) ?? 0);
-      const part = Math.min(dispo, manque || dispo);
+      const part = Math.min(dispo, manque);
       if (part <= 0) return f;
       return {
         ...f,
@@ -556,7 +580,7 @@ export default function Depenses() {
   const revenuParRef = useMemo(() => new Map(registre.map((r) => [r.id, r])), [registre]);
 
   const Provenance = ({ dep }: { dep: Expense }) => {
-    const sources = dep.sources ?? [];
+    const sources = sourcesDe(dep);
     if (sources.length === 0) return null;
     const sansNom = partNonNommee(dep);
     return (
@@ -1481,7 +1505,14 @@ export default function Depenses() {
             {!!form.cashbox && (
               <div>
                 <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payée par quel revenu</div>
-                {revenusDeLaCaisse.length === 0 ? (
+                {/* SANS MONTANT, RIEN À NOMMER — un clic ne pourrait prendre
+                    qu'un chiffre inventé. On le dit au lieu de ne rien faire. */}
+                {formTotal <= 0 ? (
+                  <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                    Indiquez d’abord le montant de la dépense — les revenus se désignent ensuite,
+                    et Le Trône prend sur chacun ce qu’il faut, pas davantage.
+                  </div>
+                ) : revenusDeLaCaisse.length === 0 ? (
                   <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
                     Aucun revenu disponible dans « {form.cashbox} » — tout ce qui y est entré
                     est déjà nommé par d’autres dépenses. La dépense s’enregistre quand même :

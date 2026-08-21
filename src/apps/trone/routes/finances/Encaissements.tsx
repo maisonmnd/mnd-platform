@@ -9,7 +9,7 @@ import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { useInvoices, useExpenses, invoiceReglements } from '../../../../shared/finance';
+import { useInvoices, useExpenses, invoiceReglements, sourcesDe } from '../../../../shared/finance';
 import { staffStore } from '../equipe/data';
 import { totalBy, receiptKindLabel, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
@@ -268,11 +268,11 @@ export default function Encaissements() {
   const [expenses] = useExpenses();
   const AServi = ({ revenu }: { revenu: Receipt }) => {
     const dessus = expenses
-      .filter((e) => (e.sources ?? []).some((s) => s.ref === revenu.id))
+      .filter((e) => sourcesDe(e).some((s) => s.ref === revenu.id))
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     if (dessus.length === 0) return null;
     const pris = dessus.reduce(
-      (s, e) => s + (e.sources ?? []).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), 0,
+      (s, e) => s + sourcesDe(e).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), 0,
     );
     const reste = revenu.amountXof - pris;
     return (
@@ -286,7 +286,7 @@ export default function Encaissements() {
               <span className="trf-prov__quand">· {frDay(e.date)}</span>
             </span>
             <span className="trf-prov__xof">
-              {fmtMoney((e.sources ?? []).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), currency)}
+              {fmtMoney(sourcesDe(e).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), currency)}
             </span>
           </div>
         ))}
