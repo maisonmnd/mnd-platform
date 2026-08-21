@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Journal des gestes — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --brique:    #96412E;
+    --vert:      #4A6B52;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchemin); color: var(--encre);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 34px);
+    color: var(--indigo); margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); margin: 0 0 6px; }
+  .chapeau { max-width: 62ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 64px; }
+  .intro { max-width: 68ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+  .legende { font-size: 12.5px; color: var(--encre-d); margin: 12px 0 0; max-width: 68ch; }
+
+  /* ── L'écran ── */
+  .ecran {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire);
+    overflow: hidden; box-shadow: 0 1px 0 rgba(42,39,34,.04);
+  }
+  .ecran__tete {
+    background: var(--indigo); color: #EFEAE0; padding: 14px 18px;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  .ecran__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 22px; color: #fff; margin: 0; }
+  .ecran__tete .compte { font-size: 12px; color: #B9BAD4; margin-left: auto; }
+
+  /* Filtres */
+  .filtres { padding: 12px 18px; border-bottom: 1px solid var(--filet); background: #fff; }
+  .filtres__rang { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .filtres__rang + .filtres__rang { margin-top: 9px; }
+  .filtres__lab {
+    font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--encre-d); width: 52px; flex: none;
+  }
+  .puce {
+    font-size: 11.5px; border: 1px solid var(--filet); border-radius: 999px;
+    padding: 3px 11px; color: var(--encre-d); background: var(--ivoire);
+  }
+  .puce.is-on { border-color: var(--cuivre); background: var(--cuivre-f); color: var(--brique); }
+  .cherche {
+    margin-left: auto; border: 1px solid var(--filet); border-radius: 2px;
+    padding: 5px 10px; font-size: 12.5px; color: var(--encre-d); background: var(--ivoire); min-width: 190px;
+  }
+
+  /* Une ligne de geste */
+  .jour {
+    padding: 7px 18px; background: var(--sable);
+    font-family: var(--serif); font-size: 15px; color: var(--indigo);
+    border-bottom: 1px solid var(--filet);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  }
+  .jour span { font-family: var(--sans); font-size: 11px; color: var(--encre-d); }
+  .geste {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 11px 18px; border-bottom: 1px solid var(--filet); flex-wrap: wrap;
+  }
+  .geste:last-child { border-bottom: none; }
+  .geste__h {
+    font-family: var(--sans); font-size: 11.5px; color: var(--encre-d);
+    width: 46px; flex: none; font-variant-numeric: tabular-nums;
+  }
+  .qui {
+    width: 26px; height: 26px; flex: none; border-radius: 999px;
+    background: var(--indigo); color: #fff; font-size: 10px;
+    display: flex; align-items: center; justify-content: center; letter-spacing: .03em;
+  }
+  .qui--staff { background: var(--sable); color: var(--indigo); }
+  .qui--cliente { background: transparent; border: 1px dashed var(--filet); color: var(--encre-d); }
+  .geste__dit { flex: 1 1 300px; min-width: 0; }
+  .geste__dit b { font-weight: 500; }
+  .geste__quoi { font-size: 12px; color: var(--encre-d); margin-top: 2px; }
+  .geste__quoi em { font-style: normal; color: var(--encre); }
+  .verbe {
+    display: inline-block; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+    border-radius: 2px; padding: 1px 7px; margin-right: 7px; vertical-align: 1px;
+    border: 1px solid var(--filet); background: var(--ivoire); color: var(--encre-d);
+  }
+  .verbe--pose { border-color: rgba(74,107,82,.45); background: rgba(74,107,82,.10); color: var(--vert); }
+  .verbe--efface { border-color: var(--cuivre-p); background: var(--cuivre-f); color: var(--brique); }
+  .piece {
+    font-family: var(--sans); font-size: 11px; color: var(--indigo);
+    border: 1px solid var(--filet); border-radius: 2px; padding: 2px 8px; background: #fff; white-space: nowrap;
+  }
+  .porte { font-size: 11px; color: var(--encre-d); white-space: nowrap; }
+
+  /* Le détail d'un geste */
+  .diff { margin: 8px 0 0; border-left: 2px solid var(--cuivre-p); padding-left: 12px; }
+  .diff__row { display: flex; gap: 10px; align-items: baseline; padding: 2px 0; flex-wrap: wrap; font-size: 12.5px; }
+  .diff__champ { width: 118px; flex: none; color: var(--encre-d); }
+  .avant { color: var(--brique); text-decoration: line-through; }
+  .apres { color: var(--indigo); font-weight: 500; }
+
+  /* Deux colonnes */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 880px) { .duo { grid-template-columns: 1fr; } }
+
+  ol.gestes, ul.puces { padding-left: 20px; max-width: 68ch; color: var(--encre-d); }
+  ol.gestes li, ul.puces li { margin-bottom: 12px; }
+  ol.gestes b, ul.puces b { color: var(--encre); font-weight: 500; }
+
+  .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 16px; }
+  .carte { border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); padding: 16px 18px; }
+  .carte h3 { margin-bottom: 5px; }
+  .carte p { margin: 0; font-size: 13.5px; color: var(--encre-d); }
+
+  .trancher { border-left: 2px solid var(--cuivre); padding: 2px 0 2px 16px; margin-bottom: 22px; max-width: 70ch; }
+  .trancher h3 { margin-bottom: 3px; }
+  .trancher p { margin: 0; color: var(--encre-d); font-size: 14px; }
+
+  .avert {
+    border: 1px solid var(--cuivre-p); background: var(--cuivre-f);
+    border-radius: 4px; padding: 15px 18px; max-width: 70ch; color: var(--brique);
+  }
+  .avert b { font-weight: 500; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Le Journal des gestes.</h1>
+  <p class="chapeau">
+    « Je dois tracker systématiquement qui fait quoi et quand sur Le Trône. »
+    Chaque écriture — un rendez-vous posé, un prix corrigé, une fiche effacée —
+    laisse une ligne signée, horodatée, et <b>disant ce qui a changé</b>.
+    Consultable et filtrable comme le registre des encaissements.
+  </p>
+
+  <section>
+    <h2>Pourquoi, et pourquoi maintenant.</h2>
+    <p class="intro">
+      La question posée sur le rendez-vous de Diane C. du 18 août n’a pas pu
+      recevoir de réponse : <b>la base ne porte aucun champ d’auteur</b>. Quatre
+      colonnes par table — identifiant, branche, contenu, dernière écriture — et
+      rien qui dise par quelle main. Un salon où plusieurs personnes saisissent
+      ne peut pas fonctionner longtemps ainsi : une remise consentie, un prix
+      modifié, une pièce supprimée n’appartiennent à personne.
+    </p>
+    <div class="avert">
+      <b>Ce journal ne remonte pas le temps.</b> Il commence le jour où il est
+      posé. Le rendez-vous de Diane C. n’aura jamais d’auteur — cette
+      information n’a jamais été écrite, donc elle n’existe nulle part. Rien ne
+      la reconstituera, et prétendre le contraire serait pire que le silence.
+    </div>
+  </section>
+
+  <section>
+    <h2>L’écran.</h2>
+    <p class="intro">
+      Même grammaire que les Encaissements : on navigue par mois, on filtre par
+      <b>qui</b>, par <b>nature de geste</b>, par <b>écran</b>, et une recherche
+      libre traverse le tout. Les gestes se lisent du plus récent au plus ancien,
+      groupés par jour.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Le Journal des gestes</h4>
+        <span class="compte">août 2026 · 1 284 gestes · 6 mains</span>
+      </div>
+
+      <div class="filtres">
+        <div class="filtres__rang">
+          <span class="filtres__lab">Qui</span>
+          <span class="puce is-on">Tout le monde</span>
+          <span class="puce">Yéman B.</span>
+          <span class="puce">Brice A.</span>
+          <span class="puce">Gérard T.</span>
+          <span class="puce">Aimer H.</span>
+          <span class="puce">Les clientes</span>
+          <input class="cherche" value="diane" readonly />
+        </div>
+        <div class="filtres__rang">
+          <span class="filtres__lab">Geste</span>
+          <span class="puce is-on">Tous</span>
+          <span class="puce">Posé</span>
+          <span class="puce">Modifié</span>
+          <span class="puce">Effacé</span>
+        </div>
+        <div class="filtres__rang">
+          <span class="filtres__lab">Écran</span>
+          <span class="puce is-on">Tous</span>
+          <span class="puce">Carnet</span>
+          <span class="puce">Factures</span>
+          <span class="puce">Clientes</span>
+          <span class="puce">Dépenses</span>
+          <span class="puce">Catalogue</span>
+          <span class="puce">Personnel</span>
+        </div>
+      </div>
+
+      <div class="jour">Vendredi 21 août<span>184 gestes</span></div>
+
+      <div class="geste">
+        <span class="geste__h">09:14</span>
+        <span class="qui">YB</span>
+        <span class="geste__dit">
+          <span class="verbe verbe--pose">Posé</span>
+          <b>Yéman B.</b> a créé le rendez-vous de <b>Diane C.</b>
+          <div class="geste__quoi">Carnet · 18 août à 13:30 · KƆKLƆ™ Essentiel + SÍNSIN™ Élaborée</div>
+        </span>
+        <span class="piece">RDV · Diane C.</span>
+        <span class="porte">Le Trône</span>
+      </div>
+
+      <div class="geste">
+        <span class="geste__h">09:22</span>
+        <span class="qui qui--staff">GT</span>
+        <span class="geste__dit">
+          <span class="verbe">Modifié</span>
+          <b>Gérard T.</b> a changé le prix du rituel de <b>Diane C.</b>
+          <div class="diff">
+            <div class="diff__row">
+              <span class="diff__champ">Prix</span>
+              <span class="avant">60 000 F</span>
+              <span class="apres">→ 15 000 F</span>
+            </div>
+            <div class="diff__row">
+              <span class="diff__champ">Remise</span>
+              <span class="avant">aucune</span>
+              <span class="apres">→ 75 %</span>
+            </div>
+          </div>
+        </span>
+        <span class="piece">RDV · Diane C.</span>
+        <span class="porte">Le Trône</span>
+      </div>
+
+      <div class="geste">
+        <span class="geste__h">09:31</span>
+        <span class="qui">YB</span>
+        <span class="geste__dit">
+          <span class="verbe verbe--pose">Posé</span>
+          <b>Yéman B.</b> a émis la facture <b>F-2026-0041</b>
+          <div class="geste__quoi">Factures &amp; devis · Diane C. · 15 000 F · Espèces · Caisse Principale</div>
+        </span>
+        <span class="piece">F-2026-0041</span>
+        <span class="porte">Le Trône</span>
+      </div>
+
+      <div class="geste">
+        <span class="geste__h">11:02</span>
+        <span class="qui qui--cliente">—</span>
+        <span class="geste__dit">
+          <span class="verbe verbe--pose">Posé</span>
+          <b>Une cliente</b> a réservé depuis Ma Couronne
+          <div class="geste__quoi">Carnet · Faith K. · 22 août à 09:00 · VÈKPÈ™ Création Mini</div>
+        </span>
+        <span class="piece">RDV · Faith K.</span>
+        <span class="porte">Ma Couronne</span>
+      </div>
+
+      <div class="geste">
+        <span class="geste__h">14:40</span>
+        <span class="qui qui--staff">BA</span>
+        <span class="geste__dit">
+          <span class="verbe verbe--efface">Effacé</span>
+          <b>Brice A.</b> a supprimé une dépense
+          <div class="geste__quoi">Dépenses · « Produits — mèches » · 85 000 F · Caisse Principale</div>
+        </span>
+        <span class="piece">Dépense</span>
+        <span class="porte">Le Trône</span>
+      </div>
+
+      <div class="jour">Jeudi 20 août<span>212 gestes</span></div>
+
+      <div class="geste">
+        <span class="geste__h">18:27</span>
+        <span class="qui">YB</span>
+        <span class="geste__dit">
+          <span class="verbe">Modifié</span>
+          <b>Yéman B.</b> a déplacé un rendez-vous
+          <div class="diff">
+            <div class="diff__row">
+              <span class="diff__champ">Heure</span>
+              <span class="avant">09:00</span>
+              <span class="apres">→ 19:00</span>
+            </div>
+          </div>
+        </span>
+        <span class="piece">RDV · Yeman B.</span>
+        <span class="porte">Le Trône</span>
+      </div>
+    </div>
+
+    <p class="legende">
+      La pastille pleine indigo marque un <b>souverain</b>, la pastille sable un
+      membre du personnel, la pastille creuse un geste venu d’une <b>cliente</b>
+      (Ma Couronne, tunnel de consultation) — personne à qui demander des comptes,
+      mais une origine à connaître.
+    </p>
+  </section>
+
+  <section>
+    <h2>Où ça se branche — une seule porte.</h2>
+    <div class="duo">
+      <div>
+        <p class="intro">
+          Un journal instrumenté écran par écran aurait des trous, et un journal
+          troué ment plus qu’il n’informe : on croirait que rien ne s’est passé
+          là où personne n’a pensé à poser la ligne. C’est la même leçon que le
+          registre des encaissements, qui vient de coûter un défaut.
+        </p>
+        <p class="intro">
+          Toute écriture de toute collection du Trône passe par <b>un seul
+          point</b> : la fonction qui compare l’état d’avant à l’état d’après
+          avant de pousser au serveur. Elle sait déjà distinguer ce qui est
+          <b>créé</b>, ce qui est <b>modifié</b> et ce qui est <b>effacé</b> —
+          c’est exactement le vocabulaire du journal. On s’y greffe une fois, et
+          les vingt-huit écrans sont couverts, y compris ceux qui n’existent pas
+          encore.
+        </p>
+      </div>
+      <div>
+        <h3>Ce que cette porte donne gratuitement</h3>
+        <ul class="puces">
+          <li><b>Le verbe juste.</b> Créé, modifié, effacé se déduisent de la comparaison, sans qu’aucun écran ait à le déclarer.</li>
+          <li><b>Les champs qui ont bougé.</b> La comparaison porte sur le contenu entier : nommer les champs changés ne coûte rien de plus, et c’est ce qui rend une ligne utile plutôt que bavarde.</li>
+          <li><b>Aucun écho parasite.</b> La couche de synchronisation sait déjà reconnaître ce qui revient du serveur : un changement fait par une autre main n’est pas re-journalisé ici comme s’il était le nôtre.</li>
+          <li><b>La main courante.</b> La session dit qui est connecté ; l’annuaire des comptes donne son nom, celui-là même qui signe déjà le Fil et le Tableau.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas.</h2>
+    <div class="cartes">
+      <div class="carte">
+        <h3>Remonter avant sa pose</h3>
+        <p>
+          Aucun geste antérieur ne sera retrouvé. Le journal commence à zéro le
+          jour de sa mise en service — et le dit à l’écran, pour qu’un mois vide
+          ne se lise jamais comme un mois sans activité.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Enregistrer la frappe</h3>
+        <p>
+          Ce n’est pas une caméra. Les écritures partent groupées : corriger un
+          prix trois fois en dix secondes fait <b>une</b> ligne, celle qui compte
+          — l’état d’avant, l’état d’après.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Se laisser effacer</h3>
+        <p>
+          Le journal ne s’écrit qu’en ajout. Aucun écran ne le modifie, aucun
+          bouton ne le vide. Un registre qu’on peut retoucher ne prouve rien.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Ralentir le comptoir</h3>
+        <p>
+          La ligne part après l’écriture, jamais avant : si le journal échoue,
+          le geste passe quand même. On ne bloque pas une vente pour une trace.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qu’il faut trancher avant de construire.</h2>
+
+    <div class="trancher">
+      <h3>Qui peut lire le journal ?</h3>
+      <p>
+        Mon avis : <b>les souverains seulement</b>. Un journal lisible de tous
+        change le climat d’une maison — on ne travaille pas pareil quand chaque
+        geste est public. Le personnel sait qu’il existe ; les souverains le
+        consultent.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Combien de temps on garde ?</h3>
+      <p>
+        Une ligne par écriture, c’est quelques centaines par jour. Mon avis :
+        <b>douze mois glissants</b>, purgés automatiquement au-delà — assez pour
+        couvrir un exercice entier et toute question qui se pose vraiment, sans
+        laisser la table enfler sans fin.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Tout, vraiment tout ?</h3>
+      <p>
+        Certaines tables écrivent sans qu’une main y soit pour rien — les échos
+        de synchronisation, les compteurs, les files d’attente. Mon avis :
+        journaliser <b>ce qu’une main touche</b> (rendez-vous, factures, fiches,
+        dépenses, catalogue, personnel, caisses, avoirs, stock) et laisser dehors
+        la mécanique interne, qui ne dit rien de personne.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Et les gestes des clientes ?</h3>
+      <p>
+        Une réservation faite sur Ma Couronne est un geste, mais son auteur n’est
+        pas du personnel. Mon avis : <b>les inscrire</b>, sous le nom de leur
+        porte d’entrée plutôt que sous un nom propre — savoir qu’un rendez-vous
+        est venu de l’application vaut mieux que de le croire saisi au comptoir.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça demande, en vrai.</h2>
+    <ol class="gestes">
+      <li>
+        <b>Une table serveur en ajout seul</b> — une ligne par geste : l’instant,
+        l’auteur (son compte et son nom figé), le verbe, l’écran, la pièce
+        touchée et son libellé, et les champs qui ont changé avec leur avant et
+        leur après. Lecture réservée aux souverains, écriture ouverte au
+        personnel connecté, aucune suppression permise.
+      </li>
+      <li>
+        <b>Une greffe unique dans la couche de synchronisation</b>, au point où
+        le Trône compare l’avant et l’après. C’est la pièce délicate : elle
+        touche le chemin par lequel passe TOUTE écriture de la Maison. Elle sera
+        écrite pour ne jamais pouvoir empêcher un geste — si la trace échoue,
+        elle se tait et le geste passe.
+      </li>
+      <li>
+        <b>Un dictionnaire des noms</b> — pour que la ligne dise « le prix est
+        passé de 60 000 à 15 000 F » et non « priceXof: 60000 → 15000 ». Sans lui,
+        le journal serait lisible par moi et par personne d’autre.
+      </li>
+      <li>
+        <b>L’écran</b>, sur le modèle des Encaissements : navigation par mois,
+        filtres qui × geste × écran, recherche libre, groupement par jour.
+      </li>
+      <li>
+        <b>Un harnais</b> qui vérifie ce qui compte : qu’un écho du serveur ne
+        soit jamais journalisé comme un geste local, qu’une écriture groupée
+        fasse une ligne et non trois, et qu’une panne du journal ne fasse jamais
+        échouer l’écriture qu’il observe.
+      </li>
+    </ol>
+    <p class="legende">
+      Une migration serveur sera nécessaire — c’est une table neuve, avec ses
+      droits. Rien de ce qui existe ne change de sens, et aucun écran actuel
+      n’est modifié.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
