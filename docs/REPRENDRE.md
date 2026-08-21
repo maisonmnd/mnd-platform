@@ -2,6 +2,47 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'argent a un nom — 21 août, PUBLIÉ
+
+« Dans dépenses je veux voir le revenu de quelle cliente je suis en train de
+dépenser. Quand j'ai entamé un autre revenu le savoir aussi. » Maquette
+validée (`public/maquette-largent-a-un-nom.html`), attribution choisie par
+Yéman : **elle désigne elle-même** (ni FIFO, ni par journée).
+
+`Expense.sources?: DepenseSource[]` — `{ ref, nom, date, xof, clientId? }`.
+`ref` pointe le registre (`Receipt.id`) ; `nom` et `date` sont **FIGÉS** à
+l'enregistrement, comme `Appointment.priceXof` : une fiche renommée ou une
+facture annulée ne réécrit pas une dépense d'hier. Trois fonctions pures dans
+finance.ts : `partsPrisesParRevenu(expenses, sauf?)` (le `sauf` évite qu'une
+dépense en cours d'édition se refuse sa propre part), `partNonNommee(e)`,
+`entameLeRevenu(expenses, dep, ref)` — l'entame se tranche par date PUIS par
+identifiant, pour que la pastille ne saute pas d'une ligne à l'autre selon
+l'ordre d'arrivée des synchronisations. Harnais `verifie-provenance` (20
+assertions) — neuf harnais désormais.
+
+Le sélecteur (modale de dépense) ne propose que les revenus de la MÊME caisse
+ayant du reste, du plus ancien au plus récent, **pourboires exclus** (l'argent
+des mains, pas celui de la Maison). Remplissage en cascade, bandeau d'entame
+avant d'enregistrer, part « sans nom » affichée sans alarme. Changer de caisse
+vide les désignations. La provenance se relit à l'envers dans Encaissements
+(« Cet argent a servi à »).
+
+TROIS DÉFAUTS CORRIGÉS D'ABORD, trouvés en explorant le modèle :
+1. **Renommer une caisse l'orphelinait** — `saveBox` réétiquetait `e.cashbox`
+   et `i.cashbox` mais PAS `i.payments[].cashbox`, seul lu par `boxCredit`.
+   Le solde chutait de tout ce que la caisse avait encaissé, sans un mot. Le
+   coffre et les avoirs avaient le même angle mort.
+2. **Le relevé de caisse ne tombait pas juste** — `boxBalanceWhere` retranchait
+   les versements au coffre, `boxMoves` ne les listait pas.
+3. **Les dépôts d'avoir perdaient caisse et moyen** dans `buildReceipts`
+   (« Espèces » codé en dur) : Dépenses créditait le bon tiroir, Encaissements
+   affichait « Hors caisse ». Deux écrans, une écriture, deux vérités.
+
+Le registre des encaissements a désormais UNE porte :
+`useRegistreEncaissements()` dans `routes/finances/_shared.tsx`, lue par
+Encaissements ET Dépenses. Recopier l'assemblage aurait fabriqué le défaut n° 3
+une seconde fois.
+
 ## Demander partout, compte-fiche, rappels sans clé — 20 août, PUBLIÉ
 
 La DERNIÈRE pièce de la liste du Fil est posée : DemanderModal (composant
