@@ -1,5 +1,15 @@
 /* Finances — utilitaires de dates & de mois, navigation mensuelle et export CSV,
-   partagés par les trois écrans. */
+   partagés par les trois écrans. Plus le registre des encaissements, lu par
+   Encaissements ET par Dépenses (voir `useRegistreEncaissements`, en bas). */
+
+import { useMemo } from 'react';
+import { useBranch } from '../../../../shared/branches';
+import { useInvoices, usePayments, useCredits } from '../../../../shared/finance';
+import { useAppointments } from '../../../../shared/agenda';
+import { useClients } from '../../../../shared/clients';
+import { useApprenants, useSubscribers } from '../equipe/data';
+import { buildReceipts, type Receipt } from '../../../../shared/receipts';
+import { apptLabel, useServicesById } from '../clients/_shared';
 
 export const todayISO = (): string => {
   const d = new Date();
@@ -75,5 +85,43 @@ export function MonthNav({ month, onChange }: { month: string; onChange: (mk: st
         <button className="trf-monthnav__today" onClick={() => onChange(current)}>Ce mois</button>
       )}
     </div>
+  );
+}
+
+/* ---------- Le registre des encaissements, à UNE seule source ---------- */
+
+/** TOUT CE QUI EST ENTRÉ, assemblé une fois pour toutes.
+
+    Le registre se construisait entièrement dans Encaissements ; le jour où
+    Dépenses a eu besoin de nommer les revenus qui paient une sortie, recopier
+    l'assemblage aurait créé un second registre — et deux registres finissent
+    toujours par diverger. C'est exactement ce qui venait d'arriver aux dépôts
+    d'avoir : Dépenses créditait la caisse nommée, le registre affichait « Hors
+    caisse », et personne ne pouvait dire lequel avait raison.
+
+    Les deux écrans lisent désormais la même chose, par la même porte. */
+export function useRegistreEncaissements(): Receipt[] {
+  const { branch } = useBranch();
+  const [invoices] = useInvoices();
+  const [online] = usePayments();
+  const [appointments] = useAppointments();
+  const [credits] = useCredits();
+  const [apprenants] = useApprenants();
+  const [subscribers] = useSubscribers();
+  const [clients] = useClients();
+  const byId = useServicesById();
+  return useMemo(
+    () => buildReceipts({
+      branchId: branch.id,
+      invoices,
+      online,
+      appointments,
+      credits,
+      formation: apprenants,
+      abonnements: subscribers.map((s) => ({ id: s.id, clientId: s.clientId, name: s.name, payments: s.payments })),
+      nameOf: (id) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage',
+      apptLabel: (a) => apptLabel(a, byId),
+    }),
+    [branch.id, invoices, online, appointments, credits, apprenants, subscribers, clients, byId],
   );
 }

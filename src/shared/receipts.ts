@@ -254,7 +254,15 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       clientId: m.holderType === 'client' ? m.holderId : undefined,
       clientName: m.holderType === 'client' ? s.nameOf(m.holderId) : 'Compte famille',
       amountXof: m.amountXof,
-      method: 'Espèces',
+      /* LA CAISSE ET LE MOYEN VIENNENT DU MOUVEMENT — 21 août 2026. Ils étaient
+         jetés ici : « Espèces », sans caisse, codés en dur. Dépenses créditait
+         pourtant la caisse nommée (`avoirsDeCaisse`), si bien que les deux
+         écrans se contredisaient sur la même écriture — l'un la rangeait dans
+         son tiroir, l'autre l'affichait « Hors caisse ». Les mouvements d'avant
+         le 19 août ne portent ni l'un ni l'autre : ils retombent sur le
+         comportement d'origine, qui était le leur. */
+      method: m.method || 'Espèces',
+      cashbox: m.cashbox,
       label: m.note || 'Dépôt sur le compte',
     });
   }

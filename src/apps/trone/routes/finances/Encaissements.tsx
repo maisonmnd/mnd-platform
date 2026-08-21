@@ -9,11 +9,10 @@ import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { useInvoices, usePayments, useCredits, invoiceReglements } from '../../../../shared/finance';
-import { useApprenants, useSubscribers, staffStore } from '../equipe/data';
-import { buildReceipts, totalBy, receiptKindLabel, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
-import { apptLabel, useServicesById } from '../clients/_shared';
-import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv } from './_shared';
+import { useInvoices, useExpenses, invoiceReglements } from '../../../../shared/finance';
+import { staffStore } from '../equipe/data';
+import { totalBy, receiptKindLabel, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
+import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -139,14 +138,12 @@ const rapprocher = (
 export default function Encaissements() {
   const { branch, currency } = useBranch();
   const navigate = useNavigate();
+  /* Ce que l'écran lit ENCORE en propre : les factures (pointage du relevé,
+     reconstruction des parts) et les fiches (noms). Le reste de l'assemblage
+     du registre est passé derrière `useRegistreEncaissements`. */
   const [invoices] = useInvoices();
-  const [online] = usePayments();
   const [appointments] = useAppointments();
-  const [credits] = useCredits();
-  const [apprenants] = useApprenants();
-  const [subscribers] = useSubscribers();
   const [clients] = useClients();
-  const byId = useServicesById();
 
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');
@@ -205,20 +202,9 @@ export default function Encaissements() {
   const [box, setBox] = useState<string | null>(null);
   const boxOf = (r: Receipt) => r.cashbox ?? 'Hors caisse';
 
-  const all = useMemo(
-    () => buildReceipts({
-      branchId: branch.id,
-      invoices,
-      online,
-      appointments,
-      credits,
-      formation: apprenants,
-      abonnements: subscribers.map((s) => ({ id: s.id, clientId: s.clientId, name: s.name, payments: s.payments })),
-      nameOf: (id) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage',
-      apptLabel: (a) => apptLabel(a, byId),
-    }),
-    [branch.id, invoices, online, appointments, credits, apprenants, subscribers, clients, byId],
-  );
+  /* Le registre vient de la porte commune — Dépenses lit exactement le même
+     (voir `useRegistreEncaissements`). Deux assemblages auraient divergé. */
+  const all = useRegistreEncaissements();
 
   const ofMonth = useMemo(() => all.filter((r) => monthKey(r.date) === month), [all, month]);
   const shown = useMemo(() => {
@@ -272,6 +258,47 @@ export default function Encaissements() {
     } finally {
       setBusy(null);
     }
+  };
+
+  /* ── CE QUE CE REVENU A PAYÉ — 21 août 2026 ───────────────────────
+     L'autre sens du lien posé dans Dépenses : « le mois de Ghislain a servi
+     à quoi ? ». Rien de nouveau n'est saisi ici — c'est la même écriture,
+     relue depuis l'argent qui est entré plutôt que depuis celui qui est
+     sorti. Muet tant qu'aucune dépense n'a nommé ce revenu. */
+  const [expenses] = useExpenses();
+  const AServi = ({ revenu }: { revenu: Receipt }) => {
+    const dessus = expenses
+      .filter((e) => (e.sources ?? []).some((s) => s.ref === revenu.id))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (dessus.length === 0) return null;
+    const pris = dessus.reduce(
+      (s, e) => s + (e.sources ?? []).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), 0,
+    );
+    const reste = revenu.amountXof - pris;
+    return (
+      <div className="trf-prov">
+        <div className="trf-prov__titre">Cet argent a servi à</div>
+        {dessus.map((e) => (
+          <div className="trf-prov__ligne" key={e.id}>
+            <span className="trf-prov__puce" />
+            <span className="trf-prov__nom">
+              <b>{e.label}</b>
+              <span className="trf-prov__quand">· {frDay(e.date)}</span>
+            </span>
+            <span className="trf-prov__xof">
+              {fmtMoney((e.sources ?? []).filter((x) => x.ref === revenu.id).reduce((n, x) => n + x.xof, 0), currency)}
+            </span>
+          </div>
+        ))}
+        <div className="trf-prov__ligne trf-prov__ligne--muette">
+          <span className="trf-prov__puce" style={{ background: 'transparent' }} />
+          <span className="trf-prov__nom">
+            {reste <= 0 ? 'Ce versement est épuisé.' : 'Il reste de ce versement'}
+          </span>
+          {reste > 0 && <span className="trf-prov__xof">{fmtMoney(reste, currency)}</span>}
+        </div>
+      </div>
+    );
   };
 
   const exportCsv = () =>
@@ -479,8 +506,8 @@ export default function Encaissements() {
           </div>
         ) : (
           shown.map((r) => (
+            <div key={r.id}>
             <div
-              key={r.id}
               className="trf-linerow trf-linerow--split trf-linerow--click"
               role="button"
               tabIndex={0}
@@ -512,6 +539,8 @@ export default function Encaissements() {
                   {busy === r.id ? '…' : 'Reçu'}
                 </button>
               </span>
+            </div>
+            <AServi revenu={r} />
             </div>
           ))
         )}

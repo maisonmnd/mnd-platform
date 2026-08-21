@@ -131,6 +131,32 @@ export type Invoice = {
     (montant seul) restent exacts tels quels. */
 export type ExpenseItem = { id: string; label: string; amountXof: number; qty?: number; unitXof?: number };
 
+/* ── L'ARGENT A UN NOM — 21 août 2026 ────────────────────────────────
+   « Dans dépenses je veux voir le revenu de quelle cliente je suis en train
+   de dépenser. Quand j'ai entamé un autre revenu le savoir aussi. »
+
+   Une dépense désigne le ou les revenus qui la paient. Le lien est ÉCRIT,
+   jamais déduit : deviner une provenance ferait lire une histoire fausse en
+   croyant lire la vraie.
+
+   `nom` et `date` sont FIGÉS à l'enregistrement, comme le prix d'un rituel
+   (`Appointment.priceXof`) : le registre des encaissements vit — une fiche se
+   renomme, une facture s'annule — et l'histoire d'une dépense ne doit pas se
+   réécrire dans son dos. `ref` reste le lien vivant (l'identifiant du registre,
+   `Receipt.id`) pour retrouver la pièce quand elle existe encore. */
+export type DepenseSource = {
+  /** L'identifiant du revenu dans le registre des encaissements (`Receipt.id`). */
+  ref: string;
+  /** Le nom porté par le revenu AU MOMENT du lien — figé. */
+  nom: string;
+  /** Le jour où cet argent est entré — figé. */
+  date: string;
+  /** La part prise sur ce revenu, en XOF. */
+  xof: number;
+  /** La fiche cliente, quand le revenu en nomme une — pour le lien de lecture. */
+  clientId?: string;
+};
+
 export type Expense = {
   id: string;
   branchId: string;
@@ -138,6 +164,10 @@ export type Expense = {
   amountXof: number;
   date: string;
   cashbox: string; // caisses multiples
+  /** LES REVENUS QUI PAIENT CETTE DÉPENSE — voir `DepenseSource`. Absent sur
+      tout l'historique : une dépense sans `sources` reste muette, elle ne se
+      remplit pas toute seule. */
+  sources?: DepenseSource[];
   category: string;
   subcategory?: string;
   recurring?: 'mensuel' | 'hebdomadaire' | null;
@@ -186,6 +216,42 @@ export const expenseOccurrences = (e: Expense, mk: string): number => {
 
 export const expenseTotal = (e: Expense): number =>
   e.items && e.items.length ? e.items.reduce((s, it) => s + it.amountXof, 0) : e.amountXof;
+
+/** CE QUE LES DÉPENSES ONT DÉJÀ PRIS, revenu par revenu. Une seule passe pour
+    tout l'écran : le sélecteur pose la question pour chaque revenu de la
+    caisse, et interroger la liste des dépenses à chaque ligne la relirait
+    autant de fois qu'il y a de revenus.
+
+    `sauf` exclut une dépense du décompte — celle qu'on est en train de
+    modifier, sans quoi elle se verrait refuser sa propre part. */
+export const partsPrisesParRevenu = (
+  expenses: readonly Expense[], sauf?: string,
+): Map<string, number> => {
+  const pris = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.id === sauf || !e.sources) continue;
+    for (const s of e.sources) pris.set(s.ref, (pris.get(s.ref) ?? 0) + s.xof);
+  }
+  return pris;
+};
+
+/** La part d'une dépense qui n'est rattachée à aucun revenu — jamais négative.
+    Ce n'est pas une faute : une dépense peut dépasser ce que la caisse sait
+    nommer, et le dire vaut mieux que l'inventer. */
+export const partNonNommee = (e: Expense): number =>
+  Math.max(0, expenseTotal(e) - (e.sources ?? []).reduce((s, x) => s + x.xof, 0));
+
+/** LE REVENU EST-IL ENTAMÉ PAR CETTE DÉPENSE-LÀ ? Vrai quand aucune dépense
+    ANTÉRIEURE n'y a puisé — c'est la question de Yéman : « quand j'ai entamé
+    un autre revenu, le savoir ». L'ordre est celui de la date de dépense, puis
+    de l'identifiant : deux dépenses du même jour doivent trancher pareil quel
+    que soit l'ordre de lecture, sinon la pastille sauterait d'une ligne à
+    l'autre au gré des synchronisations. */
+export const entameLeRevenu = (
+  expenses: readonly Expense[], dep: Expense, ref: string,
+): boolean => !expenses.some((e) => e.id !== dep.id
+  && (e.sources ?? []).some((s) => s.ref === ref)
+  && (e.date < dep.date || (e.date === dep.date && e.id < dep.id)));
 
 export type Budget = { id: string; branchId: string; category: string; monthlyXof: number };
 

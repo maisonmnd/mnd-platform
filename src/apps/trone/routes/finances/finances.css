@@ -839,3 +839,138 @@
 .trf-jour__d { font-family: var(--font-sans); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .trf-jour__t { font-family: var(--font-serif); font-size: 16px; color: var(--copper-700); white-space: nowrap; }
 .trf-jour + .trf-tally { border-top: none; }
+
+/* ── L'argent a un nom — 21 août 2026 ──────────────────────────────
+   La provenance d'une dépense : de qui vient l'argent, et ce qu'il en
+   reste. Alignée sur le retrait des articles (58 px) pour que les deux
+   replis d'une même ligne partent du même bord. */
+.trf-prov {
+  margin: 2px 0 10px 58px;
+  padding: 9px 12px 10px;
+  background: var(--color-ivoire, #FBF8F2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+.trf-prov__titre {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--color-copper);
+  margin-bottom: 6px;
+}
+.trf-prov__ligne {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+.trf-prov__ligne + .trf-prov__ligne { border-top: 1px solid var(--hairline); }
+.trf-prov__ligne--muette .trf-prov__nom { color: var(--ink-soft); font-style: italic; }
+.trf-prov__puce {
+  width: 6px; height: 6px; flex: none;
+  border-radius: 999px;
+  background: var(--copper-200, #E3C9AE);
+  transform: translateY(-2px);
+}
+/* Pastille pleine = le revenu est ENTAMÉ par cette dépense-là. */
+.trf-prov__puce.is-neuf { background: var(--color-copper); }
+.trf-prov__nom { flex: 1 1 190px; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); }
+.trf-prov__nom b { font-weight: 500; }
+.trf-prov__quand { color: var(--ink-soft); margin-left: 5px; }
+.trf-prov__tag {
+  display: inline-block;
+  margin-left: 7px;
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700, #96412E);
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+.trf-prov__reste { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.trf-prov__xof {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--color-indigo);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le sélecteur de revenus, dans la modale de dépense */
+.trf-revenus {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.trf-revenu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  flex-wrap: wrap;
+}
+.trf-revenu + .trf-revenu { border-top: 1px solid var(--hairline); }
+.trf-revenu.is-on { background: var(--copper-50, #FAF1E9); }
+.trf-revenu__coche {
+  width: 17px; height: 17px; flex: none;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--color-blanc, #fff);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--color-copper);
+  cursor: pointer;
+  padding: 0;
+}
+.trf-revenu.is-on .trf-revenu__coche { border-color: var(--color-copper); }
+.trf-revenu__nom { flex: 1 1 170px; font-family: var(--font-sans); font-size: 13px; color: var(--ink); }
+.trf-revenu__nom b { font-weight: 500; }
+.trf-revenu__quand { display: block; font-size: 11px; color: var(--ink-soft); }
+.trf-revenu__reste { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.trf-revenu__part {
+  flex: none;
+  width: 108px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.trf-revenus__compte {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.trf-revenus__compte b {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--color-indigo);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+/* Le mot qui répond à « quand j'ai entamé un autre revenu, le savoir ». */
+.trf-entame {
+  margin-top: 10px;
+  border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--copper-700, #96412E);
+}
+.trf-entame b { font-weight: 500; }
+
+@media (max-width: 720px) {
+  .trf-prov { margin-left: 0; }
+  .trf-revenu__part { width: 92px; }
+}

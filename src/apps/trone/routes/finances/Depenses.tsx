@@ -8,12 +8,14 @@ import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate } from 'react-router-dom';
 import { expenseOccurrences,
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
-  type CoffreMovement, type CreditMovement,
+  partsPrisesParRevenu, partNonNommee, entameLeRevenu,
+  type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
 } from '../../../../shared/finance';
+import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useClients, useFamilies } from '../../../../shared/clients';
-import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv } from './_shared';
+import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './finances.css';
@@ -34,7 +36,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[] };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[] };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
@@ -52,9 +54,10 @@ export default function Depenses() {
   const [expenses, setExpenses] = useExpenses();
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
-  /* Le coffre : ses dépôts SORTENT d'une caisse depuis le 17 août. */
-  const [coffre] = useCoffre();
-  const [creditMvts] = useCredits();
+  /* Le coffre : ses dépôts SORTENT d'une caisse depuis le 17 août. Les deux
+     setters ne servent qu'au RENOMMAGE d'une caisse — voir `saveBox`. */
+  const [coffre, setCoffre] = useCoffre();
+  const [creditMvts, setCreditMvts] = useCredits();
   const [clientes] = useClients();
   const [familles] = useFamilies();
   const [categories, setCategories] = useExpenseCategories();
@@ -72,7 +75,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [] });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [], sources: [] });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -345,7 +348,25 @@ export default function Depenses() {
       expense: undefined as Expense | undefined,
     }));
 
-    const moves = [...inn, ...out, ...avoirs].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    /* LE COFFRE MANQUAIT À L'APPEL — 21 août 2026. `boxBalanceWhere` retranche
+       les versements au coffre depuis le 17 août, mais aucune ligne ne les
+       disait : dès qu'un dépôt nommait la caisse dans le mois affiché,
+       « solde au début + mouvements » ne tombait plus sur le solde affiché —
+       exactement ce que le commentaire d'en-tête annonce comme impossible.
+       Le relevé et le solde lisent désormais la même chose. */
+    const versements = coffre
+      .filter((m: CoffreMovement) => m.branchId === branch.id && m.kind === 'depot'
+        && m.cashbox === name && monthKey(m.date) === month)
+      .map((m: CoffreMovement) => ({
+        date: m.date,
+        label: 'Versé au coffre',
+        sub: [m.note, 'Le Coffre'].filter(Boolean).join(' · '),
+        delta: -m.amountXof,
+        invoiceId: undefined as string | undefined,
+        expense: undefined as Expense | undefined,
+      }));
+
+    const moves = [...inn, ...out, ...avoirs, ...versements].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
 
@@ -384,7 +405,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false, items: [] });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [] });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -394,9 +415,44 @@ export default function Depenses() {
       label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
       cashbox: e.cashbox, recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
+      sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
     setOpen(true);
   };
+
+  /* ── L'ARGENT A UN NOM — 21 août 2026 ──────────────────────────────
+     « Je veux voir le revenu de quelle cliente je suis en train de dépenser.
+     Quand j'ai entamé un autre revenu, le savoir aussi. »
+
+     LES REVENUS QU'ON PEUT DÉSIGNER — ceux de la MÊME caisse, qui ont encore
+     du reste, du plus ancien au plus récent (une dépense d'aujourd'hui puise
+     presque toujours dans ce qui dort depuis le plus longtemps).
+
+     LES POURBOIRES N'EN SONT PAS. Ils entrent au tiroir sans appartenir à la
+     Maison — c'est l'argent des mains. Les proposer reviendrait à offrir de
+     dépenser la part de l'équipe. */
+  const registre = useRegistreEncaissements();
+  const dejaPris = useMemo(
+    () => partsPrisesParRevenu(expenses, editingId ?? undefined),
+    [expenses, editingId],
+  );
+  const revenusDeLaCaisse = useMemo(() => {
+    if (!form.cashbox) return [];
+    return registre
+      .filter((r) => r.kind !== 'pourboire' && (r.cashbox ?? '') === form.cashbox
+        && form.cashbox !== CAISSE_POURBOIRES)
+      .map((r) => ({ r, reste: r.amountXof - (dejaPris.get(r.id) ?? 0) }))
+      .filter(({ r, reste }) => reste > 0 || form.sources.some((s) => s.ref === r.id))
+      .sort((a, b) => (a.r.date < b.r.date ? -1 : a.r.date > b.r.date ? 1 : 0));
+  }, [registre, dejaPris, form.cashbox, form.sources]);
+
+  /* CHANGER DE CAISSE VIDE LES DÉSIGNATIONS : les revenus d'un tiroir ne
+     paient pas les sorties d'un autre, et garder des liens devenus étrangers
+     ferait mentir la ligne de provenance. */
+  const changeLaCaisse = (nom: string) =>
+    setForm((f) => (f.cashbox === nom ? f : { ...f, cashbox: nom, sources: [] }));
+  const changeLaPart = (ref: string, xof: number) =>
+    setForm((f) => ({ ...f, sources: f.sources.map((s) => (s.ref === ref ? { ...s, xof: Math.max(0, xof) } : s)) }));
 
   // — Lignes d'articles imputés au même achat —
   const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { id: uid(), label: '', amountXof: 0 }] }));
@@ -406,6 +462,37 @@ export default function Depenses() {
   // Total saisi = somme des lignes si présentes, sinon le montant simple.
   const cleanItems = form.items.filter((it) => it.label.trim() && it.amountXof > 0);
   const formTotal = cleanItems.length ? cleanItems.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
+
+  /* Ce qui est déjà nommé, et ce qui reste à nommer — le compte que la modale
+     affiche sous le sélecteur. Déclarés APRÈS `formTotal` : les lire plus haut
+     touchait une constante non encore initialisée. */
+  const designeXof = form.sources.reduce((s, x) => s + x.xof, 0);
+  const resteADesigner = Math.max(0, formTotal - designeXof);
+
+  /* COCHER PREND CE QU'IL FAUT, PAS PLUS. Le remplissage en cascade : le revenu
+     coché donne le minimum entre ce qu'il lui reste et ce qui manque encore à
+     la dépense. Décocher rend tout. */
+  const basculeRevenu = (ref: string) => {
+    const ligne = revenusDeLaCaisse.find((x) => x.r.id === ref);
+    if (!ligne) return;
+    setForm((f) => {
+      if (f.sources.some((s) => s.ref === ref)) {
+        return { ...f, sources: f.sources.filter((s) => s.ref !== ref) };
+      }
+      const dejaIci = f.sources.reduce((s, x) => s + x.xof, 0);
+      const manque = Math.max(0, formTotal - dejaIci);
+      const dispo = ligne.r.amountXof - (dejaPris.get(ref) ?? 0);
+      const part = Math.min(dispo, manque || dispo);
+      if (part <= 0) return f;
+      return {
+        ...f,
+        /* Le nom et la date sont FIGÉS ici — le registre vit, l'histoire non. */
+        sources: [...f.sources, {
+          ref, nom: ligne.r.clientName, date: ligne.r.date, xof: part, clientId: ligne.r.clientId,
+        }],
+      };
+    });
+  };
 
   /* UN BOUTON QUI REFUSE DOIT DIRE POURQUOI.
      `save` renvoyait en silence dès qu'un champ manquait : l'écran ne bougeait
@@ -427,19 +514,24 @@ export default function Depenses() {
       return;
     }
     setSaveErr(null);
+    /* Les revenus désignés : on ne garde que les parts réelles. Une part à zéro
+       (cochée puis vidée à la main) n'est pas une provenance — c'est un lien
+       qui ne dit rien, et il vaut mieux ne rien dire. */
+    const sources = form.sources.filter((s) => s.xof > 0);
+    const dits = sources.length ? sources : undefined;
     if (editingId) {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
-        items: hasItems ? items : undefined,
+        items: hasItems ? items : undefined, sources: dits,
       } : e)));
     } else {
       const e: Expense = {
         id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
-        flagged: form.flagged || undefined, items: hasItems ? items : undefined,
+        flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
       setExpenses((prev) => [e, ...prev]);
     }
@@ -448,6 +540,58 @@ export default function Depenses() {
   const removeExpense = (e: Expense) => {
     if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;
     setExpenses((prev) => prev.filter((x) => x.id !== e.id));
+  };
+
+  /* ── LA LIGNE DE PROVENANCE ─────────────────────────────────────────
+     De qui vient l'argent qu'on vient de dépenser. Muette sur une dépense
+     sans revenu désigné : l'historique ne se remplit pas tout seul, et
+     inventer une provenance ferait lire une histoire fausse en croyant lire
+     la vraie.
+
+     Le nom vient de la SOURCE (figé à l'enregistrement), pas du registre du
+     jour : une facture annulée ou une fiche renommée ne réécrit pas ce qui a
+     été payé. Le registre ne sert qu'à dire ce qu'il RESTE — chiffre vivant,
+     par nature. */
+  const partsToutes = useMemo(() => partsPrisesParRevenu(expenses), [expenses]);
+  const revenuParRef = useMemo(() => new Map(registre.map((r) => [r.id, r])), [registre]);
+
+  const Provenance = ({ dep }: { dep: Expense }) => {
+    const sources = dep.sources ?? [];
+    if (sources.length === 0) return null;
+    const sansNom = partNonNommee(dep);
+    return (
+      <div className="trf-prov">
+        <div className="trf-prov__titre">Payée par</div>
+        {sources.map((s) => {
+          const neuf = entameLeRevenu(expenses, dep, s.ref);
+          const rev = revenuParRef.get(s.ref);
+          const reste = rev ? rev.amountXof - (partsToutes.get(s.ref) ?? 0) : null;
+          return (
+            <div className="trf-prov__ligne" key={s.ref}>
+              <span className={`trf-prov__puce ${neuf ? 'is-neuf' : ''}`} />
+              <span className="trf-prov__nom">
+                <b>{s.nom}</b>
+                <span className="trf-prov__quand">· versement du {fmtDay(s.date)}</span>
+                {neuf && <span className="trf-prov__tag">revenu entamé</span>}
+              </span>
+              {reste != null && (
+                <span className="trf-prov__reste">
+                  {reste <= 0 ? 'épuisé' : `reste ${fmtMoney(reste, currency)}`}
+                </span>
+              )}
+              <span className="trf-prov__xof">{fmtMoney(s.xof, currency)}</span>
+            </div>
+          );
+        })}
+        {sansNom > 0 && (
+          <div className="trf-prov__ligne trf-prov__ligne--muette">
+            <span className="trf-prov__puce" style={{ background: 'transparent', border: '1px dashed var(--line)' }} />
+            <span className="trf-prov__nom">Part sans nom — aucun revenu désigné</span>
+            <span className="trf-prov__xof">{fmtMoney(sansNom, currency)}</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // — Catégories : ajouter / renommer / supprimer, avec réétiquetage des dépenses —
@@ -520,8 +664,29 @@ export default function Depenses() {
       const oldName = prevBox?.name;
       setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined } : b)));
       if (oldName && oldName !== name) {
+        /* RENOMMER NE DOIT ORPHELINER PERSONNE — 21 août 2026. Le nom de la
+           caisse EST la clé : il n'y a pas d'identifiant partagé entre une
+           caisse et ses écritures. On réétiquetait la dépense et la facture,
+           mais pas le JOURNAL DES VERSEMENTS — or c'est lui, et lui seul, que
+           `boxCredit` interroge pour bâtir le solde. Renommer « Caisse
+           principale » faisait donc tomber son solde de tout ce qu'elle avait
+           encaissé, sans un mot. Le coffre et les avoirs, arrivés depuis,
+           avaient le même angle mort. Tout ce qui nomme une caisse suit. */
         setExpenses((prev) => prev.map((e) => (e.cashbox === oldName ? { ...e, cashbox: name } : e)));
-        setInvoices((prev) => prev.map((i) => (i.cashbox === oldName ? { ...i, cashbox: name } : i)));
+        setInvoices((prev) => prev.map((i) => {
+          const pieceARenommer = i.cashbox === oldName;
+          const journalARenommer = (i.payments ?? []).some((p) => p.cashbox === oldName);
+          if (!pieceARenommer && !journalARenommer) return i;
+          return {
+            ...i,
+            ...(pieceARenommer ? { cashbox: name } : {}),
+            ...(journalARenommer
+              ? { payments: i.payments!.map((p) => (p.cashbox === oldName ? { ...p, cashbox: name } : p)) }
+              : {}),
+          };
+        }));
+        setCoffre((prev) => prev.map((m) => (m.cashbox === oldName ? { ...m, cashbox: name } : m)));
+        setCreditMvts((prev) => prev.map((m) => (m.cashbox === oldName ? { ...m, cashbox: name } : m)));
         if (filterCaisse === oldName) setFilterCaisse(name);
       }
     } else {
@@ -907,6 +1072,7 @@ export default function Depenses() {
                     ))}
                   </div>
                 ) : null}
+                <Provenance dep={e} />
               </div>
             ))}
           </div>
@@ -1290,14 +1456,14 @@ export default function Depenses() {
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payer depuis quelle caisse</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
-                  <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, cashbox: c.name }))}>
+                  <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
                     {c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}
                   </button>
                 ))}
                 {/* La caisse est FACULTATIVE : sans elle, la dépense se range
                     sous « Autres ». L'exiger rendait la saisie impossible tant
                     qu'aucune caisse n'était déclarée. */}
-                <button className={`trf-chip ${!form.cashbox ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, cashbox: '' }))}>
+                <button className={`trf-chip ${!form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>
                   Sans caisse · Autres
                 </button>
               </div>
@@ -1308,6 +1474,76 @@ export default function Depenses() {
                 </div>
               )}
             </div>
+
+            {/* ── PAYÉE PAR QUEL REVENU — 21 août 2026 ──────────────────
+                Le sélecteur ne paraît qu'avec une caisse : hors caisse, il n'y
+                a pas de tiroir où puiser, donc rien à nommer. */}
+            {!!form.cashbox && (
+              <div>
+                <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payée par quel revenu</div>
+                {revenusDeLaCaisse.length === 0 ? (
+                  <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                    Aucun revenu disponible dans « {form.cashbox} » — tout ce qui y est entré
+                    est déjà nommé par d’autres dépenses. La dépense s’enregistre quand même :
+                    sa part restera simplement sans nom.
+                  </div>
+                ) : (
+                  <>
+                    <div className="trf-revenus">
+                      {revenusDeLaCaisse.map(({ r, reste }) => {
+                        const prise = form.sources.find((s) => s.ref === r.id);
+                        return (
+                          <div key={r.id} className={`trf-revenu ${prise ? 'is-on' : ''}`}>
+                            <button
+                              className="trf-revenu__coche"
+                              role="checkbox"
+                              aria-checked={!!prise}
+                              aria-label={`Désigner le revenu de ${r.clientName}`}
+                              onClick={() => basculeRevenu(r.id)}
+                            >
+                              {prise ? '✓' : ''}
+                            </button>
+                            <span className="trf-revenu__nom">
+                              <b>{r.clientName}</b>
+                              <span className="trf-revenu__quand">
+                                {fmtDay(r.date)} · {r.method}{r.kind !== 'facture' ? ` · ${r.kind}` : ''}
+                              </span>
+                            </span>
+                            <span className="trf-revenu__reste">reste {fmtMoney(reste, currency)}</span>
+                            {prise && (
+                              <input
+                                className="mnd-input trf-revenu__part"
+                                inputMode="numeric"
+                                value={prise.xof ? String(prise.xof) : ''}
+                                aria-label={`Part prise sur le revenu de ${r.clientName}`}
+                                onChange={(ev) => changeLaPart(r.id, parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10))}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="trf-revenus__compte">
+                      <span>Désigné · <b>{fmtMoney(designeXof, currency)}</b></span>
+                      <span>Reste à désigner · <b>{fmtMoney(resteADesigner, currency)}</b></span>
+                    </div>
+                    {/* L'ENTAME SE DIT AVANT D'ENREGISTRER — c'est la demande
+                        même : « quand j'ai entamé un autre revenu, le savoir ».
+                        Un revenu est entamé si aucune dépense n'y a encore puisé. */}
+                    {(() => {
+                      const neufs = form.sources.filter((s) => !dejaPris.has(s.ref));
+                      if (neufs.length === 0) return null;
+                      return (
+                        <div className="trf-entame">
+                          Cette dépense <b>{neufs.length > 1 ? 'entame les revenus' : 'entame le revenu'} de {neufs.map((s) => s.nom).join(', ')}</b>
+                          {' '}— c’est la première fois que la Maison y puise.
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Récurrence</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
