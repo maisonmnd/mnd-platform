@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>L'argent a un nom — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --brique:    #96412E;
+    --serif: Georgia, 'Cormorant Garamond', 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchemin); color: var(--encre);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 34px);
+    color: var(--indigo); margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); margin: 0 0 6px; }
+  .chapeau { max-width: 62ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 64px; }
+  .intro { max-width: 68ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+  .legende { font-size: 12.5px; color: var(--encre-d); margin: 10px 0 0; max-width: 68ch; }
+
+  /* ── L'écran ── */
+  .ecran {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire);
+    overflow: hidden; box-shadow: 0 1px 0 rgba(42,39,34,.04);
+  }
+  .ecran__tete {
+    background: var(--indigo); color: #EFEAE0; padding: 13px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .ecran__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: #fff; margin: 0; }
+  .ecran__tete .compte { font-size: 12px; color: #B9BAD4; letter-spacing: .02em; }
+  .ecran__corps { padding: 0; }
+
+  /* ── Une dépense ── */
+  .dep { border-bottom: 1px solid var(--filet); background: var(--ivoire); }
+  .dep:last-child { border-bottom: none; }
+  .dep__ligne {
+    display: flex; align-items: baseline; gap: 14px; padding: 14px 18px; flex-wrap: wrap;
+  }
+  .dep__date { font-size: 12px; color: var(--encre-d); letter-spacing: .04em; min-width: 62px; }
+  .dep__quoi { flex: 1 1 220px; }
+  .dep__quoi b { font-weight: 500; }
+  .dep__quoi .sous { display: block; font-size: 12.5px; color: var(--encre-d); }
+  .dep__montant { font-family: var(--serif); font-size: 19px; color: var(--indigo); white-space: nowrap; }
+
+  /* ── La provenance ── */
+  .prov {
+    background: #fff; border-top: 1px dashed var(--filet);
+    padding: 12px 18px 14px;
+  }
+  .prov__titre {
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--cuivre); margin: 0 0 9px;
+  }
+  .source { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; flex-wrap: wrap; }
+  .source + .source { border-top: 1px solid #F0EADF; }
+  .source__puce {
+    width: 6px; height: 6px; border-radius: 999px; background: var(--cuivre-p);
+    flex: none; transform: translateY(-2px);
+  }
+  .source__puce--neuf { background: var(--cuivre); }
+  .source__nom { flex: 1 1 200px; }
+  .source__nom b { font-weight: 500; }
+  .source__nom .quand { color: var(--encre-d); font-size: 12.5px; }
+  .source__xof { font-family: var(--serif); font-size: 16px; color: var(--indigo); white-space: nowrap; }
+  .tag {
+    display: inline-block; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    border: 1px solid var(--cuivre-p); background: var(--cuivre-f); color: var(--brique);
+    border-radius: 2px; padding: 1px 7px; margin-left: 8px; vertical-align: 1px;
+  }
+  .tag--doux { border-color: var(--filet); background: #F6F2E9; color: var(--encre-d); }
+  .prov__reste {
+    margin: 10px 0 0; font-size: 12.5px; color: var(--encre-d);
+    border-top: 1px solid var(--filet); padding-top: 9px;
+  }
+  .prov__reste b { color: var(--indigo); font-weight: 500; }
+  .prov--muette { color: var(--encre-d); font-size: 13px; }
+
+  /* ── La modale ── */
+  .modale {
+    max-width: 560px; border: 1px solid var(--filet); border-radius: 4px;
+    background: var(--ivoire); overflow: hidden; box-shadow: 0 8px 28px rgba(30,33,80,.10);
+  }
+  .modale__tete { background: var(--indigo); color: #fff; padding: 15px 20px; }
+  .modale__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 0; color: #fff; }
+  .modale__tete .compte { font-size: 12px; color: #B9BAD4; }
+  .modale__corps { padding: 18px 20px 20px; }
+  .champ { margin-bottom: 16px; }
+  .champ__lab { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); margin: 0 0 6px; }
+  .saisie {
+    border: 1px solid var(--filet); background: #fff; border-radius: 2px;
+    padding: 9px 11px; font-size: 15px; color: var(--encre);
+  }
+  .versements { border: 1px solid var(--filet); border-radius: 2px; background: #fff; }
+  .vers {
+    display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+    border-bottom: 1px solid #F0EADF; flex-wrap: wrap;
+  }
+  .vers:last-child { border-bottom: none; }
+  .vers.is-on { background: var(--cuivre-f); }
+  .coche {
+    width: 15px; height: 15px; flex: none; border: 1px solid var(--filet);
+    border-radius: 2px; background: #fff;
+  }
+  .coche.is-on { background: var(--cuivre); border-color: var(--cuivre); position: relative; }
+  .coche.is-on::after {
+    content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+    border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(42deg);
+  }
+  .vers__nom { flex: 1 1 180px; }
+  .vers__nom .quand { display: block; font-size: 12px; color: var(--encre-d); }
+  .vers__reste { font-size: 13px; color: var(--encre-d); white-space: nowrap; }
+  .vers__pris {
+    font-family: var(--serif); font-size: 16px; color: var(--indigo);
+    border: 1px solid var(--cuivre-p); background: #fff; border-radius: 2px;
+    padding: 3px 9px; white-space: nowrap;
+  }
+  .totaux {
+    margin-top: 14px; border-top: 1px solid var(--filet); padding-top: 11px;
+    display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; font-size: 13.5px;
+  }
+  .totaux b { font-family: var(--serif); font-size: 17px; color: var(--indigo); font-weight: 400; }
+  .alerte {
+    margin-top: 12px; border: 1px solid var(--cuivre-p); background: var(--cuivre-f);
+    border-radius: 2px; padding: 10px 12px; font-size: 13px; color: var(--brique);
+  }
+  .alerte b { font-weight: 500; }
+  .boutons { margin-top: 18px; display: flex; gap: 9px; justify-content: flex-end; }
+  .bt {
+    border: 1px solid var(--filet); background: #fff; color: var(--encre);
+    border-radius: 2px; padding: 8px 16px; font-size: 13px; font-family: var(--sans);
+  }
+  .bt--cuivre { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+
+  /* ── Deux colonnes ── */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 880px) { .duo { grid-template-columns: 1fr; } }
+
+  /* ── Listes ── */
+  ol.gestes, ul.puces { padding-left: 20px; max-width: 68ch; color: var(--encre-d); }
+  ol.gestes li, ul.puces li { margin-bottom: 12px; }
+  ol.gestes b, ul.puces b { color: var(--encre); font-weight: 500; }
+
+  .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .carte {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); padding: 16px 18px;
+  }
+  .carte h3 { margin-bottom: 5px; }
+  .carte p { margin: 0; font-size: 13.5px; color: var(--encre-d); }
+
+  .trancher {
+    border-left: 2px solid var(--cuivre); padding: 2px 0 2px 16px; margin-bottom: 22px; max-width: 70ch;
+  }
+  .trancher h3 { margin-bottom: 3px; }
+  .trancher p { margin: 0; color: var(--encre-d); font-size: 14px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>L’argent a un nom.</h1>
+  <p class="chapeau">
+    Une dépense de 60 000 F ne dit rien de ce qu’elle a coûté à la Maison tant qu’on
+    ignore <b>de qui</b> vient l’argent. Cette maquette montre comment le Trône relie
+    chaque dépense aux versements qui l’ont payée — et dit clairement le moment où
+    <b>un nouveau revenu est entamé</b>.
+  </p>
+
+  <section>
+    <h2>Pourquoi.</h2>
+    <p class="intro">
+      Aujourd’hui, la caisse est un seul tas. On y verse les règlements des clientes, on
+      y prend de quoi payer un prestataire, et le solde suit. Mais quand la Maison
+      demande « le mois de Ghislain a servi à quoi ? », rien ne répond : l’argent a
+      perdu son nom en entrant.
+    </p>
+    <p class="intro">
+      Le remède n’est pas comptable, il est <b>narratif</b>. Chaque dépense désigne le ou
+      les versements qui la paient. Le Trône garde ce lien, l’affiche des deux côtés —
+      sur la dépense et sur l’encaissement — et signale d’un mot quand une dépense
+      <b>entame un revenu neuf</b>.
+    </p>
+  </section>
+
+  <section>
+    <h2>L’écran des dépenses.</h2>
+    <p class="intro">
+      Chaque dépense porte désormais une ligne de provenance. Elle se lit d’un regard :
+      qui a payé, combien de son versement, et ce qu’il en reste.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Dépenses · Caisse principale</h4>
+        <span class="compte">août 2026 · 14 écritures</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="dep">
+          <div class="dep__ligne">
+            <span class="dep__date">21 août</span>
+            <span class="dep__quoi">
+              <b>Part du prestataire — Gérard T.</b>
+              <span class="sous">Rémunérations · 3 rituels honorés</span>
+            </span>
+            <span class="dep__montant">60 000 F</span>
+          </div>
+          <div class="prov">
+            <p class="prov__titre">Payée par</p>
+            <div class="source">
+              <span class="source__puce"></span>
+              <span class="source__nom">
+                <b>Assetina S.</b>
+                <span class="quand">· versement du 19 août · espèces</span>
+              </span>
+              <span class="source__xof">12 000 F</span>
+            </div>
+            <div class="source">
+              <span class="source__puce source__puce--neuf"></span>
+              <span class="source__nom">
+                <b>Ghislain A.</b>
+                <span class="quand">· versement du 20 août · Momo</span>
+                <span class="tag">revenu entamé</span>
+              </span>
+              <span class="source__xof">48 000 F</span>
+            </div>
+            <p class="prov__reste">
+              Le versement d’Assetina est <b>épuisé</b>. Il reste <b>27 000 F</b> sur celui de Ghislain.
+            </p>
+          </div>
+        </div>
+
+        <div class="dep">
+          <div class="dep__ligne">
+            <span class="dep__date">20 août</span>
+            <span class="dep__quoi">
+              <b>Produits — mèches &amp; soins</b>
+              <span class="sous">Achats · 4 articles</span>
+            </span>
+            <span class="dep__montant">85 000 F</span>
+          </div>
+          <div class="prov">
+            <p class="prov__titre">Payée par</p>
+            <div class="source">
+              <span class="source__puce"></span>
+              <span class="source__nom">
+                <b>Maëlys T.</b>
+                <span class="quand">· versement du 18 août · virement</span>
+              </span>
+              <span class="source__xof">85 000 F</span>
+            </div>
+            <p class="prov__reste">Il reste <b>15 000 F</b> sur ce versement.</p>
+          </div>
+        </div>
+
+        <div class="dep">
+          <div class="dep__ligne">
+            <span class="dep__date">18 août</span>
+            <span class="dep__quoi">
+              <b>Électricité — juillet</b>
+              <span class="sous">Charges du foyer</span>
+            </span>
+            <span class="dep__montant">32 000 F</span>
+          </div>
+          <div class="prov">
+            <p class="prov--muette">
+              Aucun revenu désigné — <span class="tag tag--doux">à rattacher</span>
+              Les anciennes dépenses restent muettes jusqu’à ce qu’on les nomme. Rien ne s’invente tout seul.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <p class="legende">
+      La pastille cuivre pleine marque le <b>revenu entamé</b> : c’est la première fois
+      que la Maison puise dans ce versement-là. La pastille claire indique un versement
+      déjà entamé auparavant.
+    </p>
+  </section>
+
+  <section>
+    <h2>Le geste, au moment de la dépense.</h2>
+    <p class="intro">
+      Tu désignes toi-même. Le Trône ne propose que les versements <b>de la même caisse</b>
+      qui ont encore du reste, du plus ancien au plus récent — et il remplit les montants
+      pour toi, quitte à ce que tu les corriges.
+    </p>
+
+    <div class="duo">
+      <div>
+        <div class="modale">
+          <div class="modale__tete">
+            <h4>Nouvelle dépense</h4>
+            <span class="compte">Caisse principale · XOF</span>
+          </div>
+          <div class="modale__corps">
+
+            <div class="champ">
+              <p class="champ__lab">Le motif</p>
+              <div class="saisie">Part du prestataire — Gérard T.</div>
+            </div>
+
+            <div class="champ">
+              <p class="champ__lab">Le montant</p>
+              <div class="saisie">60 000 F</div>
+            </div>
+
+            <div class="champ">
+              <p class="champ__lab">Payée par quel revenu</p>
+              <div class="versements">
+                <div class="vers is-on">
+                  <span class="coche is-on"></span>
+                  <span class="vers__nom">
+                    <b>Assetina S.</b>
+                    <span class="quand">19 août · espèces</span>
+                  </span>
+                  <span class="vers__reste">reste 12 000 F</span>
+                  <span class="vers__pris">12 000 F</span>
+                </div>
+                <div class="vers is-on">
+                  <span class="coche is-on"></span>
+                  <span class="vers__nom">
+                    <b>Ghislain A.</b>
+                    <span class="quand">20 août · Momo</span>
+                  </span>
+                  <span class="vers__reste">reste 75 000 F</span>
+                  <span class="vers__pris">48 000 F</span>
+                </div>
+                <div class="vers">
+                  <span class="coche"></span>
+                  <span class="vers__nom">
+                    <b>Matina D.</b>
+                    <span class="quand">21 août · espèces</span>
+                  </span>
+                  <span class="vers__reste">reste 30 000 F</span>
+                </div>
+              </div>
+
+              <div class="totaux">
+                <span>Désigné · <b>60 000 F</b></span>
+                <span>Reste à désigner · <b>0 F</b></span>
+              </div>
+
+              <div class="alerte">
+                Cette dépense <b>entame le versement de Ghislain A.</b> — c’est la
+                première fois que la Maison y puise.
+              </div>
+            </div>
+
+            <div class="boutons">
+              <span class="bt">Annuler</span>
+              <span class="bt bt--cuivre">Enregistrer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Ce que fait le Trône pour toi</h3>
+        <ul class="puces">
+          <li>
+            <b>Il remplit en cascade.</b> Tu coches un versement, il y prend ce qu’il peut ;
+            tu en coches un second, il prend le manque. Trois clics pour une dépense qui
+            traverse deux revenus.
+          </li>
+          <li>
+            <b>Il ne laisse pas partir un compte faux.</b> Tant que « reste à désigner »
+            n’est pas à zéro, le bouton attend — ou tu enregistres en laissant une part
+            non nommée, si tu préfères avancer.
+          </li>
+          <li>
+            <b>Il dit l’entame.</b> Le bandeau cuivre nomme le revenu touché pour la
+            première fois. C’est exactement ta demande : savoir quand on passe au suivant.
+          </li>
+          <li>
+            <b>Il ne propose que ce qui existe.</b> Même caisse, reste supérieur à zéro,
+            du plus ancien au plus récent. Un versement épuisé disparaît de la liste.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>L’autre sens : ce que ce revenu a payé.</h2>
+    <p class="intro">
+      Le lien se lit dans les deux directions. Depuis un encaissement — sur la facture,
+      ou dans la fiche de la cliente — la Maison voit où l’argent est allé.
+    </p>
+
+    <div class="ecran" style="max-width: 620px;">
+      <div class="ecran__tete">
+        <h4>Versement de Ghislain A.</h4>
+        <span class="compte">20 août · Momo · 75 000 F</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="prov" style="border-top: none;">
+          <p class="prov__titre">Cet argent a servi à</p>
+          <div class="source">
+            <span class="source__puce"></span>
+            <span class="source__nom">
+              <b>Part du prestataire — Gérard T.</b>
+              <span class="quand">· 21 août</span>
+            </span>
+            <span class="source__xof">48 000 F</span>
+          </div>
+          <p class="prov__reste">Il reste <b>27 000 F</b> de ce versement en caisse.</p>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      C’est le même lien, relu à l’envers — rien de nouveau à saisir. La Maison peut
+      enfin répondre à « le mois de Ghislain a servi à quoi ? ».
+    </p>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas.</h2>
+    <div class="cartes">
+      <div class="carte">
+        <h3>Deviner à ta place</h3>
+        <p>
+          Les dépenses déjà enregistrées restent muettes tant que tu ne les nommes pas.
+          Inventer une provenance serait pire que le silence : on lirait une histoire
+          fausse en croyant lire la vraie.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Changer le solde</h3>
+        <p>
+          Le solde de caisse ne bouge pas d’un franc. C’est une lecture posée par-dessus
+          l’existant, jamais un second compte qui pourrait diverger du premier.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>T’empêcher d’avancer</h3>
+        <p>
+          Une dépense peut s’enregistrer sans désigner de revenu. Le lien est un
+          confort, pas un péage — le comptoir passe avant la comptabilité.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qu’il faut trancher avant de construire.</h2>
+
+    <div class="trancher">
+      <h3>Les avoirs et les pourboires comptent-ils comme des revenus ?</h3>
+      <p>
+        Un avoir versé entre bel et bien en caisse, comme un règlement — le Trône le sait
+        déjà. Doit-il figurer parmi les revenus qu’on peut désigner ? Mon avis : <b>oui
+        pour les avoirs</b>, et <b>non pour les pourboires</b> — ils appartiennent à
+        l’équipe, pas à la Maison, et les dépenser reviendrait à les prendre.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Que faire quand une dépense dépasse tout ce qui reste ?</h3>
+      <p>
+        Si la caisse a moins de revenus nommables que le montant dépensé, la part
+        excédentaire reste « non nommée ». Mon avis : l’afficher telle quelle, sans
+        alerte — c’est une information, pas une faute.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Rattraper l’historique ?</h3>
+      <p>
+        Les dépenses passées peuvent recevoir leur provenance à la main, une par une, via
+        le même sélecteur. Mon avis : ne rien rattraper d’office, et laisser la Maison
+        nommer ce qui l’intéresse quand la question se pose.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça demande, en vrai.</h2>
+    <ol class="gestes">
+      <li>
+        <b>Un champ de plus sur la dépense</b> — pour chaque revenu désigné : sa
+        référence, le nom de la cliente, la date et la part prise. Le nom et la date sont
+        <b>figés à l’enregistrement</b>, comme le prix d’un rituel : le catalogue vit,
+        l’histoire non. Une fiche renommée demain ne réécrit pas une dépense d’hier.
+      </li>
+      <li>
+        <b>Aucune nouvelle liste de revenus à construire</b> — elle existe déjà. Le
+        registre des encaissements réunit depuis longtemps les versements de facture, les
+        acomptes du comptoir, les formations, les abonnements et les avoirs versés,
+        chacun avec sa caisse, sa cliente et sa date. Le sélecteur s’y branche.
+      </li>
+      <li>
+        <b>Un calcul de reste par revenu</b> — ce qu’un versement a apporté, moins tout ce
+        que les dépenses lui ont déjà pris. C’est ce chiffre qui alimente le sélecteur et
+        qui dit si un revenu est entamé.
+      </li>
+      <li>
+        <b>Le sélecteur dans la modale de dépense</b>, avec le remplissage en cascade et
+        le bandeau d’entame ; puis <b>la ligne de provenance</b> sous chaque dépense, et sa
+        relecture inverse depuis l’encaissement.
+      </li>
+    </ol>
+    <p class="legende">
+      Aucune migration de base n’est nécessaire : les dépenses vivent déjà en JSON, le
+      champ s’ajoute sans toucher au schéma. Le solde de caisse, lui, n’est pas touché
+      d’une ligne — ce serait un second compte, et deux comptes finissent toujours par
+      diverger.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
