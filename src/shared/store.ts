@@ -60,12 +60,41 @@ export type Store<T> = {
 export const HOUSE_BLANK = localStorage.getItem('mnd_house_blank') === '1';
 const BLANK_KEEP = new Set(['mnd_branches', 'mnd_current_branch']);
 
+/* ── LE DISQUE DU NAVIGATEUR PEUT ÊTRE PLEIN — 21 août 2026 ──────────
+   LE MACBOOK DE LA MAISON : « tout arrive sauf les clientes », sur les trois
+   comptes souverains, à chaque redémarrage.
+
+   `localStorage.setItem` n'était protégé par rien. Quand le navigateur refuse
+   d'écrire — quota dépassé, et Safari est de loin le plus strict — la ligne
+   JETAIT, et l'événement qui prévient l'écran, juste en dessous, n'était
+   jamais émis. Le magasin gardait sa valeur vide et l'écran restait blanc,
+   sans un mot. Les fiches clientes sont le plus gros paquet de la Maison :
+   c'est donc lui qui débordait, tout ce qui s'écrit avant passant très bien.
+
+   Trois règles désormais, dans cet ordre :
+   ① le refus du disque n'interrompt JAMAIS le geste — la valeur vit en
+     mémoire, l'écran s'affiche, la Maison travaille ;
+   ② l'écran est prévenu même quand l'écriture a échoué (c'est cette ligne-là
+     qui manquait, et elle seule suffisait à tout figer) ;
+   ③ le magasin passe alors en MÉMOIRE SEULE : il cesse de relire un disque
+     qui ne porte plus qu'une valeur périmée, ou rien du tout.
+
+   Le serveur reste la vérité : au prochain démarrage, tout se relit là-bas. */
+const magasinsSatures = new Set<string>();
+
+/** Les magasins que le navigateur a refusé d'écrire — nommés dans
+    « Cet appareil » (Paramètres). Un poste saturé doit pouvoir le dire. */
+export const magasinsEnMemoireSeule = (): string[] => [...magasinsSatures].sort();
+
 export function createStore<T>(key: string, initial: T): Store<T> {
   const seed: T = HOUSE_BLANK && Array.isArray(initial) && !BLANK_KEEP.has(key) ? ([] as unknown as T) : initial;
   let cache: T | undefined;
   let cachedRaw: string | null = null;
+  /* Le disque a refusé cette clé : la mémoire fait foi jusqu'au rechargement. */
+  let memoireSeule = false;
 
   const read = (): T => {
+    if (memoireSeule && cache !== undefined) return cache;
     const raw = localStorage.getItem(nsKey(key));
     if (raw === null) return seed;
     if (raw === cachedRaw && cache !== undefined) return cache;
@@ -98,7 +127,19 @@ export function createStore<T>(key: string, initial: T): Store<T> {
       const value = typeof next === 'function' ? (next as (p: T) => T)(read()) : next;
       cache = value;
       cachedRaw = JSON.stringify(value);
-      localStorage.setItem(nsKey(key), cachedRaw);
+      try {
+        localStorage.setItem(nsKey(key), cachedRaw);
+        if (memoireSeule) { memoireSeule = false; magasinsSatures.delete(key); }
+      } catch {
+        /* ① Le geste passe quand même. */
+        memoireSeule = true;
+        magasinsSatures.add(key);
+        /* La valeur restée au disque est PÉRIMÉE — la relire ferait reculer
+           l'écran sur un état plus ancien que celui qu'on vient de poser. */
+        try { localStorage.removeItem(nsKey(key)); } catch { /* rien à faire de plus */ }
+        console.warn(`[mnd-store] ${key} : le navigateur refuse d'écrire (mémoire saturée) — on continue en mémoire seule.`);
+      }
+      /* ② TOUJOURS prévenir l'écran, écriture réussie ou non. */
       window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
     },
     subscribe: (fn) => {

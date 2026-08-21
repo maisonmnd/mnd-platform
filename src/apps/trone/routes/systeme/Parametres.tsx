@@ -15,7 +15,7 @@ import { useSegments, renameSegment, clientsStore, useClients } from '../../../.
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
-import { createStore, useStore } from '../../../../shared/store';
+import { createStore, useStore, magasinsEnMemoireSeule } from '../../../../shared/store';
 import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } from '../../backup';
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
@@ -639,6 +639,15 @@ function CetAppareil() {
             <span className="sys-appareil__lab">Refus du serveur</span>
             <span className="sys-appareil__val">
               {sync.failedWhy.map((f) => `${f.table} · ${f.raison}`).join(' — ')}
+            </span>
+          </div>
+        )}
+        {magasinsEnMemoireSeule().length > 0 && (
+          <div className="sys-appareil__row">
+            <span className="sys-appareil__lab">Mémoire saturée</span>
+            <span className="sys-appareil__val">
+              {magasinsEnMemoireSeule().join(', ')}
+              <span className="sys-appareil__note"> — le navigateur refuse d’écrire ces données sur ce poste. La Maison continue de tourner (tout vit en mémoire et sur le serveur), mais « Repartir du serveur » fera de la place.</span>
             </span>
           </div>
         )}
