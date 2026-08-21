@@ -5,7 +5,7 @@
    qu'il reste de chaque revenu, et QUAND un revenu neuf a été entamé. */
 
 import {
-  partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
+  partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe, etatDuRevenu,
   type Expense, type DepenseSource,
 } from '../src/shared/finance';
 
@@ -111,6 +111,27 @@ dit('cascade : la somme fait le coût, jamais plus', 50_000,
 dit('une dépense juste traverse la borne intacte', [12_000, 48_000],
   sourcesDe(troisDepenses[0]).map((s) => s.xof));
 dit('une dépense muette reste muette', 0, sourcesDe(dep('d10', '2026-08-18', 9_000)).length);
+
+/* ── ⑦ L'ÉTAT D'UN REVENU — intact / entamé / épuisé ────────────
+   « Où retrouver le bilan des revenus entamés et terminés ? » Trois états,
+   un seul juge : ce qui a été pris. */
+dit('rien pris → intact', 'intact', etatDuRevenu(40_000, 0));
+dit('une part prise → entamé', 'entame', etatDuRevenu(40_000, 3_000));
+dit('tout pris → épuisé', 'epuise', etatDuRevenu(40_000, 40_000));
+/* Au CENTIME près : 39 999 sur 40 000 reste entamé. Un arrondi qui basculerait
+   en « épuisé » ferait disparaître un franc encore disponible. */
+dit('39 999 sur 40 000 reste entamé', 'entame', etatDuRevenu(40_000, 39_999));
+/* Et un dépassement se lit « épuisé », jamais « entamé » : la comparaison est
+   en « au moins ». Une écriture douteuse ne doit pas retomber dans l'état qui
+   dit « il en reste ». */
+dit('un dépassement se lit épuisé', 'epuise', etatDuRevenu(40_000, 45_000));
+dit('un revenu à zéro est intact, pas épuisé', 'intact', etatDuRevenu(0, 0));
+
+/* Le bilan de la journée de Yéman, bout en bout : 3 000 F pris sur les
+   40 000 F de Ghislain — entamé, et 37 000 F encore disponibles. */
+const prisGhislain = partsPrisesParRevenu([abusive]).get('rE') ?? 0;
+dit('le revenu de Ghislain est entamé', 'entame', etatDuRevenu(40_000, prisGhislain));
+dit('… et 37 000 restent dépensables', 37_000, 40_000 - prisGhislain);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

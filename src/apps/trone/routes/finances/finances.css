@@ -974,3 +974,75 @@
   .trf-prov { margin-left: 0; }
   .trf-revenu__part { width: 92px; }
 }
+
+/* ── Le bilan des revenus — 21 août 2026 ───────────────────────────
+   Trois cartes cliquables : intact · entamé · épuisé. Le vert dit ce qui
+   dort entier, le cuivre ce qui a commencé à servir, l'indigo ce qui a
+   entièrement servi — jamais le rouge : dépenser un revenu n'est pas une
+   faute, c'est le métier. */
+.trf-etat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-ivoire, #FBF8F2);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+.trf-etat:hover { border-color: var(--line); }
+.trf-etat.is-on { border-color: var(--color-copper); background: var(--copper-50, #FAF1E9); }
+.trf-etat__nom {
+  font-size: 9.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trf-etat--intact .trf-etat__nom { color: #4A6B52; }
+.trf-etat--entame .trf-etat__nom { color: var(--copper-700, #96412E); }
+.trf-etat--epuise .trf-etat__nom { color: var(--color-indigo); }
+.trf-etat__n { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trf-etat__somme {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}
+.trf-etat__reste { font-size: 11px; color: var(--ink-soft); line-height: 1.45; }
+
+/* La pastille portée par chaque ligne du registre */
+.trf-pastille {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  padding: 1px 7px;
+  border: 1px solid var(--hairline);
+  background: var(--color-ivoire, #FBF8F2);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.trf-pastille--intact {
+  border-color: rgba(74, 107, 82, .40);
+  background: rgba(74, 107, 82, .09);
+  color: #4A6B52;
+}
+.trf-pastille--entame {
+  border-color: var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700, #96412E);
+}
+.trf-pastille--epuise {
+  border-color: var(--indigo-200, #C6C7DA);
+  background: rgba(30, 33, 80, .06);
+  color: var(--color-indigo);
+}
+
+@media (max-width: 720px) {
+  .trf-etat__somme { font-size: 18px; }
+}

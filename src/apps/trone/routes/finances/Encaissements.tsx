@@ -9,9 +9,12 @@ import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { useInvoices, useExpenses, invoiceReglements, sourcesDe } from '../../../../shared/finance';
+import {
+  useInvoices, useExpenses, invoiceReglements, sourcesDe,
+  partsPrisesParRevenu, etatDuRevenu, LIBELLE_ETAT, type EtatRevenu,
+} from '../../../../shared/finance';
 import { staffStore } from '../equipe/data';
-import { totalBy, receiptKindLabel, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
+import { totalBy, receiptKindLabel, CAISSE_POURBOIRES, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
@@ -144,6 +147,8 @@ export default function Encaissements() {
   const [invoices] = useInvoices();
   const [appointments] = useAppointments();
   const [clients] = useClients();
+  /* Les dépenses disent quels revenus ont déjà servi — voir `etatDe`. */
+  const [expenses] = useExpenses();
 
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');
@@ -200,6 +205,10 @@ export default function Encaissements() {
      « Hors caisse » répond à une question qu'aucun des deux ne répond seul. */
   const [method, setMethod] = useState<string | null>(null);
   const [box, setBox] = useState<string | null>(null);
+  /* L'ÉTAT D'UN REVENU — 21 août 2026, « où retrouver le bilan des revenus
+     entamés et terminés ». Quatrième filtre, même grammaire que les trois
+     autres : cliquer restreint, re-cliquer relâche, et tout se cumule. */
+  const [etat, setEtat] = useState<EtatRevenu | null>(null);
   const boxOf = (r: Receipt) => r.cashbox ?? 'Hors caisse';
 
   /* Le registre vient de la porte commune — Dépenses lit exactement le même
@@ -207,14 +216,49 @@ export default function Encaissements() {
   const all = useRegistreEncaissements();
 
   const ofMonth = useMemo(() => all.filter((r) => monthKey(r.date) === month), [all, month]);
+
+  /* CE QUI A DÉJÀ ÉTÉ PUISÉ, revenu par revenu — une seule passe sur toutes
+     les dépenses de la Maison, jamais une relecture par ligne. */
+  const prisParRevenu = useMemo(() => partsPrisesParRevenu(expenses), [expenses]);
+
+  /* LES POURBOIRES N'ONT PAS D'ÉTAT. On ne peut pas les désigner pour payer
+     une dépense — c'est l'argent des mains — donc ils paraîtraient « intacts »
+     à jamais, ce qui laisserait croire à une réserve disponible. Ils restent
+     hors du bilan, et leur ligne ne porte aucune pastille. */
+  const aUnEtat = (r: Receipt) => r.kind !== 'pourboire' && (r.cashbox ?? '') !== CAISSE_POURBOIRES;
+  const etatDe = (r: Receipt): EtatRevenu | null =>
+    (aUnEtat(r) ? etatDuRevenu(r.amountXof, prisParRevenu.get(r.id) ?? 0) : null);
+  const resteDe = (r: Receipt): number => Math.max(0, r.amountXof - (prisParRevenu.get(r.id) ?? 0));
+
+  /* LE BILAN DU MOIS — combien de revenus dorment entiers, combien sont
+     entamés (et ce qu'il en reste), combien ont entièrement servi. */
+  const bilanEtats = useMemo(() => {
+    const vide: Record<EtatRevenu, { n: number; total: number; reste: number }> = {
+      intact: { n: 0, total: 0, reste: 0 },
+      entame: { n: 0, total: 0, reste: 0 },
+      epuise: { n: 0, total: 0, reste: 0 },
+    };
+    for (const r of ofMonth) {
+      const e = etatDe(r);
+      if (!e) continue;
+      vide[e].n += 1;
+      vide[e].total += r.amountXof;
+      vide[e].reste += Math.max(0, r.amountXof - (prisParRevenu.get(r.id) ?? 0));
+    }
+    return vide;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ofMonth, prisParRevenu]);
+
   const shown = useMemo(() => {
     const needle = normName(q);
     return ofMonth
       .filter((r) => kind === 'tous' || r.kind === kind)
       .filter((r) => !method || r.method === method)
       .filter((r) => !box || boxOf(r) === box)
+      .filter((r) => !etat || etatDe(r) === etat)
       .filter((r) => !needle || normName(r.clientName).includes(needle) || normName(r.ref ?? '').includes(needle));
-  }, [ofMonth, kind, method, box, q]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ofMonth, kind, method, box, etat, q, prisParRevenu]);
 
   const total = shown.reduce((s, r) => s + r.amountXof, 0);
   /* Les deux cartes restent le partage du MOIS ENTIER, jamais du filtre en
@@ -265,7 +309,6 @@ export default function Encaissements() {
      à quoi ? ». Rien de nouveau n'est saisi ici — c'est la même écriture,
      relue depuis l'argent qui est entré plutôt que depuis celui qui est
      sorti. Muet tant qu'aucune dépense n'a nommé ce revenu. */
-  const [expenses] = useExpenses();
   const AServi = ({ revenu }: { revenu: Receipt }) => {
     const dessus = expenses
       .filter((e) => sourcesDe(e).some((s) => s.ref === revenu.id))
@@ -412,6 +455,49 @@ export default function Encaissements() {
         </div>
       )}
 
+      {/* ── LE BILAN DES REVENUS — 21 août 2026 ──────────────────────
+          « Où retrouver le bilan des revenus entamés et terminés ? » Nulle
+          part : l'état ne se lisait qu'une ligne à la fois. Le voici d'un
+          regard, et chaque état ouvre la liste de ceux qui le portent. */}
+      <div className="trf-panel" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <div className="mnd-eyebrow" style={{ marginBottom: 0 }}>Ce que ces revenus sont devenus</div>
+          <span className="mnd-muted" style={{ fontSize: 11 }}>
+            Les pourboires n’en sont pas — ils appartiennent à l’équipe.
+          </span>
+        </div>
+        <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', gap: 12, marginTop: 10, alignItems: 'stretch' } as CSSProperties}>
+          {(['intact', 'entame', 'epuise'] as EtatRevenu[]).map((e) => {
+            const b = bilanEtats[e];
+            return (
+              <button
+                type="button"
+                key={e}
+                className={`trf-etat trf-etat--${e} ${etat === e ? 'is-on' : ''}`}
+                aria-pressed={etat === e}
+                title={etat === e ? 'Relâcher ce filtre' : `Ne voir que les revenus ${LIBELLE_ETAT[e].toLowerCase()}s`}
+                onClick={() => setEtat((prev) => (prev === e ? null : e))}
+              >
+                <span className="trf-etat__nom">{LIBELLE_ETAT[e]}</span>
+                <span className="trf-etat__n">{b.n} revenu{b.n > 1 ? 's' : ''}</span>
+                <span className="trf-etat__somme">{fmtMoney(b.total, currency)}</span>
+                {/* Sur un revenu entamé, le chiffre qui sert vraiment est ce
+                    qu'il RESTE — c'est lui qu'on peut encore dépenser. */}
+                {e === 'entame' && b.n > 0 && (
+                  <span className="trf-etat__reste">dont {fmtMoney(b.reste, currency)} encore disponibles</span>
+                )}
+                {e === 'intact' && b.n > 0 && (
+                  <span className="trf-etat__reste">rien n’y a encore été puisé</span>
+                )}
+                {e === 'epuise' && b.n > 0 && (
+                  <span className="trf-etat__reste">entièrement dépensés</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Totaux du mois — par moyen puis par caisse. */}
       <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
         <div className="trf-panel">
@@ -520,6 +606,16 @@ export default function Encaissements() {
                   <b style={{ fontWeight: 'var(--weight-medium)' }}>{r.clientName}</b>
                   <span className="trc-src">{receiptKindLabel(r.kind)}</span>
                   {r.ref && <span className="mnd-muted" style={{ fontSize: 11 }}>{r.ref}</span>}
+                  {(() => {
+                    const e = etatDe(r);
+                    if (!e) return null;
+                    return (
+                      <span className={`trf-pastille trf-pastille--${e}`}>
+                        {LIBELLE_ETAT[e]}
+                        {e === 'entame' ? ` · reste ${fmtMoney(resteDe(r), currency)}` : ''}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <span className="mnd-muted" style={{ fontSize: 11.5, textAlign: 'left' }}>
                   {frDay(r.date)} · {r.label} · {r.method}{r.cashbox ? ` · ${r.cashbox}` : ''}

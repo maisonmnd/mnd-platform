@@ -267,6 +267,28 @@ export const partsPrisesParRevenu = (
 export const partNonNommee = (e: Expense): number =>
   Math.max(0, expenseTotal(e) - sourcesDe(e).reduce((s, x) => s + x.xof, 0));
 
+/** L'ÉTAT D'UN REVENU — 21 août 2026, « où retrouver le bilan des revenus
+    entamés et terminés ». Trois états, et un seul juge : ce qui a été pris.
+
+    INTACT  · rien n'y a encore été puisé — l'argent dort entier en caisse.
+    ENTAMÉ  · une dépense au moins y a puisé, il en reste.
+    ÉPUISÉ  · tout a servi.
+
+    La comparaison est en « au moins » (`>=`) et non en égalité : une écriture
+    douteuse pourrait déclarer plus que le revenu n'a apporté, et un tel cas
+    doit se lire « épuisé », jamais retomber dans « entamé » par accident.
+    (`sourcesDe` borne déjà ce dépassement en amont ; ceci est la ceinture.) */
+export type EtatRevenu = 'intact' | 'entame' | 'epuise';
+
+export const etatDuRevenu = (montantXof: number, prisXof: number): EtatRevenu => {
+  if (prisXof <= 0) return 'intact';
+  return prisXof >= montantXof ? 'epuise' : 'entame';
+};
+
+export const LIBELLE_ETAT: Record<EtatRevenu, string> = {
+  intact: 'Intact', entame: 'Entamé', epuise: 'Épuisé',
+};
+
 /** LE REVENU EST-IL ENTAMÉ PAR CETTE DÉPENSE-LÀ ? Vrai quand aucune dépense
     ANTÉRIEURE n'y a puisé — c'est la question de Yéman : « quand j'ai entamé
     un autre revenu, le savoir ». L'ordre est celui de la date de dépense, puis
