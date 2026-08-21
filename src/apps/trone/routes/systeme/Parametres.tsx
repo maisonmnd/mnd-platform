@@ -4,12 +4,14 @@ import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
+import { useAuth } from '../../../../shared/auth';
+import { getSyncState, subscribeSync } from '../../../../shared/sync';
 import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
 import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
-import { useSegments, renameSegment, clientsStore } from '../../../../shared/clients';
+import { useSegments, renameSegment, clientsStore, useClients } from '../../../../shared/clients';
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
@@ -449,6 +451,8 @@ function SauvegardeCard() {
   };
 
   return (
+    <>
+    <CetAppareil />
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4, gap: 12, flexWrap: 'wrap' }}>
         <div>
@@ -532,6 +536,99 @@ function SauvegardeCard() {
           </span>
         </div>
       )}
+    </Card>
+    </>
+  );
+}
+
+/* ── CET APPAREIL — 21 août 2026 ────────────────────────────────────
+   « Mon compte MacBook s'ouvre mais avec des clientes à 0. Quand je redémarre,
+   toujours la même chose. Comment mettre à jour ? »
+
+   Trois causes possibles, et aucune ne se voyait à l'écran : un compte qui
+   n'est pas du personnel (la base lui refuse les fiches — zéro n'est pas une
+   perte, c'est un refus), une branche vide sélectionnée (tout est filtré par
+   branche), ou un cache local resté vide qui ne se laisse plus remplir.
+
+   Le remède existait — vider `mnd_*` et recharger — mais il demandait la
+   console du navigateur, ce qui le rendait inutilisable sur un Mac au
+   comptoir. Il est ici, avec le diagnostic qui dit laquelle des trois. */
+function CetAppareil() {
+  const { session } = useAuth();
+  const { branch } = useBranch();
+  const [clients] = useClients();
+  const [sync, setSync] = useState(getSyncState());
+  useEffect(() => subscribeSync(() => setSync(getSyncState())), []);
+
+  const mail = (session?.user?.email ?? '').trim().toLowerCase();
+  /* RIEN EN ATTENTE = ON PEUT REPARTIR SANS RIEN PERDRE. Une écriture jamais
+     poussée n'existe que sur cet appareil : la jeter avec le cache serait la
+     perdre pour de bon. Le bouton le dit avant, et refuse tant qu'il y a une
+     poussée en souffrance. */
+  const enAttente = sync.pending + sync.failed;
+
+  const repartirDuServeur = () => {
+    if (enAttente > 0 && !window.confirm(
+      `${enAttente} écriture(s) de cet appareil ne sont pas encore parties au serveur. `
+      + 'Repartir du serveur maintenant les PERDRAIT définitivement. '
+      + 'Mieux vaut attendre que la pastille repasse au vert. Repartir quand même ?',
+    )) return;
+    if (!window.confirm(
+      'Cet appareil va oublier ce qu’il garde en mémoire et tout redemander au serveur. '
+      + 'La Maison n’est pas touchée : rien n’est effacé côté serveur, et les autres '
+      + 'appareils ne changent pas. Vous devrez vous reconnecter. Continuer ?',
+    )) return;
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith('mnd_')) localStorage.removeItem(k);
+    }
+    location.reload();
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div className="sys-section__title">Cet appareil</div>
+      <div className="sys-section__cap" style={{ maxWidth: 640 }}>
+        Ce que CE poste voit — utile quand un écran affiche zéro alors que la Maison est pleine.
+        Les trois lignes ci-dessous disent laquelle des trois causes est la bonne.
+      </div>
+
+      <div className="sys-appareil">
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Compte connecté</span>
+          <span className="sys-appareil__val">{mail || 'aucun — poste hors ligne'}</span>
+        </div>
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Branche affichée</span>
+          <span className="sys-appareil__val">{branch.name} · {branch.currency}</span>
+        </div>
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Clientes vues ici</span>
+          <span className="sys-appareil__val">
+            {clients.length}
+            {clients.length === 0 && (
+              <span className="sys-appareil__note">
+                {' '}— si la Maison en compte, c’est que ce compte n’a pas les droits,
+                que la branche affichée est vide, ou que la mémoire de ce poste est restée à zéro.
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Écritures en attente</span>
+          <span className="sys-appareil__val">
+            {enAttente === 0 ? 'aucune — tout est parti au serveur' : `${enAttente} — attendez le vert avant de repartir`}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
+        <Button variant="copper" onClick={repartirDuServeur}>Repartir du serveur</Button>
+        <span className="mnd-muted" style={{ fontSize: 11.5, maxWidth: 520, lineHeight: 1.55 }}>
+          Vide la mémoire de CET appareil et redemande tout à la base. Le serveur fait foi :
+          rien n’est effacé, aucun autre poste n’est touché. À faire quand un écran reste
+          obstinément vide après un rechargement.
+        </span>
+      </div>
     </Card>
   );
 }

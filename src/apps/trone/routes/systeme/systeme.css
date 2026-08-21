@@ -423,3 +423,44 @@
   .trs-geste__h { width: 36px; }
   .trs-diff__champ { width: 100%; }
 }
+
+/* ── Cet appareil — 21 août 2026 ───────────────────────────────────
+   Le diagnostic d'un poste qui affiche zéro : compte, branche, mémoire.
+   Trois lignes qui disent laquelle des trois causes est la bonne. */
+.sys-appareil {
+  margin-top: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-ivoire, #FBF8F2);
+  overflow: hidden;
+}
+.sys-appareil__row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 13px;
+  flex-wrap: wrap;
+}
+.sys-appareil__row + .sys-appareil__row { border-top: 1px solid var(--hairline); }
+.sys-appareil__lab {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  width: 150px;
+  flex: none;
+}
+.sys-appareil__val {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--ink);
+  flex: 1 1 200px;
+  min-width: 0;
+  word-break: break-word;
+}
+.sys-appareil__note { color: var(--ink-soft); font-size: 12px; }
+
+@media (max-width: 720px) {
+  .sys-appareil__lab { width: 100%; }
+}
