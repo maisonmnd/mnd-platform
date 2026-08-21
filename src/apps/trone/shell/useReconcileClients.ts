@@ -8,8 +8,9 @@ import { consultationsQueueStore } from '../../../shared/bridges';
 import { branchesStore, currentBranchStore } from '../../../shared/branches';
 import { tablePrete } from '../../../shared/sync';
 import { servicesStore, fondeLaCouronne } from '../../../shared/catalog';
-import { annuaireStore } from '../routes/equipe/data';
+import { annuaireStore, nomDuCompte } from '../routes/equipe/data';
 import { supabase } from '../../../shared/supabase';
+import { poseLIdentite } from '../../../shared/journal';
 
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
 export const PROSPECT_SEGMENT = 'Prospect';
@@ -112,6 +113,22 @@ export function useReconcileClients(): void {
       });
     })();
   }, [session, appts, invoices, tousClients]);
+
+  /* ── QUI TIENT LA PLUME — 21 août 2026 ────────────────────────────
+     Le journal des gestes est capté dans la couche de synchronisation, qui vit
+     sous `shared/` et ne peut donc pas lire l'annuaire (il est sous
+     `apps/trone/`). C'est l'application qui POSE son identité, ici, à chaque
+     changement de session ou d'annuaire. Tant que rien n'est posé, un geste
+     s'inscrit sans nom plutôt que sous un nom faux. */
+  const [annuaire] = useStore(annuaireStore);
+  useEffect(() => {
+    const mail = session?.user?.email?.trim().toLowerCase();
+    poseLIdentite({
+      mail,
+      nom: mail ? nomDuCompte(annuaire, mail, mail) : 'Main inconnue',
+      porte: 'trone',
+    });
+  }, [session, annuaire]);
 
   /* ── L'ANNUAIRE DES COMPTES SE REMPLIT — 19 août 2026 ─────────────
      Le nom de chaque compte (celui d'Accès & personnel) descend dans le

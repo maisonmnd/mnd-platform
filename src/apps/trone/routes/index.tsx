@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -96,6 +96,7 @@ export const NAV: TroneGroup[] = [
          directement dans « Mon mois », sur le compte du gérant. */
       { path: '/comptoir', label: 'Comptoir · code du jour', icon: KeyRound, horsMenu: true, Component: lazy(() => import('../routes/equipe/Comptoir')) },
       { path: '/acces', label: 'Accès & personnel', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
+      { path: '/journal', label: 'Journal des gestes', icon: ScrollText, Component: lazy(() => import('./systeme/Journal')) },
       { path: '/branches', label: 'Branches', icon: MapPin, Component: lazy(() => import('./systeme/Branches')) },
       { path: '/marque', label: 'Marque & thème', icon: Palette, Component: lazy(() => import('./systeme/Marque')) },
     ],
@@ -160,7 +161,11 @@ export const domaineDe = (path: string): string | undefined =>
    au SOUVERAIN, comme la paie — un gérant qui tient le comptoir n'a pas à
    lire le budget maison de Brice et Yéman. Ceci n'est qu'une garde d'écran ;
    la vraie barrière est la RLS (`is_souverain()`, migration 0038). */
-export const ROUTES_SOUVERAIN = ['/salon-foyer'];
+/* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
+   climat de la Maison — on ne travaille pas pareil quand chaque geste est
+   public. Le personnel sait qu'il existe ; les souverains le consultent.
+   La vraie barrière reste la RLS (migration 0070), celle-ci n'est que le menu. */
+export const ROUTES_SOUVERAIN = ['/salon-foyer', '/journal'];
 
 export const peutVoir = (
   role: string | undefined,

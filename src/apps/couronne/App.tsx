@@ -5,6 +5,7 @@ import { useClients, useFamilies } from '../../shared/clients';
 import { ageDe, tetesPortees } from '../../shared/accounts';
 import { useEnsureClient, useActivityTracker, useClientId, useClient, useCompteEnDouble, useCompteMaison, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
+import { poseLIdentite } from '../../shared/journal';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
@@ -29,6 +30,15 @@ function Shell() {
   /* Le dossier de la cliente est garanti dès l'entrée dans l'app. */
   useEnsureClient();
   const clientId = useClientId();
+
+  /* QUI TIENT LA PLUME — 21 août 2026. Une réservation faite ici est un geste
+     comme un autre, mais son auteur n'est pas du personnel : le journal du
+     Trône l'inscrit sous sa PORTE D'ENTRÉE plutôt que sous un nom propre.
+     Savoir qu'un rendez-vous vient de l'application vaut mieux que de le
+     croire saisi au comptoir. */
+  useEffect(() => {
+    poseLIdentite({ nom: 'Une cliente', porte: 'couronne' });
+  }, []);
 
   /* Web Push : on enregistre le service worker au chargement, et on ré-abonne
      silencieusement si la cliente a déjà accordé la permission (nouvel appareil,

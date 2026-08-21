@@ -1,5 +1,10 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
+import {
+  tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
+  type Geste, type GesteVerbe, type ChampChange,
+} from './journal';
+
 import './version'; // veille de version : l'app se recharge quand un déploiement arrive
 
 /* Couche de synchronisation « offline-first ».
@@ -402,6 +407,66 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
+    /* ── LE JOURNAL DES GESTES — 21 août 2026 ─────────────────────
+       LA GREFFE UNIQUE. Toute écriture de toute collection passe ici : c'est
+       le seul endroit où l'on sait, sans qu'aucun écran ait à le déclarer, ce
+       qui vient d'être POSÉ (absent d'avant), MODIFIÉ (présent des deux
+       côtés) ou EFFACÉ. Instrumenter les vingt-huit écrans aurait laissé des
+       trous, et un journal troué ment plus qu'il n'informe.
+
+       TROIS PRÉCAUTIONS, dans cet ordre d'importance :
+       ① elle ne s'exécute qu'après une écriture RÉUSSIE — les chemins bloqués
+         par les garde-fous sont sortis plus haut, rien n'y est journalisé ;
+       ② elle n'attend rien (`void`) et avale ses propres erreurs : une trace
+         manquée ne doit jamais faire échouer la vente qu'elle observe ;
+       ③ elle ne connaît QUE les tables de la carte — la mécanique interne
+         (files d'attente, sessions, échos) ne dit rien de personne.
+
+       Les échos du serveur n'y passent pas : ils avancent `lastPushed` sans
+       créer de diff, donc `upserts` et `deletes` sont vides pour eux. */
+    if (ok && tableSuivie(table)) {
+      try {
+        const qui = identiteCourante();
+        const carte = CARTE_DES_TABLES[table];
+        const instant = new Date().toISOString();
+        const gestes: Geste[] = [];
+        const ligne = (
+          verbe: GesteVerbe, id: string, data: Record<string, unknown>, champs?: ChampChange[],
+        ) => gestes.push({
+          id: `g-${id}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          branchId: (data.branchId as string) ?? undefined,
+          quand: instant,
+          parMail: qui.mail,
+          /* Le nom est FIGÉ ici : un compte renommé demain ne réécrit pas un
+             geste d'hier. Même règle que la provenance des dépenses. */
+          parNom: qui.nom,
+          porte: qui.porte,
+          verbe,
+          table,
+          ecran: carte.ecran,
+          pieceId: id,
+          piece: carte.nomme(data),
+          ...(champs && champs.length ? { champs } : {}),
+        });
+
+        for (const u of upserts) {
+          const avantJson = prev.get(u.id);
+          const apres = u.data as unknown as Record<string, unknown>;
+          if (avantJson === undefined) { ligne('pose', u.id, apres); continue; }
+          const avant = JSON.parse(avantJson) as Record<string, unknown>;
+          ligne('modifie', u.id, apres, champsChanges(avant, apres));
+        }
+        for (const id of deletes) {
+          const avantJson = prev.get(id);
+          if (!avantJson) continue;
+          ligne('efface', id, JSON.parse(avantJson) as Record<string, unknown>);
+        }
+        void inscrisLesGestes(gestes);
+      } catch {
+        /* Silence volontaire — voir ② ci-dessus. */
+      }
+    }
+
     if (ok) syncMark.ok(table); else syncMark.fail(table, refus);
     return ok;
   };
