@@ -5,7 +5,7 @@ import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '..
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth } from '../../../../shared/auth';
-import { getSyncState, subscribeSync } from '../../../../shared/sync';
+import { getSyncState, subscribeSync, tablePrete } from '../../../../shared/sync';
 import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
 import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
@@ -613,6 +613,35 @@ function CetAppareil() {
             )}
           </span>
         </div>
+        {/* LA LECTURE DES FICHES, DITE À VOIX HAUTE. Une table écartée pour
+            cause de droits ne fait aucun bruit — c'est voulu (un maître n'a
+            pas à voir de rouge parce que la paie lui est fermée). Mais un
+            écran vide sans explication est pire qu'une alerte de trop. */}
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Lecture du serveur</span>
+          <span className="sys-appareil__val">
+            {tablePrete('clients')
+              ? 'les fiches ont été lues au moins une fois'
+              : 'pas encore lues — session en cours de restauration, ou poste hors ligne'}
+          </span>
+        </div>
+        {sync.ecartees.length > 0 && (
+          <div className="sys-appareil__row">
+            <span className="sys-appareil__lab">Tables écartées</span>
+            <span className="sys-appareil__val">
+              {sync.ecartees.join(', ')}
+              <span className="sys-appareil__note"> — les droits de ce compte les refusent. Ce n’est pas une panne, mais ces écrans resteront vides.</span>
+            </span>
+          </div>
+        )}
+        {sync.failedWhy.length > 0 && (
+          <div className="sys-appareil__row">
+            <span className="sys-appareil__lab">Refus du serveur</span>
+            <span className="sys-appareil__val">
+              {sync.failedWhy.map((f) => `${f.table} · ${f.raison}`).join(' — ')}
+            </span>
+          </div>
+        )}
         <div className="sys-appareil__row">
           <span className="sys-appareil__lab">Écritures en attente</span>
           <span className="sys-appareil__val">

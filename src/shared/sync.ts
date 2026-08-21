@@ -34,6 +34,12 @@ export type SyncState = {
   failedNames: string[];
   /** Ce qui a été refusé, et POURQUOI — une entrée par table en échec. */
   failedWhy: { table: string; raison: string; brut: string }[];
+  /** LES TABLES MISES DE CÔTÉ — refusées par les droits, donc volontairement
+      silencieuses (un maître n'a pas à voir de rouge parce que la paie lui est
+      fermée). Silencieuses ne veut pas dire invisibles : un écran vide sans
+      explication est pire qu'une alerte de trop. Le panneau « Cet appareil »
+      les nomme. */
+  ecartees: string[];
   lastOkAt: number | null;
 };
 
@@ -97,6 +103,7 @@ let syncSnapshot: SyncState = {
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   failedNames: [],
   failedWhy: [],
+  ecartees: [],
   pending: 0,
   failed: 0,
   lastOkAt: null,
@@ -114,6 +121,7 @@ function bumpSync(): void {
       const brut = failedTables.get(t) ?? '';
       return { table: t, raison: raisonLisible(brut), brut };
     }),
+    ecartees: [...horsPortee].sort(),
     lastOkAt,
   };
   syncListeners.forEach((f) => f());
@@ -536,7 +544,27 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
        C'était la cause des quatre tables toujours citées ensemble.
        On attend donc la session ; l'écouteur ci-dessous hydratera dès qu'elle
        est là. */
-    const { data: { session } } = await sb.auth.getSession();
+    /* ON ATTEND LA SESSION, ON N'ABANDONNE PLUS — 21 août 2026, le MacBook de
+       la Maison. Cette ligne rendait `return` quand la session n'était pas
+       encore restaurée, et s'en remettait entièrement à deux secours : un
+       événement d'authentification, ou un retour de focus.
+
+       Les deux peuvent manquer. L'événement `INITIAL_SESSION` est émis UNE
+       fois, très tôt : si le magasin s'abonne après lui, il ne le verra
+       jamais. Et le focus ne revient que si l'on quitte la fenêtre pour y
+       revenir — ce qu'on ne fait pas quand on ouvre Le Trône et qu'on regarde
+       l'écran. Sur un poste où la restauration du jeton est un peu plus lente
+       (Safari, démarrage à froid), la table restait donc VIDE indéfiniment,
+       et rien à l'écran ne disait pourquoi : trois comptes souverains
+       différents, zéro cliente, à chaque redémarrage.
+
+       On attend désormais la session, jusqu'à vingt secondes. Passé ce délai,
+       le poste est réellement déconnecté et les secours reprennent la main. */
+    let session = (await sb.auth.getSession()).data.session;
+    for (let essai = 0; essai < 50 && !session; essai += 1) {
+      await new Promise((r) => setTimeout(r, 400));
+      session = (await sb.auth.getSession()).data.session;
+    }
     if (!session) return;
     const { data, error } = await sb.from(table).select('id,data');
     if (error) {
@@ -583,7 +611,16 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
      car sous RLS les données visibles dépendent de l'utilisateur connecté. */
   let lastRefetch = 0;
   const refetch = async (force = false) => {
-    if (timer) return; // une écriture locale part bientôt — ne pas écraser
+    if (timer) {
+      /* Une écriture locale part bientôt : relire maintenant l'écraserait.
+         Mais un refetch FORCÉ vient d'un changement de session (connexion,
+         déconnexion, jeton rafraîchi) — sous RLS, ce que le poste a le droit
+         de voir vient de changer. Le perdre laissait l'écran sur les données
+         de l'utilisateur précédent, ou sur rien du tout. On le repose juste
+         après la poussée au lieu de le jeter. */
+      if (force) setTimeout(() => void refetch(true), PUSH_DEBOUNCE_MS + 300);
+      return;
+    }
     if (!force && Date.now() - lastRefetch < 15000) return;
     lastRefetch = Date.now();
     const { data, error } = await sb.from(table).select('id,data');
