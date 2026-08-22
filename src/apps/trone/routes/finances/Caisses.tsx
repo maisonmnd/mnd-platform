@@ -32,7 +32,7 @@ import './finances.css';
    qui sort. Elle a donc son écran, et Dépenses comme Encaissements y
    renvoient. Les calculs, eux, restent à une seule source (`useCaisses`). */
 
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean };
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Caisses() {
@@ -41,7 +41,7 @@ export default function Caisses() {
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
 
-  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, ouvertes } = useCaisses(month);
+  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, horsBilan, ouvertes } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
   const [invoices, setInvoices] = useInvoices();
   const [transferts, setTransferts] = useTransferts();
@@ -53,7 +53,7 @@ export default function Caisses() {
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false });
 
   /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
   const [aOuvrir, setAOuvrir] = useState<Cashbox | null>(null);
@@ -71,12 +71,12 @@ export default function Caisses() {
 
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false });
+    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan });
     setBoxOpen(true);
   };
 
@@ -98,6 +98,7 @@ export default function Caisses() {
         ? {
           ...b, name, sub, glyph, openingXof: opening,
           currency: boxForm.currency || undefined,
+          horsBilan: boxForm.horsBilan || undefined,
           codeHash: boxForm.code.trim() ? codeHash : (boxForm.codeExistant ? b.codeHash : undefined),
         }
         : b)));
@@ -130,6 +131,7 @@ export default function Caisses() {
       setCashboxes((prev) => [...prev, {
         id, branchId: branch.id, name, sub, glyph,
         openingXof: opening, currency: boxForm.currency || undefined,
+        horsBilan: boxForm.horsBilan || undefined,
         codeHash,
       }]);
       /* Elle s'ouvre pour la séance où on vient de la créer : sinon on
@@ -159,7 +161,9 @@ export default function Caisses() {
   const enregistrerTransfert = () => {
     const montant = parseInt(fTr.montant.replace(/[^0-9]/g, ''), 10) || 0;
     const recu = parseInt(fTr.recu.replace(/[^0-9]/g, ''), 10) || 0;
-    if (!fTr.de || !fTr.vers || fTr.de === fTr.vers || montant <= 0) return;
+    /* UN BOUT PEUT ÊTRE VIDE (apport ou sortie), MAIS PAS LES DEUX : un
+       mouvement qui ne part de nulle part et ne va nulle part n'existe pas. */
+    if ((!fTr.de && !fTr.vers) || (fTr.de && fTr.de === fTr.vers) || montant <= 0) return;
     if (changeDeDevise && recu <= 0) return;
     setTransferts((prev) => [...prev, {
       id: `trf-${uid()}`, branchId: branch.id, date: fTr.date || todayISO(),
@@ -206,14 +210,19 @@ export default function Caisses() {
               sans explication vaudrait pire qu'un total complet. */}
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--indigo-100)', marginTop: 6, lineHeight: 1.5 }}>
             Les caisses en devise ne s’y ajoutent pas — deux monnaies ne font pas un total.
+            {horsBilan > 0 && (
+              <> {horsBilan} caisse{horsBilan > 1 ? 's' : ''} hors bilan {horsBilan > 1 ? 'en sont écartées' : 'en est écartée'}.</>
+            )}
             {discretesFermees > 0 && (
               <> {discretesFermees} caisse{discretesFermees > 1 ? 's' : ''} discrète{discretesFermees > 1 ? 's' : ''} en {discretesFermees > 1 ? 'sont exclues' : 'est exclue'} — sinon la soustraction dirait son solde.</>
             )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flex: 'none', flexWrap: 'wrap' }}>
-          {branchBoxes.length > 1 && (
-            <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrOuvert(true)}>⇄ Transférer</button>
+          {/* UNE SEULE CAISSE SUFFIT : on ne transfère pas, mais on peut y
+              apporter. Exiger deux tiroirs cachait le geste à qui n'en a qu'un. */}
+          {branchBoxes.length > 0 && (
+            <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrOuvert(true)}>⇄ Transférer ou apporter</button>
           )}
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => navigate('/encaissements')}>Les encaissements →</button>
           <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => navigate('/depenses')}>Les dépenses →</button>
@@ -242,7 +251,10 @@ export default function Caisses() {
                     <span className="trf-caisse__glyph">{c.glyph}</span>
                     <div style={{ minWidth: 0 }}>
                       <div className="trf-caisse__name">{c.name}</div>
-                      <div className="trf-caisse__sub">{c.sub}</div>
+                      <div className="trf-caisse__sub">
+                        {c.sub}
+                        {c.horsBilan && <span className="trf-horsbilan">hors bilan</span>}
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 5, flex: 'none' }}>
@@ -296,13 +308,48 @@ export default function Caisses() {
           {transfertsDuMois.map((t) => (
             <div className="trf-linerow trf-linerow--split" key={t.id}>
               <span>
-                {t.de} <span className="mnd-muted">→</span> {t.vers}
+                {t.de || <i style={{ color: 'var(--ink-soft)' }}>apport</i>}
+                {' '}<span className="mnd-muted">→</span>{' '}
+                {t.vers || <i style={{ color: 'var(--ink-soft)' }}>sortie hors Maison</i>}
                 {t.note ? <span className="mnd-muted"> · {t.note}</span> : null}
               </span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-                {fmtMoney(t.amountXof, currency)}
-                {t.recuXof != null && t.recuXof !== t.amountXof ? ` → ${t.recuXof}` : ''}
-              </span>
+              {/* CHAQUE BOUT PARLE SA MONNAIE — 22 août 2026. La ligne
+                  affichait tout dans la devise de la Maison : 2 000 $ partis
+                  d'une caisse en dollars se lisaient « 2 000 F ». Le montant
+                  qui SORT se dit dans la devise du tiroir de départ, celui qui
+                  ENTRE dans celle du tiroir d'arrivée. */}
+              {(() => {
+                const cDe = branchBoxes.find((c) => c.name === t.de);
+                const cVers = branchBoxes.find((c) => c.name === t.vers);
+                const dDe = cDe ? cashboxCurrency(cDe) : currency;
+                const dVers = cVers ? cashboxCurrency(cVers) : currency;
+                const recu = t.recuXof ?? t.amountXof;
+                /* UN TRANSFERT QUI TOUCHE UN COMPTE FERMÉ NE DIT PAS SON
+                   MONTANT — 22 août 2026. La liste trahissait ce que la carte
+                   masquait : « Caisse Pilia → Caisse Mamou · 500 000 F »
+                   révèle d'un coup ce qu'on avait pris soin de cacher. Il faut
+                   ouvrir le compte pour lire le mouvement. */
+                const secret = [cDe, cVers].some((c) => c && !soldeVisible(c, ouvertes));
+                if (secret) {
+                  const aOuvrirIci = [cDe, cVers].find((c) => c && !soldeVisible(c, ouvertes))!;
+                  return (
+                    <button
+                      className="trf-rowbtn"
+                      style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-soft)', letterSpacing: '.1em' }}
+                      title={`Ouvrir « ${aOuvrirIci.name} » pour voir ce montant`}
+                      onClick={() => { setAOuvrir(aOuvrirIci); setCodeSaisi(''); setCodeFaux(false); }}
+                    >
+                      ••• •••
+                    </button>
+                  );
+                }
+                return (
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                    {fmtIn(t.amountXof, dDe)}
+                    {dDe !== dVers || recu !== t.amountXof ? <span className="mnd-muted"> → {fmtIn(recu, dVers)}</span> : null}
+                  </span>
+                );
+              })()}
             </div>
           ))}
         </div>
@@ -383,6 +430,25 @@ export default function Caisses() {
                 Ce qu’elle contenait avant que Le Trône ne la suive. Tout le reste se calcule.
               </span>
             </label>
+            <div className="mnd-field">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={boxForm.horsBilan}
+                  onChange={(e) => setBoxForm((f) => ({ ...f, horsBilan: e.target.checked }))}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <b style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500 }}>Hors bilan</b>
+                  <span className="mnd-muted" style={{ fontSize: 10.5, display: 'block', marginTop: 3, lineHeight: 1.55 }}>
+                    Cette caisse n’est pas celle de la Maison — une épargne personnelle, un tiroir
+                    tenu pour quelqu’un d’autre. Ce qui y entre ne comptera pas dans les revenus,
+                    ce qui en sort ne comptera pas dans les dépenses, et son solde restera hors de
+                    la trésorerie. L’exclusion sera <b>dite à l’écran</b> partout où elle s’applique.
+                  </span>
+                </span>
+              </label>
+            </div>
             <label className="mnd-field">
               <span className="mnd-field__label">Code de discrétion · facultatif</span>
               <input
@@ -410,25 +476,29 @@ export default function Caisses() {
       )}
 
       {trOuvert && (
-        <Modal title="Transférer entre caisses" onClose={() => setTrOuvert(false)} width={520}>
+        <Modal title="Transférer, apporter, sortir" onClose={() => setTrOuvert(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
               L’argent change de tiroir : la caisse de départ baisse, celle d’arrivée monte.
-              <b> Rien n’est dépensé, rien n’est encaissé</b> — un transfert ne paraîtra ni dans
-              vos dépenses ni dans vos encaissements.
+              <b> Rien n’est dépensé, rien n’est encaissé</b> — cela ne paraîtra ni dans vos
+              dépenses ni dans vos encaissements.
+              <br />
+              Laissez le <b>départ</b> vide pour un <b>apport</b> — une mise personnelle, un
+              remboursement, une avance : de l’argent qui entre sans être une vente. Laissez
+              l’<b>arrivée</b> vide pour une <b>sortie</b> hors Maison.
             </div>
             <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 14 } as CSSProperties}>
               <label className="mnd-field">
                 <span className="mnd-field__label">D’où il part</span>
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
-                  <option value="">Choisir…</option>
+                  <option value="">Apport — de l’argent qui entre, hors revenu</option>
                   {branchBoxes.map((c) => <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>)}
                 </select>
               </label>
               <label className="mnd-field">
                 <span className="mnd-field__label">Où il arrive</span>
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
-                  <option value="">Choisir…</option>
+                  <option value="">Sortie — de l’argent qui quitte la Maison</option>
                   {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>)}
                 </select>
               </label>

@@ -1298,3 +1298,32 @@
   border-radius: 2px;
   padding: 1px 7px;
 }
+
+/* Une caisse hors bilan le dit — 22 août 2026. L'exclusion doit se voir :
+   un total amputé en silence est pire qu'un total complet. */
+.trf-horsbilan {
+  display: inline-block;
+  margin-left: 7px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700, #96412E);
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+
+/* Le bilan nomme les caisses qu'il écarte — 22 août 2026. */
+.trf-note-exclues {
+  border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700, #96412E);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.55;
+}

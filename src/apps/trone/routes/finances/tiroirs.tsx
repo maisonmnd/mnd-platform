@@ -19,7 +19,7 @@ import { fmtIn } from '../../../../shared/currency';
 import {
   useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
-  caisseDiscrete, empreinteDuCode,
+  caisseDiscrete, empreinteDuCode, caissesHorsBilan,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
 import { usePrets } from '../../../../shared/foyer';
@@ -31,12 +31,26 @@ import { monthKey, monthLabel, todayISO } from './_shared';
    registre vit en mémoire et rien ne l'écrit. Fermer l'onglet, recharger la
    page, revenir demain — elle est refermée. Le retenir sur le disque
    reviendrait à laisser la clé sur la porte. */
-const ouvertes = new Set<string>();
+/* LE REGISTRE SE REMPLACE, IL NE SE MODIFIE PAS — 22 août 2026. « Le bouton
+   refermer marche une fois sur deux. » C'était un Set modifié SUR PLACE : sa
+   référence ne changeait jamais, et `useSyncExternalStore` compare justement
+   les références. React ne redessinait donc que lorsqu'un autre état l'y
+   forçait — une fois sur deux, au hasard. Chaque geste produit désormais un
+   ensemble NEUF, et l'écran suit à tous les coups. */
+let ouvertes: ReadonlySet<string> = new Set<string>();
 const veilleurs = new Set<() => void>();
 const prevenir = () => veilleurs.forEach((f) => f());
 
-export const ouvreLaCaisse = (id: string): void => { ouvertes.add(id); prevenir(); };
-export const refermeLaCaisse = (id: string): void => { ouvertes.delete(id); prevenir(); };
+export const ouvreLaCaisse = (id: string): void => {
+  ouvertes = new Set([...ouvertes, id]);
+  prevenir();
+};
+export const refermeLaCaisse = (id: string): void => {
+  const n = new Set(ouvertes);
+  n.delete(id);
+  ouvertes = n;
+  prevenir();
+};
 
 /** Le code donné ouvre-t-il cette caisse ? La comparaison porte sur les
     empreintes : le code enregistré n'existe nulle part pour être comparé. */
@@ -285,7 +299,9 @@ export function useCaisses(month: string) {
       .filter((t) => t.branchId === branch.id && monthKey(t.date) === month && (t.de === name || t.vers === name))
       .map((t) => ({
         date: t.date,
-        label: t.de === name ? `Transféré vers ${t.vers}` : `Reçu de ${t.de}`,
+        label: t.de === name
+          ? (t.vers ? `Transféré vers ${t.vers}` : 'Sortie hors Maison')
+          : (t.de ? `Reçu de ${t.de}` : 'Apport — hors revenu'),
         sub: t.note || 'Transfert entre caisses',
         delta: transfertSurCaisse(t, name),
         invoiceId: undefined as string | undefined,
@@ -301,14 +317,16 @@ export function useCaisses(month: string) {
      amputé sans explication vaudrait pire qu'un total complet. */
   const ouvertesMaintenant = useCaissesOuvertes();
   const tresorerieVisible = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency && soldeVisible(b, ouvertesMaintenant))
+    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
     .reduce((s, b) => s + boxBalance(b.name), 0);
+  const horsBilan = branchBoxes.filter((b) => b.horsBilan).length;
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
 
   return {
     branch, currency, branchBoxes,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
-    tresorerieVisible, discretesFermees, ouvertes: ouvertesMaintenant,
+    tresorerieVisible, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
+    exclues: caissesHorsBilan(branchBoxes, branch.id),
   };
 }
 

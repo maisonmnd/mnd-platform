@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import '../finances/finances.css';
 import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -6,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useApprenants } from '../equipe/data';
 import { estDePassage, useClients } from '../../../../shared/clients';
-import { useInvoices, invoiceRegleAu, invoiceReglements } from '../../../../shared/finance';
+import { useInvoices, invoiceRegleAu, invoiceReglements, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor, apptPayState, apptDueXof,
   frShort, todayISO, useServicesById, RdvModal, PayStatusPill,
@@ -38,6 +39,13 @@ export default function BilanMensuel() {
   const { branch, currency } = useBranch();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
+  /* Les caisses écartées des bilans — leur nom sert de clé partout. */
+  const [cashboxes] = useCashboxes();
+  const exclues = useMemo(() => caissesHorsBilan(cashboxes, branch.id), [cashboxes, branch.id]);
+  const nomsExclus = useMemo(
+    () => cashboxes.filter((c) => c.branchId === branch.id && c.horsBilan).map((c) => c.name),
+    [cashboxes, branch.id],
+  );
   const [clients] = useClients();
   const [apprenants] = useApprenants();
   const byId = useServicesById();
@@ -77,7 +85,11 @@ export default function BilanMensuel() {
     /* Rituels honorés porteurs de valeur (séances 2..N d'une série = 0). */
     const honoredValue = monthAppts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1));
 
-    const revInv = paidInv.reduce((s, i) => s + invoiceRegleAu(i, month), 0);
+    /* LES CAISSES HORS BILAN N'ENTRENT PAS DANS LE REVENU — 22 août 2026.
+       Une épargne personnelle, un tiroir tenu pour quelqu'un d'autre : ce qui
+       y tombe n'a pas été gagné par la Maison. L'exclusion est DITE plus bas :
+       un total amputé en silence se croirait faux sans qu'on sache pourquoi. */
+    const revInv = paidInv.reduce((s, i) => s + invoiceRegleAuSauf(i, month, exclues), 0);
     const revRit = honoredNoInv.reduce((s, a) => s + apptNetXof(a, byId), 0);
     /* Meme correction qu'a l'Analytics : le Bilan annoncait « meme base que la
        Synthese » tout en omettant les reglements de formation. */
@@ -238,6 +250,15 @@ export default function BilanMensuel() {
 
   return (
     <div className="mnd-rise">
+      {/* L'EXCLUSION SE DIT — 22 août 2026. Un total amputé en silence se
+          croirait faux sans qu'on sache pourquoi ; on nomme donc les caisses
+          écartées, en haut, avant les chiffres. */}
+      {nomsExclus.length > 0 && (
+        <div className="trf-note-exclues">
+          {nomsExclus.length > 1 ? 'Caisses écartées de ce bilan' : 'Caisse écartée de ce bilan'} :
+          {' '}<b>{nomsExclus.join(', ')}</b>. Ce qui y est entré ne compte pas dans les revenus.
+        </div>
+      )}
       <PageHead
         eyebrow="Pilotage · Le mois"
         title="Bilan mensuel."

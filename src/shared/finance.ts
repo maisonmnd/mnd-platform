@@ -332,7 +332,34 @@ export type Cashbox = {
       a accès à la base ou au fichier de sauvegarde. Le dire vaut mieux que de
       laisser croire à un coffre. */
   codeHash?: string;
+  /** ── HORS BILAN — 22 août 2026 ──────────────────────────────────
+      « J'aimerais exclure des caisses du total dans mes bilans. »
+
+      Une caisse peut ne pas être celle de la Maison : une épargne
+      personnelle, un tiroir tenu pour quelqu'un d'autre. Ce qui y entre n'est
+      pas un revenu de la Maison, ce qui en sort n'est pas une de ses
+      dépenses, et son solde ne fait pas partie de sa trésorerie.
+
+      L'EXCLUSION SE DIT TOUJOURS À L'ÉCRAN. Un total amputé en silence est
+      pire qu'un total complet : on le croirait faux sans savoir pourquoi. */
+  horsBilan?: boolean;
 };
+
+/** Les NOMS des caisses écartées des bilans — c'est le nom qui sert de clé
+    partout (`Expense.cashbox`, `InvoicePayment.cashbox`). */
+export const caissesHorsBilan = (boxes: readonly Cashbox[], branchId: string): Set<string> =>
+  new Set(boxes.filter((c) => c.branchId === branchId && c.horsBilan).map((c) => c.name));
+
+/** CE QUI EST ENTRÉ SUR UNE PIÈCE, LES CAISSES ÉCARTÉES EN MOINS. Même règle
+    que `invoiceRegleAu` — versement par versement, chacun à son mois — mais
+    les versements tombés dans une caisse hors bilan n'y comptent pas. */
+export const invoiceRegleAuSauf = (
+  inv: Invoice, prefixeIso: string, exclues: ReadonlySet<string>,
+): number =>
+  invoiceReglements(inv)
+    .filter((p) => (p.date ?? '').startsWith(prefixeIso))
+    .filter((p) => !exclues.has(p.cashbox ?? ''))
+    .reduce((s, p) => s + p.amountXof, 0);
 
 /** L'EMPREINTE D'UN CODE — salée par l'identifiant de la caisse, pour que deux
     caisses au même code n'aient pas la même empreinte. Le navigateur seul fait
@@ -806,7 +833,21 @@ export type TransfertCaisse = {
   id: string;
   branchId: string;
   date: string;
-  /** Les NOMS des caisses — même clé que partout ailleurs (`Expense.cashbox`). */
+  /** Les NOMS des caisses — même clé que partout ailleurs (`Expense.cashbox`).
+
+      UN BOUT PEUT ÊTRE VIDE — 22 août 2026, « comment faire des versements sur
+      certaines caisses qui ne sont pas liés au revenu des clients ? »
+
+      `de` vide = un APPORT : de l'argent entre dans la caisse sans venir d'un
+      autre tiroir et sans être une vente. Une mise personnelle, un
+      remboursement d'assurance, une avance de la souveraine.
+      `vers` vide = une SORTIE hors Maison : de l'argent quitte le tiroir sans
+      être une dépense de la Maison ni aller dans un autre tiroir.
+
+      L'un et l'autre restent hors des revenus et hors des dépenses : ce n'est
+      ni gagné ni dépensé, cela ne fait qu'entrer ou sortir. Les confondre
+      gonflerait le chiffre d'affaires d'un argent que la Maison n'a pas
+      gagné — c'est précisément ce qu'on évite ici. */
   de: string;
   vers: string;
   /** Ce qui SORT de la caisse de départ, dans la devise de cette caisse. */
