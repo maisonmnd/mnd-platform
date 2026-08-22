@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les caisses, le coffre et leurs verrous — 22 août, PUBLIÉ
+
+Un écran à elles (`finances/Caisses.tsx`), demandé au même titre que Dépenses.
+Les cartes sont **groupées par devise** — XOF, EUR, USD — parce qu'un total de
+colonne n'a de sens qu'entre montants de même nature ; le sous-total d'une
+devise ne descend jamais dans une autre sans passer par `fmtMoney`.
+
+LE CALCUL EST SORTI DE L'ÉCRAN. `finances/tiroirs.tsx` porte `useCaisses(month)`
+— soldes, flux, mouvements, trésorerie, exclusions — et Dépenses comme Caisses
+le lisent. Deux écrans qui recalculaient le même solde finissaient par se
+contredire (leçon du registre des encaissements). *Le fichier ne s'appelle pas
+`caisses.tsx` : sous Windows c'est le MÊME fichier que `Caisses.tsx`, et l'écran
+avait écrasé le module.*
+
+**La caisse discrète.** Solde masqué, ouverture par code. Le code n'est jamais
+stocké : `empreinteDuCode(id, code)` en garde une empreinte SHA-256 salée par
+l'identifiant de la caisse — deux caisses au même code n'ont pas la même
+empreinte. L'écran DIT ce que ça protège et ce que ça ne protège pas : c'est un
+paravent contre un regard par-dessus l'épaule, pas un chiffrement.
+
+Trois portes, pas une : **voir**, **modifier**, **retirer**. La première version
+n'en gardait qu'une, et une caisse fermée s'ouvrait quand même par le bouton
+Modifier. `openEditBox` et `deleteBox` ont chacun leur ceinture — le code se
+redemande avec l'intention (`aOuvrir.puis`), et l'action reprend après.
+« Retirer cette caisse » a quitté le pied de carte pour le pied de la modale
+d'édition : à portée de pouce d'une carte, il se pressait par mégarde.
+
+**Les verrous d'écran** — caisses (21 août) puis coffre (22 août) — passent par
+UNE seule mécanique : `EcranVerrouille` et `ReglerLeVerrou` dans tiroirs.tsx,
+avec `CLE_ECRAN` / `CLE_COFFRE` posées dans le même jeu d'ouvertures que les
+caisses, et les empreintes dans `Settings.codeCaissesHash` /
+`codeCoffreHash`. Recopier aurait fait deux verrous à corriger le jour où l'un
+se révèle troué. Vider le champ retire le verrou. Sans empreinte posée, la porte
+reste ouverte — on n'enferme personne dehors par défaut.
+
+DEUX BOGUES DE CE JOUR, tous deux instructifs. ① « Le bouton refermer marche une
+fois sur deux » : le `Set` des caisses ouvertes était muté sur place, et
+`useSyncExternalStore` compare des RÉFÉRENCES — remplacement immuable partout.
+② « J'ai transféré 2000 $ mais je vois 2000 F » : la ligne de transfert affichait
+la devise de la maison au lieu de celle de CHAQUE caisse. Un transfert a deux
+bouts et parfois deux devises.
+
+`horsBilan` exclut une caisse des totaux — et l'écran NOMME toujours ce qu'il
+exclut. Un total silencieusement amputé ment ; un total qui dit « hors bilan :
+deux caisses » informe.
+
 ## Le journal des gestes — 21 août, PUBLIÉ · migration 0070 À COLLER
 
 « Je dois tracker systématiquement qui fait quoi et quand sur Le Trône. » Né

@@ -11,7 +11,7 @@
     sont le MÊME fichier, et l'écran écraserait le module sans un
    mot. Un nom distinct vaut mieux qu'une casse à laquelle on se fie. */
 
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -44,6 +44,7 @@ const prevenir = () => veilleurs.forEach((f) => f());
 /* Le verrou de l'ÉCRAN — même registre, une clé réservée : il se lève et
    retombe comme une caisse, et le rechargement le repose. */
 export const CLE_ECRAN = '@ecran-caisses';
+export const CLE_COFFRE = '@ecran-coffre';
 
 export const ouvreLaCaisse = (id: string): void => {
   ouvertes = new Set([...ouvertes, id]);
@@ -462,5 +463,107 @@ export function ReleveCaisse({
               <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>{fmtIn(balance, boxCur)}</span>
             </div>
           </Modal>
+  );
+}
+
+
+/* ── LE VERROU D'UN ÉCRAN — 22 août 2026 ────────────────────────────
+   Posé d'abord sur les caisses, demandé ensuite sur le coffre : deux écrans,
+   une seule mécanique. Le recopier aurait fait deux verrous à corriger le jour
+   où l'un d'eux se révèle troué.
+
+   SANS CODE POSÉ, LA PORTE EST OUVERTE : une mise à jour ne doit enfermer
+   personne dehors. Le verrou vaut pour la SÉANCE — recharger le repose. Et il
+   ne remplace pas les droits : un compte sans accès aux finances ne verra
+   jamais l'écran, code ou pas. */
+export function EcranVerrouille({
+  titre, cle, hash,
+}: {
+  titre: string;
+  cle: string;
+  hash?: string;
+}) {
+  const [code, setCode] = useState('');
+  const [faux, setFaux] = useState(false);
+  const essayer = async () => {
+    if (await leCodeOuvre({ id: cle, codeHash: hash }, code)) {
+      ouvreLaCaisse(cle);
+      setCode(''); setFaux(false);
+    } else setFaux(true);
+  };
+  return (
+    <div className="mnd-rise">
+      <div className="trf-verrou">
+        <div className="trf-verrou__titre">{titre}</div>
+        <p className="trf-verrou__mot">
+          Cet écran demande le code de la Maison. Il se refermera de lui-même au prochain
+          chargement de la page.
+        </p>
+        <input
+          className="mnd-input"
+          type="password"
+          autoFocus
+          autoComplete="off"
+          placeholder="Code"
+          value={code}
+          onChange={(e) => { setCode(e.target.value); setFaux(false); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') void essayer(); }}
+          style={{ maxWidth: 260 }}
+        />
+        {faux && <div className="trf-verrou__faux">Ce code n’ouvre pas cet écran.</div>}
+        <button className="mnd-btn" style={{ marginTop: 14 }} onClick={() => void essayer()}>Ouvrir</button>
+      </div>
+    </div>
+  );
+}
+
+/** Poser, changer ou retirer le code d'un écran. Vider le champ le retire. */
+export function ReglerLeVerrou({
+  cle, hash, onClose, onPose,
+}: {
+  cle: string;
+  hash?: string;
+  onClose: () => void;
+  onPose: (hash: string | undefined) => void;
+}) {
+  const [code, setCode] = useState('');
+  const enregistrer = async () => {
+    const c = code.trim();
+    const h = c ? await empreinteDuCode(cle, c) : undefined;
+    onPose(h);
+    if (h) ouvreLaCaisse(cle);
+    onClose();
+  };
+  return (
+    <Modal title={hash ? 'Le code de cet écran' : 'Protéger cet écran'} onClose={onClose} width={430}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+          Un code demandé à l’ouverture de l’écran. Seule son <b>empreinte</b> est enregistrée —
+          il n’existe en clair nulle part.
+          <br />
+          <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un écran laissé ouvert, un regard au comptoir.
+          {' '}<b style={{ color: 'var(--copper-700)' }}>Ce que cela ne protège pas :</b> qui a accès à la base. Les droits du
+          compte restent la vraie barrière.
+        </div>
+        <label className="mnd-field">
+          <span className="mnd-field__label">
+            {hash ? 'Nouveau code — vider pour retirer le verrou' : 'Code'}
+          </span>
+          <input
+            className="mnd-input" type="password" autoFocus autoComplete="new-password"
+            value={code}
+            placeholder={hash ? 'Laisser vide et enregistrer = plus de verrou' : ''}
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void enregistrer(); }}
+          />
+        </label>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button className="mnd-btn mnd-btn--ghost" onClick={onClose}>Annuler</button>
+          <button className="mnd-btn" onClick={() => void enregistrer()}>
+            {code.trim() ? 'Enregistrer le code' : (hash ? 'Retirer le verrou' : 'Enregistrer')}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

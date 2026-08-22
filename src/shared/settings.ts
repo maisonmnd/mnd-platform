@@ -26,6 +26,8 @@ export type Settings = {
       remplace pas les droits — un compte qui n'a pas accès aux finances ne
       verra jamais cet écran, code ou pas. */
   codeCaissesHash?: string;
+  /** Le même verrou pour le Coffre-fort — 22 août 2026. */
+  codeCoffreHash?: string;
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;

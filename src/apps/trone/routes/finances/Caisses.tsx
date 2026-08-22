@@ -11,7 +11,7 @@ import {
 } from '../../../../shared/finance';
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
-import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 
@@ -58,25 +58,10 @@ export default function Caisses() {
   const [reglages] = useSettings();
   const toutesOuvertes = useCaissesOuvertes();
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
-  const [codeEcran, setCodeEcran] = useState('');
-  const [ecranFaux, setEcranFaux] = useState(false);
-  const ouvrirLEcran = async () => {
-    if (await leCodeOuvre({ id: CLE_ECRAN, codeHash: reglages.codeCaissesHash }, codeEcran)) {
-      ouvreLaCaisse(CLE_ECRAN); setCodeEcran(''); setEcranFaux(false);
-    } else setEcranFaux(true);
-  };
 
   /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
      dedans : il n'y a pas d'endroit plus juste pour le régler. */
   const [verrouOuvert, setVerrouOuvert] = useState(false);
-  const [nouveauCode, setNouveauCode] = useState('');
-  const enregistrerLeVerrou = async () => {
-    const code = nouveauCode.trim();
-    const hash = code ? await empreinteDuCode(CLE_ECRAN, code) : undefined;
-    settingsStore.set((prev) => ({ ...prev, codeCaissesHash: hash }));
-    if (hash) ouvreLaCaisse(CLE_ECRAN);
-    setVerrouOuvert(false); setNouveauCode('');
-  };
 
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
@@ -84,17 +69,27 @@ export default function Caisses() {
   const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false });
 
   /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
-  const [aOuvrir, setAOuvrir] = useState<Cashbox | null>(null);
+  /* CE QU'ON FERA UNE FOIS LA CAISSE OUVERTE — 22 août 2026. « Même quand les
+     caisses sont fermées j'arrive toujours à les ouvrir pour modifier. »
+
+     La modale de modification montre le SOLDE D'OUVERTURE et le champ du code :
+     l'ouvrir sans le code laissait lire ce qu'on masquait, et permettait de
+     RETIRER le verrou sans jamais l'avoir connu. Le code est donc demandé
+     avant, et le geste voulu reprend son cours juste après. */
+  const [aOuvrir, setAOuvrir] = useState<{ c: Cashbox; puis: 'voir' | 'modifier' | 'retirer' } | null>(null);
+  const demanderLeCode = (c: Cashbox, puis: 'voir' | 'modifier' | 'retirer') => {
+    setAOuvrir({ c, puis }); setCodeSaisi(''); setCodeFaux(false);
+  };
   const [codeSaisi, setCodeSaisi] = useState('');
   const [codeFaux, setCodeFaux] = useState(false);
   const essayerLeCode = async () => {
     if (!aOuvrir) return;
-    if (await leCodeOuvre(aOuvrir, codeSaisi)) {
-      ouvreLaCaisse(aOuvrir.id);
-      setAOuvrir(null); setCodeSaisi(''); setCodeFaux(false);
-    } else {
-      setCodeFaux(true);
-    }
+    if (!(await leCodeOuvre(aOuvrir.c, codeSaisi))) { setCodeFaux(true); return; }
+    const { c, puis } = aOuvrir;
+    ouvreLaCaisse(c.id);
+    setAOuvrir(null); setCodeSaisi(''); setCodeFaux(false);
+    if (puis === 'modifier') openEditBox(c);
+    if (puis === 'retirer') openEditBox(c);
   };
 
   const openNewBox = () => {
@@ -103,6 +98,10 @@ export default function Caisses() {
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
+    /* LA CEINTURE : quel que soit le chemin qui mène ici, une caisse fermée ne
+       s'ouvre pas en modification. Le bouton demande déjà le code — ceci le
+       garantit même si un autre appel apparaissait un jour. */
+    if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'modifier'); return; }
     setBoxEditingId(c.id);
     setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan });
     setBoxOpen(true);
@@ -170,6 +169,7 @@ export default function Caisses() {
   };
 
   const deleteBox = (c: Cashbox) => {
+    if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'retirer'); return; }
     if (!window.confirm(
       `Retirer la caisse « ${c.name} » ? Les écritures qui la nomment ne sont PAS supprimées — `
       + 'elles resteront rattachées à un tiroir qui n’existe plus.',
@@ -208,30 +208,7 @@ export default function Caisses() {
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (ecranVerrouille) {
-    return (
-      <div className="mnd-rise">
-        <div className="trf-verrou">
-          <div className="trf-verrou__titre">Les caisses sont verrouillées.</div>
-          <p className="trf-verrou__mot">
-            Cet écran demande le code de la Maison. Il se refermera de lui-même au prochain
-            chargement de la page.
-          </p>
-          <input
-            className="mnd-input"
-            type="password"
-            autoFocus
-            autoComplete="off"
-            placeholder="Code"
-            value={codeEcran}
-            onChange={(e) => { setCodeEcran(e.target.value); setEcranFaux(false); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void ouvrirLEcran(); }}
-            style={{ maxWidth: 260 }}
-          />
-          {ecranFaux && <div className="trf-verrou__faux">Ce code n’ouvre pas cet écran.</div>}
-          <button className="mnd-btn" style={{ marginTop: 14 }} onClick={() => void ouvrirLEcran()}>Ouvrir</button>
-        </div>
-      </div>
-    );
+    return <EcranVerrouille titre="Les caisses sont verrouillées." cle={CLE_ECRAN} hash={reglages.codeCaissesHash} />;
   }
 
   return (
@@ -242,7 +219,7 @@ export default function Caisses() {
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Les caisses.</h2>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => { setNouveauCode(''); setVerrouOuvert(true); }}>
+          <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setVerrouOuvert(true)}>
             {reglages.codeCaissesHash ? 'Code de l’écran' : 'Protéger cet écran'}
           </button>
           <button
@@ -357,7 +334,7 @@ export default function Caisses() {
 
                           <button
                             className="trf-caisse__open"
-                            onClick={() => (visible ? setBoxDrill(c.name) : (setAOuvrir(c), setCodeSaisi(''), setCodeFaux(false)))}
+                            onClick={() => (visible ? setBoxDrill(c.name) : demanderLeCode(c, 'voir'))}
                             title={visible ? 'Voir les mouvements de cette caisse' : 'Ouvrir avec le code'}
                           >
                             <div className="trf-caisse__lab">
@@ -386,10 +363,20 @@ export default function Caisses() {
                             {caisseDiscrete(c) && (
                               visible
                                 ? <button className="trf-caisse__acte" onClick={() => refermeLaCaisse(c.id)}>Refermer</button>
-                                : <button className="trf-caisse__acte" onClick={() => { setAOuvrir(c); setCodeSaisi(''); setCodeFaux(false); }}>Ouvrir</button>
+                                : <button className="trf-caisse__acte" onClick={() => demanderLeCode(c, 'voir')}>Ouvrir</button>
                             )}
-                            <button className="trf-caisse__acte" onClick={() => openEditBox(c)}>Modifier</button>
-                            <button className="trf-caisse__acte trf-caisse__acte--danger" onClick={() => deleteBox(c)}>Retirer</button>
+                            {/* « RETIRER » A QUITTÉ CE PIED — 22 août 2026 :
+                                « je peux appuyer le bouton retirer par
+                                mégarde ». Un geste sans retour ne voisine pas
+                                avec les gestes courants, à un pixel de
+                                « Modifier ». Il vit désormais DANS la fiche,
+                                qu'il faut ouvrir — et dont le code est exigé
+                                si la caisse est discrète.
+
+                                MODIFIER PASSE PAR LE CODE quand la caisse est
+                                fermée : la fiche dit le solde d'ouverture, et
+                                laisserait ôter le verrou. */}
+                            <button className="trf-caisse__acte" onClick={() => (visible ? openEditBox(c) : demanderLeCode(c, 'modifier'))}>Modifier</button>
                           </div>
                         </div>
                       );
@@ -437,7 +424,7 @@ export default function Caisses() {
                       className="trf-rowbtn"
                       style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-soft)', letterSpacing: '.1em' }}
                       title={`Ouvrir « ${aOuvrirIci.name} » pour voir ce montant`}
-                      onClick={() => { setAOuvrir(aOuvrirIci); setCodeSaisi(''); setCodeFaux(false); }}
+                      onClick={() => demanderLeCode(aOuvrirIci, 'voir')}
                     >
                       ••• •••
                     </button>
@@ -460,48 +447,24 @@ export default function Caisses() {
       )}
 
       {verrouOuvert && (
-        <Modal
-          title={reglages.codeCaissesHash ? 'Le code de cet écran' : 'Protéger cet écran'}
+        <ReglerLeVerrou
+          cle={CLE_ECRAN}
+          hash={reglages.codeCaissesHash}
           onClose={() => setVerrouOuvert(false)}
-          width={430}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-              Un code demandé à l’ouverture de l’écran des caisses. Seule son <b>empreinte</b> est
-              enregistrée — il n’existe en clair nulle part.
-              <br />
-              <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un écran laissé ouvert, un regard au comptoir.
-              {' '}<b style={{ color: 'var(--copper-700)' }}>Ce que cela ne protège pas :</b> qui a accès à la base. Les droits du
-              compte, eux, restent la vraie barrière.
-            </div>
-            <label className="mnd-field">
-              <span className="mnd-field__label">
-                {reglages.codeCaissesHash ? 'Nouveau code — vider pour retirer le verrou' : 'Code'}
-              </span>
-              <input
-                className="mnd-input" type="password" autoFocus autoComplete="new-password"
-                value={nouveauCode}
-                placeholder={reglages.codeCaissesHash ? 'Laisser vide et enregistrer = plus de verrou' : ''}
-                onChange={(e) => setNouveauCode(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void enregistrerLeVerrou(); }}
-              />
-            </label>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="mnd-btn mnd-btn--ghost" onClick={() => setVerrouOuvert(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={() => void enregistrerLeVerrou()}>
-                {nouveauCode.trim() ? 'Enregistrer le code' : (reglages.codeCaissesHash ? 'Retirer le verrou' : 'Enregistrer')}
-              </button>
-            </div>
-          </div>
-        </Modal>
+          onPose={(h) => settingsStore.set((prev) => ({ ...prev, codeCaissesHash: h }))}
+        />
       )}
 
       {aOuvrir && (
-        <Modal title={`Ouvrir « ${aOuvrir.name} »`} onClose={() => setAOuvrir(null)} width={400}>
+        <Modal title={`Ouvrir « ${aOuvrir.c.name} »`} onClose={() => setAOuvrir(null)} width={400}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-              Cette caisse est discrète : son solde et son relevé restent fermés jusqu’à son code.
-              Elle se refermera d’elle-même au prochain chargement de la page.
+              {aOuvrir.puis === 'modifier'
+                ? 'La fiche de cette caisse dit son solde d’ouverture et porte son code — il faut donc l’ouvrir avant de la modifier.'
+                : aOuvrir.puis === 'retirer'
+                  ? 'Retirer une caisse discrète demande son code : sans lui, on pourrait la faire disparaître sans jamais l’avoir ouverte.'
+                  : 'Cette caisse est discrète : son solde et son relevé restent fermés jusqu’à son code.'}
+              {' '}Elle se refermera d’elle-même au prochain chargement de la page.
             </div>
             <label className="mnd-field">
               <span className="mnd-field__label">Code</span>
@@ -604,9 +567,27 @@ export default function Caisses() {
                 {boxForm.codeExistant && <><br />Videz ce champ et enregistrez pour <b>garder</b> le code actuel.</>}
               </span>
             </label>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button className="mnd-btn mnd-btn--ghost" onClick={() => setBoxOpen(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={() => void saveBox()}>{boxEditingId ? 'Enregistrer' : 'Créer la caisse'}</button>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+              {boxEditingId
+                ? (
+                  <button
+                    className="mnd-btn mnd-btn--ghost"
+                    style={{ color: 'var(--copper-700, #96412E)' }}
+                    onClick={() => {
+                      const c = branchBoxes.find((b) => b.id === boxEditingId);
+                      if (!c) return;
+                      setBoxOpen(false);
+                      deleteBox(c);
+                    }}
+                  >
+                    Retirer cette caisse
+                  </button>
+                )
+                : <span />}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => setBoxOpen(false)}>Annuler</button>
+                <button className="mnd-btn" onClick={() => void saveBox()}>{boxEditingId ? 'Enregistrer' : 'Créer la caisse'}</button>
+              </div>
             </div>
           </div>
         </Modal>

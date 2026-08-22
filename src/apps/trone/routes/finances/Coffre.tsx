@@ -15,6 +15,8 @@ import {
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle } from './_shared';
+import { useCaissesOuvertes, EcranVerrouille, ReglerLeVerrou, CLE_COFFRE } from './tiroirs';
+import { useSettings, settingsStore } from '../../../../shared/settings';
 
 /** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
 const monthLabelLong = (mk: string): string => (mk ? monthTitle(mk) : '');
@@ -157,6 +159,15 @@ export default function Coffre() {
      daté, nommé et rendu à une caisse fausse infiniment moins les soldes.
      Ce qui reste verrouillé : on ne DÉPENSE toujours pas depuis le coffre —
      l'argent revient d'abord dans un tiroir, et ce retour se voit. */
+  /* ── LE VERROU DU COFFRE — 22 août 2026 ──────────────────────────
+     Même mécanique que l'écran des caisses, même pièce partagée : deux
+     verrous recopiés seraient deux verrous à corriger le jour où l'un se
+     révèle troué. Sans code posé, la porte reste ouverte. */
+  const [reglages] = useSettings();
+  const ouvertesIci = useCaissesOuvertes();
+  const coffreVerrouille = !!reglages.codeCoffreHash && !ouvertesIci.has(CLE_COFFRE);
+  const [verrouOuvert, setVerrouOuvert] = useState(false);
+
   const [retraitOuvert, setRetraitOuvert] = useState(false);
   const [caissesToutes] = useCashboxes();
   const caissesDuCoffre = caissesToutes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
@@ -227,6 +238,10 @@ export default function Coffre() {
     setObjOuvert(null);
   };
 
+  if (coffreVerrouille) {
+    return <EcranVerrouille titre="Le coffre est verrouillé." cle={CLE_COFFRE} hash={reglages.codeCoffreHash} />;
+  }
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -235,6 +250,9 @@ export default function Coffre() {
         sub="Mettez de côté une part du chiffre déjà gagné. Le coffre est verrouillé : aucune dépense possible — la seule sortie est un virement vers la banque."
         actions={
           <>
+            <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>
+              {reglages.codeCoffreHash ? 'Code de l’écran' : 'Protéger cet écran'}
+            </Button>
             <Button variant="ghost" onClick={() => setRetraitOuvert(true)} disabled={balance <= 0}>Reprendre du coffre</Button>
             <Button variant="ghost" onClick={() => setTransferOpen(true)} disabled={balance <= 0}>Virement bancaire</Button>
             <Button variant="copper" onClick={() => setDepositOpen(true)}>+ Verser au coffre</Button>
@@ -483,6 +501,15 @@ export default function Coffre() {
           </Modal>
         );
       })()}
+
+      {verrouOuvert && (
+        <ReglerLeVerrou
+          cle={CLE_COFFRE}
+          hash={reglages.codeCoffreHash}
+          onClose={() => setVerrouOuvert(false)}
+          onPose={(h) => settingsStore.set((prev) => ({ ...prev, codeCoffreHash: h }))}
+        />
+      )}
 
       {retraitOuvert && (
         <Modal title="Reprendre du coffre" onClose={() => setRetraitOuvert(false)} width={480}>
