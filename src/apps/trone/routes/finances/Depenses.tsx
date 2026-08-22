@@ -15,6 +15,7 @@ import { expenseOccurrences,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useClients, useFamilies } from '../../../../shared/clients';
+import { normName } from '../../../../shared/text';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -29,7 +30,7 @@ const fmtDay = (iso: string): string =>
    « reste à dépenser », prévision de fin de mois. Tout est persisté et filtré par la branche.
    La période est explicite : le mois se navigue ‹ mois › et une recherche filtre les listes. */
 
-type Tab = 'flux' | 'caisses' | 'budgets';
+type Tab = 'flux' | 'caisses' | 'argent' | 'budgets';
 
 const FLOW_FILLS = [
   'var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--copper-400)',
@@ -149,6 +150,67 @@ export default function Depenses() {
     [expenses, branch.id, month],
   );
   const poids = (e: typeof expenses[number]) => expenseTotal(e) * expenseOccurrences(e, month);
+
+  /* ── OÙ VA L'ARGENT — 22 août 2026 ─────────────────────────────────
+     L'onglet Engagements a été retiré ; Yéman a demandé deux choses à sa
+     place : « à qui je paie » et « qui a financé ce mois ». Ce sont les deux
+     faces de la même pièce — ce qui sort, et d'où ça venait — donc un seul
+     onglet, pour ne pas rendre à l'écran le poids qu'on venait de lui ôter.
+
+     LE BÉNÉFICIAIRE SE DÉDUIT DU LIBELLÉ, et il faut le dégrossir : une paie
+     s'écrit « Salaire · Nassim M. — août 2026 », si bien que douze mois de
+     salaires feraient douze bénéficiaires différents. On retire donc le mois
+     final quand il y en a un. Le reste des libellés se groupe tel quel. */
+  const beneficiaireDe = (label: string): string =>
+    label.replace(/\s+[—-]\s+[A-Za-zÀ-ÿ]+\s+\d{4}\s*$/u, '').trim() || label.trim();
+
+  /** Les bénéficiaires d'une liste de dépenses, du plus payé au moins payé. */
+  const beneficiaires = (liste: Expense[]) => {
+    const par = new Map<string, { nom: string; total: number; n: number; dernier: string }>();
+    for (const e of liste) {
+      const nom = beneficiaireDe(e.label);
+      const cle = normName(nom);
+      const d = par.get(cle);
+      if (d) {
+        d.total += expenseTotal(e); d.n += 1;
+        if (e.date > d.dernier) { d.dernier = e.date; d.nom = nom; }
+      } else {
+        par.set(cle, { nom, total: expenseTotal(e), n: 1, dernier: e.date });
+      }
+    }
+    return [...par.values()].sort((a, b) => b.total - a.total);
+  };
+
+  /* Sur douze mois glissants — c'est l'horizon où « à qui je paie le plus »
+     prend un sens ; sur un seul mois, la réponse n'est que le hasard du mois. */
+  const debutAn = (() => {
+    const [y, m] = month.split('-').map(Number);
+    const d = new Date(y, (m || 1) - 12, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  })();
+  const depensesDeLAnnee = useMemo(
+    () => expenses.filter((e) => e.branchId === branch.id && !e.stopped && e.date >= debutAn && e.date.slice(0, 7) <= month),
+    [expenses, branch.id, debutAn, month],
+  );
+
+  /* QUI A FINANCÉ CE MOIS — le pendant de « L'argent a un nom ». On lit les
+     revenus DÉSIGNÉS par les dépenses du mois, bornés comme partout ailleurs
+     (`sourcesDe`), et la part que personne n'a nommée se dit à côté plutôt
+     que de disparaître. */
+  const financeurs = useMemo(() => {
+    const par = new Map<string, { nom: string; total: number; date: string }>();
+    let sansNom = 0;
+    for (const e of monthExp) {
+      for (const src of sourcesDe(e)) {
+        const cle = `${src.ref}`;
+        const d = par.get(cle);
+        if (d) d.total += src.xof;
+        else par.set(cle, { nom: src.nom, total: src.xof, date: src.date });
+      }
+      sansNom += partNonNommee(e);
+    }
+    return { lignes: [...par.values()].sort((a, b) => b.total - a.total), sansNom };
+  }, [monthExp]);
   const live = monthExp.filter((e) => !e.stopped);
   const visibleMonthExp = monthExp.filter(matches);
 
@@ -830,6 +892,7 @@ export default function Depenses() {
   const TABS: [Tab, string, string][] = [
     ['flux', 'Le flux', fmtMoney(engaged, currency)],
     ['caisses', 'Les caisses', fmtMoney(treasury, currency)],
+    ['argent', 'Où va l’argent', `${beneficiaires(depensesDeLAnnee).length} bénéficiaires`],
     ['budgets', 'Budgets & prévision', allocated ? fmtMoney(allocated, currency) : '—'],
   ];
 
@@ -1157,6 +1220,96 @@ export default function Depenses() {
           mention « mensuel » ou « hebdomadaire ». Le champ `flagged` survit au
           modèle, intact : aucune donnée n'est perdue, et l'onglet reviendrait
           en quelques lignes si la Maison changeait d'avis. */}
+
+      {/* ============ OÙ VA L'ARGENT ============ */}
+      {tab === 'argent' && (
+        <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
+
+          {/* ── À QUI LA MAISON PAIE ─────────────────────────────────
+              Sur DOUZE MOIS : sur un seul, la réponse n'est que le hasard du
+              mois. C'est l'horizon où « à qui je paie le plus » a un sens. */}
+          <div className="trf-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>À qui la Maison paie</div>
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>12 mois jusqu’à {monthName}</span>
+            </div>
+            {(() => {
+              const rangs = beneficiaires(depensesDeLAnnee).filter((b) => !q || normName(b.nom).includes(normName(q)));
+              if (rangs.length === 0) {
+                return <div className="trf-empty" style={{ marginTop: 12 }}>Aucune dépense sur les douze derniers mois.</div>;
+              }
+              const haut = rangs[0].total || 1;
+              return (
+                <div style={{ marginTop: 12 }}>
+                  {rangs.slice(0, 15).map((b) => (
+                    <button
+                      type="button"
+                      key={b.nom}
+                      className="trf-benef"
+                      title={`Voir les ${b.n} ligne(s) de ${b.nom}`}
+                      onClick={() => openExp(b.nom, `Tout ce qui est parti chez ${b.nom} sur douze mois.`,
+                        depensesDeLAnnee.filter((e) => normName(beneficiaireDe(e.label)) === normName(b.nom)))}
+                    >
+                      <span className="trf-benef__nom">{b.nom}</span>
+                      <span className="trf-benef__n">{b.n} ligne{b.n > 1 ? 's' : ''}</span>
+                      <span className="trf-benef__xof">{fmtMoney(b.total, currency)}</span>
+                      <span className="trf-benef__barre"><i style={{ width: `${Math.max(2, Math.round((b.total / haut) * 100))}%` }} /></span>
+                    </button>
+                  ))}
+                  {rangs.length > 15 && (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 9 }}>
+                      … et {rangs.length - 15} autre{rangs.length - 15 > 1 ? 's' : ''} bénéficiaire{rangs.length - 15 > 1 ? 's' : ''} plus bas dans le classement.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ── QUI A FINANCÉ CE MOIS ────────────────────────────────
+              Le pendant de « L'argent a un nom » : les revenus que les
+              dépenses du mois ont désignés. La part que personne n'a nommée
+              se dit à côté — elle n'est pas une faute, mais elle ne doit pas
+              disparaître non plus. */}
+          <div className="trf-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Qui a financé {monthName}</div>
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>d’après les revenus désignés</span>
+            </div>
+            {financeurs.lignes.length === 0 && financeurs.sansNom === 0 ? (
+              <div className="trf-empty" style={{ marginTop: 12 }}>Aucune dépense en {monthName}.</div>
+            ) : (
+              <div style={{ marginTop: 12 }}>
+                {financeurs.lignes.map((f) => (
+                  <div className="trf-linerow trf-linerow--split" key={f.nom + f.date}>
+                    <span>
+                      {f.nom}
+                      <span className="mnd-muted"> · versement du {fmtDay(f.date)}</span>
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                      {fmtMoney(f.total, currency)}
+                    </span>
+                  </div>
+                ))}
+                {financeurs.sansNom > 0 && (
+                  <div className="trf-linerow trf-linerow--split" style={{ opacity: .75 }}>
+                    <span style={{ fontStyle: 'italic' }}>Part sans nom — aucun revenu désigné</span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-soft)' }}>
+                      {fmtMoney(financeurs.sansNom, currency)}
+                    </span>
+                  </div>
+                )}
+                {financeurs.lignes.length === 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+                    Aucune dépense de {monthName} ne nomme le revenu qui l’a payée. Le lien se pose
+                    à la saisie, au champ « Payée par quel revenu ».
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ============ BUDGETS & PRÉVISION ============ */}
       {tab === 'budgets' && (
