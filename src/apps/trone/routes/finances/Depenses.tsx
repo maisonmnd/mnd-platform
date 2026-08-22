@@ -15,6 +15,7 @@ import { expenseOccurrences,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { usePrets } from '../../../../shared/foyer';
+import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
@@ -63,6 +64,42 @@ export default function Depenses() {
   const [creditMvts, setCreditMvts] = useCredits();
   /* Les prêts touchent la caisse depuis le 22 août — voir `pretsDeCaisse`. */
   const [prets] = usePrets();
+  /* ── LE TRANSFERT ENTRE CAISSES — 22 août 2026 ──────────────────
+     « Je peux faire des transferts ? » Non — et on ne pouvait le faire qu'en
+     trichant : une fausse dépense d'un côté, un faux encaissement de l'autre.
+     Deux comptes salis pour un seul geste. Une seule écriture à deux bouts. */
+  const [transferts, setTransferts] = useTransferts();
+  const [transfertOuvert, setTransfertOuvert] = useState(false);
+  const [fTr, setFTr] = useState({ de: '', vers: '', montant: '', recu: '', note: '', date: todayISO() });
+
+
+  const enregistrerTransfert = () => {
+    const montant = parseInt(fTr.montant.replace(/[^0-9]/g, ''), 10) || 0;
+    const recu = parseInt(fTr.recu.replace(/[^0-9]/g, ''), 10) || 0;
+    /* UNE CAISSE NE S'ENVOIE PAS À ELLE-MÊME : le geste est absurde, et le
+       laisser passer inscrirait un mouvement qui ne bouge rien. */
+    if (!fTr.de || !fTr.vers || fTr.de === fTr.vers || montant <= 0) return;
+    if (changeDeDevise && recu <= 0) return;
+    setTransferts((prev) => [...prev, {
+      id: `trf-${uid()}`,
+      branchId: branch.id,
+      date: fTr.date || todayISO(),
+      de: fTr.de,
+      vers: fTr.vers,
+      amountXof: montant,
+      recuXof: changeDeDevise ? recu : undefined,
+      note: fTr.note.trim() || undefined,
+    }]);
+    setTransfertOuvert(false);
+    setFTr((f) => ({ ...f, montant: '', recu: '', note: '' }));
+  };
+
+  /* Ce qu'un transfert fait à une caisse — négatif au départ, positif à
+     l'arrivée. Il entre dans le solde comme tout le reste. */
+  const transfertsDeCaisse = (name: string, keep: (mk: string) => boolean): number =>
+    transferts
+      .filter((t) => t.branchId === branch.id && keep(monthKey(t.date)))
+      .reduce((s, t) => s + transfertSurCaisse(t, name), 0);
   const [clientes] = useClients();
   const [familles] = useFamilies();
   const [categories, setCategories] = useExpenseCategories();
@@ -122,6 +159,15 @@ export default function Depenses() {
   const monthName = monthLabel(month);
   const isCurrent = month === thisMonth;
   const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+
+  /* Les deux bouts du transfert, et leurs devises — déclarés APRÈS
+     `branchBoxes` : les lire plus haut touchait une constante non encore
+     initialisée, et tout l'écran tombait. */
+  const caisseDe = branchBoxes.find((c) => c.name === fTr.de);
+  const caisseVers = branchBoxes.find((c) => c.name === fTr.vers);
+  const deviseDe = caisseDe ? cashboxCurrency(caisseDe) : currency;
+  const deviseVers = caisseVers ? cashboxCurrency(caisseVers) : currency;
+  const changeDeDevise = !!caisseDe && !!caisseVers && deviseDe !== deviseVers;
 
   // — Recherche : libellé, catégorie, sous-catégorie (et articles de l'achat) —
   const q = query.trim().toLowerCase();
@@ -362,7 +408,7 @@ export default function Depenses() {
     const foreign = boxCur !== currency;
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, keep), 0);
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
-    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep);
+    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
@@ -476,7 +522,18 @@ export default function Depenses() {
       expense: undefined as Expense | undefined,
     }));
 
-    const moves = [...inn, ...out, ...avoirs, ...versements, ...lesPrets].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const lesTransferts = transferts
+      .filter((t) => t.branchId === branch.id && monthKey(t.date) === month && (t.de === name || t.vers === name))
+      .map((t) => ({
+        date: t.date,
+        label: t.de === name ? `Transféré vers ${t.vers}` : `Reçu de ${t.de}`,
+        sub: t.note || 'Transfert entre caisses',
+        delta: transfertSurCaisse(t, name),
+        invoiceId: undefined as string | undefined,
+        expense: undefined as Expense | undefined,
+      }));
+
+    const moves = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
 
@@ -1145,6 +1202,9 @@ export default function Depenses() {
                   utile. Sa place est auprès des caisses : on programme une
                   échéance en regardant ce qu'on a. */}
               <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => openFor()}>+ Paiement récurrent</button>
+              {branchBoxes.length > 1 && (
+                <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTransfertOuvert(true)}>⇄ Transférer</button>
+              )}
               <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => openFor()}>+ Ajouter une dépense</button>
             </div>
           </div>
@@ -2010,6 +2070,83 @@ export default function Depenses() {
               </div>
             </>
           )}
+        </Modal>
+      )}
+
+      {transfertOuvert && (
+        <Modal title="Transférer entre caisses" onClose={() => setTransfertOuvert(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              L’argent change de tiroir : la caisse de départ baisse, celle d’arrivée monte.
+              <b> Rien n’est dépensé, rien n’est encaissé</b> — un transfert ne paraîtra ni dans
+              vos dépenses ni dans vos encaissements.
+            </div>
+
+            <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 14 } as CSSProperties}>
+              <label className="mnd-field">
+                <span className="mnd-field__label">D’où il part</span>
+                <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
+                  <option value="">Choisir…</option>
+                  {branchBoxes.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="mnd-field">
+                <span className="mnd-field__label">Où il arrive</span>
+                <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
+                  <option value="">Choisir…</option>
+                  {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => (
+                    <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mnd-field">
+              <span className="mnd-field__label">Montant qui sort · {deviseDe}</span>
+              <input
+                className="mnd-input" inputMode="numeric" value={fTr.montant} placeholder="0"
+                onChange={(e) => setFTr((f) => ({ ...f, montant: e.target.value.replace(/[^0-9]/g, '') }))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </label>
+
+            {/* ENTRE DEUX DEVISES, CE QUI ARRIVE N'EST PAS CE QUI PART. On le
+                demande plutôt que de le convertir : un taux calculé à la
+                lecture, un autre jour, réécrirait l'histoire. */}
+            {changeDeDevise && (
+              <label className="mnd-field">
+                <span className="mnd-field__label">Montant réellement reçu · {deviseVers}</span>
+                <input
+                  className="mnd-input" inputMode="numeric" value={fTr.recu} placeholder="0"
+                  onChange={(e) => setFTr((f) => ({ ...f, recu: e.target.value.replace(/[^0-9]/g, '') }))}
+                  style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+                />
+                <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+                  Les deux caisses ne tiennent pas la même monnaie. Saisissez ce qui entre vraiment
+                  dans « {fTr.vers} » — c’est ce chiffre qui fera foi, pas une conversion d’aujourd’hui.
+                </span>
+              </label>
+            )}
+
+            <label className="mnd-field">
+              <span className="mnd-field__label">Date</span>
+              <input className="mnd-input" type="date" value={fTr.date} onChange={(e) => setFTr((f) => ({ ...f, date: e.target.value }))} />
+            </label>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Motif · facultatif</span>
+              <input
+                className="mnd-input" value={fTr.note} placeholder="Ex. approvisionner le comptoir…"
+                onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))}
+              />
+            </label>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setTransfertOuvert(false)}>Annuler</button>
+              <button className="mnd-btn" onClick={enregistrerTransfert}>Transférer</button>
+            </div>
+          </div>
         </Modal>
       )}
 
