@@ -329,6 +329,10 @@ body[data-surface='trone'] {
 .tr-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tr-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tr-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* UNE SEULE CARTE NE S'ÉTIRE PAS — 22 août 2026. Quand l'écran des dépenses
+   n'a qu'un chiffre à dire (mois calme), une carte tirée sur toute la largeur
+   crie ce qu'elle devrait poser. Elle garde sa taille et reste à gauche. */
+.tr-grid--1 { grid-template-columns: minmax(0, 300px); }
 @media (max-width: 1100px) {
   .tr-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tr-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

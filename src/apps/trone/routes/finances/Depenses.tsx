@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
@@ -852,15 +852,13 @@ export default function Depenses() {
           <Eyebrow>Finances · maîtrise des dépenses</Eyebrow>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Les dépenses.</h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Économies réalisées · {monthName}</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, lineHeight: 1, color: 'var(--trf-success)', marginTop: 3 }}>{fmtMoney(savings, currency)}</div>
-          </div>
-          <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }} onClick={() => openFor()}>
-            + Ajouter une dépense
-          </button>
-        </div>
+        {/* L'EN-TÊTE NE PORTE PLUS DE CHIFFRE — 22 août 2026. « Économies
+            réalisées » y trônait en grand, à zéro onze mois sur douze, et le
+            même montant se répétait plus bas dans les cartes. Un titre d'écran
+            annonce l'écran ; les chiffres vivent dans les cartes, une fois. */}
+        <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }} onClick={() => openFor()}>
+          + Ajouter une dépense
+        </button>
       </div>
 
       {/* Période explicite + recherche + export — la barre d'outils de l'écran */}
@@ -888,32 +886,80 @@ export default function Depenses() {
       {/* ============ LE FLUX ============ */}
       {tab === 'flux' && (
         <div>
-          <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--trf-warning)', flex: 'none' }} />
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--color-ivoire)' }}>
-                L’intelligence a repéré <span style={{ color: 'var(--copper-200)', fontWeight: 500 }}>{fmtMoney(potential, currency)}</span> d’économies possibles en {monthName} — {live.filter((e) => e.flagged).length} engagement(s) à arbitrer.
-              </div>
-            </div>
-            <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', flex: 'none' }} onClick={() => setTab('engagements')}>
-              Arbitrer les engagements →
-            </button>
-          </div>
+          {/* ── L'ÉCRAN S'ALLÈGE — 22 août 2026 ────────────────────────
+              « L'intelligence mise en marche ne sert à rien et ne fait
+              qu'alourdir l'UI. »
 
-          <div className="tr-grid tr-grid--4">
-            {kpiCard(`Dépenses engagées · ${monthName}`, fmtMoney(engaged, currency), 'var(--color-indigo)', 'var(--color-indigo)', `${expRatio} % du revenu · cible < 35 %`, '',
-              () => openExp(`Dépenses engagées · ${monthName}`, 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.', live))}
-            {kpiCard('Potentiel d’économie · IA', fmtMoney(potential, currency), 'var(--color-copper)', 'var(--copper-600)', `${live.filter((e) => e.flagged).length} à arbitrer`, 'up',
-              () => openExp('Potentiel d’économie', 'Les dépenses signalées, encore vivantes : les stopper les fait passer en économies.', live.filter((e) => e.flagged)))}
-            {kpiCard('Économies réalisées', fmtMoney(savings, currency), 'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good',
-              () => openExp('Économies réalisées', `Les dépenses stoppées en ${monthName} — capturées, donc jamais sorties de la caisse.`, monthExp.filter((e) => e.stopped)))}
-            {kpiCard(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`, fmtMoney(forecast, currency), 'var(--indigo-400)', 'var(--color-indigo)', forecastNote, '',
-              () => openExp(isCurrent ? 'Prévision · fin de mois' : `Total · ${monthName}`,
-                isCurrent
-                  ? 'Projection au rythme réel : ces dépenses, rapportées aux jours écoulés puis étendues au mois. Le total ci-dessous est le réel à date, pas la projection.'
-                  : 'Les dépenses vivantes du mois.',
-                live))}
-          </div>
+              Ce qu'il y avait ici : un bandeau sombre annonçant en toutes
+              lettres qu'il n'avait rien trouvé (« 0 F d'économies possibles —
+              0 engagement à arbitrer »), puis QUATRE cartes dont deux à zéro
+              onze mois sur douze, et deux portant LE MÊME nombre — les
+              dépenses engagées et le total du mois clos sont la même chose.
+              Cinq chiffres pour en dire deux.
+
+              LA RÈGLE MAINTENANT : une carte ne paraît que si elle a quelque
+              chose à dire. Un mois calme n'en montre qu'une ; un mois qui
+              demande un arbitrage la fait apparaître, en cuivre, sans prêter
+              de flair à personne — ce sont TES signalements, pas ceux d'une
+              intelligence. */}
+          {(() => {
+            const aArbitrer = live.filter((e) => e.flagged);
+            const cartes: { k: string; n: ReactNode }[] = [];
+
+            cartes.push({
+              k: 'total',
+              n: kpiCard(
+                `Dépenses · ${monthName}`, fmtMoney(engaged, currency),
+                'var(--color-indigo)', 'var(--color-indigo)',
+                revenue > 0 ? `${expRatio} % du revenu · cible < 35 %` : 'aucun revenu ce mois-ci', '',
+                () => openExp(`Dépenses · ${monthName}`, 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.', live),
+              ),
+            });
+
+            /* La prévision n'a de sens que sur un mois EN COURS : sur un mois
+               clos, elle répète le total au franc près. */
+            if (isCurrent) {
+              cartes.push({
+                k: 'prevision',
+                n: kpiCard(
+                  'Prévision · fin de mois', fmtMoney(forecast, currency),
+                  'var(--indigo-400)', 'var(--color-indigo)', forecastNote, '',
+                  () => openExp('Prévision · fin de mois',
+                    'Projection au rythme réel : ces dépenses, rapportées aux jours écoulés puis étendues au mois. Le total ci-contre est le réel à date, pas la projection.',
+                    live),
+                ),
+              });
+            }
+
+            if (aArbitrer.length > 0) {
+              cartes.push({
+                k: 'arbitrer',
+                n: kpiCard(
+                  'Signalées · à arbitrer', fmtMoney(potential, currency),
+                  'var(--color-copper)', 'var(--copper-600)',
+                  `${aArbitrer.length} dépense${aArbitrer.length > 1 ? 's' : ''} — les stopper les fait passer en économies`, '',
+                  () => setTab('engagements'),
+                ),
+              });
+            }
+
+            if (savings > 0) {
+              cartes.push({
+                k: 'economies',
+                n: kpiCard(
+                  'Économies réalisées', fmtMoney(savings, currency),
+                  'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good',
+                  () => openExp('Économies réalisées', `Les dépenses stoppées en ${monthName} — capturées, donc jamais sorties de la caisse.`, monthExp.filter((e) => e.stopped)),
+                ),
+              });
+            }
+
+            return (
+              <div className={`tr-grid tr-grid--${cartes.length}`}>
+                {cartes.map((c) => <Fragment key={c.k}>{c.n}</Fragment>)}
+              </div>
+            );
+          })()}
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
