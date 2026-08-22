@@ -88,6 +88,11 @@ sans réponse en tête, la note et l'auteur, et le lien vers la fiche cliente
 quand le nom correspond. L'IA lit l'avis ET ce contexte (ce qu'elle est venue
 faire, depuis quand elle vient), propose une réponse dans la voix de la Maison.
 
+**LA DEVISE FERME CHAQUE RÉPONSE** — demande de Yéman, 22 août 2026. Posée par
+`signeLeMessage()` APRÈS le texte du modèle, jamais demandée dans l'instruction :
+un modèle oublie, paraphrase ou écorche les diacritiques, et « mi nyo dekpe »
+sous un avis public serait pire que rien. Éprouvé par `verifie-signature`.
+
 **L'IA PROPOSE, LA SOUVERAINE VALIDE** — arbitrage de Yéman, 22 août 2026.
 Rien ne part sans lecture. Une réponse publique porte le nom de la Maison, et
 un avis à une étoile mal répondu se lit par tout le monde, pour toujours.

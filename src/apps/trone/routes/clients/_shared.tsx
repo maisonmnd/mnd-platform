@@ -4,7 +4,7 @@ import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonNom, houseSignature } from '../../../../shared/identite';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
   remiseFamillePct, type Client,
@@ -488,15 +488,11 @@ export const apptResume = (a: Appointment, byId: Map<string, Service>, max = 3) 
    « soon » = demain (rappel J-1), '' = plus lointain. */
 const digitsOf = (p?: string) => (p ?? '').replace(/\D/g, '');
 
-/** Signature de la Maison au bas d'un message — le picto de la branche puis la
-    devise en fon, celle du Portail, du Certificat et du Bilan de séance :
-    « mi nyɔ́ ɖɛkpɛ » (nous sommes beaux, et nous le savons).
-    ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut
-    pas voyager dans le message. Le picto typographique de la branche en tient
-    lieu ; le vrai logo se pose une fois pour toutes en photo de profil du compte
-    WhatsApp de la Maison, où il signe alors CHAQUE message. */
-export const houseSignature = (picto?: string) =>
-  `${picto ?? '◈'} ${maisonNom()} · mi nyɔ́ ɖɛkpɛ`;
+/* LA SIGNATURE A REJOINT `shared/identite` — 22 août 2026. Elle vivait ici,
+   à côté du rappel WhatsApp, alors qu'elle appartient à l'identité de la
+   Maison : l'écran des avis Google devra la poser sans traverser le carnet
+   des clientes. Re-exportée pour les appelants d'avant. */
+export { houseSignature };
 
 export function apptReminder(
   a: Appointment,

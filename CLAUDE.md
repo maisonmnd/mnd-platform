@@ -69,6 +69,12 @@ Ne jamais coder en dur une clé de service, un secret, ni un nom de domaine.
 - Animations fondues, sans rebond.
 - Graphiques SVG faits main (pas de librairie de charts).
 - La marque s'écrit **MND** — le ɖ appartient à *mi nyɔ́ ɖɛkpɛ* seulement.
+- **Tout message écrit par l'IA se termine par la devise** — `signeLeMessage()`
+  de `shared/identite.ts`. Elle est posée PAR LE CODE, jamais demandée au
+  modèle dans son instruction : un modèle oublie une fois sur vingt,
+  paraphrase (« nous sommes beaux ! »), ou écorche les diacritiques — et
+  « mi nyo dekpe » sous un avis public serait pire que rien. La fonction ne la
+  pose jamais deux fois (`porteLaDevise` la reconnaît écorchée).
 - Copie française partout.
 
 ## Déploiement

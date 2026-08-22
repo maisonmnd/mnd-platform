@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La devise signe ce que l'IA écrit — 22 août, POSÉ
+
+« Quand l'IA répond aux messages, toujours avoir notre devise à la fin »
+(Yéman). Aujourd'hui l'IA n'écrit AUCUN message : `suggest-client` propose un
+persona, rien qui parte vers une cliente. La règle est donc posée d'avance,
+pour l'écran des avis Google — et la mécanique avec elle, pour qu'elle ne
+dépende pas de la mémoire de qui construira.
+
+ELLE EST POSÉE PAR LE CODE, JAMAIS DEMANDÉE AU MODÈLE. C'est le seul point qui
+compte. Une consigne dans l'instruction tient la plupart du temps : le modèle
+oublie une fois sur vingt, paraphrase (« nous sommes beaux ! »), ou écorche les
+diacritiques — et « mi nyo dekpe » sous un avis public se lit par tout le monde,
+pour toujours. `signeLeMessage(texte)` concatène après coup. Une concaténation
+n'oublie jamais.
+
+`shared/identite.ts` accueille `DEVISE_MAISON`, `houseSignature`,
+`porteLaDevise` et `signeLeMessage`. La signature VIVAIT dans
+`routes/clients/_shared.tsx`, à côté du rappel WhatsApp — elle appartient à
+l'identité de la Maison, là où vit déjà le nom qu'elle accompagne, et l'écran
+des avis ne doit pas traverser le carnet des clientes pour signer.
+`_shared.tsx` la re-exporte : rien à changer chez les appelants.
+
+`porteLaDevise` reconnaît la devise ÉCORCHÉE — accents ôtés, ɖ→d, ɛ→e, ɔ→o :
+« Mi Nyɔ́ Ɖɛkpɛ », « mi nyo dekpe » et la forme juste comptent toutes. Sans ça,
+un modèle qui l'aurait écrite de lui-même la verrait posée une seconde fois.
+
+Douzième harnais, `verifie-signature` : le texte du modèle conservé mot pour
+mot, la devise en dernière ligne, JAMAIS deux fois, les blancs de fin qui ne
+creusent pas le message, le picto de la branche à la place du monogramme (un
+lien wa.me ne transporte que du texte).
+
+CONSTAT AU PASSAGE, pas encore traité. Cinq écrans composent des messages à la
+main — facture (Factures), reçu (Caisse), résumé de consultation
+(Consultations), anniversaire et relance (Tableau de bord) — et AUCUN ne porte
+la devise. Ils finissent chacun à leur façon : « La maison veille sur votre
+couronne », « Réglez d'un geste ». Seul `apptReminder` signe. Le Tableau de
+bord code même « Maison MND » en dur dans le message d'anniversaire, au lieu de
+`maisonNom()`. Proposé à Yéman, pas fait sans son accord — signer six messages
+change la voix de la Maison, ce n'est pas une correction technique.
+
 ## Répondre aux avis Google — 22 août, EN ATTENTE DE GOOGLE
 
 « Comment connecter les avis Google et pouvoir répondre immédiatement avec
