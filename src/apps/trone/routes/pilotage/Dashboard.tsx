@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { signeLeMessage } from '../../../../shared/identite';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
@@ -381,7 +382,12 @@ export default function Dashboard() {
       action: c.phone ? 'Souhaiter' : 'Sa fiche',
       go: () => {
         if (c.phone) {
-          const msg = `Joyeux anniversaire, ${c.name} ! Toute la Maison MND pense à vous et vous souhaite une année rayonnante. Votre couronne vous va à merveille.`;
+          /* « Toute la Maison MND » écrivait le nom EN DUR — au milieu d'une
+             phrase française, seul endroit où `maisonNom()` ne peut pas aller
+             (une enseigne qui ne commence pas par « Maison » briserait la
+             phrase). « Toute la Maison » suffit, et la devise nomme la maison
+             en signant. — 22 août 2026 */
+          const msg = signeLeMessage(`Joyeux anniversaire, ${c.name} ! Toute la Maison pense à vous et vous souhaite une année rayonnante.`);
           window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
         } else {
           navigate('/customers');
@@ -983,9 +989,9 @@ export default function Dashboard() {
                         <a
                           className="trf-act"
                           style={{ textDecoration: 'none' }}
-                          href={`https://wa.me/${tel}?text=${encodeURIComponent(r.mode === 'forfait'
-                            ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`
-                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche. — Maison MND`)}`}
+                          href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(r.mode === 'forfait'
+                            ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains — scellons vos créneaux, mèche après mèche.`
+                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche.`))}`}
                           target="_blank" rel="noopener noreferrer"
                         >
                           Sceller sur WhatsApp

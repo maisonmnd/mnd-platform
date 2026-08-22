@@ -6,7 +6,7 @@ import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom, maisonRaison } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, signeLeMessage } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
@@ -725,11 +725,16 @@ export default function Factures() {
     /* 2) …puis on ouvre le chat pré-rempli, en signalant la pièce jointe. */
     const label = doc.kind === 'devis' ? 'Devis' : 'Facture';
     const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
-    const msg =
+    /* LA DEVISE FERME, ET ELLE SEULE — 22 août 2026. Le rappel MoMo tenait
+       la dernière ligne : une consigne de paiement n'est pas une formule
+       d'adieu, et elle poussait la Maison hors de son propre message. Le mot
+       du maître reste, lui — c'est une parole, pas une chute. */
+    const msg = signeLeMessage(
       `${maisonNom()} · ${label} ${doc.number}\n` +
       `Pour ${prenomOf(doc)} — total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
-      `${(doc.note?.trim() || defaultNoteFor(doc))}\nRéglez d’un geste — MTN MoMo · Moov Money.`;
+      `${(doc.note?.trim() || defaultNoteFor(doc))}`,
+    );
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
     setWaHint('PDF téléchargé — joignez-le à votre message.');
     if (doc.status === 'brouillon') patchSelected({ status: 'envoyée' });

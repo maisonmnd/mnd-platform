@@ -33,14 +33,25 @@ mot, la devise en dernière ligne, JAMAIS deux fois, les blancs de fin qui ne
 creusent pas le message, le picto de la branche à la place du monogramme (un
 lien wa.me ne transporte que du texte).
 
-CONSTAT AU PASSAGE, pas encore traité. Cinq écrans composent des messages à la
-main — facture (Factures), reçu (Caisse), résumé de consultation
-(Consultations), anniversaire et relance (Tableau de bord) — et AUCUN ne porte
-la devise. Ils finissent chacun à leur façon : « La maison veille sur votre
-couronne », « Réglez d'un geste ». Seul `apptReminder` signe. Le Tableau de
-bord code même « Maison MND » en dur dans le message d'anniversaire, au lieu de
-`maisonNom()`. Proposé à Yéman, pas fait sans son accord — signer six messages
-change la voix de la Maison, ce n'est pas une correction technique.
+LES CINQ MESSAGES ÉCRITS À LA MAIN SIGNENT AUSSI — arbitrage de Yéman le même
+jour : « les signer, et ôter les vieilles chutes ». Facture et devis (Factures),
+reçu (Caisse), résumé de consultation (Consultations), anniversaire et « sceller
+un forfait » (Tableau de bord). Chacun finissait à sa façon — « La maison veille
+sur votre couronne », « — Maison MND », « Votre couronne vous va à merveille ».
+La devise ferme désormais, seule.
+
+CE QUI TOMBE AVEC LES CHUTES, ET QU'ELLE A ACCEPTÉ : « Réglez d'un geste — MTN
+MoMo · Moov Money » disparaît du message de facture. Il n'existe NULLE PART
+ailleurs (ni sur le PDF, ni sur le reçu) — si la Maison le regrette, il revient
+en ligne de corps, pas en chute. Sur le reçu de caisse il était de toute façon
+faux : il réclamait un règlement DÉJÀ encaissé.
+
+CE QUE JE M'ÉTAIS TROMPÉ DE CROIRE. J'ai d'abord noté « Maison MND codé en dur
+dans l'anniversaire » comme un défaut. C'était une décision, écrite dans
+`identite.ts` : le nom ne s'insère JAMAIS au milieu d'une phrase française —
+« Toute la Maison MND pense à vous » se briserait sur une enseigne qui ne
+commence pas par « Maison ». La phrase dit maintenant « Toute la Maison », et la
+devise nomme la maison en signant : le nom en dur disparaît sans casser la règle.
 
 ## Répondre aux avis Google — 22 août, EN ATTENTE DE GOOGLE
 

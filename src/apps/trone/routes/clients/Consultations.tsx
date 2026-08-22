@@ -6,6 +6,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
+import { signeLeMessage } from '../../../../shared/identite';
 import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
 import { type Appointment } from '../../../../shared/agenda';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -748,10 +749,13 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
       `Bonjour ${first},`,
       `Voici le résumé de votre consultation « ${form.name} » du ${frLong(savedDate || todayISO())}.`,
       `Résumé en pièce jointe.`,
-      `La Maison MND veille sur votre couronne.`,
+      /* « La Maison MND veille sur votre couronne » est tombée le 22 août :
+         le nom y était codé en dur — deux Maisons se seraient contredites le
+         jour d'un changement d'enseigne — et la devise dit la même chose en
+         mieux, une fois pour toutes. */
     ].join('\n');
     const phone = digitsOnly(client.phone);
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(signeLeMessage(msg))}`, '_blank', 'noopener');
   };
 
   return (
