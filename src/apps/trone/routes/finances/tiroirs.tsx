@@ -41,6 +41,10 @@ let ouvertes: ReadonlySet<string> = new Set<string>();
 const veilleurs = new Set<() => void>();
 const prevenir = () => veilleurs.forEach((f) => f());
 
+/* Le verrou de l'ÉCRAN — même registre, une clé réservée : il se lève et
+   retombe comme une caisse, et le rechargement le repose. */
+export const CLE_ECRAN = '@ecran-caisses';
+
 export const ouvreLaCaisse = (id: string): void => {
   ouvertes = new Set([...ouvertes, id]);
   prevenir();

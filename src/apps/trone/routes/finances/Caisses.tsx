@@ -11,7 +11,8 @@ import {
 } from '../../../../shared/finance';
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
-import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN } from './tiroirs';
+import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 
 /* ── LES CAISSES · L'ÉCRAN — 22 août 2026 ───────────────────────────
@@ -49,6 +50,33 @@ export default function Caisses() {
   const [, setCreditMvts] = useCredits();
 
   const [boxDrill, setBoxDrill] = useState<string | null>(null);
+
+  /* ── LE VERROU DE L'ÉCRAN — 22 août 2026 ──────────────────────────
+     « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
+     Sans code posé, l'écran s'ouvre comme avant : une mise à jour ne doit
+     enfermer personne dehors. Le verrou vaut pour la séance. */
+  const [reglages] = useSettings();
+  const toutesOuvertes = useCaissesOuvertes();
+  const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
+  const [codeEcran, setCodeEcran] = useState('');
+  const [ecranFaux, setEcranFaux] = useState(false);
+  const ouvrirLEcran = async () => {
+    if (await leCodeOuvre({ id: CLE_ECRAN, codeHash: reglages.codeCaissesHash }, codeEcran)) {
+      ouvreLaCaisse(CLE_ECRAN); setCodeEcran(''); setEcranFaux(false);
+    } else setEcranFaux(true);
+  };
+
+  /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
+     dedans : il n'y a pas d'endroit plus juste pour le régler. */
+  const [verrouOuvert, setVerrouOuvert] = useState(false);
+  const [nouveauCode, setNouveauCode] = useState('');
+  const enregistrerLeVerrou = async () => {
+    const code = nouveauCode.trim();
+    const hash = code ? await empreinteDuCode(CLE_ECRAN, code) : undefined;
+    settingsStore.set((prev) => ({ ...prev, codeCaissesHash: hash }));
+    if (hash) ouvreLaCaisse(CLE_ECRAN);
+    setVerrouOuvert(false); setNouveauCode('');
+  };
 
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
@@ -179,6 +207,33 @@ export default function Caisses() {
     .filter((t) => t.branchId === branch.id && monthKey(t.date) === month)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
+  if (ecranVerrouille) {
+    return (
+      <div className="mnd-rise">
+        <div className="trf-verrou">
+          <div className="trf-verrou__titre">Les caisses sont verrouillées.</div>
+          <p className="trf-verrou__mot">
+            Cet écran demande le code de la Maison. Il se refermera de lui-même au prochain
+            chargement de la page.
+          </p>
+          <input
+            className="mnd-input"
+            type="password"
+            autoFocus
+            autoComplete="off"
+            placeholder="Code"
+            value={codeEcran}
+            onChange={(e) => { setCodeEcran(e.target.value); setEcranFaux(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void ouvrirLEcran(); }}
+            style={{ maxWidth: 260 }}
+          />
+          {ecranFaux && <div className="trf-verrou__faux">Ce code n’ouvre pas cet écran.</div>}
+          <button className="mnd-btn" style={{ marginTop: 14 }} onClick={() => void ouvrirLEcran()}>Ouvrir</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mnd-rise">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
@@ -186,13 +241,18 @@ export default function Caisses() {
           <Eyebrow>Finances · les tiroirs de la Maison</Eyebrow>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Les caisses.</h2>
         </div>
-        <button
-          className="trf-act"
-          style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }}
-          onClick={openNewBox}
-        >
-          + Nouvelle caisse
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => { setNouveauCode(''); setVerrouOuvert(true); }}>
+            {reglages.codeCaissesHash ? 'Code de l’écran' : 'Protéger cet écran'}
+          </button>
+          <button
+            className="trf-act"
+            style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }}
+            onClick={openNewBox}
+          >
+            + Nouvelle caisse
+          </button>
+        </div>
       </div>
 
       <div className="trf-toolbar">
@@ -237,69 +297,109 @@ export default function Caisses() {
           permet de dire, à tout moment, ce que la Maison a sous la main.
         </div>
       ) : (
-        <div className="tr-grid tr-grid--3">
-          {branchBoxes.map((c) => {
-            const visible = soldeVisible(c, ouvertes);
-            const bal = boxBalance(c.name);
-            const boxCur = cashboxCurrency(c);
-            const low = visible && boxCur === currency && bal < 100000;
-            const { inn, out } = boxMonthFlux(c.name);
-            return (
-              <div className="trf-caisse" key={c.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11, justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-                    <span className="trf-caisse__glyph">{c.glyph}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="trf-caisse__name">{c.name}</div>
-                      <div className="trf-caisse__sub">
-                        {c.sub}
-                        {c.horsBilan && <span className="trf-horsbilan">hors bilan</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 5, flex: 'none' }}>
-                    {caisseDiscrete(c) && (
-                      visible
-                        ? <button className="trf-iconbtn" title="Refermer cette caisse" onClick={() => refermeLaCaisse(c.id)}>Refermer</button>
-                        : <button className="trf-iconbtn" title="Ouvrir avec le code" onClick={() => { setAOuvrir(c); setCodeSaisi(''); setCodeFaux(false); }}>Ouvrir</button>
+        /* ── RANGÉES PAR DEVISE — 22 août 2026 ─────────────────────
+           Six tiroirs en trois monnaies se lisaient à la file, mêlés : le
+           regard sautait de francs en euros en dollars sans savoir ce qu'il
+           additionnait. Chaque monnaie a désormais sa rangée et SON total —
+           un total qui a un sens, puisqu'il ne mêle rien.
+
+           LA MAISON D'ABORD, les devises ensuite par ordre alphabétique :
+           l'ordre ne dépend pas de ce qu'on a créé en premier. */
+        <>
+          {(() => {
+            const parDevise = new Map<string, typeof branchBoxes>();
+            for (const c of branchBoxes) {
+              const d = cashboxCurrency(c);
+              parDevise.set(d, [...(parDevise.get(d) ?? []), c]);
+            }
+            const devises = [...parDevise.keys()].sort((a, b) => (
+              a === currency ? -1 : b === currency ? 1 : a.localeCompare(b)
+            ));
+            return devises.map((devise) => {
+              const boxes = parDevise.get(devise)!;
+              const lisibles = boxes.filter((c) => soldeVisible(c, ouvertes) && !c.horsBilan);
+              const total = lisibles.reduce((s, c) => s + boxBalance(c.name), 0);
+              const tues = boxes.length - lisibles.length;
+              return (
+                <section key={devise} style={{ marginBottom: 26 }}>
+                  <div className="trf-devise">
+                    <span className="trf-devise__code">{devise}</span>
+                    <span className="trf-devise__n">
+                      {boxes.length} caisse{boxes.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="trf-devise__total">{fmtIn(total, devise)}</span>
+                    {tues > 0 && (
+                      <span className="trf-devise__note">
+                        {tues} {tues > 1 ? 'écartées' : 'écartée'} de ce total
+                      </span>
                     )}
-                    <button className="trf-iconbtn" title="Modifier la caisse" onClick={() => openEditBox(c)}>Modifier</button>
-                    <button className="trf-iconbtn trf-iconbtn--danger" title="Retirer la caisse" onClick={() => deleteBox(c)}>Retirer</button>
                   </div>
-                </div>
-                {/* LE SOLDE NE SE MONTRE PAS SANS SON CODE — et les flux du
-                    mois non plus : « + 800 000 · − 200 000 » dirait presque
-                    tout. Une caisse fermée ne laisse voir que son existence. */}
-                <button
-                  className="trf-caisse__open"
-                  onClick={() => (visible ? setBoxDrill(c.name) : (setAOuvrir(c), setCodeSaisi(''), setCodeFaux(false)))}
-                  title={visible ? 'Voir les mouvements de cette caisse' : 'Ouvrir avec le code'}
-                >
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                    Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}{boxCur !== currency ? ` · ${boxCur}` : ''}
+
+                  <div className="trf-caisses-grille">
+                    {boxes.map((c) => {
+                      const visible = soldeVisible(c, ouvertes);
+                      const bal = boxBalance(c.name);
+                      const boxCur = cashboxCurrency(c);
+                      const low = visible && boxCur === currency && bal < 100000;
+                      const { inn, out } = boxMonthFlux(c.name);
+                      return (
+                        <div className={`trf-caisse ${!visible ? 'is-close' : ''}`} key={c.id}>
+                          <div className="trf-caisse__tete">
+                            <span className="trf-caisse__glyph">{c.glyph}</span>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="trf-caisse__name">{c.name}</div>
+                              <div className="trf-caisse__sub">
+                                {c.sub}
+                                {c.horsBilan && <span className="trf-horsbilan">hors bilan</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            className="trf-caisse__open"
+                            onClick={() => (visible ? setBoxDrill(c.name) : (setAOuvrir(c), setCodeSaisi(''), setCodeFaux(false)))}
+                            title={visible ? 'Voir les mouvements de cette caisse' : 'Ouvrir avec le code'}
+                          >
+                            <div className="trf-caisse__lab">
+                              Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}
+                            </div>
+                            {visible ? (
+                              <>
+                                <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
+                                <div className="trf-caisse__flux">
+                                  <span style={{ color: 'var(--trf-success)' }}>+ {fmtIn(inn, boxCur)}</span>
+                                  <span style={{ color: 'var(--color-copper)' }}>− {fmtIn(out, boxCur)}</span>
+                                  <span style={{ color: 'var(--ink-soft)' }}>en {monthName}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="trf-caisse__bal" style={{ color: 'var(--ink-soft)', letterSpacing: '.12em' }}>••• •••</div>
+                                <div className="trf-caisse__flux"><span style={{ color: 'var(--ink-soft)' }}>caisse discrète — cliquer pour l’ouvrir</span></div>
+                              </>
+                            )}
+                          </button>
+
+                          {/* LES GESTES EN PIED, jamais collés au nom : c'est
+                              là qu'ils encombraient la lecture. */}
+                          <div className="trf-caisse__pied">
+                            {caisseDiscrete(c) && (
+                              visible
+                                ? <button className="trf-caisse__acte" onClick={() => refermeLaCaisse(c.id)}>Refermer</button>
+                                : <button className="trf-caisse__acte" onClick={() => { setAOuvrir(c); setCodeSaisi(''); setCodeFaux(false); }}>Ouvrir</button>
+                            )}
+                            <button className="trf-caisse__acte" onClick={() => openEditBox(c)}>Modifier</button>
+                            <button className="trf-caisse__acte trf-caisse__acte--danger" onClick={() => deleteBox(c)}>Retirer</button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {visible ? (
-                    <>
-                      <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{ color: 'var(--trf-success)' }}>+ {fmtIn(inn, boxCur)}</span>
-                        <span style={{ color: 'var(--color-copper)' }}>− {fmtIn(out, boxCur)}</span>
-                        <span style={{ color: 'var(--ink-soft)' }}>en {monthName}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="trf-caisse__bal" style={{ color: 'var(--ink-soft)', letterSpacing: '.12em' }}>••• ••• {boxCur === currency ? 'F' : boxCur}</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, color: 'var(--ink-soft)' }}>
-                        caisse discrète — cliquer pour l’ouvrir
-                      </div>
-                    </>
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                </section>
+              );
+            });
+          })()}
+        </>
       )}
 
       {transfertsDuMois.length > 0 && (
@@ -357,6 +457,43 @@ export default function Caisses() {
 
       {boxDrill && (
         <ReleveCaisse nom={boxDrill} month={month} onClose={() => setBoxDrill(null)} />
+      )}
+
+      {verrouOuvert && (
+        <Modal
+          title={reglages.codeCaissesHash ? 'Le code de cet écran' : 'Protéger cet écran'}
+          onClose={() => setVerrouOuvert(false)}
+          width={430}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+              Un code demandé à l’ouverture de l’écran des caisses. Seule son <b>empreinte</b> est
+              enregistrée — il n’existe en clair nulle part.
+              <br />
+              <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un écran laissé ouvert, un regard au comptoir.
+              {' '}<b style={{ color: 'var(--copper-700)' }}>Ce que cela ne protège pas :</b> qui a accès à la base. Les droits du
+              compte, eux, restent la vraie barrière.
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">
+                {reglages.codeCaissesHash ? 'Nouveau code — vider pour retirer le verrou' : 'Code'}
+              </span>
+              <input
+                className="mnd-input" type="password" autoFocus autoComplete="new-password"
+                value={nouveauCode}
+                placeholder={reglages.codeCaissesHash ? 'Laisser vide et enregistrer = plus de verrou' : ''}
+                onChange={(e) => setNouveauCode(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void enregistrerLeVerrou(); }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setVerrouOuvert(false)}>Annuler</button>
+              <button className="mnd-btn" onClick={() => void enregistrerLeVerrou()}>
+                {nouveauCode.trim() ? 'Enregistrer le code' : (reglages.codeCaissesHash ? 'Retirer le verrou' : 'Enregistrer')}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {aOuvrir && (

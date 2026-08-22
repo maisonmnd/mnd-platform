@@ -14,6 +14,18 @@ export type Automations = {
 };
 
 export type Settings = {
+  /** ── LE VERROU DES CAISSES — 22 août 2026 ──────────────────────
+      « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
+
+      L'EMPREINTE, JAMAIS LE CODE — même règle que les caisses discrètes : on
+      n'écrit que le SHA-256, et il n'existe en clair nulle part. Absent = pas
+      de verrou, et l'écran s'ouvre comme avant : personne ne se retrouve
+      enfermé dehors par une mise à jour.
+
+      Le verrou vaut pour la SÉANCE : il se repose au rechargement. Et il ne
+      remplace pas les droits — un compte qui n'a pas accès aux finances ne
+      verra jamais cet écran, code ou pas. */
+  codeCaissesHash?: string;
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;
