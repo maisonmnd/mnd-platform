@@ -146,6 +146,27 @@ export default function Coffre() {
   const [objectifs, setObjectifs] = useObjectifs();
   const objectifsVivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
   const [objOuvert, setObjOuvert] = useState<{ id: string; nom: string; cible: string; echeance: string } | null>(null);
+  /* L'écriture qu'on corrige — montant, date, note, objectif. Le SENS ne se
+     change pas ici : un versement ne devient pas un virement d'un clic, ce
+     serait renverser un mouvement d'argent sans s'en apercevoir. Pour cela,
+     on retire la ligne et on la repose. */
+  const [mvtOuvert, setMvtOuvert] = useState<{ id: string; montant: string; date: string; note: string; objectifId: string } | null>(null);
+
+  const enregistrerMouvement = () => {
+    if (!mvtOuvert) return;
+    const montant = parseInt(mvtOuvert.montant.replace(/[^0-9]/g, ''), 10) || 0;
+    if (montant <= 0) return;
+    coffreStore.set((prev) => prev.map((m) => (m.id === mvtOuvert.id
+      ? {
+        ...m,
+        amountXof: montant,
+        date: mvtOuvert.date || m.date,
+        note: mvtOuvert.note.trim() || undefined,
+        objectifId: mvtOuvert.objectifId || undefined,
+      }
+      : m)));
+    setMvtOuvert(null);
+  };
 
   const enregistrerObjectif = () => {
     if (!objOuvert) return;
@@ -315,7 +336,21 @@ export default function Coffre() {
             {moves.map((m) => (
               <div className="trf-coffre-row" key={m.id}>
                 <span className={`trf-coffre-row__icon trf-coffre-row__icon--${m.kind}`}>{m.kind === 'depot' ? '↑' : '↓'}</span>
-                <span className="trf-coffre-row__main">
+                {/* LA LIGNE S'OUVRE — 22 août 2026, « rendre éditable les
+                    montants au coffre ». Une écriture fausse ne se corrigeait
+                    que d'une façon : l'effacer et la refaire, en perdant sa
+                    cliente, sa caisse et sa note au passage. */}
+                <button
+                  className="trf-coffre-row__main trf-coffre-row__main--btn"
+                  onClick={() => setMvtOuvert({
+                    id: m.id,
+                    montant: String(m.amountXof),
+                    date: m.date,
+                    note: m.note ?? '',
+                    objectifId: m.objectifId ?? '',
+                  })}
+                  title="Corriger cette écriture"
+                >
                   <span className="trf-coffre-row__title">
                     {m.kind === 'depot'
                       ? (m.clientName ? `Versement · ${m.clientName}` : 'Versement au coffre')
@@ -323,8 +358,9 @@ export default function Coffre() {
                   </span>
                   <span className="trf-coffre-row__meta">
                     {frMoneyDay(m.date)}{m.note ? ` · ${m.note}` : ''}
+                    {m.objectifId ? ` · ${objectifs.find((o) => o.id === m.objectifId)?.nom ?? 'objectif retiré'}` : ''}
                   </span>
-                </span>
+                </button>
                 <span className={`trf-coffre-row__amount trf-coffre-row__amount--${m.kind}`}>
                   {m.kind === 'depot' ? '+' : '−'}{fmtMoney(m.amountXof, currency)}
                 </span>
@@ -334,6 +370,70 @@ export default function Coffre() {
           </div>
         )}
       </Card>
+
+      {mvtOuvert && (() => {
+        const m = moves.find((x) => x.id === mvtOuvert.id);
+        const montantNum = parseInt(mvtOuvert.montant.replace(/[^0-9]/g, ''), 10) || 0;
+        return (
+          <Modal title="Corriger cette écriture" onClose={() => setMvtOuvert(null)} width={480}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {m && (
+                <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                  {m.kind === 'depot' ? 'Versement au coffre' : 'Virement bancaire'}
+                  {m.cashbox ? ` · depuis ${m.cashbox}` : ''}
+                  {m.clientName ? ` · ${m.clientName}` : ''}
+                  {m.bank ? ` · ${m.bank}` : ''}
+                  <br />
+                  Le sens du mouvement ne se change pas ici — pour cela, retirez la ligne et reposez-la.
+                </div>
+              )}
+              <Field label={`Montant · ${currency}`}>
+                <Input
+                  inputMode="numeric"
+                  value={mvtOuvert.montant}
+                  onChange={(e) => setMvtOuvert((f) => (f ? { ...f, montant: e.target.value.replace(/[^0-9]/g, '') } : f))}
+                  style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}
+                />
+              </Field>
+              <Field label="Date">
+                <Input
+                  type="date"
+                  value={mvtOuvert.date}
+                  onChange={(e) => setMvtOuvert((f) => (f ? { ...f, date: e.target.value } : f))}
+                />
+              </Field>
+              {objectifsVivants.length > 0 && (
+                <Field label="Pour quel objectif · facultatif">
+                  <Select
+                    value={mvtOuvert.objectifId}
+                    onChange={(e) => setMvtOuvert((f) => (f ? { ...f, objectifId: e.target.value } : f))}
+                  >
+                    <option value="">Sans objectif — argent disponible</option>
+                    {objectifsVivants.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                  </Select>
+                </Field>
+              )}
+              <Field label="Note · facultatif">
+                <Input
+                  value={mvtOuvert.note}
+                  onChange={(e) => setMvtOuvert((f) => (f ? { ...f, note: e.target.value } : f))}
+                />
+              </Field>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => setMvtOuvert(null)}>Annuler</button>
+                <button
+                  className="mnd-btn"
+                  disabled={montantNum <= 0}
+                  title={montantNum <= 0 ? 'Saisissez un montant supérieur à zéro' : undefined}
+                  onClick={enregistrerMouvement}
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {objOuvert && (
         <Modal title={objOuvert.id ? 'Modifier l’objectif' : 'Un nouvel objectif'} onClose={() => setObjOuvert(null)} width={480}>

@@ -1275,3 +1275,14 @@
   color: var(--color-indigo);
   font-variant-numeric: tabular-nums;
 }
+
+/* La ligne du coffre s'ouvre pour se corriger — 22 août 2026. */
+.trf-coffre-row__main--btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.trf-coffre-row__main--btn:hover .trf-coffre-row__title { color: var(--color-copper); }
