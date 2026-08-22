@@ -2,6 +2,47 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Corriger un avoir, corriger ou effacer un prêt — 22 août, PUBLIÉ
+
+« J'aimerais éditer l'avoir de 40 000 F de Ghislain. Je veux lui changer de
+caisse. » Puis : « modifier ou supprimer un prêt ». Deux écritures que rien ne
+permettait de reprendre — et une ligne posée sur la mauvaise caisse déplace de
+l'argent qui n'a jamais bougé.
+
+UNE SEULE MODALE, DANS LES DEUX CAS. `DepositModal` prend un `edite?` ;
+la modale des prêts prend un `pretEdite`. Écrire un second formulaire aurait
+été plus rapide, et il aurait dérivé du premier au premier champ ajouté : c'est
+exactement la faute du registre des encaissements, refaite trois fois cette
+semaine. Poser et reprendre sont le même geste, sur la même écriture.
+
+L'IDENTIFIANT NE BOUGE JAMAIS. La ligne du registre des encaissements en est
+dérivée (`r-cre-<id>`) et le journal des gestes suit la pièce par lui : une
+correction doit rester la MÊME écriture, corrigée — pas une nouvelle qui
+remplace l'ancienne.
+
+DEUX GARDE-FOUS.
+① Le solde de référence d'un avoir se calcule SANS le mouvement repris — sinon
+   corriger un dépôt le compterait deux fois, une fois tel qu'il est et une
+   fois tel qu'on le réécrit.
+② On ne rabote pas un avoir déjà consommé : ramener un dépôt sous ce que la
+   cliente a déjà utilisé rendrait son compte débiteur, un solde négatif
+   qu'aucun écran ne sait lire. L'écran le refuse et dit pourquoi.
+
+EFFACER UN PRÊT vit à GAUCHE dans la fiche, loin d'« Enregistrer » — un geste
+sans retour ne voisine pas avec le geste courant (même règle que « Retirer
+cette caisse », le matin même). Effacer REND l'argent à sa caisse : c'est bien
+ce qu'on veut d'une ligne qui n'aurait jamais dû exister.
+
+DEUX PORTES POUR L'AVOIR. Le registre du compte (Comptes & Avoirs → la fiche →
+« Corriger »), et le registre des encaissements, où Yéman l'avait vue. Ce
+dernier reste EN LECTURE SEULE : son bouton mène à `/comptes?avoir=<id>`, qui
+ouvre la modale sur la pièce — plutôt que d'y dupliquer le formulaire. Le
+paramètre s'efface aussitôt : recharger ne doit pas rouvrir une modale qu'on
+vient de fermer.
+
+Pour les prêts, chaque ligne de la fiche est elle-même le bouton : on clique la
+ligne fausse, elle s'ouvre.
+
 ## La devise s'écrit en fon, partout — 22 août, PUBLIÉ
 
 « S'écrit comme ça : mi nyɔ́ ɖɛkpɛ • la maison veille, au lieu de mi nyó dekpe.

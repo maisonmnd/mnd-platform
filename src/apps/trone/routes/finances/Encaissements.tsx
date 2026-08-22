@@ -625,6 +625,20 @@ export default function Encaissements() {
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
                   {fmtMoney(r.amountXof, currency)}
                 </span>
+                {/* CORRIGER SE FAIT D’OÙ L’ON VOIT — 22 août 2026, « je veux lui
+                    changer de caisse ». Le registre est en lecture seule, et
+                    c’est bien ainsi : la correction mène au compte, chez elle,
+                    plutôt que de dupliquer ici la modale des avoirs. */}
+                {r.kind === 'avoir' && (
+                  <button
+                    type="button"
+                    className="trf-rowbtn"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/comptes?avoir=${r.id.replace('r-cre-', '')}`); }}
+                    title="Corriger ce dépôt d’avoir — caisse, date, moyen"
+                  >
+                    Corriger
+                  </button>
+                )}
                 <button
                   type="button"
                   className="trf-rowbtn"

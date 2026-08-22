@@ -144,6 +144,26 @@ export default function Comptes() {
   const soldes = useMemo(() => soldesParEmprunteur(prets, branch.id), [prets, branch.id]);
   const dette = detteEnCours(prets, branch.id);
   const [pretOuvert, setPretOuvert] = useState(false);
+  /* CORRIGER OU EFFACER UNE LIGNE DE PRÊT — 22 août 2026. Une ligne posée sur
+     la mauvaise caisse déplaçait de l’argent qui n’a jamais bougé, et rien ne
+     permettait de la reprendre. Même modale que la saisie : deux formulaires
+     pour une même écriture finissent toujours par se contredire. */
+  const [pretEdite, setPretEdite] = useState<Pret | null>(null);
+  const corrigerLePret = (p: Pret) => {
+    setFPret({
+      type: p.type,
+      genre: (p.genre ?? 'tiers') as GenreEmprunteur,
+      nom: p.associe, personneId: p.personneId ?? '',
+      motif: p.motif ?? '', montant: String(p.amountXof),
+      cashbox: p.cashbox ?? '', method: p.method ?? 'Espèces', date: p.date.slice(0, 10),
+    });
+    setPretEdite(p);
+  };
+  const effacerLePret = () => {
+    if (!pretEdite) return;
+    setPrets((prev) => prev.filter((x) => x.id !== pretEdite.id));
+    setPretEdite(null);
+  };
   const [fPret, setFPret] = useState({
     type: 'pret' as 'pret' | 'remboursement',
     genre: 'equipe' as GenreEmprunteur,
@@ -173,6 +193,14 @@ export default function Comptes() {
       cashbox: fPret.cashbox || undefined,
       method: fPret.method || undefined,
     };
+    if (pretEdite) {
+      /* L’IDENTIFIANT NE BOUGE PAS : le journal des gestes suit la pièce par
+         lui, et une correction doit rester la MÊME écriture, corrigée. */
+      setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? { ...ligne, id: pretEdite.id } : x)));
+      setPretEdite(null);
+      setFPret((f) => ({ ...f, nom: '', personneId: '', motif: '', montant: '' }));
+      return;
+    }
     setPrets((prev) => [...prev, ligne]);
     setPretOuvert(false);
     setFPret((f) => ({ ...f, nom: '', personneId: '', motif: '', montant: '' }));
@@ -191,6 +219,23 @@ export default function Comptes() {
      perdrait en route. Le paramètre est effacé aussitôt : recharger la page ne
      doit pas rouvrir une modale qu'on vient de fermer. */
   const [params, setParams] = useSearchParams();
+  /* ARRIVÉE DEPUIS LE REGISTRE DES ENCAISSEMENTS — 22 août 2026. La ligne y
+     est en lecture seule ; « Corriger » mène ici, à la pièce, et ouvre la
+     modale sur elle. Le paramètre est effacé aussitôt : recharger ne doit pas
+     rouvrir une modale qu’on vient de fermer. */
+  useEffect(() => {
+    const aid = params.get('avoir');
+    if (!aid) return;
+    const m = credits.find((x) => x.id === aid);
+    if (m) {
+      setDeposit({ holder: { type: m.holderType, id: m.holderId }, kind: m.kind === 'remboursement' ? 'remboursement' : 'depot', edite: m });
+      setRegistre('avoirs');
+    }
+    const p2 = new URLSearchParams(params);
+    p2.delete('avoir');
+    setParams(p2, { replace: true });
+  }, [params, credits, setParams]);
+
   useEffect(() => {
     const fid = params.get('famille');
     const pid = params.get('parent');
@@ -204,7 +249,7 @@ export default function Comptes() {
     else { setFamModal('new'); setPrefill(parent ?? null); }
     setParams({}, { replace: true });
   }, [params, branchFamilies, branchClients, setParams]);
-  const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement' } | null>(null);
+  const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement'; edite?: CreditMovement } | null>(null);
   const [ledgerHolder, setLedgerHolder] = useState<CreditHolder | null>(null);
   /* Impayés d'un compte (RDV dus + factures envoyées de ses membres) — pour les
      solder directement par l'avoir. */
@@ -524,7 +569,13 @@ export default function Comptes() {
                     </div>
                     <div style={{ marginTop: 10, borderTop: '1px solid var(--hairline)', paddingTop: 8 }}>
                       {lignes.map((p) => (
-                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '3px 0', fontSize: 12.5, flexWrap: 'wrap' }}>
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => corrigerLePret(p)}
+                          title="Corriger ou effacer cette ligne"
+                          style={{ display: 'flex', width: '100%', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: 12.5, flexWrap: 'wrap', background: 'none', border: 'none', textAlign: 'left', font: 'inherit', cursor: 'pointer' }}
+                        >
                           <span>
                             <span style={{ color: p.type === 'pret' ? 'var(--copper-700)' : 'var(--trf-success)' }}>
                               {p.type === 'pret' ? 'Prêté' : 'Remboursé'}
@@ -536,7 +587,7 @@ export default function Comptes() {
                           <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>
                             {fmtMoney(p.amountXof, currency)}
                           </span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </Card>
@@ -626,8 +677,12 @@ export default function Comptes() {
           onClose={() => { setFamModal(null); setPrefill(null); }}
         />
       )}
-      {pretOuvert && (
-        <Modal title="Prêt ou remboursement" onClose={() => setPretOuvert(false)} width={520}>
+      {(pretOuvert || pretEdite) && (
+        <Modal
+          title={pretEdite ? (pretEdite.type === 'pret' ? "Corriger ce prêt" : "Corriger ce remboursement") : "Prêt ou remboursement"}
+          onClose={() => { setPretOuvert(false); setPretEdite(null); }}
+          width={520}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="De quel geste s’agit-il ?">
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -726,9 +781,24 @@ export default function Comptes() {
               <Input type="date" value={fPret.date} onChange={(e) => setFPret((f) => ({ ...f, date: e.target.value }))} />
             </Field>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button className="mnd-btn mnd-btn--ghost" onClick={() => setPretOuvert(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={enregistrerPret}>Enregistrer</button>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
+              {/* EFFACER VIT DANS LA FICHE, à gauche, loin d’Enregistrer : un
+                  geste sans retour ne voisine pas avec le geste courant.
+                  Effacer un prêt REND l’argent à sa caisse — c’est bien ce
+                  qu’on veut d’une ligne qui n’aurait jamais dû exister. */}
+              {pretEdite ? (
+                <button
+                  className="mnd-btn mnd-btn--ghost"
+                  style={{ color: 'var(--copper-700)' }}
+                  onClick={effacerLePret}
+                >
+                  Effacer cette ligne
+                </button>
+              ) : <span />}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => { setPretOuvert(false); setPretEdite(null); }}>Annuler</button>
+                <button className="mnd-btn" onClick={enregistrerPret}>Enregistrer</button>
+              </div>
             </div>
           </div>
         </Modal>
@@ -743,6 +813,7 @@ export default function Comptes() {
           clients={branchClients}
           families={branchFamilies}
           credits={credits}
+          edite={deposit.edite}
           onClose={() => setDeposit(null)}
         />
       )}
@@ -754,6 +825,7 @@ export default function Comptes() {
           credits={credits}
           clients={branchClients}
           onDeposit={(kind) => { setDeposit({ holder: ledgerHolder, kind }); setLedgerHolder(null); }}
+          onCorriger={(m) => { setDeposit({ holder: ledgerHolder, kind: m.kind as 'depot' | 'remboursement', edite: m }); setLedgerHolder(null); }}
           onClose={() => setLedgerHolder(null)}
         />
       )}
@@ -1048,12 +1120,18 @@ function FamilyModal({
   );
 }
 
-/* ---------- Verser / rembourser un avoir ---------- */
+/* ---------- Verser / rembourser / CORRIGER un avoir ---------- */
+/* CORRIGER PASSE PAR LA MÊME MODALE — 22 août 2026, « je veux lui changer de
+   caisse ». Un second formulaire aurait dérivé du premier au premier champ
+   ajouté, et les deux se seraient contredits sur la même écriture : c’est la
+   faute du registre des encaissements, refaite trois fois cette semaine.
+   `edite` bascule la modale de « poser » à « reprendre ». */
 function DepositModal({
-  initHolder, kind, currency, branchId, clients, families, credits, onClose,
+  initHolder, kind, currency, branchId, clients, families, credits, edite, onClose,
 }: {
   initHolder: CreditHolder;
   kind: 'depot' | 'remboursement';
+  edite?: CreditMovement;
   currency: string;
   branchId: string;
   clients: Client[];
@@ -1070,17 +1148,25 @@ function DepositModal({
     ? initHolder
     : chosenClient ? holderOf(chosenClient, families) : { type: 'client', id: '' };
   const holderReady = holder.id !== '';
-  const balance = holderReady ? creditBalanceOf(credits, holder) : 0;
+  /* Le solde de référence est celui SANS ce mouvement : sinon, corriger un
+     dépôt le compterait deux fois — une fois tel qu’il est, une fois tel
+     qu’on le réécrit. */
+  const autresMouvements = edite ? credits.filter((m) => m.id !== edite.id) : credits;
+  const balance = holderReady ? creditBalanceOf(autresMouvements, holder) : 0;
   const holderName = holder.type === 'family'
     ? families.find((f) => f.id === holder.id)?.name ?? 'Compte famille'
     : clients.find((c) => c.id === holder.id)?.name ?? '';
 
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayISO());
-  const [note, setNote] = useState('');
+  const [amount, setAmount] = useState(edite ? String(edite.amountXof) : '');
+  const [date, setDate] = useState(edite?.date?.slice(0, 10) ?? todayISO());
+  const [note, setNote] = useState(edite?.note ?? '');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
   const tooMuch = kind === 'remboursement' && amountNum > balance;
-  const canSave = holderReady && amountNum > 0 && !tooMuch;
+  /* ON NE RABOTE PAS UN AVOIR DÉJÀ CONSOMMÉ. Ramener ce dépôt sous ce que la
+     cliente a déjà utilisé rendrait son compte débiteur — un solde négatif
+     qu’aucun écran ne sait lire. On le refuse en le disant. */
+  const troppeu = kind === 'depot' && !!edite && balance + amountNum < 0;
+  const canSave = holderReady && amountNum > 0 && !tooMuch && !troppeu;
 
   /* ── L'ARGENT A UNE CAISSE — 19 août 2026 ────────────────────────
      « Verser un avoir doit aller dans une caisse et être retracé. » Le
@@ -1091,22 +1177,38 @@ function DepositModal({
   const [cashboxes] = useCashboxes();
   const caissesMaison = cashboxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) === currency);
   const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
-  const [boxName, setBoxName] = useState('');
+  const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
   const MOYENS = ['Espèces', 'Mobile Money', 'Virement', 'Autre'];
-  const [moyen, setMoyen] = useState(MOYENS[0]);
+  const [moyen, setMoyen] = useState(edite?.method && MOYENS.includes(edite.method) ? edite.method : MOYENS[0]);
 
   const save = () => {
     if (!canSave) return;
+    const corps = {
+      amountXof: amountNum,
+      date: date || todayISO(),
+      note: note.trim() || undefined,
+      cashbox: caisseActive,
+      method: moyen,
+    };
+    if (edite) {
+      /* L’IDENTIFIANT NE BOUGE PAS : la ligne du registre des encaissements
+         en est dérivée (`r-cre-<id>`), et le journal des gestes suit la pièce
+         par lui. Une correction doit rester la MÊME écriture, corrigée. */
+      creditMovementsStore.set((prev) => prev.map((m) => (m.id === edite.id ? { ...m, ...corps } : m)));
+      onClose();
+      return;
+    }
     creditMovementsStore.set((prev) => [...prev, {
       id: uid(), branchId, holderType: holder.type, holderId: holder.id, kind,
-      amountXof: amountNum, date: date || todayISO(), note: note.trim() || undefined,
-      cashbox: caisseActive, method: moyen,
+      ...corps,
     }]);
     onClose();
   };
 
-  const title = kind === 'depot' ? 'Verser un avoir.' : 'Rembourser un avoir.';
+  const title = edite
+    ? (kind === 'depot' ? 'Corriger ce versement.' : 'Corriger ce remboursement.')
+    : (kind === 'depot' ? 'Verser un avoir.' : 'Rembourser un avoir.');
   return (
     <Modal title={title} onClose={onClose} width={480}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1131,6 +1233,12 @@ function DepositModal({
         <Field label={`Montant ${kind === 'depot' ? 'versé' : 'remboursé'} (${currency})`}>
           <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
           {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le remboursement dépasse l'avoir disponible.</div>}
+          {troppeu && (
+            <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>
+              Ce compte a déjà utilisé plus que cela. Descendre si bas le rendrait débiteur —
+              il faut d’abord reprendre les usages.
+            </div>
+          )}
         </Field>
         <Field label={kind === 'depot' ? 'Moyen de règlement' : 'Rendu par'}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1159,7 +1267,9 @@ function DepositModal({
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
           <Button variant={kind === 'depot' ? 'copper' : 'ghost'} style={{ flex: 1 }} onClick={save} disabled={!canSave}>
-            {kind === 'depot' ? `Verser ${amountNum > 0 ? fmtMoney(amountNum, currency) : ''}` : `Rembourser ${amountNum > 0 && !tooMuch ? fmtMoney(amountNum, currency) : ''}`}
+            {edite
+              ? 'Enregistrer la correction'
+              : kind === 'depot' ? `Verser ${amountNum > 0 ? fmtMoney(amountNum, currency) : ''}` : `Rembourser ${amountNum > 0 && !tooMuch ? fmtMoney(amountNum, currency) : ''}`}
           </Button>
         </div>
       </div>
@@ -1169,7 +1279,7 @@ function DepositModal({
 
 /* ---------- Registre des mouvements d'un compte ---------- */
 function LedgerModal({
-  holder, title, currency, credits, clients, onDeposit, onClose,
+  holder, title, currency, credits, clients, onDeposit, onCorriger, onClose,
 }: {
   holder: CreditHolder;
   title: string;
@@ -1177,6 +1287,9 @@ function LedgerModal({
   credits: CreditMovement[];
   clients: Client[];
   onDeposit: (kind: 'depot' | 'remboursement') => void;
+  /* CORRIGER SE FAIT D’OÙ L’ON VOIT — 22 août 2026. Le registre du compte est
+     l’endroit où l’on repère une ligne fausse ; il doit donc y mener. */
+  onCorriger: (m: CreditMovement) => void;
   onClose: () => void;
 }) {
   const rows = credits
@@ -1214,6 +1327,15 @@ function LedgerModal({
                 <span className="trf-coffre-row__main">
                   <span className="trf-coffre-row__title">{label(m)}</span>
                   <span className="trf-coffre-row__meta">{frDay(m.date)}{m.cashbox ? ` · ${m.cashbox}` : ''}{m.method ? ` · ${m.method}` : ''}{m.note ? ` · ${m.note}` : ''}</span>
+                  {m.kind !== 'usage' && (
+                    <button
+                      type="button"
+                      onClick={() => onCorriger(m)}
+                      style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
+                    >
+                      Corriger
+                    </button>
+                  )}
                   {m.kind === 'usage' && factureDe(m) && (
                     <button
                       type="button"
