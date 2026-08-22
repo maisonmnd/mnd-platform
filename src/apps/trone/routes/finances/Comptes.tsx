@@ -18,6 +18,15 @@ import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/acco
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
 import { todayISO } from './_shared';
+
+/** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
+const LIBELLE_GENRE: Record<GenreEmprunteur, string> = {
+  foyer: 'foyer', associe: 'associé', equipe: 'équipe', cliente: 'cliente', tiers: 'tiers',
+};
+
+const frJour = (iso: string): string =>
+  (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—');
+import { usePrets, soldesParEmprunteur, detteEnCours, type GenreEmprunteur, type Pret } from '../../../../shared/foyer';
 import './finances.css';
 
 /* Comptes & Avoirs — les comptes familles (regroupement + parent payeur) et les
@@ -118,7 +127,56 @@ export default function Comptes() {
   /* DEUX REGISTRES, JAMAIS MÊLÉS (14 août — la page mêlait le foyer et
      l'argent : seize cartes annonçaient « 0 F » pour qu'une seule dise un
      solde). On ouvre sur les foyers : c'est ce qu'on vient chercher. */
-  const [registre, setRegistre] = useState<'foyers' | 'avoirs'>('foyers');
+  const [registre, setRegistre] = useState<'foyers' | 'avoirs' | 'prets'>('foyers');
+
+  /* ── LES PRÊTS — 22 août 2026 ───────────────────────────────────────
+     « Comment contrôler les prêts et les remboursements ? »
+
+     Le registre vivait dans Salon & Foyer, qui est l'affaire du foyer. Or une
+     avance sur salaire est l'affaire de la MAISON : sa place est ici, auprès
+     des avoirs, avec lesquels il forme la paire — un avoir est de l'argent que
+     la cliente a déjà remis, un prêt est de l'argent qu'elle doit. Deux sens
+     opposés, un même écran : ce que la Maison doit, et ce qu'on lui doit.
+
+     Salon & Foyer garde sa conversion « dépassement du mois → prêt » : ce
+     mouvement-là reste un geste du foyer. */
+  const [prets, setPrets] = usePrets();
+  const soldes = useMemo(() => soldesParEmprunteur(prets, branch.id), [prets, branch.id]);
+  const dette = detteEnCours(prets, branch.id);
+  const [pretOuvert, setPretOuvert] = useState(false);
+  const [fPret, setFPret] = useState({
+    type: 'pret' as 'pret' | 'remboursement',
+    genre: 'equipe' as GenreEmprunteur,
+    nom: '', personneId: '', motif: '', montant: '',
+    cashbox: '', method: 'Espèces', date: todayISO(),
+  });
+  const [toutesCaisses] = useCashboxes();
+  const caissesMaison = toutesCaisses.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+
+  const enregistrerPret = () => {
+    const montant = parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0;
+    const nom = fPret.nom.trim();
+    if (!nom || montant <= 0) return;
+    const ligne: Pret = {
+      id: `prt-${uid()}`,
+      branchId: branch.id,
+      date: fPret.date || todayISO(),
+      type: fPret.type,
+      associe: nom,
+      motif: fPret.motif.trim() || (fPret.type === 'pret' ? 'Prêt' : 'Remboursement'),
+      amountXof: montant,
+      genre: fPret.genre,
+      personneId: fPret.personneId || undefined,
+      /* LA CAISSE EST LE POINT DE TOUTE CETTE PIÈCE : sans elle, prêter
+         200 000 F ne les retire d'aucun tiroir, et les mêmes francs vivent
+         dans la caisse ET chez l'emprunteur. */
+      cashbox: fPret.cashbox || undefined,
+      method: fPret.method || undefined,
+    };
+    setPrets((prev) => [...prev, ligne]);
+    setPretOuvert(false);
+    setFPret((f) => ({ ...f, nom: '', personneId: '', motif: '', montant: '' }));
+  };
   /* La remise s'ouvre sur la carte ; les gestes rares sous les trois points. */
   const [remiseOuverte, setRemiseOuverte] = useState<string | null>(null);
   const [plusOuvert, setPlusOuvert] = useState<string | null>(null);
@@ -251,13 +309,17 @@ export default function Comptes() {
     <div className="mnd-rise">
       <PageHead
         eyebrow="Finances"
-        title={registre === 'foyers' ? 'Les foyers.' : 'Les avoirs.'}
+        title={registre === 'foyers' ? 'Les foyers.' : registre === 'prets' ? 'Les prêts.' : 'Les avoirs.'}
         sub={registre === 'foyers'
           ? "Un foyer regroupe une famille sous un parent payeur : il règle pour tous, la remise s'applique d'office, et les enfants le suivent sur Ma Couronne."
-          : "Un crédit versé d'avance, déduit ensuite à l'encaissement d'un rituel ou à la Caisse. Seuls les porteurs qui ont un solde figurent ici."}
+          : registre === 'prets'
+            ? "Ce que la Maison a prêté et ce qu'on lui doit encore. Un prêt sort d'une caisse, un remboursement y rentre — l'argent se déplace, il ne se duplique pas."
+            : "Un crédit versé d'avance, déduit ensuite à l'encaissement d'un rituel ou à la Caisse. Seuls les porteurs qui ont un solde figurent ici."}
         actions={registre === 'foyers'
           ? <Button variant="copper" onClick={() => setFamModal('new')}>+ Compte famille</Button>
-          : <Button variant="copper" onClick={() => setDeposit({ holder: { type: 'client', id: '' }, kind: 'depot' })}>+ Verser un avoir</Button>}
+          : registre === 'prets'
+            ? <Button variant="copper" onClick={() => setPretOuvert(true)}>+ Prêt ou remboursement</Button>
+            : <Button variant="copper" onClick={() => setDeposit({ holder: { type: 'client', id: '' }, kind: 'depot' })}>+ Verser un avoir</Button>}
       />
 
       {/* Les deux registres — le foyer d'un côté, l'argent de l'autre. */}
@@ -265,6 +327,7 @@ export default function Comptes() {
         {([
           { k: 'foyers' as const, mot: 'Les foyers', n: String(branchFamilies.length) },
           { k: 'avoirs' as const, mot: 'Les avoirs', n: fmtMoney(totalAvoirs, currency) },
+          { k: 'prets' as const, mot: 'Les prêts', n: fmtMoney(dette, currency) },
         ]).map((t) => (
           <button
             key={t.k}
@@ -415,6 +478,75 @@ export default function Comptes() {
       )}
 
       {/* ══════════ LES AVOIRS ══════════ */}
+      {/* ══════════ LES PRÊTS ══════════ */}
+      {registre === 'prets' && (
+        <>
+          {soldes.length === 0 ? (
+            <Card style={{ padding: 22 }}>
+              <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+                <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>Aucun prêt enregistré.</b><br />
+                Une avance sur salaire, un dépannage, un prêt au foyer : notez-le ici, et chaque
+                remboursement viendra s’imputer dessus. Le solde de chacun se tient tout seul.
+              </div>
+            </Card>
+          ) : (
+            <>
+              <Card style={{ padding: 18, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+                  <div>
+                    <div className="mnd-stat__label">Dette en cours envers la Maison</div>
+                    <div className="mnd-stat__value" style={{ fontSize: 30 }}>{fmtMoney(dette, currency)}</div>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, maxWidth: 380, lineHeight: 1.55 }}>
+                    La somme de ce que chacun doit encore. Un trop-remboursé n’y devient jamais une
+                    dette de la Maison — c’est une erreur de saisie, pas un dû.
+                  </div>
+                </div>
+              </Card>
+
+              {soldes.map((d) => {
+                const lignes = prets
+                  .filter((p) => p.branchId === branch.id && p.associe.trim().toLowerCase() === d.nom.toLowerCase())
+                  .sort((a, b) => (a.date < b.date ? 1 : -1));
+                return (
+                  <Card key={d.nom} filet={d.reste > 0 ? 'copper' : 'indigo'} style={{ padding: 16, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+                        <b style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', fontWeight: 400 }}>{d.nom}</b>
+                        <span className="trc-src">{LIBELLE_GENRE[d.genre]}</span>
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: d.reste > 0 ? 'var(--copper-700)' : 'var(--trf-success)' }}>
+                        {d.reste > 0 ? `reste ${fmtMoney(d.reste, currency)}` : `soldé le ${frJour(d.dernier)}`}
+                      </span>
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 3 }}>
+                      prêté {fmtMoney(d.prete, currency)} · remboursé {fmtMoney(d.rembourse, currency)}
+                    </div>
+                    <div style={{ marginTop: 10, borderTop: '1px solid var(--hairline)', paddingTop: 8 }}>
+                      {lignes.map((p) => (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '3px 0', fontSize: 12.5, flexWrap: 'wrap' }}>
+                          <span>
+                            <span style={{ color: p.type === 'pret' ? 'var(--copper-700)' : 'var(--trf-success)' }}>
+                              {p.type === 'pret' ? 'Prêté' : 'Remboursé'}
+                            </span>
+                            {' · '}{frJour(p.date)}
+                            {p.motif ? ` · ${p.motif}` : ''}
+                            {p.cashbox ? <span className="mnd-muted"> · {p.cashbox}</span> : null}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>
+                            {fmtMoney(p.amountXof, currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+        </>
+      )}
+
       {registre === 'avoirs' && (
         <>
           {lignesAvoirs.length === 0 ? (
@@ -494,6 +626,114 @@ export default function Comptes() {
           onClose={() => { setFamModal(null); setPrefill(null); }}
         />
       )}
+      {pretOuvert && (
+        <Modal title="Prêt ou remboursement" onClose={() => setPretOuvert(false)} width={520}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Field label="De quel geste s’agit-il ?">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {([['pret', 'La Maison prête'], ['remboursement', 'On lui rembourse']] as const).map(([k, mot]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`trc-chip ${fPret.type === k ? 'is-active' : ''}`}
+                    onClick={() => setFPret((f) => ({ ...f, type: k }))}
+                  >
+                    {mot}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="À qui">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 9 }}>
+                {(['equipe', 'cliente', 'tiers', 'associe', 'foyer'] as GenreEmprunteur[]).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={`trc-chip ${fPret.genre === g ? 'is-active' : ''}`}
+                    onClick={() => setFPret((f) => ({ ...f, genre: g, nom: g === 'foyer' ? 'Foyer' : f.nom, personneId: '' }))}
+                  >
+                    {LIBELLE_GENRE[g]}
+                  </button>
+                ))}
+              </div>
+              {/* Une cliente se choisit à la fiche : c'est ce lien qui permettra
+                  de relire le prêt depuis son dossier, dans l'autre sens. */}
+              {fPret.genre === 'cliente' ? (
+                <ClientPicker
+                  value={fPret.personneId}
+                  onChange={(id) => setFPret((f) => ({
+                    ...f, personneId: id,
+                    nom: clients.find((c) => c.id === id)?.name ?? f.nom,
+                  }))}
+                  placeholder="Choisir la cliente…"
+                />
+              ) : (
+                <Input
+                  value={fPret.nom}
+                  placeholder={fPret.genre === 'equipe' ? 'Nom du membre de l’équipe' : 'Nom de la personne'}
+                  onChange={(e) => setFPret((f) => ({ ...f, nom: e.target.value }))}
+                />
+              )}
+            </Field>
+
+            <Field label={`Montant · ${currency}`}>
+              <Input
+                inputMode="numeric"
+                value={fPret.montant}
+                placeholder="0"
+                onChange={(e) => setFPret((f) => ({ ...f, montant: e.target.value.replace(/[^0-9]/g, '') }))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </Field>
+
+            <Field label={fPret.type === 'pret' ? 'De quelle caisse sort cet argent ?' : 'Dans quelle caisse rentre-t-il ?'}>
+              <Select value={fPret.cashbox} onChange={(e) => setFPret((f) => ({ ...f, cashbox: e.target.value }))}>
+                {caissesMaison.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                <option value="">Hors caisse — l’argent n’est pas passé par un tiroir</option>
+              </Select>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                {fPret.type === 'pret'
+                  ? 'La caisse choisie baisse d’autant : l’argent se déplace, il ne se duplique pas.'
+                  : 'La caisse choisie monte d’autant — l’argent revient dans le tiroir.'}
+              </div>
+            </Field>
+
+            <Field label="Par quel moyen">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {['Espèces', 'Mobile Money', 'Virement', 'Autre'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`trc-chip ${fPret.method === m ? 'is-active' : ''}`}
+                    onClick={() => setFPret((f) => ({ ...f, method: m }))}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Motif · facultatif">
+              <Input
+                value={fPret.motif}
+                placeholder="Avance sur salaire · dépannage · …"
+                onChange={(e) => setFPret((f) => ({ ...f, motif: e.target.value }))}
+              />
+            </Field>
+
+            <Field label="Date">
+              <Input type="date" value={fPret.date} onChange={(e) => setFPret((f) => ({ ...f, date: e.target.value }))} />
+            </Field>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setPretOuvert(false)}>Annuler</button>
+              <button className="mnd-btn" onClick={enregistrerPret}>Enregistrer</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {deposit && (
         <DepositModal
           initHolder={deposit.holder}

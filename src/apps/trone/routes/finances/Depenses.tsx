@@ -14,6 +14,7 @@ import { expenseOccurrences,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
+import { usePrets } from '../../../../shared/foyer';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
@@ -60,6 +61,8 @@ export default function Depenses() {
      setters ne servent qu'au RENOMMAGE d'une caisse — voir `saveBox`. */
   const [coffre, setCoffre] = useCoffre();
   const [creditMvts, setCreditMvts] = useCredits();
+  /* Les prêts touchent la caisse depuis le 22 août — voir `pretsDeCaisse`. */
+  const [prets] = usePrets();
   const [clientes] = useClients();
   const [familles] = useFamilies();
   const [categories, setCategories] = useExpenseCategories();
@@ -322,6 +325,21 @@ export default function Depenses() {
       .filter((m) => m.branchId === branch.id && m.cashbox === name
         && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)))
       .reduce((s, m) => s + (m.kind === 'depot' ? m.amountXof : -m.amountXof), 0);
+  /* LES PRÊTS DE LA CAISSE — 22 août 2026. Un prêt qui NOMME sa caisse en
+     SORT ; un remboursement y RENTRE. Sans cela, prêter 200 000 F ne les
+     retirait d'aucun tiroir : les mêmes francs vivaient dans la caisse et chez
+     l'emprunteur, et la trésorerie les comptait deux fois — exactement le mal
+     réparé pour le coffre le 17 août et pour les avoirs le 19.
+     Les prêts d'avant ne nomment aucune caisse : ils ne bougent rien, leurs
+     soldes sont arrêtés, et les rendre débiteurs après coup ferait bouger des
+     trésoreries déjà closes. */
+  const pretsDeCaisse = (name: string, keep: (mk: string) => boolean): number =>
+    prets
+      .filter((p) => p.branchId === branch.id && p.cashbox === name && keep(monthKey(p.date)))
+      .reduce((s, p) => s + (p.type === 'pret' ? -p.amountXof : p.amountXof), 0);
+  const pretsMouvements = (name: string, keep: (mk: string) => boolean) =>
+    prets.filter((p) => p.branchId === branch.id && p.cashbox === name && keep(monthKey(p.date)));
+
   const avoirsMouvements = (name: string, keep: (mk: string) => boolean) =>
     creditMvts.filter((m) => m.branchId === branch.id && m.cashbox === name
       && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)));
@@ -344,7 +362,7 @@ export default function Depenses() {
     const foreign = boxCur !== currency;
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, keep), 0);
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
-    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep);
+    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
@@ -356,11 +374,14 @@ export default function Depenses() {
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
     const avoirs = avoirsMouvements(name, (mk) => mk === month);
+    const p = pretsMouvements(name, (mk) => mk === month);
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, (mk) => mk === month), 0)
-      + avoirs.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0);
+      + avoirs.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0)
+      + p.filter((x) => x.type === 'remboursement').reduce((s, x) => s + x.amountXof, 0);
     const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0)
       + verseAuCoffre(name, (mk) => mk === month)
-      + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + m.amountXof, 0);
+      + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + m.amountXof, 0)
+      + p.filter((x) => x.type === 'pret').reduce((s, x) => s + x.amountXof, 0);
     return { inn, out };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
@@ -443,7 +464,19 @@ export default function Depenses() {
         expense: undefined as Expense | undefined,
       }));
 
-    const moves = [...inn, ...out, ...avoirs, ...versements].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    /* Le relevé DIT ce que le solde compte — sinon « solde au début +
+       mouvements » ne tomberait plus sur le solde affiché, la faute même
+       corrigée le 21 août pour les versements au coffre. */
+    const lesPrets = pretsMouvements(name, (mk) => mk === month).map((p) => ({
+      date: p.date,
+      label: p.type === 'pret' ? `Prêté à ${p.associe}` : `Remboursé par ${p.associe}`,
+      sub: [p.method, p.motif].filter(Boolean).join(' · ') || 'Comptes & Avoirs · prêts',
+      delta: p.type === 'pret' ? -p.amountXof : p.amountXof,
+      invoiceId: undefined as string | undefined,
+      expense: undefined as Expense | undefined,
+    }));
+
+    const moves = [...inn, ...out, ...avoirs, ...versements, ...lesPrets].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
 
