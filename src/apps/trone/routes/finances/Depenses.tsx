@@ -29,7 +29,7 @@ const fmtDay = (iso: string): string =>
    « reste à dépenser », prévision de fin de mois. Tout est persisté et filtré par la branche.
    La période est explicite : le mois se navigue ‹ mois › et une recherche filtre les listes. */
 
-type Tab = 'flux' | 'caisses' | 'engagements' | 'budgets';
+type Tab = 'flux' | 'caisses' | 'budgets';
 
 const FLOW_FILLS = [
   'var(--color-indigo)', 'var(--color-copper)', 'var(--indigo-400)', 'var(--copper-400)',
@@ -153,7 +153,6 @@ export default function Depenses() {
   const visibleMonthExp = monthExp.filter(matches);
 
   const engaged = live.reduce((s, e) => s + poids(e), 0);
-  const potential = live.filter((e) => e.flagged).reduce((s, e) => s + poids(e), 0);
   const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + poids(e), 0);
   /* LE MEME REVENU QUE LA SYNTHESE. Cet ecran ne comptait que les factures
      payees, en ignorant les rituels encaisses au carnet, les formations et les
@@ -399,22 +398,12 @@ export default function Depenses() {
   }, [live, filterCaisse, filterCat, q]);
 
   // Engagements récurrents — globaux, hors période : ils courent tant qu'ils vivent.
-  const recurringAll = useMemo(
-    () => expenses
-      .filter((e) => e.branchId === branch.id && !e.stopped && e.recurring)
-      /* Même départage que `monthExp` : à date égale, l'identifiant tranche,
-         pour que l'ordre ne bouge pas d'un poste à l'autre. */
-      .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : (a.date < b.date ? 1 : -1))),
-    [expenses, branch.id],
-  );
-  const recurringVisible = recurringAll.filter(matches);
 
   const catNames = categories.map((c) => c.name);
   const subsOf = (cat: string) => categories.find((c) => c.name === cat)?.subs ?? [];
 
   // — Persistance —
   const patch = (id: string, fn: (e: Expense) => Expense) => setExpenses((prev) => prev.map((e) => (e.id === id ? fn(e) : e)));
-  const toggleFlag = (e: Expense) => patch(e.id, (x) => ({ ...x, flagged: !x.flagged }));
   const stop = (e: Expense) => patch(e.id, (x) => ({ ...x, stopped: true }));
   const revive = (e: Expense) => patch(e.id, (x) => ({ ...x, stopped: false, flagged: false }));
   const togglePause = (e: Expense) => patch(e.id, (x) => ({ ...x, paused: !x.paused }));
@@ -841,7 +830,6 @@ export default function Depenses() {
   const TABS: [Tab, string, string][] = [
     ['flux', 'Le flux', fmtMoney(engaged, currency)],
     ['caisses', 'Les caisses', fmtMoney(treasury, currency)],
-    ['engagements', 'Engagements', `${recurringAll.length} récurrent${recurringAll.length > 1 ? 's' : ''}`],
     ['budgets', 'Budgets & prévision', allocated ? fmtMoney(allocated, currency) : '—'],
   ];
 
@@ -903,7 +891,6 @@ export default function Depenses() {
               de flair à personne — ce sont TES signalements, pas ceux d'une
               intelligence. */}
           {(() => {
-            const aArbitrer = live.filter((e) => e.flagged);
             const cartes: { k: string; n: ReactNode }[] = [];
 
             cartes.push({
@@ -927,18 +914,6 @@ export default function Depenses() {
                   () => openExp('Prévision · fin de mois',
                     'Projection au rythme réel : ces dépenses, rapportées aux jours écoulés puis étendues au mois. Le total ci-contre est le réel à date, pas la projection.',
                     live),
-                ),
-              });
-            }
-
-            if (aArbitrer.length > 0) {
-              cartes.push({
-                k: 'arbitrer',
-                n: kpiCard(
-                  'Signalées · à arbitrer', fmtMoney(potential, currency),
-                  'var(--color-copper)', 'var(--copper-600)',
-                  `${aArbitrer.length} dépense${aArbitrer.length > 1 ? 's' : ''} — les stopper les fait passer en économies`, '',
-                  () => setTab('engagements'),
                 ),
               });
             }
@@ -1058,6 +1033,11 @@ export default function Depenses() {
             </div>
             <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
               <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={openNewBox}>+ Nouvelle caisse</button>
+              {/* LE PAIEMENT RÉCURRENT VIENT ICI — 22 août 2026. Il vivait dans
+                  l'onglet Engagements, retiré ce jour ; c'était son seul geste
+                  utile. Sa place est auprès des caisses : on programme une
+                  échéance en regardant ce qu'on a. */}
+              <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => openFor()}>+ Paiement récurrent</button>
               <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => openFor()}>+ Ajouter une dépense</button>
             </div>
           </div>
@@ -1139,11 +1119,11 @@ export default function Depenses() {
                   <span className="trf-exprow__amt">{fmtMoney(expenseTotal(e), currency)}</span>
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
+                    {/* « SIGNALER » A ÉTÉ RETIRÉ — 22 août 2026. Le signal ne
+                        se lisait plus nulle part depuis que l'arbitrage a quitté
+                        l'écran : un bouton dont l'effet est invisible ment. */}
                     {!e.stopped ? (
-                      <>
-                        <button className={`trf-act ${e.flagged ? 'trf-act--warn' : 'trf-act--ghost'}`} onClick={() => toggleFlag(e)}>{e.flagged ? 'Signalé' : 'Signaler'}</button>
-                        <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
-                      </>
+                      <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
                     ) : (
                       <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
                     )}
@@ -1167,113 +1147,16 @@ export default function Depenses() {
         </div>
       )}
 
-      {/* ============ ENGAGEMENTS ============ */}
-      {tab === 'engagements' && (
-        <div>
-          <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 26 }}>
-              <div>
-                <div className="trf-obsidian__eyebrow">Économies capturées · {monthName}</div>
-                <div className="trf-obsidian__value">{fmtMoney(savings, currency)}</div>
-              </div>
-              <div>
-                <div className="trf-obsidian__eyebrow" style={{ color: 'var(--indigo-100)' }}>Potentiel restant</div>
-                <div className="trf-obsidian__value" style={{ color: 'var(--copper-200)' }}>{fmtMoney(potential, currency)}</div>
-              </div>
-            </div>
-            <button
-              className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', flex: 'none' }}
-              onClick={() => setExpenses((prev) => prev.map((e) => (e.branchId === branch.id && monthKey(e.date) === month && e.flagged ? { ...e, stopped: true } : e)))}
-            >
-              Suspendre tout l’évitable
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div className="trf-panel__title" style={{ marginBottom: 0 }}>Paiements récurrents programmés · toute période</div>
-            <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={() => openFor()}>+ Paiement récurrent</button>
-          </div>
-          {recurringVisible.length === 0 && (
-            <div className="trf-empty" style={{ marginBottom: 18 }}>
-              {q
-                ? <>Aucun paiement récurrent ne répond à « {query.trim()} ».</>
-                : <>Aucun paiement récurrent. Ajoute une dépense avec une récurrence pour la programmer ici.</>}
-            </div>
-          )}
-          {recurringVisible.length > 0 && (
-            <div className="trf-panel" style={{ padding: '6px 18px', marginBottom: 18 }}>
-              {recurringVisible.map((e) => (
-                <div className="trf-exprow" key={e.id} style={{ opacity: e.paused ? 0.55 : 1 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: e.paused ? 'var(--color-argile)' : 'var(--color-copper)', flex: 'none' }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <span className="trf-exprow__vendor">{e.label}</span>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: e.paused ? 'var(--ink-soft)' : 'var(--trf-success)' }}>· {e.paused ? 'En pause' : 'Actif'}</span>
-                    </div>
-                    <div className="trf-exprow__meta">{e.category} · {e.recurring}</div>
-                  </div>
-                  <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
-                  <button className="trf-tagbox trf-tagbox--btn" title="Voir les mouvements de cette caisse" onClick={() => setBoxDrill(e.cashbox)}>{e.cashbox}</button>
-                  <span className="trf-exprow__amt" style={{ fontSize: 18 }}>{fmtMoney(expenseTotal(e), currency)}</span>
-                  <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                    <button className="trf-act trf-act--ghost" onClick={() => togglePause(e)}>{e.paused ? 'Reprendre' : 'Pause'}</button>
-                    <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== e.id))}>Annuler</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="trf-panel__title">Engagements à arbitrer · {monthName}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {visibleMonthExp.length === 0 && (
-              <div className="trf-empty">
-                {q
-                  ? <>Aucun engagement de {monthName} ne répond à « {query.trim()} ».</>
-                  : <>Aucun engagement en {monthName}.</>}
-              </div>
-            )}
-            {visibleMonthExp.map((e) => (
-              <div className={`trf-engage ${e.stopped ? 'is-stopped' : e.flagged ? 'is-flagged' : ''}`} key={e.id}>
-                <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)', textDecoration: e.stopped ? 'line-through' : 'none' }}>{e.label}</span>
-                    <span className={`trf-verdict ${e.stopped ? 'trf-verdict--stop' : e.flagged ? 'trf-verdict--warn' : ''}`}>
-                      {e.stopped ? 'Suspendu' : e.flagged ? 'À revoir' : e.recurring ? 'Engagement' : 'Ponctuel'}
-                    </span>
-                  </div>
-                  <div className="trf-exprow__meta">{e.category}{e.subcategory ? ` · ${e.subcategory}` : ''} · {e.recurring ?? 'ponctuel'} · {e.cashbox}</div>
-                  {e.items && e.items.length ? (
-                    <div className="trf-itembreak trf-itembreak--inline">
-                      {e.items.map((it) => (
-                        <div className="trf-itembreak__row" key={it.id}>
-                          <span className="trf-itembreak__label">{it.label}</span>
-                          <span className="trf-itembreak__val">{fmtMoney(it.amountXof, currency)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-                <span className="trf-exprow__amt" style={{ fontSize: 21, textDecoration: e.stopped ? 'line-through' : 'none' }}>{fmtMoney(expenseTotal(e), currency)}</span>
-                <div style={{ flex: 'none', display: 'flex', gap: 7, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
-                  {e.stopped ? (
-                    <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
-                  ) : (
-                    <>
-                      <button className="trf-act" onClick={() => revive(e)}>Approuver</button>
-                      <button className="trf-act trf-act--warn" onClick={() => toggleFlag(e)}>{e.flagged ? 'Ne plus signaler' : 'Signaler'}</button>
-                      <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
-                    </>
-                  )}
-                  <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* L'ONGLET ENGAGEMENTS A ÉTÉ RETIRÉ — 22 août 2026.
+          « Cette page ne me sert à rien », et « je ne fais rien de tout cela,
+          Signalées à arbitrer ». Il portait un mécanisme entier — signaler une
+          dépense, l'approuver, suspendre tout l'évitable, lire un « potentiel
+          d'économie » — que la Maison n'a jamais employé. Son seul geste vivant
+          était le bouton « + Paiement récurrent », remonté sous les caisses.
+          Les dépenses récurrentes restent visibles dans la liste, avec leur
+          mention « mensuel » ou « hebdomadaire ». Le champ `flagged` survit au
+          modèle, intact : aucune donnée n'est perdue, et l'onglet reviendrait
+          en quelques lignes si la Maison changeait d'avis. */}
 
       {/* ============ BUDGETS & PRÉVISION ============ */}
       {tab === 'budgets' && (
@@ -1645,13 +1528,6 @@ export default function Depenses() {
                 {([['', 'Ponctuel'], ['mensuel', 'Mensuel'], ['hebdomadaire', 'Hebdomadaire']] as [Form['recurring'], string][]).map(([k, label]) => (
                   <button key={label} className={`trf-chip ${form.recurring === k ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, recurring: k }))}>{label}</button>
                 ))}
-              </div>
-            </div>
-            <div>
-              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Arbitrage</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                <button className={`trf-chip ${!form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: false }))}>Validée</button>
-                <button className={`trf-chip ${form.flagged ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, flagged: true }))}>Signalée · à revoir</button>
               </div>
             </div>
             {/* LA DATE FERME LA FENÊTRE, comme au Salon & Foyer : c'est le
