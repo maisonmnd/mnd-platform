@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Répondre aux avis Google — 22 août, EN ATTENTE DE GOOGLE
+
+« Comment connecter les avis Google et pouvoir répondre immédiatement avec
+l'IA depuis l'ERP ? » Deux moitiés très inégales.
+
+LA MOITIÉ IA EST DÉJÀ FAITE : `suggest-client` fait tourner Claude côté
+serveur depuis des semaines — clé au coffre, garde « personnel connecté »,
+appel depuis un paquet statique impossible autrement. Répondre à un avis suit
+ce chemin exactement. Rien à inventer.
+
+LA MOITIÉ GOOGLE ATTEND. Lire et répondre passe par UNE porte : l'API Business
+Profile sur son ancien point d'entrée v4 (`…/reviews`, `PUT …/reviews/{id}/
+reply`). Les API récentes — fiche, établissements, statistiques — ne couvrent
+pas les avis. L'API Places ne rend que cinq avis, en lecture seule : elle ne
+fait pas un écran. Et l'API n'est PAS ouverte par défaut — projet neuf, quota
+zéro, refus. Il faut la demander, Google répond en jours ou en semaines.
+
+ARBITRAGE DE YÉMAN, deux réponses :
+① **Ne rien construire avant l'accès.** J'avais proposé un pont à la main
+   (coller l'avis, l'IA rédige, copier chez Google) utilisable dès demain —
+   écarté. On demande d'abord, on construit ensuite.
+② **L'IA propose, la souveraine valide.** Aucun envoi sans lecture, même pour
+   les cinq étoiles. Une réponse publique porte le nom de la Maison, et un
+   avis à une étoile mal répondu se lit par tout le monde, pour toujours.
+
+`docs/DEMANDER-ACCES-AVIS-GOOGLE.md` porte la démarche pas à pas — projet
+Cloud, les quatre API, le formulaire d'accès (et ce qu'il faut y écrire :
+usage propriétaire d'un seul établissement, jamais un service revendu à des
+tiers, sous peine d'examen bien plus long), l'autorisation OAuth
+`business.manage`, les trois secrets `GBP_*`. RIEN D'AUTRE À FAIRE d'ici la
+réponse de Google.
+
+À la reprise : maquette d'abord, comme tout module du Trône. L'écran prévu —
+avis du plus récent au plus ancien, sans réponse en tête, lien vers la fiche
+quand le nom correspond, l'IA lisant l'avis ET ce que la cliente est venue
+faire. La boucle se refermerait : `avis-google` demande l'avis, l'écran le
+reçoit et y répond.
+
 ## Les caisses, le coffre et leurs verrous — 22 août, PUBLIÉ
 
 Un écran à elles (`finances/Caisses.tsx`), demandé au même titre que Dépenses.
