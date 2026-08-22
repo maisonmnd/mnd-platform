@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Coffre &amp; les Prêts — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --brique:    #96412E;
+    --vert:      #4A6B52;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchemin); color: var(--encre);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 34px);
+    color: var(--indigo); margin: 0 0 6px; letter-spacing: -.01em;
+  }
+  h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); margin: 0 0 6px; }
+  .chapeau { max-width: 62ch; font-size: 16px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 64px; }
+  .intro { max-width: 68ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+  .legende { font-size: 12.5px; color: var(--encre-d); margin: 12px 0 0; max-width: 68ch; }
+
+  .ecran {
+    border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire);
+    overflow: hidden; box-shadow: 0 1px 0 rgba(42,39,34,.04);
+  }
+  .ecran__tete {
+    background: var(--indigo); color: #EFEAE0; padding: 14px 18px;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  .ecran__tete h4 { font-family: var(--serif); font-weight: 400; font-size: 22px; color: #fff; margin: 0; }
+  .ecran__tete .compte { font-size: 12px; color: #B9BAD4; margin-left: auto; }
+  .ecran__corps { padding: 16px 18px 18px; }
+
+  /* ── Un objectif ── */
+  .obj { padding: 14px 0; border-bottom: 1px solid var(--filet); }
+  .obj:last-child { border-bottom: none; }
+  .obj__tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .obj__nom { font-family: var(--serif); font-size: 20px; color: var(--indigo); flex: 1 1 auto; }
+  .obj__chiffres { font-family: var(--serif); font-size: 17px; color: var(--indigo); white-space: nowrap; }
+  .obj__chiffres i { font-style: normal; color: var(--encre-d); font-size: 13px; }
+  .jauge { height: 9px; border-radius: 2px; background: var(--sable); overflow: hidden; margin: 9px 0 7px; }
+  .jauge i { display: block; height: 100%; background: var(--indigo); border-radius: 2px; }
+  .jauge i.est-proche { background: var(--vert); }
+  .jauge i.est-loin { background: var(--cuivre); }
+  .obj__mot { font-size: 12.5px; color: var(--encre-d); display: flex; gap: 14px; flex-wrap: wrap; }
+  .obj__mot b { color: var(--encre); font-weight: 500; }
+  .tag {
+    display: inline-block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    border: 1px solid var(--filet); background: var(--ivoire); color: var(--encre-d);
+    border-radius: 2px; padding: 1px 7px;
+  }
+  .tag--retard { border-color: var(--cuivre-p); background: var(--cuivre-f); color: var(--brique); }
+  .tag--tenu { border-color: rgba(74,107,82,.4); background: rgba(74,107,82,.10); color: var(--vert); }
+  .obj--libre .obj__nom { color: var(--encre-d); font-style: italic; }
+  .total {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+    border-top: 1px solid var(--filet); margin-top: 6px; padding-top: 12px;
+    font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d);
+  }
+  .total b {
+    font-family: var(--serif); font-weight: 400; font-size: 26px; letter-spacing: 0;
+    text-transform: none; color: var(--indigo);
+  }
+
+  /* ── Les prêts ── */
+  .pret { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--filet); flex-wrap: wrap; }
+  .pret:last-of-type { border-bottom: none; }
+  .pret__qui { flex: 1 1 220px; }
+  .pret__qui b { font-weight: 500; }
+  .pret__detail { display: block; font-size: 12px; color: var(--encre-d); margin-top: 2px; }
+  .pret__reste { font-family: var(--serif); font-size: 18px; color: var(--indigo); white-space: nowrap; }
+  .pret--solde .pret__reste { color: var(--vert); font-size: 15px; }
+
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .duo { grid-template-columns: 1fr; } }
+
+  ol.gestes, ul.puces { padding-left: 20px; max-width: 68ch; color: var(--encre-d); }
+  ol.gestes li, ul.puces li { margin-bottom: 12px; }
+  ol.gestes b, ul.puces b { color: var(--encre); font-weight: 500; }
+
+  .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 16px; }
+  .carte { border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); padding: 16px 18px; }
+  .carte h3 { margin-bottom: 5px; }
+  .carte p { margin: 0; font-size: 13.5px; color: var(--encre-d); }
+
+  .trancher { border-left: 2px solid var(--cuivre); padding: 2px 0 2px 16px; margin-bottom: 22px; max-width: 70ch; }
+  .trancher h3 { margin-bottom: 3px; }
+  .trancher p { margin: 0; color: var(--encre-d); font-size: 14px; }
+
+  .avert {
+    border: 1px solid var(--cuivre-p); background: var(--cuivre-f);
+    border-radius: 4px; padding: 15px 18px; max-width: 72ch; color: var(--brique);
+  }
+  .avert b { font-weight: 500; }
+  .avert h3 { color: var(--brique); margin-bottom: 6px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Le Coffre &amp; les Prêts.</h1>
+  <p class="chapeau">
+    Deux questions posées le même jour, et la même réponse : <b>l’argent mis de côté
+    et l’argent prêté n’ont pas de nom</b>. Le coffre est un seul tas ; les prêts ne
+    connaissent que les associés, et sortent d’aucune caisse. Voici comment leur
+    rendre une mémoire.
+  </p>
+
+  <section>
+    <h2>Ce qui existe déjà, et ce qui manque.</h2>
+    <div class="duo">
+      <div>
+        <h3>Les prêts — un registre, mais étroit</h3>
+        <p class="intro">
+          Salon &amp; Foyer tient déjà un registre <b>prêt / remboursement</b> avec la
+          date, le motif, le montant, et il en déduit la <b>dette en cours</b> — jamais
+          négative, car un trop-remboursé est une erreur de saisie, pas une dette de la
+          Maison. Un mois en dépassement peut même s’y convertir en prêt d’un geste.
+        </p>
+        <p class="intro">
+          Sa limite : il ne connaît que <b>les associés</b>. Prêter à un membre de
+          l’équipe, à une cliente ou à un tiers n’y a pas sa place.
+        </p>
+      </div>
+      <div>
+        <h3>L’épargne — rien du tout</h3>
+        <p class="intro">
+          Aucune notion d’objectif, d’enveloppe fléchée ni de cagnotte n’existe dans
+          le modèle. Le <b>Coffre-fort</b> s’en approche : il reçoit des dépôts, les
+          débite de la caisse d’où l’argent sort, et n’a qu’une sortie autorisée — le
+          virement bancaire.
+        </p>
+        <p class="intro">
+          Mais c’est <b>un seul tas</b>, comme la caisse avant « L’argent a un nom ».
+          Il ne sait pas dire « ceci est pour la scolarité, cela pour le voyage, et il
+          manque encore tant ».
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Le coffre, fléché.</h2>
+    <p class="intro">
+      Chaque dépôt peut désigner <b>un objectif</b>. Le coffre montre alors où en est
+      chacun, ce qu’il manque, et — quand une échéance est posée — <b>si le rythme
+      actuel y mène</b>. Ce qui n’est fléché nulle part reste visible : c’est de
+      l’argent disponible, pas de l’argent perdu.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Le Coffre · ce que la Maison met de côté</h4>
+        <span class="compte">3 objectifs · 865 000 F au coffre</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="obj">
+          <div class="obj__tete">
+            <span class="obj__nom">Scolarité 2027</span>
+            <span class="obj__chiffres">620 000 <i>/ 900 000 F</i></span>
+          </div>
+          <div class="jauge"><i style="width:69%"></i></div>
+          <div class="obj__mot">
+            <span>69 % · il manque <b>280 000 F</b></span>
+            <span>échéance <b>septembre 2027</b></span>
+            <span class="tag tag--tenu">au rythme actuel : tenue</span>
+          </div>
+        </div>
+
+        <div class="obj">
+          <div class="obj__tete">
+            <span class="obj__nom">Voyage — Abomey</span>
+            <span class="obj__chiffres">150 000 <i>/ 500 000 F</i></span>
+          </div>
+          <div class="jauge"><i class="est-loin" style="width:30%"></i></div>
+          <div class="obj__mot">
+            <span>30 % · il manque <b>350 000 F</b></span>
+            <span>échéance <b>décembre 2026</b></span>
+            <span class="tag tag--retard">au rythme actuel : atteint en mars — 3 mois de retard</span>
+          </div>
+        </div>
+
+        <div class="obj">
+          <div class="obj__tete">
+            <span class="obj__nom">Investissement — second fauteuil</span>
+            <span class="obj__chiffres">95 000 <i>/ 400 000 F</i></span>
+          </div>
+          <div class="jauge"><i style="width:24%"></i></div>
+          <div class="obj__mot">
+            <span>24 % · il manque <b>305 000 F</b></span>
+            <span>sans échéance</span>
+          </div>
+        </div>
+
+        <div class="obj obj--libre">
+          <div class="obj__tete">
+            <span class="obj__nom">Non fléché — disponible</span>
+            <span class="obj__chiffres">—</span>
+          </div>
+          <div class="obj__mot"><span>Des dépôts qui n’ont pas désigné d’objectif. Rien ne les y oblige.</span></div>
+        </div>
+
+        <div class="total">
+          <span>Total au coffre</span>
+          <b>865 000 F</b>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      La jauge passe au <b>cuivre</b> quand le rythme ne mène pas à l’échéance, au
+      <b>vert</b> quand elle sera tenue. Sans échéance posée, elle reste indigo — on ne
+      juge pas une épargne qui n’a pas dit sa date.
+    </p>
+  </section>
+
+  <section>
+    <h2>Les prêts, élargis.</h2>
+    <p class="intro">
+      Le registre s’ouvre au-delà des associés : <b>l’équipe, les clientes, les
+      tiers</b>. Chaque personne porte son solde — prêté moins remboursé — et l’écran
+      dit d’un regard qui doit encore quelque chose à la Maison.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Les prêts · qui doit quoi à la Maison</h4>
+        <span class="compte">80 000 F encore dus</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="pret">
+          <span class="pret__qui">
+            <b>Gérard T.</b> <span class="tag">équipe</span>
+            <span class="pret__detail">Avance sur salaire · prêté 200 000 F le 3 juin</span>
+          </span>
+          <span class="pret__reste">reste 80 000 F</span>
+        </div>
+        <div class="pret">
+          <span class="pret__qui">
+            <b>Dada Sandrine</b> <span class="tag">tiers</span>
+            <span class="pret__detail">Dépannage · prêté 25 000 F le 14 août</span>
+          </span>
+          <span class="pret__reste">reste 25 000 F</span>
+        </div>
+        <div class="pret pret--solde">
+          <span class="pret__qui">
+            <b>Assetina S.</b> <span class="tag">cliente</span>
+            <span class="pret__detail">Prêté 45 000 F le 2 juillet · remboursé en deux fois</span>
+          </span>
+          <span class="pret__reste">soldé le 3 août</span>
+        </div>
+        <div class="total">
+          <span>Dette en cours</span>
+          <b>105 000 F</b>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Un défaut trouvé en chemin.</h2>
+    <div class="avert">
+      <h3>Un prêt ne sort d’aucune caisse aujourd’hui.</h3>
+      <p style="margin:0">
+        Le registre des prêts enregistre un montant et une date, mais <b>ne nomme aucun
+        tiroir</b>. Prêter 200 000 F ne les retire donc d’aucune caisse : les mêmes
+        francs vivent dans la caisse ET chez l’emprunteur. Chaque écran dit vrai
+        séparément, et la trésorerie les compte deux fois.
+      </p>
+      <p style="margin:10px 0 0">
+        C’est exactement ce qui a été corrigé le 17 août pour le coffre (« un dépôt qui
+        nomme sa caisse la débite d’autant ») et le 19 pour les avoirs. Le remède est le
+        même : <b>un prêt SORT d’une caisse, un remboursement y ENTRE</b>. Les prêts
+        déjà saisis, sans caisse, restent tels quels — leurs soldes sont arrêtés.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas.</h2>
+    <div class="cartes">
+      <div class="carte">
+        <h3>Bloquer une sortie</h3>
+        <p>
+          Un objectif n’enferme pas l’argent. Le coffre reste un seul solde réel : le
+          fléchage est une lecture, jamais une serrure. Si le virement doit partir, il part.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Prédire l’avenir</h3>
+        <p>
+          « Au rythme actuel » n’est qu’une moyenne des versements passés, dite comme
+          telle. Un objectif sans échéance n’est jamais jugé — on ne reproche pas un
+          retard à qui n’a pas donné de date.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Deviner l’ancien</h3>
+        <p>
+          Les dépôts déjà au coffre restent « non fléchés » tant que la main ne les
+          nomme pas. Les répartir d’office inventerait une histoire.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Confondre prêt et avoir</h3>
+        <p>
+          Un avoir est de l’argent que la cliente a <b>déjà remis</b> à la Maison ; un
+          prêt est de l’argent qu’elle lui <b>doit</b>. Deux registres, deux sens — on
+          ne les mélange pas.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qu’il faut trancher avant de construire.</h2>
+
+    <div class="trancher">
+      <h3>Où vivent les prêts ?</h3>
+      <p>
+        Ils sont aujourd’hui dans Salon &amp; Foyer, qui est l’affaire du foyer et
+        réservé aux souverains. Une avance sur salaire, elle, est l’affaire de la
+        Maison. Mon avis : <b>les sortir du Foyer</b> pour les poser dans Comptes &amp;
+        Avoirs — l’écran qui tient déjà ce que la Maison doit et ce qu’on lui doit.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Un prêt à une cliente touche-t-il sa fiche ?</h3>
+      <p>
+        Mon avis : <b>oui, en lecture seule</b> — la fiche mentionne « prêt en cours,
+        reste 25 000 F », sans que cela n’entre dans sa dépense ni dans ses points de
+        fidélité. Un prêt n’est pas un achat.
+      </p>
+    </div>
+
+    <div class="trancher">
+      <h3>Une avance sur salaire se retient-elle sur la paie ?</h3>
+      <p>
+        Le module de paie existe. Mon avis pour ce premier tour : <b>non</b> — on
+        enregistre le prêt et ses remboursements à la main, et l’on regarde vivre. Lier
+        les deux automatiquement demande des règles (échelonnement, plafond) qu’il vaut
+        mieux écrire après avoir vu des cas réels.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça demande, en vrai.</h2>
+    <ol class="gestes">
+      <li>
+        <b>Un objectif au modèle</b> — un nom, une cible, une échéance facultative, et
+        l’état clos ou non. Rien de plus : la progression se calcule, elle ne s’écrit pas.
+      </li>
+      <li>
+        <b>Un fléchage sur le dépôt</b> — le mouvement de coffre désigne son objectif,
+        comme une dépense désigne son revenu. Absent sur les dépôts d’avant : ils
+        restent « non fléchés », visibles et disponibles.
+      </li>
+      <li>
+        <b>La caisse sur le prêt</b> — la correction décrite plus haut, et la même règle
+        que pour le coffre et les avoirs. C’est la pièce à faire en premier : elle touche
+        de l’argent.
+      </li>
+      <li>
+        <b>L’emprunteur élargi</b> — un genre (associé, équipe, cliente, tiers) et un
+        nom ; l’identifiant de la fiche quand il s’agit d’une cliente ou d’un membre de
+        l’équipe, pour que le lien se relise dans les deux sens.
+      </li>
+      <li>
+        <b>Deux écrans</b>, et un harnais qui garde l’essentiel : qu’un solde de prêt ne
+        passe jamais sous zéro, qu’un objectif sans échéance ne soit jamais dit « en
+        retard », et que la somme des objectifs plus le non-fléché fasse toujours le
+        solde réel du coffre.
+      </li>
+    </ol>
+    <p class="legende">
+      Une migration serveur sera nécessaire pour la table des objectifs. Le reste
+      s’ajoute en JSON, sans toucher au schéma. Aucun solde existant ne change de valeur.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
