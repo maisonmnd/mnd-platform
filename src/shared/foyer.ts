@@ -262,6 +262,10 @@ export type Pret = {
   associe: string;
   motif: string;
   amountXof: number; // toujours positif ; le SENS vient du type
+  /** CE QUI EST SORTI (ou rentré dans) LE TIROIR quand la caisse tient une
+      autre devise — 22 août 2026. La dette reste en francs ; le tiroir compte
+      ses billets. Voir surLeTiroir dans finance.ts. */
+  fx?: { code: string; rate: number; amount: number };
   /** À QUI la Maison prête. Absent sur les lignes d'avant : elles sont toutes
       des mouvements salon ↔ foyer, et se lisent comme telles. */
   genre?: GenreEmprunteur;

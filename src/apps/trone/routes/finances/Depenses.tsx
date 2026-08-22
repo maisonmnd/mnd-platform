@@ -20,7 +20,7 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
-import { useCaisses, ReleveCaisse } from './tiroirs';
+import { useCaisses, ReleveCaisse, MontantDuTiroir, fxDuTiroir } from './tiroirs';
 import { RapportDeCaisse } from './Rapport';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -42,7 +42,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[] };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[] };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
@@ -119,7 +119,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', recurring: '', date: '', flagged: false, items: [], sources: [] });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [] });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -162,6 +162,11 @@ export default function Depenses() {
   const monthName = monthLabel(month);
   const isCurrent = month === thisMonth;
   const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+  /* CET ÉCRAN N’A JAMAIS FILTRÉ LES CAISSES EN DEVISE — 22 août 2026. Une
+     dépense en francs imputée à un tiroir en dollars lui retirait des francs,
+     et son solde s’en trouvait faux. Le champ ci-dessous dit ce qui sort
+     vraiment du tiroir ; sans lui, la ligne ne pèse rien et le relevé le dit. */
+  const caisseDeLaDepense = branchBoxes.find((c) => c.name === form.cashbox);
 
   /* Les deux bouts du transfert, et leurs devises — déclarés APRÈS
      `branchBoxes` : les lire plus haut touchait une constante non encore
@@ -365,7 +370,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [] });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [] });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -373,7 +378,7 @@ export default function Depenses() {
     setEditingId(e.id);
     setForm({
       label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
-      cashbox: e.cashbox, recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
+      cashbox: e.cashbox, enDevise: e.fx ? String(e.fx.amount) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -506,6 +511,7 @@ export default function Depenses() {
     if (editingId) {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
+        fx: fxDuTiroir(caisseDeLaDepense, currency, form.enDevise, amountXof),
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
@@ -514,6 +520,7 @@ export default function Depenses() {
       const e: Expense = {
         id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
+        fx: fxDuTiroir(caisseDeLaDepense, currency, form.enDevise, amountXof),
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
@@ -1493,6 +1500,18 @@ export default function Depenses() {
                 <button className={`trf-chip ${!form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>
                   Sans caisse · Autres
                 </button>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <MontantDuTiroir
+                  caisse={caisseDeLaDepense}
+                  maison={currency}
+                  valeur={form.enDevise}
+                  montantXof={cleanItems.length > 0
+                    ? cleanItems.reduce((s2, it) => s2 + it.amountXof, 0)
+                    : parseInt(form.amount || '0', 10) || 0}
+                  onChange={(v) => setForm((f) => ({ ...f, enDevise: v }))}
+                  sortant
+                />
               </div>
               {branchBoxes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>

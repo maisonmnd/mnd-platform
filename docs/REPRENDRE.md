@@ -2,6 +2,48 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Multi-devise : le tiroir compte SES billets — 22 août, PUBLIÉ
+
+« Ok pour multi-devise. » Né d'une question : « pourquoi je ne vois pas les
+caisses USD ? » Quatre formulaires les écartaient, et l'écran des Dépenses,
+lui, ne les écartait pas — il imputait des francs à un tiroir en dollars.
+
+UNE SEULE RÈGLE, `surLeTiroir(écriture, deviseDuTiroir, maison)` dans
+finance.ts. Toute écriture qui nomme une caisse porte DEUX montants :
+`amountXof`, la seule base comptable de la Maison (dette, avoir, charge,
+coffre), et `fx.amount`, ce qui a réellement quitté ou rejoint le tiroir. Même
+contrat que `InvoicePayment.fx`, posé le 11 août : **on ne convertit jamais
+après coup**, on inscrit ce qui a bougé — sinon un taux qui change ferait
+bouger des soldes déjà arrêtés.
+
+`fx?` ajouté à `Expense`, `CreditMovement` (avoirs) et `Pret`. Le coffre
+l'avait déjà.
+
+TOUTES LES SOMMES DE `tiroirs.tsx` Y PASSENT — solde (`boxBalanceWhere`), flux
+du mois (`boxMonthFlux`), et chaque ligne du relevé (`boxMoves`) : dépenses,
+avoirs, prêts, versements au coffre. Aucune ne lit plus `amountXof` en direct.
+
+UNE ÉCRITURE SANS `fx` SUR UN TIROIR EN DEVISE NE PÈSE RIEN, et le relevé le
+DIT ligne à ligne (« montant en USD non renseigné »). On ne devine pas à un
+taux du jour : c'est réparable d'un clic, l'inventer ne l'est pas. C'est aussi
+ce qui rattrape l'historique des dépenses imputées à un tiroir en devise — leur
+solde était faux, il devient muet et signalé.
+
+`MontantDuTiroir` (dans tiroirs.tsx) est le champ partagé par les quatre
+formulaires : prêt, avoir, prestataire, dépense. Il n'apparaît QUE si la caisse
+choisie tient une autre monnaie. LE TAUX EST DÉDUIT, PAS DEMANDÉ — une case de
+plus pour un chiffre calculable serait une case de trop.
+
+LE COFFRE RESTE FILTRÉ, ET C'EST VOLONTAIRE. Son `fx` désigne déjà la devise du
+COMPARTIMENT (22 août, « il y a des coffres qui ont différentes devises ») ;
+lui faire dire aussi la devise de la CAISSE ferait porter deux sens au même
+champ — l'ambiguïté qui casse un registre. La phrase `motDesCaissesEnDevise` y
+reste et nomme les caisses écartées.
+
+Harnais `verifie-coffre` étendu : les francs ne tombent jamais dans un tiroir
+en devise, ni les euros dans le tiroir en dollars, et l'écriture muette se
+signale.
+
 ## Corriger un avoir, corriger ou effacer un prêt — 22 août, PUBLIÉ
 
 « J'aimerais éditer l'avoir de 40 000 F de Ghislain. Je veux lui changer de

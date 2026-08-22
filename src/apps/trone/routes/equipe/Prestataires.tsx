@@ -5,7 +5,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
-import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense, caissesEnDevise, motDesCaissesEnDevise } from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense} from '../../../../shared/finance';
+import { MontantDuTiroir, fxDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -157,11 +158,15 @@ export default function Prestataires() {
      Le moyen reste sur la mission (le reçu le dit) ; la caisse est choisie
      au paiement, Caisse principale en tête. */
   const [cashboxes] = useCashboxes();
-  const caissesMaison = cashboxes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
-  const caissesAutresDevises = caissesEnDevise(cashboxes, branch.id, currency);
+  /* TOUTES LES CAISSES, DEVISES COMPRISES — 22 août 2026. Un prestataire peut
+     être payé du tiroir en dollars ; la charge reste en francs à la Synthèse,
+     et le tiroir perd des dollars. */
+  const caissesMaison = cashboxes.filter((c) => c.branchId === branch.id);
   const caisseParDefaut = (caissesMaison.find((c) => c.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [payCaisse, setPayCaisse] = useState('');
   const caisseActive = caissesMaison.some((c) => c.name === payCaisse) ? payCaisse : caisseParDefaut;
+  const [payDevise, setPayDevise] = useState('');
+  const caissePayee = caissesMaison.find((c) => c.name === caisseActive);
 
   /* LES ÉCRITURES D'AVANT SE RÉPARENT SEULES : une charge de prestataire dont
      la « caisse » est en réalité un moyen de règlement se repointe vers la
@@ -191,6 +196,7 @@ export default function Prestataires() {
       amountXof: payFor.amountXof,
       date: paidAt.slice(0, 10),
       cashbox: caisseActive,
+      fx: fxDuTiroir(caissePayee, currency, payDevise, payFor.amountXof),
       category: CHARGE_CATEGORY,
     };
     // La charge remonte dans les Dépenses & la Synthèse (résultat).
@@ -512,12 +518,15 @@ export default function Prestataires() {
                   Aucune caisse en {currency} — la charge citera « Caisse principale ».
                 </span>
               )}
-              {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
-                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }}>
-                  {motDesCaissesEnDevise(caissesAutresDevises, currency)}
-                </div>
-              )}
             </Field>
+            <MontantDuTiroir
+              caisse={caissePayee}
+              maison={currency}
+              valeur={payDevise}
+              montantXof={payFor?.amountXof ?? 0}
+              onChange={setPayDevise}
+              sortant
+            />
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPayFor(null)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={confirmPayment}>Confirmer le paiement · {fmtMoney(payFor.amountXof, currency)}</Button>

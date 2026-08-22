@@ -164,6 +164,10 @@ export type Expense = {
   amountXof: number;
   date: string;
   cashbox: string; // caisses multiples
+  /** CE QUI EST SORTI DU TIROIR quand la caisse tient une autre devise —
+      22 août 2026. `amountXof` reste la charge de la Maison ; `fx.amount` est
+      ce que le tiroir a réellement perdu. Voir `surLeTiroir`. */
+  fx?: { code: string; rate: number; amount: number };
   /** LES REVENUS QUI PAIENT CETTE DÉPENSE — voir `DepenseSource`. Absent sur
       tout l'historique : une dépense sans `sources` reste muette, elle ne se
       remplit pas toute seule. */
@@ -357,6 +361,28 @@ export type Cashbox = {
    un mot, et une absence sans raison se lit comme une panne. Elles sont
    désormais nommées sous le champ — même règle que les caisses discrètes
    exclues de la trésorerie, et que les caisses hors bilan du rapport. */
+/* ── CE QU’UNE ÉCRITURE FAIT À SON TIROIR — 22 août 2026 ────────────
+   « Ok pour multi-devise. » Un tiroir compte SES billets : une caisse en
+   dollars ne connaît que des dollars. Toute écriture qui nomme une caisse
+   porte donc DEUX montants — `amountXof`, la seule base comptable de la
+   Maison (dette, avoir, charge, coffre), et `fx.amount`, ce qui a réellement
+   quitté ou rejoint le tiroir. Même contrat que `InvoicePayment.fx`, posé le
+   11 août : on ne convertit jamais après coup, on inscrit ce qui a bougé.
+
+   UNE ÉCRITURE SANS `fx` SUR UN TIROIR EN DEVISE NE PÈSE RIEN. On ne sait pas
+   combien de dollars sont sortis, et deviner à un taux du jour ferait bouger
+   des soldes déjà arrêtés. Elle vaut zéro pour le tiroir, et les écrans le
+   DISENT ligne à ligne — c’est réparable d’un clic, l’inventer ne l’est pas. */
+export type EcritureDeTiroir = { amountXof: number; fx?: { code: string; rate: number; amount: number } };
+export const surLeTiroir = (e: EcritureDeTiroir, deviseDuTiroir: string, maison: string): number =>
+  (deviseDuTiroir === maison
+    ? e.amountXof
+    : (e.fx && e.fx.code === deviseDuTiroir ? e.fx.amount : 0));
+
+/** L’écriture nomme un tiroir en devise mais ne dit pas combien il en est
+    sorti — la ligne existe, le tiroir ne peut pas la compter. */
+export const montantMuet = (e: EcritureDeTiroir, deviseDuTiroir: string, maison: string): boolean =>
+  deviseDuTiroir !== maison && !(e.fx && e.fx.code === deviseDuTiroir);
 export const caissesEnDevise = (boxes: readonly Cashbox[], branchId: string, maison: string): Cashbox[] =>
   boxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) !== maison);
 
@@ -906,6 +932,10 @@ export type CreditMovement = {
   holderType: 'family' | 'client'; // qui porte l'avoir
   holderId: string; // family.id ou client.id
   kind: 'depot' | 'usage' | 'remboursement'; // dépôt (+) · règlement d'une presta (−) · remboursement (−)
+  /** CE QUI EST ENTRÉ DANS LE TIROIR (ou en est sorti) quand la caisse tient
+      une autre devise — 22 août 2026. Le compte de la cliente se crédite en
+      `amountXof` ; le tiroir, lui, compte ses billets. Voir `surLeTiroir`. */
+  fx?: { code: string; rate: number; amount: number };
   amountXof: number; // toujours positif ; le sens vient de `kind`
   date: string; // ISO
   forClientId?: string; // usage : la cliente réellement soignée (membre du compte)

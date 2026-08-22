@@ -19,7 +19,7 @@ import { fmtIn } from '../../../../shared/currency';
 import {
   useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
-  caisseDiscrete, empreinteDuCode, caissesHorsBilan,
+  caisseDiscrete, empreinteDuCode, caissesHorsBilan, surLeTiroir, montantMuet,
   type Cashbox,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
@@ -143,6 +143,15 @@ export function useCaisses(month: string) {
           .filter((p) => p.cashbox === name && p.method !== 'Avoir' && p.method !== 'Acompte' && keep(monthKey(p.date ?? '')))
           .reduce((n, p) => n + p.amountXof, 0);
 
+  /* LA DEVISE DU TIROIR — 22 août 2026. Chaque somme ci-dessous doit se dire
+     dans la monnaie de SA caisse : un tiroir en dollars ne connaît que des
+     dollars, et y verser des francs fausserait son solde. `surLeTiroir` porte
+     la règle une seule fois. */
+  const deviseDuTiroir = (name: string): string => {
+    const b = branchBoxes.find((x) => x.name === name);
+    return b ? cashboxCurrency(b) : currency;
+  };
+
   /* CE QUE CETTE CAISSE A VERSÉ AU COFFRE — 17 août 2026, « le coffre comme
      caisse ». Un dépôt qui nomme sa caisse en SORT : sans cette soustraction,
      les mêmes francs vivraient dans le tiroir et dans le coffre, et la
@@ -154,7 +163,7 @@ export function useCaisses(month: string) {
   const verseAuCoffre = (name: string, keep: (mk: string) => boolean): number =>
     coffre
       .filter((m: CoffreMovement) => m.branchId === branch.id && m.kind === 'depot' && m.cashbox === name && keep(monthKey(m.date)))
-      .reduce((s: number, m: CoffreMovement) => s + m.amountXof, 0);
+      .reduce((s: number, m: CoffreMovement) => s + surLeTiroir(m, deviseDuTiroir(name), currency), 0);
 
   /* LES AVOIRS DE LA CAISSE — 19 août 2026, « verser un avoir doit aller dans
      une caisse et être retracé ». Un dépôt d'avoir qui nomme sa caisse y
@@ -166,7 +175,10 @@ export function useCaisses(month: string) {
     creditMvts
       .filter((m) => m.branchId === branch.id && m.cashbox === name
         && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)))
-      .reduce((s, m) => s + (m.kind === 'depot' ? m.amountXof : -m.amountXof), 0);
+      .reduce((s, m) => {
+        const v = surLeTiroir(m, deviseDuTiroir(name), currency);
+        return s + (m.kind === 'depot' ? v : -v);
+      }, 0);
   /* LES PRÊTS DE LA CAISSE — 22 août 2026. Un prêt qui NOMME sa caisse en
      SORT ; un remboursement y RENTRE. Sans cela, prêter 200 000 F ne les
      retirait d'aucun tiroir : les mêmes francs vivaient dans la caisse et chez
@@ -178,7 +190,10 @@ export function useCaisses(month: string) {
   const pretsDeCaisse = (name: string, keep: (mk: string) => boolean): number =>
     prets
       .filter((p) => p.branchId === branch.id && p.cashbox === name && keep(monthKey(p.date)))
-      .reduce((s, p) => s + (p.type === 'pret' ? -p.amountXof : p.amountXof), 0);
+      .reduce((s, p) => {
+        const v = surLeTiroir(p, deviseDuTiroir(name), currency);
+        return s + (p.type === 'pret' ? -v : v);
+      }, 0);
   const pretsMouvements = (name: string, keep: (mk: string) => boolean) =>
     prets.filter((p) => p.branchId === branch.id && p.cashbox === name && keep(monthKey(p.date)));
 
@@ -203,7 +218,12 @@ export function useCaisses(month: string) {
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, keep), 0);
-    const out = boxExpenses(name).filter((e) => keep(monthKey(e.date))).reduce((s, e) => s + expenseTotal(e), 0);
+    /* LA DÉPENSE AUSSI COMPTE DANS LA MONNAIE DU TIROIR — 22 août 2026. Cet
+       écran ne filtrait PAS les caisses en devise : une dépense en francs
+       imputée à un tiroir en dollars lui retirait des francs, et son solde
+       s’en trouvait faux. */
+    const out = boxExpenses(name).filter((e) => keep(monthKey(e.date)))
+      .reduce((s, e) => s + surLeTiroir({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency), 0);
     return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
@@ -217,13 +237,18 @@ export function useCaisses(month: string) {
     const foreign = boxCur !== currency;
     const avoirs = avoirsMouvements(name, (mk) => mk === month);
     const p = pretsMouvements(name, (mk) => mk === month);
+    /* Le flux se dit dans la monnaie du tiroir, comme le solde : la carte
+       affiche « + X · − Y en août » juste sous un solde en dollars. */
+    const dans = (e: { amountXof: number; fx?: { code: string; rate: number; amount: number } }) =>
+      surLeTiroir(e, boxCur, currency);
     const inn = boxInvoices(name).reduce((s, i) => s + boxCredit(i, name, boxCur, foreign, (mk) => mk === month), 0)
-      + avoirs.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0)
-      + p.filter((x) => x.type === 'remboursement').reduce((s, x) => s + x.amountXof, 0);
-    const out = boxExpenses(name).filter((e) => monthKey(e.date) === month).reduce((s, e) => s + expenseTotal(e), 0)
+      + avoirs.filter((m) => m.kind === 'depot').reduce((s, m) => s + dans(m), 0)
+      + p.filter((x) => x.type === 'remboursement').reduce((s, x) => s + dans(x), 0);
+    const out = boxExpenses(name).filter((e) => monthKey(e.date) === month)
+      .reduce((s, e) => s + dans({ amountXof: expenseTotal(e), fx: e.fx }), 0)
       + verseAuCoffre(name, (mk) => mk === month)
-      + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + m.amountXof, 0)
-      + p.filter((x) => x.type === 'pret').reduce((s, x) => s + x.amountXof, 0);
+      + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + dans(m), 0)
+      + p.filter((x) => x.type === 'pret').reduce((s, x) => s + dans(x), 0);
     return { inn, out };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
@@ -293,8 +318,15 @@ export function useCaisses(month: string) {
       .map((e) => ({
         date: e.date,
         label: e.label,
-        sub: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category,
-        delta: -expenseTotal(e),
+        sub: [
+          e.subcategory ? `${e.category} · ${e.subcategory}` : e.category,
+          /* CE QUI NE PEUT PAS ÊTRE COMPTÉ SE DIT — une dépense imputée à un
+             tiroir en devise sans montant dans cette devise ne pèse rien sur
+             lui. La taire ferait chercher un écart introuvable. */
+          montantMuet({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency)
+            ? `montant en ${boxCur} non renseigné` : null,
+        ].filter(Boolean).join(' · '),
+        delta: -surLeTiroir({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency),
         invoiceId: undefined as string | undefined, // une dépense n'a pas de facture
         /* …mais elle a sa fiche : le relevé d'une caisse est l'endroit où l'on
            repère une ligne fausse, il doit donc y mener. */
@@ -306,8 +338,9 @@ export function useCaisses(month: string) {
     const avoirs = avoirsMouvements(name, dansLaPeriode).map((m) => ({
       date: m.date,
       label: m.kind === 'depot' ? `Avoir versé · ${porteurDe(m)}` : `Avoir remboursé · ${porteurDe(m)}`,
-      sub: [m.method, m.note].filter(Boolean).join(' · ') || 'Comptes & Avoirs',
-      delta: m.kind === 'depot' ? m.amountXof : -m.amountXof,
+      sub: [m.method, m.note, montantMuet(m, boxCur, currency) ? `montant en ${boxCur} non renseigné` : null]
+        .filter(Boolean).join(' · ') || 'Comptes & Avoirs',
+      delta: m.kind === 'depot' ? surLeTiroir(m, boxCur, currency) : -surLeTiroir(m, boxCur, currency),
       invoiceId: undefined as string | undefined,
       expense: undefined as Expense | undefined,
     }));
@@ -324,8 +357,9 @@ export function useCaisses(month: string) {
       .map((m: CoffreMovement) => ({
         date: m.date,
         label: 'Versé au coffre',
-        sub: [m.note, 'Le Coffre'].filter(Boolean).join(' · '),
-        delta: -m.amountXof,
+        sub: [m.note, 'Le Coffre', montantMuet(m, boxCur, currency) ? `montant en ${boxCur} non renseigné` : null]
+          .filter(Boolean).join(' · '),
+        delta: -surLeTiroir(m, boxCur, currency),
         invoiceId: undefined as string | undefined,
         expense: undefined as Expense | undefined,
       }));
@@ -336,8 +370,9 @@ export function useCaisses(month: string) {
     const lesPrets = pretsMouvements(name, dansLaPeriode).map((p) => ({
       date: p.date,
       label: p.type === 'pret' ? `Prêté à ${p.associe}` : `Remboursé par ${p.associe}`,
-      sub: [p.method, p.motif].filter(Boolean).join(' · ') || 'Comptes & Avoirs · prêts',
-      delta: p.type === 'pret' ? -p.amountXof : p.amountXof,
+      sub: [p.method, p.motif, montantMuet(p, boxCur, currency) ? `montant en ${boxCur} non renseigné` : null]
+        .filter(Boolean).join(' · ') || 'Comptes & Avoirs · prêts',
+      delta: p.type === 'pret' ? -surLeTiroir(p, boxCur, currency) : surLeTiroir(p, boxCur, currency),
       invoiceId: undefined as string | undefined,
       expense: undefined as Expense | undefined,
     }));
@@ -531,6 +566,72 @@ export function ReleveCaisse({
   );
 }
 
+
+/* ── LE MONTANT DANS LA MONNAIE DU TIROIR — 22 août 2026 ────────────
+   « Ok pour multi-devise. » Quatre formulaires saisissent un montant en francs
+   et nomment une caisse. Quand cette caisse tient une autre monnaie, un
+   deuxième champ apparaît : ce qui SORT réellement du tiroir.
+
+   DEUX MONTANTS, JAMAIS UNE CONVERSION. Le franc reste la base comptable de la
+   Maison — la dette, l'avoir, la charge s'y disent. Le tiroir, lui, compte ses
+   billets. Convertir l'un depuis l'autre à un taux du jour ferait bouger des
+   soldes déjà arrêtés dès que le taux change ; on inscrit donc ce qui a bougé,
+   des deux côtés, une fois pour toutes. Même contrat que `InvoicePayment.fx`,
+   posé le 11 août.
+
+   LE TAUX EST DÉDUIT, PAS DEMANDÉ : il n'est qu'une lecture (francs par unité),
+   et une case de plus à remplir pour un chiffre qu'on peut calculer serait une
+   case de trop. */
+export function MontantDuTiroir({
+  caisse, maison, valeur, montantXof, onChange, sortant,
+}: {
+  caisse?: Cashbox;
+  maison: string;
+  valeur: string;
+  montantXof: number;
+  onChange: (v: string) => void;
+  /** L'argent quitte le tiroir (prêt, dépense) ou y entre (avoir, remboursement). */
+  sortant: boolean;
+}) {
+  const devise = caisse ? cashboxCurrency(caisse) : maison;
+  if (devise === maison) return null;
+  const saisi = parseFloat(valeur.replace(',', '.')) || 0;
+  const taux = saisi > 0 && montantXof > 0 ? Math.round(montantXof / saisi) : 0;
+  return (
+    <label className="mnd-field">
+      <span className="mnd-field__label">
+        {sortant ? `Ce qui sort du tiroir · ${devise}` : `Ce qui entre dans le tiroir · ${devise}`}
+      </span>
+      <input
+        className="mnd-input"
+        inputMode="decimal"
+        value={valeur}
+        placeholder="0"
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
+      />
+      <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+        {caisse?.name} compte ses billets en {devise}. Le montant en {maison} reste la base de la
+        Maison ; celui-ci est ce que le tiroir perd ou gagne réellement.
+        {taux > 0 && ` Soit ${taux.toLocaleString('fr-FR')} ${maison} par ${devise}.`}
+        {saisi <= 0 && ' Laissé vide, cette écriture ne pèsera rien sur le tiroir — et le relevé le dira.'}
+      </span>
+    </label>
+  );
+}
+
+/** Le `fx` à inscrire, ou `undefined` si le tiroir est dans la monnaie de la Maison. */
+export const fxDuTiroir = (
+  caisse: Cashbox | undefined,
+  maison: string,
+  valeur: string,
+  montantXof: number,
+): { code: string; rate: number; amount: number } | undefined => {
+  const devise = caisse ? cashboxCurrency(caisse) : maison;
+  if (devise === maison) return undefined;
+  const saisi = parseFloat((valeur ?? '').replace(',', '.')) || 0;
+  if (saisi <= 0) return undefined;
+  return { code: devise, rate: montantXof > 0 ? montantXof / saisi : 0, amount: saisi };
+};
 
 /* ── LE TROUSSEAU — 22 août 2026 ─────────────────────────────────────
    « Un bouton pour ouvrir toutes les caisses qui ont un code simultanément,

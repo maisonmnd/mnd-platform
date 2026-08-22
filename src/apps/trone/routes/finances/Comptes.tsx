@@ -11,13 +11,13 @@ import {
 } from '../../../../shared/clients';
 import {
   useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
-  caissesEnDevise, motDesCaissesEnDevise,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
+import { MontantDuTiroir, fxDuTiroir } from './tiroirs';
 import { todayISO } from './_shared';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
@@ -157,6 +157,7 @@ export default function Comptes() {
       nom: p.associe, personneId: p.personneId ?? '',
       motif: p.motif ?? '', montant: String(p.amountXof),
       cashbox: p.cashbox ?? '', method: p.method ?? 'Espèces', date: p.date.slice(0, 10),
+      enDevise: p.fx ? String(p.fx.amount) : '',
     });
     setPretEdite(p);
   };
@@ -169,11 +170,14 @@ export default function Comptes() {
     type: 'pret' as 'pret' | 'remboursement',
     genre: 'equipe' as GenreEmprunteur,
     nom: '', personneId: '', motif: '', montant: '',
-    cashbox: '', method: 'Espèces', date: todayISO(),
+    cashbox: '', method: 'Espèces', date: todayISO(), enDevise: '',
   });
   const [toutesCaisses] = useCashboxes();
-  const caissesMaison = toutesCaisses.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
-  const caissesAutresDevises = caissesEnDevise(toutesCaisses, branch.id, currency);
+  /* TOUTES LES CAISSES, DEVISES COMPRISES — 22 août 2026. Elles étaient
+     écartées parce que le montant se saisit en francs ; elles reviennent avec
+     leur propre champ (voir `MontantDuTiroir`). */
+  const caissesMaison = toutesCaisses.filter((c) => c.branchId === branch.id);
+  const caisseDuPret = caissesMaison.find((c) => c.name === fPret.cashbox);
 
   const enregistrerPret = () => {
     const montant = parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0;
@@ -194,6 +198,7 @@ export default function Comptes() {
          dans la caisse ET chez l'emprunteur. */
       cashbox: fPret.cashbox || undefined,
       method: fPret.method || undefined,
+      fx: fxDuTiroir(caisseDuPret, currency, fPret.enDevise, montant),
     };
     if (pretEdite) {
       /* L’IDENTIFIANT NE BOUGE PAS : le journal des gestes suit la pièce par
@@ -753,11 +758,17 @@ export default function Comptes() {
                 {fPret.type === 'pret'
                   ? 'La caisse choisie baisse d’autant : l’argent se déplace, il ne se duplique pas.'
                   : 'La caisse choisie monte d’autant — l’argent revient dans le tiroir.'}
-                {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
-                  <div style={{ marginTop: 5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
-                )}
               </div>
             </Field>
+
+            <MontantDuTiroir
+              caisse={caisseDuPret}
+              maison={currency}
+              valeur={fPret.enDevise}
+              montantXof={parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0}
+              onChange={(v) => setFPret((f) => ({ ...f, enDevise: v }))}
+              sortant={fPret.type === 'pret'}
+            />
 
             <Field label="Par quel moyen">
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -1180,13 +1191,17 @@ function DepositModal({
      caisse (elle ENTRE) et son moyen ; le remboursement aussi (elle SORT).
      Le relevé de la caisse, dans Dépenses, les montre ligne à ligne. */
   const [cashboxes] = useCashboxes();
-  const caissesMaison = cashboxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) === currency);
-  const caissesAutresDevises = caissesEnDevise(cashboxes, branchId, currency);
+  /* TOUTES LES CAISSES, DEVISES COMPRISES — 22 août 2026. Un avoir peut être
+     versé en dollars ; le compte de la cliente se crédite en francs, et le
+     tiroir compte ses billets. */
+  const caissesMaison = cashboxes.filter((b) => b.branchId === branchId);
   const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
   const MOYENS = ['Espèces', 'Mobile Money', 'Virement', 'Autre'];
   const [moyen, setMoyen] = useState(edite?.method && MOYENS.includes(edite.method) ? edite.method : MOYENS[0]);
+  const [enDevise, setEnDevise] = useState(edite?.fx ? String(edite.fx.amount) : '');
+  const caisseChoisie = caissesMaison.find((b) => b.name === caisseActive);
 
   const save = () => {
     if (!canSave) return;
@@ -1196,6 +1211,7 @@ function DepositModal({
       note: note.trim() || undefined,
       cashbox: caisseActive,
       method: moyen,
+      fx: fxDuTiroir(caisseChoisie, currency, enDevise, amountNum),
     };
     if (edite) {
       /* L’IDENTIFIANT NE BOUGE PAS : la ligne du registre des encaissements
@@ -1263,10 +1279,15 @@ function DepositModal({
           ) : (
             <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency} — l'écriture citera « Caisse principale ».</span>
           )}
-          {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
-            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
-          )}
         </Field>
+        <MontantDuTiroir
+          caisse={caisseChoisie}
+          maison={currency}
+          valeur={enDevise}
+          montantXof={amountNum}
+          onChange={setEnDevise}
+          sortant={kind === 'remboursement'}
+        />
         <Field label="Date">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>

@@ -8,7 +8,7 @@
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
-  empreinteDuCode, caisseDiscrete, type Cashbox,
+  empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
@@ -176,6 +176,29 @@ dit('deux caisses au même code n’ont pas la même empreinte', true, h1 !== h4
 /* L'empreinte ne CONTIENT pas le code : c'est tout l'objet de l'exercice. */
 dit('l’empreinte ne laisse pas voir le code', false, h1.includes('1234'));
 dit('… et fait bien 64 caractères (SHA-256)', 64, h1.length);
+
+/* ── LE TIROIR COMPTE SES BILLETS — 22 août 2026 ───────────────────
+   « Ok pour multi-devise. » Toute écriture qui nomme une caisse porte deux
+   montants : les francs de la Maison, et ce qui a réellement bougé dans le
+   tiroir. La règle tient en une fonction ; ces assertions la tiennent. */
+const XOF = 'XOF';
+const enFrancs = { amountXof: 18_000 };
+const enDollars = { amountXof: 18_000, fx: { code: 'USD', rate: 600, amount: 30 } };
+const enEuros = { amountXof: 18_000, fx: { code: 'EUR', rate: 655, amount: 27.5 } };
+
+dit('un tiroir de la Maison compte les francs', 18_000, surLeTiroir(enFrancs, XOF, XOF));
+dit('un tiroir en dollars compte les dollars', 30, surLeTiroir(enDollars, 'USD', XOF));
+/* LE PIÈGE : additionner des francs à un tiroir en dollars. C’est exactement
+   ce que faisait l’écran des dépenses, qui ne filtrait pas les caisses. */
+dit('des francs ne tombent JAMAIS dans un tiroir en devise', 0, surLeTiroir(enFrancs, 'USD', XOF));
+dit('ni des euros dans le tiroir en dollars', 0, surLeTiroir(enEuros, 'USD', XOF));
+/* Et l’inverse : une écriture faite sur un tiroir en dollars ne pèse sur celui
+   de la Maison que par ses francs — le fx ne le concerne pas. */
+dit('un tiroir de la Maison lit les francs, pas le fx', 18_000, surLeTiroir(enDollars, XOF, XOF));
+
+dit('une écriture muette se signale', true, montantMuet(enFrancs, 'USD', XOF));
+dit('une écriture renseignée ne se signale pas', false, montantMuet(enDollars, 'USD', XOF));
+dit('rien à signaler dans la monnaie de la Maison', false, montantMuet(enFrancs, XOF, XOF));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);
