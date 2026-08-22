@@ -11,7 +11,7 @@
     sont le MÊME fichier, et l'écran écraserait le module sans un
    mot. Un nom distinct vaut mieux qu'une casse à laquelle on se fie. */
 
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -19,11 +19,44 @@ import { fmtIn } from '../../../../shared/currency';
 import {
   useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
+  caisseDiscrete, empreinteDuCode,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
 import { usePrets } from '../../../../shared/foyer';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { monthKey, monthLabel, todayISO } from './_shared';
+
+/* ── LES CAISSES OUVERTES DE LA SÉANCE — 22 août 2026 ──────────────
+   Une caisse discrète se déverrouille pour la SÉANCE, jamais au-delà : ce
+   registre vit en mémoire et rien ne l'écrit. Fermer l'onglet, recharger la
+   page, revenir demain — elle est refermée. Le retenir sur le disque
+   reviendrait à laisser la clé sur la porte. */
+const ouvertes = new Set<string>();
+const veilleurs = new Set<() => void>();
+const prevenir = () => veilleurs.forEach((f) => f());
+
+export const ouvreLaCaisse = (id: string): void => { ouvertes.add(id); prevenir(); };
+export const refermeLaCaisse = (id: string): void => { ouvertes.delete(id); prevenir(); };
+
+/** Le code donné ouvre-t-il cette caisse ? La comparaison porte sur les
+    empreintes : le code enregistré n'existe nulle part pour être comparé. */
+export async function leCodeOuvre(c: { id: string; codeHash?: string }, code: string): Promise<boolean> {
+  if (!c.codeHash) return true;
+  return (await empreinteDuCode(c.id, code)) === c.codeHash;
+}
+
+/** S'abonne au registre : l'écran se redessine quand une caisse s'ouvre. */
+export function useCaissesOuvertes(): ReadonlySet<string> {
+  return useSyncExternalStore(
+    (cb) => { veilleurs.add(cb); return () => { veilleurs.delete(cb); }; },
+    () => ouvertes,
+    () => ouvertes,
+  );
+}
+
+/** Le solde de cette caisse se montre-t-il ? */
+export const soldeVisible = (c: { id: string; codeHash?: string }, ouvertes: ReadonlySet<string>): boolean =>
+  !c.codeHash || ouvertes.has(c.id);
 
 /** Jour d'un mouvement, ex. « 13 juil. » — le même format qu'aux Dépenses. */
 const fmtDay = (iso: string): string =>
@@ -262,9 +295,20 @@ export function useCaisses(month: string) {
     const moves = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
+  /* LA TRÉSORERIE TRAHIRAIT LE SECRET. Si elle sommait tout, il suffirait de
+     retrancher les caisses visibles pour lire celle qu'on masque. Les caisses
+     discrètes encore fermées en sortent donc, et l'écran le DIT — un total
+     amputé sans explication vaudrait pire qu'un total complet. */
+  const ouvertesMaintenant = useCaissesOuvertes();
+  const tresorerieVisible = branchBoxes
+    .filter((b) => cashboxCurrency(b) === currency && soldeVisible(b, ouvertesMaintenant))
+    .reduce((s, b) => s + boxBalance(b.name), 0);
+  const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
+
   return {
     branch, currency, branchBoxes,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
+    tresorerieVisible, discretesFermees, ouvertes: ouvertesMaintenant,
   };
 }
 
@@ -288,8 +332,27 @@ export function ReleveCaisse({
   const { currency, boxMoves } = useCaisses(month);
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
+  /* UNE CAISSE DISCRÈTE NE S'OUVRE PAS SANS SON CODE — et le relevé est
+     précisément ce qu'elle cache : ses mouvements disent son solde ligne à
+     ligne. On le refuse donc AVANT de le calculer. */
+  const { branchBoxes, ouvertes } = useCaisses(month);
+  const laCaisse = branchBoxes.find((b) => b.name === nom);
+  const fermee = !!laCaisse && !soldeVisible(laCaisse, ouvertes);
   const { boxCur, startBalance, moves, balance } = boxMoves(nom);
   const openEdit = onExpense ?? (() => {});
+  if (fermee) {
+    return (
+      <Modal title={`${nom} · caisse discrète`} onClose={onClose} width={420}>
+        <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+          Cette caisse est fermée. Son relevé dirait son solde ligne à ligne —
+          il faut donc l’ouvrir d’abord, depuis l’écran des Caisses.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+          <button className="mnd-btn" onClick={onClose}>Fermer</button>
+        </div>
+      </Modal>
+    );
+  }
   const boxDrill = nom;
   const setBoxDrill = (_: string | null) => onClose();
   void boxDrill; void setBoxDrill;

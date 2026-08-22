@@ -6,11 +6,12 @@ import { uid } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
 import {
   useCashboxes, useInvoices, useTransferts, cashboxCurrency,
+  caisseDiscrete, empreinteDuCode,
   type Cashbox,
 } from '../../../../shared/finance';
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
-import { useCaisses, ReleveCaisse } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre } from './tiroirs';
 import './finances.css';
 
 /* ── LES CAISSES · L'ÉCRAN — 22 août 2026 ───────────────────────────
@@ -31,7 +32,7 @@ import './finances.css';
    qui sort. Elle a donc son écran, et Dépenses comme Encaissements y
    renvoient. Les calculs, eux, restent à une seule source (`useCaisses`). */
 
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean };
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Caisses() {
@@ -40,7 +41,7 @@ export default function Caisses() {
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
 
-  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, treasury } = useCaisses(month);
+  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, ouvertes } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
   const [invoices, setInvoices] = useInvoices();
   const [transferts, setTransferts] = useTransferts();
@@ -52,20 +53,34 @@ export default function Caisses() {
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false });
+
+  /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
+  const [aOuvrir, setAOuvrir] = useState<Cashbox | null>(null);
+  const [codeSaisi, setCodeSaisi] = useState('');
+  const [codeFaux, setCodeFaux] = useState(false);
+  const essayerLeCode = async () => {
+    if (!aOuvrir) return;
+    if (await leCodeOuvre(aOuvrir, codeSaisi)) {
+      ouvreLaCaisse(aOuvrir.id);
+      setAOuvrir(null); setCodeSaisi(''); setCodeFaux(false);
+    } else {
+      setCodeFaux(true);
+    }
+  };
 
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
+    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '' });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash });
     setBoxOpen(true);
   };
 
-  const saveBox = () => {
+  const saveBox = async () => {
     const name = boxForm.name.trim();
     if (!name) return;
     const sub = boxForm.sub.trim() || 'Caisse';
@@ -74,8 +89,17 @@ export default function Caisses() {
     if (boxEditingId) {
       const prevBox = branchBoxes.find((b) => b.id === boxEditingId);
       const oldName = prevBox?.name;
+      /* UN CODE SAISI REMPLACE L'ANCIEN ; un champ laissé vide le garde tel
+         quel. Pour retirer la discrétion, on efface le code — le champ le dit. */
+      const codeHash = boxForm.code.trim()
+        ? await empreinteDuCode(boxEditingId, boxForm.code.trim())
+        : (boxForm.codeExistant ? undefined : undefined);
       setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId
-        ? { ...b, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined }
+        ? {
+          ...b, name, sub, glyph, openingXof: opening,
+          currency: boxForm.currency || undefined,
+          codeHash: boxForm.code.trim() ? codeHash : (boxForm.codeExistant ? b.codeHash : undefined),
+        }
         : b)));
       if (oldName && oldName !== name) {
         /* RENOMMER N'ORPHELINE PERSONNE — 21 août 2026. Le nom EST la clé : il
@@ -101,10 +125,16 @@ export default function Caisses() {
         })));
       }
     } else {
+      const id = uid();
+      const codeHash = boxForm.code.trim() ? await empreinteDuCode(id, boxForm.code.trim()) : undefined;
       setCashboxes((prev) => [...prev, {
-        id: uid(), branchId: branch.id, name, sub, glyph,
+        id, branchId: branch.id, name, sub, glyph,
         openingXof: opening, currency: boxForm.currency || undefined,
+        codeHash,
       }]);
+      /* Elle s'ouvre pour la séance où on vient de la créer : sinon on
+         poserait un code et l'écran se refermerait aussitôt sur soi-même. */
+      if (codeHash) ouvreLaCaisse(id);
     }
     setBoxOpen(false);
   };
@@ -168,11 +198,17 @@ export default function Caisses() {
       <div className="trf-obsidian" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           <div className="trf-obsidian__eyebrow">Trésorerie disponible · toutes caisses · {isCurrent ? 'à ce jour' : `fin ${monthName}`}</div>
-          <div className="trf-obsidian__value">{fmtMoney(treasury, currency)}</div>
-          {/* LES DEVISES NE S'ADDITIONNENT PAS : la trésorerie ne somme que les
-              caisses de la Maison. Un tiroir en euros dit son total chez lui. */}
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--indigo-100)', marginTop: 6 }}>
+          <div className="trf-obsidian__value">{fmtMoney(tresorerieVisible, currency)}</div>
+          {/* LES DEVISES NE S'ADDITIONNENT PAS, ET UN SECRET NE SE DÉDUIT PAS.
+              Si la trésorerie sommait tout, il suffirait de retrancher les
+              caisses visibles pour lire celle qu'on masque. Les discrètes
+              encore fermées en sortent — et on le DIT, car un total amputé
+              sans explication vaudrait pire qu'un total complet. */}
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--indigo-100)', marginTop: 6, lineHeight: 1.5 }}>
             Les caisses en devise ne s’y ajoutent pas — deux monnaies ne font pas un total.
+            {discretesFermees > 0 && (
+              <> {discretesFermees} caisse{discretesFermees > 1 ? 's' : ''} discrète{discretesFermees > 1 ? 's' : ''} en {discretesFermees > 1 ? 'sont exclues' : 'est exclue'} — sinon la soustraction dirait son solde.</>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flex: 'none', flexWrap: 'wrap' }}>
@@ -194,9 +230,10 @@ export default function Caisses() {
       ) : (
         <div className="tr-grid tr-grid--3">
           {branchBoxes.map((c) => {
+            const visible = soldeVisible(c, ouvertes);
             const bal = boxBalance(c.name);
             const boxCur = cashboxCurrency(c);
-            const low = boxCur === currency && bal < 100000;
+            const low = visible && boxCur === currency && bal < 100000;
             const { inn, out } = boxMonthFlux(c.name);
             return (
               <div className="trf-caisse" key={c.id}>
@@ -209,20 +246,43 @@ export default function Caisses() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 5, flex: 'none' }}>
+                    {caisseDiscrete(c) && (
+                      visible
+                        ? <button className="trf-iconbtn" title="Refermer cette caisse" onClick={() => refermeLaCaisse(c.id)}>Refermer</button>
+                        : <button className="trf-iconbtn" title="Ouvrir avec le code" onClick={() => { setAOuvrir(c); setCodeSaisi(''); setCodeFaux(false); }}>Ouvrir</button>
+                    )}
                     <button className="trf-iconbtn" title="Modifier la caisse" onClick={() => openEditBox(c)}>Modifier</button>
                     <button className="trf-iconbtn trf-iconbtn--danger" title="Retirer la caisse" onClick={() => deleteBox(c)}>Retirer</button>
                   </div>
                 </div>
-                <button className="trf-caisse__open" onClick={() => setBoxDrill(c.name)} title="Voir les mouvements de cette caisse">
+                {/* LE SOLDE NE SE MONTRE PAS SANS SON CODE — et les flux du
+                    mois non plus : « + 800 000 · − 200 000 » dirait presque
+                    tout. Une caisse fermée ne laisse voir que son existence. */}
+                <button
+                  className="trf-caisse__open"
+                  onClick={() => (visible ? setBoxDrill(c.name) : (setAOuvrir(c), setCodeSaisi(''), setCodeFaux(false)))}
+                  title={visible ? 'Voir les mouvements de cette caisse' : 'Ouvrir avec le code'}
+                >
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
                     Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}{boxCur !== currency ? ` · ${boxCur}` : ''}
                   </div>
-                  <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums' }}>
-                    <span style={{ color: 'var(--trf-success)' }}>+ {fmtIn(inn, boxCur)}</span>
-                    <span style={{ color: 'var(--color-copper)' }}>− {fmtIn(out, boxCur)}</span>
-                    <span style={{ color: 'var(--ink-soft)' }}>en {monthName}</span>
-                  </div>
+                  {visible ? (
+                    <>
+                      <div className="trf-caisse__bal" style={{ color: low ? 'var(--trf-warning)' : 'var(--color-indigo)' }}>{fmtIn(bal, boxCur)}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ color: 'var(--trf-success)' }}>+ {fmtIn(inn, boxCur)}</span>
+                        <span style={{ color: 'var(--color-copper)' }}>− {fmtIn(out, boxCur)}</span>
+                        <span style={{ color: 'var(--ink-soft)' }}>en {monthName}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="trf-caisse__bal" style={{ color: 'var(--ink-soft)', letterSpacing: '.12em' }}>••• ••• {boxCur === currency ? 'F' : boxCur}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, marginTop: 4, color: 'var(--ink-soft)' }}>
+                        caisse discrète — cliquer pour l’ouvrir
+                      </div>
+                    </>
+                  )}
                 </button>
               </div>
             );
@@ -250,6 +310,35 @@ export default function Caisses() {
 
       {boxDrill && (
         <ReleveCaisse nom={boxDrill} month={month} onClose={() => setBoxDrill(null)} />
+      )}
+
+      {aOuvrir && (
+        <Modal title={`Ouvrir « ${aOuvrir.name} »`} onClose={() => setAOuvrir(null)} width={400}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+              Cette caisse est discrète : son solde et son relevé restent fermés jusqu’à son code.
+              Elle se refermera d’elle-même au prochain chargement de la page.
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Code</span>
+              <input
+                className="mnd-input" type="password" autoFocus autoComplete="off"
+                value={codeSaisi}
+                onChange={(e) => { setCodeSaisi(e.target.value); setCodeFaux(false); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void essayerLeCode(); }}
+              />
+              {codeFaux && (
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', marginTop: 6, display: 'block' }}>
+                  Ce code n’ouvre pas cette caisse.
+                </span>
+              )}
+            </label>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setAOuvrir(null)}>Annuler</button>
+              <button className="mnd-btn" onClick={() => void essayerLeCode()}>Ouvrir</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {boxOpen && (
@@ -294,9 +383,27 @@ export default function Caisses() {
                 Ce qu’elle contenait avant que Le Trône ne la suive. Tout le reste se calcule.
               </span>
             </label>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Code de discrétion · facultatif</span>
+              <input
+                className="mnd-input" type="password" autoComplete="new-password"
+                value={boxForm.code}
+                placeholder={boxForm.codeExistant ? 'Inchangé — saisir pour le remplacer' : 'Laisser vide : caisse ouverte à tous'}
+                onChange={(e) => setBoxForm((f) => ({ ...f, code: e.target.value }))}
+              />
+              <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.55 }}>
+                Avec un code, le solde reste masqué et le relevé fermé jusqu’à ce qu’on l’ouvre.
+                Seule <b>l’empreinte</b> du code est enregistrée — il n’existe en clair nulle part,
+                ni en base, ni dans la sauvegarde.
+                <br />
+                <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un regard au comptoir, un écran resté ouvert.
+                {' '}<b style={{ color: 'var(--copper-700)' }}>Ce que cela ne protège pas :</b> qui a accès à la base ou au fichier de sauvegarde.
+                {boxForm.codeExistant && <><br />Videz ce champ et enregistrez pour <b>garder</b> le code actuel.</>}
+              </span>
+            </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="mnd-btn mnd-btn--ghost" onClick={() => setBoxOpen(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={saveBox}>{boxEditingId ? 'Enregistrer' : 'Créer la caisse'}</button>
+              <button className="mnd-btn" onClick={() => void saveBox()}>{boxEditingId ? 'Enregistrer' : 'Créer la caisse'}</button>
             </div>
           </div>
         </Modal>

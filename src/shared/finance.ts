@@ -319,7 +319,32 @@ export type Cashbox = {
       règlements dans SA devise, et son solde se compte dans cette devise —
       jamais reconverti, sinon le compte ne tomberait plus juste avec le tiroir. */
   currency?: string;
+  /** ── UNE CAISSE DISCRÈTE — 22 août 2026 ────────────────────────
+      « Je veux masquer son solde et le démasquer avec un mot de passe. »
+
+      L'EMPREINTE DU CODE, JAMAIS LE CODE. Une application web ne met rien en
+      coffre-fort : ce qu'elle sait, la base le sait aussi, et la sauvegarde
+      avec elle. On n'écrit donc que l'empreinte SHA-256 du code, salée par
+      l'identifiant de la caisse — le code lui-même ne quitte jamais le clavier.
+
+      CE QUE CELA PROTÈGE : un regard par-dessus l'épaule au comptoir, un écran
+      resté ouvert, une main qui passe. CE QUE CELA NE PROTÈGE PAS : quiconque
+      a accès à la base ou au fichier de sauvegarde. Le dire vaut mieux que de
+      laisser croire à un coffre. */
+  codeHash?: string;
 };
+
+/** L'EMPREINTE D'UN CODE — salée par l'identifiant de la caisse, pour que deux
+    caisses au même code n'aient pas la même empreinte. Le navigateur seul fait
+    le calcul ; le code ne part nulle part. */
+export async function empreinteDuCode(caisseId: string, code: string): Promise<string> {
+  const data = new TextEncoder().encode(`mnd:${caisseId}:${code}`);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Une caisse dont le solde ne se montre pas sans son code. */
+export const caisseDiscrete = (c: Cashbox): boolean => !!c.codeHash;
 
 /** Devise d'une caisse — XOF par défaut. */
 export const cashboxCurrency = (b: Cashbox): string => b.currency || 'XOF';

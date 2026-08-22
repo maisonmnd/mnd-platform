@@ -8,6 +8,7 @@
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
+  empreinteDuCode, caisseDiscrete, type Cashbox,
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
@@ -152,6 +153,29 @@ dit('fléché en francs + non-fléché = solde Maison',
 dit('un compartiment sans cible ne promet rien', null, moisPourAtteindre(coffreMixte, eur));
 dit('… même en francs', null,
   moisPourAtteindre(coffre, { id: 'scolarite', branchId: 'br', nom: 'tiroir', cibleXof: 0 } as ObjectifCoffre));
+
+/* ── ⑥ LA CAISSE DISCRETE ─────────────────────────────────────
+   << Je veux masquer son solde et le demasquer avec un mot de passe. >>
+   Le code n'existe nulle part : seule son empreinte est ecrite. */
+const caisse = (id: string, codeHash?: string): Cashbox =>
+  ({ id, branchId: 'br', name: id, sub: '', glyph: '◈', openingXof: 0, ...(codeHash ? { codeHash } : {}) });
+
+dit('une caisse sans code n’est pas discrète', false, caisseDiscrete(caisse('c1')));
+dit('une caisse avec empreinte l’est', true, caisseDiscrete(caisse('c2', 'abc')));
+
+const h1 = await empreinteDuCode('c1', '1234');
+const h2 = await empreinteDuCode('c1', '1234');
+const h3 = await empreinteDuCode('c1', '1235');
+const h4 = await empreinteDuCode('c2', '1234');
+
+dit('la même caisse et le même code donnent la même empreinte', true, h1 === h2);
+dit('un code différent donne une empreinte différente', true, h1 !== h3);
+/* LE SEL EST L'IDENTIFIANT DE LA CAISSE : sans lui, deux caisses au meme code
+   auraient la meme empreinte, et lire l'une reviendrait a lire l'autre. */
+dit('deux caisses au même code n’ont pas la même empreinte', true, h1 !== h4);
+/* L'empreinte ne CONTIENT pas le code : c'est tout l'objet de l'exercice. */
+dit('l’empreinte ne laisse pas voir le code', false, h1.includes('1234'));
+dit('… et fait bien 64 caractères (SHA-256)', 64, h1.length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);
