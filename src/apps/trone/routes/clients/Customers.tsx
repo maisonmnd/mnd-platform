@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, type Client, type Family } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
@@ -62,11 +62,12 @@ type SortKey = 'nom' | 'visite' | 'depense' | 'points' | 'anniversaire';
    population que la carte. C'est ce qui garantit que le chiffre annoncé et le
    nombre de lignes affichées sont le même nombre — un compteur qui ne mène pas
    exactement à ce qu'il compte fait douter des autres. */
-type Focus = 'aucun' | 'nouvelles' | 'anniversaires' | 'enligne';
+type Focus = 'aucun' | 'nouvelles' | 'anniversaires' | 'enligne' | 'prixconvenu';
 const FOCUS_LABEL: Record<Exclude<Focus, 'aucun'>, string> = {
   nouvelles: 'Nouvelles ce mois',
   anniversaires: 'Anniversaires sous 30 j',
   enligne: 'En ligne · Ma Couronne',
+  prixconvenu: 'Prix convenus',
 };
 
 /* ---------- La file des enfants déclarés ----------
@@ -702,6 +703,15 @@ export default function Customers() {
   const onlineCount = tetesEnLigne.length;
   const passageThisMonth = passageClients.filter((c) => (c.since ?? '').slice(0, 7) === monthKey).length;
 
+  /* LES TÊTES QUI PORTENT UN ACCORD — tous registres confondus. Un prix convenu
+     ne connaît pas la frontière entre La Maison, la Diaspora et le passage : il
+     a été consenti à une personne, où qu'elle soit rangée. Les filtrer par
+     registre ferait mentir le compteur, comme les anniversaires avant lui. */
+  const tetesPrixConvenu = useMemo(
+    () => clients.filter(aUnPrixConvenu),
+    [clients],
+  );
+
   /* Chips de segments de La Maison : comptées HORS Diaspora (registres disjoints). */
   const segments = useMemo(() => {
     const counts = new Map<string, number>();
@@ -719,7 +729,9 @@ export default function Customers() {
         ? tetesAnniversaire
         : focus === 'enligne'
           ? tetesEnLigne
-          : view === 'passage'
+          : focus === 'prixconvenu'
+            ? tetesPrixConvenu
+            : view === 'passage'
             ? passageClients
             : view === 'visiteur'
               ? visiteurClients
@@ -825,6 +837,22 @@ export default function Customers() {
         >
           <b>{onlineCount}</b><span>En ligne · Ma Couronne</span>
         </button>
+        {/* LES PRIX CONVENUS — 22 août 2026. La carte ne paraît que si la
+            Maison en porte : un compteur à zéro sur un mécanisme qu'on
+            n'utilise pas encombre le regard sans rien apprendre. */}
+        {tetesPrixConvenu.length > 0 && (
+          <button
+            type="button"
+            className={`trc-kpi trc-kpi--porte ${focus === 'prixconvenu' ? 'is-on' : ''}`}
+            aria-pressed={focus === 'prixconvenu'}
+            title={focus === 'prixconvenu'
+              ? 'Revenir au carnet entier'
+              : 'Voir les têtes avec qui un prix a été convenu — tous registres confondus'}
+            onClick={() => ouvrirFocus('prixconvenu')}
+          >
+            <b>{tetesPrixConvenu.length}</b><span>Prix convenus</span>
+          </button>
+        )}
       </div>
 
       {/* CE QU'ON REGARDE SE DIT, ET SE REFERME. Une liste filtrée qui ne

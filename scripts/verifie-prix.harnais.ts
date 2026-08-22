@@ -8,6 +8,7 @@ import {
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
 import type { ModelBand } from '../src/shared/pricing';
+import { aUnPrixConvenu, comptePrixConvenus } from '../src/shared/clients';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -321,6 +322,21 @@ dit('… et la remise famille s’efface alors', 0, famAppliquee([fSha, fRep]));
 dit('sans son déclencheur, aucun geste', 0, remiseGestePct(fSha, nu, [fSha]));
 dit('… donc la remise famille s’applique', 15, famAppliquee([fSha]));
 dit('un panier sans geste ne bloque rien', false, unGesteDansLePanier([fRep], nu));
+
+/* ── QUI PORTE UN PRIX CONVENU — 22 août 2026 ────────────────────
+   Le filtre du CRM et tout écran qui posera la question doivent répondre le
+   même nombre : deux comptages seraient deux vérités. */
+dit('aucun accord → non', false, aUnPrixConvenu({}));
+dit('champ vide → non', false, aUnPrixConvenu({ prixFixes: {} }));
+dit('un accord réel → oui', true, aUnPrixConvenu({ prixFixes: { 'svc-a': 20_000 } }));
+dit('deux accords, deux comptes', 2, comptePrixConvenus({ prixFixes: { 'svc-a': 20_000, 'svc-b': 5_000 } }));
+/* UN ACCORD À ZÉRO N'EN EST PAS UN : à zéro franc cela se dit « offert », pas
+   « prix fixe ». Une fiche remise à zéro doit sortir de la liste toute seule,
+   sans qu'on ait à nettoyer le champ. */
+dit('un accord à zéro ne compte pas', false, aUnPrixConvenu({ prixFixes: { 'svc-a': 0 } }));
+dit('un montant négatif non plus', false, aUnPrixConvenu({ prixFixes: { 'svc-a': -5_000 } }));
+dit('les zéros ne masquent pas un vrai accord', 1,
+  comptePrixConvenus({ prixFixes: { 'svc-a': 0, 'svc-b': 20_000 } }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -297,6 +297,24 @@ export function ensureInitiePersona(): string {
   return INITIE_PERSONA.id;
 }
 
+/* ── LES PRIX CONVENUS — 22 août 2026 ───────────────────────────────
+   Un prix convenu (`prixFixes`) est un accord passé avec UNE tête, prestation
+   par prestation : il passe AVANT le barème, le plancher, le tarif au lock et
+   le Juste Prix. C'est un engagement de la Maison — et un engagement se relit.
+
+   UN SEUL PRÉDICAT POUR TOUTE LA MAISON, comme `estDePassage` : le filtre du
+   CRM, un futur relevé des accords et tout écran qui posera la question
+   doivent répondre le même nombre. Deux comptages, ce serait deux vérités.
+
+   Une valeur ≤ 0 n'est pas un accord : à zéro franc, cela se dit « offert »,
+   pas « prix fixe ». Une fiche dont tous les accords ont été remis à zéro sort
+   donc de la liste d'elle-même, sans qu'on ait à nettoyer le champ. */
+export const comptePrixConvenus = (c: Pick<Client, 'prixFixes'>): number =>
+  Object.values(c.prixFixes ?? {}).filter((v) => typeof v === 'number' && v > 0).length;
+
+export const aUnPrixConvenu = (c: Pick<Client, 'prixFixes'>): boolean =>
+  comptePrixConvenus(c) > 0;
+
 /* ---------- Les clientes de passage ----------
    Un seul prédicat pour toute la Maison. Chaque écran qui compte des TÊTES
    (têtes couronnées, têtes actives, nouvelles du mois, audience d'une relance)
