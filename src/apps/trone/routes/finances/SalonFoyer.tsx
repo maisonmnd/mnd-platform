@@ -9,7 +9,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
   useInvoices, usePayments, useCredits, useExpenses, useCoffre, coffreBalance,
-  expenseOccurrences, expenseTotal,
+  expenseOccurrences, expenseTotal, type CoffreMovement,
 } from '../../../../shared/finance';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { buildReceipts } from '../../../../shared/receipts';
@@ -293,7 +293,9 @@ export default function SalonFoyer() {
   const [editMvt, setEditMvt] = useState<null | { id: string; date: string; sens: 'entree' | 'sortie'; label: string; montant: string; taux: string }>(null);
   /** Une ligne du registre des prêts, et une du registre de l'épargne. */
   const [editPret, setEditPret] = useState<null | { id: string; date: string; type: 'pret' | 'remboursement'; associe: string; motif: string; montant: string }>(null);
-  const [editEpa, setEditEpa] = useState<null | { id: string; date: string; enveloppe: EnveloppeReserve; sens: 'depot' | 'virement'; note: string; montant: string }>(null);
+  /* `sens` suit le type du mouvement, retrait compris (22 août) — le figer à
+     deux valeurs faisait échouer la compilation dès qu'un troisième est né. */
+  const [editEpa, setEditEpa] = useState<null | { id: string; date: string; enveloppe: EnveloppeReserve; sens: CoffreMovement['kind']; note: string; montant: string }>(null);
   const [fCfg, setFCfg] = useState<null | { charges: string; reinvest: string; reserve: string; prelevement: string }>(null);
   /* Les définitions se modifient à part : changer un pourcentage est un acte
      financier, renommer une enveloppe n'en est pas un. Deux gestes, deux

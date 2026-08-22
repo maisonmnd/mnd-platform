@@ -1140,7 +1140,9 @@ export function RdvModal({
   /* TOUS LES MONTANTS DE CETTE FICHE PASSENT PAR ICI. Masquer les prix un par
      un aurait laissé passer celui qu'on oublie — et un prix oublié dans un
      écran censé n'en montrer aucun vaut pire que pas de masquage du tout. */
-  const argent = (n: number): string => (sansPrix ? '—' : fmtMoney(n, currency));
+  /* LES MONTANTS SE TAISENT AUSSI SUR UNE SÉANCE INCLUSE : afficher le prix
+     d'un soin dont la séance ne se facture pas ferait croire à un dû. */
+  const argent = (n: number): string => (sansPrix || estSuite ? '—' : fmtMoney(n, currency));
   const pricing = { ...pricingOf(rdvClient, bands, sets, cats), longueur };
   /* Le prix de référence suit déjà la longueur : sans cela, une cliente sans
      modèle ni Juste Prix — donc « non personnalisée » — se serait vu facturer
@@ -2306,6 +2308,15 @@ export function RdvModal({
               </button>
             </div>
           )}
+          {/* UNE SÉANCE INCLUSE NE PARLE PLUS D'ARGENT — 22 août 2026.
+              « Quand on pose la séance suivante, ne mets aucun total, aucun
+              montant. Juste séance incluse. » Le palier continuait d'offrir
+              prix plein, remise, forfait, acompte et récapitulatif — sur un
+              rituel qui vaut ZÉRO par construction (`apptTotalXof` met une
+              séance 2+ à zéro partout). Proposer d'y consentir une remise
+              n'avait aucun sens, et le total affiché en bas invitait à croire
+              qu'il restait quelque chose à encaisser. */}
+          {!estSuite && (
           <Field label="Le prix">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {([
@@ -2442,6 +2453,7 @@ export function RdvModal({
               </>
             )}
           </Field>
+          )}
           </>
         )}
 

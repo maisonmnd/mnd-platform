@@ -10,7 +10,7 @@ import { useClients } from '../../../../shared/clients';
 import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
-  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison,
+  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison, cashboxCurrency,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
@@ -151,6 +151,30 @@ export default function Coffre() {
   const [objectifs, setObjectifs] = useObjectifs();
   const objectifsVivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
   const [objOuvert, setObjOuvert] = useState<{ id: string; nom: string; cible: string; echeance: string; devise: string } | null>(null);
+  /* REPRENDRE DU COFFRE — 22 août 2026. Le coffre n'avait qu'une sortie, la
+     banque : reprendre 100 000 F pour payer un fournisseur ne s'écrivait
+     nulle part, et se contournait donc par une fausse écriture. Un retour
+     daté, nommé et rendu à une caisse fausse infiniment moins les soldes.
+     Ce qui reste verrouillé : on ne DÉPENSE toujours pas depuis le coffre —
+     l'argent revient d'abord dans un tiroir, et ce retour se voit. */
+  const [retraitOuvert, setRetraitOuvert] = useState(false);
+  const [caissesToutes] = useCashboxes();
+  const caissesDuCoffre = caissesToutes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+  const [fRetrait, setFRetrait] = useState({ montant: '', cashbox: '', objectifId: '', note: '', date: todayISO() });
+
+  const enregistrerRetrait = () => {
+    const montant = parseInt(fRetrait.montant.replace(/[^0-9]/g, ''), 10) || 0;
+    if (montant <= 0) return;
+    coffreStore.set((prev) => [...prev, {
+      id: uid(), branchId: branch.id, kind: 'retrait', amountXof: montant,
+      date: fRetrait.date || todayISO(),
+      cashbox: fRetrait.cashbox || undefined,
+      objectifId: fRetrait.objectifId || undefined,
+      note: fRetrait.note.trim() || undefined,
+    }]);
+    setRetraitOuvert(false);
+    setFRetrait((f) => ({ ...f, montant: '', note: '' }));
+  };
   /* L'écriture qu'on corrige — montant, date, note, objectif. Le SENS ne se
      change pas ici : un versement ne devient pas un virement d'un clic, ce
      serait renverser un mouvement d'argent sans s'en apercevoir. Pour cela,
@@ -211,6 +235,7 @@ export default function Coffre() {
         sub="Mettez de côté une part du chiffre déjà gagné. Le coffre est verrouillé : aucune dépense possible — la seule sortie est un virement vers la banque."
         actions={
           <>
+            <Button variant="ghost" onClick={() => setRetraitOuvert(true)} disabled={balance <= 0}>Reprendre du coffre</Button>
             <Button variant="ghost" onClick={() => setTransferOpen(true)} disabled={balance <= 0}>Virement bancaire</Button>
             <Button variant="copper" onClick={() => setDepositOpen(true)}>+ Verser au coffre</Button>
           </>
@@ -376,7 +401,9 @@ export default function Coffre() {
                   <span className="trf-coffre-row__title">
                     {m.kind === 'depot'
                       ? (m.clientName ? `Versement · ${m.clientName}` : 'Versement au coffre')
-                      : `Virement bancaire${m.bank ? ` · ${m.bank}` : ''}`}
+                      : m.kind === 'retrait'
+                        ? `Repris du coffre${m.cashbox ? ` · vers ${m.cashbox}` : ''}`
+                        : `Virement bancaire${m.bank ? ` · ${m.bank}` : ''}`}
                   </span>
                   <span className="trf-coffre-row__meta">
                     {frMoneyDay(m.date)}{m.note ? ` · ${m.note}` : ''}
@@ -456,6 +483,61 @@ export default function Coffre() {
           </Modal>
         );
       })()}
+
+      {retraitOuvert && (
+        <Modal title="Reprendre du coffre" onClose={() => setRetraitOuvert(false)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              L’argent quitte le coffre et <b>rentre dans une caisse</b> : il redevient disponible
+              au comptoir. Le coffre reste verrouillé pour les dépenses — on ne dépense jamais
+              directement depuis lui, et ce retour se voit.
+            </div>
+            <Field label={`Montant repris · ${currency}`}>
+              <Input
+                inputMode="numeric"
+                value={fRetrait.montant}
+                placeholder="0"
+                onChange={(e) => setFRetrait((f) => ({ ...f, montant: e.target.value.replace(/[^0-9]/g, '') }))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}
+              />
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                Disponible au coffre : {fmtMoney(balance, currency)}
+              </div>
+            </Field>
+            <Field label="Dans quelle caisse rentre-t-il ?">
+              <Select value={fRetrait.cashbox} onChange={(e) => setFRetrait((f) => ({ ...f, cashbox: e.target.value }))}>
+                <option value="">Choisir une caisse…</option>
+                {caissesDuCoffre.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+              </Select>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                La caisse choisie monte d’autant — l’argent se déplace, il ne se duplique pas.
+              </div>
+            </Field>
+            {objectifsVivants.length > 0 && (
+              <Field label="Repris de quel compartiment · facultatif">
+                <Select value={fRetrait.objectifId} onChange={(e) => setFRetrait((f) => ({ ...f, objectifId: e.target.value }))}>
+                  <option value="">De la part non fléchée</option>
+                  {objectifsVivants.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                </Select>
+              </Field>
+            )}
+            <Field label="Date">
+              <Input type="date" value={fRetrait.date} onChange={(e) => setFRetrait((f) => ({ ...f, date: e.target.value }))} />
+            </Field>
+            <Field label="Pourquoi · facultatif">
+              <Input
+                value={fRetrait.note}
+                placeholder="Ex. règlement d’un fournisseur, besoin du comptoir…"
+                onChange={(e) => setFRetrait((f) => ({ ...f, note: e.target.value }))}
+              />
+            </Field>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setRetraitOuvert(false)}>Annuler</button>
+              <button className="mnd-btn" onClick={enregistrerRetrait}>Reprendre</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {objOuvert && (
         <Modal title={objOuvert.id ? 'Modifier l’objectif' : 'Un nouvel objectif'} onClose={() => setObjOuvert(null)} width={480}>

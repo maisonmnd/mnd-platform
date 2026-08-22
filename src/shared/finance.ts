@@ -600,7 +600,20 @@ export const usePaymentMethods = () => useStore(paymentMethodsStore);
 export type CoffreMovement = {
   id: string;
   branchId: string;
-  kind: 'depot' | 'virement'; // dépôt (entrée) · virement bancaire (SEULE sortie)
+  /** dépôt (entrée) · virement bancaire (sortie définitive) · retrait (retour
+      dans une caisse) — 22 août 2026.
+
+      LE COFFRE N'EST PLUS UNE IMPASSE. Il n'avait qu'une sortie : la banque.
+      L'intention était bonne — une épargne qui ne s'effrite pas au fil des
+      petites urgences — mais elle rendait le retour IMPOSSIBLE : reprendre
+      100 000 F pour payer un fournisseur ne s'écrivait nulle part, et se
+      contournait donc par une fausse écriture. Un retour proprement daté,
+      nommé et rendu à une caisse fausse infiniment moins les soldes qu'un
+      détour que personne ne relit.
+
+      Ce qui reste verrouillé : on ne DÉPENSE toujours pas depuis le coffre.
+      L'argent doit d'abord revenir dans un tiroir, et ce retour se voit. */
+  kind: 'depot' | 'virement' | 'retrait';
   amountXof: number; // toujours positif ; le sens vient de `kind`
   date: string; // ISO AAAA-MM-JJ
   clientId?: string; // dépôt attribué à une cliente (source du revenu mis de côté)
@@ -649,7 +662,7 @@ export type CoffreMovement = {
 };
 /** Montant signé d'un mouvement : + pour un dépôt, − pour un virement sortant. */
 export const coffreSignedXof = (m: CoffreMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);
-/** Solde courant du coffre = somme des dépôts − somme des virements. Jamais négatif. */
+/** Solde courant du coffre = dépôts − virements − retraits. Jamais négatif. */
 export const coffreBalance = (moves: CoffreMovement[]): number => Math.max(0, moves.reduce((s, m) => s + coffreSignedXof(m), 0));
 
 /* ── LES OBJECTIFS D'ÉPARGNE — 22 août 2026 ─────────────────────────
@@ -751,6 +764,46 @@ export const moisPourAtteindre = (
   return manque === 0 ? 0 : Math.ceil(manque / parMois);
 };
 
+/* ── LE TRANSFERT ENTRE CAISSES — 22 août 2026 ──────────────────────
+   « Je peux faire des transferts ? » Non, et c'était un manque : déplacer
+   50 000 F de la Caisse Principale vers le Tiroir EUR n'existait pas. On ne
+   pouvait le faire qu'en trichant — une fausse dépense d'un côté, un faux
+   encaissement de l'autre — ce qui salit deux comptes pour un seul geste.
+
+   UN TRANSFERT EST UNE SEULE ÉCRITURE À DEUX BOUTS : la caisse de départ
+   baisse, celle d'arrivée monte, du même mouvement. Rien n'est créé, rien
+   n'est détruit — c'est ce qui le distingue d'une dépense.
+
+   ENTRE DEUX DEVISES, le montant reçu n'est pas le montant donné : `recuXof`
+   dit ce qui entre réellement à l'arrivée. Convertir à la lecture, au taux
+   d'un autre jour, réécrirait l'histoire — c'est la leçon du prix figé. */
+export type TransfertCaisse = {
+  id: string;
+  branchId: string;
+  date: string;
+  /** Les NOMS des caisses — même clé que partout ailleurs (`Expense.cashbox`). */
+  de: string;
+  vers: string;
+  /** Ce qui SORT de la caisse de départ, dans la devise de cette caisse. */
+  amountXof: number;
+  /** Ce qui ENTRE dans la caisse d'arrivée, dans SA devise. Absent quand les
+      deux caisses tiennent la même monnaie : c'est alors le même nombre. */
+  recuXof?: number;
+  note?: string;
+};
+
+export const transfertsStore = createStore<TransfertCaisse[]>('mnd_transferts_caisse', []);
+export const useTransferts = () => useStore(transfertsStore);
+
+/** CE QU'UN TRANSFERT FAIT À UNE CAISSE — négatif au départ, positif à
+    l'arrivée, zéro ailleurs. Une caisse qui s'enverrait à elle-même ne bouge
+    pas : le geste est absurde, mais il ne doit pas créer d'argent. */
+export const transfertSurCaisse = (t: TransfertCaisse, caisse: string): number => {
+  const sort = t.de === caisse ? -t.amountXof : 0;
+  const entre = t.vers === caisse ? (t.recuXof ?? t.amountXof) : 0;
+  return sort + entre;
+};
+
 export const coffreStore = createStore<CoffreMovement[]>('mnd_coffre', []);
 export const useCoffre = () => useStore(coffreStore);
 
@@ -837,6 +890,7 @@ bindCollection(cashboxesStore, 'cashboxes');
 bindCollection(expenseCategoriesStore, 'expense_categories');
 bindCollection(coffreStore, 'coffre_movements');
 bindCollection(objectifsStore, 'objectifs_coffre');
+bindCollection(transfertsStore, 'transferts_caisse');
 bindCollection(creditMovementsStore, 'credit_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
 
