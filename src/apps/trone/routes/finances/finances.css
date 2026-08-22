@@ -1299,21 +1299,9 @@
   padding: 1px 7px;
 }
 
-/* Une caisse hors bilan le dit — 22 août 2026. L'exclusion doit se voir :
-   un total amputé en silence est pire qu'un total complet. */
-.trf-horsbilan {
-  display: inline-block;
-  margin-left: 7px;
-  font-family: var(--font-sans);
-  font-size: 9.5px;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  border: 1px solid var(--copper-300, #E3C9AE);
-  background: var(--copper-50, #FAF1E9);
-  color: var(--copper-700, #96412E);
-  border-radius: 2px;
-  padding: 1px 6px;
-}
+/* La pastille « hors bilan » sous le nom a laissé la place au bloc qui
+   les range à part — 22 août 2026. Le rangement le dit mieux qu'une
+   étiquette répétée sur chaque carte. */
 
 /* Le bilan nomme les caisses qu'il écarte — 22 août 2026. */
 .trf-note-exclues {
@@ -1362,6 +1350,46 @@
   font-size: 11px;
   color: var(--copper-700, #96412E);
 }
+
+/* ── Le rangement hors bilan — 22 août 2026 ────────────────────────
+   « Les caisses hors bilan devraient avoir leur rangement sans se mêler,
+   même si c'est la même devise. » Le bloc s'isole par un filet et un fond
+   à peine posé : on voit d'un coup d'œil où finit ce qui compte. Ses
+   rangées de devise gardent leur total — informatif, jamais additionné. */
+.trf-hors-bloc {
+  margin-top: 26px;
+  padding: 18px 16px 4px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ink-soft);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink-soft) 4%, transparent);
+}
+.trf-hors-bloc__tete {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.trf-hors-bloc__titre {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 300;
+  color: var(--color-indigo);
+}
+.trf-hors-bloc__n { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.trf-hors-bloc__mot {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 6px 0 16px;
+}
+/* Le total d'une rangée écartée ne se lit pas comme les autres : même
+   place, mais en gris — il ne se reporte nulle part. */
+.trf-devise--hors .trf-devise__code { color: var(--ink-soft); }
+.trf-devise--hors .trf-devise__total { color: var(--ink-soft); font-size: 19px; }
+.trf-devise--hors .trf-devise__note { color: var(--ink-soft); font-style: italic; }
 
 .trf-caisses-grille {
   display: grid;

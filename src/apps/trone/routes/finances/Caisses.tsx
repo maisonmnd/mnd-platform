@@ -284,8 +284,16 @@ export default function Caisses() {
            l'ordre ne dépend pas de ce qu'on a créé en premier. */
         <>
           {(() => {
+            /* ── HORS BILAN : SON PROPRE RANGEMENT — 22 août 2026 ────────
+               Une caisse écartée du bilan ne se range plus parmi celles qui
+               comptent, même en même monnaie. Mêlées, le total de la rangée
+               démentait la somme des cartes qu'on lisait juste dessous, et la
+               mention sous le nom était le seul indice. Deux blocs : ce qui
+               compte, puis ce qui ne compte pas — et son total ne prétend à
+               rien. */
+            const rangees = (liste: typeof branchBoxes, hors: boolean) => {
             const parDevise = new Map<string, typeof branchBoxes>();
-            for (const c of branchBoxes) {
+            for (const c of liste) {
               const d = cashboxCurrency(c);
               parDevise.set(d, [...(parDevise.get(d) ?? []), c]);
             }
@@ -294,17 +302,22 @@ export default function Caisses() {
             ));
             return devises.map((devise) => {
               const boxes = parDevise.get(devise)!;
-              const lisibles = boxes.filter((c) => soldeVisible(c, ouvertes) && !c.horsBilan);
+              const lisibles = boxes.filter((c) => soldeVisible(c, ouvertes));
               const total = lisibles.reduce((s, c) => s + boxBalance(c.name), 0);
               const tues = boxes.length - lisibles.length;
               return (
-                <section key={devise} style={{ marginBottom: 26 }}>
-                  <div className="trf-devise">
+                <section key={devise} style={{ marginBottom: hors ? 18 : 26 }}>
+                  <div className={`trf-devise${hors ? ' trf-devise--hors' : ''}`}>
                     <span className="trf-devise__code">{devise}</span>
                     <span className="trf-devise__n">
                       {boxes.length} caisse{boxes.length > 1 ? 's' : ''}
                     </span>
                     <span className="trf-devise__total">{fmtIn(total, devise)}</span>
+                    {hors && (
+                      <span className="trf-devise__note">
+                        n’entre dans aucun total de la Maison
+                      </span>
+                    )}
                     {tues > 0 && (
                       <span className="trf-devise__note">
                         {tues} {tues > 1 ? 'écartées' : 'écartée'} de ce total
@@ -325,10 +338,7 @@ export default function Caisses() {
                             <span className="trf-caisse__glyph">{c.glyph}</span>
                             <div style={{ minWidth: 0 }}>
                               <div className="trf-caisse__name">{c.name}</div>
-                              <div className="trf-caisse__sub">
-                                {c.sub}
-                                {c.horsBilan && <span className="trf-horsbilan">hors bilan</span>}
-                              </div>
+                              <div className="trf-caisse__sub">{c.sub}</div>
                             </div>
                           </div>
 
@@ -385,6 +395,31 @@ export default function Caisses() {
                 </section>
               );
             });
+            };
+
+            const auBilan = branchBoxes.filter((c) => !c.horsBilan);
+            const ecartees = branchBoxes.filter((c) => !!c.horsBilan);
+            return (
+              <>
+                {rangees(auBilan, false)}
+                {ecartees.length > 0 && (
+                  <section className="trf-hors-bloc">
+                    <div className="trf-hors-bloc__tete">
+                      <span className="trf-hors-bloc__titre">Hors bilan</span>
+                      <span className="trf-hors-bloc__n">
+                        {ecartees.length} caisse{ecartees.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="trf-hors-bloc__mot">
+                      Leur argent est réel et leurs mouvements se tiennent comme les autres.
+                      Elles n’entrent simplement dans aucun total de la Maison — ni la trésorerie,
+                      ni les bilans. Chaque monnaie garde sa rangée ici aussi.
+                    </div>
+                    {rangees(ecartees, true)}
+                  </section>
+                )}
+              </>
+            );
           })()}
         </>
       )}
