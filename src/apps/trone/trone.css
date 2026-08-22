@@ -617,3 +617,84 @@ body[data-surface='trone'] {
      cache derrière elle. */
   .tr-shell--barre .tr-content { padding-bottom: 78px; }
 }
+
+/* ── Ranger le menu — 22 août 2026 ─────────────────────────────────
+   L'ordre du menu était le même pour tout le monde. Il n'y a pourtant pas UN
+   bon ordre : c'est une habitude, et elle vit par poste. */
+.tr-nav__ranger {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 14px 10px 4px;
+  padding: 7px 10px;
+  border: 1px dashed var(--hairline-invert, rgba(255,255,255,.18));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--indigo-100, #B9BAD4);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tr-nav__ranger:hover { color: var(--color-ivoire); border-color: var(--color-copper); }
+.tr-nav__ranger.is-on {
+  border-style: solid;
+  border-color: var(--color-copper);
+  background: rgba(185, 122, 74, .18);
+  color: var(--color-ivoire);
+}
+.tr-nav__aide {
+  margin: 6px 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--indigo-100, #B9BAD4);
+}
+.tr-nav__reset {
+  display: block;
+  margin-top: 7px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--copper-200, #E3C9AE);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tr-nav__range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, .04);
+  margin: 2px 6px;
+}
+.tr-nav__range__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--color-ivoire);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-nav__range__nom svg { width: 15px; height: 15px; flex: none; opacity: .8; }
+.tr-nav__range__fleche {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--hairline-invert, rgba(255,255,255,.18));
+  border-radius: 2px;
+  background: transparent;
+  color: var(--color-ivoire);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tr-nav__range__fleche:hover:not(:disabled) { border-color: var(--color-copper); background: rgba(185,122,74,.2); }
+.tr-nav__range__fleche:disabled { opacity: .25; cursor: default; }

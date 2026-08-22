@@ -23,6 +23,33 @@ import BarreEquipe from './BarreEquipe';
    le registre interne ensuite (Yéman, 18 août). */
 const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures', '/catalogue', '/fil', '/tableau'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
+
+/* ── LA MAIN RANGE SON MENU — 22 août 2026 ──────────────────────────
+   « Me permettre de déplacer moi-même ce que je veux dans le quotidien de la
+   navigation bar. Monter et descendre les onglets. »
+
+   L'ordre du menu était écrit dans le code, le même pour tout le monde. Or
+   il n'y a pas UN bon ordre : Yéman ouvre le Carnet dix fois par jour, Gérard
+   pointe et s'en va. L'ordre est donc une habitude, pas une donnée de la
+   Maison — il vit PAR POSTE, comme le repli des groupes, et ne se synchronise
+   jamais.
+
+   La clé est le nom du groupe (« Le quotidien », « Pilotage »…) ; la valeur,
+   les chemins dans l'ordre voulu. */
+const navOrdreStore = createStore<Record<string, string[]>>('mnd_trone_nav_ordre', {});
+
+/** L'ORDRE DE LA MAIN, PUIS CELUI DU CODE. Ce qui a été rangé passe d'abord,
+    dans l'ordre voulu ; ce qui n'y figure pas — un écran arrivé depuis, un
+    écran qu'un rôle vient d'ouvrir — suit à la fin, à sa place d'origine.
+    Ainsi un écran neuf ne disparaît JAMAIS parce qu'un rangement d'hier ne le
+    connaissait pas. */
+const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, items: T[]): T[] => {
+  if (!voulu || voulu.length === 0) return items;
+  const rang = new Map(voulu.map((p, i) => [p, i]));
+  const connus = items.filter((it) => rang.has(it.path)).sort((a, b) => rang.get(a.path)! - rang.get(b.path)!);
+  const nouveaux = items.filter((it) => !rang.has(it.path));
+  return [...connus, ...nouveaux];
+};
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
@@ -222,17 +249,33 @@ export default function Shell() {
      l'écran OUVERT se déplie de lui-même — arriver par Trouver ne doit pas
      cacher où l'on est. */
   const [deplies, setDeplies] = useStore(menuDeplieStore);
+  const [ordreNav, setOrdreNav] = useStore(navOrdreStore);
+  /* Le mode rangement : les onglets cessent de conduire quelque part et se
+     laissent monter ou descendre. Un mode, pas un réglage caché — on le quitte
+     du même bouton qui l'a ouvert. */
+  const [rangement, setRangement] = useState(false);
+
+  /** Monter ou descendre un onglet dans son groupe. On enregistre la liste
+      ENTIÈRE des chemins visibles, jamais un simple décalage : le rangement
+      reste lisible même si un écran s'ouvre ou se ferme entre-temps. */
+  const deplacer = (cle: string, liste: TroneRoute[], index: number, sens: -1 | 1) => {
+    const cible = index + sens;
+    if (cible < 0 || cible >= liste.length) return;
+    const chemins = liste.map((it) => it.path);
+    [chemins[index], chemins[cible]] = [chemins[cible], chemins[index]];
+    setOrdreNav((prev) => ({ ...prev, [cle]: chemins }));
+  };
   const visibles = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
     .filter((g) => g.items.length > 0);
   const deuxEtages = visibles.reduce((s, g) => s + g.items.length, 0) > 8;
-  const quotidien = QUOTIDIEN
+  const quotidien = selonLaMain(ordreNav['Le quotidien'], QUOTIDIEN
     .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
-    .filter((it): it is TroneRoute => !!it);
+    .filter((it): it is TroneRoute => !!it));
   const [filTous] = useFil();
   const [factures] = useInvoices();
   const monMailShell = (session?.user?.email ?? '').trim().toLowerCase();
   const replies = visibles
-    .map((g) => ({ ...g, items: g.items.filter((it) => !QUOTIDIEN.includes(it.path)) }))
+    .map((g) => ({ ...g, items: selonLaMain(ordreNav[g.group], g.items.filter((it) => !QUOTIDIEN.includes(it.path))) }))
     .filter((g) => g.items.length > 0);
   /* ── UNE DEMANDE QUI ATTEND SE VOIT DEPUIS PARTOUT — 18 août 2026.
      « Comment savoir si j'ai une nouvelle demande à traiter dans les fils ? »
@@ -250,6 +293,33 @@ export default function Shell() {
         </span>
       )}
     </NavLink>
+  );
+
+  /* EN RANGEMENT, L'ONGLET NE CONDUIT PLUS NULLE PART. Le laisser naviguer
+     ferait quitter l'écran au premier clic manqué, et l'on perdrait le fil de
+     ce qu'on était en train d'arranger. */
+  const lienRangeable = (cle: string, liste: TroneRoute[]) => (it: TroneRoute, i: number) => (
+    <div className="tr-nav__range" key={it.path}>
+      <span className="tr-nav__range__nom"><it.icon />{it.label}</span>
+      <button
+        className="tr-nav__range__fleche"
+        disabled={i === 0}
+        aria-label={`Monter ${it.label}`}
+        title="Monter"
+        onClick={() => deplacer(cle, liste, i, -1)}
+      >
+        ↑
+      </button>
+      <button
+        className="tr-nav__range__fleche"
+        disabled={i === liste.length - 1}
+        aria-label={`Descendre ${it.label}`}
+        title="Descendre"
+        onClick={() => deplacer(cle, liste, i, 1)}
+      >
+        ↓
+      </button>
+    </div>
   );
 
   return (
@@ -291,14 +361,14 @@ export default function Shell() {
             visibles.map((g) => (
               <div key={g.group}>
                 <div className="tr-nav__group">{g.group}</div>
-                {g.items.map(lien)}
+                {rangement ? g.items.map(lienRangeable(g.group, g.items)) : g.items.map(lien)}
               </div>
             ))
           ) : (
             <>
               <div>
                 <div className="tr-nav__group">Le quotidien</div>
-                {quotidien.map(lien)}
+                {rangement ? quotidien.map(lienRangeable('Le quotidien', quotidien)) : quotidien.map(lien)}
               </div>
               {replies.map((g) => {
                 const ouvert = deplies[g.group] === true || g.items.some((it) => emplacement.pathname === it.path);
@@ -312,11 +382,31 @@ export default function Shell() {
                       <span>{g.group}</span>
                       <ChevronDown size={13} className={`tr-nav__chev ${ouvert ? 'is-open' : ''}`} />
                     </button>
-                    {ouvert && g.items.map(lien)}
+                    {ouvert && (rangement ? g.items.map(lienRangeable(g.group, g.items)) : g.items.map(lien))}
                   </div>
                 );
               })}
             </>
+          )}
+          {/* LE BOUTON QUI RANGE — discret, en pied de menu : on n'y vient
+              qu'une fois, le jour où l'ordre du code ne convient plus. */}
+          <button
+            className={`tr-nav__ranger ${rangement ? 'is-on' : ''}`}
+            onClick={() => setRangement((v) => !v)}
+            title={rangement ? 'Revenir au menu' : 'Monter et descendre les onglets'}
+          >
+            {rangement ? 'Terminer le rangement' : 'Ranger le menu'}
+          </button>
+          {rangement && (
+            <div className="tr-nav__aide">
+              Les flèches montent et descendent chaque onglet. L’ordre est le vôtre, sur CE poste
+              seulement — il ne change rien pour les autres.
+              {Object.keys(ordreNav).length > 0 && (
+                <button className="tr-nav__reset" onClick={() => setOrdreNav({})}>
+                  Revenir à l’ordre d’origine
+                </button>
+              )}
+            </div>
           )}
         </nav>
       </aside>
