@@ -606,6 +606,14 @@ export type CoffreMovement = {
   clientId?: string; // dépôt attribué à une cliente (source du revenu mis de côté)
   clientName?: string;
   bank?: string; // virement : banque / compte destinataire
+  /** VERS QUEL OBJECTIF ce mouvement est fléché — 22 août 2026, « comment
+      gérer les objectifs des économies (voyages, investissements, divers,
+      scolarité…) ». Le coffre était UN SEUL TAS : il ne savait pas dire
+      « ceci est pour la scolarité ». Absent = non fléché, et c'est un état
+      normal, pas un oubli à corriger : cet argent-là est simplement
+      disponible. Le fléchage est une LECTURE, jamais une serrure — un
+      virement peut toujours partir, quel que soit l'objectif visé. */
+  objectifId?: string;
   /** LA CAISSE D'OÙ L'ARGENT SORT — 17 août 2026, décision de Yéman : « le
       coffre comme caisse ».
 
@@ -636,6 +644,61 @@ export type CoffreMovement = {
 export const coffreSignedXof = (m: CoffreMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);
 /** Solde courant du coffre = somme des dépôts − somme des virements. Jamais négatif. */
 export const coffreBalance = (moves: CoffreMovement[]): number => Math.max(0, moves.reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/* ── LES OBJECTIFS D'ÉPARGNE — 22 août 2026 ─────────────────────────
+   Ce que la Maison met de côté, et POUR QUOI : une scolarité, un voyage, un
+   second fauteuil. La progression ne s'écrit jamais — elle se calcule depuis
+   les mouvements fléchés, comme le suivi des abonnements et le registre des
+   encaissements. Un compteur écrit dériverait au premier écran oublié. */
+export type ObjectifCoffre = {
+  id: string;
+  branchId: string;
+  nom: string;
+  cibleXof: number;
+  /** Le mois visé, « AAAA-MM ». Facultatif — et son absence a un sens : un
+      objectif sans date ne peut JAMAIS être dit « en retard ». On ne reproche
+      pas un retard à qui n'a pas donné de date. */
+  echeance?: string;
+  note?: string;
+  /** Atteint et refermé : il quitte la liste vivante sans effacer son histoire. */
+  clos?: boolean;
+};
+
+export const objectifsStore = createStore<ObjectifCoffre[]>('mnd_objectifs_coffre', []);
+export const useObjectifs = () => useStore(objectifsStore);
+
+/** CE QU'UN OBJECTIF A REÇU — les dépôts fléchés vers lui, moins les virements
+    fléchés de même. Jamais négatif : un objectif qu'on a vidé est à zéro, il
+    n'a pas de dette. */
+export const recuParObjectif = (moves: readonly CoffreMovement[], objectifId: string): number =>
+  Math.max(0, moves
+    .filter((m) => m.objectifId === objectifId)
+    .reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/** LA PART DU COFFRE QUE PERSONNE N'A FLÉCHÉE — de l'argent disponible, pas de
+    l'argent perdu. Elle se déduit du solde réel : ainsi la somme des objectifs
+    plus le non-fléché fait TOUJOURS le coffre, quoi qu'il arrive aux lignes. */
+export const coffreNonFleche = (moves: readonly CoffreMovement[]): number =>
+  Math.max(0, moves
+    .filter((m) => !m.objectifId)
+    .reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/** LE RYTHME, ET CE QU'IL PROMET. Moyenne mensuelle des versements fléchés sur
+    les mois où il y en a eu — pas sur le calendrier, sinon un objectif ouvert
+    en janvier et nourri en août paraîtrait huit fois plus lent qu'il n'est.
+    Rend `null` quand il n'y a pas encore de quoi juger. */
+export const moisPourAtteindre = (
+  moves: readonly CoffreMovement[], o: ObjectifCoffre,
+): number | null => {
+  const verses = moves.filter((m) => m.objectifId === o.id && m.kind === 'depot');
+  if (verses.length === 0) return null;
+  const mois = new Set(verses.map((m) => m.date.slice(0, 7)));
+  const total = verses.reduce((s, m) => s + m.amountXof, 0);
+  const parMois = total / Math.max(1, mois.size);
+  if (parMois <= 0) return null;
+  const manque = Math.max(0, o.cibleXof - recuParObjectif(moves, o.id));
+  return manque === 0 ? 0 : Math.ceil(manque / parMois);
+};
 
 export const coffreStore = createStore<CoffreMovement[]>('mnd_coffre', []);
 export const useCoffre = () => useStore(coffreStore);
@@ -722,6 +785,7 @@ bindCollection(budgetsStore, 'budgets');
 bindCollection(cashboxesStore, 'cashboxes');
 bindCollection(expenseCategoriesStore, 'expense_categories');
 bindCollection(coffreStore, 'coffre_movements');
+bindCollection(objectifsStore, 'objectifs_coffre');
 bindCollection(creditMovementsStore, 'credit_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
 

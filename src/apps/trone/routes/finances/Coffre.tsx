@@ -8,10 +8,14 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
+  useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
-import { todayISO, monthKey } from './_shared';
+import { todayISO, monthKey, monthTitle } from './_shared';
+
+/** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
+const monthLabelLong = (mk: string): string => (mk ? monthTitle(mk) : '');
 import './finances.css';
 
 /* Coffre-fort — l'épargne souveraine de la maison. On y met de côté une part du
@@ -137,6 +141,39 @@ export default function Coffre() {
     coffreStore.set((prev) => prev.filter((x) => x.id !== m.id));
   };
 
+  /* Les objectifs vivants de cette branche, et la modale qui les pose. Une
+     seule porte : « + Objectif » et le nom d'un objectif l'ouvrent tous deux. */
+  const [objectifs, setObjectifs] = useObjectifs();
+  const objectifsVivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
+  const [objOuvert, setObjOuvert] = useState<{ id: string; nom: string; cible: string; echeance: string } | null>(null);
+
+  const enregistrerObjectif = () => {
+    if (!objOuvert) return;
+    const nom = objOuvert.nom.trim();
+    const cible = parseInt(objOuvert.cible.replace(/[^0-9]/g, ''), 10) || 0;
+    if (!nom || cible <= 0) return;
+    setObjectifs((prev) => (objOuvert.id
+      ? prev.map((o) => (o.id === objOuvert.id
+        ? { ...o, nom, cibleXof: cible, echeance: objOuvert.echeance || undefined }
+        : o))
+      : [...prev, {
+        id: uid(), branchId: branch.id, nom, cibleXof: cible,
+        echeance: objOuvert.echeance || undefined,
+      } as ObjectifCoffre]));
+    setObjOuvert(null);
+  };
+
+  /* CLORE PLUTÔT QU'EFFACER : un objectif atteint quitte la liste vivante sans
+     emporter son histoire — les versements qui l'ont nourri restent fléchés
+     vers lui, et le coffre se retrouve toujours. */
+  const cloreObjectif = () => {
+    if (!objOuvert?.id) return;
+    const o = objectifs.find((x) => x.id === objOuvert.id);
+    if (!o || !window.confirm(`Refermer « ${o.nom} » ? Il quitte la liste, et les versements qui lui étaient destinés gardent leur trace.`)) return;
+    setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, clos: true } : x)));
+    setObjOuvert(null);
+  };
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -159,6 +196,91 @@ export default function Coffre() {
           <span className="trf-coffre-hero__lockdot" /> Verrouillé — aucune dépense possible, sortie uniquement par virement bancaire.
         </div>
         <GrowthChart moves={moves} currency={currency} />
+      </Card>
+
+      {/* ── CE QUE LA MAISON MET DE CÔTÉ, ET POUR QUOI — 22 août 2026 ──
+          Le coffre était un seul tas : il recevait, il gardait, mais il ne
+          savait pas dire POUR QUOI. Chaque objectif porte sa cible, sa
+          progression, et — s'il a donné une date — ce que le rythme promet.
+          Ce qui n'est fléché nulle part reste visible : c'est de l'argent
+          disponible, pas de l'argent égaré. */}
+      <Card style={{ padding: 20, marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div>
+            <div className="mnd-eyebrow" style={{ marginBottom: 2 }}>Ce que la Maison met de côté</div>
+            <div className="mnd-muted" style={{ fontSize: 12 }}>
+              Un objectif ne bloque rien — il dit seulement où va l’effort.
+            </div>
+          </div>
+          <Button variant="ghost" onClick={() => setObjOuvert({ id: '', nom: '', cible: '', echeance: '' })}>+ Objectif</Button>
+        </div>
+
+        {objectifsVivants.length === 0 ? (
+          <div className="trf-empty" style={{ textAlign: 'left', lineHeight: 1.7, marginTop: 12 }}>
+            <b style={{ color: 'var(--color-indigo)', fontWeight: 500 }}>Aucun objectif posé.</b><br />
+            Une scolarité, un voyage, un second fauteuil : nommez ce que vous préparez, donnez-lui
+            un montant, et chaque versement au coffre pourra le désigner.
+          </div>
+        ) : (
+          <div style={{ marginTop: 14 }}>
+            {objectifsVivants.map((o) => {
+              const recu = recuParObjectif(moves, o.id);
+              const part = o.cibleXof > 0 ? Math.min(100, Math.round((recu / o.cibleXof) * 100)) : 0;
+              const manque = Math.max(0, o.cibleXof - recu);
+              const mois = moisPourAtteindre(moves, o);
+              /* LE JUGEMENT N'EXISTE QUE S'IL Y A UNE DATE. On ne reproche pas
+                 un retard à qui n'a pas donné d'échéance. */
+              const retard = (() => {
+                if (!o.echeance || mois === null || manque === 0) return null;
+                const [y, m] = o.echeance.split('-').map(Number);
+                const cible = new Date(y, (m || 1) - 1, 1);
+                const fin = new Date();
+                fin.setMonth(fin.getMonth() + mois);
+                const ecart = (fin.getFullYear() - cible.getFullYear()) * 12 + (fin.getMonth() - cible.getMonth());
+                return ecart;
+              })();
+              return (
+                <div className="trf-objectif" key={o.id}>
+                  <div className="trf-objectif__tete">
+                    <button
+                      className="trf-objectif__nom"
+                      onClick={() => setObjOuvert({ id: o.id, nom: o.nom, cible: String(o.cibleXof), echeance: o.echeance ?? '' })}
+                      title="Modifier cet objectif"
+                    >
+                      {o.nom}
+                    </button>
+                    <span className="trf-objectif__chiffres">
+                      {fmtMoney(recu, currency)} <i>/ {fmtMoney(o.cibleXof, currency)}</i>
+                    </span>
+                  </div>
+                  <div className="trf-jauge">
+                    <i
+                      style={{ width: `${Math.max(1, part)}%` }}
+                      className={manque === 0 ? 'est-atteint' : retard !== null && retard > 0 ? 'est-loin' : ''}
+                    />
+                  </div>
+                  <div className="trf-objectif__mot">
+                    <span>{part} %{manque > 0 ? ` · il manque ${fmtMoney(manque, currency)}` : ' · atteint'}</span>
+                    {o.echeance && <span>échéance {monthLabelLong(o.echeance)}</span>}
+                    {manque > 0 && mois !== null && (
+                      <span className={`trf-jugement ${retard !== null && retard > 0 ? 'est-retard' : retard !== null ? 'est-tenu' : ''}`}>
+                        au rythme actuel : {mois} mois
+                        {retard !== null && (retard > 0
+                          ? ` — ${retard} mois de retard`
+                          : ' — échéance tenue')}
+                      </span>
+                    )}
+                    {manque > 0 && mois === null && <span className="mnd-muted">aucun versement fléché — rien à promettre</span>}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="trf-objectif__pied">
+              <span>Non fléché — disponible</span>
+              <b>{fmtMoney(coffreNonFleche(moves), currency)}</b>
+            </div>
+          </div>
+        )}
       </Card>
 
       <div className="tr-grid tr-grid--3" style={{ marginBottom: 18 }}>
@@ -212,6 +334,53 @@ export default function Coffre() {
           </div>
         )}
       </Card>
+
+      {objOuvert && (
+        <Modal title={objOuvert.id ? 'Modifier l’objectif' : 'Un nouvel objectif'} onClose={() => setObjOuvert(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Field label="Ce que la Maison prépare">
+              <Input
+                value={objOuvert.nom}
+                placeholder="Scolarité 2027 · Voyage · Second fauteuil…"
+                onChange={(e) => setObjOuvert((o) => (o ? { ...o, nom: e.target.value } : o))}
+              />
+            </Field>
+            <Field label={`Montant à réunir · ${currency}`}>
+              <Input
+                inputMode="numeric"
+                value={objOuvert.cible}
+                placeholder="0"
+                onChange={(e) => setObjOuvert((o) => (o ? { ...o, cible: e.target.value.replace(/[^0-9]/g, '') } : o))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </Field>
+            <Field label="Pour quand · facultatif">
+              <Input
+                type="month"
+                value={objOuvert.echeance}
+                onChange={(e) => setObjOuvert((o) => (o ? { ...o, echeance: e.target.value } : o))}
+              />
+              {/* L'ABSENCE DE DATE A UN SENS, et il faut le dire : sans elle,
+                  l'objectif ne sera JAMAIS annoncé en retard. */}
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.55 }}>
+                Sans date, Le Trône dira le rythme mais ne parlera jamais de retard —
+                on ne reproche pas un retard à qui n’a pas donné d’échéance.
+              </div>
+            </Field>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4 }}>
+              {objOuvert.id
+                ? <button className="mnd-btn mnd-btn--ghost" onClick={cloreObjectif}>Refermer l’objectif</button>
+                : <span />}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => setObjOuvert(null)}>Annuler</button>
+                <button className="mnd-btn" onClick={enregistrerObjectif}>
+                  {objOuvert.id ? 'Enregistrer' : 'Poser l’objectif'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {depositOpen && (
         <DepositModal
@@ -270,12 +439,19 @@ function DepositModal({
   const rev = clientId ? clientRevenue(clientId) : 0;
   const clientName = clients.find((c) => c.id === clientId)?.name;
 
+  /* VERS QUEL OBJECTIF — 22 août 2026. Facultatif, et son absence est un état
+     normal : cet argent-là reste disponible, il n'est pas égaré. */
+  const [objectifs] = useObjectifs();
+  const objectifsVivants = objectifs.filter((o) => o.branchId === branchId && !o.clos);
+  const [objectifId, setObjectifId] = useState('');
+
   const save = () => {
     if (amountNum <= 0) return;
     onSave({
       id: uid(), branchId, kind: 'depot', amountXof: amountNum, date: date || todayISO(),
       clientId: clientId || undefined, clientName: clientName || undefined,
       cashbox: cashbox || undefined,
+      objectifId: objectifId || undefined,
       note: note.trim() || undefined,
     });
   };
@@ -294,6 +470,20 @@ function DepositModal({
             La caisse choisie baisse d'autant : l'argent se déplace, il ne se duplique pas.
           </div>
         </Field>
+        {objectifsVivants.length > 0 && (
+          <Field label="Pour quel objectif · facultatif">
+            <Select value={objectifId} onChange={(e) => setObjectifId(e.target.value)}>
+              <option value="">Sans objectif — argent disponible</option>
+              {objectifsVivants.map((o) => (
+                <option key={o.id} value={o.id}>{o.nom}</option>
+              ))}
+            </Select>
+            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+              Le fléchage est une lecture, jamais une serrure : cet argent reste disponible,
+              et un virement pourra toujours partir.
+            </div>
+          </Field>
+        )}
         <Field label="Adosser à une cliente · facultatif">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Choisir la cliente dont on met de côté le revenu…" />
         </Field>

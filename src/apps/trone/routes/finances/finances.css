@@ -1205,3 +1205,73 @@
   .trf-budligne__engage { grid-area: engage; }
   .trf-budligne__champ { grid-area: champ; }
 }
+
+/* ── Les objectifs du coffre — 22 août 2026 ────────────────────────
+   Ce que la Maison met de côté, et pour quoi. La jauge passe au cuivre quand
+   le rythme ne mène pas à l'échéance, au vert quand la cible est atteinte.
+   Sans échéance elle reste indigo : on ne juge pas une épargne sans date. */
+.trf-objectif { padding: 13px 0; border-bottom: 1px solid var(--hairline); }
+.trf-objectif:last-of-type { border-bottom: none; }
+.trf-objectif__tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.trf-objectif__nom {
+  flex: 1 1 auto;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--color-indigo);
+}
+.trf-objectif__nom:hover { color: var(--color-copper); }
+.trf-objectif__chiffres {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--color-indigo);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.trf-objectif__chiffres i { font-style: normal; color: var(--ink-soft); font-size: 13px; }
+.trf-jauge {
+  height: 9px;
+  border-radius: 2px;
+  background: var(--color-sable);
+  overflow: hidden;
+  margin: 9px 0 7px;
+}
+.trf-jauge i { display: block; height: 100%; background: var(--color-indigo); border-radius: 2px; }
+.trf-jauge i.est-atteint { background: #4A6B52; }
+.trf-jauge i.est-loin { background: var(--color-copper); }
+.trf-objectif__mot {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.trf-jugement { font-size: 12px; }
+.trf-jugement.est-retard { color: var(--copper-700, #96412E); }
+.trf-jugement.est-tenu { color: #4A6B52; }
+.trf-objectif__pied {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  padding-top: 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.trf-objectif__pied b {
+  font-family: var(--font-serif);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,117 @@
+/* LE COFFRE ET LES PRÊTS — les invariants qui touchent l'argent.
+
+   Trois choses doivent tenir, et aucune n'est cosmétique : la somme des
+   objectifs plus le non-fléché fait TOUJOURS le coffre ; un solde de prêt ne
+   passe jamais sous zéro ; et un objectif sans échéance n'est jamais dit
+   « en retard ». */
+
+import {
+  recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
+  type CoffreMovement, type ObjectifCoffre,
+} from '../src/shared/finance';
+import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
+
+let ko = 0;
+const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
+  const ok = JSON.stringify(attendu) === JSON.stringify(obtenu);
+  if (!ok) ko++;
+  console.log(`${ok ? 'OK   ' : 'ÉCHEC'} ${nom} → ${JSON.stringify(obtenu)}`);
+  if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
+};
+
+const dep = (id: string, xof: number, date: string, objectifId?: string): CoffreMovement =>
+  ({ id, branchId: 'br', kind: 'depot', amountXof: xof, date, ...(objectifId ? { objectifId } : {}) } as CoffreMovement);
+const vir = (id: string, xof: number, date: string, objectifId?: string): CoffreMovement =>
+  ({ id, branchId: 'br', kind: 'virement', amountXof: xof, date, ...(objectifId ? { objectifId } : {}) } as CoffreMovement);
+
+const obj = (id: string, cible: number, echeance?: string): ObjectifCoffre =>
+  ({ id, branchId: 'br', nom: id, cibleXof: cible, ...(echeance ? { echeance } : {}) });
+
+/* ── ① LE COFFRE SE RETROUVE TOUJOURS ─────────────────────────────
+   L'invariant qui compte le plus : ce qui est fléché plus ce qui ne l'est pas
+   doit faire le solde réel. S'il manquait un franc quelque part, la Maison
+   croirait avoir mis de côté ce qu'elle n'a pas. */
+const coffre = [
+  dep('m1', 400_000, '2026-06-10', 'scolarite'),
+  dep('m2', 220_000, '2026-07-10', 'scolarite'),
+  dep('m3', 150_000, '2026-07-12', 'voyage'),
+  dep('m4', 95_000, '2026-08-01'),
+];
+const totalFleche = ['scolarite', 'voyage'].reduce((n, id) => n + recuParObjectif(coffre, id), 0);
+dit('scolarité a reçu 620 000', 620_000, recuParObjectif(coffre, 'scolarite'));
+dit('voyage a reçu 150 000', 150_000, recuParObjectif(coffre, 'voyage'));
+dit('le non-fléché vaut 95 000', 95_000, coffreNonFleche(coffre));
+dit('fléché + non-fléché = le coffre', coffreBalance(coffre), totalFleche + coffreNonFleche(coffre));
+
+/* Un virement fléché retire de SON objectif, et l'invariant tient encore. */
+const coffre2 = [...coffre, vir('m5', 100_000, '2026-08-15', 'scolarite')];
+dit('un virement fléché diminue son objectif', 520_000, recuParObjectif(coffre2, 'scolarite'));
+dit('… et le compte se retrouve toujours',
+  coffreBalance(coffre2),
+  recuParObjectif(coffre2, 'scolarite') + recuParObjectif(coffre2, 'voyage') + coffreNonFleche(coffre2));
+
+/* Vider un objectif le met à ZÉRO, jamais en dette : un objectif ne doit rien. */
+dit('un objectif vidé tombe à zéro, pas en négatif', 0,
+  recuParObjectif([dep('a', 50_000, '2026-01-01', 'x'), vir('b', 80_000, '2026-02-01', 'x')], 'x'));
+
+/* ── ② LE RYTHME, ET CE QU'IL PROMET ─────────────────────────────── */
+/* La moyenne porte sur les MOIS OÙ L'ON A VERSÉ, pas sur le calendrier : un
+   objectif ouvert en janvier et nourri en août paraîtrait sinon huit fois plus
+   lent qu'il n'est. Ici 620 000 en deux mois = 310 000/mois ; il manque
+   280 000 → un mois. */
+dit('deux versements, deux mois, un mois pour finir', 1,
+  moisPourAtteindre(coffre, obj('scolarite', 900_000, '2027-09')));
+dit('un objectif atteint ne demande plus de mois', 0,
+  moisPourAtteindre(coffre, obj('scolarite', 500_000)));
+/* Sans le moindre versement, on ne peut RIEN promettre — et on le dit en
+   rendant `null` plutôt qu'un zéro qui se lirait « c'est fait ». */
+dit('sans versement, aucune promesse', null, moisPourAtteindre(coffre, obj('neuf', 300_000)));
+/* Un objectif SANS ÉCHÉANCE se calcule quand même, mais l'écran ne le juge
+   jamais : on ne reproche pas un retard à qui n'a pas donné de date. */
+dit('sans échéance, le rythme se dit tout de même', 2,
+  moisPourAtteindre(coffre, obj('voyage', 450_000)));
+dit('… et l’objectif ne porte pas d’échéance à juger', undefined, obj('voyage', 450_000).echeance);
+
+/* ── ③ LES PRÊTS ─────────────────────────────────────────────────── */
+const pret = (id: string, type: 'pret' | 'remboursement', nom: string, xof: number, date: string, extra: Partial<Pret> = {}): Pret =>
+  ({ id, branchId: 'br', date, type, associe: nom, motif: '', amountXof: xof, ...extra });
+
+const prets: Pret[] = [
+  pret('p1', 'pret', 'Gérard T.', 200_000, '2026-06-03', { genre: 'equipe', personneId: 'st-1' }),
+  pret('p2', 'remboursement', 'Gérard T.', 120_000, '2026-08-12', { genre: 'equipe', personneId: 'st-1' }),
+  pret('p3', 'pret', 'Assetina S.', 45_000, '2026-07-02', { genre: 'cliente', personneId: 'cl-1' }),
+  pret('p4', 'remboursement', 'Assetina S.', 45_000, '2026-08-03', { genre: 'cliente', personneId: 'cl-1' }),
+];
+const soldes = soldesParEmprunteur(prets, 'br');
+dit('deux emprunteurs', 2, soldes.length);
+dit('Gérard doit encore 80 000', 80_000, soldes.find((s) => s.nom === 'Gérard T.')?.reste);
+dit('Assetina est soldée', 0, soldes.find((s) => s.nom === 'Assetina S.')?.reste);
+dit('le classement met le débiteur en tête', 'Gérard T.', soldes[0].nom);
+dit('la dette de la Maison fait la somme des restes', 80_000, detteEnCours(prets, 'br'));
+
+/* UN TROP-REMBOURSÉ EST UNE ERREUR DE SAISIE, PAS UNE DETTE DE LA MAISON.
+   Sans ce plancher, l'écran annoncerait que la Maison doit de l'argent à qui
+   lui en a emprunté — et le total général deviendrait faux. */
+const trop = [...prets, pret('p5', 'remboursement', 'Gérard T.', 500_000, '2026-08-20', { genre: 'equipe', personneId: 'st-1' })];
+dit('un trop-remboursé ne passe pas sous zéro', 0, soldesParEmprunteur(trop, 'br').find((s) => s.nom === 'Gérard T.')?.reste);
+dit('… ni pour une personne prise à part', 0, resteDuPar(trop, 'st-1'));
+dit('reste dû par Gérard avant l’erreur', 80_000, resteDuPar(prets, 'st-1'));
+dit('une personne sans prêt ne doit rien', 0, resteDuPar(prets, 'inconnu'));
+
+/* Une autre branche ne pollue jamais le compte. */
+const ailleurs = [...prets, pret('p6', 'pret', 'Quelqu’un', 999_000, '2026-08-01', { genre: 'tiers' })];
+ailleurs[ailleurs.length - 1].branchId = 'autre';
+dit('la branche voisine ne compte pas', 80_000, detteEnCours(ailleurs, 'br'));
+
+/* Les lignes d'AVANT n'ont ni genre ni caisse : elles doivent traverser tout
+   ceci sans broncher — leurs soldes sont arrêtés, on n'y touche pas. */
+const anciennes: Pret[] = [
+  pret('v1', 'pret', 'Foyer', 300_000, '2026-05-01'),
+  pret('v2', 'remboursement', 'Foyer', 100_000, '2026-06-01'),
+];
+dit('une ligne d’avant se lit encore', 200_000, detteEnCours(anciennes, 'br'));
+dit('… et son genre retombe sur « foyer »', 'foyer', soldesParEmprunteur(anciennes, 'br')[0].genre);
+dit('… sans caisse, comme elle a été saisie', undefined, anciennes[0].cashbox);
+
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+if (ko > 0) process.exit(1);

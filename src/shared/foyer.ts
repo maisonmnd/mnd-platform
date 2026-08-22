@@ -243,26 +243,94 @@ export const prelevesDuMois = (l: Prelevement[], branchId: string, mk: string): 
 
 /* ---------- Prêts associés — le dépassement devient une dette ---------- */
 
-export type PretAssocie = {
+/* ── LE PRÊT S'ÉLARGIT — 22 août 2026 ───────────────────────────────
+   « Comment contrôler les prêts et les remboursements ? »
+
+   Ce registre ne connaissait que le salon et le foyer. Il s'ouvre à qui la
+   Maison prête vraiment : un membre de l'équipe (avance sur salaire), une
+   cliente, un tiers. Les champs ajoutés sont TOUS facultatifs — les lignes
+   d'avant restent exactement ce qu'elles étaient, sans genre et sans caisse,
+   et leurs soldes ne bougent pas d'un franc. */
+export type GenreEmprunteur = 'foyer' | 'associe' | 'equipe' | 'cliente' | 'tiers';
+
+export type Pret = {
   id: string;
   branchId: string;
   date: string;
   type: 'pret' | 'remboursement';
+  /** Le nom de l'emprunteur — « Foyer » pour les mouvements salon ↔ foyer. */
   associe: string;
   motif: string;
   amountXof: number; // toujours positif ; le SENS vient du type
+  /** À QUI la Maison prête. Absent sur les lignes d'avant : elles sont toutes
+      des mouvements salon ↔ foyer, et se lisent comme telles. */
+  genre?: GenreEmprunteur;
+  /** La fiche de l'emprunteur quand il en a une — une cliente, un membre de
+      l'équipe. C'est ce lien qui permet de relire le prêt depuis sa fiche. */
+  personneId?: string;
+  /** LA CAISSE D'OÙ L'ARGENT SORT (prêt) OU DANS LAQUELLE IL RENTRE
+      (remboursement) — 22 août 2026, même leçon que le coffre le 17 et les
+      avoirs le 19 : sans elle, prêter 200 000 F ne les retire d'aucun tiroir,
+      et les mêmes francs vivent dans la caisse ET chez l'emprunteur.
+      Absente sur tout l'historique : ces lignes ne débitent rien, leurs soldes
+      sont arrêtés, et les rendre débitrices après coup ferait bouger des
+      trésoreries déjà closes. */
+  cashbox?: string;
+  /** Espèces, Mobile Money… — par où l'argent est passé. */
+  method?: string;
 };
 
-export const pretsStore = createStore<PretAssocie[]>('mnd_prets_associes', []);
+/** Ancien nom du même objet — gardé pour ne rien casser. */
+export type PretAssocie = Pret;
+
+export const pretsStore = createStore<Pret[]>('mnd_prets_associes', []);
 export const usePrets = () => useStore(pretsStore);
 
-export const pretSigneXof = (p: PretAssocie): number =>
+export const pretSigneXof = (p: Pret): number =>
   p.type === 'pret' ? p.amountXof : -p.amountXof;
 
 /** Dette en cours des associés envers le salon — jamais négative à l'écran :
     un trop-remboursé est une erreur de saisie, pas une dette du salon. */
-export const detteEnCours = (l: PretAssocie[], branchId: string): number =>
+export const detteEnCours = (l: readonly Pret[], branchId: string): number =>
   Math.max(0, l.filter((p) => p.branchId === branchId).reduce((s, p) => s + pretSigneXof(p), 0));
+
+/** LE SOLDE DE CHAQUE EMPRUNTEUR — prêté moins remboursé, jamais négatif à
+    l'écran : un trop-remboursé est une erreur de saisie, pas une dette de la
+    Maison envers lui. Le regroupement se fait sur le NOM, seul repère commun
+    aux lignes d'avant (sans genre) et aux nouvelles. */
+export type SoldePret = {
+  nom: string; genre: GenreEmprunteur; personneId?: string;
+  prete: number; rembourse: number; reste: number; dernier: string;
+};
+
+export const soldesParEmprunteur = (l: readonly Pret[], branchId: string): SoldePret[] => {
+  const par = new Map<string, SoldePret>();
+  for (const p of l) {
+    if (p.branchId !== branchId) continue;
+    const nom = (p.associe || 'Sans nom').trim();
+    const cle = nom.toLowerCase();
+    const d = par.get(cle) ?? {
+      nom, genre: p.genre ?? 'foyer', personneId: p.personneId,
+      prete: 0, rembourse: 0, reste: 0, dernier: p.date,
+    };
+    if (p.type === 'pret') d.prete += p.amountXof; else d.rembourse += p.amountXof;
+    if (p.date >= d.dernier) { d.dernier = p.date; d.genre = p.genre ?? d.genre; }
+    if (p.personneId) d.personneId = p.personneId;
+    par.set(cle, d);
+  }
+  for (const d of par.values()) d.reste = Math.max(0, d.prete - d.rembourse);
+  return [...par.values()].sort((a, b) => b.reste - a.reste || b.prete - a.prete);
+};
+
+/** Ce qu'une personne doit encore — pour le dire sur sa fiche, en lecture. */
+export const resteDuPar = (l: readonly Pret[], personneId: string): number => {
+  let n = 0;
+  for (const p of l) {
+    if (p.personneId !== personneId) continue;
+    n += p.type === 'pret' ? p.amountXof : -p.amountXof;
+  }
+  return Math.max(0, n);
+};
 
 /** Identifiant déterministe de la conversion « dépassement du mois → prêt » :
     la convertir deux fois ne crée qu'une ligne (upsert par id).
