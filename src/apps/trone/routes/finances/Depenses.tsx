@@ -893,7 +893,9 @@ export default function Depenses() {
     ['flux', 'Le flux', fmtMoney(engaged, currency)],
     ['caisses', 'Les caisses', fmtMoney(treasury, currency)],
     ['argent', 'Où va l’argent', `${beneficiaires(depensesDeLAnnee).length} bénéficiaires`],
-    ['budgets', 'Budgets & prévision', allocated ? fmtMoney(allocated, currency) : '—'],
+    ['budgets', 'Budgets', allocated
+      ? `${fmtMoney(allocated, currency)} alloués`
+      : 'aucune enveloppe'],
   ];
 
   return (
@@ -1315,11 +1317,57 @@ export default function Depenses() {
       {tab === 'budgets' && (
         <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
           <div className="trf-panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Budget souverain · alloué vs engagé · {monthName}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Les enveloppes · {monthName}</div>
               <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={openNewBudget}>+ Budget</button>
             </div>
-            {branchBudgets.length === 0 && <div className="trf-empty">Aucun budget défini. « + Budget » ouvre une enveloppe mensuelle par catégorie.</div>}
+
+            {/* ── LE SOMMAIRE DES ENVELOPPES — 22 août 2026 ──────────
+                « J'ai besoin d'un espace clair où je peux créer un budget et
+                contrôler comment elle se dépense et combien il en reste. »
+                Les enveloppes se lisaient une par une, sans jamais dire le
+                total : on ne pouvait pas répondre « combien me reste-t-il ce
+                mois » sans additionner de tête. */}
+            {branchBudgets.length > 0 && (() => {
+              const depense = branchBudgets.reduce((n, b) => n + spentOfCat(b.category), 0);
+              const reste = allocated - depense;
+              const part = allocated > 0 ? Math.min(100, Math.round((depense / allocated) * 100)) : 0;
+              const depasse = reste < 0;
+              return (
+                <div className="trf-enveloppes">
+                  <div className="trf-enveloppes__rang">
+                    <span><i>Alloué</i><b>{fmtMoney(allocated, currency)}</b></span>
+                    <span><i>Dépensé</i><b>{fmtMoney(depense, currency)}</b></span>
+                    <span className={depasse ? 'is-depasse' : 'is-reste'}>
+                      <i>{depasse ? 'Dépassement' : 'Reste'}</i><b>{fmtMoney(Math.abs(reste), currency)}</b>
+                    </span>
+                  </div>
+                  <div className="trf-bar" style={{ height: 8, marginTop: 10 }}>
+                    <div style={{ width: `${part}%`, background: depasse ? 'var(--color-copper)' : 'var(--color-indigo)' }} />
+                  </div>
+                  <div className="trf-enveloppes__mot">
+                    {depasse
+                      ? `Les enveloppes sont dépassées de ${fmtMoney(-reste, currency)}.`
+                      : `${part} % des enveloppes engagées — il reste ${fmtMoney(reste, currency)} à dépenser en ${monthName}.`}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {branchBudgets.length === 0 && (
+              <div className="trf-empty" style={{ textAlign: 'left', lineHeight: 1.7 }}>
+                <b style={{ color: 'var(--color-indigo)', fontWeight: 500 }}>Aucune enveloppe posée.</b>
+                <br />
+                Une enveloppe est un montant que la Maison s’accorde chaque mois sur une catégorie —
+                le Local, les Matières premières, le Marketing. Le Trône compte alors ce qui en sort,
+                dit ce qu’il en reste, et prévient quand elle est dépassée.
+                <br />
+                <span className="mnd-muted" style={{ fontSize: 12 }}>
+                  « + Budget » en ouvre une. Rien n’est bloqué si elle est dépassée : une enveloppe
+                  informe, elle n’interdit pas.
+                </span>
+              </div>
+            )}
             {branchBudgets.map((b) => {
               const spent = spentOfCat(b.category);
               const remaining = b.monthlyXof - spent;
@@ -1368,18 +1416,41 @@ export default function Depenses() {
           </div>
 
           <div>
+            {/* ── LA PRÉVISION CESSE DE MENTIR — 22 août 2026 ────────
+                Elle affichait « conforme au budget » alors qu'AUCUNE enveloppe
+                n'était posée — une conformité à rien —, et sa phrase promettait
+                que « le résultat net gagne en marge après arbitrage des
+                engagements évitables », d'un arbitrage retiré le jour même.
+                Deux affirmations sans objet, sur le chiffre le plus regardé de
+                l'écran. Elle dit maintenant ce qu'elle sait, et rien de plus :
+                le réel à date, la projection, et la comparaison aux enveloppes
+                SEULEMENT quand il y en a. */}
             <div className="trf-obsidian" style={{ marginBottom: 14 }}>
               <div className="trf-obsidian__eyebrow">{isCurrent ? 'Prévision · fin de mois' : `Total du mois · ${monthName}`}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
                 <span className="trf-obsidian__value" style={{ fontSize: 36 }}>{fmtMoney(forecast, currency)}</span>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: savings > 0 ? 'var(--trf-success)' : 'var(--indigo-100)' }}>
-                  {savings > 0 ? `▼ ${fmtMoney(savings, currency)} déjà capturés` : 'conforme au budget'}
-                </span>
+                {isCurrent && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--indigo-100)' }}>
+                    réel à date · {fmtMoney(engaged, currency)}
+                  </span>
+                )}
               </div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'var(--indigo-100)', marginTop: 8 }}>
-                {isCurrent
-                  ? 'Après arbitrage des engagements évitables, le résultat net gagne en marge.'
-                  : 'Le mois est arrêté — les enveloppes ci-contre disent où il est parti.'}
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'var(--indigo-100)', marginTop: 8, lineHeight: 1.6 }}>
+                {(() => {
+                  if (branchBudgets.length === 0) {
+                    return isCurrent
+                      ? 'Projection au rythme des jours écoulés. Aucune enveloppe n’est posée — ce chiffre ne se compare donc à rien.'
+                      : 'Le mois est arrêté. Aucune enveloppe n’était posée — ce total ne se compare à rien.';
+                  }
+                  const depense = branchBudgets.reduce((n, b) => n + spentOfCat(b.category), 0);
+                  const reste = allocated - depense;
+                  /* On ne compare QUE ce qui est comparable : la projection porte
+                     sur toutes les dépenses, les enveloppes sur quelques
+                     catégories. Les mettre face à face ferait un rapport faux. */
+                  return reste < 0
+                    ? `Les enveloppes du mois sont dépassées de ${fmtMoney(-reste, currency)} — le détail est à gauche, catégorie par catégorie.`
+                    : `Il reste ${fmtMoney(reste, currency)} dans les enveloppes du mois. Ce total-ci porte sur TOUTES les dépenses, y compris hors enveloppe.`;
+                })()}
               </div>
             </div>
 
