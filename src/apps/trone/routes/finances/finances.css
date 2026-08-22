@@ -1138,3 +1138,70 @@
   margin-top: 7px;
   line-height: 1.5;
 }
+
+/* ── Le composeur de budget — 22 août 2026 ─────────────────────────
+   Toutes les catégories d'un coup, le total sous les yeux pendant qu'on
+   compose : c'est le total qu'on arbitre, pas les lignes une à une. */
+.trf-budlignes {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.trf-budligne {
+  display: grid;
+  grid-template-columns: 1fr auto 130px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: text;
+}
+.trf-budligne + .trf-budligne { border-top: 1px solid var(--hairline); }
+.trf-budligne:hover { background: var(--color-ivoire, #FBF8F2); }
+.trf-budligne__nom { font-family: var(--font-sans); font-size: 13.5px; color: var(--ink); }
+.trf-budligne__engage {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* L'enveloppe est déjà dépassée par ce qui est engagé : on le dit à la saisie,
+   pendant qu'on choisit le montant — pas après. */
+.trf-budligne__engage.is-depasse { color: var(--copper-700, #96412E); }
+.trf-budligne__champ {
+  text-align: right;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}
+.trf-budtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trf-budtotal b {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 27px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .trf-budligne { grid-template-columns: 1fr 110px; grid-template-areas: 'nom champ' 'engage champ'; }
+  .trf-budligne__nom { grid-area: nom; }
+  .trf-budligne__engage { grid-area: engage; }
+  .trf-budligne__champ { grid-area: champ; }
+}

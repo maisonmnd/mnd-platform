@@ -11,11 +11,12 @@ import { expenseOccurrences,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice,
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
+import { autoriserLaPurge } from '../../../../shared/sync';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -799,44 +800,52 @@ export default function Depenses() {
   /* — Budgets : créer / modifier / supprimer via une vraie modale (les
      window.prompt laissaient passer des catégories inexistantes et rendaient
      toute enveloppe immuable une fois créée). Une enveloppe par catégorie. */
+  /* ── LE BUDGET SE POSE D'UN SEUL GESTE — 22 août 2026 ──────────────
+     « Je veux aussi remplir différents montants pour chaque catégorie puis un
+     total pour le budget. »
+
+     L'enveloppe se créait une catégorie à la fois : neuf allers-retours pour
+     poser un budget, et jamais le total sous les yeux pendant qu'on le
+     compose — or c'est précisément le montant qu'on arbitre. Toutes les
+     catégories tiennent maintenant dans une seule table, le total s'additionne
+     à la frappe, et un montant laissé à zéro retire l'enveloppe.
+
+     Une seule porte : « + Budget » et « Modifier » ouvrent le même composeur.
+     Il n'y a plus de mode « création » ni de mode « édition » — il y a le
+     budget du mois, tel qu'il est, qu'on ajuste. */
   const [budgetOpen, setBudgetOpen] = useState(false);
-  const [budgetEditingId, setBudgetEditingId] = useState<string | null>(null);
-  const [budgetForm, setBudgetForm] = useState<{ category: string; amount: string }>({ category: '', amount: '' });
+  const [budgetLignes, setBudgetLignes] = useState<Record<string, string>>({});
   const branchBudgets = budgets.filter((b) => b.branchId === branch.id);
-  const openNewBudget = () => {
-    setBudgetEditingId(null);
-    const free = catNames.find((n) => !branchBudgets.some((b) => b.category === n)) ?? '';
-    setBudgetForm({ category: free, amount: '' });
+  const ouvrirLeBudget = () => {
+    const depart: Record<string, string> = {};
+    for (const b of branchBudgets) depart[b.category] = String(b.monthlyXof);
+    setBudgetLignes(depart);
     setBudgetOpen(true);
   };
-  const openEditBudget = (id: string) => {
-    const b = branchBudgets.find((x) => x.id === id);
-    if (!b) return;
-    setBudgetEditingId(id);
-    setBudgetForm({ category: b.category, amount: String(b.monthlyXof) });
-    setBudgetOpen(true);
-  };
-  const saveBudget = () => {
-    const n = parseInt(budgetForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
-    if (!budgetForm.category || n <= 0) return;
-    if (budgetEditingId) {
-      setBudgets((prev) => prev.map((b) => (b.id === budgetEditingId ? { ...b, category: budgetForm.category, monthlyXof: n } : b)));
-    } else {
-      /* Une enveloppe existe déjà pour cette catégorie → on la met à jour plutôt
-         que d'en créer une deuxième qui rendrait le « reste » illisible. */
-      const existing = branchBudgets.find((b) => b.category === budgetForm.category);
-      if (existing) setBudgets((prev) => prev.map((b) => (b.id === existing.id ? { ...b, monthlyXof: n } : b)));
-      else setBudgets((prev) => [...prev, { id: uid(), branchId: branch.id, category: budgetForm.category, monthlyXof: n }]);
-    }
+  const montantDeLigne = (cat: string): number =>
+    parseInt((budgetLignes[cat] ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+  const totalDuBudget = catNames.reduce((n, c) => n + montantDeLigne(c), 0);
+
+  const enregistrerLeBudget = () => {
+    const gardees = catNames.filter((c) => montantDeLigne(c) > 0);
+    const retirees = branchBudgets.filter((b) => montantDeLigne(b.category) <= 0);
+    /* RETIRER TOUTES LES ENVELOPPES D'UN COUP est un geste voulu, pas un cache
+       périmé : on le déclare au garde-fou, qui sinon bloquerait le vidage et
+       ferait réapparaître les enveloppes. Un laissez-passer, une poussée. */
+    if (retirees.length > 0) autoriserLaPurge('budgets');
+    setBudgets((prev) => {
+      const hors = prev.filter((b) => b.branchId !== branch.id);
+      const miennes: Budget[] = gardees.map((c) => {
+        const exist = branchBudgets.find((b) => b.category === c);
+        return exist
+          ? { ...exist, monthlyXof: montantDeLigne(c) }
+          : { id: uid(), branchId: branch.id, category: c, monthlyXof: montantDeLigne(c) };
+      });
+      return [...hors, ...miennes];
+    });
     setBudgetOpen(false);
   };
-  const deleteBudget = () => {
-    if (!budgetEditingId) return;
-    const b = branchBudgets.find((x) => x.id === budgetEditingId);
-    if (!b || !window.confirm(`Retirer l'enveloppe « ${b.category} » (${fmtMoney(b.monthlyXof, currency)}/mois) ? Les dépenses ne bougent pas.`)) return;
-    setBudgets((prev) => prev.filter((x) => x.id !== budgetEditingId));
-    setBudgetOpen(false);
-  };
+
   const spentOfCat = (cat: string) => live.filter((e) => e.category === cat).reduce((s, e) => s + expenseTotal(e), 0);
   // Historique d'une enveloppe : dépensé (vivant) sur les 3 derniers mois, mois choisi inclus.
   const historyOfCat = (cat: string) =>
@@ -1319,7 +1328,7 @@ export default function Depenses() {
           <div className="trf-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Les enveloppes · {monthName}</div>
-              <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={openNewBudget}>+ Budget</button>
+              <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }} onClick={ouvrirLeBudget}>+ Budget</button>
             </div>
 
             {/* ── LE SOMMAIRE DES ENVELOPPES — 22 août 2026 ──────────
@@ -1389,7 +1398,7 @@ export default function Depenses() {
                         {b.category}
                       </button>
                       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--trf-error)' : 'var(--trf-success)' }}>{over ? 'Dépassé' : 'Maîtrisé'}</span>
-                      <button className="trf-iconbtn" onClick={() => openEditBudget(b.id)}>Modifier</button>
+                      <button className="trf-iconbtn" onClick={ouvrirLeBudget}>Modifier</button>
                     </div>
                     <div className="trf-spark" title="Dépensé sur les 3 derniers mois" aria-label="Historique des 3 derniers mois">
                       {hist.map((h) => (
@@ -1855,78 +1864,64 @@ export default function Depenses() {
       )}
 
       {/* ============ MODALE · BUDGET (enveloppe mensuelle par catégorie) ============ */}
-      {budgetOpen && (() => {
-        const budgetAmountNum = parseInt(budgetForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
-        const canSaveBudget = !!budgetForm.category && budgetAmountNum > 0;
-        return (
-        <Modal title={budgetEditingId ? 'Modifier l’enveloppe' : 'Nouvelle enveloppe budgétaire'} onClose={() => setBudgetOpen(false)} width={520}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {budgetOpen && (
+        <Modal title="Le budget du mois" onClose={() => setBudgetOpen(false)} width={560}>
+          {catNames.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune catégorie de dépense — créez-en une d’abord.</span>
+              <button className="trf-act" onClick={() => addCategory()}>+ Nouvelle catégorie</button>
+            </div>
+          ) : (
             <div>
-              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Catégorie de dépense</div>
-              {catNames.length === 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune catégorie de dépense — créez-en une d’abord.</span>
-                  <button
-                    className="trf-act"
-                    onClick={() => { const n = addCategory(); if (n) setBudgetForm((f) => ({ ...f, category: n })); }}
-                  >
-                    + Nouvelle catégorie
-                  </button>
-                </div>
-              ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 14 }}>
+                Un montant par catégorie, et le total se fait tout seul. Une catégorie laissée à zéro
+                n’a pas d’enveloppe — la laisser vide n’interdit rien, elle ne sera simplement pas suivie.
+              </div>
+
+              <div className="trf-budlignes">
                 {catNames.map((c) => {
-                  const taken = branchBudgets.some((b) => b.category === c && b.id !== budgetEditingId);
+                  const engage = spentOfCat(c);
+                  const pose = montantDeLigne(c);
+                  const depasse = pose > 0 && engage > pose;
                   return (
-                    <button
-                      key={c}
-                      className={`trf-chip ${budgetForm.category === c ? 'is-active' : ''}`}
-                      style={taken ? { opacity: 0.45 } : undefined}
-                      title={taken ? 'Une enveloppe existe déjà — la choisir la mettra à jour' : undefined}
-                      onClick={() => setBudgetForm((f) => ({ ...f, category: c }))}
-                    >
-                      {c}
-                    </button>
+                    <label className="trf-budligne" key={c}>
+                      <span className="trf-budligne__nom">{c}</span>
+                      <span className={`trf-budligne__engage ${depasse ? 'is-depasse' : ''}`}>
+                        {engage > 0 ? `engagé ${fmtMoney(engage, currency)}` : '—'}
+                      </span>
+                      <input
+                        className="mnd-input trf-budligne__champ"
+                        inputMode="numeric"
+                        placeholder="0"
+                        aria-label={`Enveloppe mensuelle pour ${c}`}
+                        value={budgetLignes[c] ?? ''}
+                        onChange={(ev) => setBudgetLignes((f) => ({ ...f, [c]: ev.target.value.replace(/[^0-9]/g, '') }))}
+                      />
+                    </label>
                   );
                 })}
               </div>
+
+              {/* LE TOTAL SOUS LES YEUX PENDANT QU'ON COMPOSE — c'est lui
+                  qu'on arbitre, pas les lignes une à une. */}
+              <div className="trf-budtotal">
+                <span>Budget total · {monthName}</span>
+                <b>{fmtMoney(totalDuBudget, currency)}</b>
+              </div>
+              {totalDuBudget > 0 && revenue > 0 && (
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, textAlign: 'right' }}>
+                  soit {Math.round((totalDuBudget / revenue) * 100)} % du revenu de {monthName}
+                </div>
               )}
-            </div>
-            <label className="mnd-field">
-              <span className="mnd-field__label">Enveloppe mensuelle · {currency}</span>
-              <input
-                className="mnd-input" inputMode="numeric" value={budgetForm.amount} placeholder="0"
-                onChange={(e) => setBudgetForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))}
-                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
-              />
-            </label>
-            {budgetForm.category && (
-              <div className="mnd-muted" style={{ fontSize: 11.5 }}>
-                Engagé en {monthName} sur « {budgetForm.category} » : <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(spentOfCat(budgetForm.category), currency)}</b>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4 }}>
-              {budgetEditingId
-                ? <button className="mnd-btn mnd-btn--ghost" style={{ color: 'var(--trf-error)' }} onClick={deleteBudget}>Retirer l’enveloppe</button>
-                : <span />}
-              <div style={{ display: 'flex', gap: 10 }}>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
                 <button className="mnd-btn mnd-btn--ghost" onClick={() => setBudgetOpen(false)}>Annuler</button>
-                {/* Jamais un bouton muet : désactivé tant qu'il manque la catégorie
-                    ou le montant, avec la raison en infobulle. */}
-                <button
-                  className="mnd-btn"
-                  disabled={!canSaveBudget}
-                  title={canSaveBudget ? undefined : !budgetForm.category ? 'Choisissez une catégorie de dépense' : 'Saisissez un montant supérieur à zéro'}
-                  onClick={saveBudget}
-                >
-                  {budgetEditingId ? 'Enregistrer' : 'Créer l’enveloppe'}
-                </button>
+                <button className="mnd-btn" onClick={enregistrerLeBudget}>Enregistrer le budget</button>
               </div>
             </div>
-          </div>
+          )}
         </Modal>
-        );
-      })()}
+      )}
 
       {expDrill && (
         <Modal title={expDrill.title} onClose={() => setExpDrill(null)} width={620}>

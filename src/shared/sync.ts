@@ -375,7 +375,21 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
          Ce qui reste permis : retirer un persona parmi six, une caisse parmi
          trois — un geste délibéré, qui laisse la table debout. */
       const structurelle = SANS_SUPPRESSION.has(table);
-      const videTout = prev.size > 0 && deletes.length >= prev.size;
+      /* UNE SEULE LIGNE N'EST JAMAIS UN VIDAGE — 22 août 2026.
+         « À chaque fois que je retire une enveloppe, elle revient. »
+
+         Ce garde-fou existe contre un cache périmé qui effacerait une table
+         entière. Mais avec `>= prev.size`, il frappait aussi le cas le plus
+         banal qui soit : retirer LA dernière ligne. Une table à une enveloppe,
+         une caisse, une catégorie, un persona devenait inexpugnable — la
+         suppression était bloquée, le poste se réalignait sur le serveur, et
+         la ligne réapparaissait sans un mot d'explication.
+
+         Un clic sur « Supprimer » n'est pas un accident de synchronisation. Le
+         seuil part donc de DEUX : au-delà, le doute reste entier ; à un, le
+         geste est délibéré, et son coût — une ligne — est sans commune mesure
+         avec celui de ne plus jamais pouvoir supprimer. */
+      const videTout = prev.size > 1 && deletes.length >= prev.size;
       const enMasse = deletes.length >= 10 && deletes.length * 4 >= prev.size;
       /* LE JOURNAL DES MOUVEMENTS SE REMBOBINE PAR RÉFÉRENCE : annuler une
          fabrication à douze ingrédients ou la suppression d'une facture retire
