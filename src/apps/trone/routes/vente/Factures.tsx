@@ -6,7 +6,7 @@ import { PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom, maisonRaison, signeLeMessage } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
@@ -1499,7 +1499,7 @@ export default function Factures() {
               })()}
 
               <div className="trv-doc__foot">
-                <div className="trv-doc__fon">mi nyɔ́ ɖɛkpɛ</div>
+                <div className="trv-doc__fon">{DEVISE_COMPLETE}</div>
                 {/* LA LIGNE LÉGALE VIENT DES PARAMÈTRES (13 août). Un RCCM codé
                     en dur ici contredisait celui de l'identité — deux numéros
                     pour une seule maison, et c'est la pièce OFFICIELLE. */}

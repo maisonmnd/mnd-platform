@@ -1,4 +1,5 @@
 import { createStore, useStore, HOUSE_BLANK } from '../../../../shared/store';
+import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
 
@@ -876,7 +877,7 @@ export const THEME_DEFAULT: ThemeConfig = {
   seal: 'copper',
   accent: '#B97A4A',
   accentName: 'Cuivre Noble',
-  verbe: 'mi nyɔ́ ɖɛkpɛ — la beauté se transmet, tête haute.',
+  verbe: DEVISE_COMPLETE,
 };
 
 export const themeStore = createStore<ThemeConfig>('mnd_theme', THEME_DEFAULT);

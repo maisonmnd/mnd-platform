@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La devise s'écrit en fon, partout — 22 août, PUBLIÉ
+
+« S'écrit comme ça : mi nyɔ́ ɖɛkpɛ • la maison veille, au lieu de mi nyó dekpe.
+Respectez les polices fon ! » Deux fautes en une, et la seconde était plus
+profonde que je ne le croyais.
+
+CE QUE J'AI DÉCOUVERT EN CHERCHANT LA POLICE : **ni Cormorant Garamond ni Jost
+ne contiennent ɔ, ɖ, ɛ.** Vérifié en lisant leur table `cmap` — les trois
+lettres manquent dans les deux familles de la Maison. À l'écran, depuis
+toujours, la devise empruntait le dessin d'une police de secours choisie par la
+machine : trois lettres étrangères au milieu de notre propre devise. Sur le
+papier, on translittérait (« mi nyó dekpe »), et le fichier `pdf.ts` portait même
+un commentaire assumant ce pis-aller.
+
+LA POLICE. EB Garamond porte les trois lettres, l'accent flottant et les
+capitales Ɔ Ɖ Ɛ — et c'est une Garamond, comme Cormorant : la parenté rend
+l'emprunt invisible. Sous-ensemble Google réduit aux seuls caractères de la
+devise : 21 ko en TTF pour les PDF, 11 ko en WOFF2 pour l'écran. Licence OFL,
+provenance et charset dans `src/ds/fonts/LISEZ-MOI.md` — LE CHARSET EST FIGÉ :
+changer le texte de la devise oblige à régénérer le fichier.
+
+À L'ÉCRAN, `unicode-range` restreint `MND Fon` aux SEULES lettres manquantes
+(U+0186, U+0189, U+0190, U+0254, U+025B, U+0256, U+0301) ; posée en tête des
+piles `--font-serif` et `--font-sans`, elle ne prend rien aux polices de la
+Maison.
+
+SUR LE PAPIER, `pieDeLaMaison()` charge le TTF comme `loadSeal` charge le sceau,
+l'embarque UNE fois par document, et écrit le nom dans la police du document
+puis la devise dans la sienne, l'ensemble centré. Si le fichier manque (hors
+ligne), on retombe sur la translittération : une devise approchée vaut mieux
+qu'une ligne de carrés vides.
+
+L'ACCENT SE POSE À LA MAIN. « ɔ́ » n'existe pas en un seul caractère : c'est ɔ
+suivi d'un accent flottant que les navigateurs recalent par leurs tables de
+composition. jsPDF n'a pas de moteur de composition — mesure faite, l'accent
+d'EB Garamond est centré sur l'origine (xMin −78, xMax +79), il tomberait donc
+à DROITE du ɔ, dans le blanc. On l'écrit séparément, reculé de 0,219 em : le ɔ
+avance de 439 millièmes, son centre visuel est à 220.
+
+CINQ PDF SIGNENT DÉSORMAIS EN FON — facture, reçu, résumé, bulletin de paie,
+rapport de caisse. Le reçu disait explicitement « pas de devise en fon ici » :
+c'était vrai des polices intégrées, ça ne l'est plus.
+
+UNE SEULE SOURCE POUR LA GRAPHIE. `DEVISE_COMPLETE` remplace NEUF copies qui
+avaient toutes divergé : « · nous sommes beaux, et nous le savons », « — la
+maison veille. », « — « Nous sommes beaux, et nous le savons. » ». Portail,
+Bilan, Certificat, Consultation, Ma Couronne, QR codes, Vitrine, facture à
+l'écran, et le verbe par défaut du thème.
+
 ## Le trousseau, et le rapport corrigé — 22 août, PUBLIÉ
 
 **LE TROUSSEAU.** « Un bouton pour ouvrir toutes les caisses qui ont un code

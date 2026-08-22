@@ -3,6 +3,15 @@
    relit le PDF produit. Lancé par `node scripts/verifie-rapport.mjs`. */
 import { jsPDF } from 'jspdf';
 import { cashbookPdf, type CashLedger } from '../src/shared/pdf';
+import { readFileSync } from 'node:fs';
+
+/* LA POLICE FON, SERVIE COMME LE FERAIT LE SITE. Sans elle, le moteur retombe
+   sur la translittération — et le harnais validerait justement ce qu’on veut
+   ne plus voir. On la lit donc sur le disque, à la place du réseau. */
+const police = readFileSync('public/assets/fonts/devise-fon.ttf');
+globalThis.fetch = (async (u: any) => (String(u).includes('devise-fon.ttf')
+  ? { ok: true, arrayBuffer: async () => police.buffer.slice(police.byteOffset, police.byteOffset + police.byteLength) }
+  : { ok: false })) as any;
 
 /* `save()` écrit un fichier dans un navigateur, et cherche `fs` sous Node. Ici
    on le remplace par une prise : c'est le document qu'on veut, pas le fichier.
@@ -58,11 +67,14 @@ dit(texte.startsWith('%PDF'), 'le fichier est un PDF');
 dit(texte.includes('Le Comptoir'), 'le nom de la caisse est écrit');
 dit(texte.includes('Solde au 01 ao'), 'le solde d’ouverture ouvre le livre');
 
-/* ② LA DEVISE PASSE LE PAPIER. WinAnsi ne sait pas tracer ɖ ni ɛ, et jsPDF ne
-   dégrade pas un caractère mais LA LIGNE : sans translittération, le pied de
-   page sortait en charabia (le mal du 11 août). */
-dit(texte.includes('mi ny') && texte.includes('dekpe'), 'la devise s’imprime translittérée');
+/* ② LA DEVISE S’ÉCRIT EN VRAI FON — 22 août 2026. Elle sortait « mi nyó dekpe »
+   parce que les polices intégrées d’un PDF ne connaissent que le WinAnsi. On
+   embarque désormais la nôtre : la graphie doit être intacte, et surtout la
+   translittération ne doit plus apparaître nulle part. */
+dit(texte.includes('DeviseFon'), 'la police fon est embarquée dans le document');
+dit(!texte.includes('nyó dekpe') && !texte.includes('nyo dekpe'), 'plus aucune translittération de la devise');
 dit(!texte.includes('?ekpe'), 'aucun point d’interrogation à la place du fon');
+dit(police.length > 4000, `la police pèse ce qu’elle doit (${police.length} octets)`);
 
 /* ③ Un long livre passe à la page suivante — et l’en-tête revient avec lui,
    sinon les colonnes de la page 2 ne diraient plus ce qu’elles portent. */

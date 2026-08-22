@@ -3,3 +3,24 @@
    Both are the brand's actual specified families, served from Google Fonts. */
 
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Jost:wght@300;400;500;600;700&display=swap');
+
+
+/* ── LES LETTRES FON — 22 août 2026 ─────────────────────────────────
+   « Respectez les polices fon ! » (Yéman). Ni Cormorant Garamond ni Jost ne
+   portent ɔ, ɖ ni ɛ : jusqu’ici, « mi nyɔ́ ɖɛkpɛ » empruntait à l’écran le
+   dessin d’une police de secours choisie par la machine — trois lettres
+   étrangères au milieu de la devise de la Maison.
+
+   EB Garamond les porte, et c’est une Garamond : la parenté avec Cormorant
+   rend l’emprunt invisible. La plage `unicode-range` la restreint aux SEULES
+   lettres manquantes — tout le reste continue de venir des polices de la
+   Maison. Le fichier est un sous-ensemble de 11 ko, licence OFL, servi par
+   nous : voir `src/ds/fonts/LISEZ-MOI.md`. */
+@font-face {
+  font-family: 'MND Fon';
+  src: url('../fonts/devise-fon.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0186, U+0189, U+0190, U+0254, U+025B, U+0256, U+0301;
+}

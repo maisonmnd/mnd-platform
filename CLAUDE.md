@@ -69,6 +69,15 @@ Ne jamais coder en dur une clé de service, un secret, ni un nom de domaine.
 - Animations fondues, sans rebond.
 - Graphiques SVG faits main (pas de librairie de charts).
 - La marque s'écrit **MND** — le ɖ appartient à *mi nyɔ́ ɖɛkpɛ* seulement.
+- **La devise s'écrit `mi nyɔ́ ɖɛkpɛ • la maison veille`** — une seule source,
+  `DEVISE_COMPLETE` dans `shared/identite.ts`. Jamais recopiée à la main :
+  chaque copie finissait par diverger (« · nous sommes beaux », « — la maison
+  veille. »). La puce ronde, pas le point médian : ce n’est pas une énumération.
+- **Les lettres fon ne se translittèrent JAMAIS.** Ni Cormorant ni Jost ne
+  portent ɔ, ɖ, ɛ : la police `MND Fon` (EB Garamond, sous-ensemble OFL) les
+  sert à l'écran par `unicode-range`, et `pieDeLaMaison()` l'embarque dans les
+  PDF. Voir `src/ds/fonts/LISEZ-MOI.md` — y compris pourquoi l’accent de « ɔ́ »
+  se pose à la main sur le papier.
 - **Tout message écrit par l'IA se termine par la devise** — `signeLeMessage()`
   de `shared/identite.ts`. Elle est posée PAR LE CODE, jamais demandée au
   modèle dans son instruction : un modèle oublie une fois sur vingt,

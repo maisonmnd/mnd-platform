@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { DEVISE_COMPLETE } from '../../shared/identite';
 import { asset } from '../../shared/asset';
 
 /* Bilan de Séance — Le Carnet de Suivi. Panneau de réglage (masqué à l'impression)
@@ -96,7 +97,7 @@ export default function App() {
   const resume = () =>
     `Maison MND — Bilan de séance de ${client} (${service}, ${frDate(dateIso)}).`
     + (next ? ` Prochaine visite conseillée : ${next}.` : '')
-    + ` Mi nyɔ́ ɖɛkpɛ.`;
+    + ` ${DEVISE_COMPLETE}.`;
   const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(resume())}`, '_blank', 'noopener');
   const shareEmail = () => { window.location.href = `mailto:?subject=${encodeURIComponent('Votre bilan de séance — Maison MND')}&body=${encodeURIComponent(resume())}`; };
 
@@ -238,7 +239,7 @@ export default function App() {
               <div className="seal" aria-hidden="true">Les<br />Quatre<br />Temps</div>
               <div className="signature">
                 <p className="sig-nom">{praticien}</p>
-                <p className="sig-role">Maison MND · mi nyɔ́ ɖɛkpɛ</p>
+                <p className="sig-role">Maison MND · {DEVISE_COMPLETE}</p>
               </div>
             </footer>
           </article>

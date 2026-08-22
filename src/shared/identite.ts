@@ -60,12 +60,17 @@ export const DEVISE_MAISON = 'mi nyɔ́ ɖɛkpɛ';
 /** Sa traduction — pour les écrits publics, lus par qui ne parle pas fon. */
 export const DEVISE_TRADUITE = 'nous sommes beaux, et nous le savons';
 
+/* LA DEVISE ENTIÈRE, telle qu’elle s’écrit — 22 août 2026, rappel de Yéman.
+   Le fon et son écho français, séparés par une puce ronde et non par le point
+   médian du reste de la Maison : la devise n’est pas une énumération. */
+export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ • la maison veille';
+
 /** Signature au bas d'un message : le picto de la branche, le nom, la devise.
     ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut
     pas voyager. Le picto typographique en tient lieu ; le vrai logo se pose en
     photo de profil du compte WhatsApp, où il signe alors chaque message. */
 export const houseSignature = (picto?: string): string =>
-  `${picto ?? '◈'} ${maisonNom()} · ${DEVISE_MAISON}`;
+  `${picto ?? '◈'} ${maisonNom()} · ${DEVISE_COMPLETE}`;
 
 /** Le fon à plat : accents ôtés, ɖ→d, ɛ→e, ɔ→o. Sert UNIQUEMENT à
     reconnaître la devise sous ses orthographes approximatives. */

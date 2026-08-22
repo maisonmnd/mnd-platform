@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react';
 import { Modal } from '../../../../ds/components';
 import { fmtIn } from '../../../../shared/currency';
 import { cashboxCurrency, caisseDiscrete, type Cashbox } from '../../../../shared/finance';
-import { maisonNom, DEVISE_MAISON } from '../../../../shared/identite';
+import { maisonNom } from '../../../../shared/identite';
 import { identiteCourante } from '../../../../shared/journal';
 import { cashbookPdf, type CashLedger, type CashGroup } from '../../../../shared/pdf';
 import { useCaisses, soldeVisible } from './tiroirs';
@@ -153,7 +153,6 @@ export function RapportDeCaisse({
         `Absente de ce rapport : ${c.name} — caisse discrète refermée. `
         + 'Son livre ne s’imprime pas sans son code.'
       ));
-      const pied = `${maisonNom()} · ${DEVISE_MAISON}`;
 
       /* UNE SEULE CAISSE RETENUE MÉRITE SA PLEINE PAGE : les quatre cases de
          résumé n'ont de sens que sur une monnaie unique. À plusieurs, elles
@@ -175,7 +174,6 @@ export function RapportDeCaisse({
           ],
           groups: [{ ledgers: [l] }],
           refus: nom ? undefined : refus,
-          footer: pied,
           filename: `rapport-caisse-${sansFioriture(seule.name)}-${debutISO}.pdf`,
         });
       } else {
@@ -196,7 +194,6 @@ export function RapportDeCaisse({
             }
             : undefined,
           refus,
-          footer: pied,
           filename: `rapport-caisses-${sansFioriture(branch.name)}-${debutISO}.pdf`,
         });
       }

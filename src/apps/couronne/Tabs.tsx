@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { DEVISE_COMPLETE } from '../../shared/identite';
 import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
@@ -94,7 +95,7 @@ function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void })
         {bilan.prochaineVisite && (
           <div className="mc-bilannext">Prochaine visite conseillée — {bilan.prochaineVisite}</div>
         )}
-        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · mi nyɔ́ ɖɛkpɛ</div>}
+        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_COMPLETE}</div>}
 
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={onClose}>Fermer</button>
       </div>

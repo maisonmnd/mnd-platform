@@ -4,7 +4,7 @@
    l'API WhatsApp Business (serveur) — ici on télécharge le PDF puis on ouvre le
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
-import { maisonNom } from './identite';
+import { maisonNom, DEVISE_COMPLETE } from './identite';
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -54,6 +54,9 @@ function pdfSafe(s: string): string {
 
 function normalizeSpaces(doc: { text: (...args: any[]) => any }): void {
   const orig = doc.text.bind(doc);
+  /* Mis de côté pour la devise : elle s’écrit en fon, dans sa propre police,
+     et ne doit surtout pas passer par la translittération. */
+  (doc as any).__texteBrut = orig;
   const fix = (s: unknown) => (typeof s === 'string' ? pdfSafe(s) : s);
   doc.text = ((text: any, ...rest: any[]) =>
     orig(Array.isArray(text) ? text.map(fix) : fix(text), ...rest)) as any;
@@ -75,6 +78,121 @@ async function loadSeal(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/* ── LA DEVISE S'IMPRIME EN FON — 22 août 2026 ──────────────────────
+   « S'écrit comme ça : mi nyɔ́ ɖɛkpɛ • la maison veille, au lieu de mi nyó
+   dekpe. Respectez les polices fon ! » (Yéman).
+
+   CE QUI BLOQUAIT. Les quatorze polices intégrées d'un PDF n'écrivent que le
+   WinAnsi : ni ɔ, ni ɖ, ni ɛ. On translittérait donc — « mi nyó dekpe » — et
+   c'était un pis-aller, pas une graphie. Pire : les DEUX polices de la Maison,
+   Cormorant Garamond et Jost, ne portent pas ces lettres non plus. À l'écran
+   comme sur le papier, le fon empruntait le dessin d'une police de secours
+   choisie par la machine.
+
+   CE QU'ON EMBARQUE. `public/assets/fonts/devise-fon.ttf` — EB Garamond,
+   réduite aux seules lettres de la devise (21 ko). Un Garamond, comme
+   Cormorant : la devise ne dépareille pas à côté du reste. Licence OFL, voir
+   le LISEZ-MOI du dossier.
+
+   L'ACCENT SE POSE À LA MAIN. « ɔ́ » n'existe pas en un seul caractère : c'est
+   ɔ suivi d'un accent flottant, que les navigateurs recalent grâce aux tables
+   de composition. jsPDF n'a pas de moteur de composition — il dessinerait
+   l'accent centré sur le point d'arrivée du ɔ, donc à sa droite, dans le
+   blanc. On l'écrit donc séparément, reculé de ce qu'il faut pour retomber sur
+   le ventre de la lettre. La mesure vient de la police elle-même : le ɔ avance
+   de 439/1000 d'em et son centre visuel est à 220 — l'accent recule donc de
+   219 millièmes. */
+
+const FICHIER_FON = 'devise-fon.ttf';
+const POLICE_FON = 'DeviseFon';
+/** ɔ avance de 439 millièmes d'em, son centre est à 220 : l'accent recule de 219. */
+const RECUL_DE_L_ACCENT = 0.219;
+const ACCENT = '́';
+
+let deviseEnBase64: string | null | undefined;
+
+/** Charge la police fon une fois pour toutes. `null` = indisponible. */
+async function policeFon(): Promise<string | null> {
+  if (deviseEnBase64 !== undefined) return deviseEnBase64;
+  try {
+    const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+    const res = await fetch(`${base}/assets/fonts/${FICHIER_FON}`);
+    if (!res.ok) { deviseEnBase64 = null; return null; }
+    const buf = new Uint8Array(await res.arrayBuffer());
+    let brut = '';
+    for (let i = 0; i < buf.length; i++) brut += String.fromCharCode(buf[i]);
+    deviseEnBase64 = btoa(brut);
+  } catch {
+    deviseEnBase64 = null;
+  }
+  return deviseEnBase64;
+}
+
+/* ── LE PIED DE LA MAISON ────────────────────────────────────────────
+   Le nom dans la police du document, la devise dans la sienne, l'ensemble
+   centré. Si la police fon manque (fichier absent, hors ligne), on retombe sur
+   la translittération plutôt que sur des glyphes parasites : une devise
+   approchée vaut mieux qu'une ligne de carrés vides. */
+export async function pieDeLaMaison(
+  doc: any,
+  W: number,
+  y: number,
+  o: { taille?: number; couleur?: string; nom?: string } = {},
+): Promise<void> {
+  const taille = o.taille ?? 8;
+  const couleur = o.couleur ?? SOFT;
+  const prefixe = `${o.nom ?? maisonNom()} · `;
+  const b64 = await policeFon();
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(taille);
+  doc.setTextColor(couleur);
+
+  if (!b64) {
+    doc.text(prefixe + DEVISE_COMPLETE, W / 2, y, { align: 'center' });
+    return;
+  }
+
+  try {
+    /* Une seule fois par document : le rapport signe CHAQUE page, et
+       réembarquer la police à chaque pied gonflerait le fichier pour rien. */
+    if (!(doc as any).__fonPrete) {
+      doc.addFileToVFS(FICHIER_FON, b64);
+      doc.addFont(FICHIER_FON, POLICE_FON, 'normal');
+      (doc as any).__fonPrete = true;
+    }
+  } catch {
+    doc.text(prefixe + DEVISE_COMPLETE, W / 2, y, { align: 'center' });
+    return;
+  }
+
+  /* Le texte brut : `normalizeSpaces` translittère tout ce qui passe par
+     `doc.text`, et c'est précisément ce qu'on ne veut pas ici. */
+  const brut = (doc as any).__texteBrut ?? doc.text.bind(doc);
+  const sansAccent = DEVISE_COMPLETE.replace(ACCENT, '');
+  const iAccent = DEVISE_COMPLETE.indexOf(ACCENT);
+  const avant = DEVISE_COMPLETE.slice(0, iAccent).replace(ACCENT, '');
+
+  const largeurNom = doc.getTextWidth(prefixe);
+  doc.setFont(POLICE_FON, 'normal');
+  doc.setFontSize(taille);
+  const largeurDevise = doc.getTextWidth(sansAccent);
+  const x0 = (W - (largeurNom + largeurDevise)) / 2;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(couleur);
+  doc.text(prefixe, x0, y);
+
+  doc.setFont(POLICE_FON, 'normal');
+  doc.setTextColor(couleur);
+  brut(sansAccent, x0 + largeurNom, y);
+  if (iAccent > 0) {
+    const recul = RECUL_DE_L_ACCENT * taille * 25.4 / 72;
+    brut(ACCENT, x0 + largeurNom + doc.getTextWidth(avant) - recul, y);
+  }
+  doc.setFont('helvetica', 'normal');
 }
 
 export type PdfLine = { label: string; qty: number; unit: string; total: string };
@@ -269,10 +387,7 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   }
 
   // — Pied —
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(SOFT);
-  doc.text('Le cheveu est une couronne. La Maison veille.', W / 2, 285, { align: 'center' });
+  await pieDeLaMaison(doc, W, 285);
 
   const filename = `${d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture'}-${d.number}.pdf`;
   doc.save(filename);
@@ -392,10 +507,11 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(SOFT);
-  /* ⚠ Pas de devise en fon ici : les polices standard du PDF (WinAnsi) n'ont ni
-     « ɔ » ni « ɖ » ni « ɛ » — jsPDF tracerait des glyphes parasites. La devise
-     vit dans les messages et à l'écran, pas dans les documents imprimés. */
-  doc.text(`Reçu émis par Le Trône · ${maisonNom()}`, W / 2, 128, { align: 'center' });
+  /* LA DEVISE S’IMPRIME ICI AUSSI — 22 août 2026. Ce pied disait « pas de
+     devise en fon : WinAnsi n'a ni ɔ ni ɖ ni ɛ ». C'était vrai des polices
+     intégrées ; ça ne l’est plus depuis qu’on embarque la nôtre. */
+  doc.text('Reçu émis par Le Trône', W / 2, 124, { align: 'center' });
+  await pieDeLaMaison(doc, W, 129, { taille: 7.5 });
 
   const filename = `Recu-${d.number}.pdf`;
   doc.save(filename);
@@ -488,8 +604,9 @@ export async function summaryPdf(o: {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(SOFT);
-    doc.text(o.footer, W / 2, 285, { align: 'center' });
+    doc.text(o.footer, W / 2, 280, { align: 'center' });
   }
+  await pieDeLaMaison(doc, W, 286);
   doc.save(o.filename);
   return o.filename;
 }
@@ -600,7 +717,8 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   }
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
-  doc.text(`Document généré par Le Trône · ${maisonNom()}`, W / 2, 288, { align: 'center' });
+  doc.text('Document généré par Le Trône', W / 2, 283, { align: 'center' });
+  await pieDeLaMaison(doc, W, 288, { taille: 7.5 });
   doc.save(d.filename);
   return d.filename;
 }
@@ -646,7 +764,6 @@ export async function cashbookPdf(o: {
   groups: CashGroup[];
   aside?: { heading: string; note: string; groups: CashGroup[] };
   refus?: string[];
-  footer: string;
   filename: string;
 }): Promise<string> {
   const { jsPDF } = await import('jspdf');
@@ -879,10 +996,10 @@ export async function cashbookPdf(o: {
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
+    await pieDeLaMaison(doc, W, 287, { taille: 7 });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(SOFT);
-    doc.text(o.footer, W / 2, 287, { align: 'center' });
     if (pages > 1) doc.text(String(i) + ' / ' + String(pages), W - M, 287, { align: 'right' });
   }
   doc.save(o.filename);

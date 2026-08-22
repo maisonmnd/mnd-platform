@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Field, Input, Select } from '../../ds/components';
 
@@ -173,7 +174,7 @@ export default function App() {
 
   const waMessage =
     `Maison MND — votre certificat « ${formation.titre} » est prêt, ${nom}. ` +
-    `Toutes nos félicitations. mi nyɔ́ ɖɛkpɛ.`;
+    `Toutes nos félicitations. ${DEVISE_COMPLETE}.`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
 
   const mailSubject = 'Votre certificat Maison MND';
@@ -331,7 +332,7 @@ export default function App() {
                   </div>
 
                   <div className="ct-devise-culturelle">
-                    mi nyɔ́ ɖɛkpɛ · nous sommes beaux, et nous le savons.
+                    {DEVISE_COMPLETE}
                   </div>
                 </div>
               </section>

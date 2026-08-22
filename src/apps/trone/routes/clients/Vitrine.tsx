@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
 import { Button, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -183,7 +184,7 @@ export function InvitationCouronne({ surComptoir }: {
       <b>3</b> · « Ajouter à l'écran d'accueil » — elle s'installe comme une application
     </div>
     <div class="lien">${lienCouronne}</div>
-    <div class="devise">mi nyɔ́ ɖɛkpɛ — la maison veille.</div>
+    <div class="devise">${DEVISE_COMPLETE}</div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body></html>`);

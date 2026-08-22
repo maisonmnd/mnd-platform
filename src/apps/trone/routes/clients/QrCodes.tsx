@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { toast } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonNom, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
@@ -73,7 +73,7 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
     ${o.grand ? `<div class="grand">${o.grand}</div>` : ''}
     ${o.sousGrand ? `<div class="sousgrand">${o.sousGrand}</div>` : ''}
     <div class="etapes">${o.etapes.map((e, i) => `<b>${i + 1}</b> · ${e}`).join('<br />')}</div>
-    <div class="devise">mi nyɔ́ ɖɛkpɛ — la maison veille.</div>
+    <div class="devise">${DEVISE_COMPLETE}</div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body></html>`;
@@ -246,7 +246,7 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
         </div>
       )}
       <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: '#9E6238' }}>
-        mi nyɔ́ ɖɛkpɛ — la maison veille.
+        {DEVISE_COMPLETE}
       </div>
       <div style={{ position: 'absolute', bottom: 16, fontSize: 11.5, color: '#8a8a93', letterSpacing: '.08em' }}>
         toucher l’écran pour fermer · Échap

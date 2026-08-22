@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Seal } from '../../ds/components';
 import { fmtMoney } from '../../shared/currency';
@@ -500,7 +501,7 @@ export default function App() {
         {scene === 'seuil' && (
           <section className="lc-seuil mnd-rise">
             <div className="lc-seuil__copy">
-              <div className="lc-eyebrow">mi nyɔ́ ɖɛkpɛ · nous sommes beaux</div>
+              <div className="lc-eyebrow">{DEVISE_COMPLETE}</div>
               <h1 className="lc-display">Avant le rituel,<br />le diagnostic.</h1>
               <p className="lc-lead">
                 La première rencontre avec la Maison se fait ici, où que vous soyez dans le monde.

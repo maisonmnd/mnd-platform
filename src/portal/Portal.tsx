@@ -1,4 +1,5 @@
 import { asset } from '../shared/asset';
+import { DEVISE_COMPLETE } from '../shared/identite';
 import { Eyebrow, Seal } from '../ds/components';
 
 /* Le portail présente les cinq sœurs — même sang, visages très distincts.
@@ -65,7 +66,7 @@ export default function Portal() {
         <Seal color="indigo" size={56} style={{ margin: '0 auto' }} />
         <Eyebrow>Maison MND · Cotonou · Édition Souveraine</Eyebrow>
         <h1>Cinq sœurs, une couronne.</h1>
-        <p className="signature">mi nyɔ́ ɖɛkpɛ — « Nous sommes beaux, et nous le savons. »</p>
+        <p className="signature">{DEVISE_COMPLETE}</p>
       </header>
 
       <main className="po-grid">

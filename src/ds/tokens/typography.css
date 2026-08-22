@@ -4,8 +4,10 @@
 
 :root {
   /* ---- Familles ---- */
-  --font-serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
-  --font-sans:  "Jost", "Noto Sans", system-ui, sans-serif;
+  /* « MND Fon » ne sert QUE ɔ, ɖ, ɛ et l’accent flottant (voir fonts.css) :
+     placée en tête, elle ne prend rien aux polices de la Maison. */
+  --font-serif: "MND Fon", "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --font-sans:  "MND Fon", "Jost", "Noto Sans", system-ui, sans-serif;
 
   /* ---- Échelle d'affichage (Cormorant, Light 300, line-height serré) ---- */
   --text-display: clamp(64px, 9vw, 128px); /* Cormorant 300, lh ~0.9 */
