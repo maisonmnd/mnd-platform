@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
-import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense } from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense, caissesEnDevise, motDesCaissesEnDevise } from '../../../../shared/finance';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -158,6 +158,7 @@ export default function Prestataires() {
      au paiement, Caisse principale en tête. */
   const [cashboxes] = useCashboxes();
   const caissesMaison = cashboxes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+  const caissesAutresDevises = caissesEnDevise(cashboxes, branch.id, currency);
   const caisseParDefaut = (caissesMaison.find((c) => c.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [payCaisse, setPayCaisse] = useState('');
   const caisseActive = caissesMaison.some((c) => c.name === payCaisse) ? payCaisse : caisseParDefaut;
@@ -510,6 +511,11 @@ export default function Prestataires() {
                 <span className="mnd-muted" style={{ fontSize: 12 }}>
                   Aucune caisse en {currency} — la charge citera « Caisse principale ».
                 </span>
+              )}
+              {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }}>
+                  {motDesCaissesEnDevise(caissesAutresDevises, currency)}
+                </div>
               )}
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

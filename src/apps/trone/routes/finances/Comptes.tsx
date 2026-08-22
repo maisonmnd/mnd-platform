@@ -11,6 +11,7 @@ import {
 } from '../../../../shared/clients';
 import {
   useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
+  caissesEnDevise, motDesCaissesEnDevise,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -172,6 +173,7 @@ export default function Comptes() {
   });
   const [toutesCaisses] = useCashboxes();
   const caissesMaison = toutesCaisses.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+  const caissesAutresDevises = caissesEnDevise(toutesCaisses, branch.id, currency);
 
   const enregistrerPret = () => {
     const montant = parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0;
@@ -751,6 +753,9 @@ export default function Comptes() {
                 {fPret.type === 'pret'
                   ? 'La caisse choisie baisse d’autant : l’argent se déplace, il ne se duplique pas.'
                   : 'La caisse choisie monte d’autant — l’argent revient dans le tiroir.'}
+                {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
+                  <div style={{ marginTop: 5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
+                )}
               </div>
             </Field>
 
@@ -1176,6 +1181,7 @@ function DepositModal({
      Le relevé de la caisse, dans Dépenses, les montre ligne à ligne. */
   const [cashboxes] = useCashboxes();
   const caissesMaison = cashboxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) === currency);
+  const caissesAutresDevises = caissesEnDevise(cashboxes, branchId, currency);
   const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
@@ -1256,6 +1262,9 @@ function DepositModal({
             </div>
           ) : (
             <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency} — l'écriture citera « Caisse principale ».</span>
+          )}
+          {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
+            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
           )}
         </Field>
         <Field label="Date">

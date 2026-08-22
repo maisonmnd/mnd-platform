@@ -347,6 +347,27 @@ export type Cashbox = {
 
 /** Les NOMS des caisses écartées des bilans — c'est le nom qui sert de clé
     partout (`Expense.cashbox`, `InvoicePayment.cashbox`). */
+/* ── LES CAISSES EN DEVISE, ÉCARTÉES MAIS NOMMÉES — 22 août 2026 ────
+   « Pourquoi je ne vois pas les caisses USD ? » Parce que quatre formulaires
+   — prêt, avoir, prestataire, versement au coffre — saisissent un montant en
+   monnaie de la Maison, et qu’inscrire des francs dans un tiroir en dollars
+   fausserait son solde : le tiroir compte SES billets. Le filtre est juste.
+
+   CE QUI NE L’ÉTAIT PAS, C’EST LE SILENCE. La liste omettait ces caisses sans
+   un mot, et une absence sans raison se lit comme une panne. Elles sont
+   désormais nommées sous le champ — même règle que les caisses discrètes
+   exclues de la trésorerie, et que les caisses hors bilan du rapport. */
+export const caissesEnDevise = (boxes: readonly Cashbox[], branchId: string, maison: string): Cashbox[] =>
+  boxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) !== maison);
+
+/** La phrase à poser sous le champ — `null` quand il n’y a rien à dire. */
+export const motDesCaissesEnDevise = (ecartees: readonly Cashbox[], maison: string): string | null => {
+  if (ecartees.length === 0) return null;
+  const noms = ecartees.map((b) => `${b.name} (${cashboxCurrency(b)})`).join(
+);
+  return `${noms} ${ecartees.length > 1 ? "n’apparaissent" : "n’apparaît"} pas ici : ce montant se saisit en ${maison}, `
+    + `et l’inscrire dans un tiroir en devise fausserait son solde — un tiroir compte SES billets.`;
+};
 export const caissesHorsBilan = (boxes: readonly Cashbox[], branchId: string): Set<string> =>
   new Set(boxes.filter((c) => c.branchId === branchId && c.horsBilan).map((c) => c.name));
 

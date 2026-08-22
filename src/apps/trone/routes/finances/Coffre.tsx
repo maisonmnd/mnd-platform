@@ -11,6 +11,7 @@ import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
   recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison, cashboxCurrency,
+  caissesEnDevise, motDesCaissesEnDevise,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
@@ -171,6 +172,7 @@ export default function Coffre() {
   const [retraitOuvert, setRetraitOuvert] = useState(false);
   const [caissesToutes] = useCashboxes();
   const caissesDuCoffre = caissesToutes.filter((c) => c.branchId === branch.id && cashboxCurrency(c) === currency);
+  const caissesAutresDevises = caissesEnDevise(caissesToutes, branch.id, currency);
   const [fRetrait, setFRetrait] = useState({ montant: '', cashbox: '', objectifId: '', note: '', date: todayISO() });
 
   const enregistrerRetrait = () => {
@@ -536,8 +538,11 @@ export default function Coffre() {
                 <option value="">Choisir une caisse…</option>
                 {caissesDuCoffre.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
               </Select>
-              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 La caisse choisie monte d’autant — l’argent se déplace, il ne se duplique pas.
+                {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
+                  <div style={{ marginTop: 5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
+                )}
               </div>
             </Field>
             {objectifsVivants.length > 0 && (
