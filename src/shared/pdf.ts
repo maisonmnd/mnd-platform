@@ -724,25 +724,46 @@ export async function cashbookPdf(o: {
   };
 
   const livre = (l: CashLedger) => {
-    saut(246);
-    y += 4;
+    saut(244);
+    y += 6;
     doc.setFont('times', 'normal');
-    doc.setFontSize(13);
+    doc.setFontSize(14);
     doc.setTextColor(INDIGO);
     doc.text(l.name, M, y);
     doc.text(l.closing, rSolde, y, { align: 'right' });
+    /* LE COMPTE PASSE SOUS LE NOM — 22 août 2026. Il se posait à sa droite,
+       calé sur une largeur mesurée : « Caisse Principale11 mouvements » se
+       lisait en un seul mot sur la feuille. Une ligne dessous ne chevauche
+       rien, quelle que soit la longueur du nom. */
     if (l.sub) {
+      y += 3.6;
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.8);
       doc.setTextColor(SOFT);
-      doc.text(l.sub, M + doc.getTextWidth(l.name) + 5, y);
+      doc.text(l.sub, M, y);
     }
-    y += 5;
+    y += 5.5;
+    /* UNE CAISSE SANS MOUVEMENT LE DIT EN UNE LIGNE. Deux lignes de solde
+       identiques encadrant le vide se lisaient comme un tableau cassé. */
+    if (l.moves.length === 0) {
+      doc.setDrawColor(COPPER);
+      doc.setLineWidth(0.25);
+      doc.line(M, y - 3, W - M, y - 3);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.4);
+      doc.setTextColor(SOFT);
+      doc.text(l.openLabel + ' · aucun mouvement sur la période', M, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(INDIGO);
+      doc.text(l.closing, rSolde, y, { align: 'right' });
+      y += 7;
+      return;
+    }
     enTete();
     ligne({ date: '', label: l.openLabel, balance: l.opening }, 'ouverture');
     for (const m of l.moves) ligne(m);
     ligne({ date: '', label: l.closeLabel, inn: l.totalIn, out: l.totalOut, balance: l.closing }, 'cloture');
-    y += 4;
+    y += 5;
   };
 
   const groupe = (g: CashGroup) => {

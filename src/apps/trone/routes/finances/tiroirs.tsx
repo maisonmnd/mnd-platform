@@ -20,6 +20,7 @@ import {
   useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
   caisseDiscrete, empreinteDuCode, caissesHorsBilan,
+  type Cashbox,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
 import { usePrets } from '../../../../shared/foyer';
@@ -53,6 +54,23 @@ export const ouvreLaCaisse = (id: string): void => {
 export const refermeLaCaisse = (id: string): void => {
   const n = new Set(ouvertes);
   n.delete(id);
+  ouvertes = n;
+  prevenir();
+};
+
+/* TOUTES D'UN GESTE — 22 août 2026, demande de Yéman. Deux listes EXPLICITES,
+   jamais un vidage : le registre porte aussi les clés des écrans (CLE_ECRAN,
+   CLE_COFFRE). Tout effacer refermerait la porte sur la Souveraine au moment
+   même où elle range ses tiroirs. */
+export const ouvreLesCaisses = (ids: readonly string[]): void => {
+  if (ids.length === 0) return;
+  ouvertes = new Set([...ouvertes, ...ids]);
+  prevenir();
+};
+export const refermeLesCaisses = (ids: readonly string[]): void => {
+  if (ids.length === 0) return;
+  const n = new Set(ouvertes);
+  for (const id of ids) n.delete(id);
   ouvertes = n;
   prevenir();
 };
@@ -231,10 +249,26 @@ export function useCaisses(month: string) {
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
 
+    /* LA LIGNE SE DATE DU JOUR OÙ L’ARGENT BOUGE — 22 août 2026. Elle portait
+       la date de la FACTURE : une pièce du 20 juin réglée en août s’inscrivait
+       « 20 juin » au milieu du livre d’août, et le solde courant remontait le
+       temps sous les yeux. Le compte était juste, la lecture mentait. On prend
+       le dernier versement retenu — celui qui a fini de remplir le tiroir. */
+    const jourDuCredit = (i: Invoice): string => {
+      const jours = (foreign
+        ? invoiceReglements(i).filter((p) => p.fx && p.fx.code === boxCur
+          && (p.cashbox ?? i.cashbox) === name && dansLaPeriode(monthKey(p.date ?? i.date)))
+        : invoiceReglements(i).filter((p) => p.cashbox === name
+          && p.method !== 'Avoir' && p.method !== 'Acompte' && dansLaPeriode(monthKey(p.date ?? ''))))
+        .map((p) => p.date ?? i.date)
+        .sort();
+      return jours.at(-1) ?? i.date;
+    };
+
     const inn = boxInvoices(name)
       .filter((i) => boxCredit(i, name, boxCur, foreign, dansLaPeriode) > 0)
       .map((i) => ({
-        date: i.date,
+        date: jourDuCredit(i),
         label: i.clientName?.trim() || 'Cliente de passage',
         sub: [
           i.number,
@@ -494,6 +528,140 @@ export function ReleveCaisse({
               </div>
             )}
           </Modal>
+  );
+}
+
+
+/* ── LE TROUSSEAU — 22 août 2026 ─────────────────────────────────────
+   « Un bouton pour ouvrir toutes les caisses qui ont un code simultanément,
+   et les refermer toutes simultanément » (Yéman). Ouvrir six tiroirs un à un,
+   six fois le même code, six fois la même modale : le verrou finissait par
+   coûter plus que ce qu'il protège, et un verrou qui coûte trop finit par être
+   ôté.
+
+   UN CODE N'OUVRE QUE CE QU'IL OUVRE. Les empreintes sont salées par
+   l'identifiant de chaque caisse : deux tiroirs au même code n'ont pas la même
+   empreinte, et rien ici ne contourne cela. Le code saisi est essayé sur
+   CHACUNE des caisses encore fermées ; celles qu'il ouvre s'ouvrent, les
+   autres gardent le leur — ET ON LE DIT. Un trousseau qui laisserait croire
+   qu'il a tout ouvert serait pire qu'aucun trousseau.
+
+   REFERMER NE DEMANDE RIEN. Fermer une porte n'a jamais eu besoin de clé. */
+export function LeTrousseau({
+  boxes, onClose,
+}: {
+  boxes: readonly Cashbox[];
+  onClose: () => void;
+}) {
+  const ouvertesMaintenant = useCaissesOuvertes();
+  const [code, setCode] = useState('');
+  const [mot, setMot] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const discretes = boxes.filter(caisseDiscrete);
+  const fermees = discretes.filter((c) => !soldeVisible(c, ouvertesMaintenant));
+  const ouvertes = discretes.filter((c) => soldeVisible(c, ouvertesMaintenant));
+
+  const essayer = async () => {
+    if (!code.trim()) return;
+    setEnCours(true);
+    try {
+      const ouvre: Cashbox[] = [];
+      for (const c of fermees) {
+        if (await leCodeOuvre(c, code)) ouvre.push(c);
+      }
+      ouvreLesCaisses(ouvre.map((c) => c.id));
+      const restent = fermees.length - ouvre.length;
+      setMot(ouvre.length === 0
+        ? 'Ce code n’ouvre aucune des caisses encore fermées.'
+        : `${ouvre.length} caisse${ouvre.length > 1 ? 's' : ''} ouverte${ouvre.length > 1 ? 's' : ''}`
+          + (restent > 0
+            ? ` — ${restent} garde${restent > 1 ? 'nt' : ''} son propre code. Essayez-le ici.`
+            : ' — plus rien de fermé.'));
+      setCode('');
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  const toutRefermer = () => {
+    refermeLesCaisses(ouvertes.map((c) => c.id));
+    setMot(`${ouvertes.length} caisse${ouvertes.length > 1 ? 's' : ''} refermée${ouvertes.length > 1 ? 's' : ''}.`);
+  };
+
+  return (
+    <Modal title="Le trousseau" onClose={onClose} width={430}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+          Un code essayé sur toutes les caisses encore fermées : celles qu’il ouvre s’ouvrent
+          d’un geste. Les caisses ne partagent pas leur empreinte — si vos codes diffèrent,
+          entrez-les l’un après l’autre. Tout se referme au prochain chargement de la page.
+        </div>
+
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3 }}>
+          {discretes.map((c, i) => {
+            const dedans = soldeVisible(c, ouvertesMaintenant);
+            return (
+              <div
+                key={c.id}
+                style={{
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                  gap: 12, padding: '9px 12px',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--hairline)',
+                }}
+              >
+                <span style={{ fontSize: 13.5, color: 'var(--ink)' }}>{c.glyph} {c.name}</span>
+                <span
+                  className="mnd-muted"
+                  style={{
+                    fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase',
+                    color: dedans ? 'var(--trf-success, #4A6B52)' : 'var(--ink-soft)',
+                  }}
+                >
+                  {dedans ? 'ouverte' : 'fermée'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {fermees.length > 0 && (
+          <label className="mnd-field">
+            <span className="mnd-field__label">Code</span>
+            <input
+              className="mnd-input" type="password" autoFocus autoComplete="off"
+              value={code}
+              onChange={(e) => { setCode(e.target.value); setMot(''); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void essayer(); }}
+            />
+          </label>
+        )}
+
+        {mot && (
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, color: 'var(--copper-700)' }}>
+            {mot}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <button
+            className="mnd-btn mnd-btn--ghost"
+            onClick={toutRefermer}
+            disabled={ouvertes.length === 0}
+          >
+            Tout refermer
+          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="mnd-btn mnd-btn--ghost" onClick={onClose}>Fermer</button>
+            {fermees.length > 0 && (
+              <button className="mnd-btn" onClick={() => void essayer()} disabled={enCours || !code.trim()}>
+                {enCours ? 'Un instant…' : 'Tout ouvrir'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

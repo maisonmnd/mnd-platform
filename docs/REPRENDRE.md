@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le trousseau, et le rapport corrigé — 22 août, PUBLIÉ
+
+**LE TROUSSEAU.** « Un bouton pour ouvrir toutes les caisses qui ont un code
+simultanément, et les refermer toutes simultanément. » Six tiroirs ouverts un à
+un, six fois le même code : le verrou coûtait plus qu'il ne protège, et un
+verrou qui coûte trop finit par être ôté.
+
+UN CODE N'OUVRE QUE CE QU'IL OUVRE — rien ici ne contourne le sel : les
+empreintes sont salées par l'identifiant de chaque caisse. Le code saisi est
+essayé sur CHACUNE des caisses encore fermées ; celles qu'il ouvre s'ouvrent,
+les autres gardent le leur, ET LE TROUSSEAU LE DIT (« 3 ouvertes — 1 garde son
+propre code »). On peut enchaîner un second code sans fermer la modale. Refermer
+ne demande rien : fermer une porte n'a jamais eu besoin de clé.
+
+`ouvreLesCaisses(ids)` / `refermeLesCaisses(ids)` prennent des listes
+EXPLICITES, jamais un vidage : le registre des ouvertures porte aussi les clés
+des écrans (`CLE_ECRAN`, `CLE_COFFRE`). Tout effacer refermerait la porte sur la
+Souveraine au moment même où elle range ses tiroirs.
+
+**LE RAPPORT, TROIS DÉFAUTS VUS SUR LA PREMIÈRE FEUILLE ÉDITÉE.**
+
+① **La ligne se datait de la FACTURE, pas du versement.** Une pièce du 20 juin
+réglée en août s'inscrivait « 20 juin » au milieu du livre d'août : le solde
+courant remontait le temps sous les yeux. Le compte était juste, la lecture
+mentait. `jourDuCredit` prend le dernier versement retenu — celui qui a fini de
+remplir le tiroir. **Corrige aussi le relevé à l'écran**, qui portait le même
+défaut depuis toujours.
+
+② **Le compte des mouvements chevauchait le nom** : il se calait sur
+`getTextWidth(nom)`, et « Caisse Principale11 mouvements » se lisait en un seul
+mot. Il passe DESSOUS, à la même abscisse — aucune longueur de nom ne peut plus
+le heurter.
+
+③ **Une caisse sans mouvement dressait un tableau vide** encadré de deux soldes
+identiques. Elle le dit maintenant en une ligne.
+
+**LES CAISSES SE COCHENT UNE À UNE** — « permets-moi de sélectionner les caisses
+de manière individuelle ». Chaque tiroir avec sa devise, sa mention hors bilan,
+son solde ; « Toutes » / « Aucune » en raccourci. Une seule caisse retenue rend
+la feuille pleine page avec ses quatre cases de résumé ; plusieurs rendent le
+rapport groupé par monnaie. Les quatre cases n'ont de sens que sur une monnaie
+unique — à plusieurs, elles additionneraient ce qui ne s'additionne pas.
+
+Le harnais `verifie-rapport` tient désormais aussi la ligne du livre vide, le
+tableau qu'elle ne dresse pas, et le nom long qui ne heurte plus son compte.
+
 ## Le rapport de caisse en PDF — 22 août, PUBLIÉ
 
 « Crée-moi des rapports de caisses en PDF de la même manière » — capture d'une

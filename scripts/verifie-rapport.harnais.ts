@@ -100,11 +100,24 @@ dit(tout.includes('HORS BILAN') || tout.includes('Hors bilan'), 'le hors bilan a
    amputé comme un total complet. */
 dit(tout.includes('Le Secret'), 'la caisse refusée est nommée dans le document');
 
-/* ⑥ Un livre vide s’imprime quand même : une caisse sans mouvement du mois est
-   une information, pas une erreur. */
+/* ⑥ Un livre vide s’imprime quand même — mais EN UNE LIGNE. Deux soldes
+   identiques encadrant le vide se lisaient comme un tableau cassé. */
 capture = null;
 await editer({ groups: [{ ledgers: [{ ...livre('Le Comptoir', 0), moves: [] }] }] });
-dit(capture !== null && capture.output().includes('Le Comptoir'), 'une caisse sans mouvement s’imprime');
+const vide: string = capture.output();
+dit(vide.includes('Le Comptoir'), 'une caisse sans mouvement s’imprime quand même');
+dit(vide.includes('aucun mouvement'), 'elle le dit en toutes lettres');
+dit(!vide.includes('ENTR'), 'et ne dresse pas un tableau vide');
+
+/* ⑦ LE NOM ET SON COMPTE NE SE CHEVAUCHENT PLUS. Le compte se calait sur une
+   largeur mesurée à droite du nom : « Caisse Principale11 mouvements » se
+   lisait en un seul mot. Il passe dessous — donc à la MÊME abscisse que le
+   nom, quelle que soit sa longueur. */
+capture = null;
+await editer({ groups: [{ ledgers: [livre('Une caisse au nom vraiment très long', 3)] }] });
+const longNom: string = capture.output();
+dit(longNom.includes('Une caisse au nom vraiment'), 'un nom long s’imprime en entier');
+dit(longNom.includes('3 mouvements'), 'son compte reste lisible à côté');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);

@@ -12,7 +12,7 @@ import {
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
 import { RapportDeCaisse } from './Rapport';
-import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 
@@ -54,6 +54,7 @@ export default function Caisses() {
   /* LE RAPPORT — 22 août 2026. Fermé quand rien n'est posé ; une chaîne vide
      demande toutes les caisses ; un nom ne demande que ce tiroir-là. */
   const [rapport, setRapport] = useState<string | null>(null);
+  const [trousseau, setTrousseau] = useState(false);
 
   /* ── LE VERROU DE L'ÉCRAN — 22 août 2026 ──────────────────────────
      « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
@@ -264,6 +265,11 @@ export default function Caisses() {
               apporter. Exiger deux tiroirs cachait le geste à qui n'en a qu'un. */}
           {branchBoxes.length > 0 && (
             <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrOuvert(true)}>⇄ Transférer ou apporter</button>
+          )}
+          {/* LE TROUSSEAU ne se montre que s’il y a des caisses à ouvrir :
+              un bouton pour une serrure inexistante encombre. */}
+          {branchBoxes.some(caisseDiscrete) && (
+            <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrousseau(true)}>Le trousseau</button>
           )}
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setRapport('')}>Rapport PDF</button>
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => navigate('/encaissements')}>Les encaissements →</button>
@@ -481,6 +487,8 @@ export default function Caisses() {
           ))}
         </div>
       )}
+
+      {trousseau && <LeTrousseau boxes={branchBoxes} onClose={() => setTrousseau(false)} />}
 
       {rapport !== null && (
         <RapportDeCaisse nom={rapport || undefined} month={month} onClose={() => setRapport(null)} />
