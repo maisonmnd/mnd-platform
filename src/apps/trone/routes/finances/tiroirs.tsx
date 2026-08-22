@@ -218,13 +218,21 @@ export function useCaisses(month: string) {
   /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes règles que `boxBalance`,
      au mot près : solde au début du mois + mouvements du mois = solde affiché.
      Si la liste ne tombe pas sur le chiffre, c'est l'un des deux qui ment. */
-  const boxMoves = (name: string) => {
+  const boxMoves = (name: string, periode?: { de: string; a: string }) => {
+    /* UNE PÉRIODE LIBRE, POUR LE RAPPORT — 22 août 2026. Tout ici filtre par
+       CLÉ DE MOIS : on prend donc les mois entiers que la période touche, puis
+       on coupe aux deux dates. Le solde de départ, lui, se reprend au début du
+       premier mois et se laisse pousser par ce qui précède la date de début —
+       sinon un rapport du 15 partirait du solde du 1er. */
+    const mDe = periode ? monthKey(periode.de) : month;
+    const mA = periode ? monthKey(periode.a) : month;
+    const dansLaPeriode = (mk: string) => (periode ? mk >= mDe && mk <= mA : mk === month);
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
 
     const inn = boxInvoices(name)
-      .filter((i) => boxCredit(i, name, boxCur, foreign, (mk) => mk === month) > 0)
+      .filter((i) => boxCredit(i, name, boxCur, foreign, dansLaPeriode) > 0)
       .map((i) => ({
         date: i.date,
         label: i.clientName?.trim() || 'Cliente de passage',
@@ -241,13 +249,13 @@ export function useCaisses(month: string) {
              cliente a remis plus que ce que la caisse inscrit. */
           !foreign && (i.tipXof ?? 0) > 0 ? `pourboire ${fmtIn(i.tipXof!, boxCur)} → Pourboires` : null,
         ].filter(Boolean).join(' · '),
-        delta: boxCredit(i, name, boxCur, foreign, (mk) => mk === month),
+        delta: boxCredit(i, name, boxCur, foreign, dansLaPeriode),
         invoiceId: i.id, // la ligne s'ouvre sur la facture
         expense: undefined as Expense | undefined,
       }));
 
     const out = boxExpenses(name)
-      .filter((e) => monthKey(e.date) === month)
+      .filter((e) => dansLaPeriode(monthKey(e.date)))
       .map((e) => ({
         date: e.date,
         label: e.label,
@@ -261,7 +269,7 @@ export function useCaisses(month: string) {
 
     /* Les avoirs du mois — l'entrée dit son porteur, la sortie aussi : « être
        retracé », c'est pouvoir répondre « c'est l'avoir de qui ? » en lisant. */
-    const avoirs = avoirsMouvements(name, (mk) => mk === month).map((m) => ({
+    const avoirs = avoirsMouvements(name, dansLaPeriode).map((m) => ({
       date: m.date,
       label: m.kind === 'depot' ? `Avoir versé · ${porteurDe(m)}` : `Avoir remboursé · ${porteurDe(m)}`,
       sub: [m.method, m.note].filter(Boolean).join(' · ') || 'Comptes & Avoirs',
@@ -278,7 +286,7 @@ export function useCaisses(month: string) {
        Le relevé et le solde lisent désormais la même chose. */
     const versements = coffre
       .filter((m: CoffreMovement) => m.branchId === branch.id && m.kind === 'depot'
-        && m.cashbox === name && monthKey(m.date) === month)
+        && m.cashbox === name && dansLaPeriode(monthKey(m.date)))
       .map((m: CoffreMovement) => ({
         date: m.date,
         label: 'Versé au coffre',
@@ -291,7 +299,7 @@ export function useCaisses(month: string) {
     /* Le relevé DIT ce que le solde compte — sinon « solde au début +
        mouvements » ne tomberait plus sur le solde affiché, la faute même
        corrigée le 21 août pour les versements au coffre. */
-    const lesPrets = pretsMouvements(name, (mk) => mk === month).map((p) => ({
+    const lesPrets = pretsMouvements(name, dansLaPeriode).map((p) => ({
       date: p.date,
       label: p.type === 'pret' ? `Prêté à ${p.associe}` : `Remboursé par ${p.associe}`,
       sub: [p.method, p.motif].filter(Boolean).join(' · ') || 'Comptes & Avoirs · prêts',
@@ -301,7 +309,7 @@ export function useCaisses(month: string) {
     }));
 
     const lesTransferts = transferts
-      .filter((t) => t.branchId === branch.id && monthKey(t.date) === month && (t.de === name || t.vers === name))
+      .filter((t) => t.branchId === branch.id && dansLaPeriode(monthKey(t.date)) && (t.de === name || t.vers === name))
       .map((t) => ({
         date: t.date,
         label: t.de === name
@@ -313,7 +321,20 @@ export function useCaisses(month: string) {
         expense: undefined as Expense | undefined,
       }));
 
-    const moves = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const bruts = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts]
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (periode) {
+      const dedans = bruts.filter((m) => m.date >= periode.de && m.date <= periode.a);
+      const debutDeLaPeriode = boxBalanceWhere(name, (mk) => mk < mDe)
+        + bruts.filter((m) => m.date < periode.de).reduce((s, m) => s + m.delta, 0);
+      return {
+        boxCur,
+        startBalance: debutDeLaPeriode,
+        moves: dedans,
+        balance: debutDeLaPeriode + dedans.reduce((s, m) => s + m.delta, 0),
+      };
+    }
+    const moves = bruts;
     return { boxCur, startBalance: boxBalanceStart(name), moves, balance: boxBalance(name) };
   };
   /* LA TRÉSORERIE TRAHIRAIT LE SECRET. Si elle sommait tout, il suffirait de
@@ -344,12 +365,16 @@ export function useCaisses(month: string) {
    Il vit ici parce que DEUX écrans l'ouvrent : les Dépenses depuis la pastille
    de caisse d'une ligne, et les Caisses depuis la carte du tiroir. */
 export function ReleveCaisse({
-  nom, month, onClose, onExpense,
+  nom, month, onClose, onExpense, onRapport,
 }: {
   nom: string;
   month: string;
   onClose: () => void;
   onExpense?: (e: Expense) => void;
+  /* LE RAPPORT NE VIT PAS ICI, ET C EST VOLONTAIRE — 22 août 2026 : Rapport.tsx
+     lit déjà ce module, l importer en retour fabriquerait un cycle que React ne
+     pardonne pas au montage. L écran qui ouvre le relevé passe le geste. */
+  onRapport?: () => void;
 }) {
   const navigate = useNavigate();
   const { currency, boxMoves } = useCaisses(month);
@@ -462,6 +487,12 @@ export function ReleveCaisse({
               </span>
               <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>{fmtIn(balance, boxCur)}</span>
             </div>
+
+            {onRapport && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                <button className="trf-act trf-act--ghost" onClick={onRapport}>Rapport PDF</button>
+              </div>
+            )}
           </Modal>
   );
 }

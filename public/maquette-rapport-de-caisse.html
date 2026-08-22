@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le rapport de caisse — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --vert: #4A6B52;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--parchemin); color: var(--encre);
+         font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+       line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 30px; color: var(--indigo);
+       margin: 54px 0 6px; letter-spacing: -.01em; }
+  .lede { max-width: 68ch; color: var(--encre-d); font-size: 15.5px; }
+  .note { max-width: 72ch; color: var(--encre-d); font-size: 13.5px; line-height: 1.7; }
+
+  /* La feuille A4 */
+  .feuille {
+    background: #fff; width: 100%; max-width: 794px; margin: 26px auto 0;
+    padding: 46px 46px 34px; border: 1px solid var(--filet); border-radius: 3px;
+    box-shadow: 0 22px 48px -30px rgba(30,33,80,.42);
+  }
+  .sceau { text-align: center; margin-bottom: 22px; }
+  .sceau__rond {
+    width: 54px; height: 54px; margin: 0 auto 6px; border: 1px solid var(--cuivre-p);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 22px; color: var(--cuivre);
+  }
+  .sceau__mot { font-family: var(--serif); font-size: 14px; letter-spacing: .3em; color: var(--cuivre); }
+
+  .tete { display: flex; justify-content: space-between; align-items: baseline;
+          font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--encre-d); }
+  .tete__droite { color: var(--cuivre); }
+  .titre-doc { font-family: var(--serif); font-size: 33px; color: var(--indigo); margin: 12px 0 4px; letter-spacing: -.01em; }
+  .meta { font-size: 11.5px; color: var(--encre-d); line-height: 1.7; }
+  .filet { height: 1px; background: var(--cuivre); margin: 16px 0 20px; opacity: .8; }
+
+  .cases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--filet);
+           border: 1px solid var(--filet); border-radius: 3px; overflow: hidden; margin-bottom: 16px; }
+  .case { background: #fff; padding: 11px 12px; }
+  .case__l { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); }
+  .case__v { font-family: var(--serif); font-size: 21px; color: var(--indigo); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .case__v.vert { color: var(--vert); } .case__v.brique { color: var(--brique); }
+  .compte { font-size: 11px; color: var(--encre-d); margin-bottom: 8px; }
+
+  table.livre { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.livre th {
+    text-align: left; font-weight: 500; font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--encre-d); padding: 7px 8px; border-bottom: 1px solid var(--cuivre-p); white-space: nowrap;
+  }
+  table.livre td { padding: 8px; border-bottom: 1px solid #EFE9DC; vertical-align: top; }
+  table.livre .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.livre .vert { color: var(--vert); } table.livre .brique { color: var(--brique); }
+  table.livre .solde { font-weight: 500; color: var(--indigo); }
+  table.livre .detail { color: var(--encre-d); font-size: 10.5px; }
+  tr.ouverture td { background: #FAF7F0; color: var(--encre-d); }
+  tr.cloture td { border-top: 1px solid var(--cuivre-p); border-bottom: none; padding-top: 10px;
+                  font-weight: 500; color: var(--indigo); }
+  .section-caisse { margin-top: 20px; }
+  .section-caisse__tete { display: flex; align-items: baseline; gap: 10px; padding-bottom: 6px;
+                          border-bottom: 1px solid var(--filet); margin-bottom: 4px; }
+  .section-caisse__nom { font-family: var(--serif); font-size: 19px; color: var(--indigo); }
+  .section-caisse__sous { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--encre-d); }
+  .section-caisse__solde { margin-left: auto; font-family: var(--serif); font-size: 18px; color: var(--indigo); font-variant-numeric: tabular-nums; }
+  .devise-bande { font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre);
+                  margin: 24px 0 2px; padding-bottom: 5px; border-bottom: 1px solid var(--cuivre-p); }
+  .hors { margin-top: 22px; padding: 14px 14px 4px; border: 1px solid var(--filet);
+          border-left: 2px solid var(--encre-d); border-radius: 3px; background: #FAF8F3; }
+  .hors__t { font-family: var(--serif); font-size: 17px; color: var(--indigo); }
+  .hors__m { font-size: 10.5px; color: var(--encre-d); line-height: 1.6; margin: 4px 0 8px; max-width: 62ch; }
+  .pied { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--filet);
+          font-size: 10px; color: var(--encre-d); text-align: center; line-height: 1.8; }
+  .pied strong { color: var(--cuivre); font-weight: 500; letter-spacing: .12em; }
+  .refus { margin-top: 12px; font-size: 10.5px; color: var(--brique); }
+
+  ul.pointe { max-width: 72ch; padding-left: 0; list-style: none; }
+  ul.pointe li { position: relative; padding-left: 20px; margin-bottom: 12px; color: var(--encre-d); font-size: 14px; }
+  ul.pointe li::before { content: '\25C8'; position: absolute; left: 0; top: 0; color: var(--cuivre); font-size: 11px; }
+  ul.pointe b { color: var(--encre); font-weight: 500; }
+  .arbitre { margin-top: 40px; padding: 22px 24px; background: var(--cuivre-f);
+             border: 1px solid var(--cuivre-p); border-radius: 3px; }
+  .arbitre h3 { font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--indigo); margin: 0 0 10px; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette à valider · Le Trône · Finances</p>
+  <h1>Le rapport de caisse</h1>
+  <p class="lede">
+    Le livre d’une caisse, sur une feuille : ce qu’elle contenait au premier jour, tout ce qui
+    est entré et sorti, et ce qu’elle contient au dernier — avec le solde qui court à chaque
+    ligne. Deux formes : <b>une caisse</b>, ou <b>toutes les caisses</b> d’un coup.
+  </p>
+
+  <h2>Une caisse</h2>
+  <p class="note">Le bouton vit dans le relevé du tiroir, là où la Souveraine lit déjà ses mouvements.</p>
+
+  <div class="feuille">
+    <div class="sceau">
+      <div class="sceau__rond">◈</div>
+      <div class="sceau__mot">MND</div>
+    </div>
+
+    <div class="tete">
+      <span>Maison MND</span>
+      <span class="tete__droite">Rapport de caisse</span>
+    </div>
+    <div class="titre-doc">Le Comptoir</div>
+    <div class="meta">
+      Cotonou · francs CFA<br />
+      Période du 1<sup>er</sup> au 31 août 2026 — le mois affiché<br />
+      Édité le 22 août 2026 à 16 h 29 par Yéman
+    </div>
+    <div class="filet"></div>
+
+    <div class="cases">
+      <div class="case"><div class="case__l">Solde au 1<sup>er</sup> août</div><div class="case__v">412 000 F</div></div>
+      <div class="case"><div class="case__l">Entrées</div><div class="case__v vert">700 000 F</div></div>
+      <div class="case"><div class="case__l">Sorties</div><div class="case__v brique">661 000 F</div></div>
+      <div class="case"><div class="case__l">Solde au 31 août</div><div class="case__v">451 000 F</div></div>
+    </div>
+    <div class="compte">9 mouvements</div>
+
+    <table class="livre">
+      <thead>
+        <tr>
+          <th>Date</th><th>Libellé</th><th>Détail</th>
+          <th class="n">Entrée</th><th class="n">Sortie</th><th class="n">Solde</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="ouverture">
+          <td>01 août</td><td colspan="2">Solde au début de la période</td>
+          <td class="n"></td><td class="n"></td><td class="n solde">412 000 F</td>
+        </tr>
+        <tr>
+          <td>02 août</td><td>Assetina S.</td><td class="detail">F-2026-0031</td>
+          <td class="n vert">275 000 F</td><td class="n"></td><td class="n solde">687 000 F</td>
+        </tr>
+        <tr>
+          <td>03 août</td><td>Approvisionnement mèches</td><td class="detail">Produits · Mèches</td>
+          <td class="n"></td><td class="n brique">96 000 F</td><td class="n solde">591 000 F</td>
+        </tr>
+        <tr>
+          <td>05 août</td><td>Ghislain A.</td><td class="detail">F-2026-0033 · pourboire 5 000 F → Pourboires</td>
+          <td class="n vert">180 000 F</td><td class="n"></td><td class="n solde">771 000 F</td>
+        </tr>
+        <tr>
+          <td>08 août</td><td>Versé au coffre</td><td class="detail">Le Coffre · réserve du trimestre</td>
+          <td class="n"></td><td class="n brique">300 000 F</td><td class="n solde">471 000 F</td>
+        </tr>
+        <tr>
+          <td>12 août</td><td>Reçu de Mobile Money</td><td class="detail">Transfert entre caisses</td>
+          <td class="n vert">150 000 F</td><td class="n"></td><td class="n solde">621 000 F</td>
+        </tr>
+        <tr>
+          <td>15 août</td><td>Acompte sur salaire</td><td class="detail">Salaires · Acompte</td>
+          <td class="n"></td><td class="n brique">120 000 F</td><td class="n solde">501 000 F</td>
+        </tr>
+        <tr>
+          <td>19 août</td><td>Avoir remboursé · Assetina S.</td><td class="detail">Comptes &amp; Avoirs</td>
+          <td class="n"></td><td class="n brique">45 000 F</td><td class="n solde">456 000 F</td>
+        </tr>
+        <tr>
+          <td>21 août</td><td>Prêté à Chadaré</td><td class="detail">Comptes &amp; Avoirs · prêts</td>
+          <td class="n"></td><td class="n brique">100 000 F</td><td class="n solde">356 000 F</td>
+        </tr>
+        <tr>
+          <td>22 août</td><td>Divine K.</td><td class="detail">F-2026-0041</td>
+          <td class="n vert">95 000 F</td><td class="n"></td><td class="n solde">451 000 F</td>
+        </tr>
+        <tr class="cloture">
+          <td>31 août</td><td colspan="2">Solde à la fin de la période</td>
+          <td class="n vert">700 000 F</td><td class="n brique">661 000 F</td><td class="n">451 000 F</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="pied">
+      Le solde d’ouverture plus les mouvements font le solde de clôture, au franc près.<br />
+      <strong>MAISON MND · MI NYO DEKPE</strong>
+    </div>
+  </div>
+
+  <h2>Toutes les caisses</h2>
+  <p class="note">
+    Le bouton vit en tête de l’écran des caisses. Une section par tiroir, rangées par monnaie —
+    et les caisses hors bilan à part, comme à l’écran.
+  </p>
+
+  <div class="feuille">
+    <div class="sceau">
+      <div class="sceau__rond">◈</div>
+      <div class="sceau__mot">MND</div>
+    </div>
+
+    <div class="tete">
+      <span>Maison MND</span>
+      <span class="tete__droite">Rapport des caisses</span>
+    </div>
+    <div class="titre-doc">Les caisses de Cotonou</div>
+    <div class="meta">
+      Période du 1<sup>er</sup> au 31 août 2026<br />
+      Édité le 22 août 2026 à 16 h 29 par Yéman
+    </div>
+    <div class="filet"></div>
+
+    <div class="devise-bande">Francs CFA · 2 caisses · 792 000 F</div>
+
+    <div class="section-caisse">
+      <div class="section-caisse__tete">
+        <span class="section-caisse__nom">Le Comptoir</span>
+        <span class="section-caisse__sous">9 mouvements</span>
+        <span class="section-caisse__solde">451 000 F</span>
+      </div>
+      <table class="livre">
+        <tbody>
+          <tr class="ouverture"><td>01 août</td><td colspan="2">Solde au début</td><td class="n"></td><td class="n"></td><td class="n solde">412 000 F</td></tr>
+          <tr><td>02 août</td><td>Assetina S.</td><td class="detail">F-2026-0031</td><td class="n vert">275 000 F</td><td class="n"></td><td class="n solde">687 000 F</td></tr>
+          <tr><td>03 août</td><td>Approvisionnement mèches</td><td class="detail">Produits · Mèches</td><td class="n"></td><td class="n brique">96 000 F</td><td class="n solde">591 000 F</td></tr>
+          <tr><td colspan="6" class="detail" style="text-align:center;">… les 6 autres mouvements …</td></tr>
+          <tr class="cloture"><td>31 août</td><td colspan="2">Solde à la fin</td><td class="n vert">700 000 F</td><td class="n brique">661 000 F</td><td class="n">451 000 F</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-caisse">
+      <div class="section-caisse__tete">
+        <span class="section-caisse__nom">Mobile Money</span>
+        <span class="section-caisse__sous">4 mouvements</span>
+        <span class="section-caisse__solde">341 000 F</span>
+      </div>
+      <table class="livre">
+        <tbody>
+          <tr class="ouverture"><td>01 août</td><td colspan="2">Solde au début</td><td class="n"></td><td class="n"></td><td class="n solde">276 000 F</td></tr>
+          <tr><td>07 août</td><td>Divine K.</td><td class="detail">F-2026-0034</td><td class="n vert">215 000 F</td><td class="n"></td><td class="n solde">491 000 F</td></tr>
+          <tr><td>12 août</td><td>Transféré vers Le Comptoir</td><td class="detail">Transfert entre caisses</td><td class="n"></td><td class="n brique">150 000 F</td><td class="n solde">341 000 F</td></tr>
+          <tr class="cloture"><td>31 août</td><td colspan="2">Solde à la fin</td><td class="n vert">215 000 F</td><td class="n brique">150 000 F</td><td class="n">341 000 F</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="devise-bande">Euros · 1 caisse · 1 240 €</div>
+
+    <div class="section-caisse">
+      <div class="section-caisse__tete">
+        <span class="section-caisse__nom">Enveloppe Paris</span>
+        <span class="section-caisse__sous">2 mouvements</span>
+        <span class="section-caisse__solde">1 240 €</span>
+      </div>
+      <table class="livre">
+        <tbody>
+          <tr class="ouverture"><td>01 août</td><td colspan="2">Solde au début</td><td class="n"></td><td class="n"></td><td class="n solde">890 €</td></tr>
+          <tr><td>14 août</td><td>Apport — hors revenu</td><td class="detail">retour de voyage</td><td class="n vert">400 €</td><td class="n"></td><td class="n solde">1 290 €</td></tr>
+          <tr><td>26 août</td><td>Frais d’envoi</td><td class="detail">Logistique</td><td class="n"></td><td class="n brique">50 €</td><td class="n solde">1 240 €</td></tr>
+          <tr class="cloture"><td>31 août</td><td colspan="2">Solde à la fin</td><td class="n vert">400 €</td><td class="n brique">50 €</td><td class="n">1 240 €</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="hors">
+      <div class="hors__t">Hors bilan</div>
+      <p class="hors__m">
+        Leur argent est réel, leurs mouvements se tiennent comme les autres — elles n’entrent
+        simplement dans aucun total de la Maison.
+      </p>
+      <div class="section-caisse" style="margin-top:6px;">
+        <div class="section-caisse__tete">
+          <span class="section-caisse__nom">Caisse de Maman</span>
+          <span class="section-caisse__sous">1 mouvement</span>
+          <span class="section-caisse__solde">85 000 F</span>
+        </div>
+        <table class="livre">
+          <tbody>
+            <tr class="ouverture"><td>01 août</td><td colspan="2">Solde au début</td><td class="n"></td><td class="n"></td><td class="n solde">60 000 F</td></tr>
+            <tr><td>18 août</td><td>Apport — hors revenu</td><td class="detail">—</td><td class="n vert">25 000 F</td><td class="n"></td><td class="n solde">85 000 F</td></tr>
+            <tr class="cloture"><td>31 août</td><td colspan="2">Solde à la fin</td><td class="n vert">25 000 F</td><td class="n brique">—</td><td class="n">85 000 F</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="refus">
+      Une caisse est absente de ce rapport : <b>Le Secret</b> — caisse discrète refermée.
+      Son livre ne s’imprime pas sans son code.
+    </p>
+
+    <div class="pied">
+      Chaque monnaie tient son propre total. Les caisses hors bilan n’entrent dans aucun.<br />
+      <strong>MAISON MND · MI NYO DEKPE</strong>
+    </div>
+  </div>
+
+  <h2>Ce que je propose, et pourquoi</h2>
+  <ul class="pointe">
+    <li><b>Le solde d’ouverture est écrit en première ligne.</b> Le rapport que vous m’avez montré
+      ne le fait pas — il part de zéro. Une caisse qui contenait déjà 412 000 F au premier du mois
+      y afficherait un solde faux jusqu’à la dernière ligne.</li>
+    <li><b>Le solde court à chaque ligne</b>, comme dans votre relevé à l’écran. On peut poser le
+      doigt sur n’importe quelle date et lire ce que la caisse contenait ce jour-là.</li>
+    <li><b>Une caisse discrète refermée ne s’imprime pas.</b> Son livre dit son solde ligne à
+      ligne — l’imprimer sans le code viderait le verrou de son sens. Le rapport la NOMME comme
+      absente : un document amputé en silence vaudrait pire.</li>
+    <li><b>Les monnaies ne s’additionnent jamais.</b> Chaque devise tient son total, et les
+      caisses hors bilan ont leur propre rangement, comme à l’écran.</li>
+    <li><b>Tout y est</b> — les encaissements, les dépenses, les avoirs, les versements au coffre,
+      les prêts et les transferts. Le rapport lit exactement ce que lit votre relevé : si la
+      feuille et l’écran ne disaient pas la même chose, l’un des deux mentirait.</li>
+  </ul>
+
+  <div class="arbitre">
+    <h3>À trancher</h3>
+    <p class="note" style="margin-top:0;">
+      <b>Le mois, ou une période libre ?</b> Le mois affiché est ce que Le Trône sait faire
+      aujourd’hui, partout. Une période libre — « du 7 janvier au 9 mars », comme sur votre
+      capture — demande de reprendre le calcul des soldes sur plusieurs mois : c’est faisable,
+      et ça ouvre le rapport annuel. Dites-moi lequel des deux, et je construis.
+    </p>
+  </div>
+</div>
+</body>
+</html>

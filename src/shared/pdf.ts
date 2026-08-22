@@ -10,6 +10,8 @@ const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
 const INK = '#14141B';
 const SOFT = '#6b6b73';
+const VERT = '#4A6B52';
+const BRIQUE = '#96412E';
 
 /* Les polices standard du PDF (WinAnsi) n'ont pas les espaces fines / insécables —
    dont le séparateur de milliers fr-FR (U+202F) que produit `toLocaleString`. jsPDF
@@ -601,4 +603,267 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   doc.text(`Document généré par Le Trône · ${maisonNom()}`, W / 2, 288, { align: 'center' });
   doc.save(d.filename);
   return d.filename;
+}
+
+/* ---------- Le livre de caisse (rapport de caisse) ---------- */
+
+/* LA FEUILLE DOIT DIRE LA MÊME CHOSE QUE L'ÉCRAN — 22 août 2026, à la demande
+   de Yéman. Elle ne recalcule RIEN : les lignes, les soldes et les totaux lui
+   arrivent déjà faits, de la source même que lit le relevé du tiroir. Un
+   rapport qui referait les additions de son côté finirait par contredire
+   l'écran — et c'est alors le papier qu'on croit.
+
+   LE SOLDE D'OUVERTURE EST LA PREMIÈRE LIGNE. Un livre qui part de zéro dit un
+   solde faux jusqu'à la dernière ligne quand la caisse contenait déjà quelque
+   chose. */
+export type CashMove = {
+  date: string;
+  label: string;
+  detail?: string;
+  inn?: string;
+  out?: string;
+  balance: string;
+};
+export type CashLedger = {
+  name: string;
+  sub?: string;
+  openLabel: string;
+  opening: string;
+  closeLabel: string;
+  closing: string;
+  totalIn: string;
+  totalOut: string;
+  moves: CashMove[];
+};
+export type CashGroup = { heading?: string; ledgers: CashLedger[] };
+
+export async function cashbookPdf(o: {
+  houseName: string;
+  eyebrow: string;
+  title: string;
+  meta: string[];
+  resume?: { label: string; value: string; tone?: 'in' | 'out' }[];
+  groups: CashGroup[];
+  aside?: { heading: string; note: string; groups: CashGroup[] };
+  refus?: string[];
+  footer: string;
+  filename: string;
+}): Promise<string> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  const W = 210;
+  const M = 16;
+  /* Six colonnes sur 178 mm. Les trois montants se lisent alignés à droite :
+     un chiffre se compare par sa dernière décimale, jamais par sa première. */
+  const xDate = M;
+  const xLabel = M + 18;
+  const xDetail = M + 68;
+  const rIn = 132;
+  const rOut = 162;
+  const rSolde = W - M;
+  let y = 18;
+
+  const saut = (limite = 262) => {
+    if (y <= limite) return;
+    doc.addPage();
+    y = 20;
+  };
+
+  const enTete = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(SOFT);
+    doc.text('DATE', xDate, y);
+    doc.text('LIBELLÉ', xLabel, y);
+    doc.text('DÉTAIL', xDetail, y);
+    doc.text('ENTRÉE', rIn, y, { align: 'right' });
+    doc.text('SORTIE', rOut, y, { align: 'right' });
+    doc.text('SOLDE', rSolde, y, { align: 'right' });
+    y += 2;
+    doc.setDrawColor(COPPER);
+    doc.setLineWidth(0.3);
+    doc.line(M, y, W - M, y);
+    y += 4.5;
+  };
+
+  /* Une ligne du livre. Le libellé et le détail se replient ; la hauteur suit
+     le plus long des deux, sinon deux lignes se chevaucheraient. */
+  const ligne = (m: CashMove, ton?: 'ouverture' | 'cloture') => {
+    const lab = doc.splitTextToSize(m.label, xDetail - xLabel - 3) as string[];
+    const det = m.detail ? (doc.splitTextToSize(m.detail, rIn - 22 - xDetail) as string[]) : [];
+    const hauteur = Math.max(lab.length, det.length, 1) * 3.6 + 2.4;
+    if (y + hauteur > 272) { doc.addPage(); y = 20; enTete(); }
+    if (ton === 'cloture') {
+      doc.setDrawColor(COPPER);
+      doc.setLineWidth(0.3);
+      doc.line(M, y - 3, W - M, y - 3);
+    } else {
+      doc.setDrawColor('#EFE9DC');
+      doc.setLineWidth(0.2);
+      doc.line(M, y - 3, W - M, y - 3);
+    }
+    doc.setFont('helvetica', ton ? 'bold' : 'normal');
+    doc.setFontSize(7.6);
+    doc.setTextColor(ton ? INDIGO : SOFT);
+    doc.text(m.date, xDate, y);
+    doc.setTextColor(ton ? INDIGO : INK);
+    doc.text(lab, xLabel, y);
+    if (det.length) {
+      doc.setTextColor(SOFT);
+      doc.setFontSize(6.8);
+      doc.text(det, xDetail, y);
+      doc.setFontSize(7.6);
+    }
+    doc.setFont('helvetica', ton ? 'bold' : 'normal');
+    if (m.inn) { doc.setTextColor(VERT); doc.text(m.inn, rIn, y, { align: 'right' }); }
+    if (m.out) { doc.setTextColor(BRIQUE); doc.text(m.out, rOut, y, { align: 'right' }); }
+    doc.setTextColor(INDIGO);
+    doc.text(m.balance, rSolde, y, { align: 'right' });
+    y += hauteur;
+  };
+
+  const livre = (l: CashLedger) => {
+    saut(246);
+    y += 4;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(13);
+    doc.setTextColor(INDIGO);
+    doc.text(l.name, M, y);
+    doc.text(l.closing, rSolde, y, { align: 'right' });
+    if (l.sub) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(SOFT);
+      doc.text(l.sub, M + doc.getTextWidth(l.name) + 5, y);
+    }
+    y += 5;
+    enTete();
+    ligne({ date: '', label: l.openLabel, balance: l.opening }, 'ouverture');
+    for (const m of l.moves) ligne(m);
+    ligne({ date: '', label: l.closeLabel, inn: l.totalIn, out: l.totalOut, balance: l.closing }, 'cloture');
+    y += 4;
+  };
+
+  const groupe = (g: CashGroup) => {
+    if (g.heading) {
+      saut(248);
+      y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(COPPER);
+      doc.text(g.heading.toUpperCase(), M, y);
+      y += 1.6;
+      doc.setDrawColor(COPPER);
+      doc.setLineWidth(0.25);
+      doc.line(M, y, W - M, y);
+      y += 2;
+    }
+    for (const l of g.ledgers) livre(l);
+  };
+
+  const seal = await loadSeal();
+  if (seal) {
+    const s = 16;
+    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s); } catch { /* image indisponible */ }
+    y += s + 2.5;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(COPPER);
+    doc.text('MND', W / 2, y, { align: 'center' });
+    y += 7;
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SOFT);
+  doc.text(o.houseName.toUpperCase(), M, y);
+  doc.setTextColor(COPPER);
+  doc.text(o.eyebrow.toUpperCase(), W - M, y, { align: 'right' });
+  y += 8;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(21);
+  doc.setTextColor(INDIGO);
+  doc.text(o.title, M, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  for (const m of o.meta) { y += 4.6; doc.text(m, M, y); }
+  y += 4;
+  doc.setDrawColor(COPPER);
+  doc.setLineWidth(0.5);
+  doc.line(M, y, W - M, y);
+  y += 8;
+
+  /* LES QUATRE CASES — solde d'ouverture, entrées, sorties, solde de clôture.
+     Elles ne se posent que sur une caisse seule : quatre cases au-dessus de six
+     tiroirs en trois monnaies additionneraient ce qui ne s'additionne pas. */
+  if (o.resume?.length) {
+    const largeur = (W - 2 * M) / o.resume.length;
+    doc.setDrawColor('#E3C9AE');
+    doc.setLineWidth(0.25);
+    doc.rect(M, y - 5, W - 2 * M, 14);
+    o.resume.forEach((c, i) => {
+      const x = M + i * largeur + 3;
+      if (i > 0) doc.line(M + i * largeur, y - 5, M + i * largeur, y + 9);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.4);
+      doc.setTextColor(SOFT);
+      doc.text(c.label.toUpperCase(), x, y - 1);
+      doc.setFont('times', 'normal');
+      doc.setFontSize(13);
+      doc.setTextColor(c.tone === 'in' ? VERT : c.tone === 'out' ? BRIQUE : INDIGO);
+      doc.text(c.value, x, y + 5.5);
+    });
+    y += 16;
+  }
+
+  for (const g of o.groups) groupe(g);
+
+  /* HORS BILAN : SON PROPRE RANGEMENT, sur le papier comme à l'écran. Leur
+     argent est réel ; il n'entre simplement dans aucun total de la Maison. */
+  if (o.aside && o.aside.groups.length) {
+    saut(236);
+    y += 8;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(15);
+    doc.setTextColor(INDIGO);
+    doc.text(o.aside.heading, M, y);
+    y += 4.6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(SOFT);
+    const note = doc.splitTextToSize(o.aside.note, W - 2 * M) as string[];
+    doc.text(note, M, y);
+    y += note.length * 3.4 + 1;
+    for (const g of o.aside.groups) groupe(g);
+  }
+
+  /* CE QUI MANQUE SE DIT. Une caisse discrète refermée ne s'imprime pas — son
+     livre dirait son solde ligne à ligne — mais un document amputé en silence
+     vaudrait pire que pas de document du tout. */
+  if (o.refus?.length) {
+    saut(256);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.4);
+    doc.setTextColor(BRIQUE);
+    for (const r of o.refus) {
+      const t = doc.splitTextToSize(r, W - 2 * M) as string[];
+      doc.text(t, M, y);
+      y += t.length * 3.6 + 1;
+    }
+  }
+
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(SOFT);
+    doc.text(o.footer, W / 2, 287, { align: 'center' });
+    if (pages > 1) doc.text(String(i) + ' / ' + String(pages), W - M, 287, { align: 'right' });
+  }
+  doc.save(o.filename);
+  return o.filename;
 }

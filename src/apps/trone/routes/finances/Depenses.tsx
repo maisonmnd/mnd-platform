@@ -21,6 +21,7 @@ import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { useCaisses, ReleveCaisse } from './tiroirs';
+import { RapportDeCaisse } from './Rapport';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './finances.css';
@@ -127,6 +128,7 @@ export default function Depenses() {
   const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
   /** Nom de la caisse dont on lit les mouvements (null = fermé). */
   const [boxDrill, setBoxDrill] = useState<string | null>(null);
+  const [rapportDe, setRapportDe] = useState<string | null>(null);
   /** Le détail derrière un indice de dépense (null = fermé). */
   const [expDrill, setExpDrill] = useState<{ title: string; sub: string; rows: Expense[] } | null>(null);
   const openExp = (title: string, sub: string, rows: Expense[]) => setExpDrill({ title, sub, rows });
@@ -1878,12 +1880,19 @@ export default function Depenses() {
         </Modal>
       )}
 
+      {/* Le relevé mène au rapport ici aussi : la Souveraine ouvre un tiroir
+          depuis la pastille d'une dépense aussi souvent que depuis sa carte. */}
+      {rapportDe && (
+        <RapportDeCaisse nom={rapportDe} month={month} onClose={() => setRapportDe(null)} />
+      )}
+
       {boxDrill && (
         <ReleveCaisse
           nom={boxDrill}
           month={month}
           onClose={() => setBoxDrill(null)}
           onExpense={openEdit}
+          onRapport={() => { setRapportDe(boxDrill); setBoxDrill(null); }}
         />
       )}
     </div>

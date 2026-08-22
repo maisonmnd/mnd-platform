@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le rapport de caisse en PDF — 22 août, PUBLIÉ
+
+« Crée-moi des rapports de caisses en PDF de la même manière » — capture d'une
+autre application à l'appui. Maquette validée
+(`public/maquette-rapport-de-caisse.html`), période tranchée par Yéman : **le
+mois par défaut, une période libre en option**.
+
+IL NE RECALCULE RIEN. Chaque ligne, chaque solde vient de `boxMoves` — la
+source même que lit le relevé à l'écran. Un rapport qui referait les additions
+de son côté finirait par contredire l'écran, et c'est alors le PAPIER qu'on
+croit. Le seul chiffre qu'il fabrique est le solde courant, par accumulation
+depuis l'ouverture : s'il ne tombe pas sur la clôture, la source ment, et ça se
+voit sur la feuille.
+
+LA PÉRIODE LIBRE, sans nouveau modèle de temps. Tout `useCaisses` filtre par
+CLÉ DE MOIS (`keep: (mk) => boolean`) : `boxMoves(name, periode?)` prend donc
+les mois entiers que la période touche, puis coupe aux deux dates. Le solde de
+départ se reprend au début du premier mois et se laisse pousser par ce qui
+précède la date de début — sinon un rapport du 15 partirait du solde du 1er.
+Le chemin SANS période est inchangé au caractère près : il rend toujours
+`boxBalanceStart` et `boxBalance`, les deux valeurs que le relevé affiche.
+
+TROIS REFUS ASSUMÉS, tous écrits sur la feuille :
+① **le solde d'ouverture est la première ligne** — le rapport montré par Yéman
+   part de zéro (sa première ligne « Solde caisse Mamou » est un solde
+   d'ouverture déguisé en revenu) ; un livre qui part de zéro dit un solde faux
+   jusqu'à la dernière ligne ;
+② **une caisse discrète refermée ne s'imprime pas** — son livre dirait son
+   solde ligne à ligne — mais elle est NOMMÉE comme absente : un document
+   amputé en silence vaudrait pire ;
+③ **les monnaies ne s'additionnent jamais** ; hors bilan à part, comme à
+   l'écran depuis le matin.
+
+`shared/pdf.ts` : `cashbookPdf` (six colonnes, en-tête repris à chaque page,
+quatre cases de résumé sur une caisse seule, section « hors bilan », pied et
+numérotation). `finances/Rapport.tsx` : le choix de la période et la
+fabrication des livres. Boutons : en tête de l'écran des Caisses (toutes), et
+dans le relevé d'un tiroir (celui-là) — le relevé reçoit `onRapport` en
+propriété car Rapport.tsx lit déjà tiroirs.tsx, et l'importer en retour ferait
+un cycle que React ne pardonne pas au montage.
+
+TREIZIÈME HARNAIS, `verifie-rapport` — et il IMPRIME POUR DE VRAI : il remplace
+`jsPDF.API.save` par une prise, produit le document et relit `output()`. Il
+tient la translittération du fon (« mi nyó dekpe » et jamais « ? »), la
+pagination d'un livre de 90 lignes, l'en-tête repris page 2, les rangées par
+monnaie, le hors bilan, la caisse refusée nommée, et le livre vide qui
+s'imprime quand même. Le patch se pose sur `jsPDF.API`, pas sur le prototype :
+jsPDF recopie ses méthodes sur chaque instance à la construction.
+
 ## La devise signe ce que l'IA écrit — 22 août, POSÉ
 
 « Quand l'IA répond aux messages, toujours avoir notre devise à la fin »

@@ -11,6 +11,7 @@ import {
 } from '../../../../shared/finance';
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
+import { RapportDeCaisse } from './Rapport';
 import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
@@ -50,6 +51,9 @@ export default function Caisses() {
   const [, setCreditMvts] = useCredits();
 
   const [boxDrill, setBoxDrill] = useState<string | null>(null);
+  /* LE RAPPORT — 22 août 2026. Fermé quand rien n'est posé ; une chaîne vide
+     demande toutes les caisses ; un nom ne demande que ce tiroir-là. */
+  const [rapport, setRapport] = useState<string | null>(null);
 
   /* ── LE VERROU DE L'ÉCRAN — 22 août 2026 ──────────────────────────
      « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
@@ -261,6 +265,7 @@ export default function Caisses() {
           {branchBoxes.length > 0 && (
             <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrOuvert(true)}>⇄ Transférer ou apporter</button>
           )}
+          <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setRapport('')}>Rapport PDF</button>
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => navigate('/encaissements')}>Les encaissements →</button>
           <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => navigate('/depenses')}>Les dépenses →</button>
         </div>
@@ -477,8 +482,17 @@ export default function Caisses() {
         </div>
       )}
 
+      {rapport !== null && (
+        <RapportDeCaisse nom={rapport || undefined} month={month} onClose={() => setRapport(null)} />
+      )}
+
       {boxDrill && (
-        <ReleveCaisse nom={boxDrill} month={month} onClose={() => setBoxDrill(null)} />
+        <ReleveCaisse
+          nom={boxDrill}
+          month={month}
+          onClose={() => setBoxDrill(null)}
+          onRapport={() => { setRapport(boxDrill); setBoxDrill(null); }}
+        />
       )}
 
       {verrouOuvert && (
