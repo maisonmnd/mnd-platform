@@ -1051,6 +1051,41 @@ export function RdvModal({
       .slice(0, 3);
   }, [clientId, branchAppts, byId, appt]);
 
+  /* ── LES PRESTATIONS À LA UNE — 22 août 2026 ───────────────────────
+     « Quand je sélectionne des services, je voudrais avoir des services à la
+     une qui reviennent plus souvent que d'autres. »
+
+     Cent-quarante-huit prestations à la file : les six qu'on pose dix fois par
+     jour se cherchent aussi longtemps que celle qu'on pose une fois l'an.
+
+     ON NE DEMANDE À PERSONNE DE LES DÉSIGNER. C'est la même règle que « Ses
+     rituels habituels » : l'habitude est DÉJÀ écrite dans le carnet. On compte
+     ce que la Maison a réellement posé sur les six derniers mois, et les plus
+     fréquentes montent en tête. Rien à curer, rien à tenir à jour, et cela
+     vaut dès le premier jour — y compris pour les prestations auxquelles
+     personne n'aurait pensé.
+
+     SIX MOIS, ET PAS TOUT L'HISTORIQUE : une prestation abandonnée en janvier
+     ne doit pas trôner en août. Les rituels ANNULÉS ne comptent pas — ce qu'on
+     n'a pas fait n'est pas une habitude. */
+  const alaUne = useMemo(() => {
+    const depuis = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 6);
+      return d.toISOString().slice(0, 10);
+    })();
+    const compte = new Map<string, number>();
+    for (const a of branchAppts) {
+      if (a.status === 'annulé' || a.date < depuis) continue;
+      for (const id of a.serviceIds ?? []) compte.set(id, (compte.get(id) ?? 0) + 1);
+    }
+    return [...compte.entries()]
+      .sort((x, y) => y[1] - x[1])
+      .slice(0, 6)
+      .map(([id, n]) => ({ sv: byId.get(id), n }))
+      .filter((x): x is { sv: Service; n: number } => !!x.sv);
+  }, [branchAppts, byId]);
+
   /* Le modèle dont on attend le « Remplacer » — un seul à la fois. */
   const [modeleAConfirmer, setModeleAConfirmer] = useState<string | null>(null);
 
@@ -2067,6 +2102,25 @@ export function RdvModal({
               <option value="" disabled>
                 + Ajouter une prestation…
               </option>
+              {/* À LA UNE, EN TÊTE — ce que la Maison pose le plus souvent.
+                  Elles restent aussi à leur atelier : c'est un raccourci, pas
+                  un déménagement, et l'on doit pouvoir les retrouver là où on
+                  a l'habitude de les chercher. Filtrées par `proposables`,
+                  comme le reste : une prestation hors calibre ou déjà choisie
+                  n'y paraît pas davantage qu'ailleurs. */}
+              {(() => {
+                const une = alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
+                if (une.length === 0) return null;
+                return (
+                  <optgroup label="★ À la une · les plus posées">
+                    {une.map(({ sv, n }) => (
+                      <option key={`une-${sv.id}`} value={sv.id}>
+                        {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))} · {n}×
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })()}
               {/* LES MONDES SE DISENT (12 août) : un séparateur quand on passe
                   de l'Atelier au plateau, au Studio — « où s'arrête
                   l'Atelier ? » se lit dans la liste même. */}
