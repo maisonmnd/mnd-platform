@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
+import { CURRENCIES } from '../../../../shared/geo';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
+  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { apptNetXof, useServicesById, ClientPicker } from '../clients/_shared';
@@ -108,7 +110,10 @@ export default function Coffre() {
     () => allMoves.filter((m) => m.branchId === branch.id).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     [allMoves, branch.id],
   );
-  const balance = coffreBalance(moves);
+  /* LE SOLDE NE MÊLE PAS LES MONNAIES — les billets étrangers en sont exclus ;
+     chaque compartiment en devise dit son propre total, chez lui. Additionner
+     des euros à des francs ferait un nombre qui n'existe nulle part. */
+  const balance = coffreBalanceMaison(moves);
   const totalIn = moves.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0);
   const totalOut = moves.filter((m) => m.kind === 'virement').reduce((s, m) => s + m.amountXof, 0);
   const thisMonth = monthKey(todayISO());
@@ -145,7 +150,7 @@ export default function Coffre() {
      seule porte : « + Objectif » et le nom d'un objectif l'ouvrent tous deux. */
   const [objectifs, setObjectifs] = useObjectifs();
   const objectifsVivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
-  const [objOuvert, setObjOuvert] = useState<{ id: string; nom: string; cible: string; echeance: string } | null>(null);
+  const [objOuvert, setObjOuvert] = useState<{ id: string; nom: string; cible: string; echeance: string; devise: string } | null>(null);
   /* L'écriture qu'on corrige — montant, date, note, objectif. Le SENS ne se
      change pas ici : un versement ne devient pas un virement d'un clic, ce
      serait renverser un mouvement d'argent sans s'en apercevoir. Pour cela,
@@ -171,15 +176,18 @@ export default function Coffre() {
   const enregistrerObjectif = () => {
     if (!objOuvert) return;
     const nom = objOuvert.nom.trim();
+    /* La cible est FACULTATIVE : sans elle, on pose un compartiment. Seul le
+       nom est requis — un compartiment sans nom ne se retrouverait pas. */
     const cible = parseInt(objOuvert.cible.replace(/[^0-9]/g, ''), 10) || 0;
-    if (!nom || cible <= 0) return;
+    if (!nom) return;
     setObjectifs((prev) => (objOuvert.id
       ? prev.map((o) => (o.id === objOuvert.id
-        ? { ...o, nom, cibleXof: cible, echeance: objOuvert.echeance || undefined }
+        ? { ...o, nom, cibleXof: cible, echeance: objOuvert.echeance || undefined, devise: objOuvert.devise || undefined }
         : o))
       : [...prev, {
         id: uid(), branchId: branch.id, nom, cibleXof: cible,
         echeance: objOuvert.echeance || undefined,
+        devise: objOuvert.devise || undefined,
       } as ObjectifCoffre]));
     setObjOuvert(null);
   };
@@ -233,7 +241,7 @@ export default function Coffre() {
               Un objectif ne bloque rien — il dit seulement où va l’effort.
             </div>
           </div>
-          <Button variant="ghost" onClick={() => setObjOuvert({ id: '', nom: '', cible: '', echeance: '' })}>+ Objectif</Button>
+          <Button variant="ghost" onClick={() => setObjOuvert({ id: '', nom: '', cible: '', echeance: '', devise: '' })}>+ Objectif</Button>
         </div>
 
         {objectifsVivants.length === 0 ? (
@@ -245,7 +253,12 @@ export default function Coffre() {
         ) : (
           <div style={{ marginTop: 14 }}>
             {objectifsVivants.map((o) => {
-              const recu = recuParObjectif(moves, o.id);
+              const devise = deviseDuCompartiment(o, currency);
+              const etranger = compartimentEtranger(o, currency);
+              const recu = recuDansSaDevise(moves, o, currency);
+              /* SANS CIBLE, C'EST UN COMPARTIMENT : il contient, il ne vise
+                 rien. Ni jauge, ni manque, ni jugement — juste un solde. */
+              const compartiment = o.cibleXof <= 0;
               const part = o.cibleXof > 0 ? Math.min(100, Math.round((recu / o.cibleXof) * 100)) : 0;
               const manque = Math.max(0, o.cibleXof - recu);
               const mois = moisPourAtteindre(moves, o);
@@ -265,23 +278,29 @@ export default function Coffre() {
                   <div className="trf-objectif__tete">
                     <button
                       className="trf-objectif__nom"
-                      onClick={() => setObjOuvert({ id: o.id, nom: o.nom, cible: String(o.cibleXof), echeance: o.echeance ?? '' })}
+                      onClick={() => setObjOuvert({ id: o.id, nom: o.nom, cible: String(o.cibleXof), echeance: o.echeance ?? '', devise: o.devise ?? '' })}
                       title="Modifier cet objectif"
                     >
                       {o.nom}
                     </button>
                     <span className="trf-objectif__chiffres">
-                      {fmtMoney(recu, currency)} <i>/ {fmtMoney(o.cibleXof, currency)}</i>
+                      {fmtIn(recu, devise)}
+                      {!compartiment && <i> / {fmtIn(o.cibleXof, devise)}</i>}
                     </span>
                   </div>
-                  <div className="trf-jauge">
-                    <i
-                      style={{ width: `${Math.max(1, part)}%` }}
-                      className={manque === 0 ? 'est-atteint' : retard !== null && retard > 0 ? 'est-loin' : ''}
-                    />
-                  </div>
-                  <div className="trf-objectif__mot">
-                    <span>{part} %{manque > 0 ? ` · il manque ${fmtMoney(manque, currency)}` : ' · atteint'}</span>
+                  {!compartiment && (
+                    <div className="trf-jauge">
+                      <i
+                        style={{ width: `${Math.max(1, part)}%` }}
+                        className={manque === 0 ? 'est-atteint' : retard !== null && retard > 0 ? 'est-loin' : ''}
+                      />
+                    </div>
+                  )}
+                  <div className="trf-objectif__mot" style={compartiment ? { marginTop: 5 } : undefined}>
+                    {compartiment
+                      ? <span className="mnd-muted">compartiment — sans montant visé</span>
+                      : <span>{part} %{manque > 0 ? ` · il manque ${fmtIn(manque, devise)}` : ' · atteint'}</span>}
+                    {etranger && <span className="trf-objectif__devise">tenu en {devise}</span>}
                     {o.echeance && <span>échéance {monthLabelLong(o.echeance)}</span>}
                     {manque > 0 && mois !== null && (
                       <span className={`trf-jugement ${retard !== null && retard > 0 ? 'est-retard' : retard !== null ? 'est-tenu' : ''}`}>
@@ -296,6 +315,9 @@ export default function Coffre() {
                 </div>
               );
             })}
+            {/* LES DEVISES NE S'ADDITIONNENT PAS. Le non-fléché ne compte que
+                les francs de la Maison ; chaque compartiment en devise dit son
+                propre total, plus haut, chez lui. */}
             <div className="trf-objectif__pied">
               <span>Non fléché — disponible</span>
               <b>{fmtMoney(coffreNonFleche(moves), currency)}</b>
@@ -445,7 +467,22 @@ export default function Coffre() {
                 onChange={(e) => setObjOuvert((o) => (o ? { ...o, nom: e.target.value } : o))}
               />
             </Field>
-            <Field label={`Montant à réunir · ${currency}`}>
+            <Field label="Devise tenue">
+              <Select
+                value={objOuvert.devise}
+                onChange={(e) => setObjOuvert((o) => (o ? { ...o, devise: e.target.value } : o))}
+              >
+                <option value="">{currency} — la devise de la Maison</option>
+                {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                ))}
+              </Select>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                Un compartiment en devise compte SES billets et ne s’additionne jamais au solde
+                en {currency} — deux monnaies ne font pas un total.
+              </div>
+            </Field>
+            <Field label={`Montant à réunir · ${objOuvert.devise || currency} · facultatif`}>
               <Input
                 inputMode="numeric"
                 value={objOuvert.cible}
@@ -453,6 +490,12 @@ export default function Coffre() {
                 onChange={(e) => setObjOuvert((o) => (o ? { ...o, cible: e.target.value.replace(/[^0-9]/g, '') } : o))}
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
               />
+              {/* LAISSER VIDE A UN SENS : c'est ainsi qu'on pose un simple
+                  coffre dans le coffre — il contient, il ne vise rien. */}
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                Laissez vide pour un simple compartiment : un coffre dans le coffre, qui contient
+                sans viser de montant. Avec un montant, il devient un objectif — jauge, manque et rythme.
+              </div>
             </Field>
             <Field label="Pour quand · facultatif">
               <Input
@@ -544,14 +587,26 @@ function DepositModal({
   const [objectifs] = useObjectifs();
   const objectifsVivants = objectifs.filter((o) => o.branchId === branchId && !o.clos);
   const [objectifId, setObjectifId] = useState('');
+  /* SI LE COMPARTIMENT TIENT UNE AUTRE DEVISE, on saisit les billets réels et
+     leur taux : le franc reste la base comptable, mais le compartiment doit
+     pouvoir dire « 200 € », pas leur contre-valeur d'un jour. */
+  const objChoisi = objectifsVivants.find((o) => o.id === objectifId);
+  const deviseChoisie = objChoisi ? deviseDuCompartiment(objChoisi, currency) : currency;
+  const enDevise = deviseChoisie !== currency;
+  const [fxMontant, setFxMontant] = useState('');
+  const [fxTaux, setFxTaux] = useState('');
+  const fxMontantNum = parseFloat(fxMontant.replace(',', '.')) || 0;
+  const fxTauxNum = parseFloat(fxTaux.replace(',', '.')) || 0;
 
   const save = () => {
-    if (amountNum <= 0) return;
+    const xof = enDevise ? Math.round(fxMontantNum * fxTauxNum) : amountNum;
+    if (xof <= 0) return;
     onSave({
-      id: uid(), branchId, kind: 'depot', amountXof: amountNum, date: date || todayISO(),
+      id: uid(), branchId, kind: 'depot', amountXof: xof, date: date || todayISO(),
       clientId: clientId || undefined, clientName: clientName || undefined,
       cashbox: cashbox || undefined,
       objectifId: objectifId || undefined,
+      ...(enDevise ? { fx: { code: deviseChoisie, rate: fxTauxNum, amount: fxMontantNum } } : {}),
       note: note.trim() || undefined,
     });
   };
@@ -584,6 +639,32 @@ function DepositModal({
             </div>
           </Field>
         )}
+        {enDevise && (
+          <>
+            <Field label={`Billets déposés · ${deviseChoisie}`}>
+              <Input
+                inputMode="decimal"
+                value={fxMontant}
+                placeholder="0"
+                onChange={(e) => setFxMontant(e.target.value.replace(/[^0-9.,]/g, ''))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </Field>
+            <Field label={`Taux du jour · 1 ${deviseChoisie} = ? ${currency}`}>
+              <Input
+                inputMode="decimal"
+                value={fxTaux}
+                placeholder="0"
+                onChange={(e) => setFxTaux(e.target.value.replace(/[^0-9.,]/g, ''))}
+              />
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                {fxMontantNum > 0 && fxTauxNum > 0
+                  ? `Soit ${fmtMoney(Math.round(fxMontantNum * fxTauxNum), currency)} — la base comptable de la Maison. Le compartiment, lui, comptera ${fxMontant} ${deviseChoisie}.`
+                  : 'Le taux fige la contre-valeur du jour ; le compartiment, lui, garde ses billets.'}
+              </div>
+            </Field>
+          </>
+        )}
         <Field label="Adosser à une cliente · facultatif">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Choisir la cliente dont on met de côté le revenu…" />
         </Field>
@@ -612,9 +693,13 @@ function DepositModal({
           </div>
         )}
 
-        <Field label={`Montant à verser (${currency})`}>
-          <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
-        </Field>
+        {/* En devise, le montant vient des billets et du taux — le saisir une
+            seconde fois en francs ouvrirait deux vérités pour un seul dépôt. */}
+        {!enDevise && (
+          <Field label={`Montant à verser (${currency})`}>
+            <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+          </Field>
+        )}
         <Field label="Date du versement">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>

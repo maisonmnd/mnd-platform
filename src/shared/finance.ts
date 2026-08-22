@@ -614,6 +614,13 @@ export type CoffreMovement = {
       disponible. Le fléchage est une LECTURE, jamais une serrure — un
       virement peut toujours partir, quel que soit l'objectif visé. */
   objectifId?: string;
+  /** LES BILLETS RÉELLEMENT DÉPOSÉS quand le compartiment tient une AUTRE
+      devise — 22 août 2026, « il y a des coffres qui ont différentes
+      devises ». Même contrat que `InvoicePayment.fx` : `amount` est ce qui
+      a été mis dans le coffre, `amountXof` reste la seule base comptable de
+      la Maison. Sans ce champ, un dépôt de 200 € ne saurait dire que 200,
+      et le compartiment afficherait sa contre-valeur en francs. */
+  fx?: { code: string; rate: number; amount: number };
   /** LA CAISSE D'OÙ L'ARGENT SORT — 17 août 2026, décision de Yéman : « le
       coffre comme caisse ».
 
@@ -654,11 +661,25 @@ export type ObjectifCoffre = {
   id: string;
   branchId: string;
   nom: string;
+  /** LE MONTANT VISÉ — ou ZÉRO, et c'est un état à part entière : 22 août
+      2026, « j'aimerais créer plusieurs coffres-forts dans le coffre-fort ».
+
+      Un coffre dans le coffre n'est rien d'autre qu'un COMPARTIMENT : il
+      contient, il ne vise pas. Ajouter une seconde façon de découper le
+      coffre aurait fait deux axes, deux totaux, et le risque de compter deux
+      fois les mêmes francs. Une cible facultative suffit : sans elle, la
+      ligne est un compartiment — un solde, un nom, rien de plus ; avec elle,
+      c'est un objectif — une jauge, un manque, et un rythme. */
   cibleXof: number;
   /** Le mois visé, « AAAA-MM ». Facultatif — et son absence a un sens : un
       objectif sans date ne peut JAMAIS être dit « en retard ». On ne reproche
       pas un retard à qui n'a pas donné de date. */
   echeance?: string;
+  /** LA DEVISE TENUE PAR CE COMPARTIMENT. Absente = celle de la Maison.
+      Un compartiment en euros ne s'additionne JAMAIS au solde en francs :
+      c'est la règle déjà posée pour les caisses (`isFxCashbox`), et la
+      confondre ferait un total qui n'existe nulle part. */
+  devise?: string;
   note?: string;
   /** Atteint et refermé : il quitte la liste vivante sans effacer son histoire. */
   clos?: boolean;
@@ -680,8 +701,34 @@ export const recuParObjectif = (moves: readonly CoffreMovement[], objectifId: st
     plus le non-fléché fait TOUJOURS le coffre, quoi qu'il arrive aux lignes. */
 export const coffreNonFleche = (moves: readonly CoffreMovement[]): number =>
   Math.max(0, moves
-    .filter((m) => !m.objectifId)
+    .filter((m) => !m.objectifId && !m.fx)
     .reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/** LA DEVISE D'UN COMPARTIMENT — celle de la Maison quand il n'en dit pas. */
+export const deviseDuCompartiment = (o: ObjectifCoffre, maison: string): string => o.devise || maison;
+
+export const compartimentEtranger = (o: ObjectifCoffre, maison: string): boolean =>
+  deviseDuCompartiment(o, maison) !== maison;
+
+/** CE QU'IL CONTIENT, DANS SA PROPRE DEVISE. Un compartiment en euros compte
+    des euros : ce sont les billets qu'il tient, pas leur contre-valeur d'un
+    jour. Un compartiment de la Maison compte en francs, comme avant. */
+export const recuDansSaDevise = (
+  moves: readonly CoffreMovement[], o: ObjectifCoffre, maison: string,
+): number => {
+  if (!compartimentEtranger(o, maison)) return recuParObjectif(moves, o.id);
+  const devise = deviseDuCompartiment(o, maison);
+  return Math.max(0, moves
+    .filter((m) => m.objectifId === o.id && m.fx?.code === devise)
+    .reduce((s, m) => s + (m.kind === 'depot' ? m.fx!.amount : -m.fx!.amount), 0));
+};
+
+/** LE SOLDE DU COFFRE, EN MONNAIE DE LA MAISON — les billets étrangers en
+    sont EXCLUS. Additionner des euros à des francs ferait un nombre qui
+    n'existe nulle part ; les compartiments en devise disent leur propre
+    total, chacun chez lui. Même règle que la trésorerie des caisses. */
+export const coffreBalanceMaison = (moves: readonly CoffreMovement[]): number =>
+  Math.max(0, moves.filter((m) => !m.fx).reduce((s, m) => s + coffreSignedXof(m), 0));
 
 /** LE RYTHME, ET CE QU'IL PROMET. Moyenne mensuelle des versements fléchés sur
     les mois où il y en a eu — pas sur le calendrier, sinon un objectif ouvert
@@ -690,6 +737,10 @@ export const coffreNonFleche = (moves: readonly CoffreMovement[]): number =>
 export const moisPourAtteindre = (
   moves: readonly CoffreMovement[], o: ObjectifCoffre,
 ): number | null => {
+  /* UN COMPARTIMENT NE PROMET RIEN : sans cible, il n'y a pas de « quand
+     est-ce atteint ». Le dire par `null` plutôt que par un zéro, qui se
+     lirait « c'est fait ». */
+  if (o.cibleXof <= 0) return null;
   const verses = moves.filter((m) => m.objectifId === o.id && m.kind === 'depot');
   if (verses.length === 0) return null;
   const mois = new Set(verses.map((m) => m.date.slice(0, 7)));

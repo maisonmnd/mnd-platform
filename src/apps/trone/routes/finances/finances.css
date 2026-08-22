@@ -1286,3 +1286,15 @@
   font: inherit;
 }
 .trf-coffre-row__main--btn:hover .trf-coffre-row__title { color: var(--color-copper); }
+
+/* Un compartiment tenu en devise le dit — 22 août 2026. */
+.trf-objectif__devise {
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700, #96412E);
+  border-radius: 2px;
+  padding: 1px 7px;
+}

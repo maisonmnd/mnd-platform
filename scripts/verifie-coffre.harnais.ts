@@ -7,6 +7,7 @@
 
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
+  recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
@@ -112,6 +113,45 @@ const anciennes: Pret[] = [
 dit('une ligne d’avant se lit encore', 200_000, detteEnCours(anciennes, 'br'));
 dit('… et son genre retombe sur « foyer »', 'foyer', soldesParEmprunteur(anciennes, 'br')[0].genre);
 dit('… sans caisse, comme elle a été saisie', undefined, anciennes[0].cashbox);
+
+/* ── ④ DEUX MONNAIES NE FONT PAS UN TOTAL ────────────────────
+   << Il y a des coffres qui ont differentes devises. >> Un compartiment en
+   euros compte SES billets ; le solde de la Maison ne les additionne jamais
+   a ses francs -- ce serait un nombre qui n'existe nulle part. */
+const depFx = (id: string, eur: number, taux: number, date: string, objectifId: string): CoffreMovement =>
+  ({ id, branchId: 'br', kind: 'depot', amountXof: Math.round(eur * taux), date, objectifId,
+     fx: { code: 'EUR', rate: taux, amount: eur } } as CoffreMovement);
+
+const coffreMixte = [
+  dep('x1', 300_000, '2026-06-01', 'scolarite'),
+  dep('x2', 95_000, '2026-06-02'),
+  depFx('x3', 200, 655, '2026-07-01', 'tiroirEur'),
+  depFx('x4', 150, 655, '2026-08-01', 'tiroirEur'),
+];
+const eur = { id: 'tiroirEur', branchId: 'br', nom: 'Coffre euros', cibleXof: 0, devise: 'EUR' } as ObjectifCoffre;
+const xof = obj('scolarite', 900_000);
+
+dit('le compartiment euros compte 350 €', 350, recuDansSaDevise(coffreMixte, eur, 'XOF'));
+dit('… et il se sait étranger', true, compartimentEtranger(eur, 'XOF'));
+dit('un compartiment muet prend la devise de la Maison', 'XOF', deviseDuCompartiment(xof, 'XOF'));
+dit('le compartiment en francs compte des francs', 300_000, recuDansSaDevise(coffreMixte, xof, 'XOF'));
+
+/* LE SOLDE DE LA MAISON EXCLUT LES BILLETS ÉTRANGERS. `coffreBalance`, qui
+   somme tout, donnerait 624 250 -- un total qui ne correspond a rien : ni a
+   des francs reels, ni a des euros. */
+dit('le solde de la Maison ignore les euros', 395_000, coffreBalanceMaison(coffreMixte));
+dit('le non-fléché les ignore aussi', 95_000, coffreNonFleche(coffreMixte));
+/* L'invariant se rejoue, DANS LA MONNAIE DE LA MAISON seulement. */
+dit('fléché en francs + non-fléché = solde Maison',
+  coffreBalanceMaison(coffreMixte),
+  recuDansSaDevise(coffreMixte, xof, 'XOF') + coffreNonFleche(coffreMixte));
+
+/* ── ⑤ UN COMPARTIMENT NE PROMET RIEN ─────────────────────────
+   Sans cible, il n'y a pas de << quand est-ce atteint >> : le dire par null
+   plutot que par un zero, qui se lirait << c'est fait >>. */
+dit('un compartiment sans cible ne promet rien', null, moisPourAtteindre(coffreMixte, eur));
+dit('… même en francs', null,
+  moisPourAtteindre(coffre, { id: 'scolarite', branchId: 'br', nom: 'tiroir', cibleXof: 0 } as ObjectifCoffre));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);
