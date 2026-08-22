@@ -60,6 +60,10 @@ export const NAV: TroneGroup[] = [
     items: [
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
+      /* LES CAISSES ONT LEUR ÉCRAN — 22 août 2026. Elles vivaient sous
+         « Dépenses » par accident d'histoire : une caisse n'appartient pas
+         aux dépenses, c'est le tiroir par lequel TOUT passe. */
+      { path: '/caisses', label: 'Les caisses', icon: Wallet, Component: lazy(() => import('./finances/Caisses')) },
       { path: '/coffre', label: 'Coffre-fort', icon: Landmark, Component: lazy(() => import('./finances/Coffre')) },
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
