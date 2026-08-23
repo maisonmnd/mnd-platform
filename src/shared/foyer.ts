@@ -262,6 +262,18 @@ export type Pret = {
   associe: string;
   motif: string;
   amountXof: number; // toujours positif ; le SENS vient du type
+  /** QUAND CET ARGENT DOIT REVENIR — 23 août 2026. Absent = sans échéance,
+      et c’est un état assumé, pas un oubli : l’écran le dit et ne relance pas.
+      Ne vaut que sur une ligne de type `pret`. */
+  echeance?: string;
+  /** Un retour en PLUSIEURS FOIS : `nombre` versements mensuels à partir de
+      `premier`. Les montants se calculent (voir `echeancesDuPret`) — les
+      stocker ferait deux vérités le jour où le prêt se corrige. */
+  echeancier?: { nombre: number; premier: string };
+  /** LA RETENUE MENSUELLE PROPOSÉE SUR LE BULLETIN — équipe seulement. Une
+      avance sur salaire se rembourse par le salaire : aucune caisse ne bouge,
+      puisque l’argent n’est jamais sorti de la Maison. */
+  retenueXof?: number;
   /** CE QUI EST SORTI (ou rentré dans) LE TIROIR quand la caisse tient une
       autre devise — 22 août 2026. La dette reste en francs ; le tiroir compte
       ses billets. Voir surLeTiroir dans finance.ts. */
@@ -590,3 +602,147 @@ bindCollection(pretsStore, 'prets_associes');
    en arrière — c'est le patron des `repli_0023_`. */
 bindCollection(caissesIndepStore, 'caisses_indep');
 bindCollection(mouvementsCaisseStore, 'caisses_indep_mouvements');
+
+/* ── L'ÉCHÉANCE D'UN PRÊT — 23 août 2026 ────────────────────────────
+   « Crée-moi une gestion sans faille des prêts. » Maquette validée
+   (`public/maquette-les-prets.html`).
+
+   CE QUI MANQUAIT N'ÉTAIT PAS UN ÉCRAN, C'ÉTAIT UNE DATE. Le Trône savait
+   combien la Maison avait prêté et combien était rentré ; il ne savait pas
+   QUAND l'argent devait revenir. Un prêt sans date de retour ne se réclame
+   pas : il s'oublie. Tout le reste — l'alerte, la relance, le tri par urgence
+   — en découle.
+
+   L'ÉCHÉANCE VIT SUR LA LIGNE DE PRÊT, jamais sur l'emprunteur : une même
+   personne peut devoir deux prêts, contractés à deux dates, à rendre à deux
+   moments. L'écran les regroupe pour la lecture ; le modèle, lui, ne mélange
+   pas.
+
+   LES ÉCHÉANCES ATTENDUES NE SONT PAS DES ÉCRITURES. Elles se calculent, elles
+   ne se stockent pas : le jour où le montant d'un prêt se corrige, elles
+   suivent. Et surtout, rien ne bouge dans une caisse tant que l'argent n'est
+   pas revenu pour de bon — une attente qui débiterait un tiroir ferait mentir
+   la trésorerie. */
+
+/** Un versement attendu — calculé, jamais inscrit. */
+export type EcheanceAttendue = {
+  /** La ligne de prêt dont il découle. */
+  pretId: string;
+  date: string;
+  montantXof: number;
+  /** « le 2ᵉ sur 4 » — pour le dire à l'écran. */
+  rang: number;
+  sur: number;
+};
+
+/** Décale une date de `n` mois, en repliant sur le dernier jour du mois visé :
+    le 31 janvier plus un mois tombe au 28 (ou 29), jamais au 3 mars. */
+export const moisPlus = (iso: string, n: number): string => {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  const cible = new Date(Date.UTC(y, m - 1 + n, 1));
+  const dernier = new Date(Date.UTC(cible.getUTCFullYear(), cible.getUTCMonth() + 1, 0)).getUTCDate();
+  const jour = Math.min(d, dernier);
+  return `${cible.getUTCFullYear()}-${String(cible.getUTCMonth() + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+};
+
+/** Le nombre de jours entre deux dates ISO — positif si `b` est après `a`. */
+export const joursEntre = (a: string, b: string): number =>
+  Math.round((Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86400000);
+
+/** Ce qu'une ligne de prêt attend — une échéance, plusieurs, ou aucune. */
+export const echeancesDuPret = (p: Pret): EcheanceAttendue[] => {
+  if (p.type !== 'pret') return [];
+  if (p.echeancier && p.echeancier.nombre > 1) {
+    const n = Math.min(p.echeancier.nombre, 60);
+    /* La part se calcule, ne se stocke pas : corriger le montant du prêt doit
+       corriger les versements, pas laisser deux vérités face à face. Le dernier
+       porte l'arrondi — sinon la somme des parts ne ferait pas le prêt. */
+    const part = Math.round(p.amountXof / n);
+    return Array.from({ length: n }, (_, i) => ({
+      pretId: p.id,
+      date: moisPlus(p.echeancier!.premier, i),
+      montantXof: i === n - 1 ? p.amountXof - part * (n - 1) : part,
+      rang: i + 1,
+      sur: n,
+    }));
+  }
+  if (p.echeance) {
+    return [{ pretId: p.id, date: p.echeance, montantXof: p.amountXof, rang: 1, sur: 1 }];
+  }
+  return [];
+};
+
+/** L'état d'un emprunteur : son solde, ce qu'il doit encore et quand. */
+export type EtatEmprunteur = SoldePret & {
+  /** Ce qui reste attendu, du plus ancien au plus récent — arriérés en tête. */
+  attendus: EcheanceAttendue[];
+  /** La plus ancienne échéance non couverte, passée ou à venir. */
+  prochaine?: EcheanceAttendue;
+  /** Jours de retard sur la plus ancienne échéance dépassée. 0 = à jour. */
+  retardJours: number;
+  /** La retenue mensuelle proposée sur le bulletin, s'il y en a une. */
+  retenueXof: number;
+  /** Aucune de ses lignes de prêt ne porte de date de retour. */
+  sansEcheance: boolean;
+};
+
+/* CE QUI EST REMBOURSÉ COUVRE LES ÉCHÉANCES LES PLUS ANCIENNES D'ABORD. C'est
+   la règle du comptoir : on solde ce qui traîne avant ce qui vient. L'imputer
+   autrement ferait apparaître un retard là où l'emprunteur a payé. */
+export const etatsDesEmprunteurs = (
+  lignes: readonly Pret[],
+  branchId: string,
+  aujourdhui: string,
+): EtatEmprunteur[] => {
+  const soldes = soldesParEmprunteur(lignes, branchId);
+  return soldes.map((s) => {
+    const siennes = lignes.filter((p) => p.branchId === branchId
+      && (p.associe || 'Sans nom').trim().toLowerCase() === s.nom.toLowerCase());
+    const prets = siennes.filter((p) => p.type === 'pret');
+    const calendrier = prets.flatMap(echeancesDuPret).sort((a, b) => a.date.localeCompare(b.date));
+
+    let couvre = s.rembourse;
+    const attendus: EcheanceAttendue[] = [];
+    for (const e of calendrier) {
+      if (couvre >= e.montantXof) { couvre -= e.montantXof; continue; }
+      attendus.push({ ...e, montantXof: e.montantXof - couvre });
+      couvre = 0;
+    }
+    const enSouffrance = attendus.filter((e) => e.date < aujourdhui.slice(0, 10));
+    return {
+      ...s,
+      attendus,
+      prochaine: attendus[0],
+      retardJours: enSouffrance.length > 0 ? joursEntre(enSouffrance[0].date, aujourdhui) : 0,
+      retenueXof: prets.reduce((n, p) => n + (s.reste > 0 ? (p.retenueXof ?? 0) : 0), 0),
+      sansEcheance: prets.length > 0 && calendrier.length === 0,
+    };
+  });
+};
+
+/* L'ORDRE DE LECTURE EST L'ORDRE DE L'URGENCE. Trié par date de saisie, le
+   plus RÉCENT montait en tête — c'est-à-dire le moins pressant. Ici : le
+   retard d'abord, du plus vieux au plus frais, puis ce qui arrive, puis le
+   reste dû. Les soldés tombent en fin de liste. */
+export const parUrgence = (a: EtatEmprunteur, b: EtatEmprunteur): number => {
+  if ((a.reste > 0) !== (b.reste > 0)) return a.reste > 0 ? -1 : 1;
+  if (a.retardJours !== b.retardJours) return b.retardJours - a.retardJours;
+  if (a.prochaine && b.prochaine && a.prochaine.date !== b.prochaine.date) {
+    return a.prochaine.date.localeCompare(b.prochaine.date);
+  }
+  if (!!a.prochaine !== !!b.prochaine) return a.prochaine ? -1 : 1;
+  return b.reste - a.reste;
+};
+
+/** Ce que la Maison doit surveiller aujourd'hui — pour le Tableau de bord. */
+export const pretsASurveiller = (
+  lignes: readonly Pret[],
+  branchId: string,
+  aujourdhui: string,
+  fenetreJours = 7,
+): EtatEmprunteur[] =>
+  etatsDesEmprunteurs(lignes, branchId, aujourdhui)
+    .filter((e) => e.reste > 0 && e.prochaine
+      && joursEntre(aujourdhui, e.prochaine.date) <= fenetreJours)
+    .sort(parUrgence);
+

@@ -10,6 +10,7 @@ import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, expenseTotal, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
+import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
@@ -51,6 +52,8 @@ export default function Dashboard() {
   const [allClients] = useClients();
   const byId = useServicesById();
   const [invoices] = useInvoices();
+  const [lesPrets] = usePrets();
+  const pretsAVeiller = pretsASurveiller(lesPrets, branch.id, todayISO());
   const [expenses] = useExpenses();
   const [categories] = useCategories();
   /* Index des catégories — c'est leur `maison` qui range le chiffre côté
@@ -369,6 +372,23 @@ export default function Dashboard() {
         navigate('/customers');
       },
     }] : []),
+    /* LES PRÊTS QUI PRESSENT — 23 août 2026. « Un prêt qu’on ne voit pas est
+       un prêt qu’on oublie » : ce qui est en retard, ou attendu sous huit
+       jours, remonte ici comme les anniversaires. Le calcul vit dans foyer.ts
+       et rend déjà la liste triée par urgence. */
+    ...pretsAVeiller.map((e) => {
+      const j = e.prochaine ? joursEntre(todayISO(), e.prochaine.date) : 0;
+      return {
+        k: `pret-${e.nom}`,
+        label: j < 0
+          ? `${e.nom} — remboursement en retard de ${-j} jour${-j > 1 ? 's' : ''}`
+          : `${e.nom} — remboursement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
+        sub: `${fmtMoney(e.prochaine?.montantXof ?? e.reste, currency)} · reste dû ${fmtMoney(e.reste, currency)}`,
+        action: 'Voir',
+        go: () => navigate('/prets'),
+      };
+    }),
+
     ...(compoNouvelles.length > 0 ? [{
       k: 'compositions',
       label: `${compoNouvelles.length} rituel${compoNouvelles.length > 1 ? 's' : ''} sur-mesure à sceller`,

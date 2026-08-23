@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les prêts — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBEDE9; --vert: #4A6B52; --vert-f: #EEF3EE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--parchemin); color: var(--encre);
+         font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1120px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+       line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 30px; color: var(--indigo);
+       margin: 56px 0 8px; letter-spacing: -.01em; }
+  .lede { max-width: 70ch; color: var(--encre-d); font-size: 15.5px; }
+  .note { max-width: 74ch; color: var(--encre-d); font-size: 13.5px; line-height: 1.7; }
+
+  .ecran { background: var(--ivoire); border: 1px solid var(--filet); border-radius: 4px;
+           padding: 26px; margin-top: 22px; box-shadow: 0 22px 48px -34px rgba(30,33,80,.4); }
+
+  /* ── Le bandeau ── */
+  .bandeau { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--filet);
+             border: 1px solid var(--filet); border-radius: 3px; overflow: hidden; }
+  .stat { background: #fff; padding: 15px 16px; }
+  .stat__l { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); }
+  .stat__v { font-family: var(--serif); font-size: 27px; color: var(--indigo); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .stat__v.vert { color: var(--vert); } .stat__v.brique { color: var(--brique); }
+  .stat__s { font-size: 10.5px; color: var(--encre-d); margin-top: 2px; }
+  .stat.alerte { background: var(--brique-f); }
+
+  /* ── Le rail d'urgence ── */
+  .rail { display: flex; gap: 8; flex-wrap: wrap; margin: 18px 0 4px; gap: 8px; }
+  .puce { font-size: 12px; padding: 7px 13px; border-radius: 3px; border: 1px solid var(--filet);
+          background: #fff; color: var(--encre-d); cursor: pointer; }
+  .puce.is-on { background: var(--indigo); border-color: var(--indigo); color: var(--ivoire); }
+  .puce.alerte { border-color: var(--brique); color: var(--brique); background: var(--brique-f); font-weight: 500; }
+
+  /* ── La carte d'un emprunteur ── */
+  .carte { background: #fff; border: 1px solid var(--filet); border-radius: 3px;
+           padding: 18px 20px; margin-top: 14px; }
+  .carte.retard { border-left: 3px solid var(--brique); }
+  .carte.solde { opacity: .72; }
+  .carte__tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .carte__nom { font-family: var(--serif); font-size: 25px; color: var(--indigo); }
+  .tag { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px;
+         border: 1px solid var(--cuivre-p); background: var(--cuivre-f); color: var(--cuivre); border-radius: 2px; }
+  .tag.brique { border-color: var(--brique); background: var(--brique-f); color: var(--brique); }
+  .tag.vert { border-color: #BFD2C2; background: var(--vert-f); color: var(--vert); }
+  .carte__reste { margin-left: auto; text-align: right; }
+  .carte__reste em { display: block; font-style: normal; font-size: 9.5px; letter-spacing: .14em;
+                     text-transform: uppercase; color: var(--encre-d); }
+  .carte__reste b { font-family: var(--serif); font-weight: 400; font-size: 27px; color: var(--indigo);
+                    font-variant-numeric: tabular-nums; }
+
+  .jauge { height: 5px; background: var(--sable); border-radius: 3px; overflow: hidden; margin: 13px 0 7px; }
+  .jauge i { display: block; height: 100%; background: var(--vert); }
+  .jauge-mot { display: flex; justify-content: space-between; font-size: 11px; color: var(--encre-d); }
+
+  .echeance { display: flex; align-items: center; gap: 9px; margin-top: 13px; padding: 9px 12px;
+              border-radius: 3px; font-size: 12.5px; background: var(--cuivre-f); color: var(--cuivre); }
+  .echeance.brique { background: var(--brique-f); color: var(--brique); font-weight: 500; }
+  .echeance.vert { background: var(--vert-f); color: var(--vert); }
+
+  .gestes { display: flex; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
+  .btn { font-family: var(--sans); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+         padding: 10px 16px; border-radius: 3px; border: 1px solid var(--indigo);
+         background: var(--indigo); color: var(--ivoire); cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--indigo); }
+  .btn.cuivre { background: var(--cuivre); border-color: var(--cuivre); }
+
+  .lignes { margin-top: 14px; border-top: 1px solid var(--filet); padding-top: 4px; }
+  .ligne { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 12.5px;
+           border-bottom: 1px solid #F0EAE0; }
+  .ligne:last-child { border-bottom: none; }
+  .ligne .q { color: var(--encre-d); }
+  .ligne .m { font-family: var(--serif); font-size: 15px; color: var(--indigo); font-variant-numeric: tabular-nums; }
+  .ligne .m.vert { color: var(--vert); }
+  .attendu { opacity: .62; font-style: italic; }
+
+  /* ── La modale ── */
+  .modale { max-width: 520px; margin: 22px auto 0; background: #fff; border: 1px solid var(--filet);
+            border-radius: 4px; padding: 24px; box-shadow: 0 22px 48px -30px rgba(30,33,80,.45); }
+  .modale h3 { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--indigo); margin: 0 0 16px; }
+  .champ { margin-bottom: 15px; }
+  .champ__l { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); margin-bottom: 6px; }
+  .champ__i { border: 1px solid var(--filet); border-radius: 3px; padding: 10px 12px; background: var(--ivoire);
+              font-size: 14px; color: var(--encre); }
+  .champ__i.grand { font-family: var(--serif); font-size: 24px; color: var(--indigo); }
+  .champ__aide { font-size: 10.5px; color: var(--encre-d); margin-top: 5px; line-height: 1.5; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 7px 12px; border: 1px solid var(--filet); border-radius: 3px;
+          background: #fff; color: var(--encre-d); }
+  .chip.is-on { background: var(--indigo); border-color: var(--indigo); color: var(--ivoire); }
+  .case { display: flex; gap: 9px; align-items: flex-start; padding: 12px; border: 1px solid var(--cuivre-p);
+          background: var(--cuivre-f); border-radius: 3px; font-size: 12.5px; line-height: 1.55; }
+
+  ul.pointe { max-width: 74ch; padding-left: 0; list-style: none; }
+  ul.pointe li { position: relative; padding-left: 20px; margin-bottom: 13px; color: var(--encre-d); font-size: 14px; }
+  ul.pointe li::before { content: '\25C8'; position: absolute; left: 0; top: 0; color: var(--cuivre); font-size: 11px; }
+  ul.pointe b { color: var(--encre); font-weight: 500; }
+  .arbitre { margin-top: 42px; padding: 24px 26px; background: var(--cuivre-f);
+             border: 1px solid var(--cuivre-p); border-radius: 3px; }
+  .arbitre h3 { font-family: var(--serif); font-weight: 400; font-size: 25px; color: var(--indigo); margin: 0 0 12px; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette à valider · Le Trône · Finances</p>
+  <h1>Les prêts.</h1>
+  <p class="lede">
+    L’écran existe depuis ce matin, mais il ne fait que <b>constater</b> : il dit ce qui est sorti et
+    ce qui est rentré. Pour une gestion sans faille, il manque la seule chose qui permet de
+    réclamer — <b>quand cet argent doit revenir</b>. Voici ce que je propose.
+  </p>
+
+  <h2>L’écran</h2>
+
+  <div class="ecran">
+    <div class="bandeau">
+      <div class="stat">
+        <div class="stat__l">Prêté · en cours</div>
+        <div class="stat__v">3 179 400 F</div>
+        <div class="stat__s">3 emprunteurs</div>
+      </div>
+      <div class="stat">
+        <div class="stat__l">Remboursé</div>
+        <div class="stat__v vert">380 000 F</div>
+        <div class="stat__s">12 % du prêté</div>
+      </div>
+      <div class="stat">
+        <div class="stat__l">Reste dû</div>
+        <div class="stat__v">2 799 400 F</div>
+        <div class="stat__s">envers la Maison</div>
+      </div>
+      <div class="stat alerte">
+        <div class="stat__l">En retard</div>
+        <div class="stat__v brique">30 000 F</div>
+        <div class="stat__s">1 prêt · depuis 8 jours</div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <span class="puce alerte">En retard · 1</span>
+      <span class="puce">Échéance sous 15 jours · 1</span>
+      <span class="puce is-on">Tous les prêts en cours · 3</span>
+      <span class="puce">Soldés · 4</span>
+    </div>
+
+    <!-- ── EN RETARD, EN TÊTE ── -->
+    <div class="carte retard">
+      <div class="carte__tete">
+        <span class="carte__nom">Olivier K.</span>
+        <span class="tag">tiers</span>
+        <span class="tag brique">en retard</span>
+        <span class="carte__reste"><em>Reste dû</em><b>30 000 F</b></span>
+      </div>
+      <div class="jauge"><i style="width:0%"></i></div>
+      <div class="jauge-mot"><span>prêté 30 000 F · remboursé 0 F</span><span>0 %</span></div>
+      <div class="echeance brique">
+        ◈ Attendu le 15 août — <b>en retard de 8 jours</b>. Dernier geste : aucun depuis le prêt.
+      </div>
+      <div class="gestes">
+        <button class="btn">Encaisser un remboursement</button>
+        <button class="btn cuivre">Relancer sur WhatsApp</button>
+        <button class="btn ghost">Reporter l’échéance</button>
+      </div>
+      <div class="lignes">
+        <div class="ligne"><span class="q">Prêté · 22 août · Prêt sur salaire · Real Money</span><span class="m">30 000 F</span></div>
+      </div>
+    </div>
+
+    <!-- ── AVEC ÉCHÉANCIER ── -->
+    <div class="carte">
+      <div class="carte__tete">
+        <span class="carte__nom">Le Foyer</span>
+        <span class="tag">foyer</span>
+        <span class="carte__reste"><em>Reste dû</em><b>2 739 400 F</b></span>
+      </div>
+      <div class="jauge"><i style="width:11%"></i></div>
+      <div class="jauge-mot"><span>prêté 3 089 400 F · remboursé 350 000 F</span><span>11 %</span></div>
+      <div class="echeance">
+        ◈ Échéancier · 6 versements de 514 900 F — <b>prochain le 5 septembre</b>, dans 13 jours.
+      </div>
+      <div class="gestes">
+        <button class="btn">Encaisser un remboursement</button>
+        <button class="btn ghost">Voir l’échéancier</button>
+        <button class="btn ghost">Corriger le prêt</button>
+      </div>
+      <div class="lignes">
+        <div class="ligne attendu"><span class="q">Attendu · 5 septembre · 2ᵉ versement</span><span class="m">514 900 F</span></div>
+        <div class="ligne"><span class="q">Remboursé · 5 août · Caisse Principale</span><span class="m vert">350 000 F</span></div>
+        <div class="ligne"><span class="q">Prêté · 5 mai · Voyages Qatar – USA · BIIC</span><span class="m">3 089 400 F</span></div>
+      </div>
+    </div>
+
+    <!-- ── RETENU SUR SALAIRE ── -->
+    <div class="carte">
+      <div class="carte__tete">
+        <span class="carte__nom">Gérard A.</span>
+        <span class="tag">équipe</span>
+        <span class="tag vert">retenu sur salaire</span>
+        <span class="carte__reste"><em>Reste dû</em><b>30 000 F</b></span>
+      </div>
+      <div class="jauge"><i style="width:50%"></i></div>
+      <div class="jauge-mot"><span>prêté 60 000 F · remboursé 30 000 F</span><span>50 %</span></div>
+      <div class="echeance vert">
+        ◈ 15 000 F retenus sur chaque bulletin — <b>soldé au bulletin d’octobre</b>. Rien à réclamer.
+      </div>
+      <div class="gestes">
+        <button class="btn ghost">Voir sa fiche</button>
+        <button class="btn ghost">Changer la retenue</button>
+      </div>
+      <div class="lignes">
+        <div class="ligne attendu"><span class="q">Attendu · bulletin d’août · retenue</span><span class="m">15 000 F</span></div>
+        <div class="ligne"><span class="q">Remboursé · 31 juillet · retenue sur bulletin</span><span class="m vert">15 000 F</span></div>
+        <div class="ligne"><span class="q">Remboursé · 30 juin · retenue sur bulletin</span><span class="m vert">15 000 F</span></div>
+        <div class="ligne"><span class="q">Prêté · 12 juin · Avance sur salaire · Caisse Principale</span><span class="m">60 000 F</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Poser un prêt</h2>
+  <p class="note">Ce que la modale gagne : une échéance, un échéancier facultatif, et la retenue sur salaire.</p>
+
+  <div class="modale">
+    <h3>La Maison prête.</h3>
+
+    <div class="champ">
+      <div class="champ__l">À qui</div>
+      <div class="chips">
+        <span class="chip is-on">équipe</span><span class="chip">cliente</span><span class="chip">tiers</span>
+        <span class="chip">associé</span><span class="chip">foyer</span>
+      </div>
+    </div>
+
+    <div class="champ">
+      <div class="champ__l">Montant · XOF</div>
+      <div class="champ__i grand">60 000</div>
+    </div>
+
+    <div class="champ">
+      <div class="champ__l">De quelle caisse sort cet argent ?</div>
+      <div class="champ__i">Caisse Principale</div>
+    </div>
+
+    <div class="champ">
+      <div class="champ__l">Quand doit-il revenir ?</div>
+      <div class="chips" style="margin-bottom:10px">
+        <span class="chip">Sans échéance</span>
+        <span class="chip">En une fois, le…</span>
+        <span class="chip is-on">En plusieurs fois</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+        <div><div class="champ__l">Combien de versements</div><div class="champ__i">4</div></div>
+        <div><div class="champ__l">À partir du</div><div class="champ__i">30 septembre 2026</div></div>
+      </div>
+      <div class="champ__aide">
+        Quatre versements de 15 000 F, le 30 de chaque mois — le dernier le 31 décembre 2026.
+        Ce sont des <b>attentes</b>, pas des écritures : rien ne bouge dans une caisse tant que
+        l’argent n’est pas revenu pour de bon.
+      </div>
+    </div>
+
+    <div class="champ">
+      <div class="case">
+        <span>☑</span>
+        <span>
+          <b>Retenir sur le bulletin de paie.</b> Chaque bulletin de Gérard A. portera une retenue
+          de 15 000 F jusqu’à extinction, et le remboursement s’inscrira tout seul — sans passer
+          par une caisse, puisque l’argent n’est jamais sorti de la Maison.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Ce que je propose, et pourquoi</h2>
+  <ul class="pointe">
+    <li><b>L’échéance est le cœur du sujet.</b> Un prêt sans date de retour ne se réclame pas : il
+      s’oublie. Aujourd’hui aucun prêt du Trône n’en porte. C’est le seul ajout vraiment
+      indispensable ; tout le reste en découle.</li>
+    <li><b>Le retard remonte en tête, et il est le seul chiffre qui alarme.</b> Les trois autres
+      cases informent ; celle-là appelle un geste. Trier par date de saisie, comme aujourd’hui,
+      met en haut le prêt le plus récent — c’est-à-dire le moins urgent.</li>
+    <li><b>Les échéances attendues ne sont PAS des écritures.</b> Elles s’affichent en italique
+      pâle, au-dessus des vraies lignes. Rien ne bouge dans une caisse tant que l’argent n’est pas
+      revenu : une attente qui débiterait un tiroir ferait mentir la trésorerie.</li>
+    <li><b>La retenue sur salaire ferme la boucle des avances.</b> C’est la façon dont une avance
+      se rembourse réellement dans la Maison. Le module Paie existe : la retenue s’y inscrit, et le
+      prêt se solde tout seul, bulletin après bulletin. Sans caisse — l’argent n’est jamais sorti.</li>
+    <li><b>Relancer se fait d’un tap</b>, avec le message signé de la Maison, comme le rappel de
+      rendez-vous. Le montant, la date attendue, rien de plus : une relance longue ne se lit pas.</li>
+    <li><b>Un prêt soldé ne disparaît pas</b>, il passe sous « Soldés ». Effacer l’histoire d’une
+      dette éteinte, c’est perdre la trace de qui rembourse et qui traîne.</li>
+  </ul>
+
+  <div class="arbitre">
+    <h3>À trancher</h3>
+    <p class="note" style="margin-top:0">
+      Trois choses avant que je construise. <b>Faut-il que le Tableau de bord vous prévienne</b>
+      quand une échéance approche ou passe (comme les anniversaires) ? <b>La retenue sur salaire</b>
+      doit-elle s’inscrire toute seule à chaque bulletin, ou vous laisser confirmer chaque mois ?
+      Et <b>les prêts déjà posés</b> — sans échéance — faut-il vous les présenter en bloc pour leur
+      en donner une, ou les laisser tels quels ?
+    </p>
+  </div>
+</div>
+</body>
+</html>

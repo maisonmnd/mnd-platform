@@ -1500,3 +1500,99 @@
   color: var(--copper-700, #96412E);
   margin-top: 9px;
 }
+
+/* ── LES PRÊTS — 23 août 2026 ──────────────────────────────────────
+   Maquette validée. L'ordre de lecture est l'ordre de l'urgence : le retard
+   se voit avant tout le reste, et il est le SEUL chiffre qui alarme. Trois
+   cases informent, une appelle un geste — les mettre au même niveau, c'est
+   n'en signaler aucune. */
+.trf-pret-bandeau {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: 3px; overflow: hidden; margin-bottom: 4px;
+}
+.trf-pret-stat { background: var(--surface-card); padding: 15px 16px; }
+.trf-pret-stat--alerte { background: var(--copper-50, #FAF1E9); }
+.trf-pret-stat__l {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-pret-stat__v {
+  font-family: var(--font-serif); font-size: 27px; color: var(--color-indigo);
+  margin-top: 3px; font-variant-numeric: tabular-nums;
+}
+.trf-pret-stat__v--vert { color: var(--trf-success, #4A6B52); }
+.trf-pret-stat__v--brique { color: var(--copper-700, #96412E); }
+.trf-pret-stat__s { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; }
+
+.trf-pret-rail { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 14px; }
+.trf-pret-puce {
+  font-family: var(--font-sans); font-size: 12px; padding: 7px 13px; border-radius: 3px;
+  border: 1px solid var(--line); background: var(--surface-card); color: var(--ink-soft); cursor: pointer;
+}
+.trf-pret-puce.is-on {
+  background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire);
+}
+.trf-pret-puce--alerte {
+  border-color: var(--copper-700, #96412E); color: var(--copper-700, #96412E);
+  background: var(--copper-50, #FAF1E9); font-weight: 500;
+}
+
+.trf-pret { padding: 18px 20px; margin-bottom: 14px; }
+/* Le retard se signale par un filet, pas par un fond : la carte reste lisible. */
+.trf-pret--retard { border-left: 3px solid var(--copper-700, #96412E); }
+.trf-pret--solde { opacity: .74; }
+.trf-pret__tete { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; }
+.trf-pret__nom { font-family: var(--font-serif); font-size: 25px; color: var(--color-indigo); }
+.trf-tag {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  padding: 2px 8px; border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9); color: var(--color-copper); border-radius: 2px;
+}
+.trf-tag--brique {
+  border-color: var(--copper-700, #96412E); color: var(--copper-700, #96412E); background: #FBEDE9;
+}
+.trf-tag--vert { border-color: #BFD2C2; color: var(--trf-success, #4A6B52); background: #EEF3EE; }
+.trf-pret__reste { margin-left: auto; text-align: right; }
+.trf-pret__reste em {
+  display: block; font-style: normal; font-family: var(--font-sans); font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-pret__reste b {
+  font-family: var(--font-serif); font-weight: 400; font-size: 27px;
+  color: var(--color-indigo); font-variant-numeric: tabular-nums;
+}
+
+.trf-jauge { height: 5px; background: var(--color-argile, #E8DFCE); border-radius: 3px; overflow: hidden; margin: 13px 0 7px; }
+.trf-jauge i { display: block; height: 100%; background: var(--trf-success, #4A6B52); }
+.trf-jauge__mot {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft);
+}
+
+.trf-echeance {
+  margin-top: 13px; padding: 9px 12px; border-radius: 3px; line-height: 1.55;
+  font-family: var(--font-sans); font-size: 12.5px;
+  background: var(--copper-50, #FAF1E9); color: var(--color-copper);
+}
+.trf-echeance--brique { background: #FBEDE9; color: var(--copper-700, #96412E); font-weight: 500; }
+.trf-echeance--vert { background: #EEF3EE; color: var(--trf-success, #4A6B52); }
+.trf-echeance--nu { background: transparent; color: var(--ink-soft); padding-left: 0; }
+
+.trf-pret__gestes { display: flex; gap: 9px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.trf-pret__lignes { margin-top: 14px; border-top: 1px solid var(--hairline); padding-top: 4px; }
+.trf-pret__ligne {
+  display: flex; width: 100%; justify-content: space-between; gap: 12px; padding: 7px 0;
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft);
+  border-bottom: 1px solid var(--hairline); background: none; border-left: none;
+  border-right: none; border-top: none; text-align: left;
+}
+.trf-pret__ligne:last-child { border-bottom: none; }
+.trf-pret__ligne--clic { cursor: pointer; font: inherit; font-size: 12.5px; }
+/* Une attente se lit comme une attente : pâle et penchée, jamais comme une
+   écriture. Rien n'a bougé dans une caisse. */
+.trf-pret__ligne--attendu { font-style: italic; opacity: .62; }
+.trf-pret__m {
+  font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}

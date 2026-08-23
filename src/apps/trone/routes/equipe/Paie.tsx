@@ -7,6 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { expensesStore, expenseCategoriesStore, useExpenses } from '../../../../shared/finance';
 import { useStaff } from './data';
+import { usePrets, etatsDesEmprunteurs, type Pret } from '../../../../shared/foyer';
 import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
@@ -109,6 +110,24 @@ export function PaieRuns() {
     return out;
   }, [open, staff, appts, branch.id]);
 
+  /* CE QUE CHAQUE PRÊT DEMANDE DE RETENIR CE MOIS-CI. On ne retient jamais
+     plus que le reste dû : le dernier mois solde le prêt, il ne le dépasse
+     pas. Un emprunteur se reconnaît par sa fiche, sinon par son nom — les
+     prêts d’avant ne portent pas toujours de `personneId`. */
+  const [lesPrets, setLesPrets] = usePrets();
+  const retenuesDuMois = useMemo(() => {
+    const par = new Map<string, number>();
+    const etats = etatsDesEmprunteurs(lesPrets, branch.id, nowStamp().slice(0, 10));
+    for (const m of asArray(staff)) {
+      if (!m || m.branchId !== branch.id) continue;
+      const e = etats.find((x) => x.personneId === m.id
+        || x.nom.trim().toLowerCase() === (m.name ?? '').trim().toLowerCase());
+      if (!e || e.reste <= 0 || e.retenueXof <= 0) continue;
+      par.set(m.id, Math.min(e.retenueXof, e.reste));
+    }
+    return par;
+  }, [lesPrets, staff, branch.id]);
+
   const createRun = (period: string, atelier: string) => {
    try {
     const p = parametersFor(period, params);
@@ -133,7 +152,14 @@ export function PaieRuns() {
         base: s.salaireXof ?? 0, heuresSup: 0, prime: s.primeXof ?? 0, pourboires: 0,
         commission, indemnites: 0,
       };
-      const deductions: PayDeductions = { avance, autresRetenues: 0 };
+      /* LA RETENUE D’UN PRÊT EST PROPOSÉE, JAMAIS IMPOSÉE — 23 août 2026,
+         arbitrage de Yéman. Une avance sur salaire se rembourse par le
+         salaire : aucune caisse ne bouge, l’argent n’est jamais sorti de la
+         Maison. Elle arrive pré-remplie dans « autres retenues » et se
+         corrige ligne à ligne — un mois difficile se gère à la main, sans
+         défaire le prêt. Elle ne s’inscrit pour de bon qu’au règlement. */
+      const retenuePret = retenuesDuMois.get(s.id) ?? 0;
+      const deductions: PayDeductions = { avance, autresRetenues: retenuePret };
       return {
         employeeId: s.id, name: s.name, poste: s.role, matricule: s.matricule,
         cnssNum: s.cnssNum, paiement: s.paiement,
@@ -221,6 +247,9 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   const { branch, currency } = useBranch();
   const [params] = usePayrollParameters();
   const [allExpenses] = useExpenses();
+  /* La dette de l’équipe est lue ET écrite ici : la retenue d’un bulletin
+     réglé devient un remboursement de prêt (voir inscrireLesRetenues). */
+  const [lesPrets, setLesPrets] = usePrets();
   const [editLine, setEditLine] = useState<number | null>(null);
   const editable = run.status === 'brouillon';
   const lines = asArray<PayrollLine>(run.lines);
@@ -276,6 +305,43 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     }
     expenseCategoriesStore.set((prev) =>
       prev.some((c) => c.name === SALAIRES_CATEGORIE) ? prev : [...prev, { id: 'ec-salaires', name: SALAIRES_CATEGORIE, subs: [] }]);
+    inscrireLesRetenues();
+  };
+
+  /* LA RETENUE DEVIENT UN REMBOURSEMENT — au règlement, pas avant. Tant que le
+     bulletin est un brouillon, rien ne doit bouger dans la dette : un run
+     abandonné aurait soldé un prêt qui n’a rien reçu.
+
+     SANS CAISSE, ET C’EST LE POINT : l’argent n’est jamais sorti de la Maison,
+     il a seulement été déduit du salaire. Le faire passer par un tiroir le
+     ferait entrer deux fois. L’identifiant est DÉTERMINISTE — rejouer le
+     règlement ne double pas le remboursement. */
+  const inscrireLesRetenues = () => {
+    const nouvelles: Pret[] = [];
+    for (const l of lines) {
+      const montant = l.deductions.autresRetenues;
+      if (!(montant > 0)) continue;
+      const etats = etatsDesEmprunteurs(lesPrets, branch.id, nowStamp().slice(0, 10));
+      const e = etats.find((x) => x.personneId === l.employeeId
+        || x.nom.trim().toLowerCase() === l.name.trim().toLowerCase());
+      if (!e || e.reste <= 0) continue;
+      nouvelles.push({
+        id: `prt-ret-${run.period}-${l.employeeId}`,
+        branchId: branch.id,
+        date: (run.paidAt ?? nowStamp()).slice(0, 10),
+        type: 'remboursement',
+        associe: e.nom,
+        motif: `Retenue sur le bulletin de ${run.period}`,
+        amountXof: Math.min(montant, e.reste),
+        genre: e.genre,
+        personneId: e.personneId,
+      });
+    }
+    if (nouvelles.length === 0) return;
+    setLesPrets((prev) => {
+      const dedans = new Set(prev.map((x) => x.id));
+      return [...prev, ...nouvelles.filter((n) => !dedans.has(n.id))];
+    });
   };
 
   const retirerCharges = () => {

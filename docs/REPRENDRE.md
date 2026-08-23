@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les prêts, gestion sans faille — 23 août, PUBLIÉ
+
+« Crée-moi une UI/UX bien en place pour une gestion sans faille des prêts. »
+Maquette validée (`public/maquette-les-prets.html`), trois arbitrages de Yéman,
+tous au recommandé.
+
+CE QUI MANQUAIT N'ÉTAIT PAS UN ÉCRAN, C'ÉTAIT UNE DATE. Le Trône savait combien
+la Maison avait prêté et combien était rentré ; il ne savait pas QUAND l'argent
+devait revenir. Un prêt sans date de retour ne se réclame pas : il s'oublie.
+Tout le reste — l'alerte, la relance, le tri — en découle.
+
+`Pret` gagne trois champs : `echeance` (en une fois), `echeancier`
+({ nombre, premier }, mensuel) et `retenueXof`. LES MONTANTS DES VERSEMENTS NE
+SONT PAS STOCKÉS — `echeancesDuPret` les calcule, et le dernier porte l'arrondi
+pour que leur somme fasse le prêt au franc près. Les stocker ferait deux vérités
+le jour où le montant se corrige.
+
+`etatsDesEmprunteurs(lignes, branchId, aujourdhui)` porte tout le calcul, dans
+foyer.ts, éprouvé par `verifie-foyer` (18 assertions neuves). LE REMBOURSÉ
+COUVRE LE PLUS ANCIEN D'ABORD — la règle du comptoir : l'imputer autrement
+ferait apparaître un retard là où l'emprunteur a payé. Un remboursement partiel
+ampute l'échéance sans la faire disparaître.
+
+L'ORDRE DE LECTURE EST L'ORDRE DE L'URGENCE (`parUrgence`). Trié par date de
+saisie, le prêt le plus RÉCENT montait en tête — c'est-à-dire le moins pressant.
+
+LES ATTENTES NE SONT PAS DES ÉCRITURES. Elles s'affichent en italique pâle
+au-dessus des vraies lignes ; rien ne bouge dans une caisse tant que l'argent
+n'est pas revenu. Une attente qui débiterait un tiroir ferait mentir la
+trésorerie.
+
+TROIS ARBITRAGES :
+① **La tournée du matin prévient** — retard, ou échéance sous 7 jours
+   (`pretsASurveiller`), comme les anniversaires.
+② **La retenue sur salaire est PROPOSÉE, jamais imposée.** Elle arrive
+   pré-remplie dans « autres retenues » du bulletin et se corrige ligne à
+   ligne : un mois difficile se gère à la main, sans défaire le prêt. Elle ne
+   devient un remboursement QU'AU RÈGLEMENT du run — un run abandonné aurait
+   soldé un prêt qui n'a rien reçu. SANS CAISSE, et c'est le point : l'argent
+   n'est jamais sorti de la Maison. Identifiant déterministe
+   (`prt-ret-<période>-<employé>`) : rejouer le règlement ne double rien.
+③ **Un panneau de rattrapage** liste les prêts sans date, et disparaît de
+   lui-même quand il n'y a plus rien à dater — sans réglage, sans « ne plus
+   afficher ».
+
+La relance WhatsApp part signée de la devise, courte : le montant, la date, rien
+d'autre. Le numéro vient de la fiche cliente ou du dossier du personnel ; sans
+numéro, pas de bouton.
+
 ## Le franc suit le tiroir — 23 août, PUBLIÉ
 
 « Quand j'ai choisi la caisse, ça dit toujours montant XOF, qui devrait

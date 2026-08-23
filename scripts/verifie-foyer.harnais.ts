@@ -8,7 +8,8 @@ import {
   dotationId, dotationIdLegacy, modifieLigneEpargne, caissesDe, deviseDeCaisse, soldeCaisse, mouvementsDe,
   soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre,
   verserDansEnveloppe, retirerDeEnveloppe, supprimeLigneEpargne,
-  type PartageConfig, type Prelevement, type PretAssocie,
+  moisPlus, joursEntre, echeancesDuPret, etatsDesEmprunteurs, parUrgence, pretsASurveiller,
+  type PartageConfig, type Prelevement, type PretAssocie, type Pret,
   type CaisseIndep, type MouvementCaisseIndep,
 } from '../src/shared/foyer';
 import { coffreStore, coffreBalance } from '../src/shared/finance';
@@ -204,6 +205,85 @@ dit('les décimales restent propres', 0.3, soldeCaisse([
   { id: 'a', branchId: BR, caisseId: 'k', date: '2026-08-01', sens: 'entree', label: '', montant: 0.1 },
   { id: 'b', branchId: BR, caisseId: 'k', date: '2026-08-02', sens: 'entree', label: '', montant: 0.2 },
 ], 'k'));
+
+/* ── L’ÉCHÉANCE D’UN PRÊT — 23 août 2026 ──────────────────────────
+   Ce qui manquait n’était pas un écran, c’était une date : un prêt sans date
+   de retour ne se réclame pas, il s’oublie. Ces assertions tiennent le calcul
+   des versements attendus, l’imputation des remboursements, et l’ordre de
+   lecture — qui doit être celui de l’urgence. */
+const BRP = 'br';
+const pret = (o: Partial<Pret>): Pret => ({
+  id: o.id ?? 'p1', branchId: BRP, date: o.date ?? '2026-05-05',
+  type: o.type ?? 'pret', associe: o.associe ?? 'Olivier', motif: 'Prêt',
+  amountXof: o.amountXof ?? 30_000, genre: 'tiers',
+  echeance: o.echeance, echeancier: o.echeancier, retenueXof: o.retenueXof,
+} as Pret);
+
+/* Le mois de plus se replie sur le dernier jour : le 31 janvier plus un mois
+   tombe au 28, jamais au 3 mars — une échéance ne saute pas de mois. */
+dit('le 31 janvier plus un mois tombe au 28 février', '2026-02-28', moisPlus('2026-01-31', 1));
+dit('le 15 mars plus trois mois tombe au 15 juin', '2026-06-15', moisPlus('2026-03-15', 3));
+dit('huit jours de retard se comptent huit', 8, joursEntre('2026-08-15', '2026-08-23'));
+
+/* LA SOMME DES VERSEMENTS FAIT LE PRÊT, AU FRANC PRÈS — le dernier porte
+   l’arrondi, sinon quatre parts de 7 500 ne rendraient pas 30 001. */
+const quatre = echeancesDuPret(pret({ amountXof: 30_001, echeancier: { nombre: 4, premier: '2026-09-30' } }));
+dit('quatre versements sont posés', 4, quatre.length);
+dit('leur somme fait le prêt exactement', 30_001, quatre.reduce((n, e) => n + e.montantXof, 0));
+dit('ils tombent de mois en mois', ['2026-09-30', '2026-10-30', '2026-11-30', '2026-12-30'], quatre.map((e) => e.date));
+dit('un prêt sans date n’attend rien', 0, echeancesDuPret(pret({})).length);
+
+/* LE REMBOURSÉ COUVRE LE PLUS ANCIEN D’ABORD — la règle du comptoir.
+   L’imputer autrement ferait apparaître un retard là où l’emprunteur a payé. */
+const lignesPret: Pret[] = [
+  pret({ id: 'a', amountXof: 40_000, echeancier: { nombre: 4, premier: '2026-05-30' } }),
+  pret({ id: 'b', type: 'remboursement', amountXof: 20_000, date: '2026-07-02' }),
+];
+const [olivier] = etatsDesEmprunteurs(lignesPret, BRP, '2026-08-23');
+dit('les deux premiers versements sont couverts', 2, olivier.attendus.length);
+dit('le prochain attendu est celui de juillet', '2026-07-30', olivier.prochaine?.date);
+dit('et il est en retard de 24 jours', 24, olivier.retardJours);
+dit('le reste dû ne bouge pas', 20_000, olivier.reste);
+
+/* Un remboursement PARTIEL ampute l’échéance sans la faire disparaître. */
+const partiel = etatsDesEmprunteurs([
+  pret({ id: 'c', amountXof: 30_000, echeance: '2026-08-15' }),
+  pret({ id: 'd', type: 'remboursement', amountXof: 10_000, date: '2026-08-20' }),
+], BRP, '2026-08-23')[0];
+dit('il reste 20 000 à l’échéance entamée', 20_000, partiel.prochaine?.montantXof);
+
+/* SOLDÉ, PLUS RIEN N’EST ATTENDU — et surtout aucun retard n’est annoncé. */
+const soldeSansReste = etatsDesEmprunteurs([
+  pret({ id: 'e', amountXof: 30_000, echeance: '2026-08-15' }),
+  pret({ id: 'f', type: 'remboursement', amountXof: 30_000, date: '2026-08-14' }),
+], BRP, '2026-08-23')[0];
+dit('un prêt soldé n’attend plus rien', 0, soldeSansReste.attendus.length);
+dit('… et ne se dit jamais en retard', 0, soldeSansReste.retardJours);
+
+/* UN PRÊT SANS ÉCHÉANCE NE SE DIT JAMAIS EN RETARD : on ne réclame pas une
+   date qu’on n’a jamais posée. Mais l’écran doit pouvoir le repérer. */
+const nu = etatsDesEmprunteurs([pret({ id: 'g', amountXof: 30_000 })], BRP, '2027-01-01')[0];
+dit('sans échéance, aucun retard', 0, nu.retardJours);
+dit('… et il se signale comme tel', true, nu.sansEcheance);
+
+/* L’ORDRE DE LECTURE EST L’ORDRE DE L’URGENCE. */
+const aTrier = [
+  { nom: 'à jour', reste: 90_000, retardJours: 0, prochaine: { date: '2026-12-01' } },
+  { nom: 'très en retard', reste: 10_000, retardJours: 40, prochaine: { date: '2026-07-01' } },
+  { nom: 'soldé', reste: 0, retardJours: 0 },
+  { nom: 'peu en retard', reste: 50_000, retardJours: 3, prochaine: { date: '2026-08-20' } },
+] as any[];
+dit('le retard passe devant, le soldé ferme la marche',
+  ['très en retard', 'peu en retard', 'à jour', 'soldé'],
+  [...aTrier].sort(parUrgence).map((e) => e.nom));
+
+/* Le Tableau de bord ne montre que ce qui presse : dépassé, ou sous huit jours. */
+const veille = pretsASurveiller([
+  pret({ id: 'h', associe: 'Proche', amountXof: 10_000, echeance: '2026-08-27' }),
+  pret({ id: 'i', associe: 'Lointain', amountXof: 10_000, echeance: '2026-11-30' }),
+], BRP, '2026-08-23');
+dit('seule l’échéance proche remonte', ['Proche'], veille.map((e) => e.nom));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
