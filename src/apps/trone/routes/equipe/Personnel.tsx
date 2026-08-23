@@ -5,7 +5,7 @@ import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../.
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
-import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency } from '../../../../shared/finance';
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
@@ -17,7 +17,10 @@ import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk, ordonneEquipe, staffStore,
   useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
-import { useBaremePoints, chargeSalaire, type BaremePoints } from './payroll';
+import {
+  useBaremePoints, chargeSalaire, chargeAvance, chargeAvanceId, useAdvances,
+  type BaremePoints, type SalaryAdvance,
+} from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import TempsAbsences from './TempsAbsences';
@@ -28,12 +31,18 @@ import './equipe.css';
 
 type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retention';
 
-/* Avances sur salaire — staffId → liste d'avances. Magasin local à cette route
-   (data.ts est en lecture seule) mais synchronisé comme les autres documents. */
-type Advance = { id: string; amountXof: number; date: string; note: string };
-const advancesStore = createStore<Record<string, Advance[]>>('mnd_salary_advances', {});
-bindDocument(advancesStore, 'mnd_salary_advances');
-const useAdvances = () => useStore(advancesStore);
+/* ── UN SEUL REGISTRE D AVANCES — réparé le 23 août 2026 ───────────
+   « Comment régulariser les avances sur salaire avec leur contrepartie ? »
+
+   IL Y EN AVAIT DEUX, ET ELLES NE SE PARLAIENT PAS. Cet écran écrivait dans
+   `mnd_salary_advances` (un dictionnaire par employé) ; la Paie DÉDUISAIT
+   depuis `mnd_payroll_advances` (une liste avec période et branche). Les clés
+   avaient été séparées un jour pour qu elles cessent de s écraser l une
+   l autre — mais les deux chemins ne se sont jamais rejoints. Résultat : la
+   modale promettait « déduite du net à verser », et AUCUNE avance saisie ici
+   n a jamais été déduite d un bulletin.
+
+   Un seul registre désormais, celui que la Paie lit. */
 
 /* Taux de commission par palier (%) — pilotés par la maison, 0 au départ. */
 type CommRates = { fondation: number; elevation: number; souverainete: number; produits: number };
@@ -194,6 +203,12 @@ const nextMatricule = (staff: StaffMember[]): string => {
 export default function Personnel() {
   const { branch, branches, currency } = useBranch();
   const [fonctions] = useFonctions();
+  /* LES CAISSES DE LA MAISON — une avance sort d’un tiroir réel. Celles en
+     devise sont écartées : le montant se saisit en monnaie de la Maison. */
+  const [toutesLesCaisses] = useCashboxes();
+  const caissesDeLaMaison = toutesLesCaisses.filter(
+    (c) => c.branchId === branch.id && cashboxCurrency(c) === currency,
+  );
   const [staff, setStaff] = useStaff();
   const [advances, setAdvances] = useAdvances();
   const [tab, setTab] = useState<Tab>('equipe');
@@ -202,7 +217,7 @@ export default function Personnel() {
   const [form, setForm] = useState<StaffForm>(() => emptyForm(branch.id));
   const [paieLancee, setPaieLancee] = useState(false);
   const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
-  const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+  const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '', cashbox: '' });
 
   /* Commissions & primes — taux, ajustements, primes typées, sources. */
   const [rates, setRates] = useCommRates();
@@ -282,7 +297,9 @@ export default function Personnel() {
      carnet resteront sans mains : c'est la vérité, personne ne se souvient
      de qui a fait quoi il y a deux ans. */
 
-  const advancesFor = (id: string) => advances[id] ?? [];
+  /* Le registre est désormais une LISTE — celui que la Paie déduit — et non
+     plus un dictionnaire par employé. Une seule vérité. */
+  const advancesFor = (id: string) => advances.filter((a) => a.employeeId === id);
   const totalAdvances = (id: string) => advancesFor(id).reduce((a, x) => a + x.amountXof, 0);
 
   /* Commission d'un maître pour un mois donné (AAAA-MM) — réutilisable pour le
@@ -710,19 +727,43 @@ export default function Personnel() {
 
   const openAvance = (m: StaffMember) => {
     setAvanceFor(m);
-    setAvanceForm({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+    setAvanceForm({ amount: '', date: new Date().toISOString().slice(0, 10), note: '', cashbox: caissesDeLaMaison[0]?.name ?? '' });
   };
   const saveAvance = () => {
     if (!avanceFor) return;
     const amountXof = Math.max(0, parseInt(avanceForm.amount, 10) || 0);
     if (amountXof <= 0) return;
-    const adv: Advance = { id: `av-${uid()}`, amountXof, date: avanceForm.date, note: avanceForm.note.trim() };
-    const sid = avanceFor.id;
-    setAdvances((prev) => ({ ...prev, [sid]: [...(prev[sid] ?? []), adv] }));
+    const date = avanceForm.date || new Date().toISOString().slice(0, 10);
+    const adv: SalaryAdvance = {
+      id: `av-${uid()}`,
+      employeeId: avanceFor.id,
+      /* LA PÉRIODE EST CELLE DU MOIS DE L’AVANCE : c’est le bulletin de ce
+         mois-là qui la déduira. Sans elle, la Paie ne la trouvait pas. */
+      period: date.slice(0, 7),
+      amountXof,
+      date,
+      note: avanceForm.note.trim() || undefined,
+      branchId: avanceFor.branchId,
+      cashbox: avanceForm.cashbox || undefined,
+    };
+    setAdvances((prev) => [...prev, adv]);
+    /* LA CONTREPARTIE, LE JOUR MÊME. Une avance, ce sont des billets qui
+       quittent un tiroir : la charge s’inscrit en Salaires, et la paie
+       déduira ce montant du net — la charge du jour de paie ne portera donc
+       que le reste. Les deux additionnées font ce qui a été versé. */
+    const charge = chargeAvance({
+      avanceId: adv.id, employeeId: avanceFor.id, branchId: avanceFor.branchId,
+      nom: avanceFor.name, montantXof: amountXof, date, cashbox: avanceForm.cashbox,
+    });
+    expensesStore.set((prev) => (prev.some((e) => e.id === charge.id) ? prev : [charge, ...prev]));
     setAvanceFor(null);
   };
-  const removeAvance = (staffId: string, advId: string) =>
-    setAdvances((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((a) => a.id !== advId) }));
+  const removeAvance = (_staffId: string, advId: string) => {
+    setAdvances((prev) => prev.filter((a) => a.id !== advId));
+    /* Retirer l’avance retire sa charge : sinon la caisse resterait débitée
+       d’un décaissement qui n’a plus lieu. */
+    expensesStore.set((prev) => prev.filter((e) => e.id !== chargeAvanceId(advId)));
+  };
 
   const stats = useMemo(() => {
     const n = team.length;
@@ -1589,7 +1630,7 @@ export default function Personnel() {
         <Modal title="Avance sur salaire." onClose={() => setAvanceFor(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{avanceFor.name}</strong> · déduite du net à verser de {monthLabel()}.
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{avanceFor.name}</strong> · déduite du bulletin du mois de l’avance.
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
@@ -1599,6 +1640,33 @@ export default function Personnel() {
                 <Input type="date" value={avanceForm.date} onChange={(e) => setAvanceForm({ ...avanceForm, date: e.target.value })} />
               </Field>
             </div>
+            {/* LA CONTREPARTIE — 23 août 2026. « Comment régulariser les
+                avances avec leur contrepartie ? » Elles n’en avaient aucune :
+                les billets quittaient le tiroir sans que rien ne l’écrive. */}
+            <Field label="De quelle caisse sort cet argent ?">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {caissesDeLaMaison.map((c) => (
+                  <button
+                    key={c.id}
+                    className={`tre-chip ${avanceForm.cashbox === c.name ? 'is-on' : ''}`}
+                    onClick={() => setAvanceForm({ ...avanceForm, cashbox: c.name })}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                <button
+                  className={`tre-chip ${!avanceForm.cashbox ? 'is-on' : ''}`}
+                  onClick={() => setAvanceForm({ ...avanceForm, cashbox: '' })}
+                >
+                  Sans caisse
+                </button>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+                L’avance s’inscrit aussitôt en <b>Dépenses · Salaires</b> et sort de cette caisse.
+                Le bulletin du mois la déduira du net : la charge du jour de paie ne portera que
+                le reste — les deux additionnées font ce qui a été versé.
+              </div>
+            </Field>
             <Field label="Note (facultatif)">
               <Input value={avanceForm.note} onChange={(e) => setAvanceForm({ ...avanceForm, note: e.target.value })} placeholder="Motif de l’avance…" />
             </Field>

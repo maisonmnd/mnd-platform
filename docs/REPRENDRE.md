@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les avances sur salaire n'étaient déduites de rien — 23 août, RÉPARÉ
+
+« Comment gérer les prêts des employés avec leur contrepartie ? Comment
+régulariser les avances sur salaire avec leur contrepartie ? » En vérifiant
+pour répondre, j'ai trouvé une rupture.
+
+IL Y AVAIT DEUX REGISTRES D'AVANCES, ET ILS NE SE PARLAIENT PAS.
+`Personnel.tsx` écrivait dans `mnd_salary_advances` — un dictionnaire par
+employé ; `Paie.tsx` DÉDUISAIT depuis `mnd_payroll_advances` — une liste avec
+période et branche. Les deux clés avaient été séparées un jour pour qu'elles
+cessent de s'écraser l'une l'autre (le commentaire de `payroll.ts` le raconte),
+mais LES DEUX CHEMINS NE SE SONT JAMAIS REJOINTS. La modale promettait
+« déduite du net à verser de août 2026 » — et aucune avance saisie là n'a
+jamais été déduite d'un bulletin.
+
+Un seul registre désormais : celui que la Paie lit. L'avance y porte sa
+`period` (le mois de sa date, celui du bulletin qui la déduira), sa branche, et
+sa CAISSE.
+
+LA CONTREPARTIE, ELLE, N'EXISTAIT PAS DU TOUT. Ni caisse débitée le jour où les
+billets sont tendus, ni charge aux Dépenses : le tiroir ignorait un
+décaissement réel, la Synthèse ignorait la dépense.
+
+UNE AVANCE EST UNE CHARGE DE SALAIRE PAYÉE D'AVANCE. Elle s'inscrit donc comme
+telle — Dépenses · Salaires · « Avance sur salaire » — le jour de sa remise,
+depuis la caisse choisie. La paie la déduit du net, si bien que la charge du
+jour de paie ne porte que LE RESTE. Les deux additionnées font exactement ce
+qui a été versé : rien n'est compté deux fois, rien n'est oublié. Identifiant
+déterministe (`exp-av-<id>`) — et retirer l'avance retire sa charge.
+
+DEUX CHEMINS POUR DEUX BESOINS, ET C'EST VOULU :
+— **L'avance** est un à-valoir sur le mois en cours, déduit du bulletin suivant.
+— **Le prêt** (écran Les prêts, genre « équipe ») est une dette qui court sur
+  plusieurs mois, avec sa caisse, son échéancier et sa retenue mensuelle
+  proposée au bulletin. C'est lui qu'il faut pour un dépannage remboursé en
+  quatre fois.
+
 ## Les fonctions de la Maison s'ouvrent — 23 août, PUBLIÉ
 
 « Rajouter des fonctions au salon. Rajouter du personnel comme le jardinier,

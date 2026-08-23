@@ -211,6 +211,37 @@ export const chargeSalaire = (o: {
   source: o.source,
 });
 
+/* ── LA CONTREPARTIE D’UNE AVANCE — 23 août 2026 ───────────────────
+   « Comment régulariser les avances sur salaire avec leur contrepartie ? »
+   Elles n’en avaient AUCUNE : ni caisse débitée le jour où les billets sont
+   tendus, ni charge aux Dépenses. Le tiroir ignorait le décaissement, et la
+   Synthèse ignorait la dépense.
+
+   UNE AVANCE EST UNE CHARGE DE SALAIRE PAYÉE D’AVANCE. Elle s’inscrit donc
+   comme telle, en catégorie Salaires, le jour de sa remise — et la paie la
+   déduit du net, si bien que la charge du jour de paie ne porte que le RESTE.
+   Les deux additionnées font exactement ce qui a été versé : rien n’est
+   compté deux fois, rien n’est oublié.
+
+   IDENTIFIANT DÉTERMINISTE : rejouer la même avance ne crée pas deux charges,
+   et retirer l’avance retire la sienne. */
+export const chargeAvanceId = (avanceId: string): string => `exp-av-${avanceId}`;
+
+export const chargeAvance = (o: {
+  avanceId: string; employeeId: string; branchId: string; nom: string;
+  montantXof: number; date: string; cashbox?: string; note?: string;
+}): Expense => ({
+  id: chargeAvanceId(o.avanceId),
+  branchId: o.branchId,
+  label: `Avance sur salaire · ${o.nom}`,
+  amountXof: o.montantXof,
+  date: o.date,
+  cashbox: o.cashbox ?? '',
+  category: SALAIRES_CATEGORIE,
+  subcategory: 'Avance sur salaire',
+  ...(o.note ? { } : {}),
+});
+
 /** Le calcul complet d'une ligne de paie, dans l'ordre de la spec. */
 export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParameters): PayResult {
   const brut = round(gains.base + gains.heuresSup + gains.prime + gains.pourboires + gains.commission + gains.indemnites);
@@ -243,6 +274,10 @@ export type SalaryAdvance = {
   date: string;     // JJ/MM/AAAA
   note?: string;
   branchId?: string;
+  /** LA CAISSE D’OÙ SORT L’ARGENT — 23 août 2026. Une avance, ce sont des
+      billets qui quittent un tiroir le jour où on les tend. Sans elle, la
+      caisse ignorait un décaissement réel jusqu’à la paie. */
+  cashbox?: string;
 };
 /* CLE DISTINCTE DE CELLE DE Personnel.tsx. Les deux magasins reclamaient
    'mnd_salary_advances' avec des formes incompatibles — un tableau ici, un
