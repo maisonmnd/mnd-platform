@@ -119,6 +119,44 @@ export type StaffMember = {
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const STAFF_SEED: StaffMember[] = [];
 
+/* ── LES FONCTIONS DE LA MAISON — 23 août 2026 ─────────────────────
+   « Rajouter des fonctions au salon. Rajouter du personnel comme le
+   jardinier, l’agent de nettoyage, la sécurité… »
+
+   ELLES ÉTAIENT ÉCRITES EN DUR dans l’écran du Personnel : sept fonctions,
+   toutes tournées vers le fauteuil. Une maison n’est pas faite que de mains
+   qui coiffent — il y a celles qui ouvrent, qui nettoient, qui gardent, qui
+   conduisent. En ajouter sept de plus aurait repoussé le problème d’un an :
+   la liste vit donc dans un magasin, et la Maison en ajoute quand elle veut.
+
+   CE QUI N’EST PAS AU FAUTEUIL NE COMMISSIONNE PAS. Un jardinier n’exécute
+   pas de prestation : choisir sa fonction pose « hors fauteuil » d’office —
+   on ne fait pas semblant de calculer une commission sur un travail qui ne
+   passe pas par le fauteuil. Cela reste modifiable : c’est un défaut juste,
+   pas une serrure. */
+export const FONCTIONS_DEFAUT: string[] = [
+  'Maître fondateur', 'Maître', 'Maîtresse', 'Praticienne', 'Praticien',
+  'Accueil', 'Gérant·e',
+  'Agent d’entretien', 'Sécurité', 'Jardinier', 'Chauffeur', 'Coursier', 'Assistant·e',
+];
+
+/** Les fonctions qui TOUCHENT une tête — les seules qui commissionnent. */
+export const FONCTIONS_AU_FAUTEUIL = new Set<string>([
+  'Maître fondateur', 'Maître', 'Maîtresse', 'Praticienne', 'Praticien',
+]);
+
+export const fonctionsStore = createStore<string[]>('mnd_fonctions', FONCTIONS_DEFAUT);
+export const useFonctions = () => useStore(fonctionsStore);
+
+/** Ajoute une fonction si elle est neuve — jamais deux fois la même. */
+export const ajouteUneFonction = (nom: string): void => {
+  const propre = nom.trim();
+  if (!propre) return;
+  fonctionsStore.set((prev) => (prev.some((f) => f.toLowerCase() === propre.toLowerCase())
+    ? prev
+    : [...prev, propre]));
+};
+
 export const staffStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
 export const useStaff = () => useStore(staffStore);
 
@@ -905,6 +943,9 @@ bindDocument(salonHoursStore, 'mnd_salon_hours');
 bindDocument(staffAccessStore, 'mnd_staff_access');
 bindDocument(accessCodesStore, 'mnd_access_codes');
 bindDocument(houseSettingsStore, 'mnd_house_settings');
+/* LES FONCTIONS SUIVENT LA MAISON, pas l’appareil : une fonction ajoutée au
+   comptoir doit exister sur le téléphone de la gérante. */
+bindDocument(fonctionsStore, 'mnd_fonctions');
 bindDocument(themeStore, 'mnd_theme');
 bindDocument(refTempsStore, 'mnd_ref_temps');
 bindDocument(refPaliersStore, 'mnd_ref_paliers');

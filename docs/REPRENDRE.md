@@ -2,6 +2,36 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les fonctions de la Maison s'ouvrent — 23 août, PUBLIÉ
+
+« Rajouter des fonctions au salon. Rajouter du personnel comme le jardinier,
+l'agent de nettoyage, la sécurité… »
+
+ELLES ÉTAIENT ÉCRITES EN DUR dans `Personnel.tsx` : sept fonctions, toutes
+tournées vers le fauteuil. Une maison n'est pas faite que de mains qui coiffent
+— il y a celles qui ouvrent, qui nettoient, qui gardent, qui conduisent.
+
+EN AJOUTER SEPT DE PLUS AURAIT REPOUSSÉ LE PROBLÈME D'UN AN. La liste vit
+désormais dans un magasin (`fonctionsStore`, synchronisé), avec treize défauts
+— les sept d'origine plus Agent d'entretien, Sécurité, Jardinier, Chauffeur,
+Coursier, Assistant·e — et un bouton **« + Autre fonction »** qui en ajoute une
+à la volée. Elle rejoint la Maison, pas l'appareil : ajoutée au comptoir, elle
+existe sur le téléphone de la gérante.
+
+CE QUI N'EST PAS AU FAUTEUIL NE COMMISSIONNE PAS. `FONCTIONS_AU_FAUTEUIL` ne
+retient que maître, maîtresse, praticienne, praticien et maître fondateur :
+choisir une autre fonction pose « hors fauteuil » d'office. On ne fait pas
+semblant de calculer une commission sur un travail qui ne passe pas par le
+fauteuil. C'est un défaut juste, pas une serrure — la case reste modifiable.
+
+Le champ s'appelle maintenant « Fonction DANS LA MAISON » : « au salon »
+excluait par son seul nom ceux qui n'y entrent pas.
+
+RIEN À CONSTRUIRE POUR LE STUDIO : un studio est une BRANCHE. Système →
+Branches → « Nouvelle branche », et il apparaît aussitôt dans le sélecteur
+« Branche » du nouveau membre. Chaque branche porte sa devise, ses maîtres, ses
+caisses et ses horaires ; l'équipe s'y rattache une par une.
+
 ## Le rythme se laisse mener — 23 août, CORRIGÉ
 
 « Le calcul du rythme régulier ne fonctionne pas. Le montant est figé à

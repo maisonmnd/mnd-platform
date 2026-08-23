@@ -15,7 +15,8 @@ import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
-  type StaffMember, type StaffRisk, ordonneEquipe, staffStore } from './data';
+  type StaffMember, type StaffRisk, ordonneEquipe, staffStore,
+  useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
 import { useBaremePoints, chargeSalaire, type BaremePoints } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
@@ -145,7 +146,9 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const payMonth = (): string => new Date().toISOString().slice(0, 7);
 const parseXof = (s: string) => Math.max(0, parseInt((s || '').replace(/[^0-9]/g, ''), 10) || 0);
 
-const ROLES = ['Maître fondateur', 'Maître', 'Maîtresse', 'Praticienne', 'Praticien', 'Accueil', 'Gérant·e'];
+/* Les fonctions vivent dans `equipe/data` depuis le 23 août 2026 : elles
+   étaient écrites en dur ici, toutes tournées vers le fauteuil. Voir
+   `FONCTIONS_DEFAUT` — et la Maison en ajoute quand elle veut. */
 
 const riskTone = (r: StaffRisk): 'ok' | 'warn' | 'error' => (r === 'faible' ? 'ok' : r === 'modéré' ? 'warn' : 'error');
 
@@ -190,6 +193,7 @@ const nextMatricule = (staff: StaffMember[]): string => {
 
 export default function Personnel() {
   const { branch, branches, currency } = useBranch();
+  const [fonctions] = useFonctions();
   const [staff, setStaff] = useStaff();
   const [advances, setAdvances] = useAdvances();
   const [tab, setTab] = useState<Tab>('equipe');
@@ -1451,11 +1455,39 @@ export default function Personnel() {
                 <Input value={form.compteMail} onChange={(e) => setForm({ ...form, compteMail: e.target.value })} inputMode="email" placeholder="le compte avec lequel il/elle se connecte" />
               </Field>
             </div>
-            <Field label="Fonction au salon">
+            <Field label="Fonction dans la Maison">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {ROLES.map((r) => (
-                  <button key={r} className={`tre-chip ${form.role === r ? 'is-on' : ''}`} onClick={() => setForm({ ...form, role: r })}>{r}</button>
+                {fonctions.map((r) => (
+                  <button
+                    key={r}
+                    className={`tre-chip ${form.role === r ? 'is-on' : ''}`}
+                    /* CE QUI N’EST PAS AU FAUTEUIL NE COMMISSIONNE PAS. Un
+                       jardinier n’exécute pas de prestation : sa fonction pose
+                       « hors fauteuil » d’office. Défaut juste, pas serrure. */
+                    onClick={() => setForm({ ...form, role: r, auFauteuil: FONCTIONS_AU_FAUTEUIL.has(r) })}
+                  >
+                    {r}
+                  </button>
                 ))}
+                {/* LA LISTE N’EST PAS FERMÉE. Une maison invente ses métiers —
+                    en figer sept aurait repoussé le problème d’un an. */}
+                <button
+                  className="tre-chip"
+                  style={{ borderStyle: 'dashed' }}
+                  onClick={() => {
+                    const nom = window.prompt('Quelle fonction ajouter ? Elle rejoindra la liste de la Maison, sur tous les appareils.');
+                    if (!nom?.trim()) return;
+                    ajouteUneFonction(nom);
+                    setForm({ ...form, role: nom.trim(), auFauteuil: FONCTIONS_AU_FAUTEUIL.has(nom.trim()) });
+                  }}
+                >
+                  + Autre fonction
+                </button>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+                Les fonctions au fauteuil (maître, maîtresse, praticienne, praticien) exécutent des
+                prestations et peuvent commissionner. Les autres — accueil, entretien, sécurité,
+                jardinier, chauffeur — se posent d’office « hors fauteuil ».
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">
