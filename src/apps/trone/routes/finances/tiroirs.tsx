@@ -311,6 +311,7 @@ export function useCaisses(month: string) {
         ].filter(Boolean).join(' · '),
         delta: boxCredit(i, name, boxCur, foreign, dansLaPeriode),
         invoiceId: i.id, // la ligne s'ouvre sur la facture
+        transfertId: undefined as string | undefined,
         expense: undefined as Expense | undefined,
       }));
 
@@ -332,6 +333,7 @@ export function useCaisses(month: string) {
         /* …mais elle a sa fiche : le relevé d'une caisse est l'endroit où l'on
            repère une ligne fausse, il doit donc y mener. */
         expense: e as Expense | undefined,
+        transfertId: undefined as string | undefined,
       }));
 
     /* Les avoirs du mois — l'entrée dit son porteur, la sortie aussi : « être
@@ -344,6 +346,7 @@ export function useCaisses(month: string) {
       delta: m.kind === 'depot' ? surLeTiroir(m, boxCur, currency) : -surLeTiroir(m, boxCur, currency),
       invoiceId: undefined as string | undefined,
       expense: undefined as Expense | undefined,
+      transfertId: undefined as string | undefined,
     }));
 
     /* LE COFFRE MANQUAIT À L'APPEL — 21 août 2026. `boxBalanceWhere` retranche
@@ -363,6 +366,7 @@ export function useCaisses(month: string) {
         delta: -surLeTiroir(m, boxCur, currency),
         invoiceId: undefined as string | undefined,
         expense: undefined as Expense | undefined,
+        transfertId: undefined as string | undefined,
       }));
 
     /* Le relevé DIT ce que le solde compte — sinon « solde au début +
@@ -376,6 +380,7 @@ export function useCaisses(month: string) {
       delta: p.type === 'pret' ? -surLeTiroir(p, boxCur, currency) : surLeTiroir(p, boxCur, currency),
       invoiceId: undefined as string | undefined,
       expense: undefined as Expense | undefined,
+      transfertId: undefined as string | undefined,
     }));
 
     const lesTransferts = transferts
@@ -389,6 +394,13 @@ export function useCaisses(month: string) {
         delta: transfertSurCaisse(t, name),
         invoiceId: undefined as string | undefined,
         expense: undefined as Expense | undefined,
+        /* UN APPORT AUSSI SE CORRIGE — 23 août 2026. « Il faut mettre les dates
+           d’origine pour ces transactions. » Les dates SONT enregistrées telles
+           que saisies ; ce qui manquait, c’est le chemin pour les reprendre :
+           facture, dépense, avoir et prêt menaient à leur fiche, un transfert
+           ne menait nulle part. Une ligne qu’on ne peut pas rouvrir est une
+           faute qu’on ne peut pas réparer. */
+        transfertId: t.id as string | undefined,
       }));
 
     const bruts = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts]
@@ -458,7 +470,7 @@ export const nomEtSolde = (c: Cashbox, solde: number, ouvertes: ReadonlySet<stri
    Il vit ici parce que DEUX écrans l'ouvrent : les Dépenses depuis la pastille
    de caisse d'une ligne, et les Caisses depuis la carte du tiroir. */
 export function ReleveCaisse({
-  nom, month, onClose, onExpense, onRapport,
+  nom, month, onClose, onExpense, onRapport, onTransfert,
 }: {
   nom: string;
   month: string;
@@ -468,6 +480,9 @@ export function ReleveCaisse({
      lit déjà ce module, l'importer en retour fabriquerait un cycle que React ne
      pardonne pas au montage. L'écran qui ouvre le relevé passe le geste. */
   onRapport?: () => void;
+  /* UN APPORT SE CORRIGE DEPUIS SA LIGNE — 23 août 2026 : le relevé est
+     l’endroit où l’on repère une date fausse, il doit donc y mener. */
+  onTransfert?: (id: string) => void;
 }) {
   const navigate = useNavigate();
   const { currency, boxMoves, branchBoxes, ouvertes } = useCaisses(month);
@@ -666,6 +681,15 @@ export function ReleveCaisse({
               style={{ ...rowStyle, cursor: 'pointer' }}
               title="Modifier cette dépense"
               onClick={() => { const e = m.expense!; onClose(); openEdit(e); }}
+            >
+              {body}
+            </button>
+          ) : (m.transfertId && onTransfert) ? (
+            <button
+              key={`${m.date}-${m.label}-${i}`}
+              style={{ ...rowStyle, cursor: 'pointer' }}
+              title="Corriger ce mouvement — date, montant, motif"
+              onClick={() => { const id = m.transfertId!; onClose(); onTransfert(id); }}
             >
               {body}
             </button>

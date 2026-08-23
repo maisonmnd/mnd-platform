@@ -185,6 +185,34 @@ export default function Caisses() {
   /* ── Le transfert entre caisses ── */
   const [trOuvert, setTrOuvert] = useState(false);
   const [fTr, setFTr] = useState({ de: '', vers: '', montant: '', recu: '', note: '', date: todayISO() });
+  /* CORRIGER OU EFFACER UN MOUVEMENT — 23 août 2026. « Il faut mettre les
+     dates d’origine pour ces transactions. » Les dates sont enregistrées
+     telles que saisies ; ce qui manquait, c’est le chemin pour les reprendre.
+     Facture, dépense, avoir et prêt menaient à leur fiche ; un apport ne
+     menait nulle part, et une ligne qu’on ne peut pas rouvrir est une faute
+     qu’on ne peut pas réparer. Même modale que la saisie. */
+  const [trEdite, setTrEdite] = useState<string | null>(null);
+  const corrigerLeTransfert = (id: string) => {
+    const t = transferts.find((x) => x.id === id);
+    if (!t) return;
+    const caisseSortie = branchBoxes.find((c) => c.name === t.de);
+    const caisseEntree = branchBoxes.find((c) => c.name === t.vers);
+    const change = !!caisseSortie && !!caisseEntree
+      && cashboxCurrency(caisseSortie) !== cashboxCurrency(caisseEntree);
+    setFTr({
+      de: t.de ?? '', vers: t.vers ?? '',
+      montant: String(t.amountXof),
+      recu: change && t.recuXof != null ? String(t.recuXof) : '',
+      note: t.note ?? '', date: t.date.slice(0, 10),
+    });
+    setTrEdite(id);
+    setTrOuvert(true);
+  };
+  const effacerLeTransfert = () => {
+    if (!trEdite) return;
+    setTransferts((prev) => prev.filter((x) => x.id !== trEdite));
+    setTrEdite(null); setTrOuvert(false);
+  };
   const caisseDe = branchBoxes.find((c) => c.name === fTr.de);
   const caisseVers = branchBoxes.find((c) => c.name === fTr.vers);
   /* LA MONNAIE SUIT LE TIROIR CONCERNÉ — 23 août 2026. « Quand la caisse USD
@@ -213,12 +241,18 @@ export default function Caisses() {
        mouvement qui ne part de nulle part et ne va nulle part n'existe pas. */
     if ((!fTr.de && !fTr.vers) || (fTr.de && fTr.de === fTr.vers) || montant <= 0) return;
     if (changeDeDevise && recu <= 0) return;
-    setTransferts((prev) => [...prev, {
-      id: `trf-${uid()}`, branchId: branch.id, date: fTr.date || todayISO(),
+    const ligne = {
+      id: trEdite ?? `trf-${uid()}`, branchId: branch.id, date: fTr.date || todayISO(),
       de: fTr.de, vers: fTr.vers, amountXof: montant,
       recuXof: changeDeDevise ? recu : undefined,
       note: fTr.note.trim() || undefined,
-    }]);
+    };
+    /* L’IDENTIFIANT NE BOUGE PAS : une correction reste la MÊME écriture,
+       corrigée — pas une nouvelle qui remplacerait l’ancienne. */
+    setTransferts((prev) => (trEdite
+      ? prev.map((x) => (x.id === trEdite ? ligne : x))
+      : [...prev, ligne]));
+    setTrEdite(null);
     setTrOuvert(false);
     setFTr((f) => ({ ...f, montant: '', recu: '', note: '' }));
   };
@@ -454,7 +488,17 @@ export default function Caisses() {
         <div className="trf-panel" style={{ marginTop: 18 }}>
           <div className="trf-panel__title">Transferts · {monthName}</div>
           {transfertsDuMois.map((t) => (
-            <div className="trf-linerow trf-linerow--split" key={t.id}>
+            /* LA LIGNE MÈNE À SA CORRECTION — 23 août 2026 : c’est ici qu on
+               repère une date fausse, il faut donc pouvoir la reprendre. */
+            <button
+              type="button"
+              className="trf-linerow trf-linerow--split"
+              key={t.id}
+              onClick={() => corrigerLeTransfert(t.id)}
+              title="Corriger ce mouvement — date, montant, motif"
+              style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                borderBottom: '1px solid var(--hairline)', font: 'inherit', cursor: 'pointer' }}
+            >
               <span>
                 {t.de || <i style={{ color: 'var(--ink-soft)' }}>apport</i>}
                 {' '}<span className="mnd-muted">→</span>{' '}
@@ -498,7 +542,7 @@ export default function Caisses() {
                   </span>
                 );
               })()}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -515,6 +559,7 @@ export default function Caisses() {
           month={month}
           onClose={() => setBoxDrill(null)}
           onRapport={() => { setRapport(boxDrill); setBoxDrill(null); }}
+          onTransfert={corrigerLeTransfert}
         />
       )}
 
@@ -666,7 +711,11 @@ export default function Caisses() {
       )}
 
       {trOuvert && (
-        <Modal title="Transférer, apporter, sortir" onClose={() => setTrOuvert(false)} width={520}>
+        <Modal
+          title={trEdite ? "Corriger ce mouvement" : "Transférer, apporter, sortir"}
+          onClose={() => { setTrOuvert(false); setTrEdite(null); }}
+          width={520}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
               L’argent change de tiroir : la caisse de départ baisse, celle d’arrivée monte.
@@ -720,14 +769,33 @@ export default function Caisses() {
             <label className="mnd-field">
               <span className="mnd-field__label">Date</span>
               <input className="mnd-input" type="date" value={fTr.date} onChange={(e) => setFTr((f) => ({ ...f, date: e.target.value }))} />
+              {/* LA DATE DU MOUVEMENT RÉEL, PAS CELLE DE LA SAISIE — 23 août
+                  2026. Elle propose aujourd’hui, ce qui est juste au comptoir
+                  et faux quand on rattrape un mois de retard : quatre apports
+                  de mars et mai s’étaient inscrits au 23 août. Le champ le dit
+                  maintenant, et la ligne se rouvre pour se corriger. */}
+              <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+                Le jour où l’argent a VRAIMENT bougé — pas celui de la saisie. Une écriture
+                rattrapée après coup garde sa date d’origine ; c’est elle qui la range dans le
+                bon mois, et dans le bon relevé.
+              </span>
             </label>
             <label className="mnd-field">
               <span className="mnd-field__label">Motif · facultatif</span>
               <input className="mnd-input" value={fTr.note} placeholder="Ex. approvisionner le comptoir…" onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))} />
             </label>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button className="mnd-btn mnd-btn--ghost" onClick={() => setTrOuvert(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={enregistrerTransfert}>Transférer</button>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
+              {/* EFFACER VIT À GAUCHE, loin d’Enregistrer : un geste sans retour
+                  ne voisine pas avec le geste courant. */}
+              {trEdite ? (
+                <button className="mnd-btn mnd-btn--ghost" style={{ color: 'var(--copper-700)' }} onClick={effacerLeTransfert}>
+                  Effacer ce mouvement
+                </button>
+              ) : <span />}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="mnd-btn mnd-btn--ghost" onClick={() => { setTrOuvert(false); setTrEdite(null); }}>Annuler</button>
+                <button className="mnd-btn" onClick={enregistrerTransfert}>{trEdite ? 'Enregistrer' : 'Transférer'}</button>
+              </div>
             </div>
           </div>
         </Modal>
