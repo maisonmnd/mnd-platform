@@ -31,7 +31,11 @@ import {
 } from '../../../../shared/foyer';
 import { useStaff, waLink } from '../equipe/data';
 import { ClientPicker } from '../clients/_shared';
-import { ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
+import {
+  ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant,
+  useCaissesOuvertes, EcranVerrouille, ReglerLeVerrou, CLE_PRETS,
+} from './tiroirs';
+import { useSettings, settingsStore } from '../../../../shared/settings';
 import { todayISO } from './_shared';
 import './finances.css';
 
@@ -61,6 +65,16 @@ export default function Prets() {
   const [clients] = useClients();
   const [staff] = useStaff();
   const aujourdhui = todayISO();
+
+  /* ── LE VERROU DE L’ÉCRAN — 23 août 2026 ──────────────────────────
+     Troisième écran à le demander, après les caisses et le coffre : ce que
+     la Maison doit à la Maison ne regarde pas plus la salle que ses tiroirs.
+     Même pièce partagée, aucun verrou recopié. Sans code posé, la porte reste
+     ouverte — une mise à jour ne doit enfermer personne dehors. */
+  const [reglages] = useSettings();
+  const ouvertesIci = useCaissesOuvertes();
+  const ecranVerrouille = !!reglages.codePretsHash && !ouvertesIci.has(CLE_PRETS);
+  const [verrouOuvert, setVerrouOuvert] = useState(false);
 
   const [prets, setPrets] = usePrets();
   const etats = useMemo(
@@ -307,13 +321,24 @@ export default function Prets() {
     );
   };
 
+  if (ecranVerrouille) {
+    return <EcranVerrouille titre="Les prêts sont verrouillés." cle={CLE_PRETS} hash={reglages.codePretsHash} />;
+  }
+
   return (
     <div className="mnd-rise">
       <PageHead
         eyebrow="Finances"
         title="Les prêts."
         sub="Ce que la Maison a prêté et ce qu’on lui doit encore. Un prêt sort d’une caisse, un remboursement y rentre — l’argent se déplace, il ne se duplique pas."
-        actions={<Button variant="copper" onClick={() => { setPretEdite(null); setPretOuvert(true); }}>+ Prêt ou remboursement</Button>}
+        actions={(
+          <>
+            <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>
+              {reglages.codePretsHash ? 'Code de l’écran' : 'Protéger cet écran'}
+            </Button>
+            <Button variant="copper" onClick={() => { setPretEdite(null); setPretOuvert(true); }}>+ Prêt ou remboursement</Button>
+          </>
+        )}
       />
 
       {etats.length === 0 ? (
@@ -407,6 +432,15 @@ export default function Prets() {
             </Card>
           ) : liste.map(carte)}
         </>
+      )}
+
+      {verrouOuvert && (
+        <ReglerLeVerrou
+          cle={CLE_PRETS}
+          hash={reglages.codePretsHash}
+          onClose={() => setVerrouOuvert(false)}
+          onPose={(h) => settingsStore.set((prev) => ({ ...prev, codePretsHash: h }))}
+        />
       )}
 
       {(pretOuvert || pretEdite) && (

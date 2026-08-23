@@ -28,6 +28,9 @@ export type Settings = {
   codeCaissesHash?: string;
   /** Le même verrou pour le Coffre-fort — 22 août 2026. */
   codeCoffreHash?: string;
+  /** Le même verrou pour les Prêts — 23 août 2026. Trois écrans, une seule
+      mécanique : ce qui se recopie se corrige trois fois. */
+  codePretsHash?: string;
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;

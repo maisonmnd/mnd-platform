@@ -46,6 +46,7 @@ const prevenir = () => veilleurs.forEach((f) => f());
    retombe comme une caisse, et le rechargement le repose. */
 export const CLE_ECRAN = '@ecran-caisses';
 export const CLE_COFFRE = '@ecran-coffre';
+export const CLE_PRETS = '@ecran-prets';
 
 export const ouvreLaCaisse = (id: string): void => {
   ouvertes = new Set([...ouvertes, id]);
