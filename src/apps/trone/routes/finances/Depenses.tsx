@@ -317,6 +317,21 @@ export default function Depenses() {
     return { lignes: [...par.values()].sort((a, b) => b.total - a.total), sansNom };
   }, [monthExp]);
   const live = monthExp.filter((e) => !e.stopped);
+  /* CE QUE CHAQUE CAISSE PORTE — 24 août 2026. « Quand je choisis n’importe
+     quelle caisse, les données ne changent pas d’une caisse à l’autre. » Le
+     filtre marchait ; c’est la BARRE qui ne disait rien. Toutes les caisses de
+     la branche s y alignaient, y compris celles qui n’ont pas vu une dépense
+     du mois : cliquer l’une d’elles vidait l écran sans qu’on sache si c’était
+     un filtre efficace ou un écran cassé.
+
+     Chaque pastille porte donc ce qu’elle pèse. Celles à zéro se voient avant
+     d’être cliquées — et la question ne se pose plus. */
+  const poidsParCaisse = useMemo(() => {
+    const par = new Map<string, number>();
+    for (const e of live) par.set(e.cashbox, (par.get(e.cashbox) ?? 0) + poids(e));
+    return par;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, moisDeLaPortee]);
   const visibleMonthExp = monthExp.filter(matches);
 
   const engaged = live.reduce((s, e) => s + poids(e), 0);
@@ -1006,9 +1021,22 @@ export default function Depenses() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginRight: 4 }}>Caisse</span>
-                {[{ k: 'all', label: 'Toutes les caisses' }, ...branchBoxes.map((b) => ({ k: b.name, label: b.name }))].map((c) => (
-                  <button key={c.k} className={`trf-chip ${filterCaisse === c.k ? 'is-active' : ''}`} onClick={() => setFilterCaisse(c.k)}>{c.label}</button>
-                ))}
+                <button className={`trf-chip ${filterCaisse === 'all' ? 'is-active' : ''}`} onClick={() => setFilterCaisse('all')}>
+                  Toutes les caisses <i className="trf-chip__n">{fmtMoney(live.reduce((n, e) => n + poids(e), 0), currency)}</i>
+                </button>
+                {branchBoxes.map((b) => {
+                  const porte = poidsParCaisse.get(b.name) ?? 0;
+                  return (
+                    <button
+                      key={b.id}
+                      className={`trf-chip ${filterCaisse === b.name ? 'is-active' : ''} ${porte === 0 ? 'is-vide' : ''}`}
+                      onClick={() => setFilterCaisse(b.name)}
+                      title={porte === 0 ? `Aucune dépense payée depuis « ${b.name} » sur cette période` : undefined}
+                    >
+                      {b.name} <i className="trf-chip__n">{porte === 0 ? '—' : fmtIn(porte, currency)}</i>
+                    </button>
+                  );
+                })}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginRight: 4 }}>Catégorie</span>
@@ -1023,7 +1051,9 @@ export default function Depenses() {
                 <div className="trf-empty">
                   {q
                     ? <>Aucune dépense de {monthName} ne répond à « {query.trim()} ».</>
-                    : <>Aucune dépense pour ce filtre en {monthName}. Saisis une dépense depuis cette caisse pour la voir circuler ici.</>}
+                    : filterCaisse !== 'all'
+                      ? <>Aucune dépense payée depuis « {filterCaisse} » en {nomDeLaPortee}. Le filtre fonctionne — cette caisse n’a simplement rien payé sur la période.</>
+                      : <>Aucune dépense pour ce filtre en {nomDeLaPortee}.</>}
                 </div>
               )}
               {flow.rows.map((b, i) => (
@@ -1092,30 +1122,56 @@ export default function Depenses() {
             )}
             {visibleMonthExp.map((e) => (
               <div key={e.id}>
+                {/* ── LA RANGÉE D’UNE DÉPENSE — revue le 24 août 2026 ─────
+                    « Le nom des caisses est disproportionnellement écrit. » Il
+                    l’était : une pastille indigo pleine, en capitales, sur
+                    chacune des trente-et-une lignes — un mur sombre qui pesait
+                    plus lourd que le montant. Et « Suspendre » portait un fond
+                    ROUGE : le geste le plus rare de la ligne criait le plus
+                    fort.
+
+                    CE QUI COMPTE SE LIT EN PREMIER : le bénéficiaire, puis le
+                    montant. La caisse rejoint la ligne de détail, avec la
+                    catégorie — elle reste cliquable, elle ne domine plus. Les
+                    trois gestes deviennent des liens discrets, et leur ordre
+                    dit leur fréquence. */}
                 <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`}>
                   <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="trf-exprow__vendor">{e.label}</div>
                     <div className="trf-exprow__meta">
                       {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''}{e.recurring ? ` · ${e.recurring}` : ''}
+                      {e.cashbox ? (
+                        <>
+                          {' · '}
+                          <button
+                            className="trf-exprow__caisse"
+                            title="Voir les mouvements de cette caisse"
+                            onClick={() => setBoxDrill(e.cashbox)}
+                          >
+                            {e.cashbox}
+                          </button>
+                        </>
+                      ) : null}
+                      {e.porteur ? <>{' · acheté par '}<b style={{ fontWeight: 500 }}>{e.porteur}</b></> : null}
+                      {e.fichier ? <>{' · '}<span title={e.fichier.nom}>pièce jointe</span></> : null}
                       {e.items && e.items.length ? (
                         <>{' · '}<button className="trf-itemtoggle" onClick={() => toggleExpand(e.id)}>{e.items.length} articles {expanded.has(e.id) ? '▲' : '▼'}</button></>
                       ) : null}
                     </div>
                   </div>
-                  <button className="trf-tagbox trf-tagbox--btn" title="Voir les mouvements de cette caisse" onClick={() => setBoxDrill(e.cashbox)}>{e.cashbox}</button>
                   <span className="trf-exprow__amt">{fmtMoney(expenseTotal(e), currency)}</span>
-                  <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                    <button className="trf-act trf-act--ghost" onClick={() => openEdit(e)}>Modifier</button>
+                  <div className="trf-exprow__gestes">
+                    <button className="trf-geste trf-geste--premier" onClick={() => openEdit(e)}>Modifier</button>
                     {/* « SIGNALER » A ÉTÉ RETIRÉ — 22 août 2026. Le signal ne
                         se lisait plus nulle part depuis que l'arbitrage a quitté
                         l'écran : un bouton dont l'effet est invisible ment. */}
                     {!e.stopped ? (
-                      <button className="trf-act trf-act--stop" onClick={() => stop(e)}>Suspendre</button>
+                      <button className="trf-geste" onClick={() => stop(e)}>Suspendre</button>
                     ) : (
-                      <button className="trf-act trf-act--ghost" onClick={() => revive(e)}>↺ Rétablir</button>
+                      <button className="trf-geste trf-geste--premier" onClick={() => revive(e)}>↺ Rétablir</button>
                     )}
-                    <button className="trf-act trf-act--ghost" style={{ color: 'var(--trf-error)' }} onClick={() => removeExpense(e)}>Supprimer</button>
+                    <button className="trf-geste trf-geste--oter" onClick={() => removeExpense(e)}>Supprimer</button>
                   </div>
                 </div>
                 {e.items && e.items.length && expanded.has(e.id) ? (

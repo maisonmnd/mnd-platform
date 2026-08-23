@@ -1770,3 +1770,81 @@
   font-family: var(--font-serif); font-size: 14px; font-weight: 400;
   color: var(--color-indigo); font-variant-numeric: tabular-nums;
 }
+
+/* ── LA RANGÉE D'UNE DÉPENSE, REVUE — 24 août 2026 ─────────────────
+   « Le nom des caisses est disproportionnellement écrit. » Il l'était : une
+   pastille indigo PLEINE, en capitales, sur chacune des trente-et-une lignes.
+   Un mur sombre qui pesait plus lourd que le montant — et le montant est ce
+   qu'on vient lire.
+
+   ET « SUSPENDRE » PORTAIT UN FOND ROUGE : le geste le plus rare de la ligne
+   criait le plus fort, à côté de « Supprimer » qui, lui, est sans retour.
+   L'œil apprenait à ignorer la couleur d'alerte, ce qui est le pire résultat
+   possible pour une alerte. */
+.trf-exprow { gap: 14px; padding: 15px 0; align-items: flex-start; }
+.trf-exprow__vendor { line-height: 1.3; }
+.trf-exprow__meta { line-height: 1.6; margin-top: 4px; }
+
+/* La caisse redevient ce qu'elle est : un détail de la ligne, au même rang que
+   la catégorie. Cliquable — elle ouvre son relevé — mais jamais criarde. */
+.trf-exprow__caisse {
+  background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+  color: var(--color-copper); border-bottom: 1px solid var(--copper-300, #E3C9AE);
+}
+.trf-exprow__caisse:hover { color: var(--copper-700, #96412E); }
+
+.trf-exprow__amt { align-self: center; font-variant-numeric: tabular-nums; }
+
+/* LES TROIS GESTES DEVIENNENT DES LIENS, et leur poids dit leur fréquence :
+   « Modifier » se fait tous les jours, « Supprimer » presque jamais. Ils
+   restent VISIBLES — sur un téléphone, il n'y a pas de survol pour les faire
+   apparaître. */
+.trf-exprow__gestes {
+  display: flex; gap: 14px; flex: none; align-self: center; flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.trf-geste {
+  background: none; border: none; padding: 2px 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
+  border-bottom: 1px solid transparent;
+}
+.trf-geste:hover { color: var(--color-indigo); border-bottom-color: var(--hairline); }
+.trf-geste--premier { color: var(--color-copper); font-weight: 500; }
+.trf-geste--premier:hover { color: var(--copper-700, #96412E); }
+.trf-geste--oter:hover { color: var(--trf-error); border-bottom-color: var(--trf-error); }
+
+/* Le bloc « Payée par » s'allège : un filet à gauche plutôt qu'un cadre plein.
+   Il accompagne la ligne, il ne rivalise pas avec elle. */
+.trf-prov {
+  margin: 0 0 12px 58px;
+  padding: 2px 0 2px 12px;
+  background: none;
+  border: none;
+  border-left: 2px solid var(--copper-300, #E3C9AE);
+  border-radius: 0;
+}
+.trf-prov__titre { margin-bottom: 4px; }
+
+@media (max-width: 720px) {
+  /* Sur un téléphone, la ligne se plie : le montant passe sous le libellé
+     plutôt que de comprimer les deux. */
+  .trf-exprow { flex-wrap: wrap; }
+  .trf-exprow__gestes { width: 100%; justify-content: flex-start; }
+  .trf-prov { margin-left: 0; }
+}
+
+/* ── UNE PASTILLE QUI DIT CE QU'ELLE PORTE — 24 août 2026 ──────────
+   « Quand je choisis n'importe quelle caisse, les données ne changent pas. »
+   Le filtre marchait ; c'est la barre qui ne disait rien. Une caisse sans
+   dépense sur la période se voit désormais AVANT d'être cliquée. */
+.trf-chip__n {
+  font-style: normal;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  color: var(--color-indigo);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.trf-chip.is-active .trf-chip__n { color: inherit; }
+.trf-chip.is-vide { opacity: .55; }
+.trf-chip.is-vide .trf-chip__n { color: var(--ink-soft); }

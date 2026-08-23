@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La rangée d'une dépense, revue — 24 août, PUBLIÉ
+
+« Revisiter l'UI/UX de la page des dépenses saisies. Le nom des caisses est
+disproportionnellement écrit. »
+
+IL L'ÉTAIT : une pastille indigo PLEINE, en capitales, sur chacune des
+trente-et-une lignes — un mur sombre qui pesait plus lourd que le montant, et
+le montant est ce qu'on vient lire. La caisse rejoint la ligne de détail, avec
+la catégorie : toujours cliquable (elle ouvre son relevé), jamais criarde.
+
+ET « SUSPENDRE » PORTAIT UN FOND ROUGE. Le geste le plus rare de la ligne
+criait le plus fort, à côté de « Supprimer » qui, lui, est sans retour. L'œil
+apprenait à ignorer la couleur d'alerte — le pire résultat possible pour une
+alerte. Les trois gestes deviennent des liens discrets, et leur poids dit leur
+fréquence : « Modifier » en cuivre, les deux autres en encre pâle, « Supprimer »
+qui ne rougit qu'au survol.
+
+La ligne de détail dit aussi, désormais, ce qu'elle taisait : le porteur
+(« acheté par Sandrine ») et la présence d'une pièce jointe. Le bloc « Payée
+par » s'allège — un filet à gauche plutôt qu'un cadre plein.
+
+## « Les données ne changent pas d'une caisse à l'autre » — 24 août
+
+Vérifié : LE FILTRE EST BIEN APPLIQUÉ (`e.cashbox === filterCaisse`, dans
+`flow`). Ce qui manquait, c'est que LA BARRE NE DISAIT RIEN. Toutes les caisses
+de la branche s'y alignaient, y compris celles qui n'ont pas vu une dépense du
+mois — et sur les captures de Yéman, les trente-et-une dépenses d'août sortent
+TOUTES de « Real Money ». Cliquer une autre caisse vidait donc l'écran, sans
+qu'on sache si c'était un filtre efficace ou un écran cassé.
+
+Chaque pastille porte maintenant ce qu'elle pèse sur la période, et celles à
+zéro se voient AVANT d'être cliquées. Le vide, lui, se nomme : « Aucune dépense
+payée depuis « Caisse Pilia » en août. Le filtre fonctionne — cette caisse n'a
+simplement rien payé sur la période. »
+
+UN CONTRÔLE QUI NE MONTRE PAS SON EFFET SE LIT COMME UNE PANNE.
+
 ## Les dépenses au mois ET à l'année — 23 août, PUBLIÉ
 
 « Les dépenses doivent être au mois et à l'année. » L'écran ne savait lire qu'un
