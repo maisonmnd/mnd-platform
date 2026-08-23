@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Joindre un fichier à une écriture — 23 août, PUBLIÉ
+
+« Après note, j'aimerais attacher un fichier ou une photo. » Un reçu, un
+bordereau, la capture d'un virement : la preuve de ce qui est écrit.
+
+RIEN DE NEUF SOUS LA MAIN, ET C'EST LE POINT. Le Fil dépose des pièces depuis
+le 18 août (migration 0059) dans un compartiment PRIVÉ, ouvert au seul
+personnel connecté, chaque fichier servi par un jeton d'une heure. Les caisses
+et les dépenses y rangent les leurs, sous leur propre dossier (`caisse/`,
+`depense/`). AUCUNE MIGRATION À COLLER : un second compartiment aux politiques
+identiques aurait doublé la surface à protéger sans rien gagner — et 0059 le dit
+déjà : « ce que la Maison garde derrière une porte, elle le garde derrière LA
+MÊME ».
+
+SEULE L'ADRESSE EST ENREGISTRÉE, jamais le fichier. Les magasins vivent dans le
+localStorage et passent en entier à la synchronisation : y glisser une photo
+saturerait l'un et gonflerait l'autre — exactement ce qui avait vidé les fiches
+du MacBook le 21 août. La ligne ne garde que `{ chemin, nom, type, taille }`,
+et `data jsonb` l'accepte sans une ligne de SQL.
+
+LE DÉPÔT SE FAIT AU CHOIX DU FICHIER, pas à l'enregistrement : sinon un
+formulaire abandonné laisserait croire que la pièce est là. Conséquence assumée
+— un fichier choisi puis abandonné reste dans le compartiment. Un octet oublié
+coûte moins qu'une preuve perdue.
+
+IL NE BLOQUE JAMAIS L'ÉCRITURE. Hors ligne, dépôt refusé, fichier au-dessus de
+10 Mo : on le DIT, et la ligne s'enregistre sans sa pièce. Perdre une écriture
+parce qu'une photo n'est pas passée serait le pire des échanges. Le poids se
+vérifie AVANT le voyage — un refus du serveur trente secondes plus tard ne dit
+rien d'utile.
+
+Deux endroits, un seul champ (`ChampPieceJointe`, dans `finances/_shared`) :
+l'apport ou le transfert d'une caisse, et la dépense — c'est là qu'il sert le
+plus. Une ligne qui porte sa preuve le DIT dans le relevé (« · pièce jointe ») :
+sinon il faudrait ouvrir chaque fiche pour savoir laquelle l'a.
+
 ## « Toutes les caisses sont au 23 août » — 23 août, CORRIGÉ
 
 Elles ne l'étaient pas. Le relevé les DATAIT toutes d'aujourd'hui.

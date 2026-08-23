@@ -168,6 +168,8 @@ export type Expense = {
       22 août 2026. `amountXof` reste la charge de la Maison ; `fx.amount` est
       ce que le tiroir a réellement perdu. Voir `surLeTiroir`. */
   fx?: { code: string; rate: number; amount: number };
+  /** LA PREUVE : reçu, bordereau, capture. Voir `PieceJointe`. */
+  fichier?: PieceJointe;
   /** LES REVENUS QUI PAIENT CETTE DÉPENSE — voir `DepenseSource`. Absent sur
       tout l'historique : une dépense sans `sources` reste muette, elle ne se
       remplit pas toute seule. */
@@ -383,6 +385,17 @@ export const surLeTiroir = (e: EcritureDeTiroir, deviseDuTiroir: string, maison:
     sorti — la ligne existe, le tiroir ne peut pas la compter. */
 export const montantMuet = (e: EcritureDeTiroir, deviseDuTiroir: string, maison: string): boolean =>
   deviseDuTiroir !== maison && !(e.fx && e.fx.code === deviseDuTiroir);
+/* ── LA PIÈCE JOINTE D’UNE ÉCRITURE — 23 août 2026 ─────────────────
+   « Après note, j’aimerais attacher un fichier ou une photo. » Un reçu, un
+   bordereau, la capture d’un virement : la preuve de ce qui est écrit.
+
+   SEULE L’ADRESSE EST ENREGISTRÉE, jamais le fichier. Les magasins du Trône
+   vivent dans le localStorage du navigateur et passent en entier à la
+   synchronisation : y glisser une photo saturerait l’un et gonflerait
+   l’autre — c’est exactement ce qui avait vidé les fiches du MacBook le
+   21 août. Le fichier dort dans le compartiment privé, la ligne n’en garde
+   que le chemin. */
+export type PieceJointe = { chemin: string; nom: string; type: string; taille: number };
 export const caissesEnDevise = (boxes: readonly Cashbox[], branchId: string, maison: string): Cashbox[] =>
   boxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) !== maison);
 
@@ -903,6 +916,8 @@ export type TransfertCaisse = {
       deux caisses tiennent la même monnaie : c'est alors le même nombre. */
   recuXof?: number;
   note?: string;
+  /** LA PREUVE : reçu, bordereau, capture. Voir `PieceJointe`. */
+  fichier?: PieceJointe;
 };
 
 export const transfertsStore = createStore<TransfertCaisse[]>('mnd_transferts_caisse', []);

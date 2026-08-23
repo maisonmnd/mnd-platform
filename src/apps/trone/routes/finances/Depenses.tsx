@@ -11,7 +11,7 @@ import { expenseOccurrences,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget,
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { usePrets } from '../../../../shared/foyer';
@@ -19,7 +19,7 @@ import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
-import { fmtDay, todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
+import { fmtDay, todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements, ChampPieceJointe } from './_shared';
 import {
   useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant,
   nettoieLeMontant, nomEtSolde, useCaissesOuvertes,
@@ -44,7 +44,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[] };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
@@ -389,6 +389,7 @@ export default function Depenses() {
     setForm({
       label: e.label, amount: String(e.fx ? e.fx.amount : e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
       cashbox: e.cashbox, enDevise: e.fx ? String(e.amountXof) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
+      fichier: e.fichier,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -522,6 +523,7 @@ export default function Depenses() {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
         fx: hasItems ? undefined : montantsDep.fx,
+        fichier: form.fichier,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
@@ -531,6 +533,7 @@ export default function Depenses() {
         id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
         fx: hasItems ? undefined : montantsDep.fx,
+        fichier: form.fichier,
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
@@ -1611,6 +1614,17 @@ export default function Depenses() {
                 )}
               </div>
             )}
+            {/* LA PREUVE DE LA DÉPENSE — 23 août 2026. C’est ici qu’elle sert
+                le plus : un reçu de marché, une facture de fournisseur, la
+                capture d’un virement. Le champ est le même que celui des
+                caisses ; le compartiment aussi. */}
+            <ChampPieceJointe
+              branchId={branch.id}
+              dossier="depense"
+              valeur={form.fichier}
+              onChange={(pj) => setForm((f) => ({ ...f, fichier: pj }))}
+            />
+
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Récurrence</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>

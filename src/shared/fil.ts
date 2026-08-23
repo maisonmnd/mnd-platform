@@ -171,12 +171,22 @@ export const SEAU_FIL = 'fil';
 /** DÉPOSER UN FICHIER. Rend le chemin, ou null si le dépôt a échoué — jamais
     une exception : un fil qui casse parce qu'une image n'est pas passée ferait
     perdre le message avec elle. */
-export async function deposerFichier(branchId: string, f: File): Promise<FilMessage['fichier'] | null> {
+/* LE MÊME COMPARTIMENT POUR TOUTES LES PIÈCES — 23 août 2026. « Après note,
+   j'aimerais attacher un fichier ou une photo » : les caisses et les dépenses
+   déposent désormais ici aussi, sous leur propre dossier. Un second
+   compartiment aux politiques identiques aurait doublé la surface à protéger
+   sans rien gagner — et la migration 0059 le dit déjà : ce que la Maison garde
+   derrière une porte, elle le garde derrière LA MÊME. */
+export async function deposerFichier(
+  branchId: string,
+  f: File,
+  dossier?: string,
+): Promise<FilMessage['fichier'] | null> {
   if (!supabase) return null;
   /* Le nom est NETTOYÉ mais gardé lisible : « Capture 2026-08-18.png » se
      retrouve d'un coup d'œil dans le compartiment, « a3f9c2.png » jamais. */
   const propre = f.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(-80);
-  const chemin = `${branchId}/${uid()}-${propre}`;
+  const chemin = `${branchId}/${dossier ? `${dossier}/` : ''}${uid()}-${propre}`;
   const { error } = await supabase.storage.from(SEAU_FIL).upload(chemin, f, {
     contentType: f.type || 'application/octet-stream',
     upsert: false,

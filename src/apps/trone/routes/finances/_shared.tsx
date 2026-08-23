@@ -2,9 +2,10 @@
    partagés par les trois écrans. Plus le registre des encaissements, lu par
    Encaissements ET par Dépenses (voir `useRegistreEncaissements`, en bas). */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
-import { useInvoices, usePayments, useCredits } from '../../../../shared/finance';
+import { useInvoices, usePayments, useCredits, type PieceJointe } from '../../../../shared/finance';
+import { deposerFichier, adresseSignee, poidsEnClair } from '../../../../shared/fil';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { useApprenants, useSubscribers } from '../equipe/data';
@@ -141,3 +142,101 @@ export function useRegistreEncaissements(): Receipt[] {
     [branch.id, invoices, online, appointments, credits, apprenants, subscribers, clients, byId],
   );
 }
+
+/* ── JOINDRE UN FICHIER OU UNE PHOTO — 23 août 2026 ─────────────────
+   « Après note, j'aimerais attacher un fichier ou une photo. » Un reçu, un
+   bordereau, la capture d'un virement : la preuve de ce qui est écrit.
+
+   RIEN DE NEUF SOUS LA MAIN. Le Fil dépose des pièces depuis le 18 août
+   (migration 0059) dans un compartiment PRIVÉ, ouvert au seul personnel
+   connecté, chaque fichier servi par un jeton d'une heure. On y range les
+   pièces des caisses et des dépenses sous leur propre dossier — un second
+   compartiment aux politiques identiques aurait doublé la surface à protéger
+   sans rien gagner.
+
+   LE DÉPÔT SE FAIT AU CHOIX DU FICHIER, pas à l'enregistrement de la ligne :
+   sinon un formulaire abandonné laisserait croire que la pièce est là. La
+   conséquence assumée est qu'un fichier choisi puis abandonné reste dans le
+   compartiment — un octet oublié coûte moins qu'une preuve perdue.
+
+   IL NE BLOQUE JAMAIS L'ÉCRITURE. Dépôt refusé, hors ligne, fichier trop
+   lourd : on le DIT, et la ligne s'enregistre sans sa pièce. Perdre une vente
+   parce qu'une photo n'est pas passée serait le pire des échanges. */
+export function ChampPieceJointe({
+  branchId, dossier, valeur, onChange,
+}: {
+  branchId: string;
+  /** Le sous-dossier du compartiment : « caisse », « depense »… */
+  dossier: string;
+  valeur?: PieceJointe;
+  onChange: (p?: PieceJointe) => void;
+}) {
+  const [enCours, setEnCours] = useState(false);
+  const [souci, setSouci] = useState('');
+
+  const choisir = async (f?: File | null) => {
+    if (!f) return;
+    setSouci('');
+    /* Le compartiment refuse au-delà de 10 Mo (0059). Le dire AVANT le voyage
+       vaut mieux qu'un refus du serveur trente secondes plus tard. */
+    if (f.size > 10 * 1024 * 1024) {
+      setSouci(`« ${f.name} » pèse ${poidsEnClair(f.size)} — la limite est de 10 Mo.`);
+      return;
+    }
+    setEnCours(true);
+    const pose = await deposerFichier(branchId, f, dossier);
+    setEnCours(false);
+    if (!pose) {
+      setSouci('Le dépôt n’a pas abouti — sans connexion, la pièce ne peut pas être déposée. L’écriture s’enregistre quand même.');
+      return;
+    }
+    onChange(pose);
+  };
+
+  const ouvrir = async () => {
+    if (!valeur) return;
+    const url = await adresseSignee(valeur.chemin);
+    if (url) window.open(url, '_blank', 'noopener');
+    else setSouci('La pièce n’a pas pu être ouverte — réessayez dans un instant.');
+  };
+
+  return (
+    <label className="mnd-field">
+      <span className="mnd-field__label">Joindre un fichier ou une photo · facultatif</span>
+      {valeur ? (
+        <div className="trf-piece">
+          <span className="trf-piece__nom">{valeur.nom}</span>
+          <span className="trf-piece__poids">{poidsEnClair(valeur.taille)}</span>
+          <button type="button" className="trf-piece__acte" onClick={() => void ouvrir()}>Voir</button>
+          <button
+            type="button"
+            className="trf-piece__acte trf-piece__acte--oter"
+            onClick={() => { onChange(undefined); setSouci(''); }}
+          >
+            Retirer
+          </button>
+        </div>
+      ) : (
+        <input
+          className="mnd-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+          disabled={enCours}
+          onChange={(e) => { void choisir(e.target.files?.[0]); e.target.value = ''; }}
+        />
+      )}
+      <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+        {enCours
+          ? 'Dépôt en cours…'
+          : 'Photo ou PDF, 10 Mo au plus. La pièce dort dans le compartiment privé de la Maison —'
+            + ' elle ne s’ouvre qu’au personnel connecté, par une adresse valable une heure.'}
+      </span>
+      {souci && (
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 6, display: 'block', lineHeight: 1.5 }}>
+          {souci}
+        </span>
+      )}
+    </label>
+  );
+}
+

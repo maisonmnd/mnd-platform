@@ -7,10 +7,10 @@ import { CURRENCIES } from '../../../../shared/geo';
 import {
   useCashboxes, useInvoices, useTransferts, cashboxCurrency,
   caisseDiscrete, empreinteDuCode,
-  type Cashbox,
+  type Cashbox, type PieceJointe,
 } from '../../../../shared/finance';
 import { useCoffre, useCredits } from '../../../../shared/finance';
-import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
+import { todayISO, monthKey, monthLabel, MonthNav, ChampPieceJointe } from './_shared';
 import { RapportDeCaisse } from './Rapport';
 import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
@@ -184,7 +184,7 @@ export default function Caisses() {
 
   /* ── Le transfert entre caisses ── */
   const [trOuvert, setTrOuvert] = useState(false);
-  const [fTr, setFTr] = useState({ de: '', vers: '', montant: '', recu: '', note: '', date: todayISO() });
+  const [fTr, setFTr] = useState<{ de: string; vers: string; montant: string; recu: string; note: string; date: string; fichier?: PieceJointe }>({ de: '', vers: '', montant: '', recu: '', note: '', date: todayISO() });
   /* CORRIGER OU EFFACER UN MOUVEMENT — 23 août 2026. « Il faut mettre les
      dates d’origine pour ces transactions. » Les dates sont enregistrées
      telles que saisies ; ce qui manquait, c’est le chemin pour les reprendre.
@@ -204,6 +204,7 @@ export default function Caisses() {
       montant: String(t.amountXof),
       recu: change && t.recuXof != null ? String(t.recuXof) : '',
       note: t.note ?? '', date: t.date.slice(0, 10),
+      fichier: t.fichier,
     });
     setTrEdite(id);
     setTrOuvert(true);
@@ -246,6 +247,7 @@ export default function Caisses() {
       de: fTr.de, vers: fTr.vers, amountXof: montant,
       recuXof: changeDeDevise ? recu : undefined,
       note: fTr.note.trim() || undefined,
+      fichier: fTr.fichier,
     };
     /* L’IDENTIFIANT NE BOUGE PAS : une correction reste la MÊME écriture,
        corrigée — pas une nouvelle qui remplacerait l’ancienne. */
@@ -254,7 +256,7 @@ export default function Caisses() {
       : [...prev, ligne]));
     setTrEdite(null);
     setTrOuvert(false);
-    setFTr((f) => ({ ...f, montant: '', recu: '', note: '' }));
+    setFTr((f) => ({ ...f, montant: '', recu: '', note: '', fichier: undefined }));
   };
 
   const transfertsDuMois = transferts
@@ -784,6 +786,13 @@ export default function Caisses() {
               <span className="mnd-field__label">Motif · facultatif</span>
               <input className="mnd-input" value={fTr.note} placeholder="Ex. approvisionner le comptoir…" onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))} />
             </label>
+
+            <ChampPieceJointe
+              branchId={branch.id}
+              dossier="caisse"
+              valeur={fTr.fichier}
+              onChange={(pj) => setFTr((f) => ({ ...f, fichier: pj }))}
+            />
             <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
               {/* EFFACER VIT À GAUCHE, loin d’Enregistrer : un geste sans retour
                   ne voisine pas avec le geste courant. */}

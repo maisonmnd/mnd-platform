@@ -1644,3 +1644,26 @@
 /* `min-height` : un mois à zéro doit rester un trait, pas un vide — sinon
    l'œil lit une absence de données là où il y a une absence de mouvement. */
 .trf-releve-graphe__paire i { display: block; width: 9px; min-height: 2px; border-radius: 1px; }
+
+/* ── LA PIÈCE JOINTE D'UNE ÉCRITURE — 23 août 2026 ─────────────────
+   Un reçu, un bordereau, la capture d'un virement. Le fichier dort dans le
+   compartiment privé de la Maison ; la ligne n'en garde que le chemin. */
+.trf-piece {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 12px; border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9); border-radius: 3px;
+}
+.trf-piece__nom {
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--color-indigo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22ch;
+}
+.trf-piece__poids { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
+.trf-piece__acte {
+  margin-left: auto; background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 500;
+  color: var(--color-copper); text-decoration: underline;
+}
+/* « Retirer » ne prend jamais la place de « Voir » : il vient après, et se
+   distingue par sa teinte — un geste qui défait ne se confond pas avec un
+   geste qui montre. */
+.trf-piece__acte--oter { margin-left: 0; color: var(--copper-700, #96412E); }

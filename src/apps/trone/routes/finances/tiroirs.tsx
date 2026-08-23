@@ -324,6 +324,9 @@ export function useCaisses(month: string) {
              lui. La taire ferait chercher un écart introuvable. */
           montantMuet({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency)
             ? `montant en ${boxCur} non renseigné` : null,
+          /* UNE LIGNE QUI A SA PREUVE LE DIT — 23 août 2026 : sinon il faut
+             ouvrir chaque fiche pour savoir laquelle porte le reçu. */
+          e.fichier ? 'pièce jointe' : null,
         ].filter(Boolean).join(' · '),
         delta: -surLeTiroir({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency),
         invoiceId: undefined as string | undefined, // une dépense n'a pas de facture
@@ -387,7 +390,7 @@ export function useCaisses(month: string) {
         label: t.de === name
           ? (t.vers ? `Transféré vers ${t.vers}` : 'Sortie hors Maison')
           : (t.de ? `Reçu de ${t.de}` : 'Apport — hors revenu'),
-        sub: t.note || 'Transfert entre caisses',
+        sub: [t.note || 'Transfert entre caisses', t.fichier ? 'pièce jointe' : null].filter(Boolean).join(' · '),
         delta: transfertSurCaisse(t, name),
         invoiceId: undefined as string | undefined,
         expense: undefined as Expense | undefined,
