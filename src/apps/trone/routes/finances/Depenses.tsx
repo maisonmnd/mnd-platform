@@ -11,6 +11,7 @@ import { expenseOccurrences,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
+  usePorteurs, ajouteUnPorteur, achatsParPorteur,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
@@ -44,7 +45,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
@@ -121,7 +122,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [] });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: '' });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -168,6 +169,7 @@ export default function Depenses() {
      dépense en francs imputée à un tiroir en dollars lui retirait des francs,
      et son solde s’en trouvait faux. Le champ ci-dessous dit ce qui sort
      vraiment du tiroir ; sans lui, la ligne ne pèse rien et le relevé le dit. */
+  const [porteurs] = usePorteurs();
   const caisseDeLaDepense = branchBoxes.find((c) => c.name === form.cashbox);
   /* LES DEUX NOMBRES D’UNE DÉPENSE — 23 août 2026. Le champ principal se dit
      dans la monnaie du tiroir ; le franc suit, au taux indicatif, corrigeable.
@@ -380,7 +382,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [] });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? branchBoxes[0]?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: '' });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -390,6 +392,7 @@ export default function Depenses() {
       label: e.label, amount: String(e.fx ? e.fx.amount : e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
       cashbox: e.cashbox, enDevise: e.fx ? String(e.amountXof) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
       fichier: e.fichier,
+      porteur: e.porteur ?? '',
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -524,6 +527,7 @@ export default function Depenses() {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
+        porteur: form.porteur.trim() || undefined,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
@@ -534,6 +538,7 @@ export default function Depenses() {
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
+        porteur: form.porteur.trim() || undefined,
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
@@ -771,12 +776,12 @@ export default function Depenses() {
   const csvAmt = (xof: number) => convertFromXof(xof, currency).toFixed(2).replace('.', ',');
   const exportCsv = () => {
     const rows: (string | number)[][] = [
-      ['Libellé', 'Date', 'Caisse', 'Catégorie', 'Sous-catégorie', 'Articles', `Montant (${currency})`],
-      /* `monthExp` est déjà rangé par date — l'export et l'écran disent
-         désormais la même chose, dans le même ordre. */
+      /* LE PORTEUR ENTRE DANS L'EXPORT — 23 août 2026 : un résumé qu'on emporte
+         chez le comptable doit dire QUI a acheté, pas seulement qui a reçu. */
+      ['Libellé', 'Date', 'Caisse', 'Acheté par', 'Catégorie', 'Sous-catégorie', 'Articles', `Montant (${currency})`],
       ...monthExp
         .map((e) => [
-          e.label, e.date, e.cashbox, e.category, e.subcategory ?? '',
+          e.label, e.date, e.cashbox, e.porteur ?? '', e.category, e.subcategory ?? '',
           (e.items ?? []).map((it) => `${it.label} (${csvAmt(it.amountXof)})`).join(' + '),
           csvAmt(expenseTotal(e)),
         ]),
@@ -1120,6 +1125,60 @@ export default function Depenses() {
             })()}
           </div>
 
+          {/* ── QUI ACHÈTE POUR LA MAISON — 23 août 2026 ─────────────
+              « Il y a des personnes à qui je remets tout le temps de l’argent
+              pour effectuer des dépenses… me retrouver en un clic quand j’ai
+              besoin d’un résumé de ce qu’ils ont acheté durant l’année. »
+
+              LE PENDANT EXACT DU PANNEAU AU-DESSUS, et l’inverse : celui-là
+              dit qui REÇOIT, celui-ci dit qui A ACHETÉ. Les mêler donnerait un
+              « à qui je paie le plus » qui répond à côté — le marché reçoit,
+              Sandrine porte. Même horizon de douze mois, même clic qui ouvre
+              toutes ses lignes. */}
+          {achatsParPorteur(depensesDeLAnnee).length > 0 && (
+            <div className="trf-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <div className="trf-panel__title" style={{ marginBottom: 0 }}>Qui achète pour la Maison</div>
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>12 mois jusqu’à {monthName}</span>
+              </div>
+              {(() => {
+                const porteursRangs = achatsParPorteur(depensesDeLAnnee)
+                  .filter((b) => !q || normName(b.nom).includes(normName(q)));
+                if (porteursRangs.length === 0) {
+                  return <div className="trf-empty" style={{ marginTop: 12 }}>Personne ne correspond à cette recherche.</div>;
+                }
+                const hautP = porteursRangs[0].total || 1;
+                return (
+                  <div style={{ marginTop: 12 }}>
+                    {porteursRangs.map((b) => (
+                      <button
+                        type="button"
+                        key={b.nom}
+                        className="trf-benef"
+                        title={`Tout ce que ${b.nom} a acheté sur douze mois`}
+                        onClick={() => openExp(
+                          b.nom,
+                          `Tout ce que ${b.nom} a acheté pour la Maison sur douze mois — ${b.n} achat${b.n > 1 ? 's' : ''}, dernier le ${fmtDay(b.dernier)}.`,
+                          depensesDeLAnnee.filter((e) => (e.porteur ?? '').toLowerCase() === b.nom.toLowerCase()),
+                        )}
+                      >
+                        <span className="trf-benef__nom">{b.nom}</span>
+                        <span className="trf-benef__n">{b.n} achat{b.n > 1 ? 's' : ''}</span>
+                        <span className="trf-benef__xof">{fmtMoney(b.total, currency)}</span>
+                        <span className="trf-benef__barre"><i style={{ width: `${Math.max(2, Math.round((b.total / hautP) * 100))}%` }} /></span>
+                      </button>
+                    ))}
+                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10, lineHeight: 1.6 }}>
+                      Ce que ces mains ont dépensé POUR la Maison, avec l’argent qu’on leur a confié.
+                      Un clic ouvre toutes leurs lignes — et le bouton « Exporter (CSV) » du haut
+                      emporte la liste telle qu’elle est filtrée.
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* ── QUI A FINANCÉ CE MOIS ────────────────────────────────
               Le pendant de « L'argent a un nom » : les revenus que les
               dépenses du mois ont désignés. La part que personne n'a nommée
@@ -1419,9 +1478,50 @@ export default function Depenses() {
             </div>
 
             <label className="mnd-field">
-              <span className="mnd-field__label">Bénéficiaire</span>
+              <span className="mnd-field__label">Bénéficiaire · qui reçoit l’argent</span>
               <input className="mnd-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ex. Fournisseur · Karité Bénin" />
             </label>
+
+            {/* ── QUI A FAIT CET ACHAT — 23 août 2026 ──────────────────
+                « Il y a des personnes à qui je remets tout le temps de
+                l’argent pour effectuer des dépenses. » À NE PAS CONFONDRE
+                AVEC LE BÉNÉFICIAIRE : le marché reçoit, Sandrine porte. */}
+            <div>
+              <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qui a fait cet achat ?</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <button
+                  className={`trf-chip ${!form.porteur ? 'is-active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, porteur: '' }))}
+                >
+                  La Maison elle-même
+                </button>
+                {porteurs.map((nom) => (
+                  <button
+                    key={nom}
+                    className={`trf-chip ${form.porteur === nom ? 'is-active' : ''}`}
+                    onClick={() => setForm((f) => ({ ...f, porteur: nom }))}
+                  >
+                    {nom}
+                  </button>
+                ))}
+                <button
+                  className="trf-chip"
+                  style={{ borderStyle: 'dashed' }}
+                  onClick={() => {
+                    const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
+                    if (!nom?.trim()) return;
+                    ajouteUnPorteur(nom);
+                    setForm((f) => ({ ...f, porteur: nom.trim() }));
+                  }}
+                >
+                  + Quelqu’un
+                </button>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+                Celui à qui vous confiez de l’argent pour acheter — pas celui qui l’encaisse.
+                Vous retrouverez tout ce qu’il a acheté dans « Où va l’argent ».
+              </div>
+            </div>
 
             {/* LE DÉTAIL SE REPLIE — un achat simple n'a rien à détailler, et
                 trois lignes de cases vides encombraient la fenêtre. */}

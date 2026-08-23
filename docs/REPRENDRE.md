@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Qui achète pour la Maison — 23 août, PUBLIÉ
+
+« Il y a des personnes à qui je remets tout le temps de l'argent pour effectuer
+des dépenses. J'aimerais pouvoir les allouer directement sur la dépense et me
+retrouver en un clic quand j'ai besoin d'un résumé de ce qu'ils ont acheté
+durant l'année. »
+
+À NE PAS CONFONDRE AVEC LE BÉNÉFICIAIRE, et c'est tout le point. L'écran avait
+déjà « À qui la Maison paie » — qui REÇOIT l'argent : le fournisseur, le
+bailleur. Ce qui manquait, c'est qui l'a DÉPENSÉ pour la Maison, avec l'argent
+qu'on lui a confié. « Dada Sandrine · courses au marché » : le marché reçoit,
+Sandrine porte. Les mêler donnait un « à qui je paie le plus » qui répondait à
+côté — et c'est ce que faisait la saisie, le nom du porteur écrit dans le
+libellé du bénéficiaire.
+
+`Expense.porteur?` — et le champ « Qui a fait cet achat ? » sous le
+bénéficiaire, avec « La Maison elle-même » par défaut. La liste des porteurs
+vit dans un magasin synchronisé (`porteursStore`), comme les fonctions de
+l'équipe : une faute de frappe ne doit pas fabriquer un second porteur, et le
+résumé de l'année ne doit pas se casser sur « Sandrine » contre « sandrine ».
+
+LE PANNEAU EST LE PENDANT EXACT DE CELUI DES BÉNÉFICIAIRES — même horizon de
+douze mois, même barre, même clic qui ouvre toutes les lignes. Dans « Où va
+l'argent » : chaque porteur, son nombre d'achats, son total, et la liste
+complète en un clic. Le CSV emporte désormais une colonne « Acheté par ».
+
+CE QUE ÇA NE FAIT PAS, ET QUI SE CONSTRUIT SI ELLE LE VEUT : suivre ce qui
+reste dans leurs mains. Pour cela il faudrait une caisse au nom du porteur —
+on lui transfère, il dépense depuis elle, et le solde dit ce qu'il détient
+encore. La machinerie existe entièrement (transferts, relevé complet, rapport
+PDF) ; c'est un choix de tenue, pas un développement.
+
 ## Les avances sur salaire n'étaient déduites de rien — 23 août, RÉPARÉ
 
 « Comment gérer les prêts des employés avec leur contrepartie ? Comment

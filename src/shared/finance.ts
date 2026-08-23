@@ -168,6 +168,16 @@ export type Expense = {
       22 août 2026. `amountXof` reste la charge de la Maison ; `fx.amount` est
       ce que le tiroir a réellement perdu. Voir `surLeTiroir`. */
   fx?: { code: string; rate: number; amount: number };
+  /* ── QUI A FAIT CET ACHAT — 23 août 2026 ────────────────────────
+     « Il y a des personnes à qui je remets tout le temps de l’argent pour
+     effectuer des dépenses. »
+
+     À NE PAS CONFONDRE AVEC LE BÉNÉFICIAIRE. Le bénéficiaire est celui qui
+     REÇOIT l’argent — le fournisseur, le bailleur. Le porteur est celui qui
+     l’a DÉPENSÉ pour la Maison, avec l’argent qu’on lui a confié. « Dada
+     Sandrine · courses au marché » : le marché reçoit, Sandrine porte. Les
+     mêler donnerait un « à qui je paie le plus » qui répond à côté. */
+  porteur?: string;
   /** LA PREUVE : reçu, bordereau, capture. Voir `PieceJointe`. */
   fichier?: PieceJointe;
   /** LES REVENUS QUI PAIENT CETTE DÉPENSE — voir `DepenseSource`. Absent sur
@@ -396,6 +406,39 @@ export const montantMuet = (e: EcritureDeTiroir, deviseDuTiroir: string, maison:
    21 août. Le fichier dort dans le compartiment privé, la ligne n’en garde
    que le chemin. */
 export type PieceJointe = { chemin: string; nom: string; type: string; taille: number };
+/* ── CEUX QUI ACHÈTENT POUR LA MAISON — 23 août 2026 ───────────────
+   Une liste tenue par la Maison, comme les fonctions de l’équipe : une faute
+   de frappe ne doit pas fabriquer un second porteur, et le résumé de l’année
+   ne doit pas se casser sur « Sandrine » contre « sandrine ». */
+export const porteursStore = createStore<string[]>('mnd_porteurs', []);
+export const usePorteurs = () => useStore(porteursStore);
+export const ajouteUnPorteur = (nom: string): void => {
+  const propre = nom.trim();
+  if (!propre) return;
+  porteursStore.set((prev) => (prev.some((x) => x.toLowerCase() === propre.toLowerCase())
+    ? prev
+    : [...prev, propre]));
+};
+
+/** Ce que chacun a acheté sur une période — le résumé, en une fonction. */
+export type AchatsDUnPorteur = { nom: string; total: number; n: number; dernier: string };
+export const achatsParPorteur = (liste: readonly Expense[]): AchatsDUnPorteur[] => {
+  const par = new Map<string, AchatsDUnPorteur>();
+  for (const e of liste) {
+    const nom = (e.porteur ?? '').trim();
+    if (!nom) continue;
+    const cle = nom.toLowerCase();
+    const d = par.get(cle);
+    if (d) {
+      d.total += expenseTotal(e); d.n += 1;
+      if (e.date > d.dernier) { d.dernier = e.date; d.nom = nom; }
+    } else {
+      par.set(cle, { nom, total: expenseTotal(e), n: 1, dernier: e.date });
+    }
+  }
+  return [...par.values()].sort((a, b) => b.total - a.total);
+};
+
 export const caissesEnDevise = (boxes: readonly Cashbox[], branchId: string, maison: string): Cashbox[] =>
   boxes.filter((b) => b.branchId === branchId && cashboxCurrency(b) !== maison);
 
@@ -1038,6 +1081,9 @@ bindCollection(objectifsStore, 'objectifs_coffre');
 bindCollection(transfertsStore, 'transferts_caisse');
 bindCollection(creditMovementsStore, 'credit_movements');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
+/* Les porteurs suivent la Maison : nommer Sandrine au comptoir doit la
+   nommer sur le téléphone de la gérante. */
+bindDocument(porteursStore, 'mnd_porteurs');
 
 /* ═══════════════════════════════════════════════════════════
    LES CAISSES DE L'ANCIEN LOGICIEL.
