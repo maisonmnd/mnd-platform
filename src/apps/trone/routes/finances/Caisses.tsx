@@ -12,7 +12,7 @@ import {
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav, ChampPieceJointe } from './_shared';
 import { RapportDeCaisse } from './Rapport';
-import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde, useOrdreCaisses } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 
@@ -55,6 +55,29 @@ export default function Caisses() {
      demande toutes les caisses ; un nom ne demande que ce tiroir-là. */
   const [rapport, setRapport] = useState<string | null>(null);
   const [trousseau, setTrousseau] = useState(false);
+
+  /* ── RANGER LES CAISSES — 23 août 2026 ────────────────────────────
+     « Déplacez l’ordre des caisses. » Elles sortaient dans leur ordre de
+     création : celle du comptoir, la plus servie, finissait au bas des
+     listes. Même geste que pour le menu — on entre en rangement, on monte,
+     on descend, on ressort.
+
+     ON RANGE DANS SA MONNAIE. Les cartes sont groupées par devise ; monter
+     une caisse en euros au-dessus d’une caisse en francs ne voudrait rien
+     dire à l’œil. Les flèches déplacent donc dans le groupe, et l’ordre
+     global suit. */
+  const [rangement, setRangement] = useState(false);
+  const [, setOrdreCaisses] = useOrdreCaisses();
+  const deplacerLaCaisse = (groupe: Cashbox[], i: number, sens: -1 | 1) => {
+    const voisin = groupe[i + sens];
+    if (!voisin) return;
+    const ordre = branchBoxes.map((b) => b.id);
+    const a = ordre.indexOf(groupe[i].id);
+    const b = ordre.indexOf(voisin.id);
+    if (a < 0 || b < 0) return;
+    [ordre[a], ordre[b]] = [ordre[b], ordre[a]];
+    setOrdreCaisses((prev) => ({ ...prev, [branch.id]: ordre }));
+  };
 
   /* ── LE VERROU DE L'ÉCRAN — 22 août 2026 ──────────────────────────
      « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
@@ -322,6 +345,11 @@ export default function Caisses() {
           {branchBoxes.some(caisseDiscrete) && (
             <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setTrousseau(true)}>Le trousseau</button>
           )}
+          {branchBoxes.length > 1 && (
+            <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setRangement((r) => !r)}>
+              {rangement ? 'Terminer le rangement' : 'Ranger les caisses'}
+            </button>
+          )}
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => setRapport('')}>Rapport PDF</button>
           <button className="trf-act" style={{ color: 'var(--color-ivoire)', borderColor: 'var(--hairline-invert)', padding: '12px 16px' }} onClick={() => navigate('/encaissements')}>Les encaissements →</button>
           <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 16px' }} onClick={() => navigate('/depenses')}>Les dépenses →</button>
@@ -432,6 +460,30 @@ export default function Caisses() {
                           {/* LES GESTES EN PIED, jamais collés au nom : c'est
                               là qu'ils encombraient la lecture. */}
                           <div className="trf-caisse__pied">
+                            {/* EN RANGEMENT, LES GESTES COURANTS S’EFFACENT : un
+                                clic manqué sur « Modifier » ferait perdre le fil
+                                de ce qu’on est en train d’arranger. */}
+                            {rangement ? (
+                              <>
+                                <button
+                                  className="trf-caisse__acte"
+                                  disabled={boxes.indexOf(c) === 0}
+                                  title="Monter"
+                                  onClick={() => deplacerLaCaisse(boxes, boxes.indexOf(c), -1)}
+                                >
+                                  ↑ Monter
+                                </button>
+                                <button
+                                  className="trf-caisse__acte"
+                                  disabled={boxes.indexOf(c) === boxes.length - 1}
+                                  title="Descendre"
+                                  onClick={() => deplacerLaCaisse(boxes, boxes.indexOf(c), 1)}
+                                >
+                                  ↓ Descendre
+                                </button>
+                              </>
+                            ) : (
+                            <>
                             {caisseDiscrete(c) && (
                               visible
                                 ? <button className="trf-caisse__acte" onClick={() => refermeLaCaisse(c.id)}>Refermer</button>
@@ -449,6 +501,8 @@ export default function Caisses() {
                                 fermée : la fiche dit le solde d'ouverture, et
                                 laisserait ôter le verrou. */}
                             <button className="trf-caisse__acte" onClick={() => (visible ? openEditBox(c) : demanderLeCode(c, 'modifier'))}>Modifier</button>
+                            </>
+                            )}
                           </div>
                         </div>
                       );

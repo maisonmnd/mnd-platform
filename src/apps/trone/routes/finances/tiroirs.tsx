@@ -14,6 +14,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
+import { createStore, useStore } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtIn, rateToXof } from '../../../../shared/currency';
 import {
@@ -44,6 +45,30 @@ const prevenir = () => veilleurs.forEach((f) => f());
 
 /* Le verrou de l'ÉCRAN — même registre, une clé réservée : il se lève et
    retombe comme une caisse, et le rechargement le repose. */
+/* ── L’ORDRE DES CAISSES, CHOISI À LA MAIN — 23 août 2026 ──────────
+   « Déplacez l’ordre des caisses. » Elles sortaient dans leur ordre de
+   création : la caisse posée le premier jour restait en tête pour toujours,
+   et celle du comptoir — la plus servie — finissait au bas des listes.
+
+   MÊME MÉCANIQUE QUE LE MENU (Shell.tsx, 22 août) : un ordre voulu par
+   branche, gardé à part de la caisse elle-même. Rien à changer au modèle,
+   rien à synchroniser de plus — et ce qui n’a pas été rangé suit à la fin,
+   à sa place d’origine. Une caisse créée demain ne DISPARAÎT donc jamais
+   parce qu’un rangement d’hier ne la connaissait pas.
+
+   L’ORDRE VAUT PARTOUT : il est appliqué dans `useCaisses`, la seule porte
+   par laquelle les deux écrans lisent leurs tiroirs. */
+export const ordreCaissesStore = createStore<Record<string, string[]>>('mnd_caisses_ordre', {});
+export const useOrdreCaisses = () => useStore(ordreCaissesStore);
+
+/** L’ordre de la main, puis celui du code. */
+export const selonLOrdre = <T extends { id: string }>(voulu: string[] | undefined, items: T[]): T[] => {
+  if (!voulu || voulu.length === 0) return items;
+  const rang = new Map(voulu.map((id, i) => [id, i]));
+  const connus = items.filter((it) => rang.has(it.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
+  return [...connus, ...items.filter((it) => !rang.has(it.id))];
+};
+
 export const CLE_ECRAN = '@ecran-caisses';
 export const CLE_COFFRE = '@ecran-coffre';
 export const CLE_PRETS = '@ecran-prets';
@@ -110,9 +135,13 @@ export function useCaisses(month: string) {
   const [clientes] = useClients();
   const [familles] = useFamilies();
 
+  /* L’ORDRE VOULU S’APPLIQUE ICI, une seule fois : cartes, pastilles des
+     dépenses, listes déroulantes des transferts et rapport PDF lisent tous
+     `branchBoxes`. Ranger une fois range partout. */
+  const [ordreVoulu] = useOrdreCaisses();
   const branchBoxes = useMemo(
-    () => cashboxes.filter((c) => c.branchId === branch.id),
-    [cashboxes, branch.id],
+    () => selonLOrdre(ordreVoulu[branch.id], cashboxes.filter((c) => c.branchId === branch.id)),
+    [cashboxes, branch.id, ordreVoulu],
   );
 
   /* Ce qu'un transfert fait à une caisse — négatif au départ, positif à
