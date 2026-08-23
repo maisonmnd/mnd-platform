@@ -34,6 +34,7 @@ import {
   recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, cashboxCurrency,
   caissesEnDevise, motDesCaissesEnDevise,
   etatDeLObjectif, attenduAuJour, planPourTenir, moisEntre, moisPlusISO, joursEntreISO,
+  flecherVersObjectif, flechableVers,
   type EtatObjectif, type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { ClientPicker } from '../clients/_shared';
@@ -77,7 +78,7 @@ type FormeObjectif = {
    recule la date. Aucune n'est meilleure dans l'absolu : c'est une décision
    de trésorerie, elle appartient à la Souveraine. */
 function CarteObjectif({
-  etat, currency, moves, aujourdhui, onVerser, onModifier, onReprendre, onRattraper, onAccepter,
+  etat, currency, moves, aujourdhui, onVerser, onModifier, onReprendre, onRattraper, onAccepter, onFlecher, flechable,
 }: {
   etat: EtatObjectif;
   currency: string;
@@ -88,6 +89,11 @@ function CarteObjectif({
   onReprendre: () => void;
   onRattraper: (o: ObjectifCoffre) => void;
   onAccepter: (o: ObjectifCoffre) => void;
+  /* FLÉCHER DE L’ARGENT DÉJÀ AU COFFRE — 23 août 2026. Le nom était
+     cliquable, mais rien ne le disait : « pouvoir mettre à jour le montant de
+     l’objectif » cherchait un bouton et n’en trouvait aucun. */
+  onFlecher: (o: ObjectifCoffre, maximum: number) => void;
+  flechable: number;
 }) {
   const o = etat.objectif;
   const devise = deviseDuCompartiment(o, currency);
@@ -213,7 +219,15 @@ function CarteObjectif({
           </Button>
         )}
         <Button variant="ghost" onClick={() => onVerser(o, 0)}>Verser un autre montant</Button>
-        <Button variant="ghost" onClick={() => onModifier(o)}>{etat.sansPlan ? 'Poser un plan' : 'Revoir le plan'}</Button>
+        {/* CE QUI EST DÉJÀ AU COFFRE PEUT PORTER UN NOM. Sans ce geste, un
+            coffre plein regardait des objectifs à zéro : seul un NOUVEAU
+            versement pouvait nommer un but. */}
+        {flechable > 0 && (
+          <Button variant="ghost" onClick={() => onFlecher(o, flechable)}>
+            Flécher {fmtIn(flechable, devise)} déjà au coffre
+          </Button>
+        )}
+        <Button variant="ghost" onClick={() => onModifier(o)}>Modifier l’objectif</Button>
         <Button variant="ghost" onClick={onReprendre}>Reprendre</Button>
       </div>
 
@@ -372,6 +386,17 @@ export function LesObjectifs() {
   /* ── Verser, reprendre ── */
   const [depot, setDepot] = useState<{ objectifId?: string; montant?: number } | null>(null);
   const [repriseOuverte, setRepriseOuverte] = useState(false);
+  const [aFlecher, setAFlecher] = useState<{ o: ObjectifCoffre; max: number; montant: string } | null>(null);
+  const flecher = () => {
+    if (!aFlecher) return;
+    const montant = Math.min(aFlecher.max, parseInt(aFlecher.montant.replace(/[^0-9]/g, ''), 10) || 0);
+    if (montant <= 0) return;
+    coffreStore.set((prev) => [...prev, ...flecherVersObjectif({
+      branchId: branch.id, objectifId: aFlecher.o.id, nomObjectif: aFlecher.o.nom,
+      montantXof: montant, date: aujourdhui,
+    })]);
+    setAFlecher(null);
+  };
   const clientRevenue = (id: string): number => invoices
     .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.clientId === id)
     .reduce((n, i) => n + invoiceRegleXof(i), 0);
@@ -468,6 +493,8 @@ export function LesObjectifs() {
               onReprendre={() => setRepriseOuverte(true)}
               onRattraper={rattraper}
               onAccepter={accepterLaGlisse}
+              flechable={flechableVers(moves, e.objectif)}
+              onFlecher={(o, max) => setAFlecher({ o, max, montant: String(max) })}
             />
           ))}
 
@@ -611,6 +638,34 @@ export function LesObjectifs() {
           </Modal>
         );
       })()}
+
+      {aFlecher && (
+        <Modal title={`Flécher vers « ${aFlecher.o.nom} »`} onClose={() => setAFlecher(null)} width={440}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+              Cet argent est <b>déjà au coffre</b>. Le flécher ne le fait ni entrer ni sortir :
+              il lui donne un nom. Le total du coffre ne bougera pas d’un franc — seule la part
+              disponible diminuera d’autant.
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Montant à flécher · {currency}</span>
+              <input
+                className="mnd-input" inputMode="numeric" value={aFlecher.montant}
+                onChange={(e) => setAFlecher((f) => (f ? { ...f, montant: e.target.value.replace(/[^0-9]/g, '') } : f))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}
+              />
+              <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+                Au plus {fmtMoney(aFlecher.max, currency)} — c’est ce que le disponible permet, et ce
+                qui manque encore à cet objectif.
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="mnd-btn mnd-btn--ghost" onClick={() => setAFlecher(null)}>Annuler</button>
+              <button className="mnd-btn" onClick={flecher}>Flécher</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {depot && (
         <DepositModal

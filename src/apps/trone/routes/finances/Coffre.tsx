@@ -343,11 +343,16 @@ export default function Coffre() {
                   title="Corriger cette écriture"
                 >
                   <span className="trf-coffre-row__title">
-                    {m.kind === 'depot'
-                      ? (m.clientName ? `Versement · ${m.clientName}` : 'Versement au coffre')
-                      : m.kind === 'retrait'
-                        ? `Repris du coffre${m.cashbox ? ` · vers ${m.cashbox}` : ''}`
-                        : `Virement bancaire${m.bank ? ` · ${m.bank}` : ''}`}
+                    {/* UN FLÉCHAGE N’EST NI UNE ENTRÉE NI UNE SORTIE — 23 août
+                        2026. « Repris du coffre » mentirait : rien n en est
+                        sorti, une part a seulement pris un nom. */}
+                    {m.flechage
+                      ? (m.kind === 'depot' ? 'Fléché vers un objectif' : 'Quitte le disponible')
+                      : m.kind === 'depot'
+                        ? (m.clientName ? `Versement · ${m.clientName}` : 'Versement au coffre')
+                        : m.kind === 'retrait'
+                          ? `Repris du coffre${m.cashbox ? ` · vers ${m.cashbox}` : ''}`
+                          : `Virement bancaire${m.bank ? ` · ${m.bank}` : ''}`}
                   </span>
                   <span className="trf-coffre-row__meta">
                     {frMoneyDay(m.date)}{m.note ? ` · ${m.note}` : ''}

@@ -726,6 +726,11 @@ export type CoffreMovement = {
       Ce qui reste verrouillé : on ne DÉPENSE toujours pas depuis le coffre.
       L'argent doit d'abord revenir dans un tiroir, et ce retour se voit. */
   kind: 'depot' | 'virement' | 'retrait';
+  /** FLÉCHAGE INTERNE — 23 août 2026. Les deux lignes qui déplacent de
+      l’argent du disponible vers un objectif, SANS rien faire entrer ni
+      sortir du coffre. Le marqueur ne sert qu’à les nommer justement dans le
+      registre : « Repris du coffre » mentirait, rien n’en est sorti. */
+  flechage?: true;
   amountXof: number; // toujours positif ; le sens vient de `kind`
   date: string; // ISO AAAA-MM-JJ
   clientId?: string; // dépôt attribué à une cliente (source du revenu mis de côté)
@@ -1058,6 +1063,46 @@ export const cashboxLabel = (raw: string | undefined | null): string => {
   const v = (raw ?? '').trim();
   if (!v) return 'Autres';
   return semblePasUnNom(v) ? CAISSE_HERITEE : v;
+};
+
+/* ── FLÉCHER DE L’ARGENT DÉJÀ AU COFFRE — 23 août 2026 ─────────────
+   « Pouvoir mettre à jour le montant de l’objectif. » Le coffre tenait
+   14 918 000 F et les deux objectifs affichaient 0 F mis de côté : seul un
+   NOUVEAU versement pouvait nommer un objectif, l’argent déjà là ne pouvait
+   pas être attribué. On préparait donc sans jamais pouvoir dire ce qui était
+   déjà prêt.
+
+   DEUX LIGNES, ET LE TOTAL NE BOUGE PAS. Un dépôt fléché vers l’objectif, un
+   retrait du disponible, du même montant : le coffre contient exactement
+   autant qu’avant, mais une part porte désormais un nom. L’invariant tient —
+   somme des objectifs plus non-fléché fait toujours le coffre.
+
+   ON NE RÉÉCRIT PAS L’HISTOIRE. Retaguer les anciens versements aurait été
+   plus court : un versement de mai serait devenu « pour les vacances », alors
+   qu’il a été fait sans intention. Une écriture dit ce qui a eu lieu ;
+   flécher est un geste d’aujourd’hui, il porte donc la date d’aujourd’hui. */
+export const flecherVersObjectif = (o: {
+  branchId: string; objectifId: string; nomObjectif: string;
+  montantXof: number; date: string;
+}): CoffreMovement[] => ([
+  {
+    id: `flch-${o.objectifId}-${o.date}-${o.montantXof}-a`,
+    branchId: o.branchId, kind: 'depot', amountXof: o.montantXof, date: o.date,
+    objectifId: o.objectifId, flechage: true,
+    note: `Fléché vers ${o.nomObjectif} — depuis le disponible`,
+  },
+  {
+    id: `flch-${o.objectifId}-${o.date}-${o.montantXof}-b`,
+    branchId: o.branchId, kind: 'retrait', amountXof: o.montantXof, date: o.date,
+    flechage: true,
+    note: `Fléché vers ${o.nomObjectif} — quitte le disponible`,
+  },
+] as CoffreMovement[]);
+
+/** Ce qui peut encore être fléché : le disponible, et pas un franc de plus. */
+export const flechableVers = (moves: readonly CoffreMovement[], o: ObjectifCoffre): number => {
+  const manque = o.cibleXof > 0 ? Math.max(0, o.cibleXof - recuParObjectif(moves, o.id)) : Infinity;
+  return Math.max(0, Math.min(coffreNonFleche(moves), manque));
 };
 
 /* ── LE PLAN D'UN OBJECTIF, ET SES JALONS — 23 août 2026 ────────────

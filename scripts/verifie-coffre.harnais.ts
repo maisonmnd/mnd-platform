@@ -7,6 +7,7 @@
 
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
+  flecherVersObjectif, flechableVers,
   jalonsDeLObjectif, etatDeLObjectif, planPourTenir, moisEntre, moisPlusISO, attenduAuJour, objectifsASurveiller,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
@@ -247,10 +248,14 @@ dit('une date vide ne rend rien', '', fmtDay(''));
    remboursement pour les prêts. » Une cible sans chemin ne s’atteint que par
    chance : ces assertions tiennent le calcul des jalons, l’imputation des
    versements, et les deux issues d’un retard — rattraper ou accepter. */
+/* L’IDENTIFIANT PASSÉ DOIT ÊTRE CELUI DE L’OBJET — ce montage l’écrasait par
+   'o1', et le harnais interrogeait alors un objectif qui n’avait rien reçu.
+   La faute était dans le montage, pas dans le code : c’est exactement pour ça
+   qu’on écrit les deux côtés. */
 const objBase = (o: Partial<ObjectifCoffre>): ObjectifCoffre => ({
-  id: 'o1', branchId: 'br', nom: 'Vacances', cibleXof: 7_000_000,
+  id: o.id ?? 'o1', branchId: 'br', nom: o.nom ?? 'Vacances',
+  cibleXof: o.cibleXof != null ? o.cibleXof : 7_000_000,
   echeance: o.echeance, plan: o.plan, jalons: o.jalons, clos: o.clos,
-  ...(o.cibleXof != null ? { cibleXof: o.cibleXof } : {}),
 } as ObjectifCoffre);
 
 const versement = (montant: number, date: string, objectifId = 'o1'): CoffreMovement => ({
@@ -340,6 +345,48 @@ dit('seul le jalon proche remonte', ['Vacances'], veilleObj.map((e) => e.objecti
 
 dit('le décompte des mois est juste', 7, moisEntre('2026-08', '2027-03'));
 dit('le 31 janvier plus un mois tombe au 28', '2026-02-28', moisPlusISO('2026-01-31', 1));
+
+
+/* ── FLÉCHER DE L’ARGENT DÉJÀ AU COFFRE — 23 août 2026 ─────────────
+   « Pouvoir mettre à jour le montant de l’objectif. » Le coffre tenait presque
+   quinze millions et les objectifs affichaient zéro : seul un NOUVEAU versement
+   pouvait nommer un objectif. Flécher déplace une part du disponible vers un
+   but — et le total du coffre ne doit pas bouger d’un franc. */
+const auCoffre: CoffreMovement[] = [
+  { id: 'd1', branchId: 'br', kind: 'depot', amountXof: 10_000_000, date: '2026-05-14' } as CoffreMovement,
+];
+const cible = objBase({ id: 'oF', cibleXof: 7_000_000 });
+
+dit('tout le disponible peut être fléché, dans la limite de la cible',
+  7_000_000, flechableVers(auCoffre, cible));
+
+const paire = flecherVersObjectif({
+  branchId: 'br', objectifId: 'oF', nomObjectif: 'Vacances',
+  montantXof: 3_000_000, date: '2026-08-23',
+});
+const apresFlechage = [...auCoffre, ...paire];
+
+dit('le fléchage écrit deux lignes', 2, paire.length);
+/* LE TOTAL NE BOUGE PAS — c’est tout l’objet de la paire. */
+dit('le coffre contient autant qu’avant',
+  coffreBalance([...auCoffre]), coffreBalance(apresFlechage));
+dit('l’objectif a reçu les trois millions', 3_000_000, recuParObjectif(apresFlechage, 'oF'));
+dit('le disponible en a perdu autant', 7_000_000, coffreNonFleche(apresFlechage));
+
+/* L’INVARIANT DE LA MAISON, celui qui tient tout le coffre : la somme des
+   objectifs plus le non-fléché fait TOUJOURS le coffre. */
+dit('objectifs + non fléché = coffre, après fléchage',
+  coffreBalance(apresFlechage),
+  recuParObjectif(apresFlechage, 'oF') + coffreNonFleche(apresFlechage));
+
+/* ON NE FLÈCHE PAS PLUS QUE LE DISPONIBLE, ni plus que ce qui manque. */
+dit('après fléchage, il ne reste flèchable que ce qui manque',
+  4_000_000, flechableVers(apresFlechage, cible));
+dit('un coffre vide n’offre rien à flécher', 0, flechableVers([], cible));
+
+/* Un compartiment sans cible accepte tout le disponible — il ne vise rien. */
+dit('un compartiment prend tout le disponible',
+  10_000_000, flechableVers(auCoffre, objBase({ id: 'oC', cibleXof: 0 })));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Flécher de l'argent déjà au coffre — 23 août, PUBLIÉ
+
+« Pouvoir mettre à jour le montant de l'objectif. » Deux lectures possibles, et
+LES DEUX MANQUAIENT :
+
+① **Modifier la cible** était possible — en cliquant le nom — mais rien ne le
+   disait. Les boutons proposaient « Verser », « Poser un plan », « Reprendre » ;
+   aucun ne parlait de l'objectif lui-même. Un bouton **« Modifier l'objectif »**
+   le dit maintenant.
+
+② **Attribuer de l'argent DÉJÀ au coffre**, lui, était impossible. Le coffre
+   tenait 14 918 000 F et les deux objectifs affichaient 0 F mis de côté : seul
+   un NOUVEAU versement pouvait nommer un objectif. On préparait sans jamais
+   pouvoir dire ce qui était déjà prêt.
+
+DEUX LIGNES, ET LE TOTAL NE BOUGE PAS. `flecherVersObjectif` écrit un dépôt
+fléché vers l'objectif et un retrait du disponible, du même montant : le coffre
+contient exactement autant qu'avant, mais une part porte désormais un nom.
+L'invariant de la Maison tient — somme des objectifs plus non-fléché fait
+toujours le coffre, et le harnais le vérifie APRÈS fléchage.
+
+ON NE RÉÉCRIT PAS L'HISTOIRE. Retaguer les anciens versements aurait été plus
+court : un versement de mai serait devenu « pour les vacances », alors qu'il a
+été fait sans intention. Une écriture dit ce qui a eu lieu ; flécher est un
+geste d'aujourd'hui, il porte la date d'aujourd'hui.
+
+Le registre du coffre les nomme justement : « Fléché vers un objectif » et
+« Quitte le disponible ». « Repris du coffre » aurait menti — rien n'en est
+sorti.
+
+`flechableVers` borne le geste à ce que le disponible permet ET à ce qui manque
+à l'objectif : on ne flèche jamais plus que la cible.
+
+LE HARNAIS A ENCORE PRIS MON ÉCHAFAUDAGE EN DÉFAUT — deuxième fois dans la
+journée. Mon montage de test écrasait l'identifiant passé par `'o1'`, et
+interrogeait donc un objectif qui n'avait rien reçu. La faute était dans le
+test, pas dans le code : c'est exactement pour ça qu'on écrit les deux côtés.
+
 ## Les objectifs ont un plan et des jalons — 23 août, PUBLIÉ
 
 « Un objectif doit être clair, avoir des milestones, tout comme les programmes
