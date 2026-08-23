@@ -163,6 +163,39 @@ export default function Depenses() {
   const thisMonth = monthKey(todayISO());
   const [month, setMonth] = useState(thisMonth);
   const monthName = monthLabel(month);
+
+  /* ── LE MOIS, OU L’ANNÉE — 23 août 2026 ──────────────────────────
+     « Les dépenses doivent être au mois et à l’année. » L’écran ne savait lire
+     qu’un mois : pour répondre à « combien de local cette année ? », il fallait
+     ouvrir douze mois et additionner de tête.
+
+     L’ANNÉE S’ARRÊTE AUJOURD’HUI. Une dépense mensuelle compte pour chaque mois
+     depuis son premier — étendre la portée jusqu’en décembre ferait payer au
+     mois d août un loyer de novembre qui n’a pas eu lieu. L année en cours se
+     lit donc jusqu’au mois courant, et une année passée, en entier.
+
+     LES BUDGETS RESTENT AU MOIS, et c’est voulu : une enveloppe se tient par
+     mois, pas par an. L’onglet ne suit donc pas la portée. */
+  const [portee, setPortee] = useState<'mois' | 'annee'>('mois');
+  const annee = month.slice(0, 4);
+  const moisCourant = monthKey(todayISO());
+  const moisDeLaPortee = useMemo(() => {
+    if (portee === 'mois') return [month];
+    const fin = annee === moisCourant.slice(0, 4) ? moisCourant : `${annee}-12`;
+    const liste: string[] = [];
+    for (let m = 1; m <= 12; m += 1) {
+      const mk = `${annee}-${String(m).padStart(2, '0')}`;
+      if (mk <= fin) liste.push(mk);
+    }
+    return liste;
+  }, [portee, month, annee, moisCourant]);
+  /* Le préfixe ISO qui sert au revenu : `2026-07` ou `2026`. Les filtres de
+     versements travaillent déjà par PRÉFIXE — l’année passe sans rien
+     réécrire. */
+  const prefixe = portee === 'mois' ? month : annee;
+  const nomDeLaPortee = portee === 'mois'
+    ? monthName
+    : `${annee}${annee === moisCourant.slice(0, 4) ? ' · à ce jour' : ''}`;
   const isCurrent = month === thisMonth;
   const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
   /* CET ÉCRAN N’A JAMAIS FILTRÉ LES CAISSES EN DEVISE — 22 août 2026. Une
@@ -210,13 +243,18 @@ export default function Depenses() {
      Une récurrente porte la date de sa SAISIE : elle se range donc au jour où
      l'engagement a été pris, y compris sur les mois qu'elle traverse ensuite —
      c'est bien la date de la dépense, il n'y en a pas d'autre. */
+  /* Une dépense compte autant de fois qu’elle tombe dans la portée : un loyer
+     mensuel vaut douze sur une année, une fois sur un mois. */
+  const occurrencesDansLaPortee = (e: typeof expenses[number]) =>
+    moisDeLaPortee.reduce((n, mk) => n + expenseOccurrences(e, mk), 0);
   const monthExp = useMemo(
     () => expenses
-      .filter((e) => e.branchId === branch.id && expenseOccurrences(e, month) > 0)
+      .filter((e) => e.branchId === branch.id
+        && moisDeLaPortee.some((mk) => expenseOccurrences(e, mk) > 0))
       .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : (a.date < b.date ? 1 : -1))),
-    [expenses, branch.id, month],
+    [expenses, branch.id, moisDeLaPortee],
   );
-  const poids = (e: typeof expenses[number]) => expenseTotal(e) * expenseOccurrences(e, month);
+  const poids = (e: typeof expenses[number]) => expenseTotal(e) * occurrencesDansLaPortee(e);
 
   /* ── OÙ VA L'ARGENT — 22 août 2026 ─────────────────────────────────
      L'onglet Engagements a été retiré ; Yéman a demandé deux choses à sa
@@ -295,20 +333,20 @@ export default function Depenses() {
        pourtant bien entré. */
     const inv = invoices
       .filter((i) => i.branchId === branch.id && i.kind === 'facture')
-      .reduce((s, i) => s + invoiceRegleAu(i, month), 0);
+      .reduce((s, i) => s + invoiceRegleAu(i, prefixe), 0);
     const rit = appts
-      .filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && monthKey(a.date) === month)
+      .filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && a.date.startsWith(prefixe))
       .reduce((s, a) => s + apptNetXof(a, byId), 0);
     const form = apprenants
       .flatMap((ap) => ap.payments ?? [])
-      .filter((pm) => payMonthKeyLocal(pm.date) === month)
+      .filter((pm) => payMonthKeyLocal(pm.date).startsWith(prefixe))
       .reduce((s, pm) => s + pm.amountXof, 0);
     const abo = abonnes
       .flatMap((sub) => sub.payments ?? [])
       .filter((pm) => pm.amountXof > 0 && payMonthKeyLocal(pm.date) === month)
       .reduce((s, pm) => s + pm.amountXof, 0);
     return inv + rit + form + abo;
-  }, [invoices, appts, apprenants, abonnes, byId, branch.id, month]);
+  }, [invoices, appts, apprenants, abonnes, byId, branch.id, prefixe]);
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   // Prévision : au rythme réel pour le mois courant ; sinon, le total constaté du mois.
@@ -794,7 +832,7 @@ export default function Depenses() {
           csvAmt(expenseTotal(e)),
         ]),
     ];
-    downloadCsv(`depenses-${month}.csv`, rows);
+    downloadCsv(`depenses-${portee === 'mois' ? month : annee}.csv`, rows);
   };
 
   /* Un chiffre s'ouvre sur les dépenses qui le composent. Toujours cliquable,
@@ -849,6 +887,20 @@ export default function Depenses() {
       {/* Période explicite + recherche + export — la barre d'outils de l'écran */}
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />
+        {/* LE MOIS OU L’ANNÉE — 23 août 2026. La navigation garde le mois
+            (c’est lui qui donne l’année) ; ce couple dit ce qu’on additionne. */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([['mois', 'Le mois'], ['annee', 'L’année']] as const).map(([k, mot]) => (
+            <button
+              key={k}
+              type="button"
+              className={`trf-chip ${portee === k ? 'is-active' : ''}`}
+              onClick={() => setPortee(k)}
+            >
+              {mot}
+            </button>
+          ))}
+        </div>
         <input
           className="mnd-input trf-search"
           value={query}
@@ -893,10 +945,16 @@ export default function Depenses() {
             cartes.push({
               k: 'total',
               n: kpiCard(
-                `Dépenses · ${monthName}`, fmtMoney(engaged, currency),
+                `Dépenses · ${nomDeLaPortee}`, fmtMoney(engaged, currency),
                 'var(--color-indigo)', 'var(--color-indigo)',
-                revenue > 0 ? `${expRatio} % du revenu · cible < 35 %` : 'aucun revenu ce mois-ci', '',
-                () => openExp(`Dépenses · ${monthName}`, 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.', live),
+                revenue > 0 ? `${expRatio} % du revenu · cible < 35 %` : (portee === 'mois' ? 'aucun revenu ce mois-ci' : 'aucun revenu cette année'), '',
+                () => openExp(
+                  `Dépenses · ${nomDeLaPortee}`,
+                  portee === 'mois'
+                    ? 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.'
+                    : 'Toutes les dépenses vivantes de l’année — une dépense mensuelle y compte pour chaque mois écoulé. Les dépenses stoppées en sont exclues.',
+                  live,
+                ),
               ),
             });
 
@@ -935,7 +993,7 @@ export default function Depenses() {
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Flux des dépenses · par catégorie · {monthName}</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Flux des dépenses · par catégorie · {nomDeLaPortee}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="trf-act" onClick={addCategory}>+ Catégorie</button>
                 <button className="trf-act" onClick={() => setCatOpen(true)}>Gérer les catégories</button>
@@ -996,7 +1054,7 @@ export default function Depenses() {
 
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Revenu vs dépenses · {monthName}</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Revenu vs dépenses · {nomDeLaPortee}</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
                 Résultat net <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: net >= 0 ? 'var(--trf-success)' : 'var(--trf-error)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(net, currency)}</span>
               </div>
@@ -1020,7 +1078,7 @@ export default function Depenses() {
 
           <div className="trf-panel" style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {monthName}</div>
+              <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {nomDeLaPortee}</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
                 {visibleMonthExp.length}{q ? ` / ${monthExp.length}` : ''} · {fmtMoney(visibleMonthExp.reduce((s, e) => s + expenseTotal(e), 0), currency)}
               </div>
@@ -1386,7 +1444,7 @@ export default function Depenses() {
             </div>
 
             <div className="trf-panel">
-              <div className="trf-panel__title">Dépenses par catégorie · {monthName}</div>
+              <div className="trf-panel__title">Dépenses par catégorie · {nomDeLaPortee}</div>
               {(() => {
                 const map = new Map<string, number>();
                 live.forEach((e) => map.set(e.category, (map.get(e.category) ?? 0) + expenseTotal(e)));

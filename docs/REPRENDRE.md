@@ -2,6 +2,30 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les dépenses au mois ET à l'année — 23 août, PUBLIÉ
+
+« Les dépenses doivent être au mois et à l'année. » L'écran ne savait lire qu'un
+mois : pour répondre à « combien de local cette année ? », il fallait ouvrir
+douze mois et additionner de tête.
+
+Deux boutons à côté de la navigation : **Le mois** / **L'année**. Tout suit —
+le total et son pourcentage du revenu, le flux par catégorie, revenu vs
+dépenses, la liste, et le CSV (qui s'appelle alors `depenses-2026.csv`).
+
+L'ANNÉE S'ARRÊTE AUJOURD'HUI. Une dépense mensuelle compte pour chaque mois
+depuis son premier : étendre la portée jusqu'en décembre ferait payer au mois
+d'août un loyer de novembre qui n'a pas eu lieu. L'année en cours se lit donc
+jusqu'au mois courant — l'écran le dit, « 2026 · à ce jour » — et une année
+passée, en entier.
+
+LE REVENU SUIT SANS UNE LIGNE DE PLUS. Les filtres de versements travaillent
+déjà par PRÉFIXE ISO (`invoiceRegleAu(i, '2026-07')`) : passer `'2026'` suffit.
+C'est le genre de chose qu'on ne découvre qu'en lisant ce qui existe avant
+d'écrire.
+
+LES BUDGETS RESTENT AU MOIS, et c'est voulu : une enveloppe se tient par mois,
+pas par an. L'onglet ne suit donc pas la portée.
+
 ## La caisse d'un porteur — 23 août, PUBLIÉ
 
 Suite de « qui achète pour la Maison » : le panneau comptait ce qui avait été
