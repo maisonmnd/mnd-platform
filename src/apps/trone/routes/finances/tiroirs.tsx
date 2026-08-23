@@ -15,7 +15,7 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtIn } from '../../../../shared/currency';
+import { fmtIn, rateToXof } from '../../../../shared/currency';
 import {
   useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
@@ -567,21 +567,75 @@ export function ReleveCaisse({
 }
 
 
-/* ── LE MONTANT DANS LA MONNAIE DU TIROIR — 22 août 2026 ────────────
-   « Ok pour multi-devise. » Quatre formulaires saisissent un montant en francs
-   et nomment une caisse. Quand cette caisse tient une autre monnaie, un
-   deuxième champ apparaît : ce qui SORT réellement du tiroir.
+/* ── LE MONTANT SUIT LE TIROIR — 23 août 2026 ───────────────────────
+   « Quand j'ai choisi la caisse, ça dit toujours montant XOF, qui devrait
+   normalement suivre le montant $ de la caisse choisie. »
 
-   DEUX MONTANTS, JAMAIS UNE CONVERSION. Le franc reste la base comptable de la
-   Maison — la dette, l'avoir, la charge s'y disent. Le tiroir, lui, compte ses
-   billets. Convertir l'un depuis l'autre à un taux du jour ferait bouger des
-   soldes déjà arrêtés dès que le taux change ; on inscrit donc ce qui a bougé,
-   des deux côtés, une fois pour toutes. Même contrat que `InvoicePayment.fx`,
-   posé le 11 août.
+   ELLE A RAISON, ET J'AVAIS MIS LES DEUX CHAMPS DANS LE MAUVAIS ORDRE. Ce
+   qu'on connaît, quand on sort de l'argent d'un tiroir en dollars, c'est le
+   nombre de DOLLARS. Le franc n'est qu'une valorisation. Le champ principal se
+   dit donc dans la monnaie du tiroir, et la contrepartie en francs se remplit
+   toute seule au taux indicatif de la Maison.
 
-   LE TAUX EST DÉDUIT, PAS DEMANDÉ : il n'est qu'une lecture (francs par unité),
-   et une case de plus à remplir pour un chiffre qu'on peut calculer serait une
-   case de trop. */
+   LE TAUX EST UN POINT DE DÉPART, PAS UNE VÉRITÉ. `rateToXof` est figé dans le
+   code et le dit lui-même : le change se négocie au comptoir. La contrepartie
+   reste donc MODIFIABLE, et dès qu'on y touche elle cesse de suivre — on ne
+   réécrit pas par-dessus un chiffre saisi à la main. Ce qui est inscrit, in
+   fine, ce sont les deux montants réellement convenus, jamais une conversion
+   rejouée plus tard. */
+
+export type DeuxMontants = {
+  devise: string;
+  enDevise: boolean;
+  /** Ce qui bouge dans le tiroir (dans SA monnaie si elle diffère). */
+  saisi: number;
+  /** La base comptable de la Maison. */
+  xof: number;
+  /** Ce que le taux indicatif propose — avant toute correction à la main. */
+  suggestion: number;
+  fx?: { code: string; rate: number; amount: number };
+};
+
+/** Les deux nombres d'une écriture, depuis ce qui est tapé dans les deux champs. */
+export function montantsDuTiroir(
+  caisse: Cashbox | undefined,
+  maison: string,
+  saisie: string,
+  contrepartie: string,
+): DeuxMontants {
+  const devise = caisse ? cashboxCurrency(caisse) : maison;
+  const enDevise = devise !== maison;
+  const saisi = parseFloat((saisie ?? '').replace(',', '.')) || 0;
+  if (!enDevise) {
+    const xof = Math.round(saisi);
+    return { devise, enDevise, saisi: xof, xof, suggestion: xof };
+  }
+  const suggestion = Math.round(saisi * rateToXof(devise));
+  const corrige = parseInt((contrepartie ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+  const xof = corrige > 0 ? corrige : suggestion;
+  return {
+    devise,
+    enDevise,
+    saisi,
+    xof,
+    suggestion,
+    fx: saisi > 0 ? { code: devise, rate: saisi > 0 ? xof / saisi : 0, amount: saisi } : undefined,
+  };
+}
+
+/** Ce qu'un champ de montant doit annoncer, une fois la caisse choisie. */
+export const libelleDuMontant = (caisse: Cashbox | undefined, maison: string): string =>
+  `Montant · ${caisse ? cashboxCurrency(caisse) : maison}`;
+
+/** Ce qu'on tape dans le champ principal : des centimes existent en devise. */
+export const nettoieLeMontant = (v: string, enDevise: boolean): string =>
+  (enDevise ? v.replace(/[^0-9.,]/g, '') : v.replace(/[^0-9]/g, ''));
+
+/* ── QUAND LE FRANC EST DÉJÀ FIXÉ ─────────────────────────────────
+   Une mission de prestataire est convenue en francs : on ne la renégocie pas
+   au moment de la payer. Il ne reste alors qu’à dire ce qui sort du tiroir —
+   l’inverse exact du prêt, où c’est le montant en devise qu’on connaît. Deux
+   situations, deux champs ; les confondre ferait mentir l’un des deux. */
 export function MontantDuTiroir({
   caisse, maison, valeur, montantXof, onChange, sortant,
 }: {
@@ -590,12 +644,11 @@ export function MontantDuTiroir({
   valeur: string;
   montantXof: number;
   onChange: (v: string) => void;
-  /** L'argent quitte le tiroir (prêt, dépense) ou y entre (avoir, remboursement). */
   sortant: boolean;
 }) {
   const devise = caisse ? cashboxCurrency(caisse) : maison;
   if (devise === maison) return null;
-  const saisi = parseFloat(valeur.replace(',', '.')) || 0;
+  const saisi = parseFloat((valeur ?? '').replace(',', '.')) || 0;
   const taux = saisi > 0 && montantXof > 0 ? Math.round(montantXof / saisi) : 0;
   return (
     <label className="mnd-field">
@@ -610,28 +663,50 @@ export function MontantDuTiroir({
         onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
       />
       <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
-        {caisse?.name} compte ses billets en {devise}. Le montant en {maison} reste la base de la
-        Maison ; celui-ci est ce que le tiroir perd ou gagne réellement.
+        {caisse?.name} compte ses billets en {devise} ; le montant en {maison} est déjà convenu.
         {taux > 0 && ` Soit ${taux.toLocaleString('fr-FR')} ${maison} par ${devise}.`}
-        {saisi <= 0 && ' Laissé vide, cette écriture ne pèsera rien sur le tiroir — et le relevé le dira.'}
+        {saisi <= 0 && ` Laissé vide, cette écriture ne pèsera rien sur le tiroir — et le relevé le dira.`}
       </span>
     </label>
   );
 }
 
-/** Le `fx` à inscrire, ou `undefined` si le tiroir est dans la monnaie de la Maison. */
-export const fxDuTiroir = (
-  caisse: Cashbox | undefined,
-  maison: string,
-  valeur: string,
-  montantXof: number,
-): { code: string; rate: number; amount: number } | undefined => {
-  const devise = caisse ? cashboxCurrency(caisse) : maison;
-  if (devise === maison) return undefined;
-  const saisi = parseFloat((valeur ?? '').replace(',', '.')) || 0;
-  if (saisi <= 0) return undefined;
-  return { code: devise, rate: montantXof > 0 ? montantXof / saisi : 0, amount: saisi };
-};
+/* La contrepartie en francs — n'apparaît QUE si le tiroir tient une autre
+   monnaie. Sans elle, la Maison ne saurait pas ce que cette écriture pèse dans
+   ses comptes ; avec elle imposée, on inventerait un taux du jour. */
+export function ContrepartieMaison({
+  caisse, maison, saisie, contrepartie, onChange, sortant,
+}: {
+  caisse?: Cashbox;
+  maison: string;
+  saisie: string;
+  contrepartie: string;
+  onChange: (v: string) => void;
+  /** L'argent quitte le tiroir (prêt, dépense) ou y entre (avoir, remboursement). */
+  sortant: boolean;
+}) {
+  const m = montantsDuTiroir(caisse, maison, saisie, contrepartie);
+  if (!m.enDevise) return null;
+  const taux = m.saisi > 0 ? Math.round(m.xof / m.saisi) : rateToXof(m.devise);
+  return (
+    <label className="mnd-field">
+      <span className="mnd-field__label">Ce que cela vaut pour la Maison · {maison}</span>
+      <input
+        className="mnd-input"
+        inputMode="numeric"
+        value={contrepartie || (m.saisi > 0 ? String(m.suggestion) : '')}
+        placeholder={String(m.suggestion || 0)}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+      />
+      <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+        {caisse?.name} {sortant ? 'perd' : 'gagne'} {m.saisi > 0 ? `${m.saisi.toLocaleString('fr-FR')} ${m.devise}` : `des ${m.devise}`}.
+        {' '}Rempli au taux indicatif de la Maison ({Math.round(rateToXof(m.devise)).toLocaleString('fr-FR')} {maison}
+        {' '}pour 1 {m.devise}) — corrigez-le au taux réellement pratiqué, il fait foi.
+        {taux > 0 && m.saisi > 0 && ` Ici : ${taux.toLocaleString('fr-FR')} ${maison} par ${m.devise}.`}
+      </span>
+    </label>
+  );
+}
 
 /* ── LE TROUSSEAU — 22 août 2026 ─────────────────────────────────────
    « Un bouton pour ouvrir toutes les caisses qui ont un code simultanément,

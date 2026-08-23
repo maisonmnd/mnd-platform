@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense} from '../../../../shared/finance';
-import { MontantDuTiroir, fxDuTiroir } from '../finances/tiroirs';
+import { MontantDuTiroir, montantsDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -196,7 +196,7 @@ export default function Prestataires() {
       amountXof: payFor.amountXof,
       date: paidAt.slice(0, 10),
       cashbox: caisseActive,
-      fx: fxDuTiroir(caissePayee, currency, payDevise, payFor.amountXof),
+      fx: montantsDuTiroir(caissePayee, currency, payDevise, String(payFor.amountXof)).fx,
       category: CHARGE_CATEGORY,
     };
     // La charge remonte dans les Dépenses & la Synthèse (résultat).
@@ -519,6 +519,9 @@ export default function Prestataires() {
                 </span>
               )}
             </Field>
+            {/* LA MISSION FIXE SA CHARGE EN FRANCS : ici le tiroir en devise
+                se dit en second, pas en premier -- on ne renegocie pas le
+                montant convenu de la mission au moment de la payer. */}
             <MontantDuTiroir
               caisse={caissePayee}
               maison={currency}

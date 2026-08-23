@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le franc suit le tiroir — 23 août, PUBLIÉ
+
+« Quand j'ai choisi la caisse, ça dit toujours montant XOF, qui devrait
+normalement suivre le montant $ de la caisse choisie. » ELLE A RAISON, ET
+J'AVAIS MIS LES DEUX CHAMPS DANS LE MAUVAIS ORDRE la veille.
+
+Ce qu'on connaît, quand on sort de l'argent d'un tiroir en dollars, c'est le
+nombre de DOLLARS. Le franc n'est qu'une valorisation. Le champ principal se dit
+donc dans la monnaie du tiroir — « Montant · USD » — et la contrepartie en
+francs se remplit toute seule avec `rateToXof`, le taux indicatif que
+currency.ts porte depuis toujours et dont le commentaire disait déjà sa
+vocation : « pré-remplir un champ, que le maître corrige au taux du jour ».
+
+LA CONTREPARTIE RESTE MODIFIABLE, ET FAIT FOI DÈS QU'ON Y TOUCHE. Le change se
+négocie au comptoir, pas dans une constante. Ce qui est inscrit, in fine, ce
+sont les deux montants réellement convenus — jamais une conversion rejouée plus
+tard, qui ferait bouger des soldes déjà arrêtés.
+
+DEUX SITUATIONS, DEUX CHAMPS, et les confondre ferait mentir l'un des deux :
+— `ContrepartieMaison` quand le montant en devise est la source (prêt, avoir,
+  dépense sans articles) : on tape des dollars, le franc suit ;
+— `MontantDuTiroir` quand le franc est DÉJÀ FIXÉ ailleurs (mission d'un
+  prestataire convenue en francs, dépense détaillée en articles) : on ne
+  renégocie pas la somme convenue au moment de la payer, on dit seulement ce qui
+  sort du tiroir.
+
+UNE VIEILLE FAUTE TROUVÉE AU PASSAGE : l'écran des Dépenses annonçait DÉJÀ la
+devise de la caisse à côté du montant (`fCur`) alors que la saisie, elle, était
+en francs. Il affichait « USD » sous un nombre de francs. Il dit vrai depuis
+aujourd'hui.
+
+Harnais `verifie-coffre` : le tiroir reçoit ses 4 000 dollars, le franc suit au
+taux, l'écriture porte les deux, et une contrepartie corrigée à la main
+l'emporte sur le taux figé.
+
 ## Multi-devise : le tiroir compte SES billets — 22 août, PUBLIÉ
 
 « Ok pour multi-devise. » Né d'une question : « pourquoi je ne vois pas les

@@ -17,7 +17,7 @@ import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
-import { MontantDuTiroir, fxDuTiroir } from './tiroirs';
+import { ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
 import { todayISO } from './_shared';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
@@ -155,9 +155,10 @@ export default function Comptes() {
       type: p.type,
       genre: (p.genre ?? 'tiers') as GenreEmprunteur,
       nom: p.associe, personneId: p.personneId ?? '',
-      motif: p.motif ?? '', montant: String(p.amountXof),
+      motif: p.motif ?? '',
       cashbox: p.cashbox ?? '', method: p.method ?? 'Espèces', date: p.date.slice(0, 10),
-      enDevise: p.fx ? String(p.fx.amount) : '',
+      montant: p.fx ? String(p.fx.amount) : String(p.amountXof),
+      enDevise: p.fx ? String(p.amountXof) : '',
     });
     setPretEdite(p);
   };
@@ -178,11 +179,15 @@ export default function Comptes() {
      leur propre champ (voir `MontantDuTiroir`). */
   const caissesMaison = toutesCaisses.filter((c) => c.branchId === branch.id);
   const caisseDuPret = caissesMaison.find((c) => c.name === fPret.cashbox);
+  /* LE MONTANT SE DIT DANS LA MONNAIE DU TIROIR — 23 août 2026. On connaît
+     les dollars qui sortent ; le franc les suit, au taux indicatif, et se
+     corrige à la main. */
+  const montantsPret = montantsDuTiroir(caisseDuPret, currency, fPret.montant, fPret.enDevise);
 
   const enregistrerPret = () => {
-    const montant = parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0;
+    const montant = montantsPret.xof;
     const nom = fPret.nom.trim();
-    if (!nom || montant <= 0) return;
+    if (!nom || montant <= 0 || montantsPret.saisi <= 0) return;
     const ligne: Pret = {
       id: `prt-${uid()}`,
       branchId: branch.id,
@@ -198,7 +203,7 @@ export default function Comptes() {
          dans la caisse ET chez l'emprunteur. */
       cashbox: fPret.cashbox || undefined,
       method: fPret.method || undefined,
-      fx: fxDuTiroir(caisseDuPret, currency, fPret.enDevise, montant),
+      fx: montantsPret.fx,
     };
     if (pretEdite) {
       /* L’IDENTIFIANT NE BOUGE PAS : le journal des gestes suit la pièce par
@@ -739,12 +744,12 @@ export default function Comptes() {
               )}
             </Field>
 
-            <Field label={`Montant · ${currency}`}>
+            <Field label={libelleDuMontant(caisseDuPret, currency)}>
               <Input
-                inputMode="numeric"
+                inputMode="decimal"
                 value={fPret.montant}
                 placeholder="0"
-                onChange={(e) => setFPret((f) => ({ ...f, montant: e.target.value.replace(/[^0-9]/g, '') }))}
+                onChange={(e) => setFPret((f) => ({ ...f, montant: nettoieLeMontant(e.target.value, montantsPret.enDevise) }))}
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
               />
             </Field>
@@ -761,12 +766,12 @@ export default function Comptes() {
               </div>
             </Field>
 
-            <MontantDuTiroir
+            <ContrepartieMaison
               caisse={caisseDuPret}
               maison={currency}
-              valeur={fPret.enDevise}
-              montantXof={parseInt(fPret.montant.replace(/[^0-9]/g, ''), 10) || 0}
-              onChange={(v) => setFPret((f) => ({ ...f, enDevise: v }))}
+              saisie={fPret.montant}
+              contrepartie={fPret.enDevise}
+              onChange={(v: string) => setFPret((f) => ({ ...f, enDevise: v }))}
               sortant={fPret.type === 'pret'}
             />
 
@@ -1173,16 +1178,9 @@ function DepositModal({
     ? families.find((f) => f.id === holder.id)?.name ?? 'Compte famille'
     : clients.find((c) => c.id === holder.id)?.name ?? '';
 
-  const [amount, setAmount] = useState(edite ? String(edite.amountXof) : '');
+  const [amount, setAmount] = useState(edite ? String(edite.fx ? edite.fx.amount : edite.amountXof) : '');
   const [date, setDate] = useState(edite?.date?.slice(0, 10) ?? todayISO());
   const [note, setNote] = useState(edite?.note ?? '');
-  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
-  const tooMuch = kind === 'remboursement' && amountNum > balance;
-  /* ON NE RABOTE PAS UN AVOIR DÉJÀ CONSOMMÉ. Ramener ce dépôt sous ce que la
-     cliente a déjà utilisé rendrait son compte débiteur — un solde négatif
-     qu’aucun écran ne sait lire. On le refuse en le disant. */
-  const troppeu = kind === 'depot' && !!edite && balance + amountNum < 0;
-  const canSave = holderReady && amountNum > 0 && !tooMuch && !troppeu;
 
   /* ── L'ARGENT A UNE CAISSE — 19 août 2026 ────────────────────────
      « Verser un avoir doit aller dans une caisse et être retracé. » Le
@@ -1200,8 +1198,20 @@ function DepositModal({
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
   const MOYENS = ['Espèces', 'Mobile Money', 'Virement', 'Autre'];
   const [moyen, setMoyen] = useState(edite?.method && MOYENS.includes(edite.method) ? edite.method : MOYENS[0]);
-  const [enDevise, setEnDevise] = useState(edite?.fx ? String(edite.fx.amount) : '');
+  const [enDevise, setEnDevise] = useState(edite?.fx ? String(edite.amountXof) : '');
   const caisseChoisie = caissesMaison.find((b) => b.name === caisseActive);
+  /* LE MONTANT SE DIT DANS LA MONNAIE DU TIROIR — 23 août 2026. `amount`
+     porte donc des dollars quand la caisse en tient ; le franc suit. */
+  const montants = montantsDuTiroir(caisseChoisie, currency, amount, enDevise);
+
+  const amountNum = montants.xof;
+  const tooMuch = kind === 'remboursement' && amountNum > balance;
+  /* ON NE RABOTE PAS UN AVOIR DÉJÀ CONSOMMÉ. Ramener ce dépôt sous ce que la
+     cliente a déjà utilisé rendrait son compte débiteur — un solde négatif
+     qu’aucun écran ne sait lire. On le refuse en le disant. */
+  const troppeu = kind === 'depot' && !!edite && balance + amountNum < 0;
+  const canSave = holderReady && amountNum > 0 && !tooMuch && !troppeu;
+
 
   const save = () => {
     if (!canSave) return;
@@ -1211,7 +1221,7 @@ function DepositModal({
       note: note.trim() || undefined,
       cashbox: caisseActive,
       method: moyen,
-      fx: fxDuTiroir(caisseChoisie, currency, enDevise, amountNum),
+      fx: montants.fx,
     };
     if (edite) {
       /* L’IDENTIFIANT NE BOUGE PAS : la ligne du registre des encaissements
@@ -1252,8 +1262,8 @@ function DepositModal({
             </div>
           </div>
         )}
-        <Field label={`Montant ${kind === 'depot' ? 'versé' : 'remboursé'} (${currency})`}>
-          <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+        <Field label={`Montant ${kind === 'depot' ? 'versé' : 'remboursé'} · ${montants.devise}`}>
+          <Input inputMode="decimal" value={amount} placeholder="0" onChange={(e) => setAmount(nettoieLeMontant(e.target.value, montants.enDevise))} />
           {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le remboursement dépasse l'avoir disponible.</div>}
           {troppeu && (
             <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>
@@ -1280,11 +1290,11 @@ function DepositModal({
             <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency} — l'écriture citera « Caisse principale ».</span>
           )}
         </Field>
-        <MontantDuTiroir
+        <ContrepartieMaison
           caisse={caisseChoisie}
           maison={currency}
-          valeur={enDevise}
-          montantXof={amountNum}
+          saisie={amount}
+          contrepartie={enDevise}
           onChange={setEnDevise}
           sortant={kind === 'remboursement'}
         />

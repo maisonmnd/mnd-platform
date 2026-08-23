@@ -11,6 +11,7 @@ import {
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
+import { montantsDuTiroir } from '../src/apps/trone/routes/finances/tiroirs';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
 
 let ko = 0;
@@ -199,6 +200,28 @@ dit('un tiroir de la Maison lit les francs, pas le fx', 18_000, surLeTiroir(enDo
 dit('une écriture muette se signale', true, montantMuet(enFrancs, 'USD', XOF));
 dit('une écriture renseignée ne se signale pas', false, montantMuet(enDollars, 'USD', XOF));
 dit('rien à signaler dans la monnaie de la Maison', false, montantMuet(enFrancs, XOF, XOF));
+
+/* ── LE FRANC SUIT LE TIROIR — 23 août 2026 ────────────────────────
+   « Le montant XOF devrait suivre le montant $ de la caisse choisie. » Le
+   champ principal se dit dans la monnaie du tiroir ; la contrepartie en francs
+   se remplit au taux indicatif, et fait foi dès qu’on la corrige. */
+const tiroirUSD = { id: 'b1', branchId: 'br', name: 'Caisse Pilia', sub: '', glyph: '◈', openingXof: 0, currency: 'USD' } as Cashbox;
+const tiroirMaison = { id: 'b2', branchId: 'br', name: 'Comptoir', sub: '', glyph: '◈', openingXof: 0 } as Cashbox;
+
+const enUSD = montantsDuTiroir(tiroirUSD, XOF, '4000', '');
+dit('le tiroir reçoit bien ses 4 000 dollars', 4000, enUSD.saisi);
+dit('le franc suit tout seul, au taux indicatif', 4000 * 601, enUSD.xof);
+dit('et l’écriture porte les deux', { code: 'USD', amount: 4000 }, { code: enUSD.fx?.code, amount: enUSD.fx?.amount });
+
+/* CORRIGÉE À LA MAIN, LA CONTREPARTIE FAIT FOI : le taux figé dans le code
+   n’est qu’un point de départ, le change se négocie au comptoir. */
+const corrige = montantsDuTiroir(tiroirUSD, XOF, '4000', '2500000');
+dit('la contrepartie corrigée l’emporte sur le taux', 2_500_000, corrige.xof);
+dit('et le taux inscrit suit la correction', 625, Math.round(corrige.fx!.rate));
+
+const enFrancsSeuls = montantsDuTiroir(tiroirMaison, XOF, '18000', '');
+dit('un tiroir de la Maison n’a qu’un seul nombre', 18_000, enFrancsSeuls.xof);
+dit('… et n’inscrit aucun fx', undefined, enFrancsSeuls.fx);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

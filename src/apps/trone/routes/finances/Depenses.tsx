@@ -20,7 +20,7 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
-import { useCaisses, ReleveCaisse, MontantDuTiroir, fxDuTiroir } from './tiroirs';
+import { useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
 import { RapportDeCaisse } from './Rapport';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -167,6 +167,11 @@ export default function Depenses() {
      et son solde s’en trouvait faux. Le champ ci-dessous dit ce qui sort
      vraiment du tiroir ; sans lui, la ligne ne pèse rien et le relevé le dit. */
   const caisseDeLaDepense = branchBoxes.find((c) => c.name === form.cashbox);
+  /* LES DEUX NOMBRES D’UNE DÉPENSE — 23 août 2026. Le champ principal se dit
+     dans la monnaie du tiroir ; le franc suit, au taux indicatif, corrigeable.
+     LES ARTICLES RESTENT EN FRANCS : ils totalisent la charge de la Maison, et
+     leur donner une devise ferait deux vérités pour une même somme. */
+  const montantsDep = montantsDuTiroir(caisseDeLaDepense, currency, form.amount, form.enDevise);
 
   /* Les deux bouts du transfert, et leurs devises — déclarés APRÈS
      `branchBoxes` : les lire plus haut touchait une constante non encore
@@ -377,8 +382,8 @@ export default function Depenses() {
     setSaveErr(null);
     setEditingId(e.id);
     setForm({
-      label: e.label, amount: String(e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
-      cashbox: e.cashbox, enDevise: e.fx ? String(e.fx.amount) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
+      label: e.label, amount: String(e.fx ? e.fx.amount : e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
+      cashbox: e.cashbox, enDevise: e.fx ? String(e.amountXof) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -494,7 +499,7 @@ export default function Depenses() {
   const save = () => {
     const items = cleanItems;
     const hasItems = items.length > 0;
-    const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
+    const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : montantsDep.xof;
     if (!form.label.trim()) { setSaveErr('Il manque le bénéficiaire — qui a reçu cet argent ?'); return; }
     if (!amountXof) {
       setSaveErr(hasItems
@@ -511,7 +516,7 @@ export default function Depenses() {
     if (editingId) {
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
-        fx: fxDuTiroir(caisseDeLaDepense, currency, form.enDevise, amountXof),
+        fx: hasItems ? undefined : montantsDep.fx,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
@@ -520,7 +525,7 @@ export default function Depenses() {
       const e: Expense = {
         id: uid(), branchId: branch.id, label: form.label.trim(), amountXof,
         date: form.date || todayISO(), cashbox: form.cashbox, category: form.category || 'Divers',
-        fx: fxDuTiroir(caisseDeLaDepense, currency, form.enDevise, amountXof),
+        fx: hasItems ? undefined : montantsDep.fx,
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
@@ -1355,8 +1360,12 @@ export default function Depenses() {
                     ) : (
                       <input
                         value={form.amount}
-                        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))}
-                        inputMode="numeric"
+                        /* LE CHIFFRE EST DÉJÀ ANNONCÉ DANS LA MONNAIE DU TIROIR
+                           (`fCur`, à droite) — il l’ÉTAIT même quand la saisie,
+                           elle, restait en francs : l’écran disait « USD » sous
+                           un nombre de francs. Il dit vrai depuis le 23 août. */
+                        onChange={(e) => setForm((f) => ({ ...f, amount: nettoieLeMontant(e.target.value, montantsDep.enDevise) }))}
+                        inputMode="decimal"
                         placeholder="0"
                         autoFocus
                         aria-label={`Montant en ${fCur}`}
@@ -1502,16 +1511,16 @@ export default function Depenses() {
                 </button>
               </div>
               <div style={{ marginTop: 12 }}>
-                <MontantDuTiroir
-                  caisse={caisseDeLaDepense}
-                  maison={currency}
-                  valeur={form.enDevise}
-                  montantXof={cleanItems.length > 0
-                    ? cleanItems.reduce((s2, it) => s2 + it.amountXof, 0)
-                    : parseInt(form.amount || '0', 10) || 0}
-                  onChange={(v) => setForm((f) => ({ ...f, enDevise: v }))}
-                  sortant
-                />
+                {cleanItems.length === 0 && (
+                  <ContrepartieMaison
+                    caisse={caisseDeLaDepense}
+                    maison={currency}
+                    saisie={form.amount}
+                    contrepartie={form.enDevise}
+                    onChange={(v: string) => setForm((f) => ({ ...f, enDevise: v }))}
+                    sortant
+                  />
+                )}
               </div>
               {branchBoxes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
