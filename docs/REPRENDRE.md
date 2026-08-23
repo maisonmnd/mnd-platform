@@ -2,6 +2,31 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La caisse d'un porteur — 23 août, PUBLIÉ
+
+Suite de « qui achète pour la Maison » : le panneau comptait ce qui avait été
+acheté, mais pas CE QUI RESTE DANS LEURS MAINS. « Oui, prépare ça. »
+
+`Cashbox.porteur?` — une caisse peut être TENUE PAR quelqu'un. Ce qu'on lui
+confie n'est ni une dépense ni un prêt : c'est de l'argent de la Maison, dans
+d'autres mains. C'est donc une caisse, et le nom du porteur la distingue d'un
+tiroir du comptoir. L'argent y compte toujours dans la trésorerie — il n'a pas
+quitté la Maison.
+
+LA TENUE EN TROIS GESTES : on ouvre une caisse au nom de la personne, on lui
+transfère (le geste existe), elle dépense depuis sa caisse. Le solde dit ce
+qu'elle détient, le relevé dit tout l'historique, le rapport PDF s'édite.
+
+PAYER DEPUIS SA CAISSE, C'EST LUI ATTRIBUER L'ACHAT. Choisir un tiroir tenu par
+quelqu'un remplit le porteur de la dépense. Laisser les deux se remplir à la
+main les ferait diverger au premier oubli : le tiroir dirait « Sandrine a
+payé », le résumé dirait « la Maison ». Le porteur suit la caisse — et reste
+modifiable.
+
+Le panneau « Qui achète pour la Maison » affiche désormais, pour qui a une
+caisse, son **reste en main** — la seule chose que le total des achats ne dit
+pas.
+
 ## Qui achète pour la Maison — 23 août, PUBLIÉ
 
 « Il y a des personnes à qui je remets tout le temps de l'argent pour effectuer

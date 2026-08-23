@@ -12,6 +12,7 @@ import {
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav, ChampPieceJointe } from './_shared';
 import { RapportDeCaisse } from './Rapport';
+import { usePorteurs, ajouteUnPorteur } from '../../../../shared/finance';
 import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde, useOrdreCaisses } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
@@ -34,7 +35,7 @@ import './finances.css';
    qui sort. Elle a donc son écran, et Dépenses comme Encaissements y
    renvoient. Les calculs, eux, restent à une seule source (`useCaisses`). */
 
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean; porteur: string };
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Caisses() {
@@ -55,6 +56,7 @@ export default function Caisses() {
      demande toutes les caisses ; un nom ne demande que ce tiroir-là. */
   const [rapport, setRapport] = useState<string | null>(null);
   const [trousseau, setTrousseau] = useState(false);
+  const [porteurs] = usePorteurs();
 
   /* ── RANGER LES CAISSES — 23 août 2026 ────────────────────────────
      « Déplacez l’ordre des caisses. » Elles sortaient dans leur ordre de
@@ -94,7 +96,7 @@ export default function Caisses() {
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '' });
 
   /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
   /* CE QU'ON FERA UNE FOIS LA CAISSE OUVERTE — 22 août 2026. « Même quand les
@@ -122,7 +124,7 @@ export default function Caisses() {
 
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false });
+    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '' });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
@@ -131,7 +133,7 @@ export default function Caisses() {
        garantit même si un autre appel apparaissait un jour. */
     if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'modifier'); return; }
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan, porteur: c.porteur ?? '' });
     setBoxOpen(true);
   };
 
@@ -154,6 +156,7 @@ export default function Caisses() {
           ...b, name, sub, glyph, openingXof: opening,
           currency: boxForm.currency || undefined,
           horsBilan: boxForm.horsBilan || undefined,
+          porteur: boxForm.porteur.trim() || undefined,
           codeHash: boxForm.code.trim() ? codeHash : (boxForm.codeExistant ? b.codeHash : undefined),
         }
         : b)));
@@ -187,6 +190,7 @@ export default function Caisses() {
         id, branchId: branch.id, name, sub, glyph,
         openingXof: opening, currency: boxForm.currency || undefined,
         horsBilan: boxForm.horsBilan || undefined,
+        porteur: boxForm.porteur.trim() || undefined,
         codeHash,
       }]);
       /* Elle s'ouvre pour la séance où on vient de la créer : sinon on
@@ -703,6 +707,52 @@ export default function Caisses() {
                 Ce qu’elle contenait avant que Le Trône ne la suive. Tout le reste se calcule.
               </span>
             </label>
+            {/* ── UNE CAISSE TENUE PAR QUELQU’UN — 23 août 2026 ──────
+                « Des personnes à qui je remets tout le temps de l’argent. » Ce
+                qu’on leur confie n’est ni une dépense ni un prêt : c’est de
+                l’argent de la Maison, dans d’autres mains. Nommer le porteur
+                fait de ce tiroir SA réserve — et le solde dit ce qui lui reste. */}
+            <div className="mnd-field">
+              <span className="mnd-field__label">Tenue par · facultatif</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <button
+                  type="button"
+                  className={`trf-chip ${!boxForm.porteur ? 'is-active' : ''}`}
+                  onClick={() => setBoxForm((f) => ({ ...f, porteur: '' }))}
+                >
+                  La Maison
+                </button>
+                {porteurs.map((nom) => (
+                  <button
+                    key={nom}
+                    type="button"
+                    className={`trf-chip ${boxForm.porteur === nom ? 'is-active' : ''}`}
+                    onClick={() => setBoxForm((f) => ({ ...f, porteur: nom }))}
+                  >
+                    {nom}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="trf-chip"
+                  style={{ borderStyle: 'dashed' }}
+                  onClick={() => {
+                    const nom = window.prompt('Qui tient cette caisse ? Son nom rejoindra la liste des porteurs.');
+                    if (!nom?.trim()) return;
+                    ajouteUnPorteur(nom);
+                    setBoxForm((f) => ({ ...f, porteur: nom.trim() }));
+                  }}
+                >
+                  + Quelqu’un
+                </button>
+              </div>
+              <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, display: 'block', lineHeight: 1.55 }}>
+                L’argent y reste celui de la Maison — il compte dans la trésorerie. Mais toute
+                dépense payée depuis ce tiroir sera portée à son nom, et son solde dira ce qui
+                lui reste en main.
+              </span>
+            </div>
+
             <div className="mnd-field">
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
                 <input

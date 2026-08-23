@@ -11,7 +11,7 @@ import { expenseOccurrences,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
-  usePorteurs, ajouteUnPorteur, achatsParPorteur,
+  usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
@@ -428,8 +428,16 @@ export default function Depenses() {
   /* CHANGER DE CAISSE VIDE LES DÉSIGNATIONS : les revenus d'un tiroir ne
      paient pas les sorties d'un autre, et garder des liens devenus étrangers
      ferait mentir la ligne de provenance. */
+  /* PAYER DEPUIS LA CAISSE DE QUELQU’UN, C’EST LUI ATTRIBUER L’ACHAT — 23 août
+     2026. Laisser les deux se remplir à la main les ferait diverger au premier
+     oubli : le tiroir dirait « Sandrine a payé », le résumé dirait « la
+     Maison ». Le porteur suit donc la caisse — et reste modifiable. */
   const changeLaCaisse = (nom: string) =>
-    setForm((f) => (f.cashbox === nom ? f : { ...f, cashbox: nom, sources: [] }));
+    setForm((f) => {
+      if (f.cashbox === nom) return f;
+      const tenue = branchBoxes.find((c) => c.name === nom)?.porteur;
+      return { ...f, cashbox: nom, sources: [], porteur: tenue ?? (f.porteur && !branchBoxes.some((c) => c.porteur === f.porteur) ? f.porteur : '') };
+    });
   const changeLaPart = (ref: string, xof: number) =>
     setForm((f) => ({ ...f, sources: f.sources.map((s) => (s.ref === ref ? { ...s, xof: Math.max(0, xof) } : s)) }));
 
@@ -1166,6 +1174,18 @@ export default function Depenses() {
                         <span className="trf-benef__n">{b.n} achat{b.n > 1 ? 's' : ''}</span>
                         <span className="trf-benef__xof">{fmtMoney(b.total, currency)}</span>
                         <span className="trf-benef__barre"><i style={{ width: `${Math.max(2, Math.round((b.total / hautP) * 100))}%` }} /></span>
+                        {/* CE QUI RESTE DANS SES MAINS — la seule chose que le
+                            total des achats ne dit pas. Il vient du solde de sa
+                            caisse : remis moins dépensé, au franc près. */}
+                        {(() => {
+                          const sienne = caisseDuPorteur(branchBoxes, branch.id, b.nom);
+                          if (!sienne) return null;
+                          return (
+                            <span className="trf-benef__reste">
+                              reste en main <b>{fmtIn(boxBalance(sienne.name), cashboxCurrency(sienne))}</b>
+                            </span>
+                          );
+                        })()}
                       </button>
                     ))}
                     <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10, lineHeight: 1.6 }}>

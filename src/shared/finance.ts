@@ -347,6 +347,16 @@ export type Cashbox = {
       resté ouvert, une main qui passe. CE QUE CELA NE PROTÈGE PAS : quiconque
       a accès à la base ou au fichier de sauvegarde. Le dire vaut mieux que de
       laisser croire à un coffre. */
+  /* ── UNE CAISSE TENUE PAR QUELQU’UN — 23 août 2026 ──────────────
+     « Des personnes à qui je remets tout le temps de l’argent. » Ce qu’on
+     leur confie n’est ni une dépense ni un prêt : c’est de l’argent de la
+     Maison, dans d’autres mains. C’est donc UNE CAISSE — et le nom du porteur
+     la distingue d’un tiroir du comptoir.
+
+     CE QUE ÇA REND POSSIBLE, ET QUE RIEN D AUTRE NE RENDAIT : savoir ce qui
+     RESTE dans ses mains. Remis moins dépensé — c’est le solde, et le relevé
+     le dit ligne à ligne. */
+  porteur?: string;
   codeHash?: string;
   /** ── HORS BILAN — 22 août 2026 ──────────────────────────────────
       « J'aimerais exclure des caisses du total dans mes bilans. »
@@ -410,6 +420,12 @@ export type PieceJointe = { chemin: string; nom: string; type: string; taille: n
    Une liste tenue par la Maison, comme les fonctions de l’équipe : une faute
    de frappe ne doit pas fabriquer un second porteur, et le résumé de l’année
    ne doit pas se casser sur « Sandrine » contre « sandrine ». */
+/** La caisse tenue par un porteur, s’il en a une. */
+export const caisseDuPorteur = (
+  boxes: readonly Cashbox[], branchId: string, nom: string,
+): Cashbox | undefined => boxes.find((c) => c.branchId === branchId
+  && (c.porteur ?? '').trim().toLowerCase() === nom.trim().toLowerCase());
+
 export const porteursStore = createStore<string[]>('mnd_porteurs', []);
 export const usePorteurs = () => useStore(porteursStore);
 export const ajouteUnPorteur = (nom: string): void => {

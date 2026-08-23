@@ -1757,3 +1757,16 @@
   border-radius: 3px; padding: 12px 14px; line-height: 1.6;
   font-family: var(--font-sans); font-size: 12.5px; color: var(--color-copper);
 }
+
+/* ── CE QUI RESTE DANS LES MAINS D'UN PORTEUR — 23 août 2026 ───────
+   Le total de ses achats ne dit pas l'essentiel : combien il détient encore.
+   Cela vient du solde de SA caisse — remis moins dépensé, au franc près. */
+.trf-benef__reste {
+  grid-column: 1 / -1;
+  font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft);
+  margin-top: 2px;
+}
+.trf-benef__reste b {
+  font-family: var(--font-serif); font-size: 14px; font-weight: 400;
+  color: var(--color-indigo); font-variant-numeric: tabular-nums;
+}
