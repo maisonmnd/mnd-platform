@@ -25,7 +25,7 @@ import {
 } from '../../../../shared/finance';
 import { usePrets } from '../../../../shared/foyer';
 import { useClients, useFamilies } from '../../../../shared/clients';
-import { monthKey, monthLabel, todayISO } from './_shared';
+import { monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
 
 /* ── LES CAISSES OUVERTES DE LA SÉANCE — 22 août 2026 ──────────────
    Une caisse discrète se déverrouille pour la SÉANCE, jamais au-delà : ce
@@ -426,14 +426,6 @@ export function useCaisses(month: string) {
   };
 }
 
-/* ── LE RELEVÉ D'UNE CAISSE ─────────────────────────────────────────
-   Ce qu'il y a DERRIÈRE le solde : solde au début du mois + mouvements =
-   solde affiché, au mot près. Si la liste ne tombe pas sur le chiffre, c'est
-   l'un des deux qui ment — et c'est arrivé deux fois cette semaine (les
-   versements au coffre le 21, les prêts le 22).
-
-   Il vit ici parce que DEUX écrans l'ouvrent : les Dépenses depuis la pastille
-   de caisse d'une ligne, et les Caisses depuis la carte du tiroir. */
 /* ── LE NOM ET LE SOLDE D’UNE CAISSE, EN LISTE — 23 août 2026 ──────
    « Ne pas afficher le solde des caisses masquées par un code, depuis leur
    source à la caisse. » Le verrou d’une caisse discrète ne tient que si elle
@@ -446,6 +438,25 @@ export const nomEtSolde = (c: Cashbox, solde: number, ouvertes: ReadonlySet<stri
     ? `${c.name} · ${fmtIn(solde, cashboxCurrency(c))}`
     : `${c.name} · ••• •••`);
 
+/* ── LE RELEVÉ D'UNE CAISSE ─────────────────────────────────────────
+   Ce qu'il y a DERRIÈRE le solde : solde de départ + mouvements = solde
+   affiché, au mot près. Si la liste ne tombe pas sur le chiffre, c'est l'un
+   des deux qui ment — et c'est arrivé deux fois (les versements au coffre le
+   21 août, les prêts le 22).
+
+   TOUT L'HISTORIQUE, PAR DÉFAUT — 23 août 2026. « Quand je clique une caisse,
+   j'aimerais toujours voir tout son historique sans avoir à aller à une
+   période précise. » Il n'ouvrait que le mois affiché : chercher un versement
+   de mai depuis août demandait de deviner le mois, puis de naviguer. Un relevé
+   qu'on doit chasser ne sert à rien. Le mois reste accessible d'un bouton, mais
+   il n'est plus la porte.
+
+   LE SOLDE COURT À CHAQUE LIGNE, et la liste se lit du plus récent au plus
+   ancien : on cherche presque toujours quelque chose de proche. Le solde de
+   départ ferme donc la marche, en bas — c'est le point d'où tout est parti.
+
+   Il vit ici parce que DEUX écrans l'ouvrent : les Dépenses depuis la pastille
+   de caisse d'une ligne, et les Caisses depuis la carte du tiroir. */
 export function ReleveCaisse({
   nom, month, onClose, onExpense, onRapport,
 }: {
@@ -453,23 +464,69 @@ export function ReleveCaisse({
   month: string;
   onClose: () => void;
   onExpense?: (e: Expense) => void;
-  /* LE RAPPORT NE VIT PAS ICI, ET C EST VOLONTAIRE — 22 août 2026 : Rapport.tsx
-     lit déjà ce module, l importer en retour fabriquerait un cycle que React ne
-     pardonne pas au montage. L écran qui ouvre le relevé passe le geste. */
+  /* LE RAPPORT NE VIT PAS ICI, ET C'EST VOLONTAIRE — 22 août 2026 : Rapport.tsx
+     lit déjà ce module, l'importer en retour fabriquerait un cycle que React ne
+     pardonne pas au montage. L'écran qui ouvre le relevé passe le geste. */
   onRapport?: () => void;
 }) {
   const navigate = useNavigate();
-  const { currency, boxMoves } = useCaisses(month);
+  const { currency, boxMoves, branchBoxes, ouvertes } = useCaisses(month);
   const monthName = monthLabel(month);
-  const isCurrent = month === monthKey(todayISO());
   /* UNE CAISSE DISCRÈTE NE S'OUVRE PAS SANS SON CODE — et le relevé est
      précisément ce qu'elle cache : ses mouvements disent son solde ligne à
      ligne. On le refuse donc AVANT de le calculer. */
-  const { branchBoxes, ouvertes } = useCaisses(month);
   const laCaisse = branchBoxes.find((b) => b.name === nom);
   const fermee = !!laCaisse && !soldeVisible(laCaisse, ouvertes);
-  const { boxCur, startBalance, moves, balance } = boxMoves(nom);
   const openEdit = onExpense ?? (() => {});
+
+  /* La portée : tout, ou le seul mois affiché. « Tout » est la porte. */
+  const [portee, setPortee] = useState<'tout' | 'mois'>('tout');
+  const [cherche, setCherche] = useState('');
+
+  /* DEPUIS TOUJOURS : une borne assez basse pour qu'aucune écriture ne lui
+     échappe. Le solde de départ devient alors l'ouverture de la caisse — le
+     seul chiffre qui ne vient d'aucun mouvement. */
+  const depuisToujours = { de: '1900-01-01', a: todayISO() };
+  const vu = boxMoves(nom, portee === 'tout' ? depuisToujours : undefined);
+  const { boxCur, startBalance, moves, balance } = vu;
+
+  /* Le solde qui court, calculé du plus ANCIEN au plus récent — puis la liste
+     se retourne pour l'affichage. L'inverse donnerait des soldes à l'envers. */
+  const avecSolde = useMemo(() => {
+    let courant = startBalance;
+    return moves.map((m) => {
+      courant += m.delta;
+      return { ...m, solde: courant };
+    });
+  }, [moves, startBalance]);
+
+  const q = cherche.trim().toLowerCase();
+  const affichees = (q
+    ? avecSolde.filter((m) => `${m.label} ${m.sub} ${m.date}`.toLowerCase().includes(q))
+    : avecSolde
+  ).slice().reverse();
+
+  const entrees = moves.filter((m) => m.delta > 0).reduce((s, m) => s + m.delta, 0);
+  const sorties = moves.filter((m) => m.delta < 0).reduce((s, m) => s - m.delta, 0);
+
+  /* SIX MOIS D'UN COUP D'ŒIL. Deux barres par mois — ce qui entre, ce qui
+     sort — dessinées à la main : la Maison ne charge pas de librairie de
+     graphiques pour six paires de rectangles. */
+  const sixMois = useMemo(() => {
+    const fin = monthKey(todayISO());
+    const cles: string[] = [];
+    for (let i = 5; i >= 0; i--) cles.push(shiftMonth(fin, -i));
+    const par = new Map(cles.map((k) => [k, { inn: 0, out: 0 }]));
+    for (const m of moves) {
+      const c = par.get(monthKey(m.date));
+      if (!c) continue;
+      if (m.delta > 0) c.inn += m.delta; else c.out -= m.delta;
+    }
+    const lignes = cles.map((k) => ({ k, ...par.get(k)! }));
+    const haut = Math.max(1, ...lignes.map((l) => Math.max(l.inn, l.out)));
+    return { lignes, haut };
+  }, [moves]);
+
   if (fermee) {
     return (
       <Modal title={`${nom} · caisse discrète`} onClose={onClose} width={420}>
@@ -483,102 +540,164 @@ export function ReleveCaisse({
       </Modal>
     );
   }
-  const boxDrill = nom;
-  const setBoxDrill = (_: string | null) => onClose();
-  void boxDrill; void setBoxDrill;
+
   return (
-          <Modal title={`${boxDrill} · mouvements`} onClose={() => setBoxDrill(null)} width={620}>
-            <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 12 }}>
-              {monthName}{boxCur !== currency ? ` · caisse en ${boxCur}` : ''} — encaissements crédités (avoir déduit, pourboire inclus), dépenses vivantes débitées.
-            </div>
+    <Modal title={`${nom} · mouvements`} onClose={onClose} width={640}>
+      {/* LES TROIS CHIFFRES DE LA PORTÉE LUE — le solde ne bouge pas avec elle
+          (c’est celui d’aujourd’hui), les deux flux, si. */}
+      <div className="trf-releve-stats">
+        <div>
+          <div className="trf-releve-stats__l">Solde · à ce jour</div>
+          <div className="trf-releve-stats__v">{fmtIn(balance, boxCur)}</div>
+        </div>
+        <div>
+          <div className="trf-releve-stats__l">Entrées {portee === 'tout' ? '· depuis toujours' : `· ${monthName}`}</div>
+          <div className="trf-releve-stats__v trf-releve-stats__v--vert">+ {fmtIn(entrees, boxCur)}</div>
+        </div>
+        <div>
+          <div className="trf-releve-stats__l">Sorties {portee === 'tout' ? '· depuis toujours' : `· ${monthName}`}</div>
+          <div className="trf-releve-stats__v trf-releve-stats__v--cuivre">− {fmtIn(sorties, boxCur)}</div>
+        </div>
+      </div>
 
-            <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-              {/* Le point de départ du relevé : l'ouverture + TOUT l'historique
-                  d'avant le mois. Sans lui, la liste ne peut pas tomber sur le
-                  solde affiché en bas. */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--hairline)' }}>
-                <div>
-                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>Solde au début de {monthName}</div>
-                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>ouverture + tout l’historique antérieur</div>
+      <div className="trf-releve-barre">
+        <div style={{ display: 'flex', gap: 7 }}>
+          {([['tout', 'Tout l’historique'], ['mois', monthName]] as const).map(([k, mot]) => (
+            <button
+              key={k}
+              type="button"
+              className={`trf-pret-puce ${portee === k ? 'is-on' : ''}`}
+              onClick={() => setPortee(k)}
+            >
+              {mot}
+            </button>
+          ))}
+        </div>
+        <input
+          className="mnd-input trf-releve-cherche"
+          value={cherche}
+          placeholder="Chercher un libellé, une facture…"
+          onChange={(e) => setCherche(e.target.value)}
+        />
+      </div>
+
+      {portee === 'tout' && moves.length > 0 && (
+        <div className="trf-releve-graphe">
+          <div className="trf-releve-graphe__l">Six derniers mois · entrées et sorties</div>
+          <div className="trf-releve-graphe__bandes">
+            {sixMois.lignes.map((l) => (
+              <div className="trf-releve-graphe__mois" key={l.k}>
+                <div className="trf-releve-graphe__paire">
+                  <i style={{ height: `${Math.round((l.inn / sixMois.haut) * 100)}%`, background: 'var(--trf-success, #4A6B52)' }} />
+                  <i style={{ height: `${Math.round((l.out / sixMois.haut) * 100)}%`, background: 'var(--color-copper)' }} />
                 </div>
-                <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(startBalance, boxCur)}</div>
+                <span>{monthShort(l.k)}</span>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-              {moves.length === 0 && (
-                <div className="trf-empty" style={{ marginTop: 10 }}>
-                  Aucun mouvement en {monthName} — ni encaissement, ni dépense.
+      <div className="mnd-muted" style={{ fontSize: 11.5, margin: '12px 0 4px', lineHeight: 1.5 }}>
+        {boxCur !== currency ? `Caisse en ${boxCur} — ` : ''}
+        encaissements crédités (avoir déduit, pourboire inclus), dépenses vivantes débitées.
+        {q ? ` ${affichees.length} ligne${affichees.length > 1 ? 's' : ''} trouvée${affichees.length > 1 ? 's' : ''}.` : ''}
+      </div>
+
+      <div style={{ maxHeight: '46vh', overflowY: 'auto' }}>
+        {affichees.length === 0 && (
+          <div className="trf-empty" style={{ marginTop: 10 }}>
+            {q
+              ? 'Rien qui corresponde à cette recherche.'
+              : portee === 'mois'
+                ? `Aucun mouvement en ${monthName} — ni encaissement, ni dépense.`
+                : 'Aucun mouvement depuis l’ouverture de cette caisse.'}
+          </div>
+        )}
+
+        {affichees.map((m, i) => {
+          const body = (
+            <>
+              <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(m.date)}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.label}</div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{m.sub}</div>
                 </div>
-              )}
-
-              {moves.map((m, i) => {
-                const body = (
-                  <>
-                    <div style={{ minWidth: 0, display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                      <span className="trf-datepill" style={{ flex: 'none' }}>{fmtDay(m.date)}</span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.label}</div>
-                        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{m.sub}</div>
-                      </div>
-                    </div>
-                    <div
-                      className="mnd-serif"
-                      style={{ fontSize: 15, flex: 'none', color: m.delta >= 0 ? 'var(--trv-success, var(--color-indigo))' : 'var(--color-copper)' }}
-                    >
-                      {m.delta >= 0 ? '+' : '−'} {fmtIn(Math.abs(m.delta), boxCur)}
-                    </div>
-                  </>
-                );
-                /* `border: none` d'abord, puis la seule bordure qu'on garde :
-                   l'inverse annulerait le trait sur les lignes-boutons. */
-                const rowStyle = {
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  gap: 12, padding: '9px 0',
-                  width: '100%', textAlign: 'left' as const, background: 'none',
-                  border: 'none', borderBottom: '1px solid var(--hairline)',
-                  font: 'inherit', color: 'inherit',
-                };
-                /* Un encaissement s'ouvre sur sa facture, une dépense sur sa
-                   fiche. Seule une ligne qui ne mène nulle part reste inerte. */
-                return m.invoiceId ? (
-                  <button
-                    key={`${m.date}-${m.label}-${i}`}
-                    style={{ ...rowStyle, cursor: 'pointer' }}
-                    title="Ouvrir la facture"
-                    onClick={() => { setBoxDrill(null); navigate(`/factures?id=${m.invoiceId}`); }}
-                  >
-                    {body}
-                  </button>
-                ) : m.expense ? (
-                  <button
-                    key={`${m.date}-${m.label}-${i}`}
-                    style={{ ...rowStyle, cursor: 'pointer' }}
-                    title="Modifier cette dépense"
-                    onClick={() => { const e = m.expense!; setBoxDrill(null); openEdit(e); }}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <div key={`${m.date}-${m.label}-${i}`} style={rowStyle}>{body}</div>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--color-argile)' }}>
-              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                Solde · {isCurrent ? 'à ce jour' : `fin ${monthName}`}
-              </span>
-              <span className="mnd-serif" style={{ fontSize: 24, color: 'var(--color-indigo)' }}>{fmtIn(balance, boxCur)}</span>
-            </div>
-
-            {onRapport && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-                <button className="trf-act trf-act--ghost" onClick={onRapport}>Rapport PDF</button>
               </div>
-            )}
-          </Modal>
+              <div style={{ flex: 'none', textAlign: 'right' }}>
+                <div
+                  className="mnd-serif"
+                  style={{ fontSize: 15, color: m.delta >= 0 ? 'var(--trf-success, #4A6B52)' : 'var(--color-copper)' }}
+                >
+                  {m.delta >= 0 ? '+' : '−'} {fmtIn(Math.abs(m.delta), boxCur)}
+                </div>
+                {/* LE SOLDE APRÈS CE GESTE — c’est lui qu’on cherche quand on
+                    remonte un relevé : « combien restait-il ce jour-là ? » */}
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtIn(m.solde, boxCur)}
+                </div>
+              </div>
+            </>
+          );
+          /* `border: none` d'abord, puis la seule bordure qu'on garde :
+             l'inverse annulerait le trait sur les lignes-boutons. */
+          const rowStyle = {
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            gap: 12, padding: '9px 0',
+            width: '100%', textAlign: 'left' as const, background: 'none',
+            border: 'none', borderBottom: '1px solid var(--hairline)',
+            font: 'inherit', color: 'inherit',
+          };
+          /* Un encaissement s'ouvre sur sa facture, une dépense sur sa fiche.
+             Seule une ligne qui ne mène nulle part reste inerte. */
+          return m.invoiceId ? (
+            <button
+              key={`${m.date}-${m.label}-${i}`}
+              style={{ ...rowStyle, cursor: 'pointer' }}
+              title="Ouvrir la facture"
+              onClick={() => { onClose(); navigate(`/factures?id=${m.invoiceId}`); }}
+            >
+              {body}
+            </button>
+          ) : m.expense ? (
+            <button
+              key={`${m.date}-${m.label}-${i}`}
+              style={{ ...rowStyle, cursor: 'pointer' }}
+              title="Modifier cette dépense"
+              onClick={() => { const e = m.expense!; onClose(); openEdit(e); }}
+            >
+              {body}
+            </button>
+          ) : (
+            <div key={`${m.date}-${m.label}-${i}`} style={rowStyle}>{body}</div>
+          );
+        })}
+
+        {/* LE POINT DE DÉPART FERME LA MARCHE. En haut il ne veut rien dire ;
+            en bas, il est ce d’où tout est parti — et la somme des lignes
+            au-dessus doit retomber sur le solde affiché en tête. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '11px 0 2px' }}>
+          <div>
+            <div style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>
+              {portee === 'tout' ? 'Solde d’ouverture' : `Solde au début de ${monthName}`}
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+              {portee === 'tout' ? 'ce que la caisse contenait à sa création' : 'ouverture + tout l’historique antérieur'}
+            </div>
+          </div>
+          <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(startBalance, boxCur)}</div>
+        </div>
+      </div>
+
+      {onRapport && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+          <button className="trf-act trf-act--ghost" onClick={onRapport}>Rapport PDF</button>
+        </div>
+      )}
+    </Modal>
   );
 }
-
 
 /* ── LE MONTANT SUIT LE TIROIR — 23 août 2026 ───────────────────────
    « Quand j'ai choisi la caisse, ça dit toujours montant XOF, qui devrait

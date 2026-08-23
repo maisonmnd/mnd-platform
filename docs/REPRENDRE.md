@@ -2,6 +2,36 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le relevé montre TOUT — 23 août, PUBLIÉ
+
+« Quand je clique une caisse, j'aimerais toujours voir tout son historique sans
+avoir à aller à une période précise. Les mouvements sont très importants depuis
+là, quand on recherche rapidement une information. »
+
+IL N'OUVRAIT QUE LE MOIS AFFICHÉ. Chercher un versement de mai depuis août
+demandait de deviner le mois, de fermer, de naviguer, de rouvrir. Un relevé
+qu'on doit chasser ne sert à rien. « Tout l'historique » est désormais la
+porte ; le mois reste à un bouton.
+
+`boxMoves(nom, { de: '1900-01-01', a: aujourd'hui })` — la période libre posée
+le 22 août pour le rapport PDF sert ici sans une ligne de plus. Le solde de
+départ devient alors l'OUVERTURE de la caisse : le seul chiffre qui ne vient
+d'aucun mouvement.
+
+LE SOLDE COURT À CHAQUE LIGNE, sous le montant. C'est lui qu'on cherche en
+remontant un relevé — « combien restait-il ce jour-là ? ». Il se calcule du
+plus ANCIEN au plus récent, puis la liste se retourne : l'inverse donnerait des
+soldes à l'envers. Et le solde d'ouverture ferme la marche, en bas — en haut il
+ne voudrait rien dire.
+
+TROIS CHIFFRES EN TÊTE (solde à ce jour, entrées, sorties), SIX MOIS D'UN COUP
+D'ŒIL (deux barres par mois, dessinées à la main — la Maison ne charge pas une
+librairie de graphiques pour douze rectangles), et UNE RECHERCHE sur le libellé,
+le détail et la date.
+
+Le reste ne bouge pas : une caisse discrète fermée refuse toujours son relevé,
+et chaque ligne mène toujours à sa facture ou à sa fiche de dépense.
+
 ## Les prêts, gestion sans faille — 23 août, PUBLIÉ
 
 « Crée-moi une UI/UX bien en place pour une gestion sans faille des prêts. »

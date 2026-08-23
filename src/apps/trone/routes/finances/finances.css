@@ -1596,3 +1596,51 @@
   font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+
+/* ── LE RELEVÉ D'UNE CAISSE — 23 août 2026 ─────────────────────────
+   « Je veux toujours voir tout son historique sans aller à une période
+   précise. » Trois chiffres en tête, six mois d'un coup d'œil, et le solde
+   qui court à chaque ligne — c'est lui qu'on cherche en remontant un relevé :
+   « combien restait-il ce jour-là ? » */
+.trf-releve-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: 3px; overflow: hidden; margin-bottom: 14px;
+}
+.trf-releve-stats > div { background: var(--surface-card); padding: 12px 14px; }
+.trf-releve-stats__l {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-releve-stats__v {
+  font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo);
+  margin-top: 3px; font-variant-numeric: tabular-nums;
+}
+.trf-releve-stats__v--vert { color: var(--trf-success, #4A6B52); }
+.trf-releve-stats__v--cuivre { color: var(--color-copper); }
+
+.trf-releve-barre {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  justify-content: space-between; margin-bottom: 12px;
+}
+.trf-releve-cherche { flex: 1; min-width: 190px; font-size: 12.5px; padding: 8px 11px; }
+
+/* Six paires de rectangles dessinées à la main : la Maison ne charge pas une
+   librairie de graphiques pour ça. */
+.trf-releve-graphe { border: 1px solid var(--hairline); border-radius: 3px; padding: 11px 13px 8px; }
+.trf-releve-graphe__l {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-soft); margin-bottom: 9px;
+}
+.trf-releve-graphe__bandes { display: flex; gap: 10px; align-items: flex-end; }
+.trf-releve-graphe__mois { flex: 1; text-align: center; }
+.trf-releve-graphe__mois span {
+  display: block; font-family: var(--font-sans); font-size: 10px;
+  color: var(--ink-soft); margin-top: 5px;
+}
+.trf-releve-graphe__paire {
+  display: flex; gap: 3px; align-items: flex-end; justify-content: center; height: 44px;
+}
+/* `min-height` : un mois à zéro doit rester un trait, pas un vide — sinon
+   l'œil lit une absence de données là où il y a une absence de mouvement. */
+.trf-releve-graphe__paire i { display: block; width: 9px; min-height: 2px; border-radius: 1px; }
