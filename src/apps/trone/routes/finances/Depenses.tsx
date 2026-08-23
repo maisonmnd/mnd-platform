@@ -20,7 +20,10 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
-import { useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
+import {
+  useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant,
+  nettoieLeMontant, nomEtSolde, useCaissesOuvertes,
+} from './tiroirs';
 import { RapportDeCaisse } from './Rapport';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -347,6 +350,9 @@ export default function Depenses() {
      et l'un des deux aurait fini par mentir — c'est ce qui était arrivé au
      registre des encaissements. Une seule porte : `useCaisses`. */
   const { boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury } = useCaisses(month);
+  /* UNE CAISSE DISCRÈTE SE TAIT DANS LES LISTES AUSSI — 23 août 2026. Son
+     solde fuyait par les menus déroulants de la dépense et du transfert. */
+  const caissesOuvertes = useCaissesOuvertes();
 
   // Flux par catégorie (filtres caisse / catégorie + recherche)
   const flow = useMemo(() => {
@@ -1500,7 +1506,7 @@ export default function Depenses() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
                   <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
-                    {c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}
+                    {nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}
                   </button>
                 ))}
                 {/* La caisse est FACULTATIVE : sans elle, la dépense se range
@@ -1846,7 +1852,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>
+                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}</option>
                   ))}
                 </select>
               </label>
@@ -1855,7 +1861,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => (
-                    <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>
+                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}</option>
                   ))}
                 </select>
               </label>

@@ -434,6 +434,18 @@ export function useCaisses(month: string) {
 
    Il vit ici parce que DEUX écrans l'ouvrent : les Dépenses depuis la pastille
    de caisse d'une ligne, et les Caisses depuis la carte du tiroir. */
+/* ── LE NOM ET LE SOLDE D’UNE CAISSE, EN LISTE — 23 août 2026 ──────
+   « Ne pas afficher le solde des caisses masquées par un code, depuis leur
+   source à la caisse. » Le verrou d’une caisse discrète ne tient que si elle
+   se tait PARTOUT : il était posé sur sa carte et son relevé, mais les listes
+   déroulantes des Dépenses et des transferts annonçaient tranquillement
+   « Caisse Pilia · 15 000 $ » à qui ouvrait le menu. Un secret qui fuit par
+   une liste n’est plus un secret. */
+export const nomEtSolde = (c: Cashbox, solde: number, ouvertes: ReadonlySet<string>): string =>
+  (soldeVisible(c, ouvertes)
+    ? `${c.name} · ${fmtIn(solde, cashboxCurrency(c))}`
+    : `${c.name} · ••• •••`);
+
 export function ReleveCaisse({
   nom, month, onClose, onExpense, onRapport,
 }: {

@@ -12,7 +12,7 @@ import {
 import { useCoffre, useCredits } from '../../../../shared/finance';
 import { todayISO, monthKey, monthLabel, MonthNav } from './_shared';
 import { RapportDeCaisse } from './Rapport';
-import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau } from './tiroirs';
+import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 
@@ -187,13 +187,28 @@ export default function Caisses() {
   const [fTr, setFTr] = useState({ de: '', vers: '', montant: '', recu: '', note: '', date: todayISO() });
   const caisseDe = branchBoxes.find((c) => c.name === fTr.de);
   const caisseVers = branchBoxes.find((c) => c.name === fTr.vers);
-  const deviseDe = caisseDe ? cashboxCurrency(caisseDe) : currency;
-  const deviseVers = caisseVers ? cashboxCurrency(caisseVers) : currency;
+  /* LA MONNAIE SUIT LE TIROIR CONCERNÉ — 23 août 2026. « Quand la caisse USD
+     est choisie, le montant doit suivre la devise de la caisse. » Le champ
+     annonçait la monnaie du DÉPART, et un APPORT n’en a pas : il retombait sur
+     les francs de la Maison, sous un tiroir qui ne compte que des dollars.
+     Quand un seul bout existe, c’est LUI qui donne la monnaie. */
+  const deviseDe = caisseDe ? cashboxCurrency(caisseDe) : (caisseVers ? cashboxCurrency(caisseVers) : currency);
+  const deviseVers = caisseVers ? cashboxCurrency(caisseVers) : (caisseDe ? cashboxCurrency(caisseDe) : currency);
   const changeDeDevise = !!caisseDe && !!caisseVers && deviseDe !== deviseVers;
+  /* Ce que le champ principal demande : la monnaie du tiroir de DÉPART quand
+     il existe, sinon celle du tiroir d’ARRIVÉE. */
+  const deviseSaisie = deviseDe;
 
   const enregistrerTransfert = () => {
-    const montant = parseInt(fTr.montant.replace(/[^0-9]/g, ''), 10) || 0;
-    const recu = parseInt(fTr.recu.replace(/[^0-9]/g, ''), 10) || 0;
+    /* LES CENTIMES EXISTENT EN DEVISE : 27,50 € est un montant, 27 ne l est
+       pas toujours. En francs, l’entier reste la règle. */
+    const lire = (v: string) => (deviseSaisie === currency
+      ? (parseInt(v.replace(/[^0-9]/g, ''), 10) || 0)
+      : (parseFloat(v.replace(',', '.').replace(/[^0-9.]/g, '')) || 0));
+    const montant = lire(fTr.montant);
+    const recu = deviseVers === currency
+      ? (parseInt(fTr.recu.replace(/[^0-9]/g, ''), 10) || 0)
+      : (parseFloat(fTr.recu.replace(',', '.').replace(/[^0-9.]/g, '')) || 0);
     /* UN BOUT PEUT ÊTRE VIDE (apport ou sortie), MAIS PAS LES DEUX : un
        mouvement qui ne part de nulle part et ne va nulle part n'existe pas. */
     if ((!fTr.de && !fTr.vers) || (fTr.de && fTr.de === fTr.vers) || montant <= 0) return;
@@ -667,22 +682,24 @@ export default function Caisses() {
                 <span className="mnd-field__label">D’où il part</span>
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
                   <option value="">Apport — de l’argent qui entre, hors revenu</option>
-                  {branchBoxes.map((c) => <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>)}
+                  {branchBoxes.map((c) => <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), ouvertes)}</option>)}
                 </select>
               </label>
               <label className="mnd-field">
                 <span className="mnd-field__label">Où il arrive</span>
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
                   <option value="">Sortie — de l’argent qui quitte la Maison</option>
-                  {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => <option key={c.id} value={c.name}>{c.name} · {fmtIn(boxBalance(c.name), cashboxCurrency(c))}</option>)}
+                  {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), ouvertes)}</option>)}
                 </select>
               </label>
             </div>
             <label className="mnd-field">
-              <span className="mnd-field__label">Montant qui sort · {deviseDe}</span>
+              <span className="mnd-field__label">
+                {!fTr.de ? `Montant apporté · ${deviseSaisie}` : `Montant qui sort · ${deviseSaisie}`}
+              </span>
               <input
-                className="mnd-input" inputMode="numeric" value={fTr.montant} placeholder="0"
-                onChange={(e) => setFTr((f) => ({ ...f, montant: e.target.value.replace(/[^0-9]/g, '') }))}
+                className="mnd-input" inputMode="decimal" value={fTr.montant} placeholder="0"
+                onChange={(e) => setFTr((f) => ({ ...f, montant: e.target.value.replace(/[^0-9.,]/g, '') }))}
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
               />
             </label>
@@ -690,8 +707,8 @@ export default function Caisses() {
               <label className="mnd-field">
                 <span className="mnd-field__label">Montant réellement reçu · {deviseVers}</span>
                 <input
-                  className="mnd-input" inputMode="numeric" value={fTr.recu} placeholder="0"
-                  onChange={(e) => setFTr((f) => ({ ...f, recu: e.target.value.replace(/[^0-9]/g, '') }))}
+                  className="mnd-input" inputMode="decimal" value={fTr.recu} placeholder="0"
+                  onChange={(e) => setFTr((f) => ({ ...f, recu: e.target.value.replace(/[^0-9.,]/g, '') }))}
                   style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
                 />
                 <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
