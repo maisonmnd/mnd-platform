@@ -7,6 +7,7 @@
 
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
+  jalonsDeLObjectif, etatDeLObjectif, planPourTenir, moisEntre, moisPlusISO, attenduAuJour, objectifsASurveiller,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
   type CoffreMovement, type ObjectifCoffre,
@@ -239,6 +240,106 @@ dit('… et son mois', true, fmtDay('2026-05-05').includes('mai'));
 dit('deux jours différents ne rendent pas le même texte', false,
   fmtDay('2026-08-22') === fmtDay('2026-08-23'));
 dit('une date vide ne rend rien', '', fmtDay(''));
+
+
+/* ── LE PLAN D’UN OBJECTIF ET SES JALONS — 23 août 2026 ────────────
+   « Un objectif doit avoir des milestones, tout comme les programmes de
+   remboursement pour les prêts. » Une cible sans chemin ne s’atteint que par
+   chance : ces assertions tiennent le calcul des jalons, l’imputation des
+   versements, et les deux issues d’un retard — rattraper ou accepter. */
+const objBase = (o: Partial<ObjectifCoffre>): ObjectifCoffre => ({
+  id: 'o1', branchId: 'br', nom: 'Vacances', cibleXof: 7_000_000,
+  echeance: o.echeance, plan: o.plan, jalons: o.jalons, clos: o.clos,
+  ...(o.cibleXof != null ? { cibleXof: o.cibleXof } : {}),
+} as ObjectifCoffre);
+
+const versement = (montant: number, date: string, objectifId = 'o1'): CoffreMovement => ({
+  id: `v-${date}-${montant}`, branchId: 'br', kind: 'depot',
+  amountXof: montant, date, objectifId,
+} as CoffreMovement);
+
+/* LE PLAN SE DÉROULE DE MOIS EN MOIS, et le jour du mois ne saute jamais. */
+const planSimple = objBase({ plan: { premier: '2026-06-30', nombre: 3, montantXof: 500_000 } });
+dit('trois jalons sont attendus', 3, jalonsDeLObjectif(planSimple).length);
+dit('ils tombent de mois en mois',
+  ['2026-06-30', '2026-07-30', '2026-08-30'],
+  jalonsDeLObjectif(planSimple).map((j) => j.date));
+
+/* LES JALONS POSÉS À LA MAIN FONT FOI — nommés, ils l’emportent sur le rythme. */
+const aLaMain = objBase({
+  plan: { premier: '2026-06-30', nombre: 3, montantXof: 500_000 },
+  jalons: [
+    { id: 'j2', date: '2026-08-30', montantXof: 250_000, nom: 'Solde' },
+    { id: 'j1', date: '2026-06-30', montantXof: 500_000, nom: 'Acompte' },
+  ],
+});
+dit('les jalons à la main l’emportent', 2, jalonsDeLObjectif(aLaMain).length);
+dit('… et se rangent par date', ['Acompte', 'Solde'], jalonsDeLObjectif(aLaMain).map((j) => j.nom));
+
+/* CE QUI EST VERSÉ COUVRE LE PLUS ANCIEN D’ABORD — la règle du comptoir.
+   850 000 solde juin (500 000) et entame juillet (350 000). */
+const etat = etatDeLObjectif(planSimple, [versement(850_000, '2026-07-05')], '2026-08-23');
+dit('le premier jalon est versé', 'verse', etat.jalons[0].etat);
+dit('le deuxième est entamé', 'partiel', etat.jalons[1].etat);
+dit('… de 350 000', 350_000, etat.jalons[1].couvert);
+/* UN JALON À VENIR N’EST PAS UN JALON MANQUÉ. Le 30 août n’est pas échu le 23 :
+   le dire « en souffrance » ferait réclamer un argent qui n’est pas encore dû —
+   c’est cette assertion qui a pris MON propre calcul en défaut. */
+dit('le troisième n’est pas encore dû', 'attendu', etat.jalons[2].etat);
+dit('le retard ne compte que les jalons échus', 150_000, etat.retardXof);
+dit('un seul jalon échu reste découvert', 1, etat.jalonsManques);
+dit('le prochain à servir est celui de juillet', '2026-07-30', etat.prochain?.date);
+
+/* … et le 1er septembre, il l’est. Le temps seul change l’état, sans écriture. */
+const apres = etatDeLObjectif(planSimple, [versement(850_000, '2026-07-05')], '2026-09-01');
+dit('passé sa date, le jalon est manqué', 'manque', apres.jalons[2].etat);
+dit('… et le retard le compte', 650_000, apres.retardXof);
+dit('… soit deux jalons découverts', 2, apres.jalonsManques);
+
+/* LE REPÈRE DE LA JAUGE : ce que le plan attendait à ce jour. */
+dit('le plan attendait 1 000 000 au 23 août', 1_000_000, attenduAuJour(planSimple, '2026-08-23'));
+dit('… et 1 500 000 au 1er septembre', 1_500_000, attenduAuJour(planSimple, '2026-09-01'));
+
+/* L’EFFORT POUR TENIR : ce qui manque, réparti sur les mois qui restent.
+   6 150 000 à trouver d’ici mars 2027, soit 7 mois → 878 572 par mois. */
+const avecDate = objBase({
+  echeance: '2027-03', plan: { premier: '2026-06-30', nombre: 3, montantXof: 500_000 },
+});
+const e2 = etatDeLObjectif(avecDate, [versement(850_000, '2026-07-05')], '2026-08-23');
+dit('il manque 6 150 000', 6_150_000, e2.manque);
+dit('l’effort pour tenir mars 2027', Math.ceil(6_150_000 / 7), e2.effortPourTenir);
+dit('… et la date n’est pas tenable au rythme actuel', false, e2.tientLaDate);
+
+/* RATTRAPER : le plan se réécrit sur les mois restants, au nouvel effort. */
+const rattrape = planPourTenir(avecDate, [versement(850_000, '2026-07-05')], '2026-08-23');
+dit('le plan rattrapé couvre les mois restants', 7, rattrape?.nombre);
+dit('… au nouvel effort mensuel', Math.ceil(6_150_000 / 7), rattrape?.montantXof);
+dit('… et garde le jour du mois d’origine', '30', rattrape?.premier.slice(8, 10));
+
+/* SANS ÉCHÉANCE, RIEN À TENIR : on ne réclame pas une date qu’on n’a pas posée. */
+const nu = objBase({ plan: undefined });
+const e3 = etatDeLObjectif(nu, [], '2026-08-23');
+dit('sans plan, aucun jalon', 0, e3.jalons.length);
+dit('… aucun retard', 0, e3.retardXof);
+dit('… et il se signale comme tel', true, e3.sansPlan);
+dit('sans échéance, aucun effort réclamé', 0, e3.effortPourTenir);
+
+/* ATTEINT : plus rien n’est dû, et la date est tenue par définition. */
+const fini = etatDeLObjectif(planSimple, [versement(7_000_000, '2026-07-05')], '2026-08-23');
+dit('un objectif atteint ne manque de rien', 0, fini.manque);
+dit('… et ne se dit jamais en retard', 0, fini.retardXof);
+dit('… ni hors des temps', true, fini.tientLaDate);
+
+/* Le Tableau de bord ne montre que ce qui presse. */
+const veilleObj = objectifsASurveiller(
+  [objBase({ id: 'o1', plan: { premier: '2026-08-27', nombre: 1, montantXof: 500_000 } }),
+   { ...objBase({ plan: { premier: '2027-06-30', nombre: 1, montantXof: 500_000 } }), id: 'o2', nom: 'Loin' }],
+  [], 'br', '2026-08-23',
+);
+dit('seul le jalon proche remonte', ['Vacances'], veilleObj.map((e) => e.objectif.nom));
+
+dit('le décompte des mois est juste', 7, moisEntre('2026-08', '2027-03'));
+dit('le 31 janvier plus un mois tombe au 28', '2026-02-28', moisPlusISO('2026-01-31', 1));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

@@ -808,6 +808,14 @@ export type ObjectifCoffre = {
   note?: string;
   /** Atteint et refermé : il quitte la liste vivante sans effacer son histoire. */
   clos?: boolean;
+  /* ── LE PLAN, ET SES JALONS — 23 août 2026 ──────────────────────
+     « Un objectif doit avoir des milestones, tout comme les programmes de
+     remboursement pour les prêts. » Le plan porte SON MONTANT : après trois
+     versements irréguliers, cible ÷ nombre ne veut plus rien dire — ce qu’il
+     faut mettre chaque mois dépend de ce qui RESTE. */
+  plan?: { premier: string; nombre: number; montantXof: number };
+  /** Des jalons posés à la main, nommés — ils font foi sur le rythme. */
+  jalons?: { id: string; date: string; montantXof: number; nom?: string }[];
 };
 
 export const objectifsStore = createStore<ObjectifCoffre[]>('mnd_objectifs_coffre', []);
@@ -1051,3 +1059,220 @@ export const cashboxLabel = (raw: string | undefined | null): string => {
   if (!v) return 'Autres';
   return semblePasUnNom(v) ? CAISSE_HERITEE : v;
 };
+
+/* ── LE PLAN D'UN OBJECTIF, ET SES JALONS — 23 août 2026 ────────────
+   « Un objectif doit être clair, avoir des milestones, tout comme les
+   programmes de remboursement pour les prêts. Surtout atteindre les
+   objectifs. » Maquette validée (`public/maquette-les-objectifs.html`).
+
+   UNE CIBLE SANS CHEMIN NE S'ATTEINT QUE PAR CHANCE. L'objectif disait ce
+   qu'il visait et ce qu'il manquait ; il ne disait pas COMMENT y arriver. Le
+   prêt, lui, savait déjà le dire — un échéancier, des versements imputés du
+   plus ancien, un retard. C'est la même figure retournée : un prêt se
+   rembourse par échéances, un objectif se remplit par jalons.
+
+   LE PLAN PORTE SON MONTANT. On aurait pu le déduire (cible ÷ nombre), mais
+   après trois versements irréguliers cette division ne veut plus rien dire :
+   ce qu'il faut mettre CHAQUE MOIS dépend de ce qui reste, pas de ce qui était
+   visé au départ. Le montant est donc inscrit — et se réécrit le jour où la
+   Souveraine choisit de rattraper.
+
+   LES JALONS NE SONT PAS DES ÉCRITURES. Ils se calculent, ne se stockent pas,
+   et aucun franc ne quitte une caisse tant qu'un versement n'a pas eu lieu. */
+
+/** Un versement attendu vers un objectif — calculé, jamais inscrit. */
+export type JalonAttendu = {
+  date: string;
+  montantXof: number;
+  rang: number;
+  sur: number;
+  /** « Acompte billets », « Solde à la livraison »… sinon « 3ᵉ versement ». */
+  nom?: string;
+};
+
+/** L'état d'un jalon face à ce qui a été réellement versé. */
+export type EtatJalon = JalonAttendu & {
+  couvert: number;
+  etat: 'verse' | 'partiel' | 'attendu' | 'manque';
+};
+
+/** Ce que le plan attend, du plus proche au plus lointain. */
+export const jalonsDeLObjectif = (o: ObjectifCoffre): JalonAttendu[] => {
+  /* LES JALONS POSÉS À LA MAIN FONT FOI. Nommés, datés, montants choisis : la
+     Souveraine sait mieux que la division ce que « acompte billets » veut
+     dire. Le rythme ne sert que si elle n'a rien posé. */
+  if (o.jalons && o.jalons.length > 0) {
+    return [...o.jalons]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((j, i, tous) => ({
+        date: j.date, montantXof: j.montantXof, nom: j.nom,
+        rang: i + 1, sur: tous.length,
+      }));
+  }
+  if (!o.plan || o.plan.nombre < 1 || !o.plan.premier) return [];
+  const n = Math.min(o.plan.nombre, 120);
+  return Array.from({ length: n }, (_, i) => ({
+    date: moisPlusISO(o.plan!.premier, i),
+    montantXof: o.plan!.montantXof,
+    rang: i + 1,
+    sur: n,
+  }));
+};
+
+/** L'état complet d'un objectif — tout ce que la carte doit dire. */
+export type EtatObjectif = {
+  objectif: ObjectifCoffre;
+  /** Ce qui lui a été fléché, en francs. */
+  recu: number;
+  manque: number;
+  /** 0 à 100. Un compartiment (sans cible) rend 0 et ne se juge pas. */
+  part: number;
+  jalons: EtatJalon[];
+  /** Le premier jalon non entièrement couvert. */
+  prochain?: EtatJalon;
+  /** Ce que le plan attendait à ce jour et qui n'est pas venu. */
+  retardXof: number;
+  jalonsManques: number;
+  /** Ce qu'il faudrait mettre CHAQUE MOIS pour tenir l'échéance, retard compris. */
+  effortPourTenir: number;
+  /** Le mois où la cible tombe si le rythme du plan ne change pas. */
+  arriveeProjetee?: string;
+  /** L'échéance est-elle tenable sans changer de rythme ? */
+  tientLaDate: boolean;
+  /** Ni plan, ni jalons — un état assumé : il ne réclame rien. */
+  sansPlan: boolean;
+};
+
+/** Ce que le plan attendait d'ici aujourd'hui — le repère sur la jauge. */
+export const attenduAuJour = (o: ObjectifCoffre, aujourdhui: string): number =>
+  jalonsDeLObjectif(o)
+    .filter((j) => j.date <= aujourdhui.slice(0, 10))
+    .reduce((s, j) => s + j.montantXof, 0);
+
+export const etatDeLObjectif = (
+  o: ObjectifCoffre,
+  moves: readonly CoffreMovement[],
+  aujourdhui: string,
+): EtatObjectif => {
+  const recu = recuParObjectif(moves, o.id);
+  const manque = Math.max(0, o.cibleXof - recu);
+  const calendrier = jalonsDeLObjectif(o);
+  const jour = aujourdhui.slice(0, 10);
+
+  /* CE QUI EST VERSÉ COUVRE LE JALON LE PLUS ANCIEN D'ABORD — la règle du
+     comptoir, la même que pour les remboursements de prêt. L'imputer autrement
+     ferait apparaître un manque là où l'argent est venu. */
+  let couvre = recu;
+  const jalons: EtatJalon[] = calendrier.map((j) => {
+    const pris = Math.min(couvre, j.montantXof);
+    couvre -= pris;
+    const etat: EtatJalon['etat'] = pris >= j.montantXof
+      ? 'verse'
+      : j.date <= jour
+        ? (pris > 0 ? 'partiel' : 'manque')
+        : 'attendu';
+    return { ...j, couvert: pris, etat };
+  });
+
+  const echus = jalons.filter((j) => j.date <= jour);
+  const retardXof = echus.reduce((s, j) => s + (j.montantXof - j.couvert), 0);
+  const prochain = jalons.find((j) => j.couvert < j.montantXof);
+
+  /* L'EFFORT POUR TENIR : ce qui manque, réparti sur les mois qui restent
+     jusqu'à l'échéance. C'est le chiffre qui décide — « 700 000 par mois au
+     lieu de 500 000 ». Sans échéance, il n'y a rien à tenir. */
+  const moisRestants = o.echeance ? Math.max(1, moisEntre(jour.slice(0, 7), o.echeance)) : 0;
+  const effortPourTenir = o.echeance && manque > 0 ? Math.ceil(manque / moisRestants) : 0;
+
+  /* L'ARRIVÉE PROJETÉE : au rythme du plan (et non au rythme observé — le plan
+     est ce qu'on s'est promis), dans combien de mois la cible tombe-t-elle ? */
+  const rythme = o.plan?.montantXof ?? 0;
+  const arriveeProjetee = manque > 0 && rythme > 0
+    ? moisPlusISO(`${jour.slice(0, 7)}-01`, Math.ceil(manque / rythme)).slice(0, 7)
+    : (manque === 0 ? jour.slice(0, 7) : undefined);
+
+  return {
+    objectif: o,
+    recu,
+    manque,
+    part: o.cibleXof > 0 ? Math.min(100, Math.round((recu / o.cibleXof) * 100)) : 0,
+    jalons,
+    prochain,
+    retardXof,
+    jalonsManques: echus.filter((j) => j.couvert < j.montantXof).length,
+    effortPourTenir,
+    arriveeProjetee,
+    tientLaDate: !o.echeance || manque === 0
+      || (!!arriveeProjetee && arriveeProjetee <= o.echeance),
+    sansPlan: calendrier.length === 0,
+  };
+};
+
+/** Le nombre de mois entre deux clés `AAAA-MM` — négatif si la seconde précède. */
+export const moisEntre = (a: string, b: string): number => {
+  const [ya, ma] = a.slice(0, 7).split('-').map(Number);
+  const [yb, mb] = b.slice(0, 7).split('-').map(Number);
+  return (yb - ya) * 12 + (mb - ma);
+};
+
+/** Décale une date ISO de `n` mois, repliée sur le dernier jour du mois visé. */
+export const moisPlusISO = (iso: string, n: number): string => {
+  const [y, m, d] = `${iso.slice(0, 10)}`.split('-').map(Number);
+  const cible = new Date(Date.UTC(y, (m || 1) - 1 + n, 1));
+  const dernier = new Date(Date.UTC(cible.getUTCFullYear(), cible.getUTCMonth() + 1, 0)).getUTCDate();
+  const jour = Math.min(d || 1, dernier);
+  return `${cible.getUTCFullYear()}-${String(cible.getUTCMonth() + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+};
+
+/* ── LES DEUX ISSUES D'UN RETARD — arbitrage de Yéman, 23 août 2026 ──
+   « Les deux, et je choisis au moment du retard. » Rattraper garde la date et
+   monte l'effort ; accepter garde l'effort et recule la date. Aucune des deux
+   n'est meilleure dans l'absolu — c'est une décision de trésorerie, pas de
+   calcul, et elle appartient à la Souveraine. */
+
+/** RATTRAPER : réécrit le plan sur les mois qui restent, au nouvel effort. */
+export const planPourTenir = (
+  o: ObjectifCoffre,
+  moves: readonly CoffreMovement[],
+  aujourdhui: string,
+): ObjectifCoffre['plan'] | null => {
+  if (!o.echeance) return null;
+  const { manque, effortPourTenir } = etatDeLObjectif(o, moves, aujourdhui);
+  if (manque <= 0 || effortPourTenir <= 0) return null;
+  const nombre = Math.max(1, moisEntre(aujourdhui.slice(0, 7), o.echeance));
+  /* Le premier jalon retombe le même JOUR du mois que le plan d'origine —
+     changer le jour au passage ferait glisser un rythme déjà pris. */
+  const jour = o.plan?.premier?.slice(8, 10) ?? '28';
+  return {
+    premier: moisPlusISO(`${aujourdhui.slice(0, 7)}-${jour}`, 1),
+    nombre,
+    montantXof: effortPourTenir,
+  };
+};
+
+/** ACCEPTER : le rythme ne bouge pas, l'échéance suit l'arrivée projetée. */
+export const echeanceProjetee = (
+  o: ObjectifCoffre,
+  moves: readonly CoffreMovement[],
+  aujourdhui: string,
+): string | null => etatDeLObjectif(o, moves, aujourdhui).arriveeProjetee ?? null;
+
+/** Ce que la Maison doit surveiller — pour le Tableau de bord, comme les prêts. */
+export const objectifsASurveiller = (
+  objectifs: readonly ObjectifCoffre[],
+  moves: readonly CoffreMovement[],
+  branchId: string,
+  aujourdhui: string,
+  fenetreJours = 7,
+): EtatObjectif[] => objectifs
+  .filter((o) => o.branchId === branchId && !o.clos && o.cibleXof > 0)
+  .map((o) => etatDeLObjectif(o, moves, aujourdhui))
+  .filter((e) => e.manque > 0 && e.prochain
+    && joursEntreISO(aujourdhui, e.prochain.date) <= fenetreJours)
+  .sort((a, b) => b.retardXof - a.retardXof
+    || (a.prochain?.date ?? '').localeCompare(b.prochain?.date ?? ''));
+
+/** Jours entre deux dates ISO — positif si `b` est après `a`. */
+export const joursEntreISO = (a: string, b: string): number =>
+  Math.round((Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86400000);
+

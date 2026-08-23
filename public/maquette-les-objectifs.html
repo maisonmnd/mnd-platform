@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les objectifs — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBEDE9; --vert: #4A6B52; --vert-f: #EEF3EE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--parchemin); color: var(--encre);
+         font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1120px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 62px);
+       line-height: 1.04; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 30px; color: var(--indigo);
+       margin: 56px 0 8px; letter-spacing: -.01em; }
+  .lede { max-width: 70ch; color: var(--encre-d); font-size: 15.5px; }
+  .note { max-width: 74ch; color: var(--encre-d); font-size: 13.5px; line-height: 1.7; }
+
+  .ecran { background: var(--ivoire); border: 1px solid var(--filet); border-radius: 4px;
+           padding: 26px; margin-top: 22px; box-shadow: 0 22px 48px -34px rgba(30,33,80,.4); }
+
+  .onglets { display: flex; gap: 26px; border-bottom: 1px solid var(--filet); margin-bottom: 20px; }
+  .onglet { padding: 10px 2px; font-size: 14.5px; color: var(--encre-d); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .onglet.is-on { color: var(--indigo); font-weight: 600; border-bottom-color: var(--cuivre); }
+  .onglet small { color: var(--encre-d); font-size: 12px; margin-left: 8px; font-weight: 400; }
+
+  .bandeau { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--filet);
+             border: 1px solid var(--filet); border-radius: 3px; overflow: hidden; }
+  .stat { background: #fff; padding: 15px 16px; }
+  .stat__l { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); }
+  .stat__v { font-family: var(--serif); font-size: 26px; color: var(--indigo); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .stat__v.vert { color: var(--vert); } .stat__v.brique { color: var(--brique); }
+  .stat__s { font-size: 10.5px; color: var(--encre-d); margin-top: 2px; }
+  .stat.alerte { background: var(--brique-f); }
+
+  .rail { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px; }
+  .puce { font-size: 12px; padding: 7px 13px; border-radius: 3px; border: 1px solid var(--filet);
+          background: #fff; color: var(--encre-d); }
+  .puce.is-on { background: var(--indigo); border-color: var(--indigo); color: var(--ivoire); }
+  .puce.alerte { border-color: var(--brique); color: var(--brique); background: var(--brique-f); font-weight: 500; }
+
+  .obj { background: #fff; border: 1px solid var(--filet); border-radius: 3px; padding: 20px 22px; margin-top: 14px; }
+  .obj.retard { border-left: 3px solid var(--brique); }
+  .obj.atteint { border-left: 3px solid var(--vert); }
+  .obj__tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .obj__nom { font-family: var(--serif); font-size: 26px; color: var(--indigo); }
+  .tag { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px;
+         border: 1px solid var(--cuivre-p); background: var(--cuivre-f); color: var(--cuivre); border-radius: 2px; }
+  .tag.brique { border-color: var(--brique); background: var(--brique-f); color: var(--brique); }
+  .tag.vert { border-color: #BFD2C2; background: var(--vert-f); color: var(--vert); }
+  .obj__chiffres { margin-left: auto; text-align: right; }
+  .obj__chiffres em { display: block; font-style: normal; font-size: 9.5px; letter-spacing: .14em;
+                      text-transform: uppercase; color: var(--encre-d); }
+  .obj__chiffres b { font-family: var(--serif); font-weight: 400; font-size: 27px; color: var(--indigo);
+                     font-variant-numeric: tabular-nums; }
+  .obj__chiffres i { font-style: normal; color: var(--encre-d); font-size: 18px; }
+
+  .jauge { height: 6px; background: var(--sable); border-radius: 3px; overflow: hidden; margin: 14px 0 8px; position: relative; }
+  .jauge i { display: block; height: 100%; background: var(--vert); }
+  .jauge u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--brique); text-decoration: none; }
+  .jauge-mot { display: flex; justify-content: space-between; font-size: 11px; color: var(--encre-d); flex-wrap: wrap; gap: 10px; }
+
+  /* La phrase qui décide de tout */
+  .verdict { margin-top: 14px; padding: 12px 14px; border-radius: 3px; font-size: 13px; line-height: 1.6;
+             background: var(--cuivre-f); color: var(--cuivre); }
+  .verdict.brique { background: var(--brique-f); color: var(--brique); }
+  .verdict.vert { background: var(--vert-f); color: var(--vert); }
+  .verdict b { font-weight: 600; }
+
+  /* Les jalons */
+  .jalons { margin-top: 16px; border-top: 1px solid var(--filet); padding-top: 4px; }
+  .jalon { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F0EAE0; font-size: 12.5px; }
+  .jalon:last-child { border-bottom: none; }
+  .pastille { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1px solid var(--filet); background: #fff; }
+  .pastille.plein { background: var(--vert); border-color: var(--vert); }
+  .pastille.demi { background: linear-gradient(90deg, var(--vert) 50%, #fff 50%); border-color: var(--vert); }
+  .pastille.rate { background: var(--brique); border-color: var(--brique); }
+  .jalon__date { width: 92px; flex: none; color: var(--encre-d); }
+  .jalon__nom { flex: 1; min-width: 0; }
+  .jalon__nom small { display: block; color: var(--encre-d); font-size: 11px; }
+  .jalon__m { font-family: var(--serif); font-size: 15px; color: var(--indigo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .jalon.attendu { opacity: .6; font-style: italic; }
+
+  .gestes { display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap; }
+  .btn { font-family: var(--sans); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+         padding: 10px 16px; border-radius: 3px; border: 1px solid var(--indigo);
+         background: var(--indigo); color: var(--ivoire); cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--indigo); }
+  .btn.cuivre { background: var(--cuivre); border-color: var(--cuivre); }
+
+  .pied-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px;
+                padding-top: 14px; border-top: 1px solid var(--filet); }
+  .pied-total span { font-size: 12px; color: var(--encre-d); }
+  .pied-total b { font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--indigo); }
+
+  /* La modale */
+  .modale { max-width: 540px; margin: 22px auto 0; background: #fff; border: 1px solid var(--filet);
+            border-radius: 4px; padding: 24px; box-shadow: 0 22px 48px -30px rgba(30,33,80,.45); }
+  .modale h3 { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--indigo); margin: 0 0 16px; }
+  .champ { margin-bottom: 15px; }
+  .champ__l { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--encre-d); margin-bottom: 6px; }
+  .champ__i { border: 1px solid var(--filet); border-radius: 3px; padding: 10px 12px; background: var(--ivoire);
+              font-size: 14px; color: var(--encre); }
+  .champ__i.grand { font-family: var(--serif); font-size: 24px; color: var(--indigo); }
+  .champ__aide { font-size: 10.5px; color: var(--encre-d); margin-top: 5px; line-height: 1.55; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 7px 12px; border: 1px solid var(--filet); border-radius: 3px;
+          background: #fff; color: var(--encre-d); }
+  .chip.is-on { background: var(--indigo); border-color: var(--indigo); color: var(--ivoire); }
+  .apercu { border: 1px solid var(--cuivre-p); background: var(--cuivre-f); border-radius: 3px;
+            padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: var(--cuivre); }
+
+  ul.pointe { max-width: 74ch; padding-left: 0; list-style: none; }
+  ul.pointe li { position: relative; padding-left: 20px; margin-bottom: 13px; color: var(--encre-d); font-size: 14px; }
+  ul.pointe li::before { content: '\25C8'; position: absolute; left: 0; top: 0; color: var(--cuivre); font-size: 11px; }
+  ul.pointe b { color: var(--encre); font-weight: 500; }
+  .arbitre { margin-top: 42px; padding: 24px 26px; background: var(--cuivre-f);
+             border: 1px solid var(--cuivre-p); border-radius: 3px; }
+  .arbitre h3 { font-family: var(--serif); font-weight: 400; font-size: 25px; color: var(--indigo); margin: 0 0 12px; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette à valider · Le Trône · Finances</p>
+  <h1>Les objectifs.</h1>
+  <p class="lede">
+    Aujourd’hui un objectif dit ce qu’il vise et ce qu’il manque. Il ne dit pas <b>comment y
+    arriver</b> — et une cible sans chemin ne s’atteint que par chance. Voici la même figure que
+    les prêts, retournée : un prêt se rembourse par échéances, un objectif se remplit par
+    <b>jalons</b>.
+  </p>
+
+  <h2>L’écran</h2>
+
+  <div class="ecran">
+    <div class="onglets">
+      <span class="onglet">Les prêts <small>5 523 400 F</small></span>
+      <span class="onglet is-on">Les objectifs <small>2 · 1 en retard</small></span>
+    </div>
+
+    <div class="bandeau">
+      <div class="stat">
+        <div class="stat__l">Mis de côté · fléché</div>
+        <div class="stat__v vert">3 100 000 F</div>
+        <div class="stat__s">sur 9 000 000 F visés</div>
+      </div>
+      <div class="stat">
+        <div class="stat__l">Non fléché · disponible</div>
+        <div class="stat__v">14 839 000 F</div>
+        <div class="stat__s">au coffre, libre d’emploi</div>
+      </div>
+      <div class="stat">
+        <div class="stat__l">À trouver d’ici les échéances</div>
+        <div class="stat__v">5 900 000 F</div>
+        <div class="stat__s">soit 590 000 F par mois</div>
+      </div>
+      <div class="stat alerte">
+        <div class="stat__l">En retard sur le plan</div>
+        <div class="stat__v brique">900 000 F</div>
+        <div class="stat__s">1 objectif · 2 jalons manqués</div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <span class="puce alerte">En retard · 1</span>
+      <span class="puce">Jalon ce mois-ci · 2</span>
+      <span class="puce is-on">Tous les objectifs · 2</span>
+      <span class="puce">Sans plan · 0</span>
+      <span class="puce">Atteints · 1</span>
+    </div>
+
+    <!-- ── EN RETARD SUR SON PLAN ── -->
+    <div class="obj retard">
+      <div class="obj__tete">
+        <span class="obj__nom">Vacances magique 2027</span>
+        <span class="tag">échéance mars 2027</span>
+        <span class="tag brique">en retard sur le plan</span>
+        <span class="obj__chiffres"><em>Mis de côté</em><b>2 100 000 F</b><i> / 7 000 000 F</i></span>
+      </div>
+
+      <div class="jauge">
+        <i style="width:30%"></i>
+        <u style="left:43%" title="Où vous devriez en être aujourd’hui"></u>
+      </div>
+      <div class="jauge-mot">
+        <span>30 % versés · le repère cuivré marque où le plan vous attendait</span>
+        <span>il manque 4 900 000 F</span>
+      </div>
+
+      <div class="verdict brique">
+        Deux jalons manqués — <b>900 000 F de retard</b>. Pour tenir mars 2027, il faut désormais
+        <b>700 000 F par mois</b> au lieu de 500 000. Sans changement de rythme, l’objectif tombe
+        en <b>juillet 2027</b>, quatre mois après la date visée.
+      </div>
+
+      <div class="jalons">
+        <div class="jalon"><span class="pastille plein"></span><span class="jalon__date">30 juin</span>
+          <span class="jalon__nom">1ᵉʳ versement<small>versé le 28 juin · Caisse Principale</small></span>
+          <span class="jalon__m">500 000 F</span></div>
+        <div class="jalon"><span class="pastille demi"></span><span class="jalon__date">30 juil.</span>
+          <span class="jalon__nom">2ᵉ versement<small>350 000 F versés — il manque 150 000 F</small></span>
+          <span class="jalon__m">500 000 F</span></div>
+        <div class="jalon"><span class="pastille rate"></span><span class="jalon__date">30 août</span>
+          <span class="jalon__nom">3ᵉ versement<small>rien reçu — en souffrance depuis aujourd’hui</small></span>
+          <span class="jalon__m">500 000 F</span></div>
+        <div class="jalon attendu"><span class="pastille"></span><span class="jalon__date">30 sept.</span>
+          <span class="jalon__nom">4ᵉ versement</span><span class="jalon__m">500 000 F</span></div>
+        <div class="jalon attendu"><span class="pastille"></span><span class="jalon__date">30 oct.</span>
+          <span class="jalon__nom">5ᵉ versement</span><span class="jalon__m">500 000 F</span></div>
+        <div class="jalon attendu" style="opacity:.42"><span class="pastille"></span><span class="jalon__date">…</span>
+          <span class="jalon__nom">et 9 autres jusqu’en mars 2027</span><span class="jalon__m">4 500 000 F</span></div>
+      </div>
+
+      <div class="gestes">
+        <button class="btn cuivre">Verser 850 000 F — rattraper le plan</button>
+        <button class="btn ghost">Verser un autre montant</button>
+        <button class="btn ghost">Revoir le plan</button>
+        <button class="btn ghost">Reprendre</button>
+      </div>
+    </div>
+
+    <!-- ── À JOUR ── -->
+    <div class="obj">
+      <div class="obj__tete">
+        <span class="obj__nom">Achat mobiliers MND</span>
+        <span class="tag">échéance novembre 2026</span>
+        <span class="tag vert">dans les temps</span>
+        <span class="obj__chiffres"><em>Mis de côté</em><b>1 000 000 F</b><i> / 2 000 000 F</i></span>
+      </div>
+      <div class="jauge"><i style="width:50%"></i><u style="left:50%"></u></div>
+      <div class="jauge-mot"><span>50 % versés · pile sur le plan</span><span>il manque 1 000 000 F</span></div>
+      <div class="verdict vert">
+        Au rythme tenu, l’objectif tombe en <b>novembre 2026</b> — la date visée. Prochain jalon :
+        <b>250 000 F le 30 août</b>, dans 7 jours.
+      </div>
+      <div class="jalons">
+        <div class="jalon"><span class="pastille plein"></span><span class="jalon__date">30 juin</span>
+          <span class="jalon__nom">Acompte menuisier<small>versé le 30 juin</small></span><span class="jalon__m">500 000 F</span></div>
+        <div class="jalon"><span class="pastille plein"></span><span class="jalon__date">30 juil.</span>
+          <span class="jalon__nom">2ᵉ versement<small>versé le 29 juillet</small></span><span class="jalon__m">500 000 F</span></div>
+        <div class="jalon attendu"><span class="pastille"></span><span class="jalon__date">30 août</span>
+          <span class="jalon__nom">Solde à la livraison</span><span class="jalon__m">250 000 F</span></div>
+      </div>
+      <div class="gestes">
+        <button class="btn cuivre">Verser 250 000 F — le jalon du mois</button>
+        <button class="btn ghost">Verser un autre montant</button>
+        <button class="btn ghost">Revoir le plan</button>
+      </div>
+    </div>
+
+    <div class="pied-total">
+      <span>Non fléché — disponible au coffre</span>
+      <b>14 839 000 F</b>
+    </div>
+  </div>
+
+  <h2>Poser un objectif, et son plan</h2>
+  <p class="note">Le plan se calcule tout seul depuis la cible et l’échéance. On peut aussi poser ses jalons à la main.</p>
+
+  <div class="modale">
+    <h3>Un nouvel objectif.</h3>
+
+    <div class="champ">
+      <div class="champ__l">Ce que la Maison prépare</div>
+      <div class="champ__i">Vacances magique 2027</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+      <div class="champ"><div class="champ__l">Montant visé · XOF</div><div class="champ__i grand">7 000 000</div></div>
+      <div class="champ"><div class="champ__l">Pour quand</div><div class="champ__i">mars 2027</div></div>
+    </div>
+
+    <div class="champ">
+      <div class="champ__l">Comment y arriver</div>
+      <div class="chips" style="margin-bottom:10px">
+        <span class="chip is-on">Un rythme régulier</span>
+        <span class="chip">Mes propres jalons</span>
+        <span class="chip">Sans plan</span>
+      </div>
+      <div class="apercu">
+        ◈ <b>14 versements de 500 000 F</b>, le 30 de chaque mois, du 30 septembre 2026 au
+        30 octobre 2027.<br />
+        Ce sont des <b>attentes</b>, pas des écritures : rien ne quitte une caisse tant que le
+        versement n’a pas eu lieu. Vous pouvez verser plus, moins, ou en avance — le plan s’ajuste
+        et vous dit où vous en êtes.
+      </div>
+    </div>
+
+    <div class="champ">
+      <div class="champ__l">Nommer les jalons · facultatif</div>
+      <div class="champ__aide">
+        « Acompte billets », « Hôtel », « Solde » — un jalon nommé se retrouve d’un coup d’œil dans
+        la liste. Sans nom, il s’appelle « 3ᵉ versement ».
+      </div>
+    </div>
+  </div>
+
+  <h2>Ce que je propose, et pourquoi</h2>
+  <ul class="pointe">
+    <li><b>Le plan se calcule, il ne se saisit pas.</b> Cible ÷ mois restants = le versement
+      mensuel. Vous donnez ce que vous visez et pour quand ; Le Trône dit ce que ça coûte par mois.
+      C’est la seule chose qui transforme « 7 000 000 F un jour » en une décision qu’on peut tenir.</li>
+    <li><b>Un repère sur la jauge dit où le plan vous attendait.</b> Le trait cuivré, c’est
+      aujourd’hui selon le plan. Voir la barre verte en dessous vaut tous les chiffres : on sait
+      d’un regard si on tient ou si on glisse.</li>
+    <li><b>La phrase de verdict remplace le calcul mental.</b> « Il faut désormais 700 000 F par
+      mois au lieu de 500 000, sinon l’objectif tombe en juillet. » C’est ça qu’on veut savoir —
+      pas un pourcentage.</li>
+    <li><b>Le bouton principal porte le montant à verser.</b> « Verser 850 000 F — rattraper le
+      plan » : le geste le plus fréquent ne doit demander aucun calcul. Un second bouton reste
+      pour un autre montant.</li>
+    <li><b>Les jalons attendus ne sont pas des écritures</b>, exactement comme les échéances des
+      prêts : italique pâle, aucun franc ne bouge tant que le versement n’a pas eu lieu.</li>
+    <li><b>Un versement s’impute sur le jalon le plus ancien non couvert</b> — la règle du
+      comptoir, la même que pour les remboursements de prêt. Verser 850 000 F solde le jalon de
+      juillet entamé (150 000) puis celui d’août (500 000) et entame septembre (200 000).</li>
+    <li><b>« Sans plan » reste possible</b>, et c’est un état assumé : l’objectif garde sa cible,
+      n’est jamais annoncé en retard, et ne réclame rien. Comme un prêt sans échéance.</li>
+  </ul>
+
+  <div class="arbitre">
+    <h3>À trancher</h3>
+    <p class="note" style="margin-top:0">
+      Deux choses avant que je construise. <b>Les jalons manqués</b> : faut-il les reporter
+      automatiquement (le plan se recalcule sur les mois restants, comme dans la maquette) ou les
+      laisser en souffrance et allonger l’échéance ? Et <b>le Tableau de bord</b> : doit-il vous
+      rappeler un jalon d’épargne qui approche, comme il le fait déjà pour les prêts ?
+    </p>
+  </div>
+</div>
+</body>
+</html>

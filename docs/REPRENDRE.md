@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les objectifs ont un plan et des jalons — 23 août, PUBLIÉ
+
+« Un objectif doit être clair, avoir des milestones, tout comme les programmes
+de remboursement pour les prêts. Surtout atteindre les objectifs. » Maquette
+validée (`public/maquette-les-objectifs.html`), deux arbitrages de Yéman.
+
+UNE CIBLE SANS CHEMIN NE S'ATTEINT QUE PAR CHANCE. L'objectif disait ce qu'il
+visait et ce qu'il manquait ; jamais COMMENT y arriver. Le prêt, lui, savait
+déjà le dire. C'est la même figure retournée : un prêt se rembourse par
+échéances, un objectif se remplit par jalons.
+
+`ObjectifCoffre` gagne `plan?: { premier, nombre, montantXof }` et
+`jalons?[]` (posés à la main, nommés — ils font foi sur le rythme).
+LE PLAN PORTE SON MONTANT, il ne se déduit pas de cible ÷ nombre : après trois
+versements irréguliers cette division ne veut plus rien dire. Ce qu'il faut
+mettre chaque mois dépend de ce qui RESTE.
+
+`etatDeLObjectif` porte tout le calcul dans finance.ts, éprouvé par
+`verifie-coffre` (25 assertions neuves) : les jalons, leur état (versé,
+partiel, attendu, manqué), le retard, l'effort pour tenir, l'arrivée projetée.
+CE QUI EST VERSÉ COUVRE LE JALON LE PLUS ANCIEN D'ABORD — la règle du comptoir,
+la même que pour les remboursements de prêt.
+
+LE HARNAIS A PRIS MON PROPRE CALCUL EN DÉFAUT : j'avais écrit qu'un jalon au
+30 août était « manqué » un 23 août. Il ne l'est pas — le dire ferait réclamer
+un argent qui n'est pas encore dû. L'assertion tient désormais les deux jours,
+le 23 et le 1er septembre.
+
+L'ÉCRAN, en miroir des prêts : quatre chiffres dont un seul alarme, un rail de
+filtres, et par objectif — la jauge AVEC SON REPÈRE (où le plan vous attendait
+aujourd'hui), la phrase de verdict qui remplace le calcul mental (« il faut
+désormais 878 572 F par mois au lieu de 500 000 »), les jalons datés avec leur
+pastille, et un bouton principal QUI PORTE LE MONTANT.
+
+LES DEUX ISSUES D'UN RETARD SE PROPOSENT CÔTE À CÔTE — arbitrage de Yéman
+(« les deux, et je choisis au moment du retard ») : RATTRAPER réécrit le plan
+sur les mois restants au nouvel effort, la date tient ; ACCEPTER garde le
+rythme et fait glisser l'échéance à l'arrivée projetée. Aucune n'est meilleure
+dans l'absolu : c'est une décision de trésorerie, elle appartient à la
+Souveraine — on ne choisit pas pour elle.
+
+LA TOURNÉE DU MATIN PRÉVIENT, comme pour les prêts : un jalon manqué ou attendu
+sous 7 jours remonte au Tableau de bord.
+
 ## Les objectifs rejoignent les prêts — 23 août, PUBLIÉ
 
 « Les objectifs devraient aller dans l'onglet des prêts, car il y a des apports

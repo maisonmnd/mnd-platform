@@ -11,6 +11,7 @@ import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglemen
 import { useApprenants, useEnvois } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
+import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
@@ -54,6 +55,14 @@ export default function Dashboard() {
   const [invoices] = useInvoices();
   const [lesPrets] = usePrets();
   const pretsAVeiller = pretsASurveiller(lesPrets, branch.id, todayISO());
+  /* LES JALONS D’ÉPARGNE QUI PRESSENT — 23 août 2026, arbitrage de Yéman :
+     « oui, comme pour les prêts ». Un objectif qu’on ne voit pas est un
+     objectif qu’on n’alimente pas. Même fenêtre, même tri par urgence. */
+  const [lesMoves] = useCoffre();
+  const [lesObjectifs] = useObjectifs();
+  const jalonsAVeiller = objectifsASurveiller(
+    lesObjectifs, lesMoves.filter((m) => m.branchId === branch.id), branch.id, todayISO(),
+  );
   const [expenses] = useExpenses();
   const [categories] = useCategories();
   /* Index des catégories — c'est leur `maison` qui range le chiffre côté
@@ -376,6 +385,19 @@ export default function Dashboard() {
        un prêt qu’on oublie » : ce qui est en retard, ou attendu sous huit
        jours, remonte ici comme les anniversaires. Le calcul vit dans foyer.ts
        et rend déjà la liste triée par urgence. */
+    ...jalonsAVeiller.map((e) => {
+      const j = e.prochain ? joursEntre(todayISO(), e.prochain.date) : 0;
+      return {
+        k: `objectif-${e.objectif.id}`,
+        label: e.retardXof > 0
+          ? `${e.objectif.nom} — ${fmtMoney(e.retardXof, currency)} de retard sur le plan`
+          : `${e.objectif.nom} — versement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
+        sub: `${fmtMoney(e.prochain?.montantXof ?? 0, currency)} · il manque ${fmtMoney(e.manque, currency)} sur ${fmtMoney(e.objectif.cibleXof, currency)}`,
+        action: 'Voir',
+        go: () => navigate('/prets?onglet=objectifs'),
+      };
+    }),
+
     ...pretsAVeiller.map((e) => {
       const j = e.prochaine ? joursEntre(todayISO(), e.prochaine.date) : 0;
       return {

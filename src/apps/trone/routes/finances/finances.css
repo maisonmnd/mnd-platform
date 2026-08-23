@@ -1667,3 +1667,93 @@
    distingue par sa teinte — un geste qui défait ne se confond pas avec un
    geste qui montre. */
 .trf-piece__acte--oter { margin-left: 0; color: var(--copper-700, #96412E); }
+
+/* ── LES OBJECTIFS ET LEURS JALONS — 23 août 2026 ──────────────────
+   Maquette validée. La carte dit trois choses dans cet ordre : où on en est,
+   où le plan attendait, et CE QU'IL FAUT FAIRE. La troisième est la seule
+   qui compte. */
+.trf-obj { padding: 20px 22px; margin-bottom: 14px; }
+.trf-obj--retard { border-left: 3px solid var(--copper-700, #96412E); }
+.trf-obj--atteint { border-left: 3px solid var(--trf-success, #4A6B52); }
+.trf-obj__tete { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; }
+.trf-obj__nom {
+  font-family: var(--font-serif); font-size: 26px; color: var(--color-indigo);
+  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+}
+.trf-obj__chiffres { margin-left: auto; text-align: right; }
+.trf-obj__chiffres em {
+  display: block; font-style: normal; font-family: var(--font-sans); font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.trf-obj__chiffres b {
+  font-family: var(--font-serif); font-weight: 400; font-size: 27px;
+  color: var(--color-indigo); font-variant-numeric: tabular-nums;
+}
+.trf-obj__chiffres i { font-style: normal; color: var(--ink-soft); font-size: 18px; font-family: var(--font-serif); }
+
+/* LE REPÈRE : où le plan vous attendait aujourd'hui. Voir la barre en dessous
+   vaut tous les chiffres — on sait d'un regard si on tient ou si on glisse. */
+.trf-jauge--obj { position: relative; height: 6px; margin: 14px 0 8px; }
+.trf-jauge--obj u {
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
+  background: var(--copper-700, #96412E); text-decoration: none;
+}
+
+.trf-verdict {
+  margin-top: 14px; padding: 12px 14px; border-radius: 3px; line-height: 1.6;
+  font-family: var(--font-sans); font-size: 13px;
+  background: var(--copper-50, #FAF1E9); color: var(--color-copper);
+}
+.trf-verdict--brique { background: #FBEDE9; color: var(--copper-700, #96412E); }
+.trf-verdict--vert { background: #EEF3EE; color: var(--trf-success, #4A6B52); }
+
+.trf-jalons { margin-top: 16px; border-top: 1px solid var(--hairline); padding-top: 4px; }
+.trf-jalon {
+  display: flex; align-items: center; gap: 12px; padding: 9px 0;
+  border-bottom: 1px solid var(--hairline); font-family: var(--font-sans); font-size: 12.5px;
+}
+.trf-jalon:last-child { border-bottom: none; }
+/* Une attente se lit comme une attente : pâle et penchée. Aucun franc n'a bougé. */
+.trf-jalon--attendu { font-style: italic; opacity: .6; }
+.trf-jalon__date { width: 82px; flex: none; color: var(--ink-soft); }
+.trf-jalon__nom { flex: 1; min-width: 0; color: var(--ink); }
+.trf-jalon__nom small { display: block; color: var(--ink-soft); font-size: 11px; }
+.trf-jalon__m {
+  font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.trf-pastille {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  border: 1px solid var(--line); background: var(--surface-card);
+}
+.trf-pastille--verse { background: var(--trf-success, #4A6B52); border-color: var(--trf-success, #4A6B52); }
+.trf-pastille--partiel {
+  background: linear-gradient(90deg, var(--trf-success, #4A6B52) 50%, transparent 50%);
+  border-color: var(--trf-success, #4A6B52);
+}
+.trf-pastille--manque { background: var(--copper-700, #96412E); border-color: var(--copper-700, #96412E); }
+
+.trf-obj__gestes { display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap; }
+
+/* LES DEUX ISSUES D'UN RETARD, CÔTE À CÔTE. Aucune n'est meilleure dans
+   l'absolu : c'est une décision de trésorerie, elle appartient à la
+   Souveraine — on ne choisit pas pour elle. */
+.trf-issues { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--copper-300, #E3C9AE); }
+.trf-issues__mot {
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-soft); margin-bottom: 9px;
+}
+.trf-issues__deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.trf-issue {
+  text-align: left; padding: 12px 14px; border: 1px solid var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9); border-radius: 3px; cursor: pointer;
+  font-family: var(--font-sans);
+}
+.trf-issue b { display: block; font-size: 13px; color: var(--color-indigo); font-weight: 600; margin-bottom: 3px; }
+.trf-issue span { display: block; font-size: 11.5px; color: var(--ink-soft); line-height: 1.55; }
+
+.trf-apercu {
+  border: 1px solid var(--copper-300, #E3C9AE); background: var(--copper-50, #FAF1E9);
+  border-radius: 3px; padding: 12px 14px; line-height: 1.6;
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--color-copper);
+}
