@@ -1105,6 +1105,46 @@ export const flechableVers = (moves: readonly CoffreMovement[], o: ObjectifCoffr
   return Math.max(0, Math.min(coffreNonFleche(moves), manque));
 };
 
+/* ── LE RYTHME SE CALCULE, ET SE LAISSE MENER — 23 août 2026 ───────
+   « Le calcul du rythme régulier ne fonctionne pas, le montant est figé. » Il
+   l’était : le nombre de versements se déduisait toujours de l’échéance, et le
+   montant de ce nombre-là. Passer de 7 à 12 versements laissait donc le
+   montant sur sa division d’origine.
+
+   TROIS NOMBRES POUR DEUX LIBERTÉS. Le reste à trouver est fixe : poser le
+   NOMBRE décide du montant, poser le MONTANT décide du nombre, et ne rien
+   poser laisse l’échéance décider des deux. Ce qu’on tape mène, ce qu’on n’a
+   pas tapé suit.
+
+   IL VIVAIT DANS L’ÉCRAN — donc hors de portée d’un harnais, et c’est
+   exactement pourquoi il a pu être faux sans que rien ne le dise. */
+export type RythmeDuPlan = {
+  premier: string; nombre: number; montantXof: number;
+  /** La date du DERNIER versement — celle qui dit si le plan tient la date. */
+  dernier: string;
+  apresLEcheance: boolean;
+};
+export const rythmeDuPlan = (o: {
+  reste: number;
+  echeance: string;
+  aujourdhui: string;
+  premier?: string;
+  nombreSaisi?: number;
+  parMoisSaisi?: number;
+}): RythmeDuPlan => {
+  const premier = o.premier || moisPlusISO(`${o.aujourdhui.slice(0, 7)}-28`, 1);
+  const n = o.nombreSaisi ?? 0;
+  const m = o.parMoisSaisi ?? 0;
+  const nombre = n > 0
+    ? n
+    : (m > 0
+      ? Math.max(1, Math.ceil(o.reste / m))
+      : Math.max(1, moisEntre(o.aujourdhui.slice(0, 7), o.echeance)));
+  const montantXof = n > 0 || m === 0 ? Math.ceil(o.reste / nombre) : m;
+  const dernier = moisPlusISO(premier, Math.max(0, nombre - 1));
+  return { premier, nombre, montantXof, dernier, apresLEcheance: dernier.slice(0, 7) > o.echeance };
+};
+
 /* ── LE PLAN D'UN OBJECTIF, ET SES JALONS — 23 août 2026 ────────────
    « Un objectif doit être clair, avoir des milestones, tout comme les
    programmes de remboursement pour les prêts. Surtout atteindre les

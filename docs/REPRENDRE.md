@@ -2,6 +2,35 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le rythme se laisse mener — 23 août, CORRIGÉ
+
+« Le calcul du rythme régulier ne fonctionne pas. Le montant est figé à
+1 142 858. » Il l'était : le nombre de versements se déduisait TOUJOURS de
+l'échéance (7 mois d'août à mars), et le montant de ce nombre-là. Passer de 7
+à 12 versements laissait donc le montant sur sa division d'origine — l'aperçu
+annonçait « 12 versements de 1 142 858 F », soit 13,7 millions pour une cible
+de 8.
+
+TROIS NOMBRES POUR DEUX LIBERTÉS. Le reste à trouver est fixe : poser le
+NOMBRE décide du montant, poser le MONTANT décide du nombre, et ne rien poser
+laisse l'échéance décider des deux. Ce qu'on tape mène, ce qu'on n'a pas tapé
+suit — et l'écran vide l'autre champ pour que le dernier touché mène vraiment.
+
+LE CALCUL VIVAIT DANS L'ÉCRAN — donc hors de portée d'un harnais, et c'est
+exactement pourquoi il a pu être faux sans que rien ne le dise. Il est remonté
+dans `finance.ts` (`rythmeDuPlan`), avec quatorze assertions : le nombre posé
+mène, le montant posé mène, aucun des deux ne fige l'autre.
+
+AU PASSAGE, CE QUE L'APERÇU TAISAIT : la date du DERNIER versement. Douze
+versements à partir du 28 septembre finissent en août 2027 — cinq mois après
+une échéance de mars. L'aperçu donne maintenant les deux bornes, et prévient
+en cuivre quand le dernier tombe après l'échéance visée : « à ce rythme,
+l'objectif ne sera pas prêt à temps ».
+
+Et une seule vérité désormais : ce que l'aperçu montre est exactement ce qui
+s'enregistre — l'enregistrement lisait ses propres valeurs, l'aperçu les
+siennes.
+
 ## Flécher de l'argent déjà au coffre — 23 août, PUBLIÉ
 
 « Pouvoir mettre à jour le montant de l'objectif. » Deux lectures possibles, et

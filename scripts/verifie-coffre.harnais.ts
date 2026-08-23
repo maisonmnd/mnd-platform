@@ -7,7 +7,7 @@
 
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
-  flecherVersObjectif, flechableVers,
+  flecherVersObjectif, flechableVers, rythmeDuPlan,
   jalonsDeLObjectif, etatDeLObjectif, planPourTenir, moisEntre, moisPlusISO, attenduAuJour, objectifsASurveiller,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
@@ -387,6 +387,53 @@ dit('un coffre vide n’offre rien à flécher', 0, flechableVers([], cible));
 /* Un compartiment sans cible accepte tout le disponible — il ne vise rien. */
 dit('un compartiment prend tout le disponible',
   10_000_000, flechableVers(auCoffre, objBase({ id: 'oC', cibleXof: 0 })));
+
+
+/* ── LE RYTHME SE LAISSE MENER — 23 août 2026 ──────────────────────
+   « Le calcul du rythme régulier ne fonctionne pas, le montant est figé à
+   1 142 858. » Il l’était : le nombre se déduisait toujours de l’échéance, et
+   le montant de ce nombre-là. Passer de 7 à 12 versements laissait le montant
+   sur sa division d’origine.
+
+   LE CALCUL VIVAIT DANS L’ÉCRAN — donc hors de portée d’un harnais, et c’est
+   exactement pourquoi il a pu être faux sans que rien ne le dise. Il vit
+   maintenant ici, et ces assertions le tiennent. */
+const rythmeNu = { reste: 8_000_000, echeance: '2027-03', aujourdhui: '2026-08-23' };
+
+/* Sans rien poser, c’est l’échéance qui décide : 7 mois d’août à mars. */
+const parDefaut = rythmeDuPlan(rythmeNu);
+dit('sans rien poser, le nombre vient de l’échéance', 7, parDefaut.nombre);
+dit('… et le montant en découle', Math.ceil(8_000_000 / 7), parDefaut.montantXof);
+
+/* POSER LE NOMBRE DÉCIDE DU MONTANT — c’est LA faute corrigée. */
+const douze = rythmeDuPlan({ ...rythmeNu, nombreSaisi: 12 });
+dit('douze versements donnent douze', 12, douze.nombre);
+dit('… et le montant SUIT le nombre', Math.ceil(8_000_000 / 12), douze.montantXof);
+dit('le montant n’est plus figé sur la division d’origine', false,
+  douze.montantXof === parDefaut.montantXof);
+
+/* POSER LE MONTANT DÉCIDE DU NOMBRE — la liberté inverse. */
+const parMois = rythmeDuPlan({ ...rythmeNu, parMoisSaisi: 1_000_000 });
+dit('un million par mois demande huit versements', 8, parMois.nombre);
+dit('… et garde le montant tel qu’il a été posé', 1_000_000, parMois.montantXof);
+
+/* LE NOMBRE POSÉ L’EMPORTE quand les deux le sont : c’est le dernier champ
+   touché qui mène, et l’écran vide l’autre en même temps. */
+const lesDeux = rythmeDuPlan({ ...rythmeNu, nombreSaisi: 4, parMoisSaisi: 1_000_000 });
+dit('le nombre posé mène', 4, lesDeux.nombre);
+dit('… et le montant se recalcule', Math.ceil(8_000_000 / 4), lesDeux.montantXof);
+
+/* LE DERNIER JALON DIT LA VÉRITÉ SUR LA DATE. Douze versements à partir du
+   28 septembre finissent en août suivant — cinq mois après une échéance de
+   mars. Le taire laisserait croire que le plan tient la date. */
+dit('sept versements tiennent l’échéance', false, parDefaut.apresLEcheance);
+dit('douze la dépassent', true, douze.apresLEcheance);
+dit('… et le dernier tombe en août 2027', '2027-08', douze.dernier.slice(0, 7));
+
+/* Un reste nul ne fabrique pas un plan absurde. */
+const rien = rythmeDuPlan({ ...rythmeNu, reste: 0 });
+dit('sans reste, le montant est nul', 0, rien.montantXof);
+dit('… et le nombre reste au moins un', true, rien.nombre >= 1);
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

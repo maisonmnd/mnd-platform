@@ -34,7 +34,7 @@ import {
   recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, cashboxCurrency,
   caissesEnDevise, motDesCaissesEnDevise,
   etatDeLObjectif, attenduAuJour, planPourTenir, moisEntre, moisPlusISO, joursEntreISO,
-  flecherVersObjectif, flechableVers,
+  flecherVersObjectif, flechableVers, rythmeDuPlan,
   type EtatObjectif, type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
 import { ClientPicker } from '../clients/_shared';
@@ -311,16 +311,31 @@ export function LesObjectifs() {
      versement mensuel. On donne ce qu'on vise et pour quand ; Le Trône dit ce
      que ça coûte par mois — c'est la seule chose qui transforme « sept
      millions un jour » en une décision qu'on peut tenir. */
-  const planPropose = (f: FormeObjectif) => {
-    const cible = parseInt((f.cible || '').replace(/[^0-9]/g, ''), 10) || 0;
-    if (!f.echeance || cible <= 0) return null;
-    const dejaLa = f.id ? etats.find((e) => e.objectif.id === f.id)?.recu ?? 0 : 0;
-    const reste = Math.max(0, cible - dejaLa);
-    const nombre = Math.max(1, moisEntre(aujourdhui.slice(0, 7), f.echeance));
-    const premier = f.premier || moisPlusISO(`${aujourdhui.slice(0, 7)}-28`, 1);
-    return { premier, nombre, montantXof: Math.ceil(reste / nombre) };
-  };
+  /* LES TROIS NOMBRES SE TIENNENT — corrigé le 23 août 2026. « Le calcul du
+     rythme régulier ne fonctionne pas, le montant est figé. » Il l’ÉTAIT :
+     le nombre de versements était toujours déduit de l’échéance, et le
+     montant de ce nombre-là. Passer de 7 à 12 versements laissait donc le
+     montant sur sa division d’origine.
 
+     CE QU’ON TAPE MÈNE, CE QU’ON N’A PAS TAPÉ SUIT. Trois nombres pour deux
+     libertés : le reste à trouver est fixe, donc poser le nombre décide du
+     montant, et poser le montant décide du nombre. Sans rien poser, c est
+     l’échéance qui décide des deux. */
+  /* Le calcul vit dans `finance.ts` (`rythmeDuPlan`), éprouvé par
+     `verifie-coffre` : cet écran ne fait que lui passer ce qui est tapé. */
+  const planPropose = (fo: FormeObjectif) => {
+    const cible = parseInt((fo.cible || '').replace(/[^0-9]/g, ''), 10) || 0;
+    if (!fo.echeance || cible <= 0) return null;
+    const dejaLa = fo.id ? etats.find((e) => e.objectif.id === fo.id)?.recu ?? 0 : 0;
+    return rythmeDuPlan({
+      reste: Math.max(0, cible - dejaLa),
+      echeance: fo.echeance,
+      aujourdhui,
+      premier: fo.premier,
+      nombreSaisi: parseInt((fo.nombre || '').replace(/[^0-9]/g, ''), 10) || 0,
+      parMoisSaisi: parseInt((fo.parMois || '').replace(/[^0-9]/g, ''), 10) || 0,
+    });
+  };
   const enregistrerObjectif = () => {
     if (!objOuvert) return;
     const nom = objOuvert.nom.trim();
@@ -329,12 +344,9 @@ export function LesObjectifs() {
        contient, il ne vise rien. Seul le nom est requis. */
     const cible = parseInt(objOuvert.cible.replace(/[^0-9]/g, ''), 10) || 0;
     const auto = planPropose(objOuvert);
+    /* UNE SEULE VÉRITÉ : ce que l’aperçu montre est ce qui s’enregistre. */
     const plan = objOuvert.rythme === 'plan' && auto
-      ? {
-        premier: objOuvert.premier || auto.premier,
-        nombre: parseInt(objOuvert.nombre || '', 10) || auto.nombre,
-        montantXof: parseInt((objOuvert.parMois || '').replace(/[^0-9]/g, ''), 10) || auto.montantXof,
-      }
+      ? { premier: auto.premier, nombre: auto.nombre, montantXof: auto.montantXof }
       : undefined;
     setObjectifs((prev) => (objOuvert.id
       ? prev.map((o) => (o.id === objOuvert.id
@@ -561,8 +573,14 @@ export function LesObjectifs() {
                   {objOuvert.rythme === 'plan' && (auto ? (
                     <>
                       <div className="trf-apercu">
-                        ◈ <b>{objOuvert.nombre || auto.nombre} versements de {fmtMoney(parseInt(objOuvert.parMois || '', 10) || auto.montantXof, currency)}</b>,
-                        de mois en mois, à partir du {frJourLong(objOuvert.premier || auto.premier)}.<br />
+                        ◈ <b>{auto.nombre} versements de {fmtMoney(auto.montantXof, currency)}</b>,
+                        de mois en mois, du {frJourLong(auto.premier)} au {frJourLong(auto.dernier)}.
+                        {auto.apresLEcheance && (
+                          <b style={{ display: 'block', marginTop: 4, color: 'var(--copper-700)' }}>
+                            Le dernier versement tombe APRÈS l’échéance visée ({monthLabelLong(objOuvert.echeance)}) —
+                            à ce rythme, l’objectif ne sera pas prêt à temps.
+                          </b>
+                        )}<br />
                         Ce sont des <b>attentes</b>, pas des écritures : rien ne quitte une caisse tant que le
                         versement n’a pas eu lieu. Vous pouvez verser plus, moins, ou en avance — le plan
                         s’ajuste et vous dit où vous en êtes.
@@ -572,16 +590,16 @@ export function LesObjectifs() {
                           <span className="mnd-field__label">Par mois</span>
                           <input
                             className="mnd-input" inputMode="numeric"
-                            value={objOuvert.parMois} placeholder={String(auto.montantXof)}
-                            onChange={(e) => setObjOuvert((f) => (f ? { ...f, parMois: e.target.value.replace(/[^0-9]/g, '') } : f))}
+                            value={objOuvert.parMois || String(auto.montantXof)}
+                            onChange={(e) => setObjOuvert((f) => (f ? { ...f, parMois: e.target.value.replace(/[^0-9]/g, ''), nombre: '' } : f))}
                           />
                         </label>
                         <label className="mnd-field">
                           <span className="mnd-field__label">Combien</span>
                           <input
                             className="mnd-input" inputMode="numeric"
-                            value={objOuvert.nombre} placeholder={String(auto.nombre)}
-                            onChange={(e) => setObjOuvert((f) => (f ? { ...f, nombre: e.target.value.replace(/[^0-9]/g, '') } : f))}
+                            value={objOuvert.nombre || String(auto.nombre)}
+                            onChange={(e) => setObjOuvert((f) => (f ? { ...f, nombre: e.target.value.replace(/[^0-9]/g, ''), parMois: '' } : f))}
                           />
                         </label>
                         <label className="mnd-field">
