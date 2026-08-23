@@ -445,10 +445,24 @@ export function useCaisses(month: string) {
    déroulantes des Dépenses et des transferts annonçaient tranquillement
    « Caisse Pilia · 15 000 $ » à qui ouvrait le menu. Un secret qui fuit par
    une liste n’est plus un secret. */
-export const nomEtSolde = (c: Cashbox, solde: number, ouvertes: ReadonlySet<string>): string =>
-  (soldeVisible(c, ouvertes)
+export const nomEtSolde = (
+  c: Cashbox,
+  solde: number,
+  ouvertes: ReadonlySet<string>,
+  /* HORS DE L’ÉCRAN DES CAISSES, UN TIROIR À CODE NE DIT JAMAIS SON SOLDE —
+     23 août 2026. « Leur solde ne doit être visible nulle part où il n’y a pas
+     d’autorisation. » Le code s’ouvre POUR LA SÉANCE, et cette ouverture
+     suivait la Souveraine partout : la caisse déverrouillée aux Caisses
+     annonçait son solde dans le menu des Dépenses, à qui passait derrière
+     elle. L’autorisation vaut là où elle a été donnée, pas dans toute la
+     maison. */
+  horsDesCaisses = false,
+): string => {
+  const montre = horsDesCaisses ? !caisseDiscrete(c) : soldeVisible(c, ouvertes);
+  return montre
     ? `${c.name} · ${fmtIn(solde, cashboxCurrency(c))}`
-    : `${c.name} · ••• •••`);
+    : `${c.name} · ••• •••`;
+};
 
 /* ── LE RELEVÉ D'UNE CAISSE ─────────────────────────────────────────
    Ce qu'il y a DERRIÈRE le solde : solde de départ + mouvements = solde

@@ -1508,7 +1508,7 @@ export default function Depenses() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
                   <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
-                    {nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}
+                    {nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}
                   </button>
                 ))}
                 {/* La caisse est FACULTATIVE : sans elle, la dépense se range
@@ -1865,7 +1865,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.map((c) => (
-                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}</option>
+                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}</option>
                   ))}
                 </select>
               </label>
@@ -1874,7 +1874,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => (
-                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes)}</option>
+                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}</option>
                   ))}
                 </select>
               </label>
