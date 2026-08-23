@@ -17,6 +17,7 @@
    le montrer, dans l'ordre de l'urgence. */
 
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -37,6 +38,7 @@ import {
 } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import { todayISO } from './_shared';
+import { LesObjectifs } from './objectifs';
 import './finances.css';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
@@ -75,6 +77,26 @@ export default function Prets() {
   const ouvertesIci = useCaissesOuvertes();
   const ecranVerrouille = !!reglages.codePretsHash && !ouvertesIci.has(CLE_PRETS);
   const [verrouOuvert, setVerrouOuvert] = useState(false);
+
+  /* ── DEUX REGISTRES SUR UN MÊME ÉCRAN — 23 août 2026 ──────────────
+     « Les objectifs devraient aller dans l’onglet des prêts, car il y a des
+     apports et des remboursements qui se font à ce niveau. » Un prêt et un
+     objectif sont la même figure : une cible, des mouvements dans le temps,
+     un reste à faire. L argent, lui, ne déménage pas — un objectif flèche
+     toujours ce qui dort au coffre. Seul l’endroit où on le lit a changé.
+
+     LE COFFRE Y RENVOIE par `?onglet=objectifs` : arriver sur le bon onglet
+     vaut mieux qu’arriver à côté et devoir chercher. */
+  const [params, setParams] = useSearchParams();
+  const [registre, setRegistre] = useState<'prets' | 'objectifs'>(
+    params.get('onglet') === 'objectifs' ? 'objectifs' : 'prets',
+  );
+  const choisirLeRegistre = (k: 'prets' | 'objectifs') => {
+    setRegistre(k);
+    /* Le paramètre s’efface : recharger ne doit pas ramener un onglet qu’on
+       vient de quitter. */
+    if (params.get('onglet')) { const p2 = new URLSearchParams(params); p2.delete('onglet'); setParams(p2, { replace: true }); }
+  };
 
   const [prets, setPrets] = usePrets();
   const etats = useMemo(
@@ -341,6 +363,35 @@ export default function Prets() {
         )}
       />
 
+      {/* Les deux registres — ce qu’on nous doit d’un côté, ce qu’on prépare
+          de l’autre. Deux figures proches, jamais additionnées. */}
+      <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid var(--hairline)', margin: '0 0 18px' }}>
+        {([
+          ['prets' as const, 'Les prêts', fmtMoney(dette, currency)],
+          ['objectifs' as const, 'Les objectifs', ''],
+        ] as ['prets' | 'objectifs', string, string][]).map(([k, mot, n]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => choisirLeRegistre(k)}
+            aria-current={registre === k ? 'page' : undefined}
+            style={{
+              appearance: 'none', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit',
+              padding: '10px 2px', display: 'inline-flex', alignItems: 'baseline', gap: 9,
+              fontSize: 14.5, color: registre === k ? 'var(--color-indigo)' : 'var(--ink-soft)',
+              fontWeight: registre === k ? 600 : 400,
+              borderBottom: `2px solid ${registre === k ? 'var(--color-copper)' : 'transparent'}`,
+              marginBottom: -1,
+            }}
+          >
+            {mot}
+            {n ? <span className="mnd-muted" style={{ fontSize: 12 }}>{n}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      {registre === 'objectifs' ? <LesObjectifs /> : (
+      <>
       {etats.length === 0 ? (
         <Card style={{ padding: 22 }}>
           <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
@@ -432,6 +483,8 @@ export default function Prets() {
             </Card>
           ) : liste.map(carte)}
         </>
+      )}
+      </>
       )}
 
       {verrouOuvert && (

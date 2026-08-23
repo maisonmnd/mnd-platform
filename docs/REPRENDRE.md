@@ -2,6 +2,40 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les objectifs rejoignent les prêts — 23 août, PUBLIÉ
+
+« Les objectifs devraient aller dans l'onglet des prêts, car il y a des apports
+et des remboursements qui se font à ce niveau. » Elle a raison sur le fond : un
+prêt et un objectif sont LA MÊME FIGURE — une cible, des mouvements dans le
+temps, un reste à faire. L'écran des prêts les tient désormais tous les deux,
+chacun sur son onglet. Choix de Yéman parmi trois formes proposées : un second
+onglet, plutôt qu'un écran de plus ou une liste mêlée (« l'argent qu'on vous
+doit et l'argent que vous mettez de côté se liraient dans la même colonne, et je
+crains qu'un total ne finisse par les additionner »).
+
+L'ARGENT, LUI, NE DÉMÉNAGE PAS. Un objectif flèche ce qui dort DANS LE COFFRE
+(`recuParObjectif`, `coffreNonFleche`) : le détacher séparerait un but de ce qui
+le remplit. Le modèle est intact ; seul l'endroit où on le lit a changé.
+
+LES DEUX GESTES SUIVENT. « Verser au coffre » et « Reprendre du coffre »
+n'auraient servi à rien restés au coffre : c'est en regardant un objectif qu'on
+décide de l'alimenter. Les deux modales (`DepositModal`, `TransferModal`) ont
+donc déménagé dans `finances/objectifs.tsx`, et le Coffre les IMPORTE de là —
+l'inverse aurait fait dépendre les objectifs d'un écran qu'ils ont quitté.
+
+LE COFFRE GARDE LE TIROIR : total, courbe depuis l'ouverture, mouvements,
+compartiments en devise, verrou. À la place de la liste, une carte qui dit
+combien d'objectifs flèchent cet argent-ci et ce qui reste non fléché, avec
+« Les objectifs → » qui mène à `/prets?onglet=objectifs`. Le paramètre s'efface
+au premier changement d'onglet : recharger ne doit pas ramener un onglet qu'on
+vient de quitter.
+
+AU PASSAGE, LE MASQUAGE DEMANDÉ LE MÊME JOUR : hors de l'écran des caisses, une
+caisse à code ne dit plus son solde, ouverte ou non. Le code s'ouvre POUR LA
+SÉANCE, et cette ouverture suivait la Souveraine partout — la caisse
+déverrouillée aux Caisses annonçait son solde dans les trois menus des Dépenses.
+L'autorisation vaut là où elle a été donnée, pas dans toute la maison.
+
 ## Joindre un fichier à une écriture — 23 août, PUBLIÉ
 
 « Après note, j'aimerais attacher un fichier ou une photo. » Un reçu, un
