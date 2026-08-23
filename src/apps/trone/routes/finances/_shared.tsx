@@ -16,6 +16,22 @@ export const todayISO = (): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/* ── LE JOUR D’UN MOUVEMENT — remis d'aplomb le 23 août 2026 ───────
+   « Toutes les caisses sont au 23 août. » Elles ne l’étaient pas : le relevé
+   les DATAIT toutes d’aujourd’hui. `fmtDay` y était écrit
+   `new Date().toLocaleDateString(...)` au lieu de `new Date(iso)` — il
+   ignorait la date qu’on lui passait et rendait celle du jour, pour chaque
+   ligne de chaque caisse. Faute de copie, née en extrayant `tiroirs.tsx` des
+   Dépenses le 22 août : les Dépenses et la Synthèse, elles, avaient la bonne.
+
+   ELLE VIT DÉSORMAIS ICI, une seule fois. Trois copies d’une même fonction,
+   c’est trois occasions d en casser une sans que les autres le disent.
+
+   `T00:00:00` force une lecture LOCALE : sans lui, « 2026-08-22 » se lit à
+   minuit UTC et retombe la veille dans tout fuseau négatif. */
+export const fmtDay = (iso: string): string =>
+  (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
+
 /** Clé mois `AAAA-MM` d'une date ISO. */
 export const monthKey = (iso: string): string => iso.slice(0, 7);
 

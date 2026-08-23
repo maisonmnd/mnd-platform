@@ -12,6 +12,7 @@ import {
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
 import { montantsDuTiroir } from '../src/apps/trone/routes/finances/tiroirs';
+import { fmtDay } from '../src/apps/trone/routes/finances/_shared';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
 
 let ko = 0;
@@ -222,6 +223,23 @@ dit('et le taux inscrit suit la correction', 625, Math.round(corrige.fx!.rate));
 const enFrancsSeuls = montantsDuTiroir(tiroirMaison, XOF, '18000', '');
 dit('un tiroir de la Maison n’a qu’un seul nombre', 18_000, enFrancsSeuls.xof);
 dit('… et n’inscrit aucun fx', undefined, enFrancsSeuls.fx);
+
+/* ── LA DATE D’UNE LIGNE EST LA SIENNE — 23 août 2026 ──────────────
+   « Toutes les caisses sont au 23 août. » Elles ne l’étaient pas : `fmtDay`
+   était écrit `new Date()` au lieu de `new Date(iso)` — il ignorait la date
+   qu’on lui passait et rendait celle du jour, pour chaque ligne de chaque
+   caisse. Faute de copie, née en extrayant `tiroirs.tsx` des Dépenses.
+
+   UN FORMATEUR QUI IGNORE SON ARGUMENT NE SE VOIT PAS À LA RELECTURE — il rend
+   une date plausible. Il se voit ici : deux dates différentes doivent rendre
+   deux textes différents, et une date connue doit rendre son propre jour. */
+dit('le 22 août rend bien « 22 »', true, fmtDay('2026-08-22').includes('22'));
+dit('le 5 mai rend bien « 5 »', true, fmtDay('2026-05-05').includes('5'));
+dit('… et son mois', true, fmtDay('2026-05-05').includes('mai'));
+dit('deux jours différents ne rendent pas le même texte', false,
+  fmtDay('2026-08-22') === fmtDay('2026-08-23'));
+dit('une date vide ne rend rien', '', fmtDay(''));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

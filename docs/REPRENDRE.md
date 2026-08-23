@@ -2,6 +2,34 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « Toutes les caisses sont au 23 août » — 23 août, CORRIGÉ
+
+Elles ne l'étaient pas. Le relevé les DATAIT toutes d'aujourd'hui.
+
+`fmtDay`, dans `tiroirs.tsx`, était écrit
+`new Date().toLocaleDateString(...)` au lieu de `new Date(iso)` : il IGNORAIT
+la date qu'on lui passait et rendait celle du jour, pour chaque ligne de chaque
+caisse. La même écriture disait « 22 août » sur l'écran des prêts et « 23 août »
+dans le relevé — deux vérités pour un seul fait, ce qui est toujours le signe.
+
+FAUTE DE COPIE, ET ELLE EST DE MOI : née le 22 août en extrayant `tiroirs.tsx`
+de Depenses.tsx. Les Dépenses et la Synthèse portaient chacune leur `fmtDay`,
+correcte ; la troisième copie, non. Trois copies d'une même fonction, c'est
+trois occasions d'en casser une sans que les autres le disent.
+
+`fmtDay` vit maintenant dans `_shared.tsx`, une seule fois, et Depenses la lit
+de là. (La Synthèse garde la sienne, en `2-digit`, pour l'alignement de ses
+colonnes — c'est une décision, pas une copie.)
+
+UN FORMATEUR QUI IGNORE SON ARGUMENT NE SE VOIT PAS À LA RELECTURE : il rend une
+date plausible, tous les jours. Il se voit dans `verifie-coffre`, désormais :
+le 22 août rend « 22 », le 5 mai rend « 5 mai », et surtout DEUX DATES
+DIFFÉRENTES NE RENDENT PAS LE MÊME TEXTE — c'est cette assertion-là qui aurait
+attrapé la faute.
+
+Aucune donnée n'était touchée : les dates étaient justes en base, seul
+l'affichage mentait. Rien à réparer à la main.
+
 ## Le relevé montre TOUT — 23 août, PUBLIÉ
 
 « Quand je clique une caisse, j'aimerais toujours voir tout son historique sans

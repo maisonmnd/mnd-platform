@@ -19,7 +19,7 @@ import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
-import { todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
+import { fmtDay, todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import {
   useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant,
   nettoieLeMontant, nomEtSolde, useCaissesOuvertes,
@@ -30,8 +30,7 @@ import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_
 import './finances.css';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
-const fmtDay = (iso: string): string =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+/* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
 
 /* Dépenses — maîtrise des sorties de caisse. Flux par catégorie, caisses multiples,
    engagements à arbitrer (signaler / suspendre), paiements récurrents, budgets avec

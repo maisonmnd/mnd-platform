@@ -25,7 +25,7 @@ import {
 } from '../../../../shared/finance';
 import { usePrets } from '../../../../shared/foyer';
 import { useClients, useFamilies } from '../../../../shared/clients';
-import { monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
+import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
 
 /* ── LES CAISSES OUVERTES DE LA SÉANCE — 22 août 2026 ──────────────
    Une caisse discrète se déverrouille pour la SÉANCE, jamais au-delà : ce
@@ -96,9 +96,6 @@ export function useCaissesOuvertes(): ReadonlySet<string> {
 export const soldeVisible = (c: { id: string; codeHash?: string }, ouvertes: ReadonlySet<string>): boolean =>
   !c.codeHash || ouvertes.has(c.id);
 
-/** Jour d'un mouvement, ex. « 13 juil. » — le même format qu'aux Dépenses. */
-const fmtDay = (iso: string): string =>
-  (iso ? new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
 
 /** TOUT CE QU'UNE CAISSE SAIT D'ELLE-MÊME. Une seule porte, deux écrans. */
 export function useCaisses(month: string) {
