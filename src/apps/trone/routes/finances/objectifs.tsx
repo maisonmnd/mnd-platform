@@ -35,8 +35,7 @@ import {
   caissesEnDevise, motDesCaissesEnDevise,
   etatDeLObjectif, attenduAuJour, planPourTenir, moisEntre, moisPlusISO, joursEntreISO,
   flecherVersObjectif, flechableVers, rythmeDuPlan,
-  type EtatObjectif, type CoffreMovement, type Cashbox,
-} from '../../../../shared/finance';
+  type EtatObjectif, type CoffreMovement, type Cashbox, caisseParDefaut } from '../../../../shared/finance';
 import { ClientPicker } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle } from './_shared';
 import './finances.css';
@@ -738,7 +737,7 @@ export function DepositModal({
      tiroir — une somme reçue ailleurs, portée directement à l'abri. */
   const [caisses] = useCashboxes();
   const boxes = caisses.filter((c: Cashbox) => c.branchId === branchId);
-  const [cashbox, setCashbox] = useState(boxes[0]?.name ?? '');
+  const [cashbox, setCashbox] = useState(caisseParDefaut(boxes, branchId, currency)?.name ?? '');
   const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
   const rev = clientId ? clientRevenue(clientId) : 0;
   const clientName = clients.find((c) => c.id === clientId)?.name;

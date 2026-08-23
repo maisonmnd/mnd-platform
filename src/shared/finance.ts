@@ -421,6 +421,25 @@ export type PieceJointe = { chemin: string; nom: string; type: string; taille: n
    de frappe ne doit pas fabriquer un second porteur, et le résumé de l’année
    ne doit pas se casser sur « Sandrine » contre « sandrine ». */
 /** La caisse tenue par un porteur, s’il en a une. */
+/* ── LA CAISSE QUI S’OFFRE D’ABORD — 24 août 2026 ──────────────────
+   « Je ne veux pas que ce soit la caisse Euro la première à apparaître. »
+   Le formulaire prenait la PREMIÈRE caisse venue — celle du haut de la liste,
+   c’est-à-dire la plus anciennement créée. Un tiroir en euros se proposait
+   ainsi pour payer un achat en francs : le montant s’annonçait en EUR et il
+   fallait le corriger à chaque fois.
+
+   LA MONNAIE DE LA MAISON PASSE D’ABORD. Parmi ses caisses, c’est l’ordre
+   voulu par la Souveraine qui tranche (« Ranger les caisses ») — donc elle
+   décide, sans qu’on ait à coder un nom en dur. Aucune caisse dans la monnaie
+   de la Maison ? On retombe sur la première venue : mieux vaut un tiroir en
+   devise que pas de tiroir du tout. */
+export const caisseParDefaut = (
+  boxes: readonly Cashbox[], branchId: string, maison: string,
+): Cashbox | undefined => {
+  const siennes = boxes.filter((c) => c.branchId === branchId);
+  return siennes.find((c) => cashboxCurrency(c) === maison) ?? siennes[0];
+};
+
 export const caisseDuPorteur = (
   boxes: readonly Cashbox[], branchId: string, nom: string,
 ): Cashbox | undefined => boxes.find((c) => c.branchId === branchId

@@ -2,6 +2,26 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## La caisse qui s’offre d’abord — 24 août, PUBLIÉ
+
+« Je ne veux pas que ce soit la caisse Euro la première à apparaître. Je
+voudrais que ce soit par défaut sur la caisse Real Money ou Caisse Principale. »
+
+Le formulaire prenait la PREMIÈRE caisse de la liste — la plus anciennement
+créée, le Tiroir EUR. Conséquence invisible : le montant s’annonçait en EUR, et
+il fallait corriger la caisse à chaque dépense.
+
+`caisseParDefaut(boxes, branchId, maison)` dans `src/shared/finance.ts` : la
+monnaie de la Maison passe d’abord ; parmi ses caisses, c’est l’ordre voulu qui
+tranche (« Ranger les caisses ») — donc la Souveraine décide, sans nom codé en
+dur. À défaut de caisse dans la monnaie de la Maison, la première venue : mieux
+vaut un tiroir en devise qu’un formulaire vide.
+
+Posée aux QUATRE portes qui proposaient une caisse : la dépense
+(`Depenses.tsx`), l’encaissement d’un rituel (`clients/actions.tsx`), le
+versement au coffre (`objectifs.tsx`), la caisse du comptoir (`vente/Caisse.tsx`).
+Six assertions dans `verifie-coffre`.
+
 ## La rangée d'une dépense, revue — 24 août, PUBLIÉ
 
 « Revisiter l'UI/UX de la page des dépenses saisies. Le nom des caisses est

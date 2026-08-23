@@ -10,8 +10,7 @@ import { useCategories, fondeLaCouronne, type Service } from '../../../../shared
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
-  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder,
-} from '../../../../shared/finance';
+  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } from '../../../../shared/offers';
@@ -489,7 +488,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const due = Math.max(0, net - alreadyPaid - (depositReceived ? deposit : 0));
 
   const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
-  const [cashbox, setCashbox] = useState(branchBoxes[0]?.name ?? '');
+  /* LA MONNAIE DE LA MAISON PASSE D’ABORD — 24 août 2026. Voir
+     `caisseParDefaut` : un tiroir en euros ne se propose pas pour encaisser
+     des francs. */
+  const [cashbox, setCashbox] = useState(caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '');
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */
   const [invDate, setInvDate] = useState(appt.date || todayISO());

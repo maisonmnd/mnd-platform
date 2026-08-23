@@ -10,7 +10,7 @@ import {
   flecherVersObjectif, flechableVers, rythmeDuPlan,
   jalonsDeLObjectif, etatDeLObjectif, planPourTenir, moisEntre, moisPlusISO, attenduAuJour, objectifsASurveiller,
   recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
-  empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, type Cashbox,
+  empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, caisseParDefaut, type Cashbox,
   type CoffreMovement, type ObjectifCoffre,
 } from '../src/shared/finance';
 import { montantsDuTiroir } from '../src/apps/trone/routes/finances/tiroirs';
@@ -434,6 +434,43 @@ dit('… et le dernier tombe en août 2027', '2027-08', douze.dernier.slice(0, 7
 const rien = rythmeDuPlan({ ...rythmeNu, reste: 0 });
 dit('sans reste, le montant est nul', 0, rien.montantXof);
 dit('… et le nombre reste au moins un', true, rien.nombre >= 1);
+
+
+/* ── LA CAISSE QUI S’OFFRE D’ABORD — 24 août 2026 ──────────────────
+   « Je ne veux pas que ce soit la caisse Euro la première à apparaître. » Le
+   formulaire prenait la première venue : un tiroir en euros se proposait pour
+   payer un achat en francs, et le montant s’annonçait en EUR.
+
+   LA MONNAIE DE LA MAISON PASSE D’ABORD ; ensuite, l’ordre voulu tranche. */
+const rangee: Cashbox[] = [
+  { id: 'k1', branchId: 'br', name: 'Tiroir EUR', currency: 'EUR' } as Cashbox,
+  { id: 'k2', branchId: 'br', name: 'Real Money', currency: '' } as Cashbox,
+  { id: 'k3', branchId: 'br', name: 'Caisse Principale', currency: '' } as Cashbox,
+  { id: 'k4', branchId: 'zz', name: 'Cotonou XOF', currency: '' } as Cashbox,
+];
+
+dit('le tiroir en euros ne s’offre plus le premier',
+  'Real Money', caisseParDefaut(rangee, 'br', 'XOF')?.name);
+
+/* L’ORDRE VOULU TRANCHE ENSUITE — « Ranger les caisses » décide, et non un nom
+   codé en dur : remonter la Caisse Principale suffit à la faire proposer. */
+const rangeeAutrement = [rangee[0], rangee[2], rangee[1], rangee[3]];
+dit('l’ordre voulu décide entre deux caisses de la Maison',
+  'Caisse Principale', caisseParDefaut(rangeeAutrement, 'br', 'XOF')?.name);
+
+/* UNE CAISSE D’UNE AUTRE BRANCHE NE SE PROPOSE JAMAIS. */
+dit('la caisse d’une autre branche reste chez elle',
+  'Cotonou XOF', caisseParDefaut(rangee, 'zz', 'XOF')?.name);
+
+/* SANS CAISSE DANS LA MONNAIE DE LA MAISON, mieux vaut un tiroir en devise que
+   pas de tiroir du tout — le formulaire ne doit pas s’ouvrir vide. */
+dit('à défaut, la première venue',
+  'Tiroir EUR', caisseParDefaut([rangee[0]], 'br', 'XOF')?.name);
+dit('aucune caisse ne rend rien', undefined, caisseParDefaut([], 'br', 'XOF'));
+
+/* Une maison qui tient ses comptes en euros veut, elle, le tiroir EUR. */
+dit('la monnaie de la Maison, quelle qu’elle soit',
+  'Tiroir EUR', caisseParDefaut(rangee, 'br', 'EUR')?.name);
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

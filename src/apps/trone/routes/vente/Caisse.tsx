@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
@@ -147,7 +147,7 @@ export default function Caisse() {
     if (branchCashboxes.length === 0) {
       if (cashbox) setCashbox('');
     } else if (!branchCashboxes.some((c) => c.name === cashbox)) {
-      setCashbox(branchCashboxes[0].name);
+      setCashbox(caisseParDefaut(branchCashboxes, branch.id, currency)?.name ?? branchCashboxes[0].name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branch.id, cashboxes]);
