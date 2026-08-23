@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, Handshake as PoigneeDeMain, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -66,6 +66,12 @@ export const NAV: TroneGroup[] = [
       { path: '/caisses', label: 'Les caisses', icon: Wallet, Component: lazy(() => import('./finances/Caisses')) },
       { path: '/coffre', label: 'Coffre-fort', icon: Landmark, Component: lazy(() => import('./finances/Coffre')) },
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
+      /* LES PRÊTS ONT LEUR ÉCRAN — 23 août 2026. Ils vivaient sous
+         « Comptes & Avoirs » : un avoir est de l'argent que la Maison DOIT à
+         une cliente, un prêt de l'argent qu'on lui doit, et l'emprunteur n'est
+         pas forcément une cliente. Les mêler faisait lire le titre pour savoir
+         de quel côté penchait la somme. */
+      { path: '/prets', label: 'Les prêts', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },
       { path: '/salon-foyer', label: 'Salon & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
