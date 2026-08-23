@@ -34,7 +34,7 @@ import './finances.css';
 /* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
 
 /* Dépenses — maîtrise des sorties de caisse. Flux par catégorie, caisses multiples,
-   engagements à arbitrer (signaler / suspendre), paiements récurrents, budgets avec
+   prélèvements récurrents qu'on peut arrêter sans effacer leur histoire, budgets avec
    « reste à dépenser », prévision de fin de mois. Tout est persisté et filtré par la branche.
    La période est explicite : le mois se navigue ‹ mois › et une recherche filtre les listes. */
 
@@ -992,9 +992,9 @@ export default function Depenses() {
               cartes.push({
                 k: 'economies',
                 n: kpiCard(
-                  'Économies réalisées', fmtMoney(savings, currency),
-                  'var(--trf-success)', 'var(--trf-success)', `capturées en ${monthName}`, 'good',
-                  () => openExp('Économies réalisées', `Les dépenses stoppées en ${monthName} — capturées, donc jamais sorties de la caisse.`, monthExp.filter((e) => e.stopped)),
+                  'Prélèvements arrêtés', fmtMoney(savings, currency),
+                  'var(--trf-success)', 'var(--trf-success)', `épargnés en ${monthName}`, 'good',
+                  () => openExp('Prélèvements arrêtés', `Ce qui aurait couru en ${monthName} et ne court plus — donc jamais sorti de la caisse.`, monthExp.filter((e) => e.stopped)),
                 ),
               });
             }
@@ -1166,11 +1166,27 @@ export default function Depenses() {
                     {/* « SIGNALER » A ÉTÉ RETIRÉ — 22 août 2026. Le signal ne
                         se lisait plus nulle part depuis que l'arbitrage a quitté
                         l'écran : un bouton dont l'effet est invisible ment. */}
-                    {!e.stopped ? (
-                      <button className="trf-geste" onClick={() => stop(e)}>Suspendre</button>
-                    ) : (
+                    {/* « SUSPENDRE » NE SERT PLUS QU’AUX PRÉLÈVEMENTS — 24 août
+                        2026. « Le bouton suspendre sert à quoi ? A-t-elle
+                        toujours une utilité ? » Il en gardait UNE : arrêter un
+                        abonnement mensuel sans’effacer les mois déjà payés.
+
+                        SUR UN ACHAT PONCTUEL, C’ÉTAIT UN PIÈGE. Suspendre sort
+                        la dépense de tous les totaux — le solde de la caisse
+                        REMONTE alors que les billets sont sortis. Les livres
+                        cessaient de correspondre au tiroir, sans un mot. Un
+                        achat ponctuel se corrige ou s’efface ; il ne se met pas
+                        entre parenthèses.
+
+                        Rétablir reste offert à toute dépense arrêtée, ponctuelle
+                        comprise : celles d’avant ce jour doivent pouvoir revenir. */}
+                    {e.stopped ? (
                       <button className="trf-geste trf-geste--premier" onClick={() => revive(e)}>↺ Rétablir</button>
-                    )}
+                    ) : e.recurring ? (
+                      <button className="trf-geste" onClick={() => stop(e)} title="Ce prélèvement ne courra plus les mois suivants. Les mois déjà payés restent.">
+                        Arrêter le prélèvement
+                      </button>
+                    ) : null}
                     <button className="trf-geste trf-geste--oter" onClick={() => removeExpense(e)}>Supprimer</button>
                   </div>
                 </div>

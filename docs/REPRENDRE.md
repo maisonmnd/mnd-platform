@@ -2,6 +2,27 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « Suspendre » ne sert plus qu’aux prélèvements — 24 août, PUBLIÉ
+
+« Le bouton suspendre une dépense sert à quoi ? A-t-elle toujours une utilité ? »
+
+Il venait de l’onglet « Engagements à arbitrer », retiré le 22 août : on
+signalait une dépense évitable, on la suspendait avant de la payer, l’écran
+comptait l’économie. Le bouton avait survécu à son mécanisme.
+
+IL EN GARDAIT UNE, D’UTILITÉ : arrêter un abonnement mensuel ou hebdomadaire
+sans effacer les mois déjà payés. Supprimer emporterait l’histoire avec.
+
+SUR UN ACHAT PONCTUEL, C’ÉTAIT UN PIÈGE. Suspendre sort la dépense de TOUS les
+totaux — le solde de la caisse REMONTE alors que les billets sont sortis. Les
+livres cessaient de correspondre au tiroir, sans un mot.
+
+Le geste ne s’affiche donc plus que sur une dépense récurrente, et se nomme
+« Arrêter le prélèvement ». « ↺ Rétablir » reste offert à toute dépense arrêtée,
+ponctuelle comprise — celles d’avant ce jour doivent pouvoir revenir. La carte
+« Économies réalisées » devient « Prélèvements arrêtés » : elle ne mesurait
+jamais une économie décidée, seulement ce qui ne court plus.
+
 ## La caisse qui s’offre d’abord — 24 août, PUBLIÉ
 
 « Je ne veux pas que ce soit la caisse Euro la première à apparaître. Je
