@@ -7,6 +7,7 @@ import {
   DEVISE_MAISON, houseSignature, porteLaDevise, signeLeMessage, maisonNom,
 } from '../src/shared/identite';
 import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
+import { pdfSafe, pdfSafeGardeFon } from '../src/shared/pdf';
 
 let echecs = 0;
 const dit = (ok: boolean, quoi: string) => {
@@ -76,6 +77,20 @@ for (const ch of maisonNom()) dit(ch === ' ' || glyphesPdf.has(ch.codePointAt(0)
 for (const [cp, nom] of [[0x254, 'ɔ'], [0x256, 'ɖ'], [0x25b, 'ɛ'], [0x186, 'Ɔ'], [0x189, 'Ɖ'], [0x190, 'Ɛ'], [0x301, 'accent ◌́'], [0xb7, '·']] as const) {
   dit(glyphesPdf.has(cp), `la police PDF porte « ${nom} »`);
 }
+
+/* ⑦ CE QUE LE PDF SAIT TRACER (WinAnsi). Le 24 août, un remplacement en masse
+   des tirets de prose a corrompu la liste `WINANSI_EXTRA` en remplaçant le tiret
+   cadratin « — » par une virgule : dès lors chaque « — » d'un libellé saisi
+   sortait en « ? » sur les pièces. Ce test tient la liste : les caractères
+   typographiques usuels d'un libellé DOIVENT survivre à `pdfSafe`, tandis que
+   les lettres fon se translittèrent et que la devise garde les siennes. */
+dit(pdfSafe('Hermine — Tracé') === 'Hermine — Tracé', 'le tiret cadratin — survit au PDF (pas de « ? »)');
+dit(pdfSafe('de 15 – 20') === 'de 15 – 20', 'le tiret demi-cadratin – survit au PDF');
+dit(pdfSafe('œuf, cœur, ™, •, …, « oui »') === 'œuf, cœur, ™, •, …, « oui »', 'les extras WinAnsi usuels survivent');
+dit(pdfSafe('café à Cotonou') === 'café à Cotonou', 'les accents français survivent');
+dit(pdfSafe('KLƆKLƆ™') === 'KLOKLO™', 'les lettres fon se translittèrent hors devise (pdfSafe)');
+dit(pdfSafeGardeFon('KLƆKLƆ™').includes('Ɔ'), 'pdfSafeGardeFon garde les lettres fon couvertes');
+dit(pdfSafe('a\u{1F600}b') === 'ab', 'un emoji non traçable est retiré, pas rendu en « ? »');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);

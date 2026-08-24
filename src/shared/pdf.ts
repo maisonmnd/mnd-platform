@@ -40,22 +40,25 @@ const PDF_TRANSLIT: Record<string, string> = {
   '−': '-', '‑': '-',
 };
 /* Ce que WinAnsi sait tracer : Latin-1 entier, plus ses quelques extras. */
-const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–, ˜™š›œžŸ';
+const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
 const winAnsiOk = (ch: string): boolean => ch.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(ch);
 
-function pdfSafe(s: string): string {
+export function pdfSafe(s: string): string {
   let t = s.replace(PDF_CONTROLS, ' ').normalize('NFC').replace(PDF_BAD_SPACES, ' ');
   /* Translittérer PUIS recomposer : « ɔ́ » (ɔ + accent flottant) devient
      « o + accent », que NFC referme en « ó » — un vrai glyphe WinAnsi. */
   t = t.replace(/[ƆɔƉɖƐɛŊŋƲʋ−‑]/g, (c) => PDF_TRANSLIT[c]).normalize('NFC');
   /* Dernier filet, caractère par caractère : perdre l'accent plutôt que la
-     ligne ; « ? » quand on ne sait vraiment pas — une perte qui se voit vaut
-     mieux qu'une ligne entière de charabia. */
+     ligne. Ce qui reste introuvable : « ? » SEULEMENT pour une vraie lettre ou
+     un chiffre (une perte qui se voit vaut mieux qu'un nom effacé en silence) ;
+     un symbole/emoji/caractère de formatage, lui, est retiré proprement — un
+     « ? » parasite au milieu d'un libellé ne dit rien à personne. */
   return [...t].map((ch) => {
     if (winAnsiOk(ch)) return ch;
     const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
     if (bare === '') return '';
-    return [...bare].every(winAnsiOk) ? bare : '?';
+    if ([...bare].every(winAnsiOk)) return bare;
+    return /[\p{L}\p{N}]/u.test(ch) ? '?' : '';
   }).join('');
 }
 
@@ -80,7 +83,7 @@ const FON_PDF = 'ƆɔƉɖƐɛ';
 /** Comme `pdfSafe`, mais GARDE les lettres fon couvertes, pour qu'elles
     survivent jusqu'au tracé dans leur police. Le reste est translittéré/borné
     comme d'habitude (les fon non couvertes Ŋ Ʋ et la ponctuation comprises). */
-function pdfSafeGardeFon(s: string): string {
+export function pdfSafeGardeFon(s: string): string {
   let t = s.replace(PDF_CONTROLS, ' ').normalize('NFC').replace(PDF_BAD_SPACES, ' ');
   t = t.replace(/[ŊŋƲʋ−‑]/g, (c) => PDF_TRANSLIT[c]).normalize('NFC');
   return [...t].map((ch) => {
@@ -88,7 +91,8 @@ function pdfSafeGardeFon(s: string): string {
     if (winAnsiOk(ch)) return ch;
     const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
     if (bare === '') return '';
-    return [...bare].every(winAnsiOk) ? bare : '?';
+    if ([...bare].every(winAnsiOk)) return bare;
+    return /[\p{L}\p{N}]/u.test(ch) ? '?' : '';
   }).join('');
 }
 

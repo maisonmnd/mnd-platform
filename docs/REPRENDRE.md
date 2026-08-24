@@ -34,6 +34,17 @@ chaînes, gabarits et texte JSX — jamais les commentaires ni le code. Sur la
 facture : « Momopay — 30 000 F » → « · », « Pourboire — merci » → virgule, et le
 nom du Maître passe à la ligne (voir commit 478c26a).
 
+RÉGRESSION ATTRAPÉE (même jour) : ce remplacement en masse avait corrompu la
+constante `WINANSI_EXTRA` de `pdf.ts` — le « — » y est une DONNÉE (liste des
+caractères que la police du PDF sait tracer), pas de la prose. Résultat : chaque
+tiret cadratin d'un libellé saisi (« Hermine — Tracé… », « 10 000 F — Pourboires »)
+sortait en « ? » sur les pièces PDF. Corrigé (U+2014 restauré). Garde ajoutée au
+harnais signature (§⑦) : `pdfSafe('Hermine — Tracé')` doit rendre le tiret, pas
+« ? ». `pdfSafe`/`pdfSafeGardeFon` sont désormais exportés et testés. Bonus :
+un caractère non traçable qui n'est PAS une lettre (emoji, symbole, formatage)
+est maintenant RETIRÉ proprement au lieu de sortir « ? » ; « ? » réservé aux
+vraies lettres d'un autre alphabet (pour ne pas effacer un nom en silence).
+
 CE QUI EST GARDÉ (volontairement, ~12) : les placeholders « — » (case vide dans
 tableaux/champs), les défauts de menu « — aucune — » / « — choisir une
 prestation — », les marqueurs de sous-ligne des bulletins PDF (« — ${prime} »,
