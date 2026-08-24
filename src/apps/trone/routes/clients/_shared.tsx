@@ -21,8 +21,10 @@ import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, cats
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
-import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, type ModelBand } from '../../../../shared/pricing';
+import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { sameName } from '../../../../shared/text';
+import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
@@ -162,6 +164,62 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.forfait) return Math.max(0, Math.round(a.forfait.totalXof));
   return Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
 };
+
+/** LA COMMISSION DÉTAILLÉE D'UN MAÎTRE POUR UN MOIS — une seule porte.
+
+    Extraite du tableau Personnel pour que le RUN de Paie l'utilise AUSSI
+    (décision : le moteur détaillé fait foi, pas le forfait `commissionPct`). Le
+    net de chaque rituel honoré est réparti entre ses prestations au prorata de
+    ce que chacune vaut pour cette tête ; la part d'une prestation se divise entre
+    ses mains ; le taux vient du barème par palier (ou du taux négocié du maître),
+    et zéro pour qui n'est pas commissionné. La commission produits : les factures
+    « produit » attribuées à ce maître × le taux produits. */
+export function commissionDetaillee(
+  m: StaffMember,
+  month: string,
+  args: {
+    appts: readonly Appointment[];
+    invoices: readonly Invoice[];
+    byId: Map<string, Service>;
+    team: readonly StaffMember[];
+    branchId: string;
+    rates: CommRates;
+  },
+): { presta: number; produit: number } {
+  const { appts, invoices, byId, team, branchId, rates } = args;
+  const paletteRate = (p: string) =>
+    (p === 'Fondation' ? rates.fondation : p === 'Élévation' ? rates.elevation : rates.souverainete) / 100;
+  const tauxDe = (x: StaffMember, palier: string) =>
+    x.commissionne === true
+      ? (x.commissionTauxPct !== undefined ? x.commissionTauxPct / 100 : paletteRate(palier))
+      : 0;
+  const linkedInv = new Set<string>();
+  for (const a of appts) if (a.invoiceId) linkedInv.add(a.invoiceId);
+
+  let presta = 0;
+  let produit = 0;
+  for (const a of appts) {
+    if (a.branchId !== branchId || a.status !== 'honoré') continue;
+    if (a.date.slice(0, 7) !== month || (a.seriesIndex && a.seriesIndex > 1)) continue;
+    const net = apptNetXof(a, byId);
+    const poids = a.serviceIds.map((id) => { const sv = byId.get(id); return sv ? svcPriceForAppt(a, sv) : 0; });
+    const parts = splitByWeights(net, poids);
+    a.serviceIds.forEach((id, i) => {
+      const sv = byId.get(id);
+      if (!sv) return;
+      const mains = a.mains?.[i]?.length ? a.mains[i] : team.filter((x) => sameName(x.name, a.master)).map((x) => x.id);
+      if (!mains.includes(m.id)) return;
+      presta += Math.round((parts[i] / mains.length) * tauxDe(m, sv.palier));
+    });
+  }
+  for (const i of invoices) {
+    if (i.branchId !== branchId || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
+    if (i.date.slice(0, 7) !== month || linkedInv.has(i.id)) continue;
+    if (i.lines.some((l) => l.label.startsWith('Règlement ·'))) continue;
+    produit += Math.round(invoiceTotal(i) * (rates.produits / 100));
+  }
+  return { presta, produit };
+}
 
 /* Date d'un règlement (jj/mm/aaaa OU ISO) → clé de mois « aaaa-mm », et → ISO
    « aaaa-mm-jj » pour la borne du jour. Les règlements de formation/abonnement

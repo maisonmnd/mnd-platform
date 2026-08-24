@@ -1,6 +1,8 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
-import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois } from '../src/apps/trone/routes/clients/_shared';
+import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee } from '../src/apps/trone/routes/clients/_shared';
+import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
+import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
 import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
@@ -237,5 +239,40 @@ dit('la borne du jour arrête au mois-à-date', 65_000,
   revenuDuMois(baseArgs, '2026-08', { cut: '2026-08-15' }));
 /* Un autre mois ne prend rien de celui-ci. */
 dit('un mois voisin ne compte pas', 0, revenuDuMois(baseArgs, '2026-07'));
+
+/* ═══════════════════════════════════════════════════════════════════
+   LA COMMISSION DÉTAILLÉE — UNE SEULE PORTE POUR PERSONNEL ET LE RUN — 24 août.
+
+   Décision : le moteur détaillé (prorata par prestation, mains partagées, taux
+   par palier, commission produits) fait foi, pas le forfait `commissionPct`. Le
+   tableau Personnel ET le run de Paie appellent `commissionDetaillee` — un net
+   de commission identique des deux côtés. Ces assertions la tiennent.
+   ═══════════════════════════════════════════════════════════════════ */
+const maitre = { id: 'st1', name: 'Awa T.', branchId: 'br', role: 'maitre', commissionne: true } as StaffMember;
+const ratesC: CommRates = { fondation: 10, elevation: 15, souverainete: 20, produits: 5 };
+/* A = 'a', palier Fondation, prix 10 000 (voir sv() plus haut). Rituel honoré,
+   au maître Awa T., un seul geste : net 10 000. */
+const rdvComm = { id: 'apc', branchId: 'br', clientId: 'c1', serviceIds: ['a'], date: '2026-08-05', time: '10:00', master: 'Awa T.', status: 'honoré' } as Appointment;
+const argsC = { appts: [rdvComm], invoices: [], byId, team: [maitre], branchId: 'br', rates: ratesC };
+const cd = commissionDetaillee(maitre, '2026-08', argsC);
+dit('commission prestation = net × taux du palier (10 000 × 10 %)', 1000, cd.presta);
+dit('… pas de produit sans facture produit', 0, cd.produit);
+
+/* Une facture produit attribuée au maître : total × taux produits. */
+const factProduit = { id: 'fp', branchId: 'br', kind: 'facture', number: 'F-P', clientId: 'c1', date: '2026-08-10', master: 'Awa T.', status: 'payée', lines: [ligneFacture('Huile Kòfí', 20_000)], globalDiscountPct: 0, theme: 'Aube' } as Invoice;
+const cd2 = commissionDetaillee(maitre, '2026-08', { ...argsC, invoices: [factProduit] });
+dit('commission produit = total facture × taux produits (20 000 × 5 %)', 1000, cd2.produit);
+
+/* Une prestation à DEUX mains partage la commission — chacune la moitié. */
+const rdvDeux = { ...rdvComm, id: 'apd', mains: [['st1', 'st2']] } as Appointment;
+const maitre2 = { ...maitre, id: 'st2', name: 'Bri S.' } as StaffMember;
+dit('deux mains se partagent la commission', 500,
+  commissionDetaillee(maitre, '2026-08', { ...argsC, appts: [rdvDeux], team: [maitre, maitre2] }).presta);
+
+/* Un maître NON commissionné ne touche rien, quel que soit le barème. */
+const salarie = { ...maitre, id: 'st3', name: 'Sal A.', commissionne: false } as StaffMember;
+const rdvSal = { ...rdvComm, id: 'aps', master: 'Sal A.' } as Appointment;
+dit('un non-commissionné ne touche rien', 0,
+  commissionDetaillee(salarie, '2026-08', { ...argsC, appts: [rdvSal], team: [salarie] }).presta);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

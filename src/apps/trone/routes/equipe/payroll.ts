@@ -91,6 +91,16 @@ export function normalizeParams(v: unknown): PayrollParameters[] {
   return [PAYROLL_PARAMETERS_SEED];
 }
 
+/* ── LES TAUX DE COMMISSION — barème par palier + produits ──────────
+   Partagés (déplacés depuis Personnel) : le calcul détaillé `commissionDetaillee`
+   (clients/_shared) s'en sert, et le tableau Personnel COMME le run de Paie
+   passent désormais par lui — un seul moteur de commission, une seule vérité. */
+export type CommRates = { fondation: number; elevation: number; souverainete: number; produits: number };
+export const DEFAULT_COMM: CommRates = { fondation: 0, elevation: 0, souverainete: 0, produits: 0 };
+export const commRatesStore = createStore<CommRates>('mnd_commission_rates', DEFAULT_COMM);
+bindDocument(commRatesStore, 'mnd_commission_rates');
+export const useCommRates = () => useStore(commRatesStore);
+
 /** Un barème RÉELLEMENT exploitable par le calcul : sans tranches `its` ni taux
     numérique, `computePay` casserait (`p.its` non itérable). On l'exige avant de
     retourner une version — sinon on retombe sur la graine. */

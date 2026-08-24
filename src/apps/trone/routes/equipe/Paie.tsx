@@ -5,13 +5,13 @@ import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/compon
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { expensesStore, expenseCategoriesStore, useExpenses } from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useExpenses, useInvoices } from '../../../../shared/finance';
 import { useStaff } from './data';
 import { usePrets, etatsDesEmprunteurs, type Pret } from '../../../../shared/foyer';
-import { useBranchAppointments, useServicesById, apptNetXof } from '../clients/_shared';
+import { useBranchAppointments, useServicesById, apptNetXof, commissionDetaillee } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
-  payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance,
+  payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance, useCommRates,
   parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
@@ -73,6 +73,8 @@ export function PaieRuns() {
   const [params] = usePayrollParameters();
   const appts = useBranchAppointments();
   const byId = useServicesById();
+  const [invoices] = useInvoices();
+  const [rates] = useCommRates();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -136,18 +138,17 @@ export function PaieRuns() {
       const avance = asArray(advances)
         .filter((a) => a && a.employeeId === s.id && a.period === period)
         .reduce((x, a) => x + (a.amountXof ?? 0), 0);
-      /* Commission depuis les prestations RÉELLEMENT encaissées du mois (rituels
-         honorés, au maître = nom de l'employé) × taux du dossier. Sans taux, on
-         retombe sur les montants saisis à la main. On ne somme que les RDV dont on
-         sait lire le prix (prix figé OU services), pour ne jamais casser le run. */
-      const commission = s.commissionPct != null
-        ? Math.round(
-            asArray(appts)
-              .filter((a) => a && a.status === 'honoré' && (a.date ?? '').slice(0, 7) === period && sameName(a.master, s.name)
-                && (typeof a.priceXof === 'number' || Array.isArray(a.serviceIds)))
-              .reduce((sum, a) => sum + apptNetXof(a, byId), 0) * s.commissionPct / 100,
-          )
-        : (s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0);
+      /* COMMISSION DÉTAILLÉE — la MÊME porte que le tableau Personnel
+         (`commissionDetaillee`, clients/_shared) : le net de chaque rituel réparti
+         par prestation, les mains partagées, le taux par palier, la commission
+         produits. Décision de la Maison (24 août) : le moteur DÉTAILLÉ fait foi,
+         plus le forfait `commissionPct`. Un maître non commissionné (`commissionne`
+         faux) touche 0 par ce moteur ; à défaut de commission calculée, on retombe
+         sur les montants saisis à la main (`commPrestaXof`/`commProduitXof`). */
+      const cd = commissionDetaillee(s, period, {
+        appts: asArray(appts), invoices: asArray(invoices), byId, team, branchId: branch.id, rates,
+      });
+      const commission = (cd.presta + cd.produit) || ((s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0));
       const gains: PayGains = {
         base: s.salaireXof ?? 0, heuresSup: 0, prime: s.primeXof ?? 0, pourboires: 0,
         commission, indemnites: 0,

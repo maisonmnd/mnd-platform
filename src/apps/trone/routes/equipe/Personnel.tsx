@@ -10,7 +10,7 @@ import { useServices, useCategories, sousArbreOf } from '../../../../shared/cata
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
-import { apptNetXof, svcPriceForAppt } from '../clients/_shared';
+import { apptNetXof, svcPriceForAppt, commissionDetaillee } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import {
@@ -19,8 +19,8 @@ import {
   useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
 import {
   useBaremePoints, chargeSalaire, chargeAvance, chargeAvanceId, useAdvances,
-  computePay, parametersFor, usePayrollParameters,
-  type BaremePoints, type SalaryAdvance, type PayGains, type PayDeductions, type PayResult,
+  computePay, parametersFor, usePayrollParameters, useCommRates,
+  type BaremePoints, type SalaryAdvance, type PayGains, type PayDeductions, type PayResult, type CommRates,
 } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
@@ -45,12 +45,8 @@ type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retentio
 
    Un seul registre désormais, celui que la Paie lit. */
 
-/* Taux de commission par palier (%) — pilotés par la maison, 0 au départ. */
-type CommRates = { fondation: number; elevation: number; souverainete: number; produits: number };
-const DEFAULT_COMM: CommRates = { fondation: 0, elevation: 0, souverainete: 0, produits: 0 };
-const commRatesStore = createStore<CommRates>('mnd_commission_rates', DEFAULT_COMM);
-bindDocument(commRatesStore, 'mnd_commission_rates');
-const useCommRates = () => useStore(commRatesStore);
+/* Taux de commission par palier : `CommRates`, `commRatesStore` et `useCommRates`
+   vivent désormais dans `./payroll` (partagés avec le run de Paie). */
 
 /* Ajustements manuels des commissions par mois + maître : `${AAAA-MM}:${staffId}`. */
 type PaieOverride = { commPresta?: number; commProduit?: number };
@@ -403,45 +399,10 @@ export default function Personnel() {
      masquerait qu'il manque une demi-unité pour franchir le seuil. */
   const fmtCompte = (n: number) => (Math.round(n * 10) / 10).toLocaleString('fr-FR');
 
-  const computeComm = (m: StaffMember, month: string) => {
-    let presta = 0;
-    let produit = 0;
-    for (const a of appts) {
-      if (a.branchId !== branch.id || a.status !== 'honoré') continue;
-      if (a.date.slice(0, 7) !== month || (a.seriesIndex && a.seriesIndex > 1)) continue;
-      /* CE QUI A ETE FACTURE, PAS CE QU'ANNONCE LE CATALOGUE. La commission se
-         calculait sur `priceXof` du catalogue : un resserrage au lock etait
-         commissionne sur son prix d'affichage, un rituel a prix fige au tarif
-         d'aujourd'hui, et une prestation a la longueur sur son prix de repli.
-         On repartit desormais le NET du rituel entre ses prestations, au
-         prorata de ce que chacune vaut reellement pour cette tete. */
-      const net = apptNetXof(a, byId);
-      const poids = a.serviceIds.map((id) => {
-        const sv = byId.get(id);
-        return sv ? svcPriceForAppt(a, sv) : 0;
-      });
-      const parts = splitByWeights(net, poids);
-      a.serviceIds.forEach((id, i) => {
-        const sv = byId.get(id);
-        if (!sv) return;
-        /* LES MAINS DE CETTE PRESTATION — a defaut, le maitre assigne. */
-        const mains = a.mains?.[i]?.length
-          ? a.mains[i]
-          : team.filter((x) => sameName(x.name, a.master)).map((x) => x.id);
-        if (!mains.includes(m.id)) return;
-        /* A parts egales entre les mains : deux personnes sur une reprise se
-           partagent sa commission, elles ne la touchent pas chacune en entier. */
-        presta += Math.round((parts[i] / mains.length) * tauxDe(m, sv.palier));
-      });
-    }
-    for (const i of invoices) {
-      if (i.branchId !== branch.id || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
-      if (i.date.slice(0, 7) !== month || linkedInv.has(i.id)) continue;
-      if (i.lines.some((l) => l.label.startsWith('Règlement ·'))) continue;
-      produit += Math.round(invoiceTotal(i) * (rates.produits / 100));
-    }
-    return { presta, produit };
-  };
+  /* LA COMMISSION DÉTAILLÉE — désormais dans `commissionDetaillee`
+     (clients/_shared), la MÊME porte que le run de Paie. */
+  const computeComm = (m: StaffMember, month: string) =>
+    commissionDetaillee(m, month, { appts, invoices, byId, team, branchId: branch.id, rates });
 
   /* Primes typées d'un maître pour un mois. */
   const primesForMonth = (id: string, month: string) => (primes[id] ?? []).filter((p) => p.date.slice(0, 7) === month);
