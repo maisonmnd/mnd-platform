@@ -81,10 +81,21 @@ TRANCHÉ LE 24 AOÛT :
   est de l'HISTOIRE PUBLIQUE INEFFAÇABLE — mêmes initiales que le code, jamais un
   nom complet. Voir [[commit-messages-are-public]].
 
+FAIT DEPUIS (sur `main`, PAS ENCORE REPUBLIÉ sur les sites — refaire push +
+publie.mjs pour que ça passe en ligne) :
+- **CA du mois unifié** (`revenuDuMois`, clients/_shared) : Synthèse, Dashboard,
+  Analytics et Bilan comptent tous la même chose (abonnements COMPRIS) ; le Bilan
+  seul écarte les caisses hors bilan (`exclureHorsBilan`). Assertion neuve.
+- **Net de paie unifié côté Personnel** (`paieDuMois` → `computePay`) : une seule
+  formule pour tableau + confirmation + resync + bulletins, cotisations comprises
+  et overrides respectés. Personnel non déclaré : net inchangé, pas de ligne
+  CNSS/ITS. Corrige le bug affiché≠enregistré.
+
 RESTE UNE DÉCISION DE TA PART (rien fait) :
-- **Décisions de calcul** : la Synthèse exclut-elle les caisses hors-bilan ? Le
-  net de Personnel intègre-t-il CNSS/ITS ? (bloquent l'unification `revenuDuMois`
-  et de la paie).
+- **Moteur de commission de la paie** : le run calcule la commission au forfait
+  (`commissionPct`), Personnel au détail (`computeComm` — prorata/paliers/
+  produits). Le net Personnel ≠ net run tant que ce n'est pas tranché (ça change
+  ce que les gens touchent). À décider : lequel fait foi.
 - **jspdf 4.x** (migration cassante) et confirmer que les 10 fiches-démo de
   `clients.ts` (commit 2de1ba3) étaient bien fictives.
 
