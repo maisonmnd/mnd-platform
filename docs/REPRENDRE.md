@@ -39,17 +39,35 @@ neuves), `build`, `build-sites`, grep du bundle servi (nom d'apprenante disparu,
 aucun secret réel). Reste : décider les points ci-dessous, PUIS `push` +
 `publie.mjs`.
 
-CE QUI ATTEND UNE DÉCISION (rien fait) — voir le rapport d'audit :
-- **CRITIQUE — escalade de privilège** : la policy `staff_self_write`
-  (`0003_auth.sql`:86 / `apply_auth.sql`:86) laisse tout compte authentifié
-  s'INSÉRER dans `staff` en rôle `souverain`. Correctif = migration à écrire et à
-  appliquer en prod (changement de policy).
-- **RLS de production** : `dev_all` (anon tout ouvert) est le point de départ ; le
-  durcissement doit être vérifié en base (`select … from pg_policies`).
-- **Purge d'historique git** : des noms de clientes restent dans les messages de
-  commit (984b47d, f2a6233) — reécriture + push force à décider.
-- **jspdf 2.5.2** deux majeures de retard (migration 4.x cassante), et confirmer
-  que les 10 fiches-démo de `clients.ts` (commit 2de1ba3) étaient bien fictives.
+PRÉPARÉ, EN ATTENTE DE TON GESTE (écrit dans le code, RIEN appliqué ni déployé) :
+- **CRITIQUE — escalade de privilège `staff_self_write`** : migration
+  `supabase/migrations/0073_fermer_staff_self_write.sql` écrite (écriture directe
+  de `staff` réservée au souverain + déclencheur filet), et `apply_auth.sql`
+  patché pour les installations neuves. **À APPLIQUER une fois en prod** (SQL
+  Editor). Le flux légitime (RPC SECURITY DEFINER) n'est pas touché.
+- **kkiapay-verify ET kkiapay-webhook** durcis : le montant attendu se lit
+  désormais sur la fiche (`depositXof`), plus depuis le corps de requête du
+  client. **À REDÉPLOYER** (`supabase functions deploy …`) — ton geste.
+- **Onglet Objectifs** : les agrégats du coffre (fléché, non-fléché, solde de la
+  modale de virement) se masquent tant que `CLE_COFFRE` n'est pas ouverte.
+- **`npm audit fix`** non cassant appliqué : 6 → 2 vulnérabilités (react-router
+  7.18.2, nanoid, postcss). Les 2 restantes = jspdf→dompurify (cassant).
+
+RESTE UNE DÉCISION DE TA PART (rien fait) :
+- **Vérifier l'état RLS en prod** : `dev_all` (anon tout ouvert) est le point de
+  départ ; confirmer en base qu'`apply_rls_prod.sql` a bien remplacé partout
+  (`select tablename from pg_policies where schemaname='public'` — aucun `dev_all`).
+- **Isolation par branche** : `can_see_branch()` n'est câblée sur aucune policy
+  active — acter que la garde est `is_staff()` global, ou la brancher.
+- **Écriture cliente de ses RDV/factures** sans validation serveur du contenu
+  (statut, depositConfirmed) — à faire transiter par des RPC SECURITY DEFINER.
+- **Purge d'historique git** : noms de clientes dans les messages des commits
+  984b47d et f2a6233 (réécriture + push force).
+- **Décisions de calcul** : la Synthèse exclut-elle les caisses hors-bilan ? Le
+  net de Personnel intègre-t-il CNSS/ITS ? (bloquent l'unification `revenuDuMois`
+  et de la paie).
+- **jspdf 4.x** (migration cassante) et confirmer que les 10 fiches-démo de
+  `clients.ts` (commit 2de1ba3) étaient bien fictives.
 
 ## « Suspendre » ne sert plus qu’aux prélèvements — 24 août, PUBLIÉ
 

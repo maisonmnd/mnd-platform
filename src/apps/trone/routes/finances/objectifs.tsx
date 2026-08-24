@@ -38,6 +38,8 @@ import {
   type EtatObjectif, type CoffreMovement, type Cashbox, caisseParDefaut } from '../../../../shared/finance';
 import { ClientPicker } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle } from './_shared';
+import { useSettings } from '../../../../shared/settings';
+import { useCaissesOuvertes, coffreOuvert } from './tiroirs';
 import './finances.css';
 
 /** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
@@ -64,8 +66,8 @@ type FormeObjectif = {
   /** Comment y arriver : un rythme régulier, ou rien. */
   rythme: 'plan' | 'sans';
   premier: string; nombre: string; parMois: string;
-};
-
+};
+
 /* ── LA CARTE D'UN OBJECTIF — 23 août 2026 ──────────────────────────
    Maquette validée. Elle dit trois choses dans cet ordre : où on en est, ce
    que le plan attendait, et CE QU'IL FAUT FAIRE. La troisième est la seule
@@ -251,8 +253,8 @@ function CarteObjectif({
       )}
     </Card>
   );
-}
-
+}
+
 export function LesObjectifs() {
   const { branch, currency } = useBranch();
   const [tousMoves] = useCoffre();
@@ -264,6 +266,19 @@ export function LesObjectifs() {
   const moves = tousMoves.filter((m) => m.branchId === branch.id);
   const vivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
   const balance = coffreBalance(moves);
+
+  /* LE VERROU DU COFFRE VAUT AUSSI ICI — 24 août 2026 (audit). Cet onglet vit
+     derrière le code des Prêts (CLE_PRETS), un code DIFFÉRENT de celui du Coffre :
+     fléché + non-fléché redonnent le solde du coffre, qui se lisait donc sous le
+     seul code des Prêts. Les agrégats du coffre (les deux tuiles du bandeau et le
+     « Solde disponible » de la modale de virement) se taisent tant que CLE_COFFRE
+     n'est pas ouverte dans la séance. Le détail par objectif reste visible : il
+     dit une répartition, pas le total en un chiffre (même limite assumée que les
+     mouvements d'un tiroir à code). */
+  const [reglages] = useSettings();
+  const seanceOuverte = useCaissesOuvertes();
+  const coffreSeMontre = coffreOuvert(reglages.codeCoffreHash, seanceOuverte);
+  const masqueCoffre = (montant: number) => (coffreSeMontre ? fmtMoney(montant, currency) : '••• •••');
 
   /* L'ORDRE DE LECTURE EST L'ORDRE DE L'URGENCE, comme pour les prêts : le
      retard d'abord, puis le jalon le plus proche, puis ce qui manque. */
@@ -431,12 +446,12 @@ export function LesObjectifs() {
           <div className="trf-pret-bandeau">
             <div className="trf-pret-stat">
               <div className="trf-pret-stat__l">Mis de côté · fléché</div>
-              <div className="trf-pret-stat__v trf-pret-stat__v--vert">{fmtMoney(flechee, currency)}</div>
+              <div className="trf-pret-stat__v trf-pret-stat__v--vert">{masqueCoffre(flechee)}</div>
               <div className="trf-pret-stat__s">{vise > 0 ? `sur ${fmtMoney(vise, currency)} visés` : 'aucune cible posée'}</div>
             </div>
             <div className="trf-pret-stat">
               <div className="trf-pret-stat__l">Non fléché · disponible</div>
-              <div className="trf-pret-stat__v">{fmtMoney(coffreNonFleche(moves), currency)}</div>
+              <div className="trf-pret-stat__v">{masqueCoffre(coffreNonFleche(moves))}</div>
               <div className="trf-pret-stat__s">au coffre, libre d’emploi</div>
             </div>
             <div className="trf-pret-stat">
@@ -701,6 +716,7 @@ export function LesObjectifs() {
           onClose={() => setRepriseOuverte(false)}
           currency={currency}
           balance={balance}
+          coffreVisible={coffreSeMontre}
           lastBank={moves.find((m) => m.kind === 'virement' && m.bank)?.bank ?? ''}
           onSave={(mv: CoffreMovement) => { coffreStore.set((prev) => [...prev, mv]); setRepriseOuverte(false); }}
           branchId={branch.id}
@@ -708,9 +724,9 @@ export function LesObjectifs() {
       )}
     </>
   );
-}
-
-/* ---------- Verser au coffre — dépôt, souvent adossé au revenu d'une cliente ---------- */
+}
+
+/* ---------- Verser au coffre — dépôt, souvent adossé au revenu d'une cliente ---------- */
 export function DepositModal({
   onClose, currency, clients, clientRevenue, onSave, branchId, objectifVise, montantSuggere,
 }: {
@@ -728,211 +744,215 @@ export function DepositModal({
 }) {
   const [clientId, setClientId] = useState('');
   const [amount, setAmount] = useState(montantSuggere ? String(montantSuggere) : '');
-  const [date, setDate] = useState(todayISO());
-  const [note, setNote] = useState('');
-  /* D'OÙ SORT L'ARGENT — 17 août 2026, « le coffre comme caisse ». Un dépôt
-     DÉBITE la caisse nommée : sans elle, les mêmes francs vivraient dans le
-     tiroir et dans le coffre, et la trésorerie les compterait deux fois.
-     « Hors caisse » reste possible pour une mise de côté qui ne sort d'aucun
-     tiroir — une somme reçue ailleurs, portée directement à l'abri. */
-  const [caisses] = useCashboxes();
-  const boxes = caisses.filter((c: Cashbox) => c.branchId === branchId);
-  const [cashbox, setCashbox] = useState(caisseParDefaut(boxes, branchId, currency)?.name ?? '');
-  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
-  const rev = clientId ? clientRevenue(clientId) : 0;
-  const clientName = clients.find((c) => c.id === clientId)?.name;
-
-  /* VERS QUEL OBJECTIF — 22 août 2026. Facultatif, et son absence est un état
-     normal : cet argent-là reste disponible, il n'est pas égaré. */
-  const [objectifs] = useObjectifs();
-  const objectifsVivants = objectifs.filter((o) => o.branchId === branchId && !o.clos);
-  const [objectifId, setObjectifId] = useState(objectifVise ?? '');
-  /* SI LE COMPARTIMENT TIENT UNE AUTRE DEVISE, on saisit les billets réels et
-     leur taux : le franc reste la base comptable, mais le compartiment doit
-     pouvoir dire « 200 € », pas leur contre-valeur d'un jour. */
-  const objChoisi = objectifsVivants.find((o) => o.id === objectifId);
-  const deviseChoisie = objChoisi ? deviseDuCompartiment(objChoisi, currency) : currency;
-  const enDevise = deviseChoisie !== currency;
-  const [fxMontant, setFxMontant] = useState('');
-  const [fxTaux, setFxTaux] = useState('');
-  const fxMontantNum = parseFloat(fxMontant.replace(',', '.')) || 0;
-  const fxTauxNum = parseFloat(fxTaux.replace(',', '.')) || 0;
-
-  const save = () => {
-    const xof = enDevise ? Math.round(fxMontantNum * fxTauxNum) : amountNum;
-    if (xof <= 0) return;
-    onSave({
-      id: uid(), branchId, kind: 'depot', amountXof: xof, date: date || todayISO(),
-      clientId: clientId || undefined, clientName: clientName || undefined,
-      cashbox: cashbox || undefined,
-      objectifId: objectifId || undefined,
-      ...(enDevise ? { fx: { code: deviseChoisie, rate: fxTauxNum, amount: fxMontantNum } } : {}),
-      note: note.trim() || undefined,
-    });
-  };
-
-  return (
-    <Modal title="Verser au coffre-fort." onClose={onClose} width={500}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="De quelle caisse sort cet argent ?">
-          <Select value={cashbox} onChange={(e) => setCashbox(e.target.value)}>
-            {boxes.map((c: Cashbox) => (
-              <option key={c.name} value={c.name}>{c.name}</option>
-            ))}
-            <option value="">Hors caisse — reçu ailleurs, porté directement à l'abri</option>
-          </Select>
-          <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-            La caisse choisie baisse d'autant : l'argent se déplace, il ne se duplique pas.
-          </div>
-        </Field>
-        {objectifsVivants.length > 0 && (
-          <Field label="Pour quel objectif · facultatif">
-            <Select value={objectifId} onChange={(e) => setObjectifId(e.target.value)}>
-              <option value="">Sans objectif — argent disponible</option>
-              {objectifsVivants.map((o) => (
-                <option key={o.id} value={o.id}>{o.nom}</option>
-              ))}
-            </Select>
-            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-              Le fléchage est une lecture, jamais une serrure : cet argent reste disponible,
-              et un virement pourra toujours partir.
-            </div>
-          </Field>
-        )}
-        {enDevise && (
-          <>
-            <Field label={`Billets déposés · ${deviseChoisie}`}>
-              <Input
-                inputMode="decimal"
-                value={fxMontant}
-                placeholder="0"
-                onChange={(e) => setFxMontant(e.target.value.replace(/[^0-9.,]/g, ''))}
-                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
-              />
-            </Field>
-            <Field label={`Taux du jour · 1 ${deviseChoisie} = ? ${currency}`}>
-              <Input
-                inputMode="decimal"
-                value={fxTaux}
-                placeholder="0"
-                onChange={(e) => setFxTaux(e.target.value.replace(/[^0-9.,]/g, ''))}
-              />
-              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
-                {fxMontantNum > 0 && fxTauxNum > 0
-                  ? `Soit ${fmtMoney(Math.round(fxMontantNum * fxTauxNum), currency)} — la base comptable de la Maison. Le compartiment, lui, comptera ${fxMontant} ${deviseChoisie}.`
-                  : 'Le taux fige la contre-valeur du jour ; le compartiment, lui, garde ses billets.'}
-              </div>
-            </Field>
-          </>
-        )}
-        <Field label="Adosser à une cliente · facultatif">
-          <ClientPicker value={clientId} onChange={setClientId} placeholder="Choisir la cliente dont on met de côté le revenu…" />
-        </Field>
-
-        {clientId && (
-          <div className="trf-coffre-suggest">
-            <div className="trf-coffre-suggest__rev">
-              Chiffre réalisé de {clientName?.split(' ')[0]} : <b>{fmtMoney(rev, currency)}</b>
-            </div>
-            <div className="trf-coffre-suggest__chips">
-              {[10, 20, 50, 100].map((pct) => (
-                <button
-                  key={pct}
-                  type="button"
-                  className="tre-chip"
-                  disabled={rev <= 0}
-                  onClick={() => setAmount(String(Math.round((rev * pct) / 100)))}
-                >
-                  {pct}%{rev > 0 ? ` · ${fmtMoney(Math.round((rev * pct) / 100), currency)}` : ''}
-                </button>
-              ))}
-            </div>
-            <div className="mnd-muted" style={{ fontSize: 10.5 }}>
-              Le versement met de côté cette somme — le chiffre d’affaires déjà réalisé reste inchangé.
-            </div>
-          </div>
-        )}
-
-        {/* En devise, le montant vient des billets et du taux — le saisir une
-            seconde fois en francs ouvrirait deux vérités pour un seul dépôt. */}
-        {!enDevise && (
-          <Field label={`Montant à verser (${currency})`}>
-            <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
-          </Field>
-        )}
-        <Field label="Date du versement">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="Note · facultatif">
-          <Textarea rows={2} value={note} placeholder="Ex. épargne du mois, mise de côté prudente…" onChange={(e) => setNote(e.target.value)} />
-        </Field>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={amountNum <= 0}>
-            Verser {amountNum > 0 ? fmtMoney(amountNum, currency) : ''} au coffre
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* ---------- Virement vers la banque — la SEULE sortie autorisée ---------- */
-export function TransferModal({
-  onClose, currency, balance, lastBank, onSave, branchId,
-}: {
-  onClose: () => void;
-  currency: string;
-  balance: number;
-  lastBank: string;
-  onSave: (m: CoffreMovement) => void;
-  branchId: string;
-}) {
-  const [amount, setAmount] = useState(String(balance));
-  const [bank, setBank] = useState(lastBank);
-  const [date, setDate] = useState(todayISO());
-  const [note, setNote] = useState('');
-  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
-  const tooMuch = amountNum > balance;
-  const canSave = amountNum > 0 && !tooMuch && bank.trim() !== '';
-
-  const save = () => {
-    if (!canSave) return;
-    onSave({
-      id: uid(), branchId, kind: 'virement', amountXof: amountNum, date: date || todayISO(),
-      bank: bank.trim(), note: note.trim() || undefined,
-    });
-  };
-
-  return (
-    <Modal title="Virement vers la banque." onClose={onClose} width={480}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div className="trf-coffre-suggest" style={{ background: 'var(--surface-card)' }}>
-          <div className="mnd-muted" style={{ fontSize: 12 }}>
-            Solde disponible : <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(balance, currency)}</b>. C’est la seule sortie du coffre — l’argent va vers la banque, jamais vers une dépense.
-          </div>
-        </div>
-        <Field label="Banque / compte destinataire">
-          <Input value={bank} placeholder="Ex. Ecobank · MND Épargne" onChange={(e) => setBank(e.target.value)} />
-        </Field>
-        <Field label={`Montant du virement (${currency})`}>
-          <Input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
-          {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le virement dépasse le solde du coffre.</div>}
-        </Field>
-        <Field label="Date du virement">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="Référence · facultatif">
-          <Textarea rows={2} value={note} placeholder="Ex. n° de bordereau, motif…" onChange={(e) => setNote(e.target.value)} />
-        </Field>
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button variant="indigo" style={{ flex: 1 }} onClick={save} disabled={!canSave}>
-            Virer {amountNum > 0 && !tooMuch ? fmtMoney(amountNum, currency) : ''} vers la banque
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+  const [date, setDate] = useState(todayISO());
+  const [note, setNote] = useState('');
+  /* D'OÙ SORT L'ARGENT — 17 août 2026, « le coffre comme caisse ». Un dépôt
+     DÉBITE la caisse nommée : sans elle, les mêmes francs vivraient dans le
+     tiroir et dans le coffre, et la trésorerie les compterait deux fois.
+     « Hors caisse » reste possible pour une mise de côté qui ne sort d'aucun
+     tiroir — une somme reçue ailleurs, portée directement à l'abri. */
+  const [caisses] = useCashboxes();
+  const boxes = caisses.filter((c: Cashbox) => c.branchId === branchId);
+  const [cashbox, setCashbox] = useState(caisseParDefaut(boxes, branchId, currency)?.name ?? '');
+  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
+  const rev = clientId ? clientRevenue(clientId) : 0;
+  const clientName = clients.find((c) => c.id === clientId)?.name;
+
+  /* VERS QUEL OBJECTIF — 22 août 2026. Facultatif, et son absence est un état
+     normal : cet argent-là reste disponible, il n'est pas égaré. */
+  const [objectifs] = useObjectifs();
+  const objectifsVivants = objectifs.filter((o) => o.branchId === branchId && !o.clos);
+  const [objectifId, setObjectifId] = useState(objectifVise ?? '');
+  /* SI LE COMPARTIMENT TIENT UNE AUTRE DEVISE, on saisit les billets réels et
+     leur taux : le franc reste la base comptable, mais le compartiment doit
+     pouvoir dire « 200 € », pas leur contre-valeur d'un jour. */
+  const objChoisi = objectifsVivants.find((o) => o.id === objectifId);
+  const deviseChoisie = objChoisi ? deviseDuCompartiment(objChoisi, currency) : currency;
+  const enDevise = deviseChoisie !== currency;
+  const [fxMontant, setFxMontant] = useState('');
+  const [fxTaux, setFxTaux] = useState('');
+  const fxMontantNum = parseFloat(fxMontant.replace(',', '.')) || 0;
+  const fxTauxNum = parseFloat(fxTaux.replace(',', '.')) || 0;
+
+  const save = () => {
+    const xof = enDevise ? Math.round(fxMontantNum * fxTauxNum) : amountNum;
+    if (xof <= 0) return;
+    onSave({
+      id: uid(), branchId, kind: 'depot', amountXof: xof, date: date || todayISO(),
+      clientId: clientId || undefined, clientName: clientName || undefined,
+      cashbox: cashbox || undefined,
+      objectifId: objectifId || undefined,
+      ...(enDevise ? { fx: { code: deviseChoisie, rate: fxTauxNum, amount: fxMontantNum } } : {}),
+      note: note.trim() || undefined,
+    });
+  };
+
+  return (
+    <Modal title="Verser au coffre-fort." onClose={onClose} width={500}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Field label="De quelle caisse sort cet argent ?">
+          <Select value={cashbox} onChange={(e) => setCashbox(e.target.value)}>
+            {boxes.map((c: Cashbox) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+            <option value="">Hors caisse — reçu ailleurs, porté directement à l'abri</option>
+          </Select>
+          <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+            La caisse choisie baisse d'autant : l'argent se déplace, il ne se duplique pas.
+          </div>
+        </Field>
+        {objectifsVivants.length > 0 && (
+          <Field label="Pour quel objectif · facultatif">
+            <Select value={objectifId} onChange={(e) => setObjectifId(e.target.value)}>
+              <option value="">Sans objectif — argent disponible</option>
+              {objectifsVivants.map((o) => (
+                <option key={o.id} value={o.id}>{o.nom}</option>
+              ))}
+            </Select>
+            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+              Le fléchage est une lecture, jamais une serrure : cet argent reste disponible,
+              et un virement pourra toujours partir.
+            </div>
+          </Field>
+        )}
+        {enDevise && (
+          <>
+            <Field label={`Billets déposés · ${deviseChoisie}`}>
+              <Input
+                inputMode="decimal"
+                value={fxMontant}
+                placeholder="0"
+                onChange={(e) => setFxMontant(e.target.value.replace(/[^0-9.,]/g, ''))}
+                style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
+              />
+            </Field>
+            <Field label={`Taux du jour · 1 ${deviseChoisie} = ? ${currency}`}>
+              <Input
+                inputMode="decimal"
+                value={fxTaux}
+                placeholder="0"
+                onChange={(e) => setFxTaux(e.target.value.replace(/[^0-9.,]/g, ''))}
+              />
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
+                {fxMontantNum > 0 && fxTauxNum > 0
+                  ? `Soit ${fmtMoney(Math.round(fxMontantNum * fxTauxNum), currency)} — la base comptable de la Maison. Le compartiment, lui, comptera ${fxMontant} ${deviseChoisie}.`
+                  : 'Le taux fige la contre-valeur du jour ; le compartiment, lui, garde ses billets.'}
+              </div>
+            </Field>
+          </>
+        )}
+        <Field label="Adosser à une cliente · facultatif">
+          <ClientPicker value={clientId} onChange={setClientId} placeholder="Choisir la cliente dont on met de côté le revenu…" />
+        </Field>
+
+        {clientId && (
+          <div className="trf-coffre-suggest">
+            <div className="trf-coffre-suggest__rev">
+              Chiffre réalisé de {clientName?.split(' ')[0]} : <b>{fmtMoney(rev, currency)}</b>
+            </div>
+            <div className="trf-coffre-suggest__chips">
+              {[10, 20, 50, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  className="tre-chip"
+                  disabled={rev <= 0}
+                  onClick={() => setAmount(String(Math.round((rev * pct) / 100)))}
+                >
+                  {pct}%{rev > 0 ? ` · ${fmtMoney(Math.round((rev * pct) / 100), currency)}` : ''}
+                </button>
+              ))}
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 10.5 }}>
+              Le versement met de côté cette somme — le chiffre d’affaires déjà réalisé reste inchangé.
+            </div>
+          </div>
+        )}
+
+        {/* En devise, le montant vient des billets et du taux — le saisir une
+            seconde fois en francs ouvrirait deux vérités pour un seul dépôt. */}
+        {!enDevise && (
+          <Field label={`Montant à verser (${currency})`}>
+            <Input inputMode="numeric" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+          </Field>
+        )}
+        <Field label="Date du versement">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Note · facultatif">
+          <Textarea rows={2} value={note} placeholder="Ex. épargne du mois, mise de côté prudente…" onChange={(e) => setNote(e.target.value)} />
+        </Field>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={amountNum <= 0}>
+            Verser {amountNum > 0 ? fmtMoney(amountNum, currency) : ''} au coffre
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Virement vers la banque — la SEULE sortie autorisée ---------- */
+export function TransferModal({
+  onClose, currency, balance, lastBank, onSave, branchId, coffreVisible = true,
+}: {
+  onClose: () => void;
+  currency: string;
+  balance: number;
+  lastBank: string;
+  onSave: (m: CoffreMovement) => void;
+  branchId: string;
+  /* Le solde du coffre reste masqué si CLE_COFFRE n'est pas ouverte (l'onglet
+     Objectifs vit derrière un autre code) : on ne l'affiche pas et on ne
+     pré-remplit pas le champ avec, mais le plafond `tooMuch` tient quand même. */
+  coffreVisible?: boolean;
+}) {
+  const [amount, setAmount] = useState(coffreVisible ? String(balance) : '');
+  const [bank, setBank] = useState(lastBank);
+  const [date, setDate] = useState(todayISO());
+  const [note, setNote] = useState('');
+  const amountNum = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 0;
+  const tooMuch = amountNum > balance;
+  const canSave = amountNum > 0 && !tooMuch && bank.trim() !== '';
+
+  const save = () => {
+    if (!canSave) return;
+    onSave({
+      id: uid(), branchId, kind: 'virement', amountXof: amountNum, date: date || todayISO(),
+      bank: bank.trim(), note: note.trim() || undefined,
+    });
+  };
+
+  return (
+    <Modal title="Virement vers la banque." onClose={onClose} width={480}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="trf-coffre-suggest" style={{ background: 'var(--surface-card)' }}>
+          <div className="mnd-muted" style={{ fontSize: 12 }}>
+            Solde disponible : <b style={{ color: 'var(--color-indigo)' }}>{coffreVisible ? fmtMoney(balance, currency) : '••• •••'}</b>. C’est la seule sortie du coffre — l’argent va vers la banque, jamais vers une dépense.
+          </div>
+        </div>
+        <Field label="Banque / compte destinataire">
+          <Input value={bank} placeholder="Ex. Ecobank · MND Épargne" onChange={(e) => setBank(e.target.value)} />
+        </Field>
+        <Field label={`Montant du virement (${currency})`}>
+          <Input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+          {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le virement dépasse le solde du coffre.</div>}
+        </Field>
+        <Field label="Date du virement">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Référence · facultatif">
+          <Textarea rows={2} value={note} placeholder="Ex. n° de bordereau, motif…" onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="indigo" style={{ flex: 1 }} onClick={save} disabled={!canSave}>
+            Virer {amountNum > 0 && !tooMuch ? fmtMoney(amountNum, currency) : ''} vers la banque
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

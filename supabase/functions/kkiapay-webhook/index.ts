@@ -146,6 +146,23 @@ Deno.serve(async (req) => {
       branchId = String(appt?.branch_id ?? '');
     }
 
+    // LE MONTANT ATTENDU VIENT DU SERVEUR — 24 août 2026 (audit), jumeau du
+    // contrôle de kkiapay-verify. On lit l'acompte DEMANDÉ sur la fiche
+    // (`depositXof`, posé à la réservation, avant tout paiement). Un paiement réel
+    // INFÉRIEUR (100 F pour un acompte de 25 000 F) ne confirme pas l'acompte :
+    // on accuse réception (200, KkiaPay cesse de retenter) sans rien créditer —
+    // le comptoir rapprochera via le tableau KkiaPay.
+    const paid = Math.round(Number(tx.amount ?? 0));
+    if (partnerId) {
+      const { data: apptDue } = await admin
+        .from('appointments').select('data').eq('id', partnerId).maybeSingle();
+      const expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+      if (expected > 0 && paid + 1 < expected) {
+        console.log(`kkiapay-webhook: ${transactionId} sous-payé (${paid} < ${expected}) — non confirmé`);
+        return new Response('ok', { status: 200 });
+      }
+    }
+
     await applyPayment(admin, { transactionId, tx, partnerId, branchId, clientId: state?.clientId });
     return new Response('ok', { status: 200 });
   } catch (e) {

@@ -82,16 +82,39 @@ drop policy if exists staff_self_read on public.staff;
 create policy staff_self_read on public.staff for select to authenticated
   using (user_id = auth.uid() or public.is_souverain());
 
+-- ÉCRITURE DIRECTE RÉSERVÉE AU SOUVERAIN — 24 août 2026. `for all` avec un CHECK
+-- qui ne validait que `user_id` laissait tout compte authentifié s'inscrire en
+-- souverain (voir migrations/0073). Le fondateur et l'autorisation passent par
+-- les RPC SECURITY DEFINER (provision_first_staff, authorize_staff), qui
+-- contournent la RLS : aucune écriture directe n'est nécessaire au flux.
 drop policy if exists staff_self_write on public.staff;
-create policy staff_self_write on public.staff for all to authenticated
-  using (user_id = auth.uid() or public.is_souverain())
-  with check (user_id = auth.uid() or public.is_souverain());
+drop policy if exists staff_admin_write on public.staff;
+create policy staff_admin_write on public.staff for all to authenticated
+  using (public.is_souverain())
+  with check (public.is_souverain());
 
 drop policy if exists staffb_self_read on public.staff_branches;
 create policy staffb_self_read on public.staff_branches for select to authenticated
   using (user_id = auth.uid() or public.is_souverain());
 
 drop policy if exists staffb_self_write on public.staff_branches;
-create policy staffb_self_write on public.staff_branches for all to authenticated
-  using (user_id = auth.uid() or public.is_souverain())
-  with check (user_id = auth.uid() or public.is_souverain());
+drop policy if exists staffb_admin_write on public.staff_branches;
+create policy staffb_admin_write on public.staff_branches for all to authenticated
+  using (public.is_souverain())
+  with check (public.is_souverain());
+
+-- Filet en plus de la policy : refuse toute écriture de `staff` par un
+-- non-souverain, même si une migration future rouvrait l'écriture directe.
+-- Laisse passer l'amorçage (table vide → fondateur) et le souverain.
+create or replace function public.staff_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from public.staff) = 0 then return new; end if;
+  if public.is_souverain() then return new; end if;
+  raise exception 'Écriture de la table staff réservée au souverain.';
+end $$;
+
+drop trigger if exists staff_guard_biu on public.staff;
+create trigger staff_guard_biu
+  before insert or update on public.staff
+  for each row execute function public.staff_guard();

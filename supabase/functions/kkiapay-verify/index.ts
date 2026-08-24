@@ -142,15 +142,30 @@ Deno.serve(async (req) => {
       return json({ error: 'failed', detail: tx.failureMessage ?? tx.status ?? '' }, 402);
     }
 
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+    // LE MONTANT ATTENDU VIENT DU SERVEUR, PAS DU CLIENT — 24 août 2026 (audit).
+    // `expectedXof` arrivait dans le corps de requête : un appelant pouvait
+    // l'envoyer à 0 (contrôle entièrement sauté) ou fixer lui-même la barre, et
+    // valider un acompte de 25 000 F avec un paiement réel de 100 F. On lit donc
+    // l'acompte DEMANDÉ sur la fiche du rendez-vous (`depositXof`, posé à la
+    // réservation, AVANT tout paiement — applyPayment ne l'écrase qu'ensuite).
+    // Le `expectedXof` du client ne sert plus que de repli, jamais à assouplir.
+    let expected = 0;
+    if (apptId) {
+      const { data: apptDue } = await admin
+        .from('appointments').select('data').eq('id', String(apptId)).maybeSingle();
+      expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+    }
+    if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
+
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
     // reçu n'atteint pas l'acompte attendu (tolérance d'un franc d'arrondi).
     const paid = Math.round(Number(tx.amount ?? 0));
-    const expected = Math.round(Number(expectedXof ?? 0));
     if (expected > 0 && paid + 1 < expected) {
       return json({ error: 'amount_mismatch', amountXof: paid, expectedXof: expected }, 402);
     }
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
     await applyPayment(admin, {
       transactionId: String(transactionId),
       tx,
