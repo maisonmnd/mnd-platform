@@ -501,7 +501,7 @@ export default function Factures() {
 
   /* Le mot du Maître par défaut, pour un document donné. */
   const defaultNoteFor = (d: Invoice) =>
-    `${prenomOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille. — ${d.master ?? branch.masters[0] ?? 'la Maison'}`;
+    `${prenomOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille.\n${d.master ?? branch.masters[0] ?? 'la Maison'}`;
 
   /* Construit les données du vrai PDF de marque à partir d'un document. */
   const buildPdfData = (d: Invoice): InvoicePdfData => {

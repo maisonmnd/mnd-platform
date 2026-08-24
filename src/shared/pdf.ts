@@ -209,7 +209,10 @@ export async function pieDeLaMaison(
 ): Promise<void> {
   const taille = o.taille ?? 8;
   const couleur = o.couleur ?? SOFT;
-  const prefixe = `${o.nom ?? maisonNom()} · `;
+  /* L'apostrophe typographique ’ (U+2019) n'est PAS dans le sous-ensemble de la
+     police : « L'atelier MND » sortirait en carré. On la ramène à l'apostrophe
+     droite ' (U+0027), qui, elle, y est. */
+  const prefixe = `${(o.nom ?? maisonNom()).replace(/[‘’]/g, "'")} · `;
   const fonPrete = await assureFon(doc);
 
   doc.setFontSize(taille);
@@ -420,10 +423,10 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   if (d.reste) row('Reste à régler', d.reste);
   /* Le pourboire se dit APRÈS le total — il ne s'y additionne pas : c'est un
      merci aux mains, pas une ligne de la Maison. */
-  if (d.tip) row('Pourboire — merci', d.tip, false, COPPER);
+  if (d.tip) row('Pourboire, merci', d.tip, false, COPPER);
   if (d.reglements && d.reglements.length > 0) {
     for (const r of d.reglements) {
-      row(`Règlement · ${pdfSafe(r.date)}`, `${pdfSafe(r.method)} — ${r.amount}`);
+      row(`Règlement · ${pdfSafe(r.date)}`, `${pdfSafe(r.method)} · ${r.amount}`);
     }
   } else if (d.payment) row('Règlement', d.payment);
   if (d.status) row('Statut', d.status);
