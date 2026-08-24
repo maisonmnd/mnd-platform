@@ -113,12 +113,18 @@ TRANCHÉ :
   non exploitables. Ne pas relancer la migration sans réécrire toute la couche PDF.
 - **Fiches-démo de `clients.ts` (2de1ba3)** : confirmées 100 % FICTIVES par la
   Maison. Rien à purger.
+- **Moteur de commission de la paie : DÉTAILLÉ fait foi** (décision du 24 août).
+  `commissionDetaillee` (clients/_shared, extraite de Personnel) est appelée par
+  le tableau Personnel ET le run de Paie — plus de forfait `commissionPct`.
+  CommRates + le store déplacés dans `payroll.ts`. Net Personnel = net run.
+  Committé sur `main` (commit `5460572`) ; PAS ENCORE REPUBLIÉ sur les sites.
+  MIGRATION à savoir : le run n'utilise plus `commissionPct` — un maître
+  commissionné doit porter `commissionne=true` et le barème par palier
+  (`CommRates`) doit être renseigné, sinon sa commission tombe à 0 (repli sur les
+  montants saisis à la main). À vérifier côté dossiers du personnel avant le
+  prochain run, PUIS republier.
 
-RESTE UNE SEULE DÉCISION (rien fait) :
-- **Moteur de commission de la paie** : le run calcule la commission au forfait
-  (`commissionPct`), Personnel au détail (`computeComm` — prorata/paliers/
-  produits). Le net Personnel ≠ net run tant que ce n'est pas tranché (ça change
-  ce que les gens touchent). À décider : lequel fait foi.
+L'AUDIT EST BOUCLÉ — plus aucune décision ouverte.
 
 ## « Suspendre » ne sert plus qu’aux prélèvements — 24 août, PUBLIÉ
 
