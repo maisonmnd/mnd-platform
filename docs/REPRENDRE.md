@@ -90,6 +90,16 @@ FAIT ET PUBLIÉ (main @ 7ef2c7d, gh-pages refondé) :
   et overrides respectés. Personnel non déclaré : net inchangé, pas de ligne
   CNSS/ITS. Corrige le bug affiché≠enregistré.
 
+PRÊT, EN ATTENTE DE TON ŒIL PUIS PUBLICATION (commit local `f5968ff`, non poussé) :
+- **Les lettres fon restent sur les factures et reçus** — KLƆKLƆ™ garde son Ɔ
+  (plus « KLOKLO™ »), règle de marque. Rendu PAR CARACTÈRE dans `pdf.ts`
+  (`texteFon`/`pdfSafeGardeFon`/`assureFon`) : Ɔ ɔ Ɖ ɖ Ɛ ɛ dans la police fon
+  (sous-ensemble EB Garamond), le reste dans la police du document ; les accents
+  LATINS (Ì Í de GBÌGBÌ™, FÍNFÍN™) sont intacts (Latin-1). Confirmé par la Maison :
+  aucune prestation ne porte d'accent SUR une lettre fon (ɔ́, Ɛ̀), donc rien de
+  plus à faire. À VÉRIFIER à l'œil (facture + reçu : lettres, accents, alignement)
+  avant push + republication ; repli = `git reset --hard 67fb37c`.
+
 TRANCHÉ :
 - **jspdf RESTE en 2.5.2.** La montée en 4.2.1 a été tentée puis ANNULÉE : elle
   cassait le rendu (une facture sortait en 101 pages / 9,8 Mo) — les
