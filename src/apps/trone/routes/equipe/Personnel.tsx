@@ -19,7 +19,8 @@ import {
   useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
 import {
   useBaremePoints, chargeSalaire, chargeAvance, chargeAvanceId, useAdvances,
-  type BaremePoints, type SalaryAdvance,
+  computePay, parametersFor, usePayrollParameters,
+  type BaremePoints, type SalaryAdvance, type PayGains, type PayDeductions, type PayResult,
 } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
@@ -211,6 +212,7 @@ export default function Personnel() {
   );
   const [staff, setStaff] = useStaff();
   const [advances, setAdvances] = useAdvances();
+  const [payrollParams] = usePayrollParameters();
   const [tab, setTab] = useState<Tab>('equipe');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -463,7 +465,27 @@ export default function Personnel() {
     return o.commPresta != null || o.commProduit != null;
   };
   const netAVerserEff = (m: StaffMember) => m.salaireXof + commPrestaOf(m) + commProduitOf(m) + primeOf(m) + tipOf(m);
-  const netApresAvances = (m: StaffMember) => netAVerserEff(m) - advancesTotalMonth(m.id, M) - retenueTotalMonth(m.id, M);
+
+  /* LE NET D'UN MOIS — UNE SEULE FORMULE, cotisations comprises. Trois copies
+     divergeaient (tableau avec overrides mais sans CNSS/ITS ; `netForMonth` sans
+     overrides ; modale annuelle inline) : un net affiché différait du net
+     enregistré. Tout passe désormais par `computePay` (payroll.ts) — brut −
+     CNSS − ITS − avances − retenues — avec la commission détaillée de Personnel,
+     overrides du mois courant compris. NOTE : le run de Paie calcule sa
+     commission autrement (`commissionPct` forfaitaire) ; l'égalité Personnel =
+     run par la commission reste une décision de politique de paie à trancher. */
+  const paieDuMois = (m: StaffMember, month: string): PayResult => {
+    const c = computeComm(m, month);
+    const ov = month === M ? ovOf(m.id) : {};
+    const gains: PayGains = {
+      base: m.salaireXof, heuresSup: 0,
+      prime: primeTotalMonth(m.id, month), pourboires: tipTotalMonth(m.id, month),
+      commission: (ov.commPresta ?? c.presta) + (ov.commProduit ?? c.produit), indemnites: 0,
+    };
+    const ded: PayDeductions = { avance: advancesTotalMonth(m.id, month), autresRetenues: retenueTotalMonth(m.id, month) };
+    return computePay(gains, ded, parametersFor(month, payrollParams));
+  };
+  const netApresAvances = (m: StaffMember) => paieDuMois(m, M).net;
 
   const setRate = (k: keyof CommRates, v: string) =>
     setRates((r) => ({ ...r, [k]: Math.max(0, Math.min(100, Math.round(Number(v) || 0))) }));
@@ -573,12 +595,11 @@ export default function Personnel() {
   const removeRetenue = (staffId: string, retenueId: string) =>
     setRetenues((prev) => ({ ...prev, [staffId]: (prev[staffId] ?? []).filter((r) => r.id !== retenueId) }));
 
-  /* Net à verser d'un maître pour un mois quelconque (réutilisé partout). */
-  const netForMonth = (m: StaffMember, month: string) => {
-    const c = computeComm(m, month);
-    return m.salaireXof + c.presta + c.produit + primeTotalMonth(m.id, month) + tipTotalMonth(m.id, month)
-      - advancesTotalMonth(m.id, month) - retenueTotalMonth(m.id, month);
-  };
+  /* Net à verser d'un maître pour un mois quelconque (réutilisé partout) —
+     la MÊME porte que le tableau : `paieDuMois`, cotisations comprises et
+     overrides du mois courant respectés. Le resync et les bulletins l'utilisent,
+     donc le net enregistré = le net affiché. */
+  const netForMonth = (m: StaffMember, month: string) => paieDuMois(m, month).net;
   /** Salaire journalier de référence (base ÷ jours ouvrables). */
   const dailyRate = (m: StaffMember) => Math.round(m.salaireXof / JOURS_OUVRABLES);
 
@@ -662,21 +683,29 @@ export default function Personnel() {
   /* Bulletin de paie mensuel (PDF) — mise en page soignée, signature & tampon. */
   const downloadMonthlyPayslip = async (m: StaffMember, month: string) => {
     const c = computeComm(m, month);
+    /* La commission du bulletin suit CELLE DU NET (overrides du mois courant). */
+    const ov = month === M ? ovOf(m.id) : {};
+    const presta = ov.commPresta ?? c.presta;
+    const produit = ov.commProduit ?? c.produit;
     const prime = primeTotalMonth(m.id, month);
     const tip = tipTotalMonth(m.id, month);
     const av = advancesTotalMonth(m.id, month);
     const reList = retenuesForMonth(m.id, month);
     const ret = retenueTotalMonth(m.id, month);
-    const net = netForMonth(m, month);
+    /* Le net et les cotisations viennent de la MÊME porte que le tableau. */
+    const pr = paieDuMois(m, month);
+    const net = pr.net;
     const conf = confirmOf(month, m.id);
     const prList = primesForMonth(m.id, month);
     const rows: PayslipRow[] = [
       { label: 'Salaire de base', value: pdfMoney(m.salaireXof) },
-      { label: 'Commission prestations', value: pdfMoney(c.presta) },
-      { label: 'Commission produits', value: pdfMoney(c.produit) },
+      { label: 'Commission prestations', value: pdfMoney(presta) },
+      { label: 'Commission produits', value: pdfMoney(produit) },
       { label: 'Primes', value: pdfMoney(prime) },
       ...prList.map((p) => ({ label: `— ${PRIME_LABEL[p.type]}${p.note ? ` · ${p.note}` : ''}`, value: pdfMoney(p.amountXof), sub: true })),
       { label: 'Pourboires', value: pdfMoney(tip) },
+      ...(pr.cnssSalariale > 0 ? [{ label: 'CNSS (part salariale)', value: `- ${pdfMoney(pr.cnssSalariale)}` }] : []),
+      ...(pr.its > 0 ? [{ label: 'ITS (impôt sur le salaire)', value: `- ${pdfMoney(pr.its)}` }] : []),
       { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
       { label: 'Retenues', value: ret > 0 ? `- ${pdfMoney(ret)}` : pdfMoney(0) },
       ...reList.map((r) => ({ label: `— ${RETENUE_LABEL[r.type]}${r.days ? ` · ${r.days} j` : ''}${r.note ? ` · ${r.note}` : ''}`, value: `- ${pdfMoney(r.amountXof)}`, sub: true })),
@@ -1831,18 +1860,28 @@ export default function Personnel() {
         const year = new Date().getFullYear();
         const rows = yearMonths(year).map((mk) => {
           const c = computeComm(yearFor, mk);
+          const ov = mk === M ? ovOf(yearFor.id) : {};
+          const presta = ov.commPresta ?? c.presta;
+          const produit = ov.commProduit ?? c.produit;
           const pr = primeTotalMonth(yearFor.id, mk);
           const tp = tipTotalMonth(yearFor.id, mk);
           const av = advancesTotalMonth(yearFor.id, mk);
           const re = retenueTotalMonth(yearFor.id, mk);
           const base = yearFor.salaireXof;
-          const net = base + c.presta + c.produit + pr + tp - av - re;
-          return { mk, base, presta: c.presta, produit: c.produit, prime: pr, tip: tp, avance: av, retenue: re, net };
+          /* Net et cotisations par la MÊME porte que le tableau (`paieDuMois`) :
+             brut − CNSS − ITS − avances − retenues. Le détail retombe donc sur
+             le net, cotisations comprises. */
+          const paie = paieDuMois(yearFor, mk);
+          return { mk, base, presta, produit, prime: pr, tip: tp, cnss: paie.cnssSalariale, its: paie.its, avance: av, retenue: re, net: paie.net };
         });
         const tot = rows.reduce((t, r) => ({
           base: t.base + r.base, presta: t.presta + r.presta, produit: t.produit + r.produit,
-          prime: t.prime + r.prime, tip: t.tip + r.tip, avance: t.avance + r.avance, retenue: t.retenue + r.retenue, net: t.net + r.net,
-        }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, avance: 0, retenue: 0, net: 0 });
+          prime: t.prime + r.prime, tip: t.tip + r.tip, cnss: t.cnss + r.cnss, its: t.its + r.its,
+          avance: t.avance + r.avance, retenue: t.retenue + r.retenue, net: t.net + r.net,
+        }), { base: 0, presta: 0, produit: 0, prime: 0, tip: 0, cnss: 0, its: 0, avance: 0, retenue: 0, net: 0 });
+        /* Les colonnes CNSS/ITS n'apparaissent QUE si quelqu'un est déclaré : un
+           personnel non concerné ne les voit pas (elles vaudraient 0 partout). */
+        const montreCotis = tot.cnss > 0 || tot.its > 0;
         const staff = yearFor;
         return (
           <Modal title={`Salaire ${year} · ${staff.name}`} onClose={() => setYearFor(null)} width={980}>
@@ -1863,7 +1902,7 @@ export default function Personnel() {
             <div className="mnd-scroll-x">
               <table className="tre-table tre-year">
                 <thead>
-                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th><th>Avances</th><th>Retenues</th><th>Net versé</th><th>Règlement</th></tr>
+                  <tr><th>Mois</th><th>Base</th><th>Comm. presta.</th><th>Comm. prod.</th><th>Primes</th><th>Pourboires</th>{montreCotis && <><th>CNSS</th><th>ITS</th></>}<th>Avances</th><th>Retenues</th><th>Net versé</th><th>Règlement</th></tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => {
@@ -1876,6 +1915,7 @@ export default function Personnel() {
                       <td>{fmtMoney(r.produit, currency)}</td>
                       <td className="mnd-copper">{fmtMoney(r.prime, currency)}</td>
                       <td>{fmtMoney(r.tip, currency)}</td>
+                      {montreCotis && <><td>{r.cnss > 0 ? `− ${fmtMoney(r.cnss, currency)}` : '—'}</td><td>{r.its > 0 ? `− ${fmtMoney(r.its, currency)}` : '—'}</td></>}
                       <td>{r.avance > 0 ? `− ${fmtMoney(r.avance, currency)}` : '—'}</td>
                       <td>{r.retenue > 0 ? <span style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(r.retenue, currency)}</span> : '—'}</td>
                       <td className="num">{fmtMoney(r.net, currency)}</td>
@@ -1904,6 +1944,7 @@ export default function Personnel() {
                     <td>{fmtMoney(tot.produit, currency)}</td>
                     <td className="mnd-copper">{fmtMoney(tot.prime, currency)}</td>
                     <td>{fmtMoney(tot.tip, currency)}</td>
+                    {montreCotis && <><td>{tot.cnss > 0 ? `− ${fmtMoney(tot.cnss, currency)}` : '—'}</td><td>{tot.its > 0 ? `− ${fmtMoney(tot.its, currency)}` : '—'}</td></>}
                     <td>{tot.avance > 0 ? `− ${fmtMoney(tot.avance, currency)}` : '—'}</td>
                     <td>{tot.retenue > 0 ? <span style={{ color: 'var(--trv-error, #b0563e)' }}>− {fmtMoney(tot.retenue, currency)}</span> : '—'}</td>
                     <td className="num">{fmtMoney(tot.net, currency)}</td>
