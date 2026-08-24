@@ -84,17 +84,17 @@ function SyncDot() {
     if (l) l.push(f.table);
     else parRaison.set(f.raison, [f.table]);
   }
-  const causes = [...parRaison.entries()].map(([raison, tables]) => `${tables.join(', ')} — ${raison}`);
+  const causes = [...parRaison.entries()].map(([raison, tables]) => `${tables.join(', ')}, ${raison}`);
   const premiere = [...parRaison.entries()][0];
   const label = mode === 'off' ? 'Hors ligne'
     : mode === 'err'
       ? (premiere
-          ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')} — ${premiere[0]}`
+          ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}`
           : 'Synchro en échec')
     : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
   const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
-    mode === 'off' ? 'Hors ligne — les écritures restent sur ce poste et partiront au retour du réseau.'
+    mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
     : mode === 'err'
       ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne. Refaites une modification pour relancer.`
     : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
@@ -400,7 +400,7 @@ export default function Shell() {
           {rangement && (
             <div className="tr-nav__aide">
               Les flèches montent et descendent chaque onglet. L’ordre est le vôtre, sur CE poste
-              seulement — il ne change rien pour les autres.
+              seulement, il ne change rien pour les autres.
               {Object.keys(ordreNav).length > 0 && (
                 <button className="tr-nav__reset" onClick={() => setOrdreNav({})}>
                   Revenir à l’ordre d’origine
@@ -431,7 +431,7 @@ export default function Shell() {
             <button
               className="tr-top__bell"
               aria-label="Se déconnecter"
-              title={`${staff?.name ?? 'Personnel'} — se déconnecter`}
+              title={`${staff?.name ?? 'Personnel'}, se déconnecter`}
               onClick={() => void signOut()}
             >
               <LogOut size={15} />

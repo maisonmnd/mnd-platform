@@ -162,7 +162,7 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
         method: i.payment ?? 'Espèces',
         cashbox: i.fx ? i.cashbox : CAISSE_POURBOIRES,
         ref: i.number,
-        label: i.fx ? 'Pourboire — dans le tiroir devise' : 'Pourboire — merci des mains',
+        label: i.fx ? 'Pourboire, dans le tiroir devise' : 'Pourboire, merci des mains',
         invoiceId: i.id,
       });
     }

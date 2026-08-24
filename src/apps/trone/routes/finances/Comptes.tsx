@@ -57,7 +57,7 @@ function RemiseSurCarte({ famille, autoPct, onClose }: {
           type="button"
           className={`tre-chip ${estAuto ? 'is-on' : ''}`}
           onClick={() => { pose(undefined); setLibre(''); }}
-          title="1 enfant → 10 % · 2 et plus → 15 % — le taux suit la famille"
+          title="1 enfant → 10 % · 2 et plus → 15 %, le taux suit la famille"
         >
           Barème · −{autoPct}%
         </button>
@@ -86,8 +86,8 @@ function RemiseSurCarte({ famille, autoPct, onClose }: {
       </div>
       <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
         {estAuto
-          ? <>Le barème suit le foyer — un enfant de plus, et le taux monte. Un taux à la main devient une remise personnalisée.</>
-          : <>Remise personnalisée — la main fait foi (0 = pas de remise). Posée hors forfaits, déjà réduits.</>}
+          ? <>Le barème suit le foyer, un enfant de plus, et le taux monte. Un taux à la main devient une remise personnalisée.</>
+          : <>Remise personnalisée, la main fait foi (0 = pas de remise). Posée hors forfaits, déjà réduits.</>}
       </div>
     </div>
   );
@@ -339,7 +339,7 @@ export default function Comptes() {
             }}>
               <span>
                 <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>{sansAdresse} foyer{sansAdresse > 1 ? 's' : ''}</b> n’{sansAdresse > 1 ? 'ont' : 'a'} pas
-                l’adresse de {sansAdresse > 1 ? 'leur' : 'sa'} payeuse — {sansAdresse > 1 ? 'leurs' : 'ses'} enfants resteront invisibles sur Ma Couronne.
+                l’adresse de {sansAdresse > 1 ? 'leur' : 'sa'} payeuse, {sansAdresse > 1 ? 'leurs' : 'ses'} enfants resteront invisibles sur Ma Couronne.
               </span>
             </div>
           )}
@@ -370,7 +370,7 @@ export default function Comptes() {
                       <button
                         type="button"
                         onClick={() => setRemiseOuverte(remiseOuverte === f.id ? null : f.id)}
-                        title={f.remisePct === undefined ? 'Barème du foyer — toucher pour changer' : 'Remise personnalisée — toucher pour changer'}
+                        title={f.remisePct === undefined ? 'Barème du foyer, toucher pour changer' : 'Remise personnalisée, toucher pour changer'}
                         style={{
                           flex: 'none', cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600,
                           letterSpacing: '.03em', borderRadius: 999, padding: '3px 11px',
@@ -405,7 +405,7 @@ export default function Comptes() {
 
                     {(adresseAbsente || sansNaissance > 0) && (
                       <div style={{ marginTop: 9, fontSize: 12, color: 'var(--copper-700)', lineHeight: 1.5 }}>
-                        {adresseAbsente && <div>— Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
+                        {adresseAbsente && <div>, Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
                         {sansNaissance > 0 && <div>— {sansNaissance} naissance{sansNaissance > 1 ? 's' : ''} manquante{sansNaissance > 1 ? 's' : ''} : {sansNaissance > 1 ? 'ces enfants n’apparaîtront pas' : 'cet enfant n’apparaîtra pas'} dans son espace.</div>}
                       </div>
                     )}
@@ -458,7 +458,7 @@ export default function Comptes() {
           {lignesAvoirs.length === 0 ? (
             <Card style={{ padding: 22 }}>
               <div className="mnd-muted" style={{ fontSize: 13 }}>
-                Aucun avoir en circulation — la maison ne doit rien d’avance.
+                Aucun avoir en circulation, la maison ne doit rien d’avance.
               </div>
             </Card>
           ) : (
@@ -515,7 +515,7 @@ export default function Comptes() {
 
           {branchFamilies.length > lignesAvoirs.length && (
             <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 12, fontStyle: 'italic' }}>
-              Les autres foyers n’ont pas d’avoir — ils vivent sous « Les foyers ».
+              Les autres foyers n’ont pas d’avoir, ils vivent sous « Les foyers ».
             </div>
           )}
         </>
@@ -573,7 +573,7 @@ export default function Comptes() {
               </div>
 
               {dueAppts.length === 0 && dueInvoices.length === 0 && (
-                <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun impayé sur ce compte — tout est réglé.</div>
+                <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun impayé sur ce compte, tout est réglé.</div>
               )}
 
               {dueAppts.length > 0 && (
@@ -604,7 +604,7 @@ export default function Comptes() {
                       <div key={inv.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
                         <span className="trf-coffre-row__main">
                           <span className="trf-coffre-row__title">{inv.number} · {inv.clientName ?? nm(inv.clientId)}</span>
-                          <span className="trf-coffre-row__meta">{inv.date}{linkedToAppt ? ' · liée à un rituel — encaissez le rituel ci-dessus' : ''}</span>
+                          <span className="trf-coffre-row__meta">{inv.date}{linkedToAppt ? ' · liée à un rituel, encaissez le rituel ci-dessus' : ''}</span>
                         </span>
                         <span className="trf-coffre-row__amount trf-coffre-row__amount--virement">{fmtMoney(total, currency)}</span>
                         {!linkedToAppt && (
@@ -612,7 +612,7 @@ export default function Comptes() {
                             size="sm"
                             variant="copper"
                             disabled={!canSettle}
-                            title={canSettle ? undefined : bal < total ? 'Avoir insuffisant — versez d’abord' : undefined}
+                            title={canSettle ? undefined : bal < total ? 'Avoir insuffisant, versez d’abord' : undefined}
                             onClick={() => { settleInvoiceByAvoir(inv, holder); }}
                           >
                             Solder par l’avoir
@@ -733,7 +733,7 @@ function FamilyModal({
         </Field>
         <Field label="Membres du compte">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {memberClients.length === 0 && <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aucun membre pour l'instant — ajoutez les clientes de la famille.</span>}
+            {memberClients.length === 0 && <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aucun membre pour l'instant, ajoutez les clientes de la famille.</span>}
             {memberClients.map((m) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 10px', background: 'var(--surface-card)' }}>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--color-indigo)' }}>{m.name}</span>
@@ -765,7 +765,7 @@ function FamilyModal({
                     type="button"
                     className={`tre-chip ${remiseAuto ? 'is-on' : ''}`}
                     onClick={() => setRemiseChoix('auto')}
-                    title="1 enfant → 10 % · 2 et plus → 15 % — le taux suit la famille tout seul"
+                    title="1 enfant → 10 % · 2 et plus → 15 %, le taux suit la famille tout seul"
                   >
                     Barème du foyer · −{autoPct}%
                   </button>
@@ -790,11 +790,11 @@ function FamilyModal({
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
                   {remiseAuto
-                    ? <>Le barème suit le foyer : 1 enfant → −10 %, 2 et plus → −15 % — ce compte donne
+                    ? <>Le barème suit le foyer : 1 enfant → −10 %, 2 et plus → −15 %, ce compte donne
                         aujourd’hui −{autoPct}%. Un taux saisi à la main devient une remise personnalisée.</>
-                    : <>Remise personnalisée · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseNum}%</b> — la main fait foi
+                    : <>Remise personnalisée · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseNum}%</b>, la main fait foi
                         (0 = pas de remise pour ce compte). Revenir au barème : touchez « Barème du foyer ».</>}
-                  {' '}Posée d’office sur les rendez-vous des membres, hors forfaits — déjà réduits —,
+                  {' '}Posée d’office sur les rendez-vous des membres, hors forfaits, déjà réduits, ,
                   et nommée « Remise famille » jusqu’à la facture.
                 </div>
               </>
@@ -827,7 +827,7 @@ function FamilyModal({
                   Ajuster le solde
                 </Button>
                 <span className="mnd-muted" style={{ fontSize: 10.5 }}>
-                  saisir le solde voulu — l’écart s’écrit comme {balDiff >= 0 ? 'un dépôt' : 'un remboursement'} d’ajustement, tracé au registre.
+                  saisir le solde voulu, l’écart s’écrit comme {balDiff >= 0 ? 'un dépôt' : 'un remboursement'} d’ajustement, tracé au registre.
                 </span>
               </div>
             </div>
@@ -974,7 +974,7 @@ function DepositModal({
           {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le remboursement dépasse l'avoir disponible.</div>}
           {troppeu && (
             <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>
-              Ce compte a déjà utilisé plus que cela. Descendre si bas le rendrait débiteur —
+              Ce compte a déjà utilisé plus que cela. Descendre si bas le rendrait débiteur,
               il faut d’abord reprendre les usages.
             </div>
           )}
@@ -994,7 +994,7 @@ function DepositModal({
               ))}
             </div>
           ) : (
-            <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency} — l'écriture citera « Caisse principale ».</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune caisse en {currency}, l'écriture citera « Caisse principale ».</span>
           )}
         </Field>
         <ContrepartieMaison

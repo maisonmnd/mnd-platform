@@ -87,7 +87,7 @@ const DOMAINS = ERP_DOMAINS;
 type Role = { k: string; label: string; desc: string; perms: string[] };
 const TOUS = ERP_DOMAINS.map((d) => d.k);
 const ROLE_DEFS: Role[] = [
-  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total — la Maison entière.', perms: TOUS },
+  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total, la Maison entière.', perms: TOUS },
   { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: TOUS.filter((k) => k !== 'systeme') },
   {
     k: 'maitre',
@@ -279,7 +279,7 @@ function CalibresCard() {
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div className="sys-section__title">Les calibres des modèles</div>
       <div className="sys-section__cap" style={{ maxWidth: 660 }}>
-        La colonne vertébrale des tailles — le même langage de la naissance à l’entretien.
+        La colonne vertébrale des tailles, le même langage de la naissance à l’entretien.
         Le calibre se constate au KÒKÒ™ et s’inscrit sur la fiche. Renommer, déplacer une
         borne, ajouter ou retirer un calibre s’applique à <b>tous</b> les barèmes ;
         les coefficients de prix et de durée se règlent au Juste Prix.
@@ -313,7 +313,7 @@ function CalibresCard() {
                     ariaLabel={`Poser un plafond au calibre ${b.name ?? ''}`}
                   />
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
-                    sans plafond — saisir une borne le pose
+                    sans plafond, saisir une borne le pose
                   </span>
                 </>
               ) : (
@@ -334,7 +334,7 @@ function CalibresCard() {
                     <button
                       className="trv-minibtn"
                       onClick={() => ecrisCalibresPartout((prev) => prev.map((x) => (x.id === b.id ? { ...x, maxLocks: null } : x)))}
-                      title="Retirer le plafond — les têtes au-delà restent dans ce calibre"
+                      title="Retirer le plafond, les têtes au-delà restent dans ce calibre"
                     >
                       Sans plafond
                     </button>
@@ -362,13 +362,13 @@ function CalibresCard() {
       </div>
       {sorted.every((b) => b.maxLocks !== null) ? (
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, marginTop: 8, lineHeight: 1.55, color: 'var(--copper-700)' }}>
-          Attention : aucune tranche sans plafond — une tête au-delà de{' '}
+          Attention : aucune tranche sans plafond, une tête au-delà de{' '}
           {Math.max(...sorted.map((b) => b.maxLocks ?? 0))} locks sortirait du barème
           (« modèle inconnu »). « Sans plafond » sur la dernière tranche referme la porte.
         </div>
       ) : (
         <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-          La dernière tranche n’a pas de plafond — aucune tête ne peut sortir du barème.
+          La dernière tranche n’a pas de plafond, aucune tête ne peut sortir du barème.
         </div>
       )}
     </Card>
@@ -403,7 +403,7 @@ function SauvegardeCard() {
     const { fileName } = downloadBackup();
     setLastAt(localStorage.getItem(LAST_BACKUP_KEY));
     setReport(null);
-    toast(`Sauvegarde téléchargée — ${fileName}. Rangez-la en lieu sûr (Drive, clé USB…).`);
+    toast(`Sauvegarde téléchargée, ${fileName}. Rangez-la en lieu sûr (Drive, clé USB…).`);
   };
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -415,19 +415,19 @@ function SauvegardeCard() {
     try {
       parsed = JSON.parse(await f.text());
     } catch {
-      toast('Fichier illisible — ce n’est pas un JSON valide.');
+      toast('Fichier illisible, ce n’est pas un JSON valide.');
       return;
     }
     if (mode === 'replace') {
       if (!window.confirm(
         'REMPLACER toute la Maison par ce fichier ?\n\n' +
         'Tout est vidé (serveur + ce poste), puis la Maison est reconstruite À L’IDENTIQUE ' +
-        'du fichier — ajouts, mises à jour ET suppressions. Ce que contient la Maison ' +
+        'du fichier, ajouts, mises à jour ET suppressions. Ce que contient la Maison ' +
         'aujourd’hui mais PAS le fichier sera perdu. (Idéal pour appliquer une migration.)',
       )) return;
       try {
         setReport(null);
-        toast('Remplacement en cours — vidage puis rechargement…');
+        toast('Remplacement en cours, vidage puis rechargement…');
         await replaceHouseFromFile(parsed);
       } catch (err) {
         toast(`Remplacement impossible : ${err instanceof Error ? err.message : 'erreur.'}`);
@@ -439,10 +439,10 @@ function SauvegardeCard() {
       setReport(rep);
       toast(
         mode === 'update'
-          ? `${rep.totalAdded} fiche${rep.totalAdded > 1 ? 's' : ''} appliquée${rep.totalAdded > 1 ? 's' : ''} — les fiches existantes ont été mises à jour.`
+          ? `${rep.totalAdded} fiche${rep.totalAdded > 1 ? 's' : ''} appliquée${rep.totalAdded > 1 ? 's' : ''}, les fiches existantes ont été mises à jour.`
           : rep.totalAdded > 0
-            ? `${rep.totalAdded} enregistrement${rep.totalAdded > 1 ? 's' : ''} restauré${rep.totalAdded > 1 ? 's' : ''} — rien d'existant n'a été touché.`
-            : 'Rien à restaurer — tout ce que contient ce fichier est déjà dans la Maison.',
+            ? `${rep.totalAdded} enregistrement${rep.totalAdded > 1 ? 's' : ''} restauré${rep.totalAdded > 1 ? 's' : ''}, rien d'existant n'a été touché.`
+            : 'Rien à restaurer, tout ce que contient ce fichier est déjà dans la Maison.',
       );
     } catch (err) {
       setReport(null);
@@ -458,11 +458,11 @@ function SauvegardeCard() {
         <div>
           <div className="sys-section__title">Sauvegarde de la Maison</div>
           <div className="sys-section__cap" style={{ maxWidth: 640 }}>
-            Un geste, un fichier : clientes, rendez-vous, factures, catalogue, finances et réglages —
+            Un geste, un fichier : clientes, rendez-vous, factures, catalogue, finances et réglages,
             toute la Maison dans un JSON à ranger en lieu sûr (Drive, clé USB, e-mail à soi-même).
             Faites-le chaque semaine. « Restaurer » n’ajoute que ce qui manque (sans rien écraser) ;
             « Mettre à jour » remplace en plus les fiches déjà présentes (même identifiant) ; « Remplacer »
-            reconstruit toute la Maison À L’IDENTIQUE du fichier — avec suppressions — pour appliquer une migration.
+            reconstruit toute la Maison À L’IDENTIQUE du fichier, avec suppressions, pour appliquer une migration.
           </div>
         </div>
         <span className="sys-badge-count">
@@ -496,7 +496,7 @@ function SauvegardeCard() {
               a.click();
               URL.revokeObjectURL(a.href);
               const meta = data as { nb_tables?: number; lignes?: number };
-              toast(`Photographie du serveur téléchargée — ${meta.nb_tables ?? '?'} tables, ${meta.lignes ?? '?'} lignes.`);
+              toast(`Photographie du serveur téléchargée, ${meta.nb_tables ?? '?'} tables, ${meta.lignes ?? '?'} lignes.`);
             })();
           }}
         >
@@ -515,7 +515,7 @@ function SauvegardeCard() {
         />
         <span className="sys-row__sub" style={stale ? { color: 'var(--copper-700)' } : undefined}>
           {fmtLast
-            ? `Dernière sauvegarde sur ce poste : ${fmtLast}${stale ? ' — pensez à en refaire une.' : '.'}`
+            ? `Dernière sauvegarde sur ce poste : ${fmtLast}${stale ? ', pensez à en refaire une.' : '.'}`
             : 'Aucune sauvegarde encore téléchargée sur ce poste.'}
         </span>
       </div>
@@ -531,7 +531,7 @@ function SauvegardeCard() {
                 {report.added.map((a) => `${a.n} ${a.label}`).join(' · ')}. Rien d’existant n’a été modifié.
               </>
             ) : (
-              <>Ce fichier ne contient rien qui manque à la Maison — aucune écriture n’a été faite.</>
+              <>Ce fichier ne contient rien qui manque à la Maison, aucune écriture n’a été faite.</>
             )}
           </span>
         </div>
@@ -588,14 +588,14 @@ function CetAppareil() {
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div className="sys-section__title">Cet appareil</div>
       <div className="sys-section__cap" style={{ maxWidth: 640 }}>
-        Ce que CE poste voit — utile quand un écran affiche zéro alors que la Maison est pleine.
+        Ce que CE poste voit, utile quand un écran affiche zéro alors que la Maison est pleine.
         Les trois lignes ci-dessous disent laquelle des trois causes est la bonne.
       </div>
 
       <div className="sys-appareil">
         <div className="sys-appareil__row">
           <span className="sys-appareil__lab">Compte connecté</span>
-          <span className="sys-appareil__val">{mail || 'aucun — poste hors ligne'}</span>
+          <span className="sys-appareil__val">{mail || 'aucun, poste hors ligne'}</span>
         </div>
         <div className="sys-appareil__row">
           <span className="sys-appareil__lab">Branche affichée</span>
@@ -607,7 +607,7 @@ function CetAppareil() {
             {clients.length}
             {clients.length === 0 && (
               <span className="sys-appareil__note">
-                {' '}— si la Maison en compte, c’est que ce compte n’a pas les droits,
+                {' '}, si la Maison en compte, c’est que ce compte n’a pas les droits,
                 que la branche affichée est vide, ou que la mémoire de ce poste est restée à zéro.
               </span>
             )}
@@ -622,7 +622,7 @@ function CetAppareil() {
           <span className="sys-appareil__val">
             {tablePrete('clients')
               ? 'les fiches ont été lues au moins une fois'
-              : 'pas encore lues — session en cours de restauration, ou poste hors ligne'}
+              : 'pas encore lues, session en cours de restauration, ou poste hors ligne'}
           </span>
         </div>
         {sync.ecartees.length > 0 && (
@@ -630,7 +630,7 @@ function CetAppareil() {
             <span className="sys-appareil__lab">Tables écartées</span>
             <span className="sys-appareil__val">
               {sync.ecartees.join(', ')}
-              <span className="sys-appareil__note"> — les droits de ce compte les refusent. Ce n’est pas une panne, mais ces écrans resteront vides.</span>
+              <span className="sys-appareil__note">, les droits de ce compte les refusent. Ce n’est pas une panne, mais ces écrans resteront vides.</span>
             </span>
           </div>
         )}
@@ -647,14 +647,14 @@ function CetAppareil() {
             <span className="sys-appareil__lab">Mémoire saturée</span>
             <span className="sys-appareil__val">
               {magasinsEnMemoireSeule().join(', ')}
-              <span className="sys-appareil__note"> — le navigateur refuse d’écrire ces données sur ce poste. La Maison continue de tourner (tout vit en mémoire et sur le serveur), mais « Repartir du serveur » fera de la place.</span>
+              <span className="sys-appareil__note">, le navigateur refuse d’écrire ces données sur ce poste. La Maison continue de tourner (tout vit en mémoire et sur le serveur), mais « Repartir du serveur » fera de la place.</span>
             </span>
           </div>
         )}
         <div className="sys-appareil__row">
           <span className="sys-appareil__lab">Écritures en attente</span>
           <span className="sys-appareil__val">
-            {enAttente === 0 ? 'aucune — tout est parti au serveur' : `${enAttente} — attendez le vert avant de repartir`}
+            {enAttente === 0 ? 'aucune, tout est parti au serveur' : `${enAttente}, attendez le vert avant de repartir`}
           </span>
         </div>
       </div>
@@ -694,10 +694,10 @@ function ResetEncaissementsCard() {
     <Card className="sys-section" style={{ marginTop: 18, borderColor: 'var(--copper-300)' }}>
       <div className="sys-section__title" style={{ color: 'var(--copper-700)' }}>Zone sensible · annuler les encaissements</div>
       <div className="sys-section__cap" style={{ maxWidth: 660 }}>
-        Supprime <b>toutes les factures payées</b> de {branch.name} et remet leurs rituels à <b>impayé</b> — pour
+        Supprime <b>toutes les factures payées</b> de {branch.name} et remet leurs rituels à <b>impayé</b>, pour
         repasser chaque paiement à la main. Les numéros de facture repartiront de zéro ; les avoirs consommés
         sont restaurés. <b>Exportez d’abord une sauvegarde</b> (carte ci-dessus) : sans elle, c’est irréversible.
-        Les pourboires déjà saisis ne sont pas repris — vérifiez-les après.
+        Les pourboires déjà saisis ne sont pas repris, vérifiez-les après.
       </div>
       <div style={{ marginTop: 14 }}>
         {!armed ? (
@@ -754,7 +754,7 @@ function ViderRdvCard() {
     <Card className="sys-section" style={{ marginTop: 18, borderColor: 'var(--copper-300)' }}>
       <div className="sys-section__title" style={{ color: 'var(--copper-700)' }}>Zone sensible · vider tous les rendez-vous</div>
       <div className="sys-section__cap" style={{ maxWidth: 660 }}>
-        Supprime <b>tous les rendez-vous</b> de {branch.name} — définitivement, côté serveur — pour repartir
+        Supprime <b>tous les rendez-vous</b> de {branch.name}, définitivement, côté serveur, pour repartir
         d’un carnet vide avant un nouvel import. <b>Exportez d’abord une sauvegarde</b> (carte plus haut) :
         sans elle, c’est irréversible. Les factures, clientes et le catalogue ne sont pas touchés.
       </div>
@@ -796,7 +796,7 @@ function FactoryResetCard() {
       if (failed.length) {
         setBusy(false);
         setStep(0);
-        toast(`Réinitialisation incomplète — ${failed.length} table(s) en échec, rien n’a été touché en local. Réessayez. (${failed[0]})`);
+        toast(`Réinitialisation incomplète, ${failed.length} table(s) en échec, rien n’a été touché en local. Réessayez. (${failed[0]})`);
         return;
       }
       toast('Maison réinitialisée. Rechargement sur une Maison vierge…');
@@ -812,8 +812,8 @@ function FactoryResetCard() {
     <Card className="sys-section" style={{ marginTop: 18, borderColor: '#8f3b30' }}>
       <div className="sys-section__title" style={{ color: '#8f3b30' }}>Zone critique · réinitialiser toute la Maison</div>
       <div className="sys-section__cap" style={{ maxWidth: 680 }}>
-        Efface <b>toutes les données</b> — clientes, rendez-vous, factures, finances, catalogue, équipe,
-        réglages — pour repartir d’une Maison vierge avant un nouvel import. On conserve seulement vos
+        Efface <b>toutes les données</b>, clientes, rendez-vous, factures, finances, catalogue, équipe,
+        réglages, pour repartir d’une Maison vierge avant un nouvel import. On conserve seulement vos
         <b> branches</b> et votre <b>compte d’accès</b>. <b>Exportez d’abord une sauvegarde</b> (tout en haut) :
         sans elle, c’est définitif. La sauvegarde froide de l’ancien ERP n’est pas touchée.
       </div>
@@ -828,14 +828,14 @@ function FactoryResetCard() {
             <span style={{ fontSize: 12.5, color: '#8f3b30' }}>
               Avez-vous <b>exporté la sauvegarde</b> ? Ceci efface tout, définitivement.
             </span>
-            <Button variant="ghost" style={{ color: '#8f3b30', borderColor: '#8f3b30' }} onClick={() => setStep(2)}>J’ai ma sauvegarde — continuer</Button>
+            <Button variant="ghost" style={{ color: '#8f3b30', borderColor: '#8f3b30' }} onClick={() => setStep(2)}>J’ai ma sauvegarde, continuer</Button>
             <Button variant="ghost" onClick={() => setStep(0)}>Annuler</Button>
           </div>
         )}
         {step === 2 && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12.5, color: '#8f3b30', fontWeight: 600 }}>
-              Dernière étape — effacer TOUTE la Maison maintenant ?
+              Dernière étape, effacer TOUTE la Maison maintenant ?
             </span>
             <Button variant="copper" onClick={() => void doReset()} disabled={busy}>{busy ? 'Effacement…' : 'Oui, tout effacer et repartir à zéro'}</Button>
             <Button variant="ghost" onClick={() => setStep(0)} disabled={busy}>Annuler</Button>
@@ -1098,7 +1098,7 @@ export default function Parametres() {
               {r.l}
               {aVenir && <AVenir />}
             </div>
-            <div className="sys-row__sub">{aVenir ? `${r.sub} — pas encore relié.` : r.sub}</div>
+            <div className="sys-row__sub">{aVenir ? `${r.sub}, pas encore relié.` : r.sub}</div>
           </div>
           <div style={aVenir ? { pointerEvents: 'none' } : undefined} aria-disabled={aVenir || undefined}>
             <Toggle on={!!settings.toggles[r.k]} onToggle={() => toggle(r.k)} />
@@ -1117,7 +1117,7 @@ export default function Parametres() {
       <PageHead
         eyebrow="Système · La Maison"
         title="Paramètres."
-        sub={`${branch.name} — les règles qui cadrent chaque rendez-vous. Chaque réglage s'enregistre à la frappe, rien à valider.`}
+        sub={`${branch.name}, les règles qui cadrent chaque rendez-vous. Chaque réglage s'enregistre à la frappe, rien à valider.`}
       />
 
       <SommaireParametres />
@@ -1132,7 +1132,7 @@ export default function Parametres() {
             la raison sociale, la ligne légale au pied des factures ; le fuseau, la date affichée
             en haut du Trône. La branche (Système → Branches) garde son propre nom de lieu.
           </div>
-          <EditRow l="Nom de la Maison" sub="Il se propage à la frappe — regarde la barre latérale.">
+          <EditRow l="Nom de la Maison" sub="Il se propage à la frappe, regarde la barre latérale.">
             <input
               className="sys-input"
               value={identity.nom}
@@ -1140,7 +1140,7 @@ export default function Parametres() {
               aria-label="Nom de la Maison"
             />
           </EditRow>
-          <EditRow l="Raison sociale" sub="La ligne légale des factures — RCCM compris.">
+          <EditRow l="Raison sociale" sub="La ligne légale des factures, RCCM compris.">
             <input
               className="sys-input"
               value={identity.raison}
@@ -1221,12 +1221,12 @@ export default function Parametres() {
 
         <Card className="sys-section" style={{ marginTop: 18 }}>
           <div className="sys-section__title">Le rendez-vous & l’acompte</div>
-          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous — et ce que Ma Couronne exige à la réservation.</div>
+          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous, et ce que Ma Couronne exige à la réservation.</div>
           {/* Ces deux rangées ne pilotent RIEN (audit du 13 août) : chaque
               prestation du Catalogue porte SA durée, et aucun code n'applique
               la fenêtre d'annulation. Gardées comme promesses, inertes. */}
           <div style={{ opacity: 0.55 }}>
-          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut — pas encore relié : chaque prestation du Catalogue porte sa durée.">
+          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut, pas encore relié : chaque prestation du Catalogue porte sa durée.">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <AVenir />
               <select
@@ -1240,7 +1240,7 @@ export default function Parametres() {
               </select>
             </div>
           </EditRow>
-          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte serait retenu — pas encore relié : rien ne l’applique pour l’instant.">
+          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte serait retenu, pas encore relié : rien ne l’applique pour l’instant.">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <AVenir />
               <select
@@ -1279,7 +1279,7 @@ export default function Parametres() {
             <div style={{ marginBottom: 8 }}>
               <div className="sys-row__label">Prestations exigeant un acompte</div>
               <div className="sys-row__sub">
-                Sélectionnez les prestations, puis fixez le taux de CHACUNE — au Trône comme sur
+                Sélectionnez les prestations, puis fixez le taux de CHACUNE, au Trône comme sur
                 Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe. Le taux
                 ci-dessus ne sert plus que de valeur proposée à l’ajout.
               </div>
@@ -1361,7 +1361,7 @@ export default function Parametres() {
         <div className="sys-section__title">Journées exceptionnelles</div>
         <div className="sys-section__cap">
           Un inventaire, une fermeture, une arrivée décalée pour une personne. Ce jour-là,
-          l’horaire ci-dessous remplace celui de la semaine — et le pointage juge sur lui.
+          l’horaire ci-dessous remplace celui de la semaine, et le pointage juge sur lui.
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
@@ -1427,7 +1427,7 @@ export default function Parametres() {
         <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
           Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
           possible sans retoucher la fermeture. Une exception nominative l’emporte sur celle de la
-          Maison — le plus précis gagne. Une exception de la Maison ferme aussi la réservation
+          Maison, le plus précis gagne. Une exception de la Maison ferme aussi la réservation
           en ligne ce jour-là : sa note peut être lue par les clientes, écris-la pour elles.
         </div>
       </Card>
@@ -1466,7 +1466,7 @@ export default function Parametres() {
         </div>
         <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
           0 = sans limite. Le plafond compte les rendez-vous non annulés du jour : atteint,
-          la réservation en ligne ne propose plus aucun créneau — même si des heures restent.
+          la réservation en ligne ne propose plus aucun créneau, même si des heures restent.
         </div>
 
         <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
@@ -1474,7 +1474,7 @@ export default function Parametres() {
           <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }}>
             Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation,
             comme si un rendez-vous l’occupait. Pour fermer une date entière à toute la Maison,
-            préfère la journée exceptionnelle ci-dessus — une seule vérité par question.
+            préfère la journée exceptionnelle ci-dessus, une seule vérité par question.
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
@@ -1537,7 +1537,7 @@ export default function Parametres() {
           </div>
 
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-            Le motif peut être lu par les clientes — écris ce qui peut se dire à une cliente,
+            Le motif peut être lu par les clientes, écris ce qui peut se dire à une cliente,
             jamais les affaires de la maison. Une absence de plusieurs jours se pose jour par
             jour : on voit ce qu’on bloque.
           </div>
@@ -1597,7 +1597,7 @@ export default function Parametres() {
           ))}
           {segments.length === 0 && (
             <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun segment — ajoutez le premier ci-dessous.
+              Aucun segment, ajoutez le premier ci-dessous.
             </div>
           )}
         </div>
@@ -1607,7 +1607,7 @@ export default function Parametres() {
             value={newSeg}
             onChange={(e) => setNewSeg(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
-            placeholder="Nouveau segment — ex. Fidèle"
+            placeholder="Nouveau segment, ex. Fidèle"
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
@@ -1623,7 +1623,7 @@ export default function Parametres() {
           <div>
             <div className="sys-section__title">Encaissement · modes de paiement</div>
             <div className="sys-section__cap">
-              Les moyens de règlement proposés à l’encaissement — Caisse, Factures &amp; Académie.
+              Les moyens de règlement proposés à l’encaissement, Caisse, Factures &amp; Académie.
               Écris directement dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre
               des boutons à la Caisse. Les pièces déjà encaissées gardent leur libellé.
             </div>
@@ -1647,7 +1647,7 @@ export default function Parametres() {
           ))}
           {payMethods.length === 0 && (
             <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun mode de paiement — ajoutez le premier ci-dessous.
+              Aucun mode de paiement, ajoutez le premier ci-dessous.
             </div>
           )}
         </div>
@@ -1657,7 +1657,7 @@ export default function Parametres() {
             value={newPay}
             onChange={(e) => setNewPay(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
-            placeholder="Nouveau mode — ex. Orange Money"
+            placeholder="Nouveau mode, ex. Orange Money"
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
@@ -1675,7 +1675,7 @@ export default function Parametres() {
           <div>
             <div className="sys-row__label">Paiement en devise étrangère</div>
             <div className="sys-row__sub">
-              Ouvre à la Caisse le règlement dans une autre devise que le {currency} — la cliente
+              Ouvre à la Caisse le règlement dans une autre devise que le {currency}, la cliente
               paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
               taux sont consignés. À refermer une fois la facture réglée.
             </div>
@@ -1723,7 +1723,7 @@ export default function Parametres() {
             className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
             onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
           >
-            Confiance — aucune vérification
+            Confiance, aucune vérification
           </button>
           <button
             className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
@@ -1768,12 +1768,12 @@ export default function Parametres() {
                         });
                         toast('Position du salon enregistrée.');
                       },
-                      () => toast('Position refusée — autorisez-la dans le navigateur.'),
+                      () => toast('Position refusée, autorisez-la dans le navigateur.'),
                       { enableHighAccuracy: true, timeout: 8000 },
                     );
                   }}
                 >
-                  Utiliser ma position actuelle — à faire DEPUIS le salon
+                  Utiliser ma position actuelle, à faire DEPUIS le salon
                 </button>
               </Field>
               <Field label="Rayon accepté (mètres)">
@@ -1804,7 +1804,7 @@ export default function Parametres() {
                 </button>
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                Il se renouvelle seul chaque jour — rien à presser. Il ne sert qu’à celles et ceux
+                Il se renouvelle seul chaque jour, rien à presser. Il ne sert qu’à celles et ceux
                 dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
                 le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
                 quatre chiffres à la main.
@@ -1822,7 +1822,7 @@ export default function Parametres() {
         <div className="sys-section__title">Accès ERP du personnel</div>
         <div className="sys-section__cap">
           Un membre rejoint le Trône avec son e-mail et son mot de passe, puis un souverain le
-          rattache au personnel depuis Accès &amp; personnel — il entre avec exactement les droits
+          rattache au personnel depuis Accès &amp; personnel, il entre avec exactement les droits
           de son rang, rien de plus. C’est là aussi qu’on ouvre à un maître les domaines
           supplémentaires dont il a besoin : le secrétariat et le fauteuil tiennent sur un seul
           compte, jamais sur deux.
@@ -1855,7 +1855,7 @@ export default function Parametres() {
           Notifications <AVenir />
         </div>
         <div className="sys-section__cap">
-          Qui sera prévenu, et quand — pas encore relié : les seules alertes réelles sont la
+          Qui sera prévenu, et quand, pas encore relié : les seules alertes réelles sont la
           cloche du Trône et les notifications de Ma Couronne.
         </div>
         <ToggleRows rows={NOTIF_TOGGLES} aVenir />
@@ -1895,7 +1895,7 @@ export default function Parametres() {
             />
             <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '46ch' }}>
               {autoCfgRaw.avisAuto === true
-                ? 'La Maison écrit elle-même à chaque première venue soldée — le comptoir n’ouvre plus WhatsApp.'
+                ? 'La Maison écrit elle-même à chaque première venue soldée, le comptoir n’ouvre plus WhatsApp.'
                 : 'Éteint : à l’encaissement d’une première venue, WhatsApp s’ouvre au comptoir, un tap pour envoyer. N’allumer qu’avec les clés Meta posées.'}
             </span>
           </div>
@@ -1919,7 +1919,7 @@ export default function Parametres() {
             Paiement Mobile Money · le QR de la Maison
           </div>
           <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, maxWidth: 640 }}>
-            Le code du compte marchand MTN MoMo, redessiné par la maison — la même donnée que
+            Le code du compte marchand MTN MoMo, redessiné par la maison, la même donnée que
             l’affiche « Scannez et payez ». Montre-le à l’écran quand une cliente règle en MoMo ;
             le code USSD est le chemin sans appareil photo.
           </div>
@@ -1937,19 +1937,19 @@ export default function Parametres() {
 
             <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label className="mnd-field">
-                <span className="mnd-field__label">Nom affiché — compte marchand</span>
+                <span className="mnd-field__label">Nom affiché, compte marchand</span>
                 <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} placeholder="Ets ACIA1" />
               </label>
               <label className="mnd-field">
-                <span className="mnd-field__label">Code USSD — sans appareil photo</span>
+                <span className="mnd-field__label">Code USSD, sans appareil photo</span>
                 <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} placeholder="*880*41*506846*montant#" />
               </label>
               <label className="mnd-field">
-                <span className="mnd-field__label">Donnée du QR — identifiant marchand</span>
+                <span className="mnd-field__label">Donnée du QR, identifiant marchand</span>
                 <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} placeholder="506846@momopay" />
               </label>
               <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                Dans le code USSD, « montant » se remplace par la somme en francs — 15 000 F se
+                Dans le code USSD, « montant » se remplace par la somme en francs, 15 000 F se
                 compose *880*41*506846*15000#. Ne touche à la donnée du QR que si MTN te remet
                 un nouveau document marchand.
               </div>
@@ -1968,7 +1968,7 @@ export default function Parametres() {
           Accès & souveraineté <AVenir />
         </div>
         <div className="sys-section__cap">
-          La Maison reste maîtresse de ses données — ces bascules ne sont pas encore reliées ;
+          La Maison reste maîtresse de ses données, ces bascules ne sont pas encore reliées ;
           la vraie sauvegarde est la carte « Sauvegarde de la Maison » ci-dessous.
         </div>
         <ToggleRows rows={ACCES_TOGGLES} aVenir />

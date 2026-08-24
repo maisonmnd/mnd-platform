@@ -56,7 +56,7 @@ function GrowthChart({ moves, currency }: { moves: CoffreMovement[]; currency: s
   if (pts.length < 2) {
     return (
       <div className="trf-coffre-chart trf-coffre-chart--empty">
-        Le coffre commence à croître — chaque versement dessinera sa courbe.
+        Le coffre commence à croître, chaque versement dessinera sa courbe.
       </div>
     );
   }
@@ -151,7 +151,7 @@ export default function Coffre() {
 
   const removeMove = (m: CoffreMovement) => {
     const label = m.kind === 'depot' ? 'ce dépôt' : 'ce virement';
-    if (!window.confirm(`Retirer ${label} du registre ? (correction d’écriture — n’envoie ni ne rend d’argent)`)) return;
+    if (!window.confirm(`Retirer ${label} du registre ? (correction d’écriture, n’envoie ni ne rend d’argent)`)) return;
     coffreStore.set((prev) => prev.filter((x) => x.id !== m.id));
   };
 
@@ -255,7 +255,7 @@ export default function Coffre() {
       <PageHead
         eyebrow="Finances · épargne souveraine"
         title="Le Coffre-fort."
-        sub="Mettez de côté une part du chiffre déjà gagné. Le coffre est verrouillé : aucune dépense possible — la seule sortie est un virement vers la banque."
+        sub="Mettez de côté une part du chiffre déjà gagné. Le coffre est verrouillé : aucune dépense possible, la seule sortie est un virement vers la banque."
         actions={
           <>
             <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>
@@ -273,7 +273,7 @@ export default function Coffre() {
         <div className="trf-coffre-hero__label">Solde du coffre-fort · {branch.name}</div>
         <div className="trf-coffre-hero__value">{fmtMoney(balance, currency)}</div>
         <div className="trf-coffre-hero__lock">
-          <span className="trf-coffre-hero__lockdot" /> Verrouillé — aucune dépense possible, sortie uniquement par virement bancaire.
+          <span className="trf-coffre-hero__lockdot" /> Verrouillé, aucune dépense possible, sortie uniquement par virement bancaire.
         </div>
         <GrowthChart moves={moves} currency={currency} />
       </Card>
@@ -290,9 +290,9 @@ export default function Coffre() {
             <div className="mnd-eyebrow" style={{ marginBottom: 2 }}>Ce que la Maison met de côté</div>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.65, maxWidth: '62ch' }}>
               {objectifsVivants.length > 0
-                ? `${objectifsVivants.length} objectif${objectifsVivants.length > 1 ? 's' : ''} en cours. Ils flèchent cet argent-ci — il ne bouge pas d’ici.`
+                ? `${objectifsVivants.length} objectif${objectifsVivants.length > 1 ? 's' : ''} en cours. Ils flèchent cet argent-ci, il ne bouge pas d’ici.`
                 : 'Aucun objectif posé. Une scolarité, un voyage, un second fauteuil : nommez ce que vous préparez.'}
-              {" "}Non fléché — disponible : <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(coffreNonFleche(moves), currency)}</b>.
+              {" "}Non fléché, disponible : <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(coffreNonFleche(moves), currency)}</b>.
             </div>
           </div>
           <Button variant="ghost" onClick={() => navigate('/prets?onglet=objectifs')}>Les objectifs →</Button>
@@ -323,7 +323,7 @@ export default function Coffre() {
         </div>
         {moves.length === 0 ? (
           <div className="trf-empty" style={{ padding: 28 }}>
-            Le coffre est vide. « Verser au coffre » met de côté une part du chiffre — l’argent commencera à grandir.
+            Le coffre est vide. « Verser au coffre » met de côté une part du chiffre, l’argent commencera à grandir.
           </div>
         ) : (
           <div className="trf-coffre-ledger">
@@ -385,7 +385,7 @@ export default function Coffre() {
                   {m.clientName ? ` · ${m.clientName}` : ''}
                   {m.bank ? ` · ${m.bank}` : ''}
                   <br />
-                  Le sens du mouvement ne se change pas ici — pour cela, retirez la ligne et reposez-la.
+                  Le sens du mouvement ne se change pas ici, pour cela, retirez la ligne et reposez-la.
                 </div>
               )}
               <Field label={`Montant · ${currency}`}>
@@ -409,7 +409,7 @@ export default function Coffre() {
                     value={mvtOuvert.objectifId}
                     onChange={(e) => setMvtOuvert((f) => (f ? { ...f, objectifId: e.target.value } : f))}
                   >
-                    <option value="">Sans objectif — argent disponible</option>
+                    <option value="">Sans objectif, argent disponible</option>
                     {objectifsVivants.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
                   </Select>
                 </Field>
@@ -450,7 +450,7 @@ export default function Coffre() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
               L’argent quitte le coffre et <b>rentre dans une caisse</b> : il redevient disponible
-              au comptoir. Le coffre reste verrouillé pour les dépenses — on ne dépense jamais
+              au comptoir. Le coffre reste verrouillé pour les dépenses, on ne dépense jamais
               directement depuis lui, et ce retour se voit.
             </div>
             <Field label={`Montant repris · ${currency}`}>
@@ -471,7 +471,7 @@ export default function Coffre() {
                 {caissesDuCoffre.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
               </Select>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
-                La caisse choisie monte d’autant — l’argent se déplace, il ne se duplique pas.
+                La caisse choisie monte d’autant, l’argent se déplace, il ne se duplique pas.
                 {motDesCaissesEnDevise(caissesAutresDevises, currency) && (
                   <div style={{ marginTop: 5 }}>{motDesCaissesEnDevise(caissesAutresDevises, currency)}</div>
                 )}
@@ -518,14 +518,14 @@ export default function Coffre() {
                 value={objOuvert.devise}
                 onChange={(e) => setObjOuvert((o) => (o ? { ...o, devise: e.target.value } : o))}
               >
-                <option value="">{currency} — la devise de la Maison</option>
+                <option value="">{currency}, la devise de la Maison</option>
                 {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
                   <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
                 ))}
               </Select>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 Un compartiment en devise compte SES billets et ne s’additionne jamais au solde
-                en {currency} — deux monnaies ne font pas un total.
+                en {currency}, deux monnaies ne font pas un total.
               </div>
             </Field>
             <Field label={`Montant à réunir · ${objOuvert.devise || currency} · facultatif`}>
@@ -540,7 +540,7 @@ export default function Coffre() {
                   coffre dans le coffre — il contient, il ne vise rien. */}
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 Laissez vide pour un simple compartiment : un coffre dans le coffre, qui contient
-                sans viser de montant. Avec un montant, il devient un objectif — jauge, manque et rythme.
+                sans viser de montant. Avec un montant, il devient un objectif, jauge, manque et rythme.
               </div>
             </Field>
             <Field label="Pour quand · facultatif">
@@ -552,7 +552,7 @@ export default function Coffre() {
               {/* L'ABSENCE DE DATE A UN SENS, et il faut le dire : sans elle,
                   l'objectif ne sera JAMAIS annoncé en retard. */}
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.55 }}>
-                Sans date, Le Trône dira le rythme mais ne parlera jamais de retard —
+                Sans date, Le Trône dira le rythme mais ne parlera jamais de retard,
                 on ne reproche pas un retard à qui n’a pas donné d’échéance.
               </div>
             </Field>

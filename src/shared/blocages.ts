@@ -60,7 +60,7 @@ export function fermerLeSalonPour(p: {
     {
       id: `blk-priv-${p.apptId}`, branchId: p.branchId, date: p.date,
       debut: p.debut, fin: p.fin,
-      motif: `${marque} · Salon Souverain${p.qui ? ` — ${p.qui}` : ''}`,
+      motif: `${marque} · Salon Souverain${p.qui ? `, ${p.qui}` : ''}`,
     },
   ]);
 }

@@ -19,9 +19,9 @@ type StaffFull = { user_id: string; email: string | null; name: string | null; r
 type Role = 'souverain' | 'gerant' | 'maitre';
 
 const ROLE_LABEL: Record<string, string> = {
-  souverain: 'Souverain·e — accès total',
-  gerant: 'Gérant·e — tout sauf le système',
-  maitre: 'Maître — clients & vente',
+  souverain: 'Souverain·e, accès total',
+  gerant: 'Gérant·e, tout sauf le système',
+  maitre: 'Maître, clients & vente',
 };
 
 const fmtDate = (iso: string) =>
@@ -148,14 +148,14 @@ export default function Acces() {
           étanche — et on donnerait un accès en pensant cloisonner les finances. */}
       <div style={{ fontSize: 12.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '11px 14px', lineHeight: 1.55, marginBottom: 18 }}>
         <b>Portée réelle des rôles.</b> Côté serveur, seule la <b>paie</b> (runs, avances, pointages,
-        congés) est réservée au souverain. Le reste des données de la Maison — clientes, rendez-vous,
-        factures, dépenses — est accessible à <b>tout compte autorisé ici</b>, quel que soit son rôle :
+        congés) est réservée au souverain. Le reste des données de la Maison, clientes, rendez-vous,
+        factures, dépenses, est accessible à <b>tout compte autorisé ici</b>, quel que soit son rôle :
         n'autorisez que des personnes de confiance. Les rôles et rubriques organisent l'interface,
         ils ne cloisonnent pas les données.
       </div>
 
       {!supabase ? (
-        <Card className="sys-section"><div className="sys-section__cap">Aucun backend configuré — l'accès est géré en local.</div></Card>
+        <Card className="sys-section"><div className="sys-section__cap">Aucun backend configuré, l'accès est géré en local.</div></Card>
       ) : !isSouverain ? (
         <Card className="sys-section">
           <div className="sys-section__title">Réservé au souverain</div>
@@ -208,9 +208,9 @@ export default function Acces() {
                   onChange={(e) => setRoleFor((r) => ({ ...r, [u.user_id]: e.target.value as Role }))}
                   aria-label="Rôle"
                 >
-                  <option value="maitre">Maître — clients & vente</option>
-                  <option value="gerant">Gérant·e — tout sauf système</option>
-                  <option value="souverain">Souverain·e — accès total</option>
+                  <option value="maitre">Maître, clients & vente</option>
+                  <option value="gerant">Gérant·e, tout sauf système</option>
+                  <option value="souverain">Souverain·e, accès total</option>
                 </Select>
                 <Button variant="copper" size="sm" disabled={busy === u.user_id} onClick={() => void authorize(u)}>
                   {busy === u.user_id ? '…' : 'Autoriser'}
@@ -231,7 +231,7 @@ export default function Acces() {
                 Comptes de Ma Couronne <span className="sys-badge-count">{attenteCouronne.length}</span>
               </div>
               <div className="sys-section__cap">
-                Des clientes inscrites sur Ma Couronne. Elles n'ont pas à entrer dans Le Trône —
+                Des clientes inscrites sur Ma Couronne. Elles n'ont pas à entrer dans Le Trône,
                 leur compte leur sert à réserver et à suivre leurs rituels. Reconnues à leur fiche
                 cliente, qui porte le même identifiant que leur compte.
               </div>
@@ -243,7 +243,7 @@ export default function Acces() {
                       {u.email ?? '—'} · inscrite le {fmtDate(u.created_at)}
                     </div>
                   </div>
-                  <span className="mnd-muted" style={{ fontSize: 12 }}>Cliente — aucun accès à l’ERP</span>
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>Cliente, aucun accès à l’ERP</span>
                 </div>
               ))}
               <div className="mnd-muted" style={{ fontSize: 11.5, padding: '10px 2px 2px', lineHeight: 1.55 }}>
@@ -299,9 +299,9 @@ export default function Acces() {
                         disabled={self}
                         title={self ? 'Vous ne pouvez pas changer votre propre rôle.' : undefined}
                       >
-                        <option value="maitre">Maître — clients & vente</option>
-                        <option value="gerant">Gérant·e — tout sauf système</option>
-                        <option value="souverain">Souverain·e — accès total</option>
+                        <option value="maitre">Maître, clients & vente</option>
+                        <option value="gerant">Gérant·e, tout sauf système</option>
+                        <option value="souverain">Souverain·e, accès total</option>
                       </Select>
                       <Button variant="copper" size="sm" disabled={busy === m.user_id} onClick={() => void saveEdit(m)}>
                         {busy === m.user_id ? '…' : 'Enregistrer'}
@@ -316,7 +316,7 @@ export default function Acces() {
                         size="sm"
                         style={{ color: 'var(--trv-error, #b0563e)' }}
                         disabled={busy === m.user_id || self || lastSouverain}
-                        title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain — accès protégé.' : 'Retirer l’accès'}
+                        title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain, accès protégé.' : 'Retirer l’accès'}
                         onClick={() => void revoke(m)}
                       >
                         {busy === m.user_id ? '…' : 'Retirer'}

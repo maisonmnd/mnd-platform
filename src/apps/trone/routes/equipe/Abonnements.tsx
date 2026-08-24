@@ -194,8 +194,8 @@ export default function Abonnements() {
         <div>
           <DeepNote eyebrow={mrr > 0 ? 'Avant même d’ouvrir les portes' : 'Le moteur attend sa première lune'}>
             {mrr > 0
-              ? <>{fmtMoney(mrr, currency)} sont déjà encaissés ce mois — <span className="accent">le salon classique vend une fois ; la Maison perçoit chaque lune.</span></>
-              : <>Aucun abonnement encore — <span className="accent">le salon classique vend une fois ; la Maison percevra chaque lune.</span></>}
+              ? <>{fmtMoney(mrr, currency)} sont déjà encaissés ce mois, <span className="accent">le salon classique vend une fois ; la Maison perçoit chaque lune.</span></>
+              : <>Aucun abonnement encore, <span className="accent">le salon classique vend une fois ; la Maison percevra chaque lune.</span></>}
           </DeepNote>
 
           <div className="tr-grid tr-grid--4">
@@ -232,7 +232,7 @@ export default function Abonnements() {
               </div>
               {members.length === 0 ? (
                 <div className="mnd-muted" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, padding: '14px 0' }}>
-                  L’évolution du revenu récurrent se dessinera lune après lune — inscrivez la première abonnée, la courbe naîtra d’elle.
+                  L’évolution du revenu récurrent se dessinera lune après lune, inscrivez la première abonnée, la courbe naîtra d’elle.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -258,7 +258,7 @@ export default function Abonnements() {
               <div className="tre-inline-note" style={{ alignItems: 'flex-start' }}>
                 <span className="mark">✦</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5 }}>
-                  Un revenu qui revient seul vaut plus qu’un revenu qu’il faut reconquérir. Chaque abonné est une trésorerie prévisible — et un fauteuil déjà rempli.
+                  Un revenu qui revient seul vaut plus qu’un revenu qu’il faut reconquérir. Chaque abonné est une trésorerie prévisible, et un fauteuil déjà rempli.
                 </span>
               </div>
               <Card style={{ padding: '18px 20px' }}>
@@ -286,7 +286,7 @@ export default function Abonnements() {
         <div>
           <div className="tre-actions-row">
             <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: 'var(--color-indigo)' }}>
-              Offrez-vous le rituel. <span className="mnd-muted" style={{ fontStyle: 'normal', fontSize: 13, fontFamily: 'var(--font-sans)' }}>— pour vous, ou pour quelqu’un que vous aimez.</span>
+              Offrez-vous le rituel. <span className="mnd-muted" style={{ fontStyle: 'normal', fontSize: 13, fontFamily: 'var(--font-sans)' }}>, pour vous, ou pour quelqu’un que vous aimez.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Button size="sm" onClick={openPlanNew}>+ Nouvelle formule</Button>
@@ -351,7 +351,7 @@ export default function Abonnements() {
             })}
           </div>
           <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 18 }}>
-            Chaque formule réserve un créneau <span style={{ color: 'var(--copper-700)' }}>rien qu’à vous</span> — prélèvement Mobile Money, sans paperasse, résiliable à tout moment.
+            Chaque formule réserve un créneau <span style={{ color: 'var(--copper-700)' }}>rien qu’à vous</span>, prélèvement Mobile Money, sans paperasse, résiliable à tout moment.
           </div>
         </div>
       )}
@@ -417,7 +417,7 @@ export default function Abonnements() {
                     );
                   })}
                   {members.length === 0 && (
-                    <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun abonné dans cette branche — le moteur attend sa première lune.</td></tr>
+                    <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun abonné dans cette branche, le moteur attend sa première lune.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -528,7 +528,7 @@ export default function Abonnements() {
           <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={520}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-                {plan?.name ?? '—'} · cycle en cours du {shortDate(start)} au {shortDate(end)} — le compteur repart à l’échéance.
+                {plan?.name ?? '—'} · cycle en cours du {shortDate(start)} au {shortDate(end)}, le compteur repart à l’échéance.
               </div>
               {usage.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12.5 }}>Cette formule n’inclut aucune prestation à suivre.</div>
@@ -594,7 +594,7 @@ export default function Abonnements() {
                 <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
                   {subForm.cycle === 'mensuel'
                     ? `${fmtMoney(planOf(subForm.planId)!.priceXof, currency)} / mois`
-                    : `${fmtMoney(subCycleAmountXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / ${subForm.cycle === 'annuel' ? 'an' : '6 mois'} — soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / mois`}
+                    : `${fmtMoney(subCycleAmountXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / ${subForm.cycle === 'annuel' ? 'an' : '6 mois'}, soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / mois`}
                 </div>
               )}
             </Field>

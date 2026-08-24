@@ -290,7 +290,7 @@ export default function Carnet() {
             <span
               className="trc-src"
               style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
-              title={`Réglé par ${clientOf(a.offertPar)?.name ?? 'une autre cliente'} — la dépense et les points lui reviennent`}
+              title={`Réglé par ${clientOf(a.offertPar)?.name ?? 'une autre cliente'}, la dépense et les points lui reviennent`}
             >
               offert par {clientOf(a.offertPar)?.name?.split(' ')[0] ?? 'une autre'}
             </span>
@@ -303,8 +303,8 @@ export default function Carnet() {
               className="trc-serie-chip"
               style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
               title={a.coverKind === 'forfait'
-                ? 'Séance promise par un forfait déjà réglé — rien à facturer'
-                : 'Rituel couvert par l’abonnement — rien à facturer, décompté du quota du cycle'}
+                ? 'Séance promise par un forfait déjà réglé, rien à facturer'
+                : 'Rituel couvert par l’abonnement, rien à facturer, décompté du quota du cycle'}
             >
               {/* Un abonnement mensuel et un forfait vendu d'un coup ne sont pas
                   la même formule : les confondre au comptoir empêchait de savoir
@@ -328,7 +328,7 @@ export default function Carnet() {
                 <span
                   className="trc-serie-chip"
                   style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
-                  title="Solde restant dû — encaissez via le menu ⋯"
+                  title="Solde restant dû, encaissez via le menu ⋯"
                 >
                   reste {fmtMoney(dueX, currency)}
                 </span>
@@ -499,7 +499,7 @@ export default function Carnet() {
             </div>
             <div className="trc-sub">
               {totaux.creanceN === 0
-                ? 'Rien à recouvrer — tout est réglé.'
+                ? 'Rien à recouvrer, tout est réglé.'
                 : `sur ${totaux.creanceN} rituel${totaux.creanceN > 1 ? 's' : ''} déjà rendu${totaux.creanceN > 1 ? 's' : ''}`}
             </div>
           </div>
@@ -511,7 +511,7 @@ export default function Carnet() {
             <div className="trc-sub">
               {totaux.avenirN === 0
                 ? 'Le carnet est libre.'
-                : `sur ${totaux.avenirN} rendez-vous — rien n’est encore acquis`}
+                : `sur ${totaux.avenirN} rendez-vous, rien n’est encore acquis`}
             </div>
           </div>
         </div>
@@ -535,7 +535,7 @@ export default function Carnet() {
           <div className="trc-empty">
             {vue !== '' ? `Aucun rendez-vous à venir dans « ${VUES[vue].label} »${query.trim() ? ` pour « ${query.trim()} »` : ''}.`
               : query.trim() ? `Aucun rendez-vous à venir pour « ${query.trim()} ».`
-              : 'Le carnet est libre — la maison respire.'}
+              : 'Le carnet est libre, la maison respire.'}
           </div>
         )}
         {upcoming.map(renderRow)}

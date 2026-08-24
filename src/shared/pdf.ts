@@ -40,7 +40,7 @@ const PDF_TRANSLIT: Record<string, string> = {
   '−': '-', '‑': '-',
 };
 /* Ce que WinAnsi sait tracer : Latin-1 entier, plus ses quelques extras. */
-const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–, ˜™š›œžŸ';
 const winAnsiOk = (ch: string): boolean => ch.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(ch);
 
 function pdfSafe(s: string): string {
@@ -746,7 +746,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   // — Règlement —
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(COPPER); doc.text('RÈGLEMENT', M, y); y += 6.5;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(INK);
-  doc.text(d.paid ? d.paid.line : 'En attente de règlement — non confirmé à ce jour.', M, y); y += 5.5;
+  doc.text(d.paid ? d.paid.line : 'En attente de règlement, non confirmé à ce jour.', M, y); y += 5.5;
   if (d.paid) { doc.setTextColor(SOFT); doc.setFontSize(9); doc.text(d.paid.by, M, y); }
 
   // — Zone de signatures (bas de page) —

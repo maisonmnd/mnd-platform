@@ -76,7 +76,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       'Rituel de la maison';
     /* Le rituel d'une tête portée se nomme : « — pour Keli ». */
     const tete = a.clientId !== clientId ? tetes.find((t) => t.id === a.clientId) : undefined;
-    return tete ? `${base} — pour ${tete.name.split(' ')[0]}` : base;
+    return tete ? `${base}, pour ${tete.name.split(' ')[0]}` : base;
   };
 
   const durationOf = (a: Appointment) => {
@@ -97,7 +97,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       alarmMin: 120,
     }));
     downloadIcs(events, 'rituel-maison-mnd.ics');
-    toast('Fichier calendrier téléchargé — votre téléphone vous rappellera 2 h avant.');
+    toast('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.');
   };
 
   /* ---- Modifier : nouvelle date + heure, comme à la réservation ---- */
@@ -159,21 +159,21 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     const label = `${names(a)} · ${dayLabelIso(iso)} à ${t}`;
     const transmis = await ecrisRendezVous(a.id, { date: iso, time: t, status: 'en attente' });
     if (!transmis) {
-      toast('Déplacement non transmis — prévenez la maison.');
+      toast('Déplacement non transmis, prévenez la maison.');
       setNonTransmis({ a: { ...a, date: iso, time: t }, geste: 'déplacement' });
       return;
     }
     void pushNotifyStaff(
       'Rendez-vous déplacé · Ma Couronne',
-      `${a.clientName ?? 'Une cliente'} · ${label} — à confirmer`,
+      `${a.clientName ?? 'Une cliente'} · ${label}, à confirmer`,
       '/trone/#/calendrier',
     );
-    const body = `${label} — en attente de confirmation de la maison.`;
+    const body = `${label}, en attente de confirmation de la maison.`;
     void enablePush(clientId).then((subbed) => {
       if (subbed) void pushNotify(clientId, 'Rendez-vous modifié', body, `${import.meta.env.BASE_URL}#/suivi`);
       else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous modifié', body); });
     });
-    toast('Rendez-vous déplacé — la maison confirmera.');
+    toast('Rendez-vous déplacé, la maison confirmera.');
   };
 
   /* ---- Annuler : confirmation explicite, l'acompte reste acquis ---- */
@@ -192,7 +192,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
   const annuler = async (a: Appointment) => {
     const transmis = await ecrisRendezVous(a.id, { status: 'annulé' });
-    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time} — annulé.`;
+    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time}, annulé.`;
     if (transmis) {
       setNonTransmis(null);
       void pushNotifyStaff(
@@ -204,13 +204,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
         if (subbed) void pushNotify(clientId, 'Rendez-vous annulé', body, `${import.meta.env.BASE_URL}#/suivi`);
         else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous annulé', body); });
       });
-      toast('Rendez-vous annulé — la maison est prévenue.');
+      toast('Rendez-vous annulé, la maison est prévenue.');
       return;
     }
     /* DIRE VRAI : sur ce téléphone il est annulé, au salon il ne l'est pas.
        Tant qu'elle n'a pas appelé, le créneau lui reste réservé. */
     setNonTransmis({ a, geste: 'annulation' });
-    toast('Annulation non transmise — prévenez la maison.');
+    toast('Annulation non transmise, prévenez la maison.');
   };
 
   const confirmCancel = () => {
@@ -252,7 +252,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
               {names(nonTransmis.a)} — {nonTransmis.geste === 'annulation'
                 ? `annulé sur ce téléphone, mais le salon garde encore votre créneau du ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}`
                 : `déplacé sur ce téléphone au ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}, mais le salon vous attend encore à l’ancienne heure`}.
-              Appelez la maison{branch.phone ? ` au ${branch.phone}` : ''} — ou réessayez dans un instant.
+              Appelez la maison{branch.phone ? ` au ${branch.phone}` : ''}, ou réessayez dans un instant.
             </span>
             <button
               className="mc-textbtn"
@@ -261,9 +261,9 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                 if (geste === 'annulation') void annuler(a);
                 else void ecrisRendezVous(a.id, { date: a.date, time: a.time, status: 'en attente' })
                   .then((ok) => {
-                    if (!ok) { toast('Toujours pas transmis — appelez la maison.'); return; }
+                    if (!ok) { toast('Toujours pas transmis, appelez la maison.'); return; }
                     setNonTransmis(null);
-                    toast('Déplacement transmis — la maison confirmera.');
+                    toast('Déplacement transmis, la maison confirmera.');
                   });
               }}
             >
@@ -328,13 +328,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                     </button>
                   ))}
                   {dayTimes.length === 0 && (
-                    <div className="mc-emptyline">Plus de créneau ce jour — choisissez un autre jour.</div>
+                    <div className="mc-emptyline">Plus de créneau ce jour, choisissez un autre jour.</div>
                   )}
                 </div>
               </div>
             )}
             <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 16 }}>
-              Le déplacement repasse le rendez-vous en attente — la maison le re-confirme.
+              Le déplacement repasse le rendez-vous en attente, la maison le re-confirme.
             </div>
           </div>
         ) : (
@@ -346,7 +346,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                 <div className="mc-emptyzone__glyph">♛</div>
                 <div className="mc-emptyzone__t">Aucun rituel à venir.</div>
                 <div className="mc-emptyzone__s">
-                  Votre couronne mérite sa prochaine séance — la maison vous attend.
+                  Votre couronne mérite sa prochaine séance, la maison vous attend.
                 </div>
                 <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={onBook}>
                   Réserver un rituel
@@ -404,7 +404,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
             {upcoming.length > 0 && (
               <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 18 }}>
-                Les rappels passent par votre calendrier (bouton « Calendrier ») et par l’app ouverte —
+                Les rappels passent par votre calendrier (bouton « Calendrier ») et par l’app ouverte,
                 la maison ne peut pas encore vous notifier à distance.
               </div>
             )}

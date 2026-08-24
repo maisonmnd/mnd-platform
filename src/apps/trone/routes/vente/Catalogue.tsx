@@ -406,7 +406,7 @@ export default function Catalogue() {
     if (r.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
     if (r.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
     if (r.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
-    return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons — rituels annexes et lignes de produits' };
+    return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons, rituels annexes et lignes de produits' };
   };
 
   /* L'ORDRE DE L'ARBRE : les deux maisons, ce qu'elles partagent, puis l'école ;
@@ -494,7 +494,7 @@ export default function Catalogue() {
   const orphanSvcs = services.filter((s) => !knownCatIds.has(s.categoryId)).sort((a, b) => a.order - b.order);
   const orphanProds = products.filter((p) => !knownCatIds.has(p.categoryId)).sort((a, b) => a.order - b.order);
   const renderCats: CatalogCategory[] = orphanSvcs.length || orphanProds.length
-    ? [...cats, { id: ORPHAN_ID, fon: 'À RECLASSER', label: 'Sans catégorie — à ranger', enabled: true, order: Number.MAX_SAFE_INTEGER }]
+    ? [...cats, { id: ORPHAN_ID, fon: 'À RECLASSER', label: 'Sans catégorie, à ranger', enabled: true, order: Number.MAX_SAFE_INTEGER }]
     : cats;
 
   /* — catégories — */
@@ -541,7 +541,7 @@ export default function Catalogue() {
     const prodCount = products.filter((p) => p.categoryId === cat.id).length;
     const refs = svcCount + prodCount;
     const warn = refs > 0
-      ? `\n\nAttention : ${svcCount} prestation${svcCount > 1 ? 's' : ''} et ${prodCount} produit${prodCount > 1 ? 's' : ''} y sont rattaché${refs > 1 ? 's' : ''} — ils resteront sans catégorie tant que vous ne les réaffectez pas.`
+      ? `\n\nAttention : ${svcCount} prestation${svcCount > 1 ? 's' : ''} et ${prodCount} produit${prodCount > 1 ? 's' : ''} y sont rattaché${refs > 1 ? 's' : ''}, ils resteront sans catégorie tant que vous ne les réaffectez pas.`
       : '';
     if (!window.confirm(`Supprimer la catégorie « ${cat.fon} · ${cat.label} » ?${warn}`)) return;
     setCategories((prev) => prev.filter((c) => c.id !== cat.id));
@@ -926,7 +926,7 @@ export default function Catalogue() {
       <PageHead
         eyebrow="Vente · L’offre"
         title="Le catalogue."
-        sub="Segmenté par catégorie ™ et par palier d’expérience — jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
+        sub="Segmenté par catégorie ™ et par palier d’expérience, jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
         actions={
           <>
             <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '', parentId: '' })}>+ Catégorie</Button>
@@ -1000,9 +1000,9 @@ export default function Catalogue() {
             {regimeFiltre !== 'tout' && (
               <span className="mnd-muted" style={{ fontSize: 11.5 }}>
                 {regimeFiltre === 'jp'
-                  ? 'toutes les prestations que le Juste Prix de la cliente modulera — les produits de la Gamme sont hors champ'
+                  ? 'toutes les prestations que le Juste Prix de la cliente modulera, les produits de la Gamme sont hors champ'
                   : regimeFiltre === 'hors'
-                    ? 'prix fermes du catalogue et montants sur devis — le Juste Prix ne les touche pas'
+                    ? 'prix fermes du catalogue et montants sur devis, le Juste Prix ne les touche pas'
                     : 'les prestations de ce régime, rangées par atelier'}
               </span>
             )}
@@ -1012,7 +1012,7 @@ export default function Catalogue() {
 
       {cats.length === 0 && (
         <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '28px 0', textAlign: 'center' }}>
-          Le catalogue est vierge. Commencez par inscrire une catégorie ™ — elle accueillera vos prestations et vos produits Maison.
+          Le catalogue est vierge. Commencez par inscrire une catégorie ™, elle accueillera vos prestations et vos produits Maison.
         </div>
       )}
 
@@ -1155,7 +1155,7 @@ export default function Catalogue() {
                       Forfaits · {forfaits.length}
                     </span>
                     <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                      plusieurs gestes, un seul engagement — les prestations incluses se posent au carnet
+                      plusieurs gestes, un seul engagement, les prestations incluses se posent au carnet
                     </span>
                   </div>
                 )}
@@ -1169,15 +1169,15 @@ export default function Catalogue() {
                         className="trv-hideprice"
                         style={suitLeModeleRegle(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
                         title={suitLeModeleRegle(svc)
-                          ? 'Suit le modèle de la cliente (barème par tranches de locks) — cliquer pour désactiver'
-                          : 'Prix identique quel que soit le modèle — cliquer pour suivre le barème par tranches de locks'}
+                          ? 'Suit le modèle de la cliente (barème par tranches de locks), cliquer pour désactiver'
+                          : 'Prix identique quel que soit le modèle, cliquer pour suivre le barème par tranches de locks'}
                         onClick={() => patchSvc(svc.id, { scalesWithModel: !suitLeModeleRegle(svc) })}
                       >
                         {suitLeModeleRegle(svc) ? '◈ Modèle' : 'Modèle —'}
                       </button>
                       <button
                         className="trv-hideprice"
-                        title="Mode de prix — cliquez pour changer : Fixe → Variable → Sur devis"
+                        title="Mode de prix, cliquez pour changer : Fixe → Variable → Sur devis"
                         onClick={() => cyclePriceMode(svc)}
                       >
                         {PRICE_MODES.find((m) => m.k === priceModeOf(svc))?.label}
@@ -1308,7 +1308,7 @@ export default function Catalogue() {
                             )}
                           </>
                         ) : (
-                          <span style={{ fontStyle: 'italic' }}>◈ Jamais réservée — masquable ou supprimable sans risque</span>
+                          <span style={{ fontStyle: 'italic' }}>◈ Jamais réservée, masquable ou supprimable sans risque</span>
                         )}
                       </div>
                     );
@@ -1320,7 +1320,7 @@ export default function Catalogue() {
                       règle » de « disparue ». */}
                   {(svc.desVenue || svc.reserveFamilles || svc.bandIds?.length) && (
                     <div className="trv-svc__garde">
-                      {svc.desVenue ? `◈ Paraît dès la ${svc.desVenue}ᵉ venue — invisible avant, partout` : ''}
+                      {svc.desVenue ? `◈ Paraît dès la ${svc.desVenue}ᵉ venue, invisible avant, partout` : ''}
                       {svc.desVenue && (svc.reserveFamilles || svc.bandIds?.length) ? ' · ' : ''}
                       {svc.reserveFamilles ? '◈ Réservée aux comptes famille' : ''}
                       {svc.reserveFamilles && svc.bandIds?.length ? ' · ' : ''}
@@ -1596,8 +1596,8 @@ export default function Catalogue() {
                   <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ce qui fait son prix · </span>
                   {regime.mots}
                   {regime.justePrix
-                    ? ' — puis le Juste Prix de la cliente s’applique (Finances › Le Juste Prix).'
-                    : ' — le Juste Prix de la cliente ne s’applique pas.'}
+                    ? ', puis le Juste Prix de la cliente s’applique (Finances › Le Juste Prix).'
+                    : ', le Juste Prix de la cliente ne s’applique pas.'}
                 </div>
               );
             })()}
@@ -1610,7 +1610,7 @@ export default function Catalogue() {
                 choisir — les autres, si : porter un geste inclus ne retire pas
                 à une prestation son propre prix. */}
             {!prixParComposition(svcForm) && (
-              <Field label="Le modèle de prix — un seul commande">
+              <Field label="Le modèle de prix, un seul commande">
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {([
                     { v: 'fixe' as const, t: 'Prix fixe' },
@@ -1634,18 +1634,17 @@ export default function Catalogue() {
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
                   {svcForm.modele === 'fixe' && 'Le prix du catalogue, le même pour toutes les têtes. Seul le Juste Prix personnel d’une cliente peut encore le moduler.'}
-                  {svcForm.modele === 'modele' && 'Prix de base × le coefficient de la tranche de la cliente — le barème s’édite dans Finances › Le Juste Prix.'}
+                  {svcForm.modele === 'modele' && 'Prix de base × le coefficient de la tranche de la cliente, le barème s’édite dans Finances › Le Juste Prix.'}
                   {svcForm.modele === 'lock' && 'Locks comptés × tarif, sans plancher. Tant que la tête n’est pas comptée, le prix s’annonce « dès ».'}
-                  {svcForm.modele === 'calibre' && 'Un prix par tranche de locks — le prix de la tranche EST le prix, il ne se recalcule pas.'}
-                  {svcForm.modele === 'longueur' && 'Trois prix saisis — court, mi-long, long. La longueur se choisit à la réservation et se fige sur le rendez-vous.'}
+                  {svcForm.modele === 'calibre' && 'Un prix par tranche de locks, le prix de la tranche EST le prix, il ne se recalcule pas.'}
+                  {svcForm.modele === 'longueur' && 'Trois prix saisis, court, mi-long, long. La longueur se choisit à la réservation et se fige sur le rendez-vous.'}
                 </div>
                 {/* ELLE PORTE UNE COMPOSITION MAIS GARDE SON PRIX — le dire,
                     sinon la fiche s'intitule « Le forfait » et propose quand
                     même un modèle de prix, sans qu'on sache lequel gagne. */}
                 {svcForm.estForfait && (
                   <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 3, fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.55, color: 'var(--copper-700)' }}>
-                    Cette fiche porte une composition mais garde <b style={{ fontWeight: 500 }}>son propre prix</b> —
-                    le geste inclus l’accompagne, il ne le calcule pas. Pour qu’elle vaille sa
+                    Cette fiche porte une composition mais garde <b style={{ fontWeight: 500 }}>son propre prix</b>, le geste inclus l’accompagne, il ne le calcule pas. Pour qu’elle vaille sa
                     composition, pose une <b style={{ fontWeight: 500 }}>remise de forfait</b> (rubrique
                     « Ce qu’elle contient ») ou mets son prix à zéro ; le modèle de prix disparaîtra alors.
                   </div>
@@ -1794,7 +1793,7 @@ export default function Catalogue() {
             <Field label="Prestations et produits inclus">
               {svcForm.includes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12, padding: '4px 0 8px' }}>
-                  Aucun — cette prestation se vend seule.
+                  Aucun, cette prestation se vend seule.
                 </div>
               )}
               {svcForm.includes.length > 0 && (
@@ -1950,14 +1949,14 @@ export default function Catalogue() {
                         </div>
                       ))}
                       <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, marginTop: 4 }}>
-                        Tête type au plafond de chaque calibre — une prestation comptée au lock suit
+                        Tête type au plafond de chaque calibre, une prestation comptée au lock suit
                         le comptage exact de la cliente au moment de réserver.
                       </div>
                     </div>
                   ) : inclusFamilles > 0 && inclusValeurHaute > inclusValeur && (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginBottom: 6, lineHeight: 1.5 }}>
                       {inclusFamilles} prestation{inclusFamilles > 1 ? 's' : ''} varie{inclusFamilles > 1 ? 'nt' : ''} avec
-                      la densité — la valeur va de {fmtMoney(inclusValeur, currency)} à
+                      la densité, la valeur va de {fmtMoney(inclusValeur, currency)} à
                       {' '}{fmtMoney(inclusValeurHaute, currency)} selon la tête
                       {remisePct !== undefined && (
                         <>, et la cliente paiera donc de {fmtMoney(inclusPrix, currency)} à
@@ -1977,7 +1976,7 @@ export default function Catalogue() {
                 </div>
               )}
               {inclusPaires.length > 0 && (
-                <Field label="Remise du forfait (% de sa composition) — facultatif">
+                <Field label="Remise du forfait (% de sa composition), facultatif">
                   <Input
                     inputMode="numeric"
                     value={svcForm.forfaitRemise}
@@ -1989,14 +1988,14 @@ export default function Catalogue() {
                       ? <span style={{ color: 'var(--copper-700)' }}>Prix à 0 F et sans remise : le forfait vaudra la
                         somme entière de ses prestations. Saisis un pourcentage, ou un prix plus haut.</span>
                       : svcForm.forfaitRemise.trim()
-                      ? <>Somme des prestations au prix de la cliente, moins {parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0} % —
+                      ? <>Somme des prestations au prix de la cliente, moins {parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0} %,
                         chaque tête a son montant exact, ta marge reste la même.</>
                       : <>Prix fixe, le même pour toutes : une tête dense reçoit plus de valeur qu’une tête légère.</>}
                   </div>
                 </Field>
               )}
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
-                « Semaines » dit quand la prestation est due — vide pour le jour même, 6 pour un
+                « Semaines » dit quand la prestation est due, vide pour le jour même, 6 pour un
                 entretien à six semaines. Les échéances deviennent des rendez-vous posés au carnet,
                 couverts par le forfait, à 0 F.
               </div>
@@ -2035,7 +2034,7 @@ export default function Catalogue() {
               )}
 
               {rubrique === 'tetes' && (
-                <Bloc titre="Qui peut la prendre" aide="les têtes à qui elle est proposée — et prixée">
+                <Bloc titre="Qui peut la prendre" aide="les têtes à qui elle est proposée, et prixée">
                   {/* LE SALON SOUVERAIN (15 août) — « quand quelqu'un réserve,
                       le salon est bloqué pour ce temps ; maximum 2 têtes ».
                       Le plafond est un CHAMP, pas une constante : la Maison
@@ -2048,7 +2047,7 @@ export default function Catalogue() {
                         style={svcForm.privatise ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
                         onClick={() => setSvcForm({ ...svcForm, privatise: !svcForm.privatise })}
                       >
-                        {svcForm.privatise ? 'Oui — la Maison ferme' : 'Non — un fauteuil parmi d’autres'}
+                        {svcForm.privatise ? 'Oui, la Maison ferme' : 'Non, un fauteuil parmi d’autres'}
                       </button>
                       {svcForm.privatise && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -2091,7 +2090,7 @@ export default function Catalogue() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                 {svcForm.bandIds.length
-                  ? 'Réservée à ces calibres — pour les autres têtes : « hors calibre », jamais proposée ni prixée.'
+                  ? 'Réservée à ces calibres, pour les autres têtes : « hors calibre », jamais proposée ni prixée.'
                   : 'Aucune coche : elle sert toutes les têtes, quel que soit le calibre.'}
               </div>
             </Field>
@@ -2121,7 +2120,7 @@ export default function Catalogue() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                 {num(svcForm.desVenue)
-                  ? `Une tête qui compte moins de ${(num(svcForm.desVenue) ?? 2) - 1} venue${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} honorée${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} ne la voit NULLE PART — ni au comptoir, ni à la Caisse, ni sur Ma Couronne. Une vente sans fiche non plus : on ne peut compter les venues de personne.`
+                  ? `Une tête qui compte moins de ${(num(svcForm.desVenue) ?? 2) - 1} venue${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} honorée${(num(svcForm.desVenue) ?? 2) - 1 > 1 ? 's' : ''} ne la voit NULLE PART, ni au comptoir, ni à la Caisse, ni sur Ma Couronne. Une vente sans fiche non plus : on ne peut compter les venues de personne.`
                   : 'Aucun seuil : elle se propose dès la première venue, et aussi aux ventes sans fiche.'}
               </div>
             </Field>
@@ -2132,10 +2131,10 @@ export default function Catalogue() {
                 style={svcForm.reserveFamilles ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
                 onClick={() => setSvcForm({ ...svcForm, reserveFamilles: !svcForm.reserveFamilles })}
               >
-                {svcForm.reserveFamilles ? 'Oui — familles seulement' : 'Non — ouverte à toutes'}
+                {svcForm.reserveFamilles ? 'Oui, familles seulement' : 'Non, ouverte à toutes'}
               </button>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                Réservée : seules les têtes rattachées à un compte famille la voient — tunnel de
+                Réservée : seules les têtes rattachées à un compte famille la voient, tunnel de
                 Ma Couronne, accueil et modale de rendez-vous. Le Pack Famille vit ici.
               </div>
             </Field>
@@ -2173,7 +2172,7 @@ export default function Catalogue() {
                           onChange={(e) => majGeste({ pct: e.target.value.replace(/[^0-9]/g, '') })}
                         />
                         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
-                          % de son prix{(parseInt(g.pct, 10) || 0) >= 100 ? ' — elle est offerte' : ''}, avec :
+                          % de son prix{(parseInt(g.pct, 10) || 0) >= 100 ? ', elle est offerte' : ''}, avec :
                         </span>
                         <button
                           type="button"
@@ -2264,7 +2263,7 @@ export default function Catalogue() {
                 ＋ Ajouter un geste
               </button>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
-                Son prix baisse dès qu'un des déclencheurs est au même rituel — le prix plein reste
+                Son prix baisse dès qu'un des déclencheurs est au même rituel, le prix plein reste
                 affiché, barré, pour que la cliente voie le geste. Deux gestes qui tombent ensemble ne
                 se cumulent pas : c'est le plus généreux qui s'applique. Sans geste : elle se paie
                 toujours plein tarif.
@@ -2334,13 +2333,13 @@ export default function Catalogue() {
                 les KLOKLO, les DANDAN. La famille n'a ni maison ni bareme
                 propres : elle herite de son atelier, et tout ce qui les lit
                 remonte jusqu'a lui. */}
-            <Field label="Rattachée à un atelier — facultatif">
+            <Field label="Rattachée à un atelier, facultatif">
               <select
                 className="ds-select"
                 value={catForm.parentId}
                 onChange={(e) => setCatForm({ ...catForm, parentId: e.target.value })}
               >
-                <option value="">Aucun — c’est un atelier</option>
+                <option value="">Aucun, c’est un atelier</option>
                 {categories
                   .filter((c) => !c.parentId && c.id !== catForm.id)
                   .sort((a, b) => a.order - b.order)
@@ -2350,7 +2349,7 @@ export default function Catalogue() {
               </select>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.55 }}>
                 Laisser vide pour un atelier. Choisir un atelier en fait une famille de rituels rangée
-                sous lui — les SÍNSIN™ sous GBÈJÍ™, par exemple. Une famille hérite de la maison et du
+                sous lui, les SÍNSIN™ sous GBÈJÍ™, par exemple. Une famille hérite de la maison et du
                 barème de son atelier ; inutile de les redéfinir.
               </div>
             </Field>
@@ -2372,7 +2371,7 @@ export default function Catalogue() {
                 ligne, deux origines de vente ». */}
             <Field label="Maison">
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[{ k: '' as const, label: 'Plateau — les deux' }, ...MAISONS.map((m) => ({ k: m.k, label: m.fon }))].map((m) => (
+                {[{ k: '' as const, label: 'Plateau, les deux' }, ...MAISONS.map((m) => ({ k: m.k, label: m.fon }))].map((m) => (
                   <button
                     key={m.k || 'plateau'}
                     type="button"
@@ -2526,7 +2525,7 @@ function ProgrammerAuComptage({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
           Le prix vaudra <b style={{ fontWeight: 500 }}>locks × le tarif de sa longueur</b>, sans jamais
-          descendre sous le prix affiché aujourd’hui — qui devient le plancher. Une tête pas encore
+          descendre sous le prix affiché aujourd’hui, qui devient le plancher. Une tête pas encore
           comptée s’annonce à ce plancher. {concernees.length} prestation{concernees.length > 1 ? 's' : ''} de
           cet atelier {concernees.length > 1 ? 'sont' : 'est'} concernée{concernees.length > 1 ? 's' : ''} ;
           les forfaits n’y sont pas.

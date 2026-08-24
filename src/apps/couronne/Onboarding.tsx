@@ -26,7 +26,7 @@ const SLIDES = [
     pos: 'center 25%',
     eyebrow: 'Bénin · Édition Souveraine',
     title: 'Ma Couronne.',
-    copy: 'Vos rendez-vous, votre suivi, votre Cercle — dans votre poche.',
+    copy: 'Vos rendez-vous, votre suivi, votre Cercle, dans votre poche.',
   },
   {
     photo: asset('/assets/photos/model-microlocks.jpg'),
@@ -51,19 +51,19 @@ const errMessage = (e: unknown, fallback: string): string => {
   if (/invalid login credentials/.test(raw))
     return 'E-mail ou mot de passe incorrect.';
   if (/user already registered|already registered/.test(raw))
-    return 'Ce compte existe déjà — connectez-vous avec votre mot de passe.';
+    return 'Ce compte existe déjà, connectez-vous avec votre mot de passe.';
   if (/password should be at least|weak.?password/.test(raw))
-    return 'Mot de passe trop court — au moins 6 caractères.';
+    return 'Mot de passe trop court, au moins 6 caractères.';
   if (/email.*not confirmed|confirm/.test(raw))
-    return 'E-mail non confirmé — vérifiez votre boîte, puis connectez-vous.';
+    return 'E-mail non confirmé, vérifiez votre boîte, puis connectez-vous.';
   if (/expired|invalid.*(token|otp)|(token|otp).*invalid/.test(raw))
-    return 'Code invalide ou expiré — demandez-en un nouveau.';
+    return 'Code invalide ou expiré, demandez-en un nouveau.';
   if (/should be different|same.*password/.test(raw))
     return 'Choisissez un mot de passe différent de l’ancien.';
   if (/rate limit|too many/.test(raw))
-    return 'Trop de tentatives — patientez quelques minutes.';
+    return 'Trop de tentatives, patientez quelques minutes.';
   if (/sending|smtp|500|unexpected/.test(raw))
-    return 'L’envoi de l’e-mail a échoué côté maison — réessayez dans un instant.';
+    return 'L’envoi de l’e-mail a échoué côté maison, réessayez dans un instant.';
   return msg && msg !== '{}' ? msg : fallback;
 };
 
@@ -135,7 +135,7 @@ export default function Onboarding() {
       setMode('oubli-code');
       setNotice('Si ce compte existe, un code à 6 chiffres vient de partir. Vérifiez vos indésirables.');
     } catch (e) {
-      setErr(errMessage(e, 'Envoi impossible — réessayez dans un instant.'));
+      setErr(errMessage(e, 'Envoi impossible, réessayez dans un instant.'));
     } finally {
       setBusy(false);
     }
@@ -159,7 +159,7 @@ export default function Onboarding() {
       await updatePassword(password);
       /* La session est ouverte : le verrou d'App bascule sur l'app. */
     } catch (e) {
-      setErr(errMessage(e, 'Réinitialisation impossible — réessayez.'));
+      setErr(errMessage(e, 'Réinitialisation impossible, réessayez.'));
     } finally {
       setBusy(false);
     }
@@ -203,7 +203,7 @@ export default function Onboarding() {
         await signInClient(email.trim(), password);
       }
     } catch (e) {
-      setErr(errMessage(e, mode === 'inscription' ? 'Inscription impossible — réessayez.' : 'Connexion impossible — réessayez.'));
+      setErr(errMessage(e, mode === 'inscription' ? 'Inscription impossible, réessayez.' : 'Connexion impossible, réessayez.'));
     } finally {
       setBusy(false);
     }
@@ -256,7 +256,7 @@ export default function Onboarding() {
       </h1>
       <p className="mc-lead">
         {mode === 'inscription'
-          ? 'Votre prénom, votre nom, votre e-mail, un mot de passe — la maison vous reconnaît.'
+          ? 'Votre prénom, votre nom, votre e-mail, un mot de passe, la maison vous reconnaît.'
           : mode === 'oubli'
           ? 'Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.'
           : mode === 'oubli-code'
@@ -387,7 +387,7 @@ export default function Onboarding() {
               setBusy(true);
               signInWithGoogle().catch((e) => {
                 setBusy(false);
-                setErr(errMessage(e, 'Google indisponible pour le moment — entrez par e-mail, ou réessayez plus tard.'));
+                setErr(errMessage(e, 'Google indisponible pour le moment, entrez par e-mail, ou réessayez plus tard.'));
               });
             }}
           >

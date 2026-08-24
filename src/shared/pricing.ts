@@ -445,7 +445,7 @@ const regimeBrut = (sv: Service): RegimeTarifaire => {
   if (sv.includes?.length && (sv.forfaitRemisePct !== undefined || sv.priceXof === 0)) {
     return { k: 'forfait', mots: 'composition du forfait − sa remise, aux prix de la cliente', justePrix: true };
   }
-  if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis — montant convenu au fauteuil', justePrix: false };
+  if (priceModeOf(sv) === 'devis') return { k: 'devis', mots: 'sur devis, montant convenu au fauteuil', justePrix: false };
   /* LE COMPTAGE AU TARIF DE LA LONGUEUR passe AVANT la grille de prix : quand
      les deux coexistent, c'est le comptage qui commande et la grille qui sert
      de plancher (voir `personalPriceXof`). Dire « grille par longueur » ici
@@ -453,7 +453,7 @@ const regimeBrut = (sv: Service): RegimeTarifaire => {
   if (sv.tarifLockParLongueur && Object.keys(sv.tarifLockParLongueur).length > 0) {
     return {
       k: 'lock',
-      mots: 'comptage — locks × le tarif de sa longueur, jamais sous le prix affiché',
+      mots: 'comptage, locks × le tarif de sa longueur, jamais sous le prix affiché',
       justePrix: true,
     };
   }
@@ -462,20 +462,20 @@ const regimeBrut = (sv: Service): RegimeTarifaire => {
   }
   const planchers = Object.keys(sv.priceFloors ?? {}).length > 0;
   if (tarifModeOf(sv) === 'calibre' && planchers) {
-    return { k: 'calibre', mots: 'prix par calibre — le plancher de la tranche EST le prix', justePrix: true };
+    return { k: 'calibre', mots: 'prix par calibre, le plancher de la tranche EST le prix', justePrix: true };
   }
   if (sv.tarifMode === 'lock' && sv.ratePerLock) {
-    return { k: 'lock', mots: 'comptage — locks × tarif, sans plancher', justePrix: true };
+    return { k: 'lock', mots: 'comptage, locks × tarif, sans plancher', justePrix: true };
   }
   if (sv.ratePerLock) {
     return {
       k: 'lock',
-      mots: planchers ? 'comptage — locks × tarif, plancher par calibre en filet' : 'comptage — locks × tarif',
+      mots: planchers ? 'comptage, locks × tarif, plancher par calibre en filet' : 'comptage, locks × tarif',
       justePrix: true,
     };
   }
   if (scalesWithModel(sv)) return { k: 'modele', mots: 'prix de base × coefficient du calibre', justePrix: true };
-  if (priceModeOf(sv) === 'variable') return { k: 'variable', mots: 'prix de départ « dès » — montant convenu au fauteuil', justePrix: true };
+  if (priceModeOf(sv) === 'variable') return { k: 'variable', mots: 'prix de départ « dès », montant convenu au fauteuil', justePrix: true };
   return { k: 'fixe', mots: 'prix fixe du catalogue', justePrix: true };
 };
 

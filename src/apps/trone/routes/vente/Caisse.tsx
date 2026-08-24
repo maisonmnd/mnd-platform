@@ -447,7 +447,7 @@ export default function Caisse() {
       );
       const phone = client?.phone.replace(/\D/g, '') ?? '';
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-      setWaHint('Reçu PDF téléchargé — joignez-le à votre message WhatsApp.');
+      setWaHint('Reçu PDF téléchargé, joignez-le à votre message WhatsApp.');
     } else {
       setWaHint(null);
     }
@@ -518,8 +518,8 @@ export default function Caisse() {
             ) : (
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>
                 {fxOn
-                  ? `Aucune caisse en ${payCurrency} — créez-en une dans Dépenses`
-                  : 'Aucune caisse — créez-en une dans Dépenses'}
+                  ? `Aucune caisse en ${payCurrency}, créez-en une dans Dépenses`
+                  : 'Aucune caisse, créez-en une dans Dépenses'}
               </span>
             )}
           </label>
@@ -585,7 +585,7 @@ export default function Caisse() {
                       <div className="n">{g.it.n}</div>
                       <div className="p">
                         {g.it.mode === 'devis'
-                          ? 'sur devis — montant à saisir au ticket'
+                          ? 'sur devis, montant à saisir au ticket'
                           : g.it.mode === 'variable'
                             ? `dès ${fmtMoney(g.it.priceXof, currency)}`
                             : fmtMoney(g.it.priceXof, currency)}
@@ -599,7 +599,7 @@ export default function Caisse() {
                 dit combien, et un geste qui ouvre ou referme tout. */}
             {groups.length > 0 && (
               <button className="trv-catall" onClick={toggleAllGroups} aria-expanded={!allCollapsed}>
-                <span>Tout le catalogue — {nbOffre} prestation{nbOffre > 1 ? 's' : ''} & produits</span>
+                <span>Tout le catalogue, {nbOffre} prestation{nbOffre > 1 ? 's' : ''} & produits</span>
                 <span className="trv-catall__go">{allCollapsed ? 'Déplier ▾' : 'Replier ▴'}</span>
               </button>
             )}
@@ -629,7 +629,7 @@ export default function Caisse() {
                           <div className="n">{it.n}</div>
                           <div className="p">
                             {it.mode === 'devis'
-                              ? 'sur devis — montant à saisir au ticket'
+                              ? 'sur devis, montant à saisir au ticket'
                               : it.mode === 'variable'
                                 ? `dès ${fmtMoney(it.priceXof, currency)}`
                                 : fmtMoney(it.priceXof, currency)}
@@ -661,7 +661,7 @@ export default function Caisse() {
                       value={apptToSettle}
                       onChange={(e) => setApptToSettle(e.target.value)}
                     >
-                      <option value="">Vente libre — ne solde aucun rendez-vous</option>
+                      <option value="">Vente libre, ne solde aucun rendez-vous</option>
                       {rituelsDuJour.map((a) => (
                         <option key={a.id} value={a.id}>{a.date} · {apptLabel(a, svcById)}</option>
                       ))}
@@ -685,7 +685,7 @@ export default function Caisse() {
                     <div
                       style={{ flex: 1, cursor: 'pointer' }}
                       onClick={() => setDiscFor((cur) => (cur === l.key ? null : l.key))}
-                      title="Remise de ligne — toucher pour ouvrir"
+                      title="Remise de ligne, toucher pour ouvrir"
                     >
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--ink)' }}>{l.n}</div>
                       {l.mode === 'devis' ? (
@@ -858,7 +858,7 @@ export default function Caisse() {
 
               {fxOn && !hasCashbox && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--color-copper)' }}>
-                  Aucune caisse ne tient des {fxCode} — créez-la dans Dépenses (Devise détenue :
+                  Aucune caisse ne tient des {fxCode}, créez-la dans Dépenses (Devise détenue :
                   {' '}{fxCode}) avant d’encaisser. Les billets étrangers ne peuvent pas rejoindre
                   le tiroir de la maison.
                 </div>

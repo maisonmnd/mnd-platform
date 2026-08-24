@@ -215,7 +215,7 @@ export default function MonMois() {
     const d = iso(new Date());
     const h = maintenant();
     const existe = duJour(m.id, d);
-    if (existe?.[champ]) { toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} déjà inscrit — le gérant peut le corriger.`); return; }
+    if (existe?.[champ]) { toast(`${champ === 'arrivee' ? 'Arrivée' : 'Départ'} déjà inscrit, le gérant peut le corriger.`); return; }
     if (existe) setPointages((prev) => prev.map((a) => (a.id === existe.id ? { ...a, [champ]: h } : a)));
     else {
       const ouverture = minutesDe(horaireDu(d)?.open);
@@ -248,7 +248,7 @@ export default function MonMois() {
       setVerif('');
       if (!ok) {
         if (!attendu) {
-          toast(`Pointage impossible — ${motif}, et aucun code du jour n’est affiché au salon.`);
+          toast(`Pointage impossible, ${motif}, et aucun code du jour n’est affiché au salon.`);
           return;
         }
         setDemande({ m, champ, motif });
@@ -270,7 +270,7 @@ export default function MonMois() {
   const validerCode = () => {
     if (!demande) return;
     const attendu = preuve.codeDate === iso(new Date()) ? preuve.codeValeur : undefined;
-    if (saisie.trim() !== attendu) { toast('Code incorrect — le pointage n’a pas été inscrit.'); return; }
+    if (saisie.trim() !== attendu) { toast('Code incorrect, le pointage n’a pas été inscrit.'); return; }
     inscrire(demande.m, demande.champ);
     setDemande(null);
     setSaisie('');
@@ -353,14 +353,14 @@ export default function MonMois() {
       <PageHead
         eyebrow="Équipe & Croissance"
         title="Mon mois."
-        sub="Ce que j’ai tenu — mon pointage, mes points, ma prime."
+        sub="Ce que j’ai tenu, mon pointage, mes points, ma prime."
       />
 
       {!moi && (
         <Card style={{ padding: '18px 20px' }}>
           <div className="tre-rates__title">Ce compte n’est rattaché à aucune fiche du personnel</div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6, maxWidth: '62ch' }}>
-            Le pointage se rattache à une fiche de l’équipe, retrouvée par l’adresse e-mail — ou à
+            Le pointage se rattache à une fiche de l’équipe, retrouvée par l’adresse e-mail, ou à
             défaut par le nom. Demande au gérant d’inscrire l’adresse de ton compte sur ta fiche
             dans Personnel &amp; paie, ou d’y écrire exactement le même nom.
           </div>
@@ -417,7 +417,7 @@ export default function MonMois() {
                         <div className="tre-code-jour__label">Code du jour</div>
                         <div className="tre-code-jour__valeur">{codeDuJourVisible}</div>
                         <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5, maxWidth: 220 }}>
-                          Visible de toi seule. Montre le carré à qui n’arrive pas à pointer —
+                          Visible de toi seule. Montre le carré à qui n’arrive pas à pointer,
                           il se renouvelle chaque nuit.
                         </div>
                       </div>
@@ -430,7 +430,7 @@ export default function MonMois() {
                   {demande && (
                     <div className="tre-code-ask">
                       <div className="tre-code-ask__motif">
-                        {demande.motif} — scanne le carré affiché au comptoir, ou saisis ses quatre chiffres.
+                        {demande.motif}, scanne le carré affiché au comptoir, ou saisis ses quatre chiffres.
                       </div>
                       <div className="tre-code-ask__ligne">
                         <Input
@@ -648,7 +648,7 @@ export default function MonMois() {
 
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
             Un geste fait à deux compte une demi-part de chaque côté. Ne coche que ce que tu as
-            réellement fait — le gérant relit ces attributions. Un rituel renseigné quitte la
+            réellement fait, le gérant relit ces attributions. Un rituel renseigné quitte la
             liste : il en reste {aCompleter.length}.
           </div>
         </Card>
@@ -665,7 +665,7 @@ export default function MonMois() {
           <span className="tre-rates__title">{gerant ? 'Le mois de l’équipe' : 'Mon mois en chiffres'}</span>
           <span className="mnd-muted" style={{ fontSize: 12 }}>
             {bareme.seuilPrime > 0
-              ? `Chacun qui dépasse ${bareme.seuilPrime} points touche ${fmtMoney(bareme.primeXof, currency)} — le rang ne prive de rien.`
+              ? `Chacun qui dépasse ${bareme.seuilPrime} points touche ${fmtMoney(bareme.primeXof, currency)}, le rang ne prive de rien.`
               : 'Aucun seuil de prime réglé.'}
           </span>
         </div>
@@ -707,7 +707,7 @@ export default function MonMois() {
         {!gerant && bareme.seuilPrime > 0 && monBilan && (
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
             {monBilan.total >= bareme.seuilPrime
-              ? 'Le seuil est atteint — la prime est acquise.'
+              ? 'Le seuil est atteint, la prime est acquise.'
               : `Encore ${bareme.seuilPrime - monBilan.total} points pour la prime.`}
           </div>
         )}
@@ -753,7 +753,7 @@ export default function MonMois() {
                           ? <span className="mnd-muted">
                               corrigé par {a.corrigePar}
                               {a.avant?.arrivee || a.avant?.depart
-                                ? ` — était ${a.avant?.arrivee ?? '—'} → ${a.avant?.depart ?? '—'}`
+                                ? `, était ${a.avant?.arrivee ?? '—'} → ${a.avant?.depart ?? '—'}`
                                 : ''}
                             </span>
                           : <button className="tre-link-btn" onClick={() => setCorrige(corrige === a.id ? null : a.id)}>
@@ -779,7 +779,7 @@ export default function MonMois() {
           </div>
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
             Corriger garde une trace de ce qui était inscrit avant ; supprimer n'en garde aucune.
-            Le retrait est fait pour les essais — une ligne qui n'aurait jamais dû exister.
+            Le retrait est fait pour les essais, une ligne qui n'aurait jamais dû exister.
           </div>
         </Card>
       )}

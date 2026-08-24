@@ -570,10 +570,10 @@ export default function Depenses() {
     const items = cleanItems;
     const hasItems = items.length > 0;
     const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : montantsDep.xof;
-    if (!form.label.trim()) { setSaveErr('Il manque le bénéficiaire — qui a reçu cet argent ?'); return; }
+    if (!form.label.trim()) { setSaveErr('Il manque le bénéficiaire, qui a reçu cet argent ?'); return; }
     if (!amountXof) {
       setSaveErr(hasItems
-        ? 'Les articles saisis totalisent zéro — donnez un libellé et un montant à chacun.'
+        ? 'Les articles saisis totalisent zéro, donnez un libellé et un montant à chacun.'
         : 'Il manque le montant.');
       return;
     }
@@ -656,7 +656,7 @@ export default function Depenses() {
         {sansNom > 0 && (
           <div className="trf-prov__ligne trf-prov__ligne--muette">
             <span className="trf-prov__puce" style={{ background: 'transparent', border: '1px dashed var(--line)' }} />
-            <span className="trf-prov__nom">Part sans nom — aucun revenu désigné</span>
+            <span className="trf-prov__nom">Part sans nom, aucun revenu désigné</span>
             <span className="trf-prov__xof">{fmtMoney(sansNom, currency)}</span>
           </div>
         )}
@@ -685,7 +685,7 @@ export default function Depenses() {
   const deleteCategory = (c: ExpenseCategory) => {
     const used = expenses.filter((e) => e.category === c.name).length;
     const msg = used > 0
-      ? `« ${c.name} » est référencée par ${used} dépense(s) — leur libellé de catégorie sera conservé. Supprimer la catégorie quand même ?`
+      ? `« ${c.name} » est référencée par ${used} dépense(s), leur libellé de catégorie sera conservé. Supprimer la catégorie quand même ?`
       : `Supprimer la catégorie « ${c.name} » ?`;
     if (!window.confirm(msg)) return;
     setCategories((prev) => prev.filter((x) => x.id !== c.id));
@@ -768,7 +768,7 @@ export default function Depenses() {
     const expUsed = expenses.filter((e) => e.cashbox === c.name).length;
     const invUsed = invoices.filter((i) => i.cashbox === c.name).length;
     const msg = expUsed + invUsed > 0
-      ? `« ${c.name} » est référencée par ${expUsed} dépense(s) et ${invUsed} encaissement(s) — ces écritures ne seront pas modifiées. Supprimer la caisse ?`
+      ? `« ${c.name} » est référencée par ${expUsed} dépense(s) et ${invUsed} encaissement(s), ces écritures ne seront pas modifiées. Supprimer la caisse ?`
       : `Supprimer la caisse « ${c.name} » ?`;
     if (!window.confirm(msg)) return;
     setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
@@ -966,8 +966,8 @@ export default function Depenses() {
                 () => openExp(
                   `Dépenses · ${nomDeLaPortee}`,
                   portee === 'mois'
-                    ? 'Toutes les dépenses vivantes du mois — les dépenses stoppées en sont exclues.'
-                    : 'Toutes les dépenses vivantes de l’année — une dépense mensuelle y compte pour chaque mois écoulé. Les dépenses stoppées en sont exclues.',
+                    ? 'Toutes les dépenses vivantes du mois, les dépenses stoppées en sont exclues.'
+                    : 'Toutes les dépenses vivantes de l’année, une dépense mensuelle y compte pour chaque mois écoulé. Les dépenses stoppées en sont exclues.',
                   live,
                 ),
               ),
@@ -994,7 +994,7 @@ export default function Depenses() {
                 n: kpiCard(
                   'Prélèvements arrêtés', fmtMoney(savings, currency),
                   'var(--trf-success)', 'var(--trf-success)', `épargnés en ${monthName}`, 'good',
-                  () => openExp('Prélèvements arrêtés', `Ce qui aurait couru en ${monthName} et ne court plus — donc jamais sorti de la caisse.`, monthExp.filter((e) => e.stopped)),
+                  () => openExp('Prélèvements arrêtés', `Ce qui aurait couru en ${monthName} et ne court plus, donc jamais sorti de la caisse.`, monthExp.filter((e) => e.stopped)),
                 ),
               });
             }
@@ -1052,7 +1052,7 @@ export default function Depenses() {
                   {q
                     ? <>Aucune dépense de {monthName} ne répond à « {query.trim()} ».</>
                     : filterCaisse !== 'all'
-                      ? <>Aucune dépense payée depuis « {filterCaisse} » en {nomDeLaPortee}. Le filtre fonctionne — cette caisse n’a simplement rien payé sur la période.</>
+                      ? <>Aucune dépense payée depuis « {filterCaisse} » en {nomDeLaPortee}. Le filtre fonctionne, cette caisse n’a simplement rien payé sur la période.</>
                       : <>Aucune dépense pour ce filtre en {nomDeLaPortee}.</>}
                 </div>
               )}
@@ -1090,7 +1090,7 @@ export default function Depenses() {
               </div>
             </div>
             <div style={{ marginTop: 16 }}>
-              <button className="trf-linerow--click" title="Ouvrir la Synthèse — le détail du revenu" onClick={() => navigate('/synthese')}>
+              <button className="trf-linerow--click" title="Ouvrir la Synthèse, le détail du revenu" onClick={() => navigate('/synthese')}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)', marginBottom: 5 }}><span>Revenu</span><span>{fmtMoney(revenue, currency)}</span></div>
                 <div className="trf-bar" style={{ height: 14 }}><div style={{ width: '100%', background: 'var(--color-indigo)' }} /></div>
               </button>
@@ -1296,7 +1296,7 @@ export default function Depenses() {
                         title={`Tout ce que ${b.nom} a acheté sur douze mois`}
                         onClick={() => openExp(
                           b.nom,
-                          `Tout ce que ${b.nom} a acheté pour la Maison sur douze mois — ${b.n} achat${b.n > 1 ? 's' : ''}, dernier le ${fmtDay(b.dernier)}.`,
+                          `Tout ce que ${b.nom} a acheté pour la Maison sur douze mois, ${b.n} achat${b.n > 1 ? 's' : ''}, dernier le ${fmtDay(b.dernier)}.`,
                           depensesDeLAnnee.filter((e) => (e.porteur ?? '').toLowerCase() === b.nom.toLowerCase()),
                         )}
                       >
@@ -1327,7 +1327,7 @@ export default function Depenses() {
                     ))}
                     <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10, lineHeight: 1.6 }}>
                       Ce que ces mains ont dépensé POUR la Maison, avec l’argent qu’on leur a confié.
-                      Un clic ouvre toutes leurs lignes — et le bouton « Exporter (CSV) » du haut
+                      Un clic ouvre toutes leurs lignes, et le bouton « Exporter (CSV) » du haut
                       emporte la liste telle qu’elle est filtrée.
                     </div>
                   </div>
@@ -1363,7 +1363,7 @@ export default function Depenses() {
                 ))}
                 {financeurs.sansNom > 0 && (
                   <div className="trf-linerow trf-linerow--split" style={{ opacity: .75 }}>
-                    <span style={{ fontStyle: 'italic' }}>Part sans nom — aucun revenu désigné</span>
+                    <span style={{ fontStyle: 'italic' }}>Part sans nom, aucun revenu désigné</span>
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-soft)' }}>
                       {fmtMoney(financeurs.sansNom, currency)}
                     </span>
@@ -1416,7 +1416,7 @@ export default function Depenses() {
                   <div className="trf-enveloppes__mot">
                     {depasse
                       ? `Les enveloppes sont dépassées de ${fmtMoney(-reste, currency)}.`
-                      : `${part} % des enveloppes engagées — il reste ${fmtMoney(reste, currency)} à dépenser en ${monthName}.`}
+                      : `${part} % des enveloppes engagées, il reste ${fmtMoney(reste, currency)} à dépenser en ${monthName}.`}
                   </div>
                 </div>
               );
@@ -1426,7 +1426,7 @@ export default function Depenses() {
               <div className="trf-empty" style={{ textAlign: 'left', lineHeight: 1.7 }}>
                 <b style={{ color: 'var(--color-indigo)', fontWeight: 500 }}>Aucune enveloppe posée.</b>
                 <br />
-                Une enveloppe est un montant que la Maison s’accorde chaque mois sur une catégorie —
+                Une enveloppe est un montant que la Maison s’accorde chaque mois sur une catégorie,
                 le Local, les Matières premières, le Marketing. Le Trône compte alors ce qui en sort,
                 dit ce qu’il en reste, et prévient quand elle est dépassée.
                 <br />
@@ -1507,8 +1507,8 @@ export default function Depenses() {
                 {(() => {
                   if (branchBudgets.length === 0) {
                     return isCurrent
-                      ? 'Projection au rythme des jours écoulés. Aucune enveloppe n’est posée — ce chiffre ne se compare donc à rien.'
-                      : 'Le mois est arrêté. Aucune enveloppe n’était posée — ce total ne se compare à rien.';
+                      ? 'Projection au rythme des jours écoulés. Aucune enveloppe n’est posée, ce chiffre ne se compare donc à rien.'
+                      : 'Le mois est arrêté. Aucune enveloppe n’était posée, ce total ne se compare à rien.';
                   }
                   const depense = branchBudgets.reduce((n, b) => n + spentOfCat(b.category), 0);
                   const reste = allocated - depense;
@@ -1516,7 +1516,7 @@ export default function Depenses() {
                      sur toutes les dépenses, les enveloppes sur quelques
                      catégories. Les mettre face à face ferait un rapport faux. */
                   return reste < 0
-                    ? `Les enveloppes du mois sont dépassées de ${fmtMoney(-reste, currency)} — le détail est à gauche, catégorie par catégorie.`
+                    ? `Les enveloppes du mois sont dépassées de ${fmtMoney(-reste, currency)}, le détail est à gauche, catégorie par catégorie.`
                     : `Il reste ${fmtMoney(reste, currency)} dans les enveloppes du mois. Ce total-ci porte sur TOUTES les dépenses, y compris hors enveloppe.`;
                 })()}
               </div>
@@ -1675,7 +1675,7 @@ export default function Depenses() {
                 </button>
               </div>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
-                Celui à qui vous confiez de l’argent pour acheter — pas celui qui l’encaisse.
+                Celui à qui vous confiez de l’argent pour acheter, pas celui qui l’encaisse.
                 Vous retrouverez tout ce qu’il a acheté dans « Où va l’argent ».
               </div>
             </div>
@@ -1724,7 +1724,7 @@ export default function Depenses() {
                             className="mnd-input" inputMode="numeric"
                             value={it.qty != null ? String(it.qty) : ''}
                             placeholder="Qté"
-                            title="Quantité — vide vaut 1"
+                            title="Quantité, vide vaut 1"
                             onChange={(ev) => patchItem(it.id, (x) => {
                               const brut = ev.target.value.replace(/[^0-9]/g, '');
                               return majTotal(x, brut === '' ? undefined : parseInt(brut, 10), x.unitXof ?? x.amountXof);
@@ -1745,7 +1745,7 @@ export default function Depenses() {
                           />
                           <span
                             style={{ flex: 'none', width: 108, textAlign: 'right', fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
-                            title="Total de la ligne — quantité × prix"
+                            title="Total de la ligne, quantité × prix"
                           >
                             {it.amountXof > 0 ? fmtMoney(it.amountXof, currency) : '—'}
                           </span>
@@ -1789,7 +1789,7 @@ export default function Depenses() {
               </div>
               {branchBoxes.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
-                  Aucune caisse déclarée pour cette branche — la dépense se rangera sous « Autres ».
+                  Aucune caisse déclarée pour cette branche, la dépense se rangera sous « Autres ».
                   Les caisses se créent dans l’onglet « Les caisses ».
                 </div>
               )}
@@ -1805,12 +1805,12 @@ export default function Depenses() {
                     qu'un chiffre inventé. On le dit au lieu de ne rien faire. */}
                 {formTotal <= 0 ? (
                   <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                    Indiquez d’abord le montant de la dépense — les revenus se désignent ensuite,
+                    Indiquez d’abord le montant de la dépense, les revenus se désignent ensuite,
                     et Le Trône prend sur chacun ce qu’il faut, pas davantage.
                   </div>
                 ) : revenusDeLaCaisse.length === 0 ? (
                   <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                    Aucun revenu disponible dans « {form.cashbox} » — tout ce qui y est entré
+                    Aucun revenu disponible dans « {form.cashbox} », tout ce qui y est entré
                     est déjà nommé par d’autres dépenses. La dépense s’enregistre quand même :
                     sa part restera simplement sans nom.
                   </div>
@@ -1863,7 +1863,7 @@ export default function Depenses() {
                       return (
                         <div className="trf-entame">
                           Cette dépense <b>{neufs.length > 1 ? 'entame les revenus' : 'entame le revenu'} de {neufs.map((s) => s.nom).join(', ')}</b>
-                          {' '}— c’est la première fois que la Maison y puise.
+                          {' '}, c’est la première fois que la Maison y puise.
                         </div>
                       );
                     })()}
@@ -1995,14 +1995,14 @@ export default function Depenses() {
         <Modal title="Le budget du mois" onClose={() => setBudgetOpen(false)} width={560}>
           {catNames.length === 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune catégorie de dépense — créez-en une d’abord.</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>Aucune catégorie de dépense, créez-en une d’abord.</span>
               <button className="trf-act" onClick={() => addCategory()}>+ Nouvelle catégorie</button>
             </div>
           ) : (
             <div>
               <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 14 }}>
                 Un montant par catégorie, et le total se fait tout seul. Une catégorie laissée à zéro
-                n’a pas d’enveloppe — la laisser vide n’interdit rien, elle ne sera simplement pas suivie.
+                n’a pas d’enveloppe, la laisser vide n’interdit rien, elle ne sera simplement pas suivie.
               </div>
 
               <div className="trf-budlignes">
@@ -2112,7 +2112,7 @@ export default function Depenses() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
               L’argent change de tiroir : la caisse de départ baisse, celle d’arrivée monte.
-              <b> Rien n’est dépensé, rien n’est encaissé</b> — un transfert ne paraîtra ni dans
+              <b> Rien n’est dépensé, rien n’est encaissé</b>, un transfert ne paraîtra ni dans
               vos dépenses ni dans vos encaissements.
             </div>
 
@@ -2159,7 +2159,7 @@ export default function Depenses() {
                 />
                 <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
                   Les deux caisses ne tiennent pas la même monnaie. Saisissez ce qui entre vraiment
-                  dans « {fTr.vers} » — c’est ce chiffre qui fera foi, pas une conversion d’aujourd’hui.
+                  dans « {fTr.vers} », c’est ce chiffre qui fera foi, pas une conversion d’aujourd’hui.
                 </span>
               </label>
             )}

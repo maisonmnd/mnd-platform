@@ -35,10 +35,10 @@ import { productsStore, type Product } from './catalog';
 export type FamilleProduit = 'revente' | 'consommable' | 'meches' | 'jetable';
 
 export const FAMILLES: Record<FamilleProduit, { code: string; nom: string; dit: string }> = {
-  revente: { code: 'PRD-REV', nom: 'Revente', dit: 'Vendu tel quel à la cliente — le prix de vente vit sur sa fiche Gamme.' },
+  revente: { code: 'PRD-REV', nom: 'Revente', dit: 'Vendu tel quel à la cliente, le prix de vente vit sur sa fiche Gamme.' },
   consommable: { code: 'PRD-CON', nom: 'Consommable', dit: 'Utilisé pendant les soins. Un coût par prestation, jamais un prix.' },
   meches: { code: 'PRD-MEC', nom: 'Mèches', dit: 'Les extensions du Studio, comptées au paquet.' },
-  jetable: { code: 'PRD-JET', nom: 'Jetable', dit: 'Gants, aiguilles, coton — le petit matériel qui part vite.' },
+  jetable: { code: 'PRD-JET', nom: 'Jetable', dit: 'Gants, aiguilles, coton, le petit matériel qui part vite.' },
 };
 
 export type Fournisseur = {
@@ -700,7 +700,7 @@ export function annulerCommande(commande: CommandeFournisseur): { ok: boolean; e
     return { ok: false, erreur: 'Ce bon est déjà clos.' };
   }
   if (lignesDe(lignesAchatStore.get(), commande.id).some((l) => l.quantiteRecue > 0)) {
-    return { ok: false, erreur: 'Une partie a déjà été reçue — le stock est monté. Recevez le reste ou laissez le bon en Partielle.' };
+    return { ok: false, erreur: 'Une partie a déjà été reçue, le stock est monté. Recevez le reste ou laissez le bon en Partielle.' };
   }
   commandesAchatStore.set((prev) => prev.map((c) => (c.id === commande.id ? { ...c, statut: 'annulee' } : c)));
   return { ok: true };

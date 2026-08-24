@@ -104,10 +104,10 @@ export const ENVELOPPE_LABELS: Record<CleEnveloppe, string> = {
 };
 
 export const PARTAGE_DITS: Record<CleEnveloppe, string> = {
-  charges: 'loyer, produits, salaires employés, eau & électricité, banque — payées avant tout partage',
-  reinvest: 'épargne de croissance : matériel, expansion, formation — intouchable',
+  charges: 'loyer, produits, salaires employés, eau & électricité, banque, payées avant tout partage',
+  reinvest: 'épargne de croissance : matériel, expansion, formation, intouchable',
   reserve: 'impôts, mois creux, pannes, urgences',
-  prelevement: 'le budget maison du foyer — il vit là-dessus, pas plus',
+  prelevement: 'le budget maison du foyer, il vit là-dessus, pas plus',
 };
 
 export const CLES_ENVELOPPES: CleEnveloppe[] = ['charges', 'reinvest', 'reserve', 'prelevement'];
@@ -494,7 +494,7 @@ export function retirerDeEnveloppe(p: {
   if (montant > dispo) {
     return {
       ok: false,
-      erreur: `L'enveloppe ${RESERVE_LABELS[p.enveloppe]} ne porte que ${dispo} — on ne retire pas ce qu'on n'a pas mis de côté.`,
+      erreur: `L'enveloppe ${RESERVE_LABELS[p.enveloppe]} ne porte que ${dispo}, on ne retire pas ce qu'on n'a pas mis de côté.`,
     };
   }
   coffreStore.set((prev) => [...prev, {

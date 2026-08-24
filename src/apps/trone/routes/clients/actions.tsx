@@ -350,7 +350,7 @@ export function factureAEnvoyer(
   branchId: string,
 ): { ok: true; inv: Invoice; deja: boolean } | { ok: false; erreur: string } {
   const du = apptDueXof(appt, byId);
-  if (du <= 0) return { ok: false, erreur: 'Ce rituel ne doit rien — il n’y a pas de facture à réclamer.' };
+  if (du <= 0) return { ok: false, erreur: 'Ce rituel ne doit rien, il n’y a pas de facture à réclamer.' };
   const dejaLa = invoicesStore.get().find((i) => i.apptId === appt.id && i.kind === 'facture' && i.status !== 'payée');
   if (dejaLa) return { ok: true, inv: dejaLa, deja: true };
 
@@ -383,7 +383,7 @@ export function factureAEnvoyer(
     discountLabel: remise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
     theme: 'Aube',
     master: appt.master,
-    note: `Rituel du ${appt.date}${(appt.paidXof ?? 0) > 0 ? ` · déjà réglé ${appt.paidXof} — reste ${du}` : ''}`,
+    note: `Rituel du ${appt.date}${(appt.paidXof ?? 0) > 0 ? ` · déjà réglé ${appt.paidXof}, reste ${du}` : ''}`,
   });
   const avecLien: Invoice = { ...inv, apptId: appt.id };
   invoicesStore.set((prev) => [avecLien, ...prev]);
@@ -586,7 +586,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       glyph: '', openingXof: 0, currency: payCurrency,
     }]);
     setCashbox(nom);
-    toast(`Caisse « ${nom} » créée — les billets en ${payCurrency} y entreront.`);
+    toast(`Caisse « ${nom} » créée, les billets en ${payCurrency} y entreront.`);
   };
 
   /* Reprogrammation automatique : au moment d'encaisser, poser d'un geste le
@@ -744,13 +744,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       if (avoirApplied > 0) {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: avoirApplied,
-          method: 'Avoir', note: 'Réglé par avoir — crédit du compte',
+          method: 'Avoir', note: 'Réglé par avoir, crédit du compte',
         });
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
          en mention (forClientId). */
       const avoirNote = avoirApplied > 0 ? `Réglé par avoir : ${fmtMoney(avoirApplied, currency)}${amount > 0 ? ` · comptant ${fmtMoney(amount, currency)}` : ''}` : '';
-      const partialNote = fullyPaid ? '' : `Paiement partiel — reste ${fmtMoney(remainingAfter, currency)}`;
+      const partialNote = fullyPaid ? '' : `Paiement partiel, reste ${fmtMoney(remainingAfter, currency)}`;
       /* Le forfait se dit sur la pièce, avec le prix plein en regard : une
          remise consentie et tue n'est pas un cadeau, c'est un prix qu'on
          n'explique pas. */
@@ -1082,7 +1082,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
         {isFamilyPayer && (
           <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '4px 11px', alignSelf: 'flex-start' }}>
-            Compte famille — facturé à {payerClient?.name ?? 'au parent payeur'}
+            Compte famille, facturé à {payerClient?.name ?? 'au parent payeur'}
           </div>
         )}
 
@@ -1136,14 +1136,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         )}
         {deposit > 0 && !depositReceived && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Acompte de <b>{fmtMoney(deposit, currency)}</b> demandé · <b>non vérifié</b> — il n’est PAS déduit
+            Acompte de <b>{fmtMoney(deposit, currency)}</b> demandé · <b>non vérifié</b>, il n’est PAS déduit
             tant que sa réception n’est pas confirmée ci-dessous.
           </div>
         )}
         {deposit > 0 && !appt.depositConfirmed && (
           <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', lineHeight: 1.45 }}>
             <input type="checkbox" checked={depositReceived} onChange={toggleDepositReceived} style={{ marginTop: 2 }} />
-            <span>Acompte reçu et vérifié (MoMo contrôlé) — le déduire du reste à encaisser</span>
+            <span>Acompte reçu et vérifié (MoMo contrôlé), le déduire du reste à encaisser</span>
           </label>
         )}
         {alreadyPaid > 0 && (
@@ -1224,7 +1224,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                   style={{ width: 118, flex: 'none', fontSize: 12 }}
                   aria-label="Caisse créditée"
                 >
-                  <option value="">— hors caisse</option>
+                  <option value="">, hors caisse</option>
                   {branchBoxes.map((c) => (
                     <option key={c.name} value={c.name}>{c.name}</option>
                   ))}
@@ -1301,7 +1301,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => { const v = Math.min(avoirBal, due); setAvoirStr(String(v)); setAmountStr(String(Math.max(0, due - v))); }}>Tout</button>
             </div>
             <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
-              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''} — déduit sans passer par la caisse.
+              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''}, déduit sans passer par la caisse.
             </div>
           </div>
         )}
@@ -1380,7 +1380,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
         {/* ③ ET ENSUITE — ce qui suit le paiement et n'entre pas dans son calcul. */}
         <PalierEnc n={3} titre="Et ensuite" aide="facultatif" />
-        <Field label="Pourboire (F CFA) — partagé entre l’équipe">
+        <Field label="Pourboire (F CFA), partagé entre l’équipe">
           <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} />
         </Field>
         {/* LE PARTAGE SE MONTRE AVANT D'ÊTRE ÉCRIT. Une règle de répartition
@@ -1398,7 +1398,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         )}
         {tip > 0 && partage.length === 0 && (
           <div style={{ fontSize: 12, color: 'var(--trf-error, #8f3b30)', marginTop: -6 }}>
-            Aucun membre du personnel dans cette branche — le pourboire ne pourra pas être partagé.
+            Aucun membre du personnel dans cette branche, le pourboire ne pourra pas être partagé.
           </div>
         )}
 
@@ -1471,7 +1471,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
               </div>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
-                Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'} — mêmes prestations, même prix (remise comprise), même maître — à honorer et encaisser le jour venu.
+                Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'}, mêmes prestations, même prix (remise comprise), même maître, à honorer et encaisser le jour venu.
               </div>
             </>
           )}
@@ -1485,7 +1485,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           <div className="trc-alerte" style={{ marginTop: 4 }}>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
               Aucune caisse ne tient des billets en <b>{payCurrency}</b>. Un billet étranger ne peut pas
-              entrer dans une caisse en {currency} — la trésorerie additionnerait des euros à des francs.
+              entrer dans une caisse en {currency}, la trésorerie additionnerait des euros à des francs.
             </div>
             <Button variant="copper" size="sm" style={{ marginTop: 9 }} onClick={creerLaCaisseDevise}>
               Créer la caisse « Tiroir {payCurrency} »

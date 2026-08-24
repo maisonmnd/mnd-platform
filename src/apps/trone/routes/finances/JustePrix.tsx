@@ -238,12 +238,12 @@ function BaremeModeles({ currency }: { currency: string }) {
         ))}
       </div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', margin: '8px 0 14px', maxWidth: 760 }}>
-        Les tranches se définissent UNE FOIS — elles valent pour tous les barèmes. Seuls les
+        Les tranches se définissent UNE FOIS, elles valent pour tous les barèmes. Seuls les
         coefficients changent d’un atelier à l’autre : une création ne progresse pas comme un
         resserrage. Un atelier sans barème propre suit celui de la Maison.{' '}
         Le modèle de la cliente (son nombre de locks, sur sa fiche) choisit sa tranche : le prix ET la durée des
         prestations qui « suivent le modèle » (interrupteur ◈ au Catalogue) sont multipliés par ses coefficients.
-        Vous pouvez saisir le <b>coefficient</b> ou directement le <b>montant</b> — le montant recalcule le coefficient.
+        Vous pouvez saisir le <b>coefficient</b> ou directement le <b>montant</b>, le montant recalcule le coefficient.
       </div>
 
       {refService && (
@@ -270,7 +270,7 @@ function BaremeModeles({ currency }: { currency: string }) {
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 5, lineHeight: 1.55, maxWidth: 420 }}>
                 Cette prestation est pilotée par son <strong style={{ fontWeight: 500 }}>tarif au lock</strong> ou ses
                 <strong style={{ fontWeight: 500 }}> planchers par calibre</strong>, réglés au Catalogue. Le coefficient
-                ci-dessous ne change pas son prix — les montants affichés ne sont qu'une lecture du barème.
+                ci-dessous ne change pas son prix, les montants affichés ne sont qu'une lecture du barème.
               </div>
             )}
           </span>
@@ -297,7 +297,7 @@ function BaremeModeles({ currency }: { currency: string }) {
                   <th
                     key={`c1-${col.id}`}
                     style={{ borderLeft: '1px solid var(--line)', opacity: coefUtile ? 1 : 0.4 }}
-                    title={coefUtile ? undefined : 'Sans effet sur la prestation témoin choisie — son prix vient du Catalogue'}
+                    title={coefUtile ? undefined : 'Sans effet sur la prestation témoin choisie, son prix vient du Catalogue'}
                   >
                     Coef prix
                   </th>
@@ -348,7 +348,7 @@ function BaremeModeles({ currency }: { currency: string }) {
                         value={roundPrice(refPrice * coefDe(col.id, b.id, 'coef'))}
                         width={104}
                         ariaLabel={`Montant · ${col.titre}`}
-                        title="Saisissez le montant voulu — le coefficient se recalcule"
+                        title="Saisissez le montant voulu, le coefficient se recalcule"
                         onCommit={(v) => setAmount(col.id, b.id, v)}
                       />
                     </td>
@@ -489,8 +489,8 @@ export default function JustePrix() {
       <span className="trf-suspens__texte">
         <b>{suspendu ? 'Barème suspendu' : 'Barème actif'}</b>
         {suspendu
-          ? ' — aucune prestation ne suit la taille de la couronne. Les coefficients ci-dessous sont gardés au chaud ; ils reprendront tels quels.'
-          : ' — la taille de la couronne module les prix des prestations réglées sur « ◈ Modèle ».'}
+          ? ', aucune prestation ne suit la taille de la couronne. Les coefficients ci-dessous sont gardés au chaud ; ils reprendront tels quels.'
+          : ', la taille de la couronne module les prix des prestations réglées sur « ◈ Modèle ».'}
       </span>
       <button
         type="button"
@@ -504,7 +504,7 @@ export default function JustePrix() {
     {suspendu && (
       <div className="trf-suspens__note">
         Ne sont pas suspendus, et c'est voulu : le coefficient personnel d'une cliente et ses prix
-        fermes — ce sont des accords avec elle, pas un barème — ni les prestations au lock ou au
+        fermes, ce sont des accords avec elle, pas un barème, ni les prestations au lock ou au
         calibre, dont le prix vient du comptage ou du plancher de leur tranche.
       </div>
     )}
@@ -536,7 +536,7 @@ export default function JustePrix() {
         <div className="trf-obsidian__eyebrow">Le prix suit le modèle</div>
         <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--color-ivoire)', marginTop: 6, lineHeight: 1.4, maxWidth: 760 }}>
           Chaque couronne paie selon sa taille.{' '}
-          <span style={{ color: 'var(--copper-200)' }}>Le barème par tranches de locks fixe le tarif ; vous l’éditez par coefficient ou par montant. La cliente ne voit qu’un seul nombre — juste.</span>
+          <span style={{ color: 'var(--copper-200)' }}>Le barème par tranches de locks fixe le tarif ; vous l’éditez par coefficient ou par montant. La cliente ne voit qu’un seul nombre, juste.</span>
         </div>
       </div>
 
@@ -546,7 +546,7 @@ export default function JustePrix() {
       {legacyCoefCount > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '12px 16px', marginBottom: 18 }}>
           <span style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
-            {legacyCoefCount} cliente{legacyCoefCount > 1 ? 's' : ''} porte{legacyCoefCount > 1 ? 'nt' : ''} encore un coefficient personnel (≠ ×1) hérité des anciens leviers — il modifie leur prix.
+            {legacyCoefCount} cliente{legacyCoefCount > 1 ? 's' : ''} porte{legacyCoefCount > 1 ? 'nt' : ''} encore un coefficient personnel (≠ ×1) hérité des anciens leviers, il modifie leur prix.
           </span>
           <button className="trf-act" onClick={neutralizeAll}>Tout remettre à ×1</button>
         </div>
@@ -563,11 +563,11 @@ export default function JustePrix() {
         <div className="trf-panel__title">Les systèmes de prix</div>
         <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           {([
-            { k: 'modele' as const, t: 'Barème du modèle', d: 'prix de base × coef de la tranche — le barème ci-dessus' },
+            { k: 'modele' as const, t: 'Barème du modèle', d: 'prix de base × coef de la tranche, le barème ci-dessus' },
             { k: 'lock' as const, t: 'Comptage des locks', d: 'locks comptés × tarif' },
             { k: 'calibre' as const, t: 'Prix par calibre', d: 'le prix de la tranche est le prix' },
-            { k: 'longueur' as const, t: 'Grille par longueur', d: 'trois prix saisis — court, mi-long, long' },
-            { k: 'hors' as const, t: 'Hors Juste Prix', d: 'prix fermes et devis — le coefficient ne les touche pas' },
+            { k: 'longueur' as const, t: 'Grille par longueur', d: 'trois prix saisis, court, mi-long, long' },
+            { k: 'hors' as const, t: 'Hors Juste Prix', d: 'prix fermes et devis, le coefficient ne les touche pas' },
           ]).map((row) => {
             const n = row.k === 'hors'
               ? services.filter((s) => !regimeTarifaire(s, categories).justePrix).length
@@ -611,7 +611,7 @@ export default function JustePrix() {
                 <div className="trf-pick__sub">{rankOf(c)}{c.lockCount ? ` · ${c.lockCount} locks` : ''}</div>
               </button>
             ))}
-            {shownClients.length > 12 && <div className="trf-empty" style={{ width: '100%', padding: '8px 0' }}>… {shownClients.length - 12} autres — affinez la recherche.</div>}
+            {shownClients.length > 12 && <div className="trf-empty" style={{ width: '100%', padding: '8px 0' }}>… {shownClients.length - 12} autres, affinez la recherche.</div>}
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -619,7 +619,7 @@ export default function JustePrix() {
               <div className="trf-pick__name">{client.name.split(' ')[0]}</div>
               <div className="trf-pick__sub">{rankOf(client)}{client.lockCount ? ` · ${client.lockCount} locks` : ' · modèle à renseigner'}</div>
             </button>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', fontStyle: 'italic' }}>cliente en cours — cherchez un nom pour en choisir une autre.</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', fontStyle: 'italic' }}>cliente en cours, cherchez un nom pour en choisir une autre.</span>
           </div>
         )}
 
@@ -649,7 +649,7 @@ export default function JustePrix() {
                 className={`trf-pick ${s.id === service.id ? 'is-active--sable' : ''}`}
                 style={{ flex: '1 1 30%', opacity: sert ? 1 : 0.42 }}
                 onClick={() => setServiceId(s.id)}
-                title={sert ? undefined : `Hors du calibre de ${client?.name ?? 'la cliente'} — cette création ne la concerne pas`}
+                title={sert ? undefined : `Hors du calibre de ${client?.name ?? 'la cliente'}, cette création ne la concerne pas`}
               >
                 <div className="trf-pick__name">{s.name}</div>
                 <div className="trf-pick__sub">
@@ -679,7 +679,7 @@ export default function JustePrix() {
             </div>
             {!preview.sert && (
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-600)', margin: '2px 0 8px', lineHeight: 1.5 }}>
-                Hors calibre — {client?.name} porte {preview.lockCount} locks, cette création n’existe pas pour elle.
+                Hors calibre, {client?.name} porte {preview.lockCount} locks, cette création n’existe pas pour elle.
                 Son prix reste celui du catalogue.
               </div>
             )}
@@ -699,13 +699,13 @@ export default function JustePrix() {
                     {preview.auLockBrut !== undefined && (
                       <div>
                         au lock · {preview.lockCount} × {fmtMoney(service?.ratePerLock ?? 0, currency)} = {fmtMoney(preview.auLockBrut, currency)}
-                        {preview.pilote === 'lock' ? ' — retenu' : ''}
+                        {preview.pilote === 'lock' ? ', retenu' : ''}
                       </div>
                     )}
                     {preview.plancher !== undefined && (
                       <div>
                         plancher {preview.band ? bandLabel(preview.band, bands) : ''} = {fmtMoney(preview.plancher, currency)}
-                        {preview.pilote === 'plancher' ? ' — retenu' : ''}
+                        {preview.pilote === 'plancher' ? ', retenu' : ''}
                       </div>
                     )}
                     <div style={{ marginTop: 3 }}>
@@ -728,7 +728,7 @@ export default function JustePrix() {
                   {preview.modelCoef === 1 && !scalesWithModel(service)
                     ? 'cette prestation ne suit pas le modèle'
                     : !preview.band
-                      ? 'modèle non renseigné — prix catalogue'
+                      ? 'modèle non renseigné, prix catalogue'
                       : 'figé à ce montant dès la réservation'}
                 </div>
               </div>
@@ -807,14 +807,14 @@ export default function JustePrix() {
             const bouge = sert && sien !== s.priceXof;
             const couleur = parLongueur ? 'var(--copper-700)' : bouge ? 'var(--color-indigo)' : 'var(--ink-soft)';
             const explique = parLongueur
-              ? `Grille par longueur${bouge ? ` — catalogue : ${fmtMoney(s.priceXof, currency)}` : ''}`
-              : bouge ? `Modulé par le Juste Prix — catalogue : ${fmtMoney(s.priceXof, currency)}` : undefined;
+              ? `Grille par longueur${bouge ? `, catalogue : ${fmtMoney(s.priceXof, currency)}` : ''}`
+              : bouge ? `Modulé par le Juste Prix, catalogue : ${fmtMoney(s.priceXof, currency)}` : undefined;
             return (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, minWidth: 0 }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                 <span style={{ flex: 'none', fontVariantNumeric: 'tabular-nums' }}>
                   {!sert ? (
-                    <span className="mnd-muted" title={`Hors du calibre de ${prenom} — cette création ne la concerne pas`} style={{ fontSize: 11 }}>
+                    <span className="mnd-muted" title={`Hors du calibre de ${prenom}, cette création ne la concerne pas`} style={{ fontSize: 11 }}>
                       hors calibre
                     </span>
                   ) : (
@@ -833,7 +833,7 @@ export default function JustePrix() {
                   Tous ses Juste Prix · {jp.length}
                 </span>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-                  les prix de {prenom} — ils bougent à chaque variable touchée
+                  les prix de {prenom}, ils bougent à chaque variable touchée
                 </span>
               </div>
 
@@ -849,7 +849,7 @@ export default function JustePrix() {
                     width={86}
                     placeholder="à compter"
                     ariaLabel="Nombre de locks de la cliente"
-                    title="Écrit sur sa fiche — le comptoir et Ma Couronne lisent la même valeur"
+                    title="Écrit sur sa fiche, le comptoir et Ma Couronne lisent la même valeur"
                     onCommit={(v) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, lockCount: v ?? undefined } : c)))}
                   />
                 </label>
@@ -863,7 +863,7 @@ export default function JustePrix() {
                         type="button"
                         className="trf-act"
                         style={on ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
-                        title={on ? 'Retirer la longueur de sa fiche' : 'Écrire cette longueur sur sa fiche (point de départ — chaque RDV fige la sienne)'}
+                        title={on ? 'Retirer la longueur de sa fiche' : 'Écrire cette longueur sur sa fiche (point de départ, chaque RDV fige la sienne)'}
                         onClick={() => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, longueur: on ? undefined : l.id } : c)))}
                       >
                         {l.label}
@@ -879,7 +879,7 @@ export default function JustePrix() {
                 {' · '}
                 <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>● cuivre</b> grille par longueur
                 {' · '}
-                <span>● gris — inchangé, le Juste Prix ne joue pas</span>
+                <span>● gris, inchangé, le Juste Prix ne joue pas</span>
               </div>
 
               {/* ── LES PRESTATIONS, par atelier ── */}

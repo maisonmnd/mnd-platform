@@ -275,7 +275,7 @@ export default function Academie() {
     setCertifs((prev) => prev.some((c) => c.name === name && c.parcours === parcours)
       ? prev.map((c) => (c.name === name && c.parcours === parcours ? { ...c, statut: 'Délivrée', date: 'aujourd’hui' } : c))
       : [...prev, { id: `ce-${uid()}`, name, parcours, date: 'aujourd’hui', statut: 'Délivrée' }]);
-    setNote(`Certificat scellé pour ${name} — ouvrez l’app Certificat pour l’imprimer / l’envoyer.`);
+    setNote(`Certificat scellé pour ${name}, ouvrez l’app Certificat pour l’imprimer / l’envoyer.`);
     setApDetail(null);
     setTab('certifications');
   };
@@ -301,7 +301,7 @@ export default function Academie() {
       <PageHead
         eyebrow="Académie · Transmission"
         title="L’Académie."
-        sub="Former, suivre, sceller. La méthode « les quatre temps » se transmet — chaque parcours achevé devient un certificat scellé MND."
+        sub="Former, suivre, sceller. La méthode « les quatre temps » se transmet, chaque parcours achevé devient un certificat scellé MND."
         actions={
           <a
             href={asset('/certificat.html')}
@@ -515,7 +515,7 @@ export default function Academie() {
           <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
             <RefEditor
               title="Les quatre temps"
-              note="Le geste du rituel — et le parcours par défaut de toute nouvelle formation."
+              note="Le geste du rituel, et le parcours par défaut de toute nouvelle formation."
               rows={refTemps}
               store={refTempsStore}
               seed={REF_TEMPS_SEED}
@@ -582,7 +582,7 @@ export default function Academie() {
 
             <div className="tre-sec-label" style={{ margin: '18px 0 10px' }}>Modules du parcours</div>
             {formationModules(detail.formationId).length === 0 && (
-              <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucun module défini pour cette formation — ajoutez-en dans la fiche formation.</div>
+              <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucun module défini pour cette formation, ajoutez-en dans la fiche formation.</div>
             )}
             {formationModules(detail.formationId).map((name, i) => {
               const done = !!detail.modulesDone[i];
@@ -681,7 +681,7 @@ export default function Academie() {
                   + Ajouter un module
                 </button>
                 <span className="mnd-muted" style={{ fontSize: 11, fontStyle: 'italic' }}>
-                  Chaque formation a ses propres étapes — l'avancement des apprenant·e·s s'y aligne.
+                  Chaque formation a ses propres étapes, l'avancement des apprenant·e·s s'y aligne.
                 </span>
               </div>
             </Field>
@@ -898,7 +898,7 @@ function RefEditor({
             </div>
           </div>
         ))}
-        {rows.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Section vide — ajoutez une première entrée.</div>}
+        {rows.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Section vide, ajoutez une première entrée.</div>}
       </div>
       <button className="tre-chip" style={{ marginTop: 12 }} onClick={add}>{addLabel}</button>
     </Card>

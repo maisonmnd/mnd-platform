@@ -24,6 +24,23 @@ latin en Cormorant). Garde ajoutée au harnais signature (§⑥) : elle décode 
 police embarquée et vérifie qu'elle porte chaque lettre du nom + les lettres fon,
 pour attraper toute future régénération qui reperdrait une lettre.
 
+## Tirets cadratins retirés du texte affiché — 24 août, PUBLIÉ
+
+Décision : le tiret de prose « — » « fait trop IA ». Retiré de TOUT le texte
+affiché de l'ERP (1055 occurrences, 88 fichiers), remplacé par une virgule
+(deux-points là où la 2ᵉ partie explique la 1ʳᵉ n'a pas été automatisé — virgule
+partout). Fait via un script AST (TypeScript compiler) qui ne touche QUE les
+chaînes, gabarits et texte JSX — jamais les commentaires ni le code. Sur la
+facture : « Momopay — 30 000 F » → « · », « Pourboire — merci » → virgule, et le
+nom du Maître passe à la ligne (voir commit 478c26a).
+
+CE QUI EST GARDÉ (volontairement, ~12) : les placeholders « — » (case vide dans
+tableaux/champs), les défauts de menu « — aucune — » / « — choisir une
+prestation — », les marqueurs de sous-ligne des bulletins PDF (« — ${prime} »,
+tiret collé au backtick), et le toggle « Modèle — ». Le script de détection est
+`scratchpad/scan-real.mjs` (hors dépôt) : il liste tout tiret restant dans une
+chaîne/JSX, en excluant placeholders et décoratifs.
+
 ## Audit de sécurité et de fiabilité — 24 août, PUBLIÉ (front @ b524f22, gh-pages refondé)
 
 Le dépôt est PUBLIC et a déjà fui (2 août). Audit complet mené avec vérification

@@ -146,7 +146,7 @@ export default function Tableau() {
      l'autre sans que rien ne le dise, c'est un travail qui se perd ». */
   const deposer = (m: FilMessage, cible: Cible) => {
     if (!puisJeDeplacer(m, monMail, estSouverain)) {
-      toast('Cette carte ne vous regarde pas — seul son auteur, son destinataire ou le souverain la déplace.');
+      toast('Cette carte ne vous regarde pas, seul son auteur, son destinataire ou le souverain la déplace.');
       return;
     }
     /* Prendre une carte à prendre, quand on n'est ni son auteur ni souverain,
@@ -160,13 +160,13 @@ export default function Tableau() {
 
     if (cible.genre === 'fait') {
       if (!puisJeClore(m, monMail) && !estSouverain) {
-        toast(`À ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} d'y répondre — on ne clôt pas le travail d'un autre.`);
+        toast(`À ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} d'y répondre, on ne clôt pas le travail d'un autre.`);
         return;
       }
       filStore.set((prev) => prev.map((x) => (x.id === m.id
         ? { ...x, faitAt: maintenant(), faitPar: monNom }
         : x)));
-      toast('Terminé — la case est cochée dans Le Fil.');
+      toast('Terminé, la case est cochée dans Le Fil.');
       return;
     }
 
@@ -194,8 +194,8 @@ export default function Tableau() {
       }
       : x)));
     toast(etaitClose
-      ? `Rouverte — elle revient chez ${versNom}.`
-      : `Réadressée à ${versNom} — ${deNom} ne l'a plus dans « à traiter ».`);
+      ? `Rouverte, elle revient chez ${versNom}.`
+      : `Réadressée à ${versNom}, ${deNom} ne l'a plus dans « à traiter ».`);
   };
 
   /* ── LE GLISSEMENT — et son repli sans souris ─────────────────────
@@ -243,7 +243,7 @@ export default function Tableau() {
       priorite: (brouillonPrio || undefined) as FilMessage['priorite'],
     })]);
     setBrouillon(''); setBrouillonEcheance(''); setBrouillonPrio('');
-    toast(dest ? `Carte posée chez ${dest.name}.` : 'Carte posée — à prendre.');
+    toast(dest ? `Carte posée chez ${dest.name}.` : 'Carte posée, à prendre.');
   };
 
   const changerPriorite = (m: FilMessage, p: string) => {
@@ -347,7 +347,7 @@ export default function Tableau() {
             {puisJeClore(m, monMail) && m.faitAt ? (
               <label className="trf-fil__case" style={{ marginTop: 7 }}>
                 <input type="checkbox" checked onChange={() => basculerFait(m)} />
-                <span>Traité{m.faitPar ? ` par ${m.faitPar}` : ''} — décocher pour rouvrir</span>
+                <span>Traité{m.faitPar ? ` par ${m.faitPar}` : ''}, décocher pour rouvrir</span>
               </label>
             ) : (
               <div className="trt__pied">{m.faitPar ? `Traité par ${m.faitPar}` : 'La facture est soldée'}</div>
@@ -461,7 +461,7 @@ export default function Tableau() {
       <PageHead
         eyebrow="La Maison · les demandes vues d'en haut"
         title="Le Tableau."
-        sub={`${ouvertes.length} demande${ouvertes.length > 1 ? 's' : ''} ouverte${ouvertes.length > 1 ? 's' : ''}${retardsTotal > 0 ? ` · ${retardsTotal} en retard` : ''} — glissez une carte d'un nom à l'autre, ou touchez la carte puis la colonne.`}
+        sub={`${ouvertes.length} demande${ouvertes.length > 1 ? 's' : ''} ouverte${ouvertes.length > 1 ? 's' : ''}${retardsTotal > 0 ? ` · ${retardsTotal} en retard` : ''}, glissez une carte d'un nom à l'autre, ou touchez la carte puis la colonne.`}
       />
 
       <div className="trt">
@@ -470,7 +470,7 @@ export default function Tableau() {
             value={brouillon}
             onChange={(e) => setBrouillon(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') poserUneCarte(); }}
-            placeholder="Poser une carte — que faut-il faire ?"
+            placeholder="Poser une carte, que faut-il faire ?"
             style={{ flex: 1, minWidth: 220 }}
           />
           <Select value={brouillonPour} onChange={(e) => setBrouillonPour(e.target.value)} style={{ fontSize: 12, maxWidth: 190 }}>

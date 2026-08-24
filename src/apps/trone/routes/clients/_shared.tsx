@@ -686,8 +686,8 @@ export function ReminderBell({
         href="#/customers"
         draggable={false}
         onClick={(e) => e.stopPropagation()}
-        title={`Pas de numéro sur la fiche — le rappel WhatsApp du RDV ${when} ne peut pas partir. Ouvrez la fiche pour ajouter le numéro.`}
-        aria-label="Pas de numéro sur la fiche — ouvrir le carnet de clientes"
+        title={`Pas de numéro sur la fiche, le rappel WhatsApp du RDV ${when} ne peut pas partir. Ouvrez la fiche pour ajouter le numéro.`}
+        aria-label="Pas de numéro sur la fiche, ouvrir le carnet de clientes"
       >
         <BellOff size={size} />
       </a>
@@ -706,8 +706,8 @@ export function ReminderBell({
       rel="noreferrer"
       draggable={false}
       onClick={(e) => { e.stopPropagation(); markReminderSent(appt.id, appt.date, kind); }}
-      title={sent ? `Rappel déjà envoyé — RDV ${when}. Cliquez pour renvoyer.` : `Rappel WhatsApp — ${label}, RDV ${when}`}
-      aria-label={sent ? 'Rappel WhatsApp déjà envoyé — renvoyer' : 'Envoyer un rappel WhatsApp'}
+      title={sent ? `Rappel déjà envoyé, RDV ${when}. Cliquez pour renvoyer.` : `Rappel WhatsApp, ${label}, RDV ${when}`}
+      aria-label={sent ? 'Rappel WhatsApp déjà envoyé, renvoyer' : 'Envoyer un rappel WhatsApp'}
     >
       {sent ? <Check size={size} /> : <Bell size={size} />}
     </a>
@@ -1750,7 +1750,7 @@ export function RdvModal({
             master,
             status: 'confirmé',
             source: 'trone',
-            note: `Inclus au forfait · ${byId.get(sid)?.name ?? ''} — date à confirmer`.trim(),
+            note: `Inclus au forfait · ${byId.get(sid)?.name ?? ''}, date à confirmer`.trim(),
             coveredBySub: true,
             coverKind: 'forfait',
             coverServiceId: sid,
@@ -1788,8 +1788,8 @@ export function RdvModal({
     if (!appt) return;
     const paid = appt.paidXof ?? 0;
     const msg = paid > 0
-      ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés — l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
-      : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre — il restera visible, barré, au Carnet.';
+      ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés, l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
+      : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre, il restera visible, barré, au Carnet.';
     if (!window.confirm(msg)) return;
     appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
     /* S'il avait été honoré, sa recette revient au stock — un rituel annulé
@@ -1971,7 +1971,7 @@ export function RdvModal({
                       ? (() => {
                           const pct = remiseGestePct(sv, pricing, chosen);
                           return (
-                            <span title="Geste de la maison — réglé au Catalogue">
+                            <span title="Geste de la maison, réglé au Catalogue">
                               <span style={{ textDecoration: 'line-through', color: 'var(--ink-soft)', marginRight: 6 }}>
                                 {argent(personalPriceXof(sv, pricing, services, produitsGamme))}
                               </span>
@@ -1987,7 +1987,7 @@ export function RdvModal({
                       /* SON PRIX CONVENU, ET ON LE DIT. Sans la mention, le
                          comptoir lit un montant qui ne colle pas au catalogue
                          et « corrige » — c'est-à-dire efface l'accord. */
-                      ? <span title="Prix convenu avec elle — fiche → Profil → Ses prix fermes" style={{ color: 'var(--copper-700)' }}>
+                      ? <span title="Prix convenu avec elle, fiche → Profil → Ses prix fermes" style={{ color: 'var(--copper-700)' }}>
                           {argent(prixFixeDe(sv, pricing)!)} · convenu
                         </span>
                       : priceModeOf(sv) === 'devis'
@@ -2023,7 +2023,7 @@ export function RdvModal({
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder={grossLibre > 0 ? String(grossLibre) : 'montant'}
                       style={{ width: 118, textAlign: 'right', padding: '5px 8px', fontSize: 13 }}
-                      aria-label={`Montant convenu — ${sv.name}`}
+                      aria-label={`Montant convenu, ${sv.name}`}
                       title="Montant convenu pour ce rituel"
                     />
                   )}
@@ -2330,7 +2330,7 @@ export function RdvModal({
               />
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)' }}>
-                  Inclus dans l’abonnement — ne rien facturer
+                  Inclus dans l’abonnement, ne rien facturer
                 </span>
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
                   {coverageRows.map((r) => {
@@ -2344,7 +2344,7 @@ export function RdvModal({
                 </span>
                 {!canCover && (
                   <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
-                    Plus d’allocation sur le cycle en cours — le rituel sera facturé normalement.
+                    Plus d’allocation sur le cycle en cours, le rituel sera facturé normalement.
                   </span>
                 )}
               </span>
@@ -2388,7 +2388,7 @@ export function RdvModal({
 
         {overlap && (
           <div className="trc-overlap">
-            Attention — {master} reçoit déjà {overlapName} à {overlap.time} ce jour-là. Les deux rituels se chevauchent ;
+            Attention, {master} reçoit déjà {overlapName} à {overlap.time} ce jour-là. Les deux rituels se chevauchent ;
             vous pouvez tout de même enregistrer.
           </div>
         )}
@@ -2473,8 +2473,7 @@ export function RdvModal({
                 Séance {(appt?.seriesIndex ?? 2)} de « {porteur.dit} »
               </div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
-                Le rituel du {frShort(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''} —
-                rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
+                Le rituel du {frShort(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''}, rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
                 Seuls les soins à plusieurs séances sont repris : une création
                 déjà terminée en une seule séance se retire d'un ✕, au palier ②.
               </div>
@@ -2484,7 +2483,7 @@ export function RdvModal({
                 style={{ marginTop: 10 }}
                 onClick={() => setSuiteDe('')}
               >
-                Détacher — ce rituel se facture
+                Détacher, ce rituel se facture
               </button>
             </div>
           )}
@@ -2586,7 +2585,7 @@ export function RdvModal({
                   <span className="mnd-muted" style={{ fontSize: 11.5 }}>{currency}</span>
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  Le pourcentage d’abord, les francs ensuite — les deux se cumulent.
+                  Le pourcentage d’abord, les francs ensuite, les deux se cumulent.
                 </div>
               </>
             )}
@@ -2654,7 +2653,7 @@ export function RdvModal({
                   if (!e.target.checked) setOffertPar('');
                 }}
               />
-              Ce rituel est offert par une autre cliente — cas exceptionnel
+              Ce rituel est offert par une autre cliente, cas exceptionnel
             </label>
             {offertOn && (
               <div style={{ marginTop: 10 }}>
@@ -2665,13 +2664,13 @@ export function RdvModal({
                 />
                 {offertPar && offertPar !== clientId && (
                   <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                    La dépense et les points de fidélité iront à {nomDe(offertPar)} — c’est elle qui
+                    La dépense et les points de fidélité iront à {nomDe(offertPar)}, c’est elle qui
                     paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
                   </div>
                 )}
                 {offertPar && offertPar === clientId && (
                   <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
-                    Elle ne peut pas s’offrir son propre rituel — laissez vide.
+                    Elle ne peut pas s’offrir son propre rituel, laissez vide.
                   </div>
                 )}
               </div>
@@ -2686,7 +2685,7 @@ export function RdvModal({
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
             ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
-            modifiez les prestations — ou si vous l’actualisez :
+            modifiez les prestations, ou si vous l’actualisez :
             <div style={{ marginTop: 8 }}>
               <button
                 type="button"
@@ -2717,7 +2716,7 @@ export function RdvModal({
         {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
-            ({argent(grossBase)}) — l’ancien prix de {argent(frozenXof)} sera abandonné.
+            ({argent(grossBase)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
           </div>
         )}
         {/* Prix PERSONNALISÉ — modèle (tranche de locks) × Juste Prix : annoncé
@@ -2725,7 +2724,7 @@ export function RdvModal({
         {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
           <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
             Prix personnalisé : <b>{argent(grossBase)}</b>
-            {pricing.band ? <> — modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
+            {pricing.band ? <>, modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
             {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
             {grossBase !== grossCatalogue ? <> · catalogue {argent(grossCatalogue)}</> : null}.
             Il sera figé sur ce rendez-vous à l’enregistrement.
@@ -2820,7 +2819,7 @@ export function RdvModal({
                   padding: 4, font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
                 }}
               >
-                Réglé — voir et corriger les règlements
+                Réglé, voir et corriger les règlements
               </button>
             ) : (
               <Button variant="ghost" onClick={() => onEncaisser(appt)}>
@@ -3012,7 +3011,7 @@ export function ClientPicker({
       {open && passage && (
         <div className="trc-clientpick__menu trc-passage" role="dialog" aria-label="Cliente de passage">
           <div className="trc-passage__head">
-            Cliente de passage — prénom et téléphone, rien de plus.
+            Cliente de passage, prénom et téléphone, rien de plus.
           </div>
           <input
             className="mnd-input"
@@ -3035,7 +3034,7 @@ export function ClientPicker({
           {deja && (
             <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 2, background: 'var(--copper-50, #f9efe7)', padding: '10px 12px' }}>
               <div style={{ fontSize: 12.5, color: 'var(--color-indigo)', lineHeight: 1.5 }}>
-                Cette tête est déjà au carnet — <b style={{ fontWeight: 600 }}>{deja.name}</b>
+                Cette tête est déjà au carnet, <b style={{ fontWeight: 600 }}>{deja.name}</b>
                 {deja.phone ? ` · ${deja.phone}` : ''}.
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -3077,7 +3076,7 @@ export function ClientPicker({
             </button>
           ))}
           {results.length === 0 && (
-            <div className="trc-clientpick__empty">Aucune cliente — {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
+            <div className="trc-clientpick__empty">Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
           )}
         </div>
       )}

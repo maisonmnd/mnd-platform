@@ -84,7 +84,7 @@ export function declarerEnfant(parent: Client, prenom: string, nom: string, birt
   /* La Maison ne prend en charge que des mineurs par ce chemin : un majeur
      ouvre son propre compte, il n'a besoin de personne pour le porter. */
   if (!estMineur({ birthday }, aujourdhui)) {
-    return { ok: false, erreur: 'Cette personne est majeure — elle peut ouvrir son propre compte.' };
+    return { ok: false, erreur: 'Cette personne est majeure, elle peut ouvrir son propre compte.' };
   }
   /* Deux fois le même enfant : on ne fait pas la queue deux fois. */
   const deja = enfantsDeclaresStore.get().some(
@@ -153,7 +153,7 @@ export async function corrigerNaissance(
   if (!birthday) return { ok: false, erreur: 'Il manque la date de naissance.' };
   if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
   if (!estMineur({ birthday }, aujourdhui)) {
-    return { ok: false, erreur: 'Cette date en ferait une personne majeure — passez au salon pour ce changement.' };
+    return { ok: false, erreur: 'Cette date en ferait une personne majeure, passez au salon pour ce changement.' };
   }
   if (supabase) {
     const { error } = await supabase.rpc('corriger_naissance_enfant', {
@@ -163,7 +163,7 @@ export async function corrigerNaissance(
     if (error) {
       const msg = error.message ?? '';
       if (/function|does not exist|schema cache/i.test(msg)) {
-        return { ok: false, erreur: 'La maison doit d’abord activer cette correction (migration 0050) — réessayez ensuite.' };
+        return { ok: false, erreur: 'La maison doit d’abord activer cette correction (migration 0050), réessayez ensuite.' };
       }
       return { ok: false, erreur: msg || 'La correction n’a pas pu passer.' };
     }
@@ -188,7 +188,7 @@ export async function rattacherEnfant(
   if (!birthday) return { ok: false, erreur: 'Il manque sa date de naissance.' };
   if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
   if (!estMineur({ birthday }, aujourdhui)) {
-    return { ok: false, erreur: 'Cette personne est majeure — elle peut ouvrir son propre compte.' };
+    return { ok: false, erreur: 'Cette personne est majeure, elle peut ouvrir son propre compte.' };
   }
   const nomComplet = `${p} ${n}`.replace(/\s+/g, ' ').trim();
 
@@ -208,8 +208,8 @@ export async function rattacherEnfant(
       return {
         ok: false,
         erreur: /function|does not exist|schema cache/i.test(brut)
-          ? 'La maison doit d’abord activer le rattachement (migration 0044) — réessayez ensuite.'
-          : brut || 'Rattachement impossible — réessayez.',
+          ? 'La maison doit d’abord activer le rattachement (migration 0044), réessayez ensuite.'
+          : brut || 'Rattachement impossible, réessayez.',
       };
     }
     const r = data as { statut: string; enfantId?: string; familyId?: string; nom?: string };

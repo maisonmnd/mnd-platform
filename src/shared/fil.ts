@@ -410,7 +410,7 @@ export const comptageEnClair = (c?: FilMessage['comptage']): string => {
     /* Un quart non compté s'écrit « — », jamais « 0 » : la Maison doit voir
        d'un coup d'œil ce qui reste à faire sur cette tête. */
     const q = (n?: number) => (n == null ? '—' : String(n));
-    return `devant ${q(c.avantG)} · ${q(c.avantD)} — derrière ${q(c.arriereG)} · ${q(c.arriereD)}`;
+    return `devant ${q(c.avantG)} · ${q(c.avantD)}, derrière ${q(c.arriereG)} · ${q(c.arriereD)}`;
   }
   return `gauche ${c.gauche ?? 0} · droite ${c.droite ?? 0}`;
 };

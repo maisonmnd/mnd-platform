@@ -807,7 +807,7 @@ export default function Personnel() {
         commissionne: form.commissionne || undefined, commissionTauxPct: form.commissionne && form.commissionTaux.trim() ? Math.max(0, Math.min(100, parseInt(form.commissionTaux, 10) || 0)) : undefined,
         salaireXof, commPrestaXof: 0, commProduitXof: 0, primeXof: 0,
         satisfaction: 0, wellbeing: 80, charge: 0, risk: 'faible',
-        riskDrivers: 'Nouvelle recrue — intégration en cours.', nextStep: 'Parcours d’intégration',
+        riskDrivers: 'Nouvelle recrue, intégration en cours.', nextStep: 'Parcours d’intégration',
         recognition: '—', statut: 'Nouveau',
         ...dossier,
       };
@@ -823,7 +823,7 @@ export default function Personnel() {
       <PageHead
         eyebrow="Équipe & Croissance · les Maîtres"
         title="L’équipe."
-        sub={`${branch.name} — celles et ceux qui couronnent, et la maison qui veille sur eux.`}
+        sub={`${branch.name}, celles et ceux qui couronnent, et la maison qui veille sur eux.`}
         actions={<Button variant="copper" onClick={openNew}>+ Ajouter un membre</Button>}
       />
 
@@ -865,7 +865,7 @@ export default function Personnel() {
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 18, marginBottom: 8, lineHeight: 1.55 }}>
             Les flèches rangent l’équipe dans l’ordre où tu veux la voir. Cet ordre vaut partout :
             les mains d’un rendez-vous, « Mon mois », les listes d’attribution. Range-les comme on
-            travaille — personne ne fait une tête seul, et les combinaisons reviennent tous les jours.
+            travaille, personne ne fait une tête seul, et les combinaisons reviennent tous les jours.
           </div>
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
@@ -933,7 +933,7 @@ export default function Personnel() {
                     </tr>
                   ))}
                   {team.length === 0 && (
-                    <tr><td colSpan={8} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun membre dans cette branche — la maison attend ses Maîtres.</td></tr>
+                    <tr><td colSpan={8} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun membre dans cette branche, la maison attend ses Maîtres.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -960,7 +960,7 @@ export default function Personnel() {
           {paieLancee && (
             <div className="tre-inline-note" style={{ marginBottom: 16 }}>
               <span className="mark">✦</span>
-              <span>Paie de {monthLabel()} lancée — {team.length} virements Mobile Money programmés.</span>
+              <span>Paie de {monthLabel()} lancée, {team.length} virements Mobile Money programmés.</span>
             </div>
           )}
 
@@ -1078,7 +1078,7 @@ export default function Personnel() {
                     );
                   })}
                   {team.length === 0 && (
-                    <tr><td colSpan={9} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer — la paie s’ouvrira avec l’équipe.</td></tr>
+                    <tr><td colSpan={9} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucun maître à payer, la paie s’ouvrira avec l’équipe.</td></tr>
                   )}
                   {team.length > 0 && (
                     <tr>
@@ -1268,8 +1268,8 @@ export default function Personnel() {
               ))}
             </div>
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
-              La commission d’une prestation va à ses <strong style={{ fontWeight: 500 }}>mains</strong> — celles
-              désignées au rendez-vous — et se partage entre elles à parts égales. À défaut de mains
+              La commission d’une prestation va à ses <strong style={{ fontWeight: 500 }}>mains</strong>, celles
+              désignées au rendez-vous, et se partage entre elles à parts égales. À défaut de mains
               désignées, elle revient au maître assigné.
             </div>
           </Card>
@@ -1281,7 +1281,7 @@ export default function Personnel() {
             <div className="tre-rates__head">
               <span className="tre-rates__title">Points & prime du mois</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>
-                Le pointage, la ponctualité et les heures au-delà. Chacun les inscrit lui-même —
+                Le pointage, la ponctualité et les heures au-delà. Chacun les inscrit lui-même,
                 qui ne pointe pas ne marque rien.
               </span>
             </div>
@@ -1324,7 +1324,7 @@ export default function Personnel() {
               <span className="tre-rates__title">Primes de seuil</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>
                 Le volume, là où la commission récompense le montant. Un seuil se franchit, il ne se
-                proratise pas — et l’on retient le palier le plus haut atteint, jamais leur somme.
+                proratise pas, et l’on retient le palier le plus haut atteint, jamais leur somme.
               </span>
             </div>
 
@@ -1352,7 +1352,7 @@ export default function Personnel() {
                           : regle.cible.kind}
                         onChange={(e) => majRegle(regle.id, { cible: cibleDepuis(e.target.value) })}
                       >
-                        <option value="tetes">Les têtes — un rituel, quel qu’il soit</option>
+                        <option value="tetes">Les têtes, un rituel, quel qu’il soit</option>
                         <option value="tout">Toutes les prestations</option>
                         <optgroup label="Une famille entière">
                           {categories.map((c) => (
@@ -1421,7 +1421,7 @@ export default function Personnel() {
           {team.length === 0 && (
             <Card className="tre-empty">
               <div className="tre-empty__title">Personne à veiller pour l’instant.</div>
-              <div className="tre-empty__sub">Ajoutez un membre à l’équipe — bien-être, charge et reconnaissance se suivront ici.</div>
+              <div className="tre-empty__sub">Ajoutez un membre à l’équipe, bien-être, charge et reconnaissance se suivront ici.</div>
             </Card>
           )}
           <div className="tr-grid tr-grid--2">
@@ -1517,8 +1517,8 @@ export default function Personnel() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
                 Les fonctions au fauteuil (maître, maîtresse, praticienne, praticien) exécutent des
-                prestations et peuvent commissionner. Les autres — accueil, entretien, sécurité,
-                jardinier, chauffeur — se posent d’office « hors fauteuil ».
+                prestations et peuvent commissionner. Les autres, accueil, entretien, sécurité,
+                jardinier, chauffeur, se posent d’office « hors fauteuil ».
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">
@@ -1654,7 +1654,7 @@ export default function Personnel() {
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
                 L’avance s’inscrit aussitôt en <b>Dépenses · Salaires</b> et sort de cette caisse.
                 Le bulletin du mois la déduira du net : la charge du jour de paie ne portera que
-                le reste — les deux additionnées font ce qui a été versé.
+                le reste, les deux additionnées font ce qui a été versé.
               </div>
             </Field>
             <Field label="Note (facultatif)">
@@ -1663,7 +1663,7 @@ export default function Personnel() {
             {advancesTotalMonth(avanceFor.id, M) > 0 && (
               <div className="tre-inline-note">
                 <span className="mark">✦</span>
-                <span>Déjà avancé ce mois — {fmtMoney(advancesTotalMonth(avanceFor.id, M), currency)}.</span>
+                <span>Déjà avancé ce mois, {fmtMoney(advancesTotalMonth(avanceFor.id, M), currency)}.</span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -1731,7 +1731,7 @@ export default function Personnel() {
               </Field>
             </div>
             <Field label="Note (facultatif)">
-              <Input value={primeForm.note} onChange={(e) => setPrimeForm({ ...primeForm, note: e.target.value })} placeholder="Motif — ex. objectif de rétention atteint" />
+              <Input value={primeForm.note} onChange={(e) => setPrimeForm({ ...primeForm, note: e.target.value })} placeholder="Motif, ex. objectif de rétention atteint" />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPrimeFor(null)}>Annuler</Button>
@@ -1763,7 +1763,7 @@ export default function Personnel() {
             {tipTotalMonth(tipFor.id, M) > 0 && (
               <div className="tre-inline-note">
                 <span className="mark">✦</span>
-                <span>Déjà reçu ce mois — {fmtMoney(tipTotalMonth(tipFor.id, M), currency)}.</span>
+                <span>Déjà reçu ce mois, {fmtMoney(tipTotalMonth(tipFor.id, M), currency)}.</span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -1805,7 +1805,7 @@ export default function Personnel() {
               </Field>
             </div>
             <Field label="Note (facultatif)">
-              <Input value={retenueForm.note} onChange={(e) => setRetenueForm({ ...retenueForm, note: e.target.value })} placeholder="Précision — ex. maladie sans maintien, mise à pied disciplinaire…" />
+              <Input value={retenueForm.note} onChange={(e) => setRetenueForm({ ...retenueForm, note: e.target.value })} placeholder="Précision, ex. maladie sans maintien, mise à pied disciplinaire…" />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setRetenueFor(null)}>Annuler</Button>
@@ -1848,7 +1848,7 @@ export default function Personnel() {
           <Modal title={`Salaire ${year} · ${staff.name}`} onClose={() => setYearFor(null)} width={980}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5, maxWidth: 520 }}>
-                Détail mois par mois. « Confirmer » enregistre le règlement avec votre nom et l'horodatage — une preuve datée. « Bulletin » génère le PDF à remettre.
+                Détail mois par mois. « Confirmer » enregistre le règlement avec votre nom et l'horodatage, une preuve datée. « Bulletin » génère le PDF à remettre.
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen de règlement</span>

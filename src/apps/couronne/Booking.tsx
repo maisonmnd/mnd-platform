@@ -595,7 +595,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       const url = `${import.meta.env.BASE_URL}#/suivi`;
       void enablePush(clientId).then((subbed) => {
         if (!first) return;
-        const body = `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time} — la maison confirmera.`;
+        const body = `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time}, la maison confirmera.`;
         if (subbed) void pushNotify(clientId, 'Réservation transmise', body, url);
         else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Réservation transmise', body); });
       });
@@ -641,7 +641,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         /* Le paiement a eu lieu ; seule la vérification a échoué. On réserve
            quand même, acompte « annoncé » — on ne perd ni la cliente ni sa
            référence. */
-        toast(e instanceof Error ? e.message : 'Vérification impossible — la Maison vérifiera.');
+        toast(e instanceof Error ? e.message : 'Vérification impossible, la Maison vérifiera.');
       }
       setOnlinePaid({ ok: confirmed, ref: transactionId });
       settle({ apptId, transactionId, confirmed });
@@ -659,7 +659,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       description:
         /* Les mains sont l'affaire de la maison — le calendrier de la cliente
            dit le rituel, pas qui le donne (décision du 10 août). */
-        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · Maison MND` : 'Maison MND — la maison vous attend.',
+        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · Maison MND` : 'Maison MND, la maison vous attend.',
       location: branch.name,
       dateIso: sd.iso,
       time: sd.time,
@@ -667,7 +667,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       alarmMin: 120,
     }));
     downloadIcs(events, 'rituel-maison-mnd.ics');
-    toast('Fichier calendrier téléchargé — votre téléphone vous rappellera 2 h avant.');
+    toast('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.');
   };
 
   const priceLabel = (s: Service, pct = 0) => {
@@ -789,7 +789,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                      pas d'inventer une recommandation. */
                   <>
                     <div className="mc-quizreco__line">
-                      Votre envie est notée — la maison la lira avant votre venue. Parcourez ses
+                      Votre envie est notée, la maison la lira avant votre venue. Parcourez ses
                       rituels : la maîtresse fera le reste au fauteuil.
                     </div>
                     <button className="mc-cta mc-cta--indigo" onClick={() => setStep(0)}>Voir les rituels</button>
@@ -936,7 +936,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className="mc-emptyzone__glyph">✦</div>
               <div className="mc-emptyzone__t">L’offre se prépare.</div>
               <div className="mc-emptyzone__s">
-                La maison compose en ce moment ses rituels. Revenez très bientôt — votre couronne sera reçue comme il se doit.
+                La maison compose en ce moment ses rituels. Revenez très bientôt, votre couronne sera reçue comme il se doit.
               </div>
               <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={onClose}>
                 Revenir à l’accueil
@@ -993,7 +993,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                    la cliente croire à une erreur quand le tarif diffère. La
                    couronne décrite est celle de la TÊTE servie (12 août). */
                 <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
-                  {beneficiaire ? `Ses prix — établis pour la couronne de ${beneficiaire.name}` : 'Vos prix — établis pour votre couronne'}
+                  {beneficiaire ? `Ses prix, établis pour la couronne de ${beneficiaire.name}` : 'Vos prix, établis pour votre couronne'}
                   {personalized && pricing.band && cible?.lockCount ? ` de ${cible.lockCount} locks` : ''}
                   {pricing.longueur ? ` · longueur ${longueurLabel(pricing.longueur)}` : ''}.
                 </div>
@@ -1021,7 +1021,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       <button
                         key={i}
                         className="mc-sessionchip mc-sessionchip--btn"
-                        aria-label={`Reprendre la séance ${i + 1} — ${dayLabelIso(sd.iso)} à ${sd.time}`}
+                        aria-label={`Reprendre la séance ${i + 1}, ${dayLabelIso(sd.iso)} à ${sd.time}`}
                         onClick={() => {
                           setSessionDates((prev) => prev.filter((_, k) => k !== i));
                           setSelIso(null);
@@ -1038,7 +1038,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   <span className="mc-sessionhead__hint">Touchez une séance pour la reprendre.</span>
                 )}
                 <span className="mc-sessionhead__note">
-                  La prestation est réglée une fois — les séances suivantes sont incluses
+                  La prestation est réglée une fois, les séances suivantes sont incluses
                   {hasDeposit ? ' · acompte sur la 1ʳᵉ' : ''}.
                 </span>
               </div>
@@ -1050,7 +1050,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             {besoinDensite && (
               <div className="mc-pourqui" style={{ paddingTop: 22, paddingBottom: 18 }}>
                 <span className="mc-pourqui__lb" style={{ width: '100%' }}>
-                  Vos locks — pour réserver le bon nombre d’heures
+                  Vos locks, pour réserver le bon nombre d’heures
                 </span>
                 {bandesDensite.map((b) => (
                   <button
@@ -1066,7 +1066,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   </button>
                 ))}
                 <span className="mnd-muted" style={{ width: '100%', fontSize: 11.5, lineHeight: 1.5 }}>
-                  Au plus près — la Maison comptera précisément au fauteuil.
+                  Au plus près, la Maison comptera précisément au fauteuil.
                   {bandeDeclaree ? ` Durée prévue : ${fmtDuration(totalDuration)}.` : ''}
                 </span>
               </div>
@@ -1138,7 +1138,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                       </button>
                     );
                   })}
-                  {dayTimes.length === 0 && <div className="mc-emptyline">Plus de créneau ce jour — choisissez un autre jour.</div>}
+                  {dayTimes.length === 0 && <div className="mc-emptyline">Plus de créneau ce jour, choisissez un autre jour.</div>}
                 </div>
               </div>
             )}
@@ -1172,7 +1172,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   {momentComplet && dernierMoment
                     ? `${dayLabelIso(dernierMoment.iso)} · ${dernierMoment.time} · ${fmtDuration(totalDuration)}`
                     : totalSessions > 1
-                      ? `Séance ${sessionDates.length + 1} sur ${totalSessions} — choisissez son moment`
+                      ? `Séance ${sessionDates.length + 1} sur ${totalSessions}, choisissez son moment`
                       : 'Choisissez le jour, puis l’heure'}
                 </span>
               </div>
@@ -1214,7 +1214,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   ligne, le prélèvement se lit comme un péage. Une promesse,
                   pas une caution. */}
               {!allHidden && !(depositPct !== null && depositPct >= 100) && (
-                <div className="mc-depositcard__why">Il tient votre créneau — et se déduit le jour même.</div>
+                <div className="mc-depositcard__why">Il tient votre créneau, et se déduit le jour même.</div>
               )}
             </div>
             {/* VOIE EN LIGNE — n'apparaît que si les rails KkiaPay sont branchés

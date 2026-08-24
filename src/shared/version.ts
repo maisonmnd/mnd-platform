@@ -49,7 +49,7 @@ async function verifier(): Promise<void> {
     sessionStorage.setItem(CLE, enLigne);
   } catch { /* stockage indisponible : on recharge quand même, une fois */ }
 
-  console.info(`[mnd] nouvelle version en ligne (${enLigne}) — rechargement`);
+  console.info(`[mnd] nouvelle version en ligne (${enLigne}), rechargement`);
   location.reload();
 }
 

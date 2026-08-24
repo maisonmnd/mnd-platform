@@ -53,7 +53,7 @@ const wifiPayload = (ssid: string, pass: string) =>
 const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; sousGrand?: string; etapes: string[]; ariaQr: string }) => {
   const { path, n } = qrMatrice(o.qr);
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8" />
-<title>${escHtml(maisonNom())} — ${escHtml(o.titre)}</title>
+<title>${escHtml(maisonNom())}, ${escHtml(o.titre)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Jost:wght@400;500;600&display=swap" />
 <style>
   @page { size: A5 portrait; margin: 0; }
@@ -115,13 +115,13 @@ function CarteWifi({ titre, sous, ssid, pass, pose, surComptoir }: {
      pour les deux réseaux : elle accueille, elle ne parle pas de boxes. */
   const imprimer = () => imprime(carteA5({
     titre: 'Installez-vous.',
-    sous: 'Le réseau de la Maison est à vous — scannez, votre téléphone se connecte seul.',
+    sous: 'Le réseau de la Maison est à vous, scannez, votre téléphone se connecte seul.',
     qr: valeur,
     grand: ssid.trim(),
     etapes: [
       'Ouvrez l’appareil photo du téléphone',
       'Visez le carré',
-      '« Se connecter » — vous êtes chez vous',
+      '« Se connecter », vous êtes chez vous',
     ],
     ariaQr: 'QR du réseau Wi-Fi de la maison',
   }));
@@ -197,7 +197,7 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
     <div
       onClick={onClose}
       role="dialog"
-      aria-label={`${g.titre} — plein écran`}
+      aria-label={`${g.titre}, plein écran`}
       style={{
         /* Au-dessus de tout — tiroirs (z-modal+1) et toasts (z-modal+5). */
         position: 'fixed', inset: 0, zIndex: 120,
@@ -318,13 +318,13 @@ export default function QrCodes() {
   const planPrecis = !!branch.mapsUrl?.trim();
   const copier = (lien: string, quoi: string) => {
     navigator.clipboard.writeText(lien)
-      .then(() => toast(`Lien ${quoi} copié — collez-le dans WhatsApp.`))
+      .then(() => toast(`Lien ${quoi} copié, collez-le dans WhatsApp.`))
       .catch(() => window.prompt(`Copiez ce lien ${quoi} :`, lien));
   };
 
   const imprimerMomo = () => imprime(carteA5({
     titre: 'Régler par MoMo.',
-    sous: 'Scannez avec l’application MoMo — ou composez le code, le montant en francs.',
+    sous: 'Scannez avec l’application MoMo, ou composez le code, le montant en francs.',
     qr: momoQr,
     grand: momoMarchand,
     sousGrand: momoUssd,
@@ -341,7 +341,7 @@ export default function QrCodes() {
       <PageHead
         eyebrow="Clients & Agenda · Les portes"
         title="QR Codes."
-        sub="Tous les codes de la Maison, réunis — à montrer au comptoir, imprimer, afficher au miroir."
+        sub="Tous les codes de la Maison, réunis, à montrer au comptoir, imprimer, afficher au miroir."
       />
 
       {/* ① L'invitation Ma Couronne — la même carte que la Vitrine. */}
@@ -350,7 +350,7 @@ export default function QrCodes() {
       {/* ② et ③ Les deux réseaux Wi-Fi — « Installez-vous. » */}
       <CarteWifi
         titre="Installez-vous."
-        sous="Le réseau de la Maison est à vous — scanné, ce code connecte le téléphone de la cliente sans qu’elle tape le mot de passe. Le nom et le mot de passe restent dans la base de la maison, nulle part ailleurs."
+        sous="Le réseau de la Maison est à vous, scanné, ce code connecte le téléphone de la cliente sans qu’elle tape le mot de passe. Le nom et le mot de passe restent dans la base de la maison, nulle part ailleurs."
         ssid={autoRaw.wifiSsid ?? ''}
         pass={autoRaw.wifiPass ?? ''}
         pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })}
@@ -358,7 +358,7 @@ export default function QrCodes() {
       />
       <CarteWifi
         titre="Le second réseau."
-        sous="La maison a deux réseaux — même geste pour l’autre box. Face cliente, la carte et le plein écran disent la même chose : « Installez-vous. »"
+        sous="La maison a deux réseaux, même geste pour l’autre box. Face cliente, la carte et le plein écran disent la même chose : « Installez-vous. »"
         ssid={autoRaw.wifi2Ssid ?? ''}
         pass={autoRaw.wifi2Pass ?? ''}
         pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })}
@@ -375,7 +375,7 @@ export default function QrCodes() {
             Encaisser par MoMoPay.
           </div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            La cliente scanne avec son application MoMo — marchand <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>,
+            La cliente scanne avec son application MoMo, marchand <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>,
             ou compose {momoUssd}. Le code et le marchand se règlent dans Paramètres › L’encaissement.
           </div>
         </div>
@@ -385,7 +385,7 @@ export default function QrCodes() {
             className="mnd-btn mnd-btn--copper"
             onClick={() => setGrand({
               titre: 'Régler par MoMo.',
-              phrase: `Marchand ${momoMarchand} — le montant en francs.`,
+              phrase: `Marchand ${momoMarchand}, le montant en francs.`,
               valeur: momoQr,
               affiche: 'momopay-affiche.jpg',
             })}
@@ -427,9 +427,9 @@ export default function QrCodes() {
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
             {lienPlan
               ? (planPrecis
-                ? <>La cliente scanne, sa carte s'ouvre sur <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>la fiche du salon</b> — la porte, pas le quartier. Le lien s'envoie aussi par message.</>
-                : <>Ce carré ne mène qu'à <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{adresseComplete}</b> — le centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu'il désigne la porte.</>)
-              : <>Aucune adresse ni lien pour cette branche — Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
+                ? <>La cliente scanne, sa carte s'ouvre sur <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>la fiche du salon</b>, la porte, pas le quartier. Le lien s'envoie aussi par message.</>
+                : <>Ce carré ne mène qu'à <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{adresseComplete}</b>, le centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu'il désigne la porte.</>)
+              : <>Aucune adresse ni lien pour cette branche, Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
@@ -468,8 +468,8 @@ export default function QrCodes() {
           </div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
             {lienAvis
-              ? <>La cliente scanne et le formulaire d’avis Google s’ouvre — pas la carte, <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>l’avis</b>. À l’encaissement d’une <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>première venue</b>, la Maison propose aussi l’envoi WhatsApp d’elle-même.</>
-              : <>Aucun lien d’avis — Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
+              ? <>La cliente scanne et le formulaire d’avis Google s’ouvre, pas la carte, <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>l’avis</b>. À l’encaissement d’une <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>première venue</b>, la Maison propose aussi l’envoi WhatsApp d’elle-même.</>
+              : <>Aucun lien d’avis, Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
@@ -477,7 +477,7 @@ export default function QrCodes() {
             type="button"
             className="mnd-btn mnd-btn--copper"
             disabled={!lienAvis}
-            onClick={() => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez — deux phrases suffisent, la Maison vous lit.', valeur: lienAvis })}
+            onClick={() => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis })}
           >
             Afficher au comptoir
           </button>
@@ -526,8 +526,8 @@ export default function QrCodes() {
           </div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
             {codeJour
-              ? <>Le carré que l’équipe scanne pour pointer — aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>. Il se renouvelle chaque nuit.</>
-              : 'Le carré que l’équipe scanne pour pointer. Il naît à l’ouverture du Comptoir — ouvrez-le pour créer celui d’aujourd’hui.'}
+              ? <>Le carré que l’équipe scanne pour pointer, aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>. Il se renouvelle chaque nuit.</>
+              : 'Le carré que l’équipe scanne pour pointer. Il naît à l’ouverture du Comptoir, ouvrez-le pour créer celui d’aujourd’hui.'}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
@@ -535,7 +535,7 @@ export default function QrCodes() {
             <button
               type="button"
               className="mnd-btn mnd-btn--copper"
-              onClick={() => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe — il change chaque nuit.', valeur: lienDuJour(codeJour) })}
+              onClick={() => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) })}
             >
               Afficher au comptoir
             </button>

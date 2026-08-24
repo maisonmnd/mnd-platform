@@ -135,7 +135,7 @@ export default function Comptoir() {
 
       {!preuve.exigerPreuve && (
         <div className="cpt__dormant">
-          La vérification de présence est désactivée — ce code ne sert à rien tant
+          La vérification de présence est désactivée, ce code ne sert à rien tant
           qu'elle l'est. Système → Paramètres → Preuve de présence.
         </div>
       )}

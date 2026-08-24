@@ -187,7 +187,7 @@ export default function Trouver() {
 
   return (
     <>
-      <button className="trf-trigger" onClick={ouvrir} title="Trouver — une cliente, une facture, une prestation, un écran (Ctrl K)">
+      <button className="trf-trigger" onClick={ouvrir} title="Trouver, une cliente, une facture, une prestation, un écran (Ctrl K)">
         <Search size={14} />
         <span className="trf-trigger__label">Trouver</span>
         <kbd className="trf-trigger__kbd">Ctrl K</kbd>
@@ -209,7 +209,7 @@ export default function Trouver() {
               <kbd className="trf-trigger__kbd">Échap</kbd>
             </div>
             {needle.length < 2 && tel.length < 4 ? (
-              <div className="trf-hint">Tapez deux lettres au moins — ou un bout de numéro de téléphone.</div>
+              <div className="trf-hint">Tapez deux lettres au moins, ou un bout de numéro de téléphone.</div>
             ) : plat.length === 0 ? (
               <div className="trf-hint">Rien pour «&nbsp;{q.trim()}&nbsp;». Essayez le téléphone, ou une autre orthographe.</div>
             ) : (

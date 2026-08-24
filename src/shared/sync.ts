@@ -59,10 +59,10 @@ function raisonLisible(msg: string | undefined): string {
   const m = (msg ?? '').toLowerCase();
   /* PostgREST ne trouve pas la table : la migration n'a pas été collée. */
   if (m.includes('pgrst205') || m.includes('does not exist') || m.includes('schema cache')) {
-    return 'table absente en base — une migration n’a pas été collée';
+    return 'table absente en base, une migration n’a pas été collée';
   }
   if (m.includes('pgrst204') || m.includes('column')) {
-    return 'colonne manquante — le schéma de la table ne correspond pas';
+    return 'colonne manquante, le schéma de la table ne correspond pas';
   }
   if (m.includes('violates foreign key') || m.includes('violates check') || m.includes('duplicate key')) {
     return 'écriture refusée par une contrainte de la base';
@@ -71,7 +71,7 @@ function raisonLisible(msg: string | undefined): string {
     return 'serveur injoignable';
   }
   if (m.includes('jwt') || m.includes('expired')) {
-    return 'session expirée — reconnectez-vous';
+    return 'session expirée, reconnectez-vous';
   }
   return msg?.trim() || 'refus du serveur, sans message';
 }
@@ -147,7 +147,7 @@ const syncMark = {
     failedTables.delete(t);
     if (!horsPortee.has(t)) {
       horsPortee.add(t);
-      console.info(`[mnd-sync] ${t} : hors de portée de ce compte — les droits l'y refusent, ce n'est pas une panne.`);
+      console.info(`[mnd-sync] ${t} : hors de portée de ce compte, les droits l'y refusent, ce n'est pas une panne.`);
     }
     bumpSync();
   },
@@ -327,7 +327,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         const inconnues = (distant ?? []).filter((r) => !next.has((r as { id: string }).id));
         if (inconnues.length) {
           console.warn(
-            `[mnd-sync] ${table} : écrasement de masse BLOQUÉ (${upserts.length} lignes) — le serveur porte ${inconnues.length} ligne(s) que ce poste n'a jamais vues. Rien n'a été écrit ; on se réaligne sur le serveur.`,
+            `[mnd-sync] ${table} : écrasement de masse BLOQUÉ (${upserts.length} lignes), le serveur porte ${inconnues.length} ligne(s) que ce poste n'a jamais vues. Rien n'a été écrit ; on se réaligne sur le serveur.`,
           );
           const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
           applyingRemote = true;
@@ -403,11 +403,11 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       const massive = structurelle || ((videTout || (enMasse && !journalRembobinable)) && !purgeVoulue);
       if (massive) {
         const motif = structurelle
-          ? 'table structurelle — une suppression ne peut venir que du SQL'
+          ? 'table structurelle, une suppression ne peut venir que du SQL'
           : videTout
             ? 'ce diff VIDERAIT la table'
             : 'état local suspect';
-        console.warn(`[mnd-sync] ${table} : suppression BLOQUÉE (${deletes.length}/${prev.size} lignes) — ${motif}. Rien n'a été effacé du serveur.`);
+        console.warn(`[mnd-sync] ${table} : suppression BLOQUÉE (${deletes.length}/${prev.size} lignes), ${motif}. Rien n'a été effacé du serveur.`);
         /* ON NE SE CONTENTE PLUS DE REFUSER. Un état local jugé suspect le
            reste tant qu'on ne le remplace pas : la poussée suivante
            représentait la même demande d'effacement, indéfiniment, et la

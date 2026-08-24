@@ -121,7 +121,7 @@ export default function Laboratoire() {
     setMode('besoin');
     setSwaps((prev) => composeFromStock(k, prev, stockReel));
     setOpenSub(null);
-    setNote('L’intelligence a recomposé depuis la réserve réelle — vérifie les substituts, puis compose pour une cliente.');
+    setNote('L’intelligence a recomposé depuis la réserve réelle, vérifie les substituts, puis compose pour une cliente.');
   };
 
   const f = view.base;
@@ -139,7 +139,7 @@ export default function Laboratoire() {
       <PageHead
         eyebrow="Vente · l’atelier des formules"
         title="Le Laboratoire."
-        sub="Une cliente, un besoin, une formule — composée depuis la réserve réelle, fabriquée en consommant le stock, remise ou facturée à son nom."
+        sub="Une cliente, un besoin, une formule, composée depuis la réserve réelle, fabriquée en consommant le stock, remise ou facturée à son nom."
       />
 
       <div className="trv-tabs">
@@ -161,7 +161,7 @@ export default function Laboratoire() {
           <div className="trv-lab-voice">
             <div>
               <div className="mnd-eyebrow" style={{ color: 'var(--copper-200)' }}>La parole de la formulatrice</div>
-              <div className="quote">« Dites-moi ce dont la couronne souffre — <em>je connais l’ingrédient juste, sa terre d’origine et le geste qui le réveille.</em> »</div>
+              <div className="quote">« Dites-moi ce dont la couronne souffre, <em>je connais l’ingrédient juste, sa terre d’origine et le geste qui le réveille.</em> »</div>
             </div>
           </div>
 
@@ -203,7 +203,7 @@ export default function Laboratoire() {
               {view.swapCount > 0 && (
                 <div className="trv-recomposed">
                   <span>
-                    <span style={{ color: 'var(--copper-700)', fontWeight: 500 }}>Formule recomposée</span> — l’intelligence a remplacé {view.swapCount} ingrédient{view.swapCount > 1 ? 's' : ''} par des substituts de même rôle. Origines et protocole ajustés.
+                    <span style={{ color: 'var(--copper-700)', fontWeight: 500 }}>Formule recomposée</span>, l’intelligence a remplacé {view.swapCount} ingrédient{view.swapCount > 1 ? 's' : ''} par des substituts de même rôle. Origines et protocole ajustés.
                   </span>
                   <button className="trv-minibtn" onClick={restoreAll}>Tout rétablir</button>
                 </div>
@@ -338,7 +338,7 @@ export default function Laboratoire() {
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{availCount}/{pantry.length}</span>
                 </div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>
-                  Le vrai stock parle — un ingrédient s’éteint quand sa fiche est épuisée. Cliquer ouvre sa liaison.
+                  Le vrai stock parle, un ingrédient s’éteint quand sa fiche est épuisée. Cliquer ouvre sa liaison.
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {pantry.map((p) => {
@@ -364,7 +364,7 @@ export default function Laboratoire() {
 
               <div>
                 <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 4 }}>Ce que l’intelligence peut composer</div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>Classé par couverture du stock — elle substitue d’elle-même ce qui manque.</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 14 }}>Classé par couverture du stock, elle substitue d’elle-même ce qui manque.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                   {matches.map((m) => (
                     <div key={m.k} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '15px 17px' }}>
@@ -414,10 +414,10 @@ export default function Laboratoire() {
         <div className="tr-cols" style={{ '--cols': '1.4fr 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '20px 22px' }}>
             <div className="trv-sec-label" style={{ marginBottom: 4 }}>Le palmarès des formules</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Rachat, résultats consignés au Carnet, satisfaction et vitesse de vente — combinés en un Indice de mérite.</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Rachat, résultats consignés au Carnet, satisfaction et vitesse de vente, combinés en un Indice de mérite.</div>
             {PERF_SEED.length === 0 && (
               <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '14px 0', borderTop: '1px solid var(--hairline)' }}>
-                Le palmarès se mérite — il naîtra des premières préparations remises et des résultats consignés au Carnet.
+                Le palmarès se mérite, il naîtra des premières préparations remises et des résultats consignés au Carnet.
               </div>
             )}
           </div>
@@ -429,7 +429,7 @@ export default function Laboratoire() {
             </div>
             {REINVENT_SEED.length === 0 && (
               <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '16px 18px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-                Rien à réinventer pour l’instant — les signaux viendront des remises et des retours consignés au Carnet.
+                Rien à réinventer pour l’instant, les signaux viendront des remises et des retours consignés au Carnet.
               </div>
             )}
             {REINVENT_SEED.map((r) => {
@@ -458,7 +458,7 @@ export default function Laboratoire() {
           prixConseille={f.prixN}
           ingredients={view.origins.map((o) => ({ nom: o.ingredient }))}
           onClose={() => setComposer(false)}
-          onFait={() => { setComposer(false); setTab('preparations'); setNote(`« ${view.name} » composée pour ${cliente.name} — à fabriquer quand l’atelier est prêt.`); }}
+          onFait={() => { setComposer(false); setTab('preparations'); setNote(`« ${view.name} » composée pour ${cliente.name}, à fabriquer quand l’atelier est prêt.`); }}
         />
       )}
 
@@ -473,7 +473,7 @@ export default function Laboratoire() {
           prixConseille={0}
           ingredients={composerFormule.ingredients.map((x) => ({ nom: x.nom, qte: x.qte, unite: x.unite }))}
           onClose={() => setComposerFormule(null)}
-          onFait={() => { const nomF = composerFormule.nom; setComposerFormule(null); setTab('preparations'); setNote(`« ${nomF} » composée pour ${cliente.name} — à fabriquer quand l’atelier est prêt.`); }}
+          onFait={() => { const nomF = composerFormule.nom; setComposerFormule(null); setTab('preparations'); setNote(`« ${nomF} » composée pour ${cliente.name}, à fabriquer quand l’atelier est prêt.`); }}
         />
       )}
 
@@ -532,7 +532,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
     <Modal title={`Composer pour ${cliente.name}.`} onClose={onClose} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-          « {nomFormule} » — les quantités ci-dessous seront CONSOMMÉES du stock à la fabrication.
+          « {nomFormule} », les quantités ci-dessous seront CONSOMMÉES du stock à la fabrication.
           Un ingrédient sans fiche liée reste sur la composition écrite, mais rien ne sera décompté pour lui.
         </div>
 
@@ -543,7 +543,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
               <span className="mnd-muted" style={{ fontSize: 10.5 }}>
                 {l.fiche
                   ? `${l.fiche.code} · ${l.stock!.toLocaleString('fr-FR')} ${l.fiche.unite} en réserve`
-                  : 'pas de fiche liée — voir La réserve'}
+                  : 'pas de fiche liée, voir La réserve'}
               </span>
             </span>
             {l.fiche ? (
@@ -570,7 +570,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
           </div>
         </div>
         <Field label="Note d’atelier (facultative)">
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cuir sensible — moitié de menthe…" />
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cuir sensible, moitié de menthe…" />
         </Field>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -608,7 +608,7 @@ function OngletFormules({ cliente, clientPicker, onComposer, onLier }: {
   if (formules.length === 0) {
     return (
       <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.7, color: 'var(--ink-soft)', padding: '18px 2px', maxWidth: 640 }}>
-        La bibliothèque est vide. Les formules maîtres ne vivent qu’en base, réservées au personnel —
+        La bibliothèque est vide. Les formules maîtres ne vivent qu’en base, réservées au personnel,
         collez le fichier local <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, fontStyle: 'normal' }}>supabase/import_formules_maitres.sql</span> dans
         l’éditeur SQL, et elles apparaîtront ici à la prochaine synchronisation.
       </div>
@@ -620,7 +620,7 @@ function OngletFormules({ cliente, clientPicker, onComposer, onLier }: {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         {clientPicker}
         <span className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-          Confidentiel · réservé au personnel — jamais dans le dépôt
+          Confidentiel · réservé au personnel, jamais dans le dépôt
         </span>
       </div>
 
@@ -745,7 +745,7 @@ function OngletFormules({ cliente, clientPicker, onComposer, onLier }: {
                 variant="copper"
                 style={{ marginTop: 16, width: '100%' }}
                 disabled={!cliente}
-                title={cliente ? `Composer « ${sel.nom} » pour ${cliente.name} — quantités du classeur pré-remplies` : 'Choisissez d’abord une cliente en haut de l’onglet'}
+                title={cliente ? `Composer « ${sel.nom} » pour ${cliente.name}, quantités du classeur pré-remplies` : 'Choisissez d’abord une cliente en haut de l’onglet'}
                 onClick={() => onComposer(sel)}
               >
                 {cliente ? `Composer pour ${cliente.name.split(' ')[0]} ›` : 'Choisissez une cliente pour composer'}
@@ -778,7 +778,7 @@ function OngletPreparations() {
   const fabriquer = (prep: Preparation) => {
     const manques = manquesPourFabrication(prep, produits, mouvements);
     const detail = manques.length
-      ? `\n\nATTENTION — la réserve est courte :\n${manques.map((m) => `· ${m.produit.nom} : ${m.stock.toLocaleString('fr-FR')} ${m.produit.unite} en réserve, il en faut ${(m.stock + m.manque).toLocaleString('fr-FR')}`).join('\n')}\n\nFabriquer quand même laissera un stock négatif — qui dit la vérité.`
+      ? `\n\nATTENTION, la réserve est courte :\n${manques.map((m) => `· ${m.produit.nom} : ${m.stock.toLocaleString('fr-FR')} ${m.produit.unite} en réserve, il en faut ${(m.stock + m.manque).toLocaleString('fr-FR')}`).join('\n')}\n\nFabriquer quand même laissera un stock négatif, qui dit la vérité.`
       : '';
     if (!window.confirm(`Fabriquer « ${prep.nomFormule} » pour ${nomCliente(prep.clientId)} ? Les ingrédients seront décomptés du stock.${detail}`)) return;
     const r = fabriquerPreparation(prep, jour());
@@ -816,7 +816,7 @@ function OngletPreparations() {
     <div>
       {liste.length === 0 && (
         <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '18px 2px' }}>
-          Aucune préparation — composez-en une depuis L’atelier : une cliente, son besoin, la formule.
+          Aucune préparation, composez-en une depuis L’atelier : une cliente, son besoin, la formule.
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -868,7 +868,7 @@ function OngletPreparations() {
                   {prep.statut !== 'proposee' && !prep.invoiceId && (
                     <button
                       className="trv-minibtn"
-                      title="Retire les sorties du journal — la réserve remonte"
+                      title="Retire les sorties du journal, la réserve remonte"
                       onClick={() => { if (window.confirm('Annuler la fabrication ? Les ingrédients reviennent au stock.')) { const r = annulerFabrication(prep); if (!r.ok) window.alert(r.erreur); } }}
                     >
                       Annuler la fabrication
@@ -904,7 +904,7 @@ function OngletReserve({ onLier }: { onLier: (nom: string) => void }) {
     <div>
       <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 640, marginBottom: 14 }}>
         Chaque ingrédient des formules se lie à une fiche du module Stock &amp; Achats. Une fois lié,
-        sa disponibilité cesse d’être une opinion : c’est son stock, tenu par le journal — les achats
+        sa disponibilité cesse d’être une opinion : c’est son stock, tenu par le journal, les achats
         le font monter, les fabrications le font descendre. Un ingrédient jamais lié reste réputé
         disponible.
       </div>
@@ -921,7 +921,7 @@ function OngletReserve({ onLier }: { onLier: (nom: string) => void }) {
                 <tr key={nom}>
                   <td style={{ fontSize: 13 }}>{nom}</td>
                   <td className="mnd-muted" style={{ fontSize: 11.5 }}>
-                    {fiche ? `${fiche.code} · ${fiche.nom}` : '— à relier'}
+                    {fiche ? `${fiche.code} · ${fiche.nom}` : ', à relier'}
                   </td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: fiche && s! <= 0 ? 'var(--trv-error)' : undefined }}>
                     {fiche ? `${s!.toLocaleString('fr-FR')} ${fiche.unite}` : '—'}
@@ -990,7 +990,7 @@ function LierModal({ ingredient, onClose }: { ingredient: string; onClose: () =>
               </Select>
             </Field>
             <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-              Une fiche ne porte qu’un ingrédient — relier ici déplace le lien si la fiche en avait un.
+              Une fiche ne porte qu’un ingrédient, relier ici déplace le lien si la fiche en avait un.
               Pas de fiche qui convienne ? Créez-la : elle naîtra en Consommable, avec son
               « Inventaire initial » au journal.
             </div>

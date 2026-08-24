@@ -132,7 +132,7 @@ export default function Prestataires() {
       // Si la mission est déjà payée, on ajuste la charge liée (montant & libellé).
       if (existing?.expenseId) {
         const eid = existing.expenseId;
-        expensesStore.set((prev) => prev.map((e) => (e.id === eid ? { ...e, label: `Prestataire · ${missionFor.name} — ${label}`, amountXof } : e)));
+        expensesStore.set((prev) => prev.map((e) => (e.id === eid ? { ...e, label: `Prestataire · ${missionFor.name}, ${label}`, amountXof } : e)));
       }
     } else {
       setMissions((prev) => [...prev, { id: `ms-${uid()}`, branchId: branch.id, providerId: missionFor.id, label, date: missionForm.date, qty, amountXof, note }]);
@@ -192,7 +192,7 @@ export default function Prestataires() {
     const charge: Expense = {
       id: expId,
       branchId: payFor.branchId,
-      label: `Prestataire · ${providerName(payFor.providerId)} — ${payFor.label}`,
+      label: `Prestataire · ${providerName(payFor.providerId)}, ${payFor.label}`,
       amountXof: payFor.amountXof,
       date: paidAt.slice(0, 10),
       cashbox: caisseActive,
@@ -280,7 +280,7 @@ export default function Prestataires() {
       <PageHead
         eyebrow="Équipe · Sous-traitance"
         title="Prestataires extérieurs."
-        sub="Vos intervenants ponctuels — payés à la prestation ou au forfait. Chaque paiement confirmé s'inscrit en charge « Sous-traitance » dans les Dépenses et la Synthèse (résultat)."
+        sub="Vos intervenants ponctuels, payés à la prestation ou au forfait. Chaque paiement confirmé s'inscrit en charge « Sous-traitance » dans les Dépenses et la Synthèse (résultat)."
         actions={<Button variant="copper" onClick={openNewProvider}>+ Prestataire</Button>}
       />
 
@@ -412,7 +412,7 @@ export default function Prestataires() {
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
               Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{missionFor.name}</strong> · {MODE_LABEL[missionFor.mode]}{missionFor.rateXof ? ` · ${fmtMoney(missionFor.rateXof, currency)}` : ''}.
             </div>
-            <Field label="Prestation réalisée"><Input value={missionForm.label} onChange={(e) => setMissionForm({ ...missionForm, label: e.target.value })} placeholder="Ex. Tresses — 4 têtes · Shooting gamme" /></Field>
+            <Field label="Prestation réalisée"><Input value={missionForm.label} onChange={(e) => setMissionForm({ ...missionForm, label: e.target.value })} placeholder="Ex. Tresses, 4 têtes · Shooting gamme" /></Field>
             <div className="tr-grid tr-grid--3">
               {missionFor.mode === 'prestation' && (
                 <Field label="Quantité"><Input value={missionForm.qty} inputMode="decimal" onChange={(e) => setMissionQty(missionFor, e.target.value)} /></Field>
@@ -515,7 +515,7 @@ export default function Prestataires() {
                 </div>
               ) : (
                 <span className="mnd-muted" style={{ fontSize: 12 }}>
-                  Aucune caisse en {currency} — la charge citera « Caisse principale ».
+                  Aucune caisse en {currency}, la charge citera « Caisse principale ».
                 </span>
               )}
             </Field>

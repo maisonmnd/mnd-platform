@@ -57,7 +57,7 @@ function PieceJointe({ f }: { f: NonNullable<FilMessage['fichier']> }) {
   }, [f.chemin]);
 
   if (refuse) {
-    return <div className="trf-fil__fichier">Ce fichier ne peut plus être ouvert — {f.nom}</div>;
+    return <div className="trf-fil__fichier">Ce fichier ne peut plus être ouvert, {f.nom}</div>;
   }
   const estImage = f.type.startsWith('image/');
   return (
@@ -237,7 +237,7 @@ export default function Fil() {
       .map((i) => {
         const reste = invoiceResteXof(i);
         const label = `${i.number} · ${i.clientName ?? nomDe(i.clientId)} · ${fmtMoney(invoiceTotal(i), currency)}${reste > 0 ? ` · reste ${fmtMoney(reste, currency)}` : ''}`;
-        return { valeur: `facture:${i.id}`, libelle: `Facture — ${label}`, piece: { kind: 'facture' as const, id: i.id, label } };
+        return { valeur: `facture:${i.id}`, libelle: `Facture, ${label}`, piece: { kind: 'facture' as const, id: i.id, label } };
       });
     const rdv = appts
       .filter((a) => a.branchId === branch.id && a.status !== 'annulé')
@@ -245,7 +245,7 @@ export default function Fil() {
       .slice(0, 20)
       .map((a) => {
         const label = `${nomDe(a.clientId)} · ${a.date} ${a.time} · ${apptLabel(a, byId)}`;
-        return { valeur: `rituel:${a.id}`, libelle: `Rituel — ${label}`, piece: { kind: 'rituel' as const, id: a.id, label } };
+        return { valeur: `rituel:${a.id}`, libelle: `Rituel, ${label}`, piece: { kind: 'rituel' as const, id: a.id, label } };
       });
     return [...fact, ...rdv];
   }, [invoices, appts, clients, branch.id, currency, byId]);
@@ -263,7 +263,7 @@ export default function Fil() {
       setDepotEnCours(true);
       joint = (await deposerFichier(branch.id, fichier)) ?? undefined;
       setDepotEnCours(false);
-      if (!joint) { toast('Le fichier n’a pas pu être déposé — rien n’a été envoyé.'); return; }
+      if (!joint) { toast('Le fichier n’a pas pu être déposé, rien n’a été envoyé.'); return; }
     }
     /* « À prendre » — une demande sans destinataire, que n'importe qui peut
        prendre sur le Tableau. La sentinelle n'est pas une adresse : elle ne
@@ -313,8 +313,8 @@ export default function Fil() {
     setFichier(null); if (champFichier.current) champFichier.current.value = '';
     setCompteOuvert(false); setCompteTete(''); setAvG(''); setAvD(''); setArG(''); setArD('');
     toast(comptage
-      ? `Comptage posé — ${tete?.name} · ${totalDuComptage(comptage)} locks.`
-      : aPrendre ? 'Demande posée — à prendre sur le Tableau.'
+      ? `Comptage posé, ${tete?.name} · ${totalDuComptage(comptage)} locks.`
+      : aPrendre ? 'Demande posée, à prendre sur le Tableau.'
       : dest ? `Demande adressée à ${dest.name}.` : 'Message posé au fil.');
   };
 
@@ -371,7 +371,7 @@ export default function Fil() {
       <PageHead
         eyebrow="La Maison · le registre interne"
         title="Le Fil."
-        sub="Se parler, et demander qu'une chose soit faite — une demande qui porte une facture s'éteint quand la facture est réglée."
+        sub="Se parler, et demander qu'une chose soit faite, une demande qui porte une facture s'éteint quand la facture est réglée."
       />
 
       <div className="trf-fil">
@@ -428,9 +428,9 @@ export default function Fil() {
               type="button"
               className="trf-fil__canal"
               style={{ opacity: 0.55 }}
-              title="Sa fiche n'a pas d'adresse e-mail — un tête-à-tête est un fil entre deux adresses. Renseignez-la dans Personnel & paie."
+              title="Sa fiche n'a pas d'adresse e-mail, un tête-à-tête est un fil entre deux adresses. Renseignez-la dans Personnel & paie."
               onClick={() => {
-                toast(`${m.name} n'a pas d'adresse e-mail sur sa fiche — renseignez-la dans Personnel & paie pour ouvrir son tête-à-tête.`);
+                toast(`${m.name} n'a pas d'adresse e-mail sur sa fiche, renseignez-la dans Personnel & paie pour ouvrir son tête-à-tête.`);
                 navigate('/personnel');
               }}
             >
@@ -534,7 +534,7 @@ export default function Fil() {
                           )}
                           {ouverte
                             ? `Demande à ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} · à traiter`
-                            : `Demande à ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} · faite${m.faitPar ? ` par ${m.faitPar}` : ' — la pièce est réglée'}`}
+                            : `Demande à ${nomDe(m.demandePour, m.demandePourNom ?? m.demandePour ?? '')} · faite${m.faitPar ? ` par ${m.faitPar}` : ', la pièce est réglée'}`}
                         </div>
                       )}
                       {enReprise === m.id ? (
@@ -582,7 +582,7 @@ export default function Fil() {
                               />
                               <span>
                                 {m.faitAt
-                                  ? `Traité${m.faitPar ? ` par ${m.faitPar}` : ''} — décocher pour rouvrir`
+                                  ? `Traité${m.faitPar ? ` par ${m.faitPar}` : ''}, décocher pour rouvrir`
                                   : 'Marquer comme traité'}
                               </span>
                             </label>
@@ -617,7 +617,7 @@ export default function Fil() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(); }
               }}
-              placeholder={canal.startsWith('notes:') ? 'Une note pour moi…' : `Écrire — ${titreDuCanal()}`}
+              placeholder={canal.startsWith('notes:') ? 'Une note pour moi…' : `Écrire, ${titreDuCanal()}`}
             />
             {compteOuvert && (
               <div className="trf-fil__compteur">
@@ -631,7 +631,7 @@ export default function Fil() {
                   <ClientPicker
                     value={compteTete}
                     onChange={setCompteTete}
-                    placeholder="Chercher la tête — nom, téléphone…"
+                    placeholder="Chercher la tête, nom, téléphone…"
                   />
                 </div>
                 <label>Devant G
@@ -650,7 +650,7 @@ export default function Fil() {
                   {totalCompte > 0 ? `${totalCompte} locks` : '—'}
                   {totalCompte > 0 && !comptageComplet(comptageSaisi) && (
                     <em style={{ display: 'block', fontFamily: 'var(--font-sans)', fontStyle: 'normal', fontSize: 10.5, color: 'var(--copper-700)' }}>
-                      partiel — il reste des quarts
+                      partiel, il reste des quarts
                     </em>
                   )}
                 </span>

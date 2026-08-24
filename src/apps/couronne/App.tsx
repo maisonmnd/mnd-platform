@@ -116,7 +116,7 @@ function Shell() {
      (bouton, offre, re-réservation) n'ouvre le tunnel — un mot honnête à la place. */
   const openBooking = useCallback((prefill?: BookingPrefill) => {
     if (ferme('reserver')) {
-      toast('Les réservations en ligne sont fermées pour votre compte — contactez la maison.');
+      toast('Les réservations en ligne sont fermées pour votre compte, contactez la maison.');
       return;
     }
     setNotifOpen(false);
@@ -126,7 +126,7 @@ function Shell() {
 
   const openCompose = useCallback(() => {
     if (ferme('compose')) {
-      toast('Le rituel sur-mesure est fermé pour votre compte — contactez la maison.');
+      toast('Le rituel sur-mesure est fermé pour votre compte, contactez la maison.');
       return;
     }
     setComposeOpen(true);
@@ -293,7 +293,7 @@ export default function App() {
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
             <h1 className="mc-closed__t">Ce compte tient le Trône.</h1>
             <p className="mc-closed__s">
-              Ma Couronne est la porte des clientes — le compte de la maison, lui, ouvre le
+              Ma Couronne est la porte des clientes, le compte de la maison, lui, ouvre le
               Trône. Pour essayer Ma Couronne, utilisez un compte de test qui n’est pas au
               personnel.
             </p>
@@ -321,7 +321,7 @@ export default function App() {
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
             <h1 className="mc-closed__t">Cette adresse a déjà son espace.</h1>
             <p className="mc-closed__s">
-              Un compte existe déjà pour {session?.user?.email ?? 'cette adresse'} — ouvert par une
+              Un compte existe déjà pour {session?.user?.email ?? 'cette adresse'}, ouvert par une
               autre porte (e-mail et mot de passe, ou Google). Reconnectez-vous par la porte
               utilisée la première fois pour retrouver votre couronne, vos enfants et vos
               rendez-vous. Un doute ? Écrivez à la maison, on vous ouvre.

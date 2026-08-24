@@ -269,7 +269,7 @@ export function removeSegment(name: string, alsoFromClients = false): void {
 export const INITIE_PERSONA: Persona = {
   id: 'p-initie',
   name: 'Initiée',
-  essence: 'Elle franchit le seuil — la maison l’accueille, l’observe, et attend de la connaître.',
+  essence: 'Elle franchit le seuil, la maison l’accueille, l’observe, et attend de la connaître.',
   builtin: true,
 };
 

@@ -42,7 +42,7 @@ const BAND_SABLE = { bg: 'var(--color-sable)', eyebrow: 'var(--copper-700)', tit
 export const LAB_FORMULAS: Record<string, Formula> = {
   hydratation: {
     name: 'Le Voile Aloès & Lin', concernLabel: 'Hydratation', forme: 'Leave-in vaporisé', contenance: '250 ml',
-    description: 'Un voile d’eau vivante qui réhydrate la fibre assoiffée sans l’alourdir — la boucle retrouve son rebond et garde l’eau toute la journée.',
+    description: 'Un voile d’eau vivante qui réhydrate la fibre assoiffée sans l’alourdir, la boucle retrouve son rebond et garde l’eau toute la journée.',
     origins: [
       { ingredient: 'Gel d’aloès frais', role: 'Réservoir d’eau, apaise le cuir', origin: 'Vallée de l’Ouémé, Bénin', grade: 'pressé à froid' },
       { ingredient: 'Mucilage de graines de lin', role: 'Film hydratant, définit la boucle', origin: 'Plaines du Rif, Maroc', grade: 'décoction maison' },
@@ -58,15 +58,15 @@ export const LAB_FORMULAS: Record<string, Formula> = {
       { n: '5', title: 'Le geste cliente', detail: 'Vaporiser sur cheveux essorés, lisser à la paume, froisser les pointes. À renouveler chaque matin.' },
     ],
     coutMatN: 1150, prixN: 9500, prixMult: 8,
-    maitreNote: 'L’aloès doit être posé le jour même — passé 48 h il perd son âme. C’est là toute la différence avec un voile industriel.',
+    maitreNote: 'L’aloès doit être posé le jour même, passé 48 h il perd son âme. C’est là toute la différence avec un voile industriel.',
     band: BAND_DEEP,
   },
   volume: {
     name: 'L’Élixir Baobab & Café vert', concernLabel: 'Volume & densité', forme: 'Sérum racines', contenance: '60 ml',
-    description: 'Un sérum qui réveille le bulbe et densifie la couronne — la caféine stimule, le baobab nourrit le follicule sans graisser la racine.',
+    description: 'Un sérum qui réveille le bulbe et densifie la couronne, la caféine stimule, le baobab nourrit le follicule sans graisser la racine.',
     origins: [
       { ingredient: 'Huile de baobab', role: 'Nourrit le follicule, riche en oméga', origin: 'Ferlo, Sénégal', grade: 'première pression' },
-      { ingredient: 'Macérât de café vert', role: 'Caféine — stimule la micro-circulation', origin: 'Hauts plateaux, Éthiopie', grade: 'grains crus broyés' },
+      { ingredient: 'Macérât de café vert', role: 'Caféine, stimule la micro-circulation', origin: 'Hauts plateaux, Éthiopie', grade: 'grains crus broyés' },
       { ingredient: 'Huile de ricin noir', role: 'Épaissit, fortifie la tige', origin: 'Saint Elizabeth, Jamaïque', grade: 'grillé à la cendre' },
       { ingredient: 'Huile essentielle de menthe poivrée', role: 'Effet frais, vasodilatateur doux', origin: 'Provence, France', grade: 'distillée vapeur' },
     ],
@@ -84,7 +84,7 @@ export const LAB_FORMULAS: Record<string, Formula> = {
   },
   secheresse: {
     name: 'Le Beurre Karité & Mafura', concernLabel: 'Sécheresse', forme: 'Beurre scellant', contenance: '150 ml',
-    description: 'Un beurre fondant qui scelle l’hydratation dans les fibres les plus poreuses — pour les cheveux qui boivent et restent secs malgré tout.',
+    description: 'Un beurre fondant qui scelle l’hydratation dans les fibres les plus poreuses, pour les cheveux qui boivent et restent secs malgré tout.',
     origins: [
       { ingredient: 'Beurre de karité brut', role: 'Scelle, nourrit en profondeur', origin: 'Savane de Tamale, Ghana', grade: 'baratté à la main' },
       { ingredient: 'Huile de mafura', role: 'Réparation intense, anti-poreux', origin: 'Vallée du Zambèze, Mozambique', grade: 'pressée à froid' },
@@ -105,20 +105,20 @@ export const LAB_FORMULAS: Record<string, Formula> = {
   },
   casse: {
     name: 'La Cure Soie & Hibiscus', concernLabel: 'Anti-casse', forme: 'Masque protéiné', contenance: '200 ml',
-    description: 'Un masque qui reconstruit la fibre fragilisée — la protéine de soie comble les brèches, l’hibiscus renforce sans rigidifier. Pour les longueurs qui cassent.',
+    description: 'Un masque qui reconstruit la fibre fragilisée, la protéine de soie comble les brèches, l’hibiscus renforce sans rigidifier. Pour les longueurs qui cassent.',
     origins: [
       { ingredient: 'Protéine de soie hydrolysée', role: 'Comble les fissures de la kératine', origin: 'Bassin du Murcia, Espagne', grade: 'bas poids molécul.' },
       { ingredient: 'Poudre d’hibiscus', role: 'Renforce, gaine, fait briller', origin: 'Plateau de l’Atacora, Bénin', grade: 'fleurs séchées' },
       { ingredient: 'Huile de baobab', role: 'Élasticité, anti-rupture', origin: 'Ferlo, Sénégal', grade: 'première pression' },
-      { ingredient: 'Décoction d’ortie', role: 'Silice — solidité de la tige', origin: 'Massif central, France', grade: 'feuilles sauvages' },
+      { ingredient: 'Décoction d’ortie', role: 'Silice, solidité de la tige', origin: 'Massif central, France', grade: 'feuilles sauvages' },
     ],
     protocolTime: '≈ 45 min',
     protocol: [
       { n: '1', title: 'La décoction', detail: 'Infuser ortie et hibiscus dans 250 ml d’eau frémissante 12 min ; filtrer la teinte pourpre.' },
       { n: '2', title: 'La base crème', detail: 'Émulsionner la décoction avec 8 % d’émulsifiant végétal et le baobab jusqu’à liaison nappante.' },
-      { n: '3', title: 'La protéine', detail: 'À 40 °C, incorporer 4 % de soie hydrolysée — jamais à chaud, elle se dénature.' },
+      { n: '3', title: 'La protéine', detail: 'À 40 °C, incorporer 4 % de soie hydrolysée, jamais à chaud, elle se dénature.' },
       { n: '4', title: 'Conserver & empoter', detail: 'Ajouter conservateur (0,8 %), ajuster le pH à 4,5 ; empoter en pot large.' },
-      { n: '5', title: 'Le geste cliente', detail: 'Poser sur cheveux propres, 20 min sous charlotte tiède, rincer. 1 fois / semaine — pas plus, la protéine veut de la mesure.' },
+      { n: '5', title: 'Le geste cliente', detail: 'Poser sur cheveux propres, 20 min sous charlotte tiède, rincer. 1 fois / semaine, pas plus, la protéine veut de la mesure.' },
     ],
     coutMatN: 1760, prixN: 14000, prixMult: 8,
     maitreNote: 'Trop de protéine raidit et casse à son tour. On alterne toujours : une semaine protéine, une semaine hydratation.',
@@ -126,7 +126,7 @@ export const LAB_FORMULAS: Record<string, Formula> = {
   },
   psoriasis: {
     name: 'Le Baume Neem & Calendula', concernLabel: 'Anti-psoriasis', forme: 'Baume cuir chevelu', contenance: '100 ml',
-    description: 'Un baume apaisant qui calme les plaques, démange et squames du psoriasis — le neem assainit, le calendula répare la peau à vif. Sans cortisone.',
+    description: 'Un baume apaisant qui calme les plaques, démange et squames du psoriasis, le neem assainit, le calendula répare la peau à vif. Sans cortisone.',
     origins: [
       { ingredient: 'Huile de neem', role: 'Antifongique, calme l’inflammation', origin: 'Régions du Tamil Nadu, Inde', grade: 'pressée à froid' },
       { ingredient: 'Macérât de calendula', role: 'Répare, apaise les lésions', origin: 'Ombrie, Italie', grade: 'fleurs bio' },
@@ -142,12 +142,12 @@ export const LAB_FORMULAS: Record<string, Formula> = {
       { n: '5', title: 'Le geste cliente', detail: 'Appliquer en couche fine sur les plaques le soir, masser doucement, laisser poser la nuit. Test cutané d’abord.' },
     ],
     coutMatN: 2240, prixN: 18000, prixMult: 8,
-    maitreNote: 'Le neem sent fort — on le tempère au cacao et à la nigelle. Et toujours un test au pli du coude : le cuir psoriasique est susceptible.',
+    maitreNote: 'Le neem sent fort, on le tempère au cacao et à la nigelle. Et toujours un test au pli du coude : le cuir psoriasique est susceptible.',
     band: BAND_OBSIDIAN,
   },
   pellicules: {
     name: 'Le Tonique Tea-tree & Citron vert', concernLabel: 'Anti-pellicules', forme: 'Tonique rinçage', contenance: '200 ml',
-    description: 'Un tonique acidulé qui rééquilibre le cuir et chasse les pellicules à la racine — le tea-tree assainit, le vinaigre resserre, le cuir respire enfin.',
+    description: 'Un tonique acidulé qui rééquilibre le cuir et chasse les pellicules à la racine, le tea-tree assainit, le vinaigre resserre, le cuir respire enfin.',
     origins: [
       { ingredient: 'Huile essentielle de tea-tree', role: 'Antifongique, anti-Malassezia', origin: 'Nouvelle-Galles, Australie', grade: 'distillée vapeur' },
       { ingredient: 'Vinaigre de cidre cru', role: 'Rééquilibre le pH, resserre', origin: 'Pays d’Auge, France', grade: 'non filtré, avec mère' },
@@ -163,7 +163,7 @@ export const LAB_FORMULAS: Record<string, Formula> = {
       { n: '5', title: 'Le geste cliente', detail: 'Après le shampoing, vaporiser sur cuir, masser 2 min, laisser poser 5 min, rincer à l’eau fraîche. 2 fois / semaine.' },
     ],
     coutMatN: 980, prixN: 8000, prixMult: 8,
-    maitreNote: 'Le tea-tree pur brûle — toujours le diluer dans un solubilisant, jamais directement dans l’eau où il flotterait en gouttes agressives.',
+    maitreNote: 'Le tea-tree pur brûle, toujours le diluer dans un solubilisant, jamais directement dans l’eau où il flotterait en gouttes agressives.',
     band: BAND_SABLE,
   },
 };

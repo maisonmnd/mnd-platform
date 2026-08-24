@@ -203,7 +203,7 @@ export default function Caisses() {
   const deleteBox = (c: Cashbox) => {
     if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'retirer'); return; }
     if (!window.confirm(
-      `Retirer la caisse « ${c.name} » ? Les écritures qui la nomment ne sont PAS supprimées — `
+      `Retirer la caisse « ${c.name} » ? Les écritures qui la nomment ne sont PAS supprimées, `
       + 'elles resteront rattachées à un tiroir qui n’existe plus.',
     )) return;
     setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
@@ -329,12 +329,12 @@ export default function Caisses() {
               encore fermées en sortent — et on le DIT, car un total amputé
               sans explication vaudrait pire qu'un total complet. */}
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--indigo-100)', marginTop: 6, lineHeight: 1.5 }}>
-            Les caisses en devise ne s’y ajoutent pas — deux monnaies ne font pas un total.
+            Les caisses en devise ne s’y ajoutent pas, deux monnaies ne font pas un total.
             {horsBilan > 0 && (
               <> {horsBilan} caisse{horsBilan > 1 ? 's' : ''} hors bilan {horsBilan > 1 ? 'en sont écartées' : 'en est écartée'}.</>
             )}
             {discretesFermees > 0 && (
-              <> {discretesFermees} caisse{discretesFermees > 1 ? 's' : ''} discrète{discretesFermees > 1 ? 's' : ''} en {discretesFermees > 1 ? 'sont exclues' : 'est exclue'} — sinon la soustraction dirait son solde.</>
+              <> {discretesFermees} caisse{discretesFermees > 1 ? 's' : ''} discrète{discretesFermees > 1 ? 's' : ''} en {discretesFermees > 1 ? 'sont exclues' : 'est exclue'}, sinon la soustraction dirait son solde.</>
             )}
           </div>
         </div>
@@ -364,7 +364,7 @@ export default function Caisses() {
         <div className="trf-empty" style={{ textAlign: 'left', lineHeight: 1.7, padding: 24 }}>
           <b style={{ color: 'var(--color-indigo)', fontWeight: 500 }}>Aucune caisse déclarée.</b><br />
           Une caisse est un tiroir réel : le comptoir, un compte Mobile Money, une enveloppe en
-          devise. Tout ce qui entre et tout ce qui sort passe par l’une d’elles — et c’est ce qui
+          devise. Tout ce qui entre et tout ce qui sort passe par l’une d’elles, et c’est ce qui
           permet de dire, à tout moment, ce que la Maison a sous la main.
         </div>
       ) : (
@@ -456,7 +456,7 @@ export default function Caisses() {
                             ) : (
                               <>
                                 <div className="trf-caisse__bal" style={{ color: 'var(--ink-soft)', letterSpacing: '.12em' }}>••• •••</div>
-                                <div className="trf-caisse__flux"><span style={{ color: 'var(--ink-soft)' }}>caisse discrète — cliquer pour l’ouvrir</span></div>
+                                <div className="trf-caisse__flux"><span style={{ color: 'var(--ink-soft)' }}>caisse discrète, cliquer pour l’ouvrir</span></div>
                               </>
                             )}
                           </button>
@@ -532,7 +532,7 @@ export default function Caisses() {
                     </div>
                     <div className="trf-hors-bloc__mot">
                       Leur argent est réel et leurs mouvements se tiennent comme les autres.
-                      Elles n’entrent simplement dans aucun total de la Maison — ni la trésorerie,
+                      Elles n’entrent simplement dans aucun total de la Maison, ni la trésorerie,
                       ni les bilans. Chaque monnaie garde sa rangée ici aussi.
                     </div>
                     {rangees(ecartees, true)}
@@ -555,7 +555,7 @@ export default function Caisses() {
               className="trf-linerow trf-linerow--split"
               key={t.id}
               onClick={() => corrigerLeTransfert(t.id)}
-              title="Corriger ce mouvement — date, montant, motif"
+              title="Corriger ce mouvement, date, montant, motif"
               style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none',
                 borderBottom: '1px solid var(--hairline)', font: 'inherit', cursor: 'pointer' }}
             >
@@ -637,7 +637,7 @@ export default function Caisses() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
               {aOuvrir.puis === 'modifier'
-                ? 'La fiche de cette caisse dit son solde d’ouverture et porte son code — il faut donc l’ouvrir avant de la modifier.'
+                ? 'La fiche de cette caisse dit son solde d’ouverture et porte son code, il faut donc l’ouvrir avant de la modifier.'
                 : aOuvrir.puis === 'retirer'
                   ? 'Retirer une caisse discrète demande son code : sans lui, on pourrait la faire disparaître sans jamais l’avoir ouverte.'
                   : 'Cette caisse est discrète : son solde et son relevé restent fermés jusqu’à son code.'}
@@ -687,7 +687,7 @@ export default function Caisses() {
             <label className="mnd-field">
               <span className="mnd-field__label">Devise tenue</span>
               <select className="mnd-input" value={boxForm.currency} onChange={(e) => setBoxForm((f) => ({ ...f, currency: e.target.value }))}>
-                <option value="">{currency} — la devise de la Maison</option>
+                <option value="">{currency}, la devise de la Maison</option>
                 {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
                   <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
                 ))}
@@ -747,7 +747,7 @@ export default function Caisses() {
                 </button>
               </div>
               <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6, display: 'block', lineHeight: 1.55 }}>
-                L’argent y reste celui de la Maison — il compte dans la trésorerie. Mais toute
+                L’argent y reste celui de la Maison, il compte dans la trésorerie. Mais toute
                 dépense payée depuis ce tiroir sera portée à son nom, et son solde dira ce qui
                 lui reste en main.
               </span>
@@ -764,7 +764,7 @@ export default function Caisses() {
                 <span>
                   <b style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500 }}>Hors bilan</b>
                   <span className="mnd-muted" style={{ fontSize: 10.5, display: 'block', marginTop: 3, lineHeight: 1.55 }}>
-                    Cette caisse n’est pas celle de la Maison — une épargne personnelle, un tiroir
+                    Cette caisse n’est pas celle de la Maison, une épargne personnelle, un tiroir
                     tenu pour quelqu’un d’autre. Ce qui y entre ne comptera pas dans les revenus,
                     ce qui en sort ne comptera pas dans les dépenses, et son solde restera hors de
                     la trésorerie. L’exclusion sera <b>dite à l’écran</b> partout où elle s’applique.
@@ -777,12 +777,12 @@ export default function Caisses() {
               <input
                 className="mnd-input" type="password" autoComplete="new-password"
                 value={boxForm.code}
-                placeholder={boxForm.codeExistant ? 'Inchangé — saisir pour le remplacer' : 'Laisser vide : caisse ouverte à tous'}
+                placeholder={boxForm.codeExistant ? 'Inchangé, saisir pour le remplacer' : 'Laisser vide : caisse ouverte à tous'}
                 onChange={(e) => setBoxForm((f) => ({ ...f, code: e.target.value }))}
               />
               <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.55 }}>
                 Avec un code, le solde reste masqué et le relevé fermé jusqu’à ce qu’on l’ouvre.
-                Seule <b>l’empreinte</b> du code est enregistrée — il n’existe en clair nulle part,
+                Seule <b>l’empreinte</b> du code est enregistrée, il n’existe en clair nulle part,
                 ni en base, ni dans la sauvegarde.
                 <br />
                 <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un regard au comptoir, un écran resté ouvert.
@@ -825,10 +825,10 @@ export default function Caisses() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
               L’argent change de tiroir : la caisse de départ baisse, celle d’arrivée monte.
-              <b> Rien n’est dépensé, rien n’est encaissé</b> — cela ne paraîtra ni dans vos
+              <b> Rien n’est dépensé, rien n’est encaissé</b>, cela ne paraîtra ni dans vos
               dépenses ni dans vos encaissements.
               <br />
-              Laissez le <b>départ</b> vide pour un <b>apport</b> — une mise personnelle, un
+              Laissez le <b>départ</b> vide pour un <b>apport</b>, une mise personnelle, un
               remboursement, une avance : de l’argent qui entre sans être une vente. Laissez
               l’<b>arrivée</b> vide pour une <b>sortie</b> hors Maison.
             </div>
@@ -836,14 +836,14 @@ export default function Caisses() {
               <label className="mnd-field">
                 <span className="mnd-field__label">D’où il part</span>
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
-                  <option value="">Apport — de l’argent qui entre, hors revenu</option>
+                  <option value="">Apport, de l’argent qui entre, hors revenu</option>
                   {branchBoxes.map((c) => <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), ouvertes)}</option>)}
                 </select>
               </label>
               <label className="mnd-field">
                 <span className="mnd-field__label">Où il arrive</span>
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
-                  <option value="">Sortie — de l’argent qui quitte la Maison</option>
+                  <option value="">Sortie, de l’argent qui quitte la Maison</option>
                   {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), ouvertes)}</option>)}
                 </select>
               </label>
@@ -867,7 +867,7 @@ export default function Caisses() {
                   style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
                 />
                 <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
-                  Les deux caisses ne tiennent pas la même monnaie. Saisissez ce qui entre vraiment —
+                  Les deux caisses ne tiennent pas la même monnaie. Saisissez ce qui entre vraiment,
                   c’est ce chiffre qui fera foi, pas une conversion d’aujourd’hui.
                 </span>
               </label>
@@ -881,7 +881,7 @@ export default function Caisses() {
                   de mars et mai s’étaient inscrits au 23 août. Le champ le dit
                   maintenant, et la ligne se rouvre pour se corriger. */}
               <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
-                Le jour où l’argent a VRAIMENT bougé — pas celui de la saisie. Une écriture
+                Le jour où l’argent a VRAIMENT bougé, pas celui de la saisie. Une écriture
                 rattrapée après coup garde sa date d’origine ; c’est elle qui la range dans le
                 bon mois, et dans le bon relevé.
               </span>

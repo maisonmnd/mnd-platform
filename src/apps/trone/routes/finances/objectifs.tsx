@@ -155,9 +155,9 @@ function CarteObjectif({
           {atteint
             ? 'Objectif atteint. Ce qui est fléché dessus reste au coffre, disponible le jour venu.'
             : etat.sansPlan
-              ? 'Aucun plan posé — cet objectif ne sera jamais annoncé en retard, et ne réclamera rien. Donnez-lui un rythme pour qu’il se tienne tout seul.'
+              ? 'Aucun plan posé, cet objectif ne sera jamais annoncé en retard, et ne réclamera rien. Donnez-lui un rythme pour qu’il se tienne tout seul.'
               : enRetard
-                ? `${etat.jalonsManques} jalon${etat.jalonsManques > 1 ? 's' : ''} manqué${etat.jalonsManques > 1 ? 's' : ''} — ${fmtIn(etat.retardXof, devise)} de retard.`
+                ? `${etat.jalonsManques} jalon${etat.jalonsManques > 1 ? 's' : ''} manqué${etat.jalonsManques > 1 ? 's' : ''}, ${fmtIn(etat.retardXof, devise)} de retard.`
                   + (o.echeance
                     ? ` Pour tenir ${monthLabelLong(o.echeance)}, il faut désormais ${fmtIn(etat.effortPourTenir, devise)} par mois`
                       + (o.plan ? ` au lieu de ${fmtIn(o.plan.montantXof, devise)}.` : '.')
@@ -167,7 +167,7 @@ function CarteObjectif({
                     : '')
                 : etat.prochain
                   ? `Prochain jalon : ${fmtIn(etat.prochain.montantXof - etat.prochain.couvert, devise)} le ${frJourLong(etat.prochain.date)}, ${delaiEnClair(aujourdhui, etat.prochain.date)}.`
-                    + (o.echeance && etat.tientLaDate ? ` Au rythme tenu, l’objectif tombe en ${monthLabelLong(etat.arriveeProjetee ?? o.echeance)} — la date visée.` : '')
+                    + (o.echeance && etat.tientLaDate ? ` Au rythme tenu, l’objectif tombe en ${monthLabelLong(etat.arriveeProjetee ?? o.echeance)}, la date visée.` : '')
                   : 'Le plan est déroulé jusqu’au bout.'}
         </div>
       )}
@@ -183,9 +183,9 @@ function CarteObjectif({
               <span className="trf-jalon__nom">
                 {j.nom || `${j.rang}ᵉ versement`}
                 {j.etat === 'partiel' && (
-                  <small>{fmtIn(j.couvert, devise)} versés — il manque {fmtIn(j.montantXof - j.couvert, devise)}</small>
+                  <small>{fmtIn(j.couvert, devise)} versés, il manque {fmtIn(j.montantXof - j.couvert, devise)}</small>
                 )}
-                {j.etat === 'manque' && <small>rien reçu — en souffrance</small>}
+                {j.etat === 'manque' && <small>rien reçu, en souffrance</small>}
                 {j.etat === 'verse' && <small>versé</small>}
               </span>
               <span className="trf-jalon__m">{fmtIn(j.montantXof, devise)}</span>
@@ -215,8 +215,8 @@ function CarteObjectif({
               : (etat.prochain!.montantXof - etat.prochain!.couvert))}
           >
             {etat.retardXof > 0
-              ? `Verser ${fmtIn(etat.retardXof, devise)} — rattraper le plan`
-              : `Verser ${fmtIn(etat.prochain!.montantXof - etat.prochain!.couvert, devise)} — le jalon du mois`}
+              ? `Verser ${fmtIn(etat.retardXof, devise)}, rattraper le plan`
+              : `Verser ${fmtIn(etat.prochain!.montantXof - etat.prochain!.couvert, devise)}, le jalon du mois`}
           </Button>
         )}
         <Button variant="ghost" onClick={() => onVerser(o, 0)}>Verser un autre montant</Button>
@@ -239,12 +239,12 @@ function CarteObjectif({
           <div className="trf-issues__deux">
             <button type="button" className="trf-issue" onClick={() => onRattraper(o)}>
               <b>Rattraper</b>
-              <span>{fmtIn(etat.effortPourTenir, devise)} par mois jusqu’en {monthLabelLong(o.echeance)} — la date tient, l’effort monte.</span>
+              <span>{fmtIn(etat.effortPourTenir, devise)} par mois jusqu’en {monthLabelLong(o.echeance)}, la date tient, l’effort monte.</span>
             </button>
             <button type="button" className="trf-issue" onClick={() => onAccepter(o)}>
               <b>Accepter la nouvelle date</b>
               <span>
-                {o.plan ? `${fmtIn(o.plan.montantXof, devise)} par mois, inchangé` : 'Le rythme ne change pas'} — l’échéance
+                {o.plan ? `${fmtIn(o.plan.montantXof, devise)} par mois, inchangé` : 'Le rythme ne change pas'}, l’échéance
                 {etat.arriveeProjetee ? ` glisse à ${monthLabelLong(etat.arriveeProjetee)}` : ' recule'}.
               </span>
             </button>
@@ -396,7 +396,7 @@ export function LesObjectifs() {
     const neuf = planPourTenir(o, moves, aujourdhui);
     if (!neuf) return;
     if (!window.confirm(
-      `Rattraper « ${o.nom} » ?\n\nLe plan passe à ${fmtMoney(neuf.montantXof, currency)} par mois sur ${neuf.nombre} mois — la date visée est tenue, l'effort monte.`,
+      `Rattraper « ${o.nom} » ?\n\nLe plan passe à ${fmtMoney(neuf.montantXof, currency)} par mois sur ${neuf.nombre} mois, la date visée est tenue, l'effort monte.`,
     )) return;
     setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, plan: neuf } : x)));
   };
@@ -435,7 +435,7 @@ export function LesObjectifs() {
             <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7, maxWidth: '64ch' }}>
               <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>Aucun objectif posé.</b><br />
               Une scolarité, un voyage, un second fauteuil : nommez ce que vous préparez, donnez-lui
-              un montant et une date — Le Trône dira ce que ça coûte par mois, et vous rappellera
+              un montant et une date, Le Trône dira ce que ça coûte par mois, et vous rappellera
               chaque jalon.
             </div>
             <Button variant="copper" onClick={() => setObjOuvert(formeVierge())}>+ Objectif</Button>
@@ -500,7 +500,7 @@ export function LesObjectifs() {
           {liste.length === 0 ? (
             <Card style={{ padding: 20 }}>
               <div className="mnd-muted" style={{ fontSize: 13 }}>
-                {filtre === 'retard' ? 'Aucun retard — tous les plans sont tenus.'
+                {filtre === 'retard' ? 'Aucun retard, tous les plans sont tenus.'
                   : filtre === 'mois' ? 'Aucun jalon attendu ce mois-ci.'
                     : filtre === 'sansplan' ? 'Tous les objectifs portent un plan.'
                       : filtre === 'atteints' ? 'Aucun objectif atteint pour l’instant.'
@@ -525,7 +525,7 @@ export function LesObjectifs() {
           ))}
 
           <div className="trf-objectif__pied" style={{ marginTop: 16 }}>
-            <span>Non fléché — disponible au coffre</span>
+            <span>Non fléché, disponible au coffre</span>
             <b>{fmtMoney(coffreNonFleche(moves), currency)}</b>
           </div>
         </>
@@ -591,12 +591,12 @@ export function LesObjectifs() {
                         de mois en mois, du {frJourLong(auto.premier)} au {frJourLong(auto.dernier)}.
                         {auto.apresLEcheance && (
                           <b style={{ display: 'block', marginTop: 4, color: 'var(--copper-700)' }}>
-                            Le dernier versement tombe APRÈS l’échéance visée ({monthLabelLong(objOuvert.echeance)}) —
+                            Le dernier versement tombe APRÈS l’échéance visée ({monthLabelLong(objOuvert.echeance)}),
                             à ce rythme, l’objectif ne sera pas prêt à temps.
                           </b>
                         )}<br />
                         Ce sont des <b>attentes</b>, pas des écritures : rien ne quitte une caisse tant que le
-                        versement n’a pas eu lieu. Vous pouvez verser plus, moins, ou en avance — le plan
+                        versement n’a pas eu lieu. Vous pouvez verser plus, moins, ou en avance, le plan
                         s’ajuste et vous dit où vous en êtes.
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 10 }}>
@@ -628,13 +628,13 @@ export function LesObjectifs() {
                     </>
                   ) : (
                     <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      Donnez une <b>date</b> ci-dessus, et Le Trône calculera le rythme — c’est la seule
+                      Donnez une <b>date</b> ci-dessus, et Le Trône calculera le rythme, c’est la seule
                       chose qui transforme un montant en une décision qu’on peut tenir.
                     </div>
                   ))}
                   {objOuvert.rythme === 'sans' && (
                     <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      Sans plan, cet objectif ne sera jamais annoncé en retard — et ne vous rappellera
+                      Sans plan, cet objectif ne sera jamais annoncé en retard, et ne vous rappellera
                       rien. C’est un état assumé, comme un prêt sans échéance.
                     </div>
                   )}
@@ -646,7 +646,7 @@ export function LesObjectifs() {
                   value={objOuvert.devise}
                   onChange={(e) => setObjOuvert((f) => (f ? { ...f, devise: e.target.value } : f))}
                 >
-                  <option value="">{currency} — la monnaie de la Maison</option>
+                  <option value="">{currency}, la monnaie de la Maison</option>
                   {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
                     <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
                   ))}
@@ -676,7 +676,7 @@ export function LesObjectifs() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
               Cet argent est <b>déjà au coffre</b>. Le flécher ne le fait ni entrer ni sortir :
-              il lui donne un nom. Le total du coffre ne bougera pas d’un franc — seule la part
+              il lui donne un nom. Le total du coffre ne bougera pas d’un franc, seule la part
               disponible diminuera d’autant.
             </div>
             <label className="mnd-field">
@@ -687,7 +687,7 @@ export function LesObjectifs() {
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}
               />
               <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
-                Au plus {fmtMoney(aFlecher.max, currency)} — c’est ce que le disponible permet, et ce
+                Au plus {fmtMoney(aFlecher.max, currency)}, c’est ce que le disponible permet, et ce
                 qui manque encore à cet objectif.
               </span>
             </label>
@@ -795,7 +795,7 @@ export function DepositModal({
             {boxes.map((c: Cashbox) => (
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
-            <option value="">Hors caisse — reçu ailleurs, porté directement à l'abri</option>
+            <option value="">Hors caisse, reçu ailleurs, porté directement à l'abri</option>
           </Select>
           <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
             La caisse choisie baisse d'autant : l'argent se déplace, il ne se duplique pas.
@@ -804,7 +804,7 @@ export function DepositModal({
         {objectifsVivants.length > 0 && (
           <Field label="Pour quel objectif · facultatif">
             <Select value={objectifId} onChange={(e) => setObjectifId(e.target.value)}>
-              <option value="">Sans objectif — argent disponible</option>
+              <option value="">Sans objectif, argent disponible</option>
               {objectifsVivants.map((o) => (
                 <option key={o.id} value={o.id}>{o.nom}</option>
               ))}
@@ -835,7 +835,7 @@ export function DepositModal({
               />
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 {fxMontantNum > 0 && fxTauxNum > 0
-                  ? `Soit ${fmtMoney(Math.round(fxMontantNum * fxTauxNum), currency)} — la base comptable de la Maison. Le compartiment, lui, comptera ${fxMontant} ${deviseChoisie}.`
+                  ? `Soit ${fmtMoney(Math.round(fxMontantNum * fxTauxNum), currency)}, la base comptable de la Maison. Le compartiment, lui, comptera ${fxMontant} ${deviseChoisie}.`
                   : 'Le taux fige la contre-valeur du jour ; le compartiment, lui, garde ses billets.'}
               </div>
             </Field>
@@ -864,7 +864,7 @@ export function DepositModal({
               ))}
             </div>
             <div className="mnd-muted" style={{ fontSize: 10.5 }}>
-              Le versement met de côté cette somme — le chiffre d’affaires déjà réalisé reste inchangé.
+              Le versement met de côté cette somme, le chiffre d’affaires déjà réalisé reste inchangé.
             </div>
           </div>
         )}
@@ -930,7 +930,7 @@ export function TransferModal({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="trf-coffre-suggest" style={{ background: 'var(--surface-card)' }}>
           <div className="mnd-muted" style={{ fontSize: 12 }}>
-            Solde disponible : <b style={{ color: 'var(--color-indigo)' }}>{coffreVisible ? fmtMoney(balance, currency) : '••• •••'}</b>. C’est la seule sortie du coffre — l’argent va vers la banque, jamais vers une dépense.
+            Solde disponible : <b style={{ color: 'var(--color-indigo)' }}>{coffreVisible ? fmtMoney(balance, currency) : '••• •••'}</b>. C’est la seule sortie du coffre, l’argent va vers la banque, jamais vers une dépense.
           </div>
         </div>
         <Field label="Banque / compte destinataire">

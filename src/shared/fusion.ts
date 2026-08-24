@@ -28,7 +28,7 @@ export function survivantDe(ouverte: Client, autre: Client):
   | { erreur: string } {
   if (ouverte.authUserId && autre.authUserId) {
     return {
-      erreur: 'Ces deux fiches portent chacune un compte de connexion — elles ne peuvent pas se fondre d’ici. Il faut d’abord supprimer l’un des deux comptes (Supabase → Authentication → Users), puis refaire ce geste.',
+      erreur: 'Ces deux fiches portent chacune un compte de connexion, elles ne peuvent pas se fondre d’ici. Il faut d’abord supprimer l’un des deux comptes (Supabase → Authentication → Users), puis refaire ce geste.',
     };
   }
   if (autre.authUserId) return { survivant: autre, absorbee: ouverte };

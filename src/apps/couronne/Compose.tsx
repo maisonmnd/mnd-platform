@@ -312,7 +312,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         {mode === 'forfaits' && (
           <div className="mc-fade">
             <div className="mc-packintro">
-              Ceux que la Maison a composés pour vous — leur prix tient déjà compte de ce
+              Ceux que la Maison a composés pour vous, leur prix tient déjà compte de ce
               qu’ils réunissent.
             </div>
             {forfaits.map((s) => {
@@ -352,7 +352,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   </button>
                   {cycle && (
                     <div className="mc-pack__note">
-                      Vos {nbSeances} dates se posent toutes seules, à la cadence de la Maison —
+                      Vos {nbSeances} dates se posent toutes seules, à la cadence de la Maison,
                       vous n’avez qu’à confirmer. Règlement en deux fois.
                     </div>
                   )}
@@ -369,7 +369,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
             <div className="mc-emptyzone__s">
               {mode === 'abonnement'
                 ? 'Les soins d’abonnement seront bientôt disponibles à la composition.'
-                : 'Les prestations composables arrivent — la maison affine sa carte, mèche après mèche.'}
+                : 'Les prestations composables arrivent, la maison affine sa carte, mèche après mèche.'}
             </div>
           </div>
         )}
@@ -440,7 +440,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         {aboBlocked && (
           <div className="mc-cmfooter__hint">
             <span>⚑</span>
-            <span>Abonnement · {sm.aboMin} prestations minimum ({count}/{sm.aboMin}) — complétez vos soins pour activer l’avantage −{sm.aboPct} %.</span>
+            <span>Abonnement · {sm.aboMin} prestations minimum ({count}/{sm.aboMin}), complétez vos soins pour activer l’avantage −{sm.aboPct} %.</span>
           </div>
         )}
         {count === 0 && !aboBlocked && (

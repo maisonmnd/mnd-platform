@@ -190,7 +190,7 @@ export default function Journal() {
           <div className="trf-empty">
             Aucun geste inscrit en {monthTitle(month)}.
             <div style={{ marginTop: 6, fontSize: 12 }}>
-              Le journal a été posé le 21 août 2026 — rien d’antérieur n’a jamais été
+              Le journal a été posé le 21 août 2026, rien d’antérieur n’a jamais été
               enregistré, et rien ne peut le reconstituer. Un mois vide d’avant cette
               date ne veut donc pas dire un mois sans travail.
             </div>
@@ -241,7 +241,7 @@ export default function Journal() {
       <p className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.6 }}>
         Le journal est en ajout seul : la base refuse toute retouche, y compris à un souverain.
         Les gestes de plus de douze mois sont effacés avec le cliché de nuit. Une écriture faite
-        en plusieurs corrections rapprochées ne fait qu’une ligne — l’état d’avant, l’état d’après.
+        en plusieurs corrections rapprochées ne fait qu’une ligne, l’état d’avant, l’état d’après.
       </p>
     </div>
   );

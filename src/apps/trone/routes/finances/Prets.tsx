@@ -277,18 +277,18 @@ export default function Prets() {
           e.prochaine ? (
             <div className={`trf-echeance ${e.retardJours > 0 ? 'trf-echeance--brique' : ''}`}>
               {e.prochaine.sur > 1
-                ? `Échéancier · versement ${e.prochaine.rang} sur ${e.prochaine.sur} — ${fmtMoney(e.prochaine.montantXof, currency)} le ${frLong(e.prochaine.date)}, ${delai(aujourdhui, e.prochaine.date)}.`
-                : `Attendu le ${frLong(e.prochaine.date)} — ${delai(aujourdhui, e.prochaine.date)}.`}
+                ? `Échéancier · versement ${e.prochaine.rang} sur ${e.prochaine.sur}, ${fmtMoney(e.prochaine.montantXof, currency)} le ${frLong(e.prochaine.date)}, ${delai(aujourdhui, e.prochaine.date)}.`
+                : `Attendu le ${frLong(e.prochaine.date)}, ${delai(aujourdhui, e.prochaine.date)}.`}
             </div>
           ) : (
             <div className="trf-echeance trf-echeance--nu">
-              Aucune date de retour. Un prêt sans échéance ne se réclame pas — il s’oublie.
+              Aucune date de retour. Un prêt sans échéance ne se réclame pas, il s’oublie.
             </div>
           )
         )}
         {e.retenueXof > 0 && (
           <div className="trf-echeance trf-echeance--vert">
-            {fmtMoney(e.retenueXof, currency)} proposés en retenue sur chaque bulletin — l’argent
+            {fmtMoney(e.retenueXof, currency)} proposés en retenue sur chaque bulletin, l’argent
             n’est jamais sorti de la Maison, aucune caisse ne bouge.
           </div>
         )}
@@ -352,7 +352,7 @@ export default function Prets() {
       <PageHead
         eyebrow="Finances"
         title="Les prêts."
-        sub="Ce que la Maison a prêté et ce qu’on lui doit encore. Un prêt sort d’une caisse, un remboursement y rentre — l’argent se déplace, il ne se duplique pas."
+        sub="Ce que la Maison a prêté et ce qu’on lui doit encore. Un prêt sort d’une caisse, un remboursement y rentre, l’argent se déplace, il ne se duplique pas."
         actions={(
           <>
             <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>
@@ -441,7 +441,7 @@ export default function Prets() {
                     {sansDate.length} prêt{sansDate.length > 1 ? 's' : ''} sans date de retour
                   </div>
                   <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.65, marginTop: 5 }}>
-                    Ils sont d’avant l’échéance. Ouvrez chacun pour lui donner une date — ou
+                    Ils sont d’avant l’échéance. Ouvrez chacun pour lui donner une date, ou
                     laissez-les ainsi : « sans échéance » est un état assumé, il ne déclenche
                     simplement aucune relance. Ce panneau disparaîtra quand plus rien n’attendra
                     de date.
@@ -474,7 +474,7 @@ export default function Prets() {
           {liste.length === 0 ? (
             <Card style={{ padding: 20 }}>
               <div className="mnd-muted" style={{ fontSize: 13 }}>
-                {filtre === 'retard' ? 'Aucun retard — tout le monde est à jour.'
+                {filtre === 'retard' ? 'Aucun retard, tout le monde est à jour.'
                   : filtre === 'proche' ? 'Aucune échéance dans les quinze jours.'
                     : filtre === 'sans' ? 'Tous les prêts en cours portent une date de retour.'
                       : filtre === 'soldes' ? 'Aucun prêt soldé pour l’instant.'
@@ -564,12 +564,12 @@ export default function Prets() {
             <Field label={fPret.type === 'pret' ? 'De quelle caisse sort cet argent ?' : 'Dans quelle caisse rentre-t-il ?'}>
               <Select value={fPret.cashbox} onChange={(e) => setFPret((f) => ({ ...f, cashbox: e.target.value }))}>
                 {caissesMaison.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-                <option value="">Hors caisse — l’argent n’est pas passé par un tiroir</option>
+                <option value="">Hors caisse, l’argent n’est pas passé par un tiroir</option>
               </Select>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 {fPret.type === 'pret'
                   ? 'La caisse choisie baisse d’autant : l’argent se déplace, il ne se duplique pas.'
-                  : 'La caisse choisie monte d’autant — l’argent revient dans le tiroir.'}
+                  : 'La caisse choisie monte d’autant, l’argent revient dans le tiroir.'}
               </div>
             </Field>
 
@@ -623,7 +623,7 @@ export default function Prets() {
                 )}
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.55 }}>
                   {fPret.retour === 'sans'
-                    ? 'Sans date, ce prêt ne sera jamais annoncé en retard — et ne sera jamais rappelé non plus.'
+                    ? 'Sans date, ce prêt ne sera jamais annoncé en retard, et ne sera jamais rappelé non plus.'
                     : fPret.retour === 'plusieurs' && montantsPret.xof > 0 && fPret.nombre
                       ? `${fPret.nombre} versements d’environ ${fmtMoney(Math.round(montantsPret.xof / (parseInt(fPret.nombre, 10) || 1)), currency)}, de mois en mois. Ce sont des attentes, pas des écritures : rien ne bouge dans une caisse tant que l’argent n’est pas revenu.`
                       : 'Ce sont des attentes, pas des écritures : rien ne bouge dans une caisse tant que l’argent n’est pas revenu.'}
@@ -642,7 +642,7 @@ export default function Prets() {
                 />
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.55 }}>
                   Ce montant sera PROPOSÉ en retenue sur chaque bulletin, jusqu’à extinction du
-                  prêt — vous le validez ou l’écartez au moment de la paie. Aucune caisse ne
+                  prêt, vous le validez ou l’écartez au moment de la paie. Aucune caisse ne
                   bouge : l’argent n’est jamais sorti de la Maison.
                 </div>
               </Field>

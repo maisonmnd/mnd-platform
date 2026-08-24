@@ -290,7 +290,7 @@ export default function BilanMensuel() {
       {!hasLife && (
         <div className="trp-panel" style={{ marginTop: 18 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-            Aucun rendez-vous ni encaissement en {monthTitle(month)} — le bilan se remplira avec l’activité du mois.
+            Aucun rendez-vous ni encaissement en {monthTitle(month)}, le bilan se remplira avec l’activité du mois.
           </div>
         </div>
       )}
@@ -361,7 +361,7 @@ export default function BilanMensuel() {
           </svg>
         ) : (
           <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
-            Aucun encaissement ce mois-ci — le premier rituel honoré posera la première barre.
+            Aucun encaissement ce mois-ci, le premier rituel honoré posera la première barre.
           </div>
         )}
         <div className="trp-rev__foot">
@@ -375,7 +375,7 @@ export default function BilanMensuel() {
         <div className="trp-panel">
           <div className="trp-panel__title">Meilleures clientes · {monthTitle(month)}</div>
           {d.topClients.length === 0 ? (
-            <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune cliente encaissée ce mois — le classement attend ses lauréates.</div>
+            <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune cliente encaissée ce mois, le classement attend ses lauréates.</div>
           ) : (
             d.topClients.map((c, i) => (
               <button type="button" key={c.name} className="trp-drill" onClick={() => openClient(c.name)} title="Voir le détail de la cliente">
@@ -401,7 +401,7 @@ export default function BilanMensuel() {
           </div>
           <div style={{ marginTop: 12 }}>
             {d.services.length === 0 ? (
-              <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune prestation réalisée ce mois — le résumé se dessinera avec le carnet.</div>
+              <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune prestation réalisée ce mois, le résumé se dessinera avec le carnet.</div>
             ) : (
               d.services.map((s) => (
                 <button type="button" key={s.name} className="trp-drill" onClick={() => openService(s.name)} title="Voir les rituels de cette prestation">
@@ -428,7 +428,7 @@ export default function BilanMensuel() {
           <div>
             <div className="trp-panel__title" style={{ marginBottom: 2 }}>Carnet des rendez-vous</div>
             <div style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>
-              {carnetScope === 'mois' ? `${monthTitle(month)} — ` : 'Tout le carnet — '}
+              {carnetScope === 'mois' ? `${monthTitle(month)}, ` : 'Tout le carnet, '}
               {carnet.total} rendez-vous · <b style={{ color: 'var(--copper-700)' }}>{carnet.unpaid} à encaisser</b>
               {carnet.dueTotal > 0 ? ` · reste ${fmtMoney(carnet.dueTotal, currency)}` : ''}
             </div>
@@ -450,7 +450,7 @@ export default function BilanMensuel() {
           <div className="trp-empty">
             {carnet.total === 0
               ? (carnetScope === 'mois' ? `Aucun rendez-vous en ${monthTitle(month)}.` : 'Le carnet est encore vierge.')
-              : carnetStatus === 'impayes' ? 'Rien à encaisser — tout est réglé.' : 'Aucun rendez-vous dans ce filtre.'}
+              : carnetStatus === 'impayes' ? 'Rien à encaisser, tout est réglé.' : 'Aucun rendez-vous dans ce filtre.'}
           </div>
         ) : (
           <div className="trp-carnet">
@@ -459,7 +459,7 @@ export default function BilanMensuel() {
                 key={a.id}
                 className="trp-carnet__row"
                 onClick={() => setEditAppt(a)}
-                title={`${nameOf(a.clientId)} — ouvrir le rendez-vous`}
+                title={`${nameOf(a.clientId)}, ouvrir le rendez-vous`}
               >
                 <span className="trp-carnet__date">
                   <b>{frShort(a.date)}</b>
@@ -486,7 +486,7 @@ export default function BilanMensuel() {
             ))}
             {carnet.shown.length > 200 && (
               <div className="mnd-muted" style={{ fontSize: 11.5, padding: '10px 2px 2px', fontStyle: 'italic' }}>
-                200 rendez-vous affichés sur {carnet.shown.length} — affinez avec le filtre ou le mois.
+                200 rendez-vous affichés sur {carnet.shown.length}, affinez avec le filtre ou le mois.
               </div>
             )}
           </div>

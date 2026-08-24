@@ -48,7 +48,7 @@ const THEMES: Record<ThemeKey, { amb: string; verse: string; paths: string[] }> 
   Arbre: { amb: 'Force tranquille', verse: 'Vos racines tiennent\nce que vos pointes promettent.', paths: ['M24 55V30', 'M24 36l-7-6', 'M24 41l7-6', 'M24 22m-13 0a13 13 0 1 0 26 0a13 13 0 1 0 -26 0'] },
   Oiseau: { amb: 'Élan léger', verse: 'On ne couronne pas la hâte.\nOn couronne la constance.', paths: ['M5 32c8-10 12-10 19 0', 'M24 32c8-10 12-10 19 0', 'M22 33l2 4 2-4'] },
   Voyage: { amb: 'Horizon ouvert', verse: 'Chaque retour ici\nest un pas de plus sur votre chemin.', paths: ['M5 44h38', 'M24 30m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M11 55c6-6 20-6 26 0'] },
-  Aube: { amb: 'Lumière naissante', verse: 'La beauté n’est pas un instant —\nc’est une habitude que l’on honore.', paths: ['M7 47h34', 'M13 47a11 11 0 0 1 22 0', 'M24 28v-7', 'M37 35l5-5', 'M11 35l-5-5', 'M24 47v9'] },
+  Aube: { amb: 'Lumière naissante', verse: 'La beauté n’est pas un instant, \nc’est une habitude que l’on honore.', paths: ['M7 47h34', 'M13 47a11 11 0 0 1 22 0', 'M24 28v-7', 'M37 35l5-5', 'M11 35l-5-5', 'M24 47v9'] },
   Souffle: { amb: 'Calme profond', verse: 'Respirez.\nVotre couronne se bâtit, mèche après mèche.', paths: ['M24 41c-12 0-18-9-18-9s6-9 18-9 18 9 18 9-6 9-18 9z', 'M24 32m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0'] },
 };
 
@@ -259,7 +259,7 @@ export default function Factures() {
       demandePourNom: dest.name,
       argent: true,
     })]);
-    toast(`Demande adressée à ${dest.name} — elle se fermera quand la facture sera réglée.`);
+    toast(`Demande adressée à ${dest.name}, elle se fermera quand la facture sera réglée.`);
     setDemandePour(null); setDemandeQui(''); setDemandeQuoi('');
   };
 
@@ -282,7 +282,7 @@ export default function Factures() {
       cashbox: coffreCaisse || undefined,
       note: `Facture ${auCoffre.number}`,
     }]);
-    toast(`${fmtMoney(montant, currency)} au coffre${coffreCaisse ? ` — sortis de ${coffreCaisse}` : ''}.`);
+    toast(`${fmtMoney(montant, currency)} au coffre${coffreCaisse ? `, sortis de ${coffreCaisse}` : ''}.`);
     setAuCoffre(null);
   };
 
@@ -421,7 +421,7 @@ export default function Factures() {
     }));
     const n = liste.reduce((s, f) => s + f.fondues.length, 0);
     setFusions(null);
-    toast(`${liste.length} rituel${liste.length > 1 ? 's' : ''} rassemblé${liste.length > 1 ? 's' : ''} — ${n} pièce${n > 1 ? 's' : ''} fondue${n > 1 ? 's' : ''}.`);
+    toast(`${liste.length} rituel${liste.length > 1 ? 's' : ''} rassemblé${liste.length > 1 ? 's' : ''}, ${n} pièce${n > 1 ? 's' : ''} fondue${n > 1 ? 's' : ''}.`);
   };
 
   const ouvrirLaConformite = () => {
@@ -479,7 +479,7 @@ export default function Factures() {
       status: 'en attente',
       discountPct: devis.globalDiscountPct || undefined,
       discountXof: devis.globalDiscountXof || undefined, // la remise en CFA suit le devis
-      note: `Devis ${devis.number} accepté — à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
+      note: `Devis ${devis.number} accepté, à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
       source: 'trone',
     };
     appointmentsStore.set((prev) => [...prev, appt]);
@@ -641,7 +641,7 @@ export default function Factures() {
     const doc = invoices.find((i) => i.id === id);
     const linked = doc ? appointmentsStore.get().find((a) => a.invoiceId === id) : undefined;
     const warn = linked
-      ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement — le rituel redevient impayé. Il reste HONORÉ et garde ses points : supprimer une pièce n'efface que de l'argent.`
+      ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement, le rituel redevient impayé. Il reste HONORÉ et garde ses points : supprimer une pièce n'efface que de l'argent.`
       : '';
     if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
     if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
@@ -731,12 +731,12 @@ export default function Factures() {
        du maître reste, lui — c'est une parole, pas une chute. */
     const msg = signeLeMessage(
       `${maisonNom()} · ${label} ${doc.number}\n` +
-      `Pour ${prenomOf(doc)} — total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
+      `Pour ${prenomOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-    setWaHint('PDF téléchargé — joignez-le à votre message.');
+    setWaHint('PDF téléchargé, joignez-le à votre message.');
     if (doc.status === 'brouillon') patchSelected({ status: 'envoyée' });
   };
 
@@ -1054,7 +1054,7 @@ export default function Factures() {
                   ))}
                   {draft.lines.length === 0 && (
                     <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-soft)', padding: '4px 0' }}>
-                      Aucune prestation — ajoutez-en une ci-dessous.
+                      Aucune prestation, ajoutez-en une ci-dessous.
                     </div>
                   )}
                 </div>
@@ -1070,7 +1070,7 @@ export default function Factures() {
                   ))}
                 </select>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <input className="mnd-input" style={{ flex: 1, padding: '8px 10px', fontSize: 12 }} placeholder="Ligne libre — libellé" value={freeLabel} onChange={(e) => setFreeLabel(e.target.value)} />
+                  <input className="mnd-input" style={{ flex: 1, padding: '8px 10px', fontSize: 12 }} placeholder="Ligne libre, libellé" value={freeLabel} onChange={(e) => setFreeLabel(e.target.value)} />
                   <input className="mnd-input" style={{ width: 90, padding: '8px 10px', fontSize: 12 }} placeholder="F CFA" inputMode="numeric" value={freeAmount} onChange={(e) => setFreeAmount(e.target.value)} />
                   <button className="trv-minibtn" onClick={addFreeLine}>Ajouter</button>
                 </div>
@@ -1282,7 +1282,7 @@ export default function Factures() {
               </Button>
               {invoiceRegleXof(selected) > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => ouvrirLeCoffre(selected)}>
-                  Mettre au coffre — {fmtMoney(invoiceRegleXof(selected), currency)}
+                  Mettre au coffre, {fmtMoney(invoiceRegleXof(selected), currency)}
                 </Button>
               )}
               <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
@@ -1354,7 +1354,7 @@ export default function Factures() {
 
               <div className="trv-doc__pour">Pour {prenomOf(active)},</div>
               <div className="trv-doc__verse">{theme.verse}</div>
-              <div className="trv-doc__sep">· — ✦ — ·</div>
+              <div className="trv-doc__sep">·, ✦, ·</div>
 
               <div className="trv-doc__passage">
                 Votre passage · {fmtDateFr(jourDuPassage(active))}{active.master ? ` · avec ${active.master}` : ''}
@@ -1422,7 +1422,7 @@ export default function Factures() {
               {(active.tipXof ?? 0) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--hairline)' }}>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
-                    Pourboire — merci
+                    Pourboire, merci
                   </div>
                   <div className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-copper)' }}>
                     {fmtMoney(active.tipXof!, currency)}
@@ -1523,7 +1523,7 @@ export default function Factures() {
 
         <div className="trc-sheet__group">Factures ({factures.length})</div>
         {factures.length === 0 && (
-          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture — la maison attend son premier encaissement.'}</div>
+          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture, la maison attend son premier encaissement.'}</div>
         )}
         {renderParMois(factures)}
 
@@ -1548,7 +1548,7 @@ export default function Factures() {
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
               La demande part dans <b style={{ color: 'var(--color-indigo)' }}>Le Fil</b> avec la facture
               attachée, et <b style={{ color: 'var(--color-indigo)' }}>se referme d'elle-même</b> quand
-              elle sera réglée — personne n'aura à s'en souvenir.
+              elle sera réglée, personne n'aura à s'en souvenir.
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>À qui</span>
@@ -1601,7 +1601,7 @@ export default function Factures() {
                 {boxesBranche.map((c) => (
                   <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
-                <option value="">Hors caisse — reçu ailleurs</option>
+                <option value="">Hors caisse, reçu ailleurs</option>
               </Select>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'var(--ink-soft)' }}>
                 Elle baissera d'autant : l'argent se déplace, il ne se duplique pas.
@@ -1650,7 +1650,7 @@ export default function Factures() {
               </div>
               {fusions.some((f) => f.recuAvant !== f.recuApres) && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--trv-error)' }}>
-                  Une ligne voit l'argent reçu changer — ça ne devrait jamais arriver.
+                  Une ligne voit l'argent reçu changer, ça ne devrait jamais arriver.
                   N'applique pas, et signale-le-moi.
                 </div>
               )}
@@ -1680,7 +1680,7 @@ export default function Factures() {
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6, marginBottom: 12 }}>
                 <strong>{ecarts.length} pièce{ecarts.length > 1 ? 's' : ''}</strong> ne détaille{ecarts.length > 1 ? 'nt' : ''} pas
                 le rituel comme le rendez-vous l'écrit. Leurs lignes vont se reconformer.
-                Sur une pièce payée, <strong>le total ne bouge pas</strong> — l'écart part en remise ou en ajustement.
+                Sur une pièce payée, <strong>le total ne bouge pas</strong>, l'écart part en remise ou en ajustement.
               </div>
               <div className="trv-conf">
                 <div className="trv-conf__head">
@@ -1695,7 +1695,7 @@ export default function Factures() {
                       <span>{avant.number}</span>
                       <span>{avant.status}</span>
                       <span>{fmtMoney(tAvant, currency)}</span>
-                      <span>{bouge ? fmtMoney(tApres, currency) : '— inchangé'}</span>
+                      <span>{bouge ? fmtMoney(tApres, currency) : ', inchangé'}</span>
                       <span>{avant.lines.length} → {apres.lines.length}</span>
                     </div>
                   );
@@ -1703,7 +1703,7 @@ export default function Factures() {
               </div>
               {ecarts.some(({ avant, apres }) => avant.status === 'payée' && invoiceTotal(avant) !== invoiceTotal(apres)) && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--trv-error)' }}>
-                  Une pièce PAYÉE verrait son total changer — ça ne devrait jamais arriver.
+                  Une pièce PAYÉE verrait son total changer, ça ne devrait jamais arriver.
                   N'applique pas, et signale-le-moi.
                 </div>
               )}

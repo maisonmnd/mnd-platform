@@ -151,7 +151,7 @@ const SINSIN: Service[] = [
     desc: 'Le resserrage seul, net et efficace. Diagnostic KÒKÒ™ intégré, resserrage lock par lock, contrôle d’uniformité, mise à jour de la fiche cliente. Styling de sortie inclus, au choix : chignon, demi-attache ou détaché structuré.' },
     100, { [JUM]: 20000, [MED]: 25000, [MIN]: 35000, [MIC]: 45000, [NAN]: 55000, [GAL]: 70000 }, 45, 240),
   auLock({ code: 'ATL·II·L', name: 'SÍNSIN™ Élaborée · La Reprise Longue Durée', cat: 'atl-ii-gbeji',
-    desc: 'Reprise plus minutieuse, scellement renforcé, tenue prolongée — elle espace les visites. Styling de sortie inclus.',
+    desc: 'Reprise plus minutieuse, scellement renforcé, tenue prolongée, elle espace les visites. Styling de sortie inclus.',
     palier: 'Élévation' },
     125, { [JUM]: 25000, [MED]: 35000, [MIN]: 45000, [MIC]: 55000, [NAN]: 70000, [GAL]: 90000 }, 60, 270),
 ];
@@ -236,7 +236,7 @@ const PLATEAU: Service[] = [
     desc: 'Attaché sophistiqué, ornement au choix : dorures, foulard, perles. Tient toute la journée et la soirée.' },
     [18000, 24000, 30000], [45, 52, 60]),
   ...troisLongueurs({ code: 'PLT·50·RET·C', name: 'Retouches Post Création', cat: 'plt-50',
-    desc: 'Reprise des contours, rafraîchissement des baby hairs, correction de définition. À 3 ou 4 semaines après une création VÈKPÈ™ ou une pose Studio. Incluse dans plusieurs rituels et forfaits — elle apparaît alors à 0 F sur la facture.' },
+    desc: 'Reprise des contours, rafraîchissement des baby hairs, correction de définition. À 3 ou 4 semaines après une création VÈKPÈ™ ou une pose Studio. Incluse dans plusieurs rituels et forfaits, elle apparaît alors à 0 F sur la facture.' },
     [12000, 15000, 18000], [30, 38, 45]),
   ...troisLongueurs({ code: 'PLT·50·RET·R', name: 'Retouches Post Restauration', cat: 'plt-50',
     desc: 'Contrôle des zones reconstruites, resserrage ciblé, ajustement après un rituel FÍNFÍN™. À 4 à 6 semaines.' },

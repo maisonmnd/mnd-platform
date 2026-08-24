@@ -253,11 +253,11 @@ export default function Marketing() {
         <div>
           <div className="tre-deep" style={{ marginBottom: 16 }}>
             <div>
-              <div className="tre-deep__eyebrow">Intelligence — en attente de vécu</div>
+              <div className="tre-deep__eyebrow">Intelligence, en attente de vécu</div>
               <div className="tre-deep__body">
                 L’intelligence attend l’activité de la maison.
                 <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'rgba(246,241,231,.7)', marginTop: 5 }}>
-                  Les propositions de campagne naîtront des rendez-vous, des ventes et du Cercle — jamais d’invention.
+                  Les propositions de campagne naîtront des rendez-vous, des ventes et du Cercle, jamais d’invention.
                 </div>
               </div>
             </div>
@@ -294,7 +294,7 @@ export default function Marketing() {
         <div>
           <div className="tre-actions-row">
             <div className="mnd-muted" style={{ fontSize: 13, fontWeight: 300, maxWidth: '60%' }}>
-              Promotions instantanées poussées dans <span style={{ color: 'var(--color-indigo)' }}>Ma Couronne</span> — vous choisissez les jours, les heures et qui les voit.
+              Promotions instantanées poussées dans <span style={{ color: 'var(--color-indigo)' }}>Ma Couronne</span>, vous choisissez les jours, les heures et qui les voit.
             </div>
             <div className="mnd-muted" style={{ fontSize: 11.5 }}>
               {branchOffers.filter((o) => o.active).length} en ligne · {branchOffers.length} offres
@@ -389,7 +389,7 @@ export default function Marketing() {
             {automations.length === 0 && (
               <Card style={{ padding: '22px 24px' }}>
                 <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
-                  Aucune automatisation. Créez-en une — la maison parlera d’une seule voix.
+                  Aucune automatisation. Créez-en une, la maison parlera d’une seule voix.
                 </p>
               </Card>
             )}
@@ -420,7 +420,7 @@ export default function Marketing() {
             <Eyebrow>Automatisations · informations pour l’IA</Eyebrow>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)', marginTop: 6 }}>Liens configurables.</div>
             <p className="mnd-muted" style={{ fontSize: 12, marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
-              Le lien MoMo, l’itinéraire et le lien d’avis Google sont insérés tels quels dans les messages automatiques — rappels, relances, invitations. Ils se règlent aussi dans Paramètres → Automatisations.
+              Le lien MoMo, l’itinéraire et le lien d’avis Google sont insérés tels quels dans les messages automatiques, rappels, relances, invitations. Ils se règlent aussi dans Paramètres → Automatisations.
             </p>
             <div className="tr-grid tr-grid--2" style={{ marginTop: 16 }}>
               <Field label="Lien de paiement MoMo">
@@ -460,7 +460,7 @@ export default function Marketing() {
                   {audienceRows.length === 0 && (
                     <tr>
                       <td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 28 }}>
-                        Aucun segment — nommez le premier ci-dessous, l’audience se dessinera avec les têtes couronnées.
+                        Aucun segment, nommez le premier ci-dessous, l’audience se dessinera avec les têtes couronnées.
                       </td>
                     </tr>
                   )}
@@ -485,7 +485,7 @@ export default function Marketing() {
                             <button
                               type="button"
                               className="tre-segname"
-                              title="Renommer — les fiches taguées suivent"
+                              title="Renommer, les fiches taguées suivent"
                               onClick={() => { setSegEdit(a.seg); setSegEditVal(a.seg); }}
                             >
                               {a.seg}
@@ -527,7 +527,7 @@ export default function Marketing() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 18px', borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
               <Input
                 value={newSeg}
-                placeholder="Nommer un segment — ex. Diaspora Paris"
+                placeholder="Nommer un segment, ex. Diaspora Paris"
                 onChange={(e) => setNewSeg(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addNewSeg(); }}
                 style={{ maxWidth: 260 }}
@@ -561,7 +561,7 @@ export default function Marketing() {
             <div className="tr-grid tr-grid--2">
               <Field label="Prestation liée · réservable en un geste">
                 <Select value={offerForm.serviceId} onChange={(e) => setOfferForm({ ...offerForm, serviceId: e.target.value })}>
-                  <option value="">Aucune — offre libre</option>
+                  <option value="">Aucune, offre libre</option>
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
                   ))}
@@ -663,14 +663,14 @@ function AutomationModal({
   return (
     <Modal title={initial ? 'Modifier l’automatisation.' : 'Nouvelle automatisation.'} onClose={onClose} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="Déclencheur — quand ?">
+        <Field label="Déclencheur, quand ?">
           <Input
             value={trig}
             placeholder="Ex. Anniversaire · le jour même"
             onChange={(e) => { setTrig(e.target.value); setError(null); }}
           />
         </Field>
-        <Field label="Action — quoi ?">
+        <Field label="Action, quoi ?">
           <Input
             value={act}
             placeholder="Ex. Mot d’anniversaire + geste du Cercle"
@@ -687,7 +687,7 @@ function AutomationModal({
 
         <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: 0 }}>
           La maison consigne l’automatisation et son interrupteur. L’envoi lui-même n’est pas
-          encore câblé — aucun message ne partira tant que le canal ne sera pas relié.
+          encore câblé, aucun message ne partira tant que le canal ne sera pas relié.
         </p>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>

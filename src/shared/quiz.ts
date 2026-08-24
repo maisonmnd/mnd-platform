@@ -25,8 +25,8 @@ export const ENVIES: { k: EnvieKey; label: string; line: Phrase }[] = [
     k: 'longueur',
     label: 'La longueur',
     line: {
-      tu: 'On nourrit la racine — c’est là que la longueur se gagne.',
-      vous: 'On nourrit la racine — c’est là que la longueur se gagne.',
+      tu: 'On nourrit la racine, c’est là que la longueur se gagne.',
+      vous: 'On nourrit la racine, c’est là que la longueur se gagne.',
     },
   },
   {
@@ -49,8 +49,8 @@ export const ENVIES: { k: EnvieKey; label: string; line: Phrase }[] = [
     k: 'transformation',
     label: 'Le changement',
     line: {
-      tu: 'Le grand passage — une œuvre qui change tout.',
-      vous: 'Le grand passage — une œuvre qui change tout.',
+      tu: 'Le grand passage, une œuvre qui change tout.',
+      vous: 'Le grand passage, une œuvre qui change tout.',
     },
   },
 ];

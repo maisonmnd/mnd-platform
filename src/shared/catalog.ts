@@ -507,20 +507,20 @@ const svc = (
 
 /** ÐÓTÓ™ — trois consultations : avant une création, pour réparer/améliorer, ou pour conseil. */
 export const STARTER_DOTO_SERVICES: Service[] = [
-  svc('svc-doto-creation', 'doto', 'Consultation Création — Première couronne', 'Fondation', 'fixe', 10000, 45,
+  svc('svc-doto-creation', 'doto', 'Consultation Création, Première couronne', 'Fondation', 'fixe', 10000, 45,
     'Le premier rendez-vous : lecture du cheveu et du cuir chevelu, choix de la méthode et projection de votre future couronne. Le point de départ de toute création.', [0, 0, 0, 0]),
   svc('svc-doto-reparation', 'doto', 'Consultation Réparation & Amélioration', 'Fondation', 'fixe', 7500, 30,
     'Diagnostic d’une couronne fragilisée ou relâchée : on identifie ce qui doit être réparé, renforcé ou repris, et on trace le plan de soin.', [0, 0, 0, 0]),
   svc('svc-doto-conseil', 'doto', 'Consultation Conseil & Diagnostic', 'Fondation', 'fixe', 5000, 30,
-    'Un temps d’écoute et de conseil : routine, entretien à la maison, produits — pour que votre couronne tienne, entre deux passages au fauteuil.', [0, 0, 0, 0]),
+    'Un temps d’écoute et de conseil : routine, entretien à la maison, produits, pour que votre couronne tienne, entre deux passages au fauteuil.', [0, 0, 0, 0]),
 ];
 
 /** VÈKPÈ™ — quatre créations de couronne, un mode de prix par cas (devis / variable / fixe). */
 export const STARTER_VEKPE_SERVICES: Service[] = [
   svc('svc-vekpe-microlocks', 'vekpe', 'Création Microlocks sur mesure', 'Souveraineté', 'devis', 0, 480,
-    'La couronne d’exception : des centaines de locks fines, montées mèche après mèche. Entièrement sur mesure — le tarif s’établit après la consultation, selon la densité et la longueur.', [1, 1, 1, 1]),
+    'La couronne d’exception : des centaines de locks fines, montées mèche après mèche. Entièrement sur mesure, le tarif s’établit après la consultation, selon la densité et la longueur.', [1, 1, 1, 1]),
   svc('svc-vekpe-traditionnelles', 'vekpe', 'Création Locks Traditionnelles', 'Élévation', 'variable', 50000, 300,
-    'Les locks classiques, nées de vos propres cheveux : vrillées, nourries puis scellées. Le tarif part de la longueur et du volume — d’où le « à partir de ».', [1, 1, 1, 1]),
+    'Les locks classiques, nées de vos propres cheveux : vrillées, nourries puis scellées. Le tarif part de la longueur et du volume, d’où le « à partir de ».', [1, 1, 1, 1]),
   svc('svc-vekpe-crochet', 'vekpe', 'Création Locks Instantanées (au crochet)', 'Élévation', 'variable', 60000, 360,
     'Des locks déjà structurées dès la première séance, montées au crochet : un rendu net, immédiat. Le tarif suit la quantité et la longueur souhaitées.', [1, 1, 1, 1]),
   svc('svc-vekpe-fauxlocks', 'vekpe', 'Pose Faux Locks (protection temporaire)', 'Fondation', 'fixe', 35000, 240,

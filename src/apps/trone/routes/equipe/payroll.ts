@@ -213,7 +213,7 @@ export const chargeSalaire = (o: {
 }): Expense => ({
   id: chargeSalaireId(o.mois, o.employeeId),
   branchId: o.branchId,
-  label: `Salaire · ${o.nom} — ${periodeLisible(o.mois)}`,
+  label: `Salaire · ${o.nom}, ${periodeLisible(o.mois)}`,
   amountXof: o.netXof,
   date: jourLocalDe(o.stamp),
   cashbox: '',

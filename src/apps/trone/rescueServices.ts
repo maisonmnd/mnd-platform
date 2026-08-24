@@ -43,7 +43,7 @@ const SNAPSHOT_2026_07_21: Snap[] = [
   { id: 'sv-vivivo', cat: 'cat-gbeji', name: 'VÍVÍVÓ™ Le Soin Croissance', price: 12000 },
   { id: 'sv-locks-moyennes', cat: 'vekpe', name: 'VÈKPÈ™ Prestige (Max 350 Locks)', price: 385000 },
   { id: 'zebpkpg6ar', cat: 'finfin', name: 'WÈWÈ™ Le Soin Détox', price: 20000 },
-  { id: 'svc-doto-creation', cat: 'doto', name: 'Consultation Création — Première couronne', price: 15000 },
+  { id: 'svc-doto-creation', cat: 'doto', name: 'Consultation Création, Première couronne', price: 15000 },
   { id: 'svc-doto-conseil', cat: 'doto', name: 'Consultation Conseil & Diagnostic', price: 5000 },
   { id: 'sv-rituel-mr6p76kx', cat: 'cat-xyz-mp0sa7wk', name: 'FÍFÀ™ Dòdò - Twists mèches naturelles', price: 20000 },
   { id: 'sv-rituel-mr3szmso', cat: 'cat-vekpe', name: 'Diagnostic Repair Locks', price: 10000 },

@@ -97,7 +97,7 @@ export default function HomeRituals() {
       <PageHead
         eyebrow="Vente · stock &amp; achats"
         title="Stock &amp; Achats."
-        sub="Qu’ai-je en stock, que dois-je racheter, combien me coûte chaque prestation — et combien je gagne sur ce que je revends."
+        sub="Qu’ai-je en stock, que dois-je racheter, combien me coûte chaque prestation, et combien je gagne sur ce que je revends."
       />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, marginBottom: 4 }}>
@@ -304,7 +304,7 @@ function OngletGamme() {
                         fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase',
                         color: rupture ? 'var(--color-danger, #9E3428)' : 'var(--color-copper)',
                       }}>
-                        {rupture ? 'rupture — à réassortir' : `plus que ${p.stock}`}
+                        {rupture ? 'rupture, à réassortir' : `plus que ${p.stock}`}
                       </span>
                     )}
                   </span>
@@ -346,7 +346,7 @@ function OngletGamme() {
             </Field>
             <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
               Une ligne est une collection de la Gamme. Elle apparaît ici, au Catalogue et à la Caisse,
-              et se remplit de produits — jamais de rituels.
+              et se remplit de produits, jamais de rituels.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <Button variant="ghost" onClick={() => setLigne(null)}>Annuler</Button>
@@ -567,7 +567,7 @@ function OngletInventaire() {
                           </button>{' '}
                           <button
                             className="trv-minibtn"
-                            title={p.actif ? 'La fiche se désactive — son journal reste' : 'Réactiver la fiche'}
+                            title={p.actif ? 'La fiche se désactive, son journal reste' : 'Réactiver la fiche'}
                             onClick={() => produitsStockStore.set((prev) => prev.map((x) => (x.id === p.id ? { ...x, actif: !x.actif } : x)))}
                           >
                             {p.actif ? 'Désactiver' : 'Réactiver'}
@@ -586,7 +586,7 @@ function OngletInventaire() {
       {liste.length === 0 && (
         <div className="mnd-muted" style={{ fontSize: 13, marginTop: 20, lineHeight: 1.6 }}>
           Aucune fiche d’inventaire. Reprenez la Gamme ci-dessus, puis créez les consommables,
-          les mèches et le jetable — les recettes des services s’appuieront dessus.
+          les mèches et le jetable, les recettes des services s’appuieront dessus.
         </div>
       )}
 
@@ -608,7 +608,7 @@ function OngletInventaire() {
             </Field>
             <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
               {ajuste.perte
-                ? 'La perte s’écrit au journal — elle se voit, elle ne se devine pas.'
+                ? 'La perte s’écrit au journal, elle se voit, elle ne se devine pas.'
                 : `Le journal écrira l’écart avec le stock dérivé (${(stocks.get(ajuste.p.id) ?? 0).toLocaleString('fr-FR')}), jamais un chiffre posé.`}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -675,7 +675,7 @@ function OngletInventaire() {
             </div>
             {!fiche.id && (
               <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                Le stock de départ s’écrit au journal comme « Inventaire initial » — la fiche, elle,
+                Le stock de départ s’écrit au journal comme « Inventaire initial », la fiche, elle,
                 ne porte jamais de compteur.
               </div>
             )}
@@ -756,7 +756,7 @@ function OngletAchats() {
         </div>
         {groupes.size === 0 && (
           <div className="mnd-muted" style={{ fontSize: 12.5, padding: '12px 2px' }}>
-            Rien sous les seuils — la réserve tient.
+            Rien sous les seuils, la réserve tient.
           </div>
         )}
         {[...groupes.entries()].map(([fid, liste]) => {
@@ -766,7 +766,7 @@ function OngletAchats() {
             <div key={fid || 'sans'} style={{ marginTop: 12, border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13.5, color: 'var(--color-indigo)' }}>
-                  {f ? `${f.nom}` : 'Sans fournisseur — à désigner sur les fiches'}
+                  {f ? `${f.nom}` : 'Sans fournisseur, à désigner sur les fiches'}
                   {f?.delaiJours ? <span className="mnd-muted" style={{ fontSize: 11 }}> · livre sous {f.delaiJours} j</span> : null}
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
@@ -776,7 +776,7 @@ function OngletAchats() {
               </div>
               {liste.map((l) => (
                 <div key={l.produit.id} className="mnd-muted" style={{ fontSize: 12, marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                  <span>{l.produit.code} · {l.produit.nom} — reste {l.stock.toLocaleString('fr-FR')} {l.produit.unite}</span>
+                  <span>{l.produit.code} · {l.produit.nom}, reste {l.stock.toLocaleString('fr-FR')} {l.produit.unite}</span>
                   <span>commander {l.aCommander.toLocaleString('fr-FR')} · {fmtMoney(l.coutEstimeXof, currency)}</span>
                 </div>
               ))}
@@ -939,7 +939,7 @@ function BonOuvert({ commande, recus, setRecus }: {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
               <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                {st === 'en_attente' ? 'En attente' : st === 'partielle' ? `Partielle — reste ${reliquat(l).toLocaleString('fr-FR')}` : 'Reçue'}
+                {st === 'en_attente' ? 'En attente' : st === 'partielle' ? `Partielle, reste ${reliquat(l).toLocaleString('fr-FR')}` : 'Reçue'}
                 {l.quantiteRecue > 0 ? ` · ${l.quantiteRecue.toLocaleString('fr-FR')} reçus` : ''}
               </span>
               <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -1054,7 +1054,7 @@ function OngletRecettes() {
     <>
       <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 14, lineHeight: 1.6, maxWidth: 640 }}>
         La recette dit ce qu’une prestation consomme, en quantités connues. Deux bénéfices : le stock
-        se décrémente seul à l’encaissement, et le coût matière de chaque service se connaît —
+        se décrémente seul à l’encaissement, et le coût matière de chaque service se connaît,
         ce qui reste vraiment dans la caisse.
       </div>
 
@@ -1081,7 +1081,7 @@ function OngletRecettes() {
 
           {recette.length === 0 && (
             <div className="mnd-muted" style={{ fontSize: 12.5, padding: '12px 2px' }}>
-              Aucune recette — cette prestation ne décrémente rien à l’encaissement.
+              Aucune recette, cette prestation ne décrémente rien à l’encaissement.
             </div>
           )}
           {recette.map((c) => {
@@ -1126,7 +1126,7 @@ function OngletRecettes() {
             </Button>
           </div>
           <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
-            Reposer un produit déjà présent remplace sa ligne. La Revente ne se met pas en recette —
+            Reposer un produit déjà présent remplace sa ligne. La Revente ne se met pas en recette,
             elle se vend à la Caisse, elle ne se consomme pas.
           </div>
         </div>
@@ -1192,7 +1192,7 @@ function OngletMouvements() {
       </div>
       {liste.length === 0 && (
         <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 14 }}>
-          Aucun mouvement — le journal s’écrira à la première vente, réception ou prestation.
+          Aucun mouvement, le journal s’écrira à la première vente, réception ou prestation.
         </div>
       )}
       {liste.length > montre && (

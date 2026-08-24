@@ -117,7 +117,7 @@ function useNotifications(): Notif[] {
       if (c.status !== 'nouvelle') continue;
       out.push({
         id: `cons-${c.id}`, kind: 'consultation',
-        label: `Nouvelle consultation — ${c.client.name}`,
+        label: `Nouvelle consultation, ${c.client.name}`,
         meta: relTime(c.createdAt), to: '/consultations',
       });
     }
@@ -128,7 +128,7 @@ function useNotifications(): Notif[] {
       if (!c.segments.includes('Prospect')) continue;
       out.push({
         id: `prospect-${c.id}`, kind: 'prospect',
-        label: `Nouvelle cliente en consultation — ${c.name}`,
+        label: `Nouvelle cliente en consultation, ${c.name}`,
         meta: 'prospect · à qualifier', to: '/customers',
       });
     }
@@ -139,7 +139,7 @@ function useNotifications(): Notif[] {
       if (!c.segments.includes('Ma Couronne') || (c.since ?? '') !== today) continue;
       out.push({
         id: `insc-${c.id}`, kind: 'inscription',
-        label: `Nouvelle inscription Ma Couronne — ${c.name}`,
+        label: `Nouvelle inscription Ma Couronne, ${c.name}`,
         meta: 'compte créé aujourd’hui', to: '/customers',
       });
     }
@@ -151,7 +151,7 @@ function useNotifications(): Notif[] {
       if (c.branchId !== branch.id || c.archived || !onlineIds.has(c.id)) continue;
       out.push({
         id: `online-${c.id}`, kind: 'enligne',
-        label: `En ligne · Ma Couronne — ${c.name}`,
+        label: `En ligne · Ma Couronne, ${c.name}`,
         meta: 'connectée maintenant', to: '/customers',
       });
     }
@@ -168,25 +168,25 @@ function useNotifications(): Notif[] {
         if (a.date === today && mins >= 0 && mins <= 60) {
           out.push({
             id: `imm-${a.id}`, kind: 'imminent',
-            label: mins <= 1 ? `Rendez-vous maintenant — ${who}` : `Rendez-vous dans ${mins} min — ${who}`,
+            label: mins <= 1 ? `Rendez-vous maintenant, ${who}` : `Rendez-vous dans ${mins} min, ${who}`,
             meta: a.time, to: '/calendrier',
           });
         } else if (a.status === 'en attente') {
           out.push({
             id: `att-${a.id}`, kind: 'attente',
-            label: `Acompte en attente — ${who}`,
+            label: `Acompte en attente, ${who}`,
             meta: `${frShort(a.date)} · ${a.time}`, to: '/calendrier',
           });
         } else if (a.date === today) {
           out.push({
             id: `rdv-${a.id}`, kind: 'rdv',
-            label: `Rendez-vous aujourd’hui — ${who}`,
+            label: `Rendez-vous aujourd’hui, ${who}`,
             meta: a.time, to: '/calendrier',
           });
         } else if (a.date > today && a.date <= horizon) {
           out.push({
             id: `rdv-${a.id}`, kind: 'rdv',
-            label: `Rendez-vous ${frShort(a.date)} — ${who}`,
+            label: `Rendez-vous ${frShort(a.date)}, ${who}`,
             meta: a.time, to: '/calendrier',
           });
         }
@@ -199,7 +199,7 @@ function useNotifications(): Notif[] {
       const who = inv.clientName ?? nameOf.get(inv.clientId) ?? 'une tête couronnée';
       out.push({
         id: `devis-${inv.id}`, kind: 'devis',
-        label: `Devis accepté — ${who}`,
+        label: `Devis accepté, ${who}`,
         meta: `${inv.number} · ${fmtMoney(invoiceTotal(inv), currency)}`, to: '/factures',
       });
     }
@@ -211,7 +211,7 @@ function useNotifications(): Notif[] {
         const who = inv.clientName ?? nameOf.get(inv.clientId) ?? 'une tête couronnée';
         out.push({
           id: `imp-${inv.id}`, kind: 'impaye',
-          label: `Facture en attente — ${who}`,
+          label: `Facture en attente, ${who}`,
           meta: `${inv.number} · ${fmtMoney(invoiceTotal(inv), currency)}`, to: '/factures',
         });
       }
@@ -223,7 +223,7 @@ function useNotifications(): Notif[] {
         if (p.stock > SEUIL_REASSORT) continue;
         out.push({
           id: `stock-${p.id}`, kind: 'stock',
-          label: `Stock bas — ${p.name}`,
+          label: `Stock bas, ${p.name}`,
           meta: p.stock <= 0 ? 'rupture' : `${p.stock} en réserve`, to: '/catalogue',
         });
       }
@@ -461,7 +461,7 @@ export default function NotificationsBell() {
           )}
 
           {visible.length === 0 ? (
-            <div className="tr-notif__empty">Rien à signaler — la Maison veille.</div>
+            <div className="tr-notif__empty">Rien à signaler, la Maison veille.</div>
           ) : (
             <div className="tr-notif__list" role="menu">
               {visible.map((n) => {

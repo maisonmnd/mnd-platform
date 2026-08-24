@@ -179,7 +179,7 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
             <div style={{ paddingTop: 6 }}><Toggle on={depositPaid} onToggle={() => setDeposit((v) => !v)} label={depositPaid ? 'Oui' : 'Pas encore'} /></div>
           </Field>
         </div>
-        <Field label="Rattacher une fiche cliente (CRM) — optionnel">
+        <Field label="Rattacher une fiche cliente (CRM), optionnel">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente…" />
         </Field>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -277,7 +277,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       {frozen && (
         <div className="tre-inline-note" style={{ marginTop: 14 }}>
           <span className="mark">!</span>
-          <span>Dossier {e.status === 'suspendu' ? 'suspendu' : 'clos (abandon)'} — la saisie des fiches est gelée. Faites évoluer le statut pour reprendre.</span>
+          <span>Dossier {e.status === 'suspendu' ? 'suspendu' : 'clos (abandon)'}, la saisie des fiches est gelée. Faites évoluer le statut pour reprendre.</span>
         </div>
       )}
 
@@ -532,7 +532,7 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
         <Field label="Date"><Input type="date" value={scheduledAt} onChange={(ev) => setDate(ev.target.value)} /></Field>
         <Field label="Module">
           <Select value={moduleIndex} onChange={(ev) => setModule(ev.target.value)}>
-            <option value="">— (hors module)</option>
+            <option value="">, (hors module)</option>
             {modules.map((m, i) => <option key={i} value={i}>{m}</option>)}
           </Select>
         </Field>
@@ -581,7 +581,7 @@ function TabPratique({ e, masters, frozen }: { e: Enrollment; masters: string[];
   const nameOf = (p: PracticeRecord) => p.clientName || clients.find((c) => c.id === p.clientId)?.name || 'Cliente';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Pratique sur cliente réelle du Carnet — supervisée, documentée pour la Maison.</div>
+      <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Pratique sur cliente réelle du Carnet, supervisée, documentée pour la Maison.</div>
       {e.practice.length === 0 && <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Aucune pratique enregistrée.</div>}
       {e.practice.map((p) => (
         editId === p.id ? (
@@ -717,7 +717,7 @@ const gnum = (s: string) => { const n = parseFloat(s); return Number.isFinite(n)
 /* ---------- F5 · Évaluation de module ---------- */
 function TabModules({ e, modules, masters, frozen }: { e: Enrollment; modules: string[]; masters: string[]; frozen: boolean }) {
   const [evalFor, setEvalFor] = useState<number | null>(null);
-  if (modules.length === 0) return <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Cette formation n’a aucun module — ajoutez-en dans la fiche formation.</div>;
+  if (modules.length === 0) return <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Cette formation n’a aucun module, ajoutez-en dans la fiche formation.</div>;
   const best = (i: number): ModuleEvaluation | null =>
     e.evaluations.filter((ev) => ev.moduleIndex === i).sort((a, b) => b.score - a.score)[0] ?? null;
   const remove = (id: string) => setEnrollment(e.id, { evaluations: e.evaluations.filter((x) => x.id !== id) });
@@ -868,7 +868,7 @@ function TabJury({ e, modules, frozen }: { e: Enrollment; modules: string[]; fro
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
           <span className="mnd-muted" style={{ fontSize: 11.5 }}>Délibération</span>
           <Select value={j.decision ?? ''} onChange={(ev) => patchJury({ decision: (ev.target.value || undefined) as JuryReview['decision'], decidedAt: ev.target.value ? nowStamp() : undefined })} style={{ fontSize: 12 }}>
-            <option value="">— à décider</option>
+            <option value="">, à décider</option>
             <option value="certifie">Certifié</option>
             <option value="excellence">Certifié · Excellence</option>
             <option value="ajourne">Ajourné</option>
@@ -876,7 +876,7 @@ function TabJury({ e, modules, frozen }: { e: Enrollment; modules: string[]; fro
         </div>
       </div>
       {j.decision === 'ajourne' && (
-        <div className="tre-inline-note"><span className="mark">↺</span><span>Ajourné — l’apprenant repasse le jury sous 3 mois. Faites évoluer le statut vers « Ajourné » depuis l’en-tête.</span></div>
+        <div className="tre-inline-note"><span className="mark">↺</span><span>Ajourné, l’apprenant repasse le jury sous 3 mois. Faites évoluer le statut vers « Ajourné » depuis l’en-tête.</span></div>
       )}
     </div>
   );
@@ -903,7 +903,7 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
       meta: [
         formation ? `${formation.name} · ${formation.niveau}` : '',
         e.cohortLabel ? `Cohorte ${e.cohortLabel}` : '',
-        `Note finale ${sc.final}/100 — ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}`,
+        `Note finale ${sc.final}/100, ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}`,
       ].filter(Boolean),
       sections: [
         {
@@ -939,7 +939,7 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
             { label: 'Contrôle continu (30 %)', value: sc.continu != null ? `${sc.continu}/100` : '—' },
             { label: 'Modules (30 %)', value: sc.modules != null ? `${sc.modules}/100` : '—' },
             { label: 'Jury (40 %)', value: sc.jury != null ? `${sc.jury}/100` : '—' },
-            { label: 'NOTE FINALE', value: `${sc.final}/100 — ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}` },
+            { label: 'NOTE FINALE', value: `${sc.final}/100, ${sc.final >= 70 ? MENTION_LABEL[mention] : 'ajourné'}` },
           ],
         },
         ...(e.priceXof != null ? [{
@@ -1033,7 +1033,7 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
         <Button variant="copper" onClick={deliver} style={{ alignSelf: 'flex-start' }}>Délivrer le certificat · sceau MND</Button>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
-        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Un bilan complet du parcours, au sceau MND — utile même avant la certification.</span>
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Un bilan complet du parcours, au sceau MND, utile même avant la certification.</span>
         <Button variant="ghost" size="sm" style={{ marginLeft: 'auto' }} onClick={() => void bilan()}>Télécharger le bilan (PDF)</Button>
       </div>
     </div>

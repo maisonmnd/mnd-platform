@@ -150,7 +150,7 @@ export function RapportDeCaisse({
       const par = identiteCourante().nom;
       const edite = `Édité le ${frLong(todayISO())} par ${par}`;
       const refus = fermees.map((c) => (
-        `Absente de ce rapport : ${c.name} — caisse discrète refermée. `
+        `Absente de ce rapport : ${c.name}, caisse discrète refermée. `
         + 'Son livre ne s’imprime pas sans son code.'
       ));
 
@@ -230,7 +230,7 @@ export function RapportDeCaisse({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
             Le livre de chaque tiroir sur une feuille : le solde au premier jour, tout ce qui entre
-            et sort, le solde au dernier — et le solde qui court à chaque ligne.
+            et sort, le solde au dernier, et le solde qui court à chaque ligne.
           </div>
 
           {/* ── LA PÉRIODE ─────────────────────────────────────────────
@@ -322,7 +322,7 @@ export function RapportDeCaisse({
 
           {fermees.length > 0 && (
             <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--copper-700, #96412E)' }}>
-              {fermees.map((c) => c.name).join(', ')} — caisse{fermees.length > 1 ? 's' : ''} discrète
+              {fermees.map((c) => c.name).join(', ')}, caisse{fermees.length > 1 ? 's' : ''} discrète
               {fermees.length > 1 ? 's' : ''} refermée{fermees.length > 1 ? 's' : ''}. Le document dira
               {fermees.length > 1 ? ' leur' : ' son'} absence plutôt que de la taire.
             </div>

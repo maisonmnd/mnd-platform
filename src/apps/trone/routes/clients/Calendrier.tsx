@@ -140,7 +140,7 @@ export default function Calendrier() {
       prev.map((x) => (x.id === a.id ? { ...x, date: next.date, time: next.time, master: next.master } : x)),
     );
     if (collides(a, next.date, next.time, next.master)) {
-      flashHint(`Déplacé à ${next.time} — chevauchement avec un autre rituel de ${next.master}.`);
+      flashHint(`Déplacé à ${next.time}, chevauchement avec un autre rituel de ${next.master}.`);
     } else {
       flashHint(`Rituel déplacé à ${frShort(next.date)} · ${next.time}.`);
     }
@@ -400,7 +400,7 @@ export default function Calendrier() {
         <div className="trc-agenda">
           {dayList.length === 0 ? (
             <div className="trc-agenda__empty">
-              Aucun rituel ce jour — touchez « + » pour en prendre un.
+              Aucun rituel ce jour, touchez « + » pour en prendre un.
             </div>
           ) : (
             dayList.map((a) => {
@@ -429,7 +429,7 @@ export default function Calendrier() {
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); ouvrirFiche(a.clientId); } }}
                         title={clientOf(a.clientId)?.phone
                           ? `Ouvrir la fiche de ${clientName(a.clientId)}`
-                          : `${clientName(a.clientId)} n’a pas de téléphone — ouvrir sa fiche pour l’inscrire`}
+                          : `${clientName(a.clientId)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
                       >
                         {clientName(a.clientId)}
                       </span>
@@ -507,7 +507,7 @@ export default function Calendrier() {
                       className={`trc-cal__appt trc-cal__appt--drag ${cls} ${dragId === a.id ? 'is-dragging' : ''}`}
                       key={a.id}
                       style={{ top, height: h }}
-                      title={`${clientName(a.clientId)} · ${apptLabel(a, byId)} — glisser pour déplacer, cliquer pour modifier`}
+                      title={`${clientName(a.clientId)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
                       onDragEnd={onDragEnd}
@@ -533,7 +533,7 @@ export default function Calendrier() {
                           onClick={(e) => { e.stopPropagation(); ouvrirFiche(a.clientId); }}
                           title={clientOf(a.clientId)?.phone
                             ? `Ouvrir la fiche de ${clientName(a.clientId)}`
-                            : `${clientName(a.clientId)} n’a pas de téléphone — ouvrir sa fiche pour l’inscrire`}
+                            : `${clientName(a.clientId)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
                         >
                           {clientName(a.clientId)}
                         </button>
@@ -582,7 +582,7 @@ export default function Calendrier() {
                 <span className="trc-weekstack__count">{d.appts.length} rituel{d.appts.length > 1 ? 's' : ''}</span>
               </div>
               {d.appts.length === 0 ? (
-                <div className="trc-weekstack__empty">Libre — touchez pour prendre un rendez-vous.</div>
+                <div className="trc-weekstack__empty">Libre, touchez pour prendre un rendez-vous.</div>
               ) : (
                 d.appts.map((a) => {
                   const first = byId.get(a.serviceIds[0]);
@@ -641,7 +641,7 @@ export default function Calendrier() {
                       <div
                         className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
                         key={a.id}
-                        title={`${clientName(a.clientId)} · ${a.master} — glisser vers un autre jour, cliquer pour modifier`}
+                        title={`${clientName(a.clientId)} · ${a.master}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}
                         onDragEnd={onDragEnd}
@@ -714,7 +714,7 @@ export default function Calendrier() {
                       <div
                         key={a.id}
                         className={`trc-month__chip trc-month__chip--drag ${a.status === 'honoré' ? 'is-muted' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
-                        title={`${a.time} · ${clientName(a.clientId)} · ${apptLabel(a, byId)} — glisser vers un autre jour, cliquer pour modifier`}
+                        title={`${a.time} · ${clientName(a.clientId)} · ${apptLabel(a, byId)}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}
                         onDragEnd={onDragEnd}

@@ -503,18 +503,18 @@ const facettesDe = (s: Signaux): Facette[] => {
 /* Un nom pour commencer — le trait le plus parlant donne le sien. La Maison
    corrigera : c'est elle qui baptise, pas la machine. */
 const NOM_PAR_TRAIT: Record<string, { nom: string; essence: string }> = {
-  endormie: { nom: 'L’Éloignée', essence: 'Elle s’est éloignée — la maison garde sa place, et sait comment la rappeler.' },
-  passante: { nom: 'La Passante', essence: 'Elle est venue une fois — tout reste à écrire, et rien n’est encore promis.' },
-  motPrix: { nom: 'L’Attentive', essence: 'Elle regarde le prix, et la maison le dit clairement — c’est ainsi qu’on garde sa confiance.' },
-  motAisance: { nom: 'La Confiante', essence: 'Elle ne discute pas le prix — la maison lui doit de n’en jamais abuser.' },
-  motVoyage: { nom: 'La Voyageuse', essence: 'Elle va et vient — tout doit tenir dans le temps qu’elle a.' },
-  motFragilite: { nom: 'La Fragile', essence: 'Sa fibre demande de la douceur — on répare avant d’embellir.' },
-  motAudace: { nom: 'L’Essayeuse', essence: 'Elle aime essayer — la maison la suit, et la protège.' },
-  motFidelite: { nom: 'La Régulière', essence: 'Elle revient sans qu’on la rappelle — la maison lui doit la même exactitude.' },
-  dense: { nom: 'La Couronne dense', essence: 'Une couronne nombreuse — le temps et la main s’y comptent autrement.' },
-  fine: { nom: 'La Couronne fine', essence: 'Une couronne légère — la précision y vaut plus que la force.' },
-  suivie: { nom: 'La Suivie', essence: 'Elle revient souvent — la maison connaît sa tête par cœur.' },
-  fraiche: { nom: 'La Récente', essence: 'Elle est venue il y a peu — l’habitude est encore à prendre.' },
+  endormie: { nom: 'L’Éloignée', essence: 'Elle s’est éloignée, la maison garde sa place, et sait comment la rappeler.' },
+  passante: { nom: 'La Passante', essence: 'Elle est venue une fois, tout reste à écrire, et rien n’est encore promis.' },
+  motPrix: { nom: 'L’Attentive', essence: 'Elle regarde le prix, et la maison le dit clairement, c’est ainsi qu’on garde sa confiance.' },
+  motAisance: { nom: 'La Confiante', essence: 'Elle ne discute pas le prix, la maison lui doit de n’en jamais abuser.' },
+  motVoyage: { nom: 'La Voyageuse', essence: 'Elle va et vient, tout doit tenir dans le temps qu’elle a.' },
+  motFragilite: { nom: 'La Fragile', essence: 'Sa fibre demande de la douceur, on répare avant d’embellir.' },
+  motAudace: { nom: 'L’Essayeuse', essence: 'Elle aime essayer, la maison la suit, et la protège.' },
+  motFidelite: { nom: 'La Régulière', essence: 'Elle revient sans qu’on la rappelle, la maison lui doit la même exactitude.' },
+  dense: { nom: 'La Couronne dense', essence: 'Une couronne nombreuse, le temps et la main s’y comptent autrement.' },
+  fine: { nom: 'La Couronne fine', essence: 'Une couronne légère, la précision y vaut plus que la force.' },
+  suivie: { nom: 'La Suivie', essence: 'Elle revient souvent, la maison connaît sa tête par cœur.' },
+  fraiche: { nom: 'La Récente', essence: 'Elle est venue il y a peu, l’habitude est encore à prendre.' },
 };
 
 export type PropositionArchetype = {

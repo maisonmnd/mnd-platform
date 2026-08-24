@@ -395,8 +395,8 @@ export default function Dashboard() {
       return {
         k: `objectif-${e.objectif.id}`,
         label: e.retardXof > 0
-          ? `${e.objectif.nom} — ${fmtMoney(e.retardXof, currency)} de retard sur le plan`
-          : `${e.objectif.nom} — versement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
+          ? `${e.objectif.nom}, ${fmtMoney(e.retardXof, currency)} de retard sur le plan`
+          : `${e.objectif.nom}, versement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
         sub: `${fmtMoney(e.prochain?.montantXof ?? 0, currency)} · il manque ${fmtMoney(e.manque, currency)} sur ${fmtMoney(e.objectif.cibleXof, currency)}`,
         action: 'Voir',
         go: () => navigate('/prets?onglet=objectifs'),
@@ -408,8 +408,8 @@ export default function Dashboard() {
       return {
         k: `pret-${e.nom}`,
         label: j < 0
-          ? `${e.nom} — remboursement en retard de ${-j} jour${-j > 1 ? 's' : ''}`
-          : `${e.nom} — remboursement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
+          ? `${e.nom}, remboursement en retard de ${-j} jour${-j > 1 ? 's' : ''}`
+          : `${e.nom}, remboursement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
         sub: `${fmtMoney(e.prochaine?.montantXof ?? e.reste, currency)} · reste dû ${fmtMoney(e.reste, currency)}`,
         action: 'Voir',
         go: () => navigate('/prets'),
@@ -495,7 +495,7 @@ export default function Dashboard() {
     },
     {
       label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)',
-      trend: spent === 0 ? { t: '= revenus — aucune dépense saisie', down: false } : trend(net, prevNet),
+      trend: spent === 0 ? { t: '= revenus, aucune dépense saisie', down: false } : trend(net, prevNet),
       action: () => navigate('/synthese'),
     },
   ];
@@ -554,7 +554,7 @@ export default function Dashboard() {
               <button
                 className="trp-pay__cta"
                 onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
-                title="Encaisser — paiement partiel ou total"
+                title="Encaisser, paiement partiel ou total"
               >
                 Encaisser
               </button>
@@ -706,7 +706,7 @@ export default function Dashboard() {
           </div>
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
             Prestations du carnet, ventilées ligne à ligne. « Plateau seul » : les soins et lavages
-            vendus sans rituel d’une maison — rien ne permet de les rattacher, on ne devine pas.
+            vendus sans rituel d’une maison, rien ne permet de les rattacher, on ne devine pas.
           </div>
         </div>
       )}
@@ -716,7 +716,7 @@ export default function Dashboard() {
       <div className="trp-panel" style={{ marginTop: 14 }}>
         <div className="trp-panel__title">Ce qui presse</div>
         {presseRows.length === 0
-          ? <div className="trp-empty">Rien ne presse — tout est réglé, et chaque séance a son bilan.</div>
+          ? <div className="trp-empty">Rien ne presse, tout est réglé, et chaque séance a son bilan.</div>
           : presseRows.map((r, i) => (
             <div
               key={r.k}
@@ -740,7 +740,7 @@ export default function Dashboard() {
           La tournée du matin · rappels de demain{demainRows.length > 0 ? ` · ${demainRows.length}` : ''}
         </div>
         {demainRows.length === 0
-          ? <div className="trp-empty">Rien à rappeler — le carnet de demain est libre.</div>
+          ? <div className="trp-empty">Rien à rappeler, le carnet de demain est libre.</div>
           : demainRows.map((a, i) => {
             const c = clientOf(a.clientId);
             const nom = a.clientName ?? c?.name ?? 'Cliente';
@@ -770,7 +770,7 @@ export default function Dashboard() {
         {demainRows.length > 0 && (
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
             Le rappel push part tout seul en fin de journée vers les clientes qui ont installé
-            Ma Couronne. La cloche ouvre WhatsApp pré-rempli pour les autres — un tap, Envoyer,
+            Ma Couronne. La cloche ouvre WhatsApp pré-rempli pour les autres, un tap, Envoyer,
             et elle se souvient de ton geste.
           </div>
         )}
@@ -790,7 +790,7 @@ export default function Dashboard() {
           {todayRows.length === 0 && (
             relances > 0 ? (
               <div className="trp-day__empty">
-                Le carnet est libre — {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
+                Le carnet est libre, {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
                 {' '}
                 <button className="trp-kpi__link" onClick={() => navigate('/customers')}>Voir les relances →</button>
               </div>
@@ -839,7 +839,7 @@ export default function Dashboard() {
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
-                  title="Encaisser — paiement partiel ou total"
+                  title="Encaisser, paiement partiel ou total"
                   style={{
                     cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px', marginLeft: 12,
                     fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
@@ -894,7 +894,7 @@ export default function Dashboard() {
       {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total.
           `unpaidRef` : la ligne « impayés échus » de Ce qui presse descend ici. */}
       <div ref={unpaidRef} className="tr-grid tr-grid--2" style={{ marginTop: 18, alignItems: 'start' }}>
-        {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu — rien en retard.')}
+        {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu, rien en retard.')}
         {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
       </div>
 
@@ -909,7 +909,7 @@ export default function Dashboard() {
             <div>
               <div className="trp-break__head">Rituels honorés · par catégorie</div>
               {breakdown.rituels.length === 0 && (
-                <div className="trp-break__empty">Aucun rituel honoré ce mois-ci — le carnet écrira la suite.</div>
+                <div className="trp-break__empty">Aucun rituel honoré ce mois-ci, le carnet écrira la suite.</div>
               )}
               {breakdown.rituels.map((r) => (
                 <button className="trp-break__row" key={r.id} onClick={() => { setBreakOpen(false); navigate('/calendrier'); }}>
@@ -971,7 +971,7 @@ export default function Dashboard() {
       {attenteOpen && (
         <Modal title="Réservations à recevoir." onClose={() => setAttenteOpen(false)} width={620}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '60vh', overflowY: 'auto' }}>
-            {aRecevoir.length === 0 && <div className="trc-empty">Rien à recevoir — tout est scellé.</div>}
+            {aRecevoir.length === 0 && <div className="trc-empty">Rien à recevoir, tout est scellé.</div>}
             {aRecevoir.map((a) => (
               <div key={a.id} style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '12px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
@@ -1037,8 +1037,8 @@ export default function Dashboard() {
                           className="trf-act"
                           style={{ textDecoration: 'none' }}
                           href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(r.mode === 'forfait'
-                            ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains — scellons vos créneaux, mèche après mèche.`
-                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains — scellons vos créneaux, mèche après mèche.`))}`}
+                            ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains, scellons vos créneaux, mèche après mèche.`
+                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains, scellons vos créneaux, mèche après mèche.`))}`}
                           target="_blank" rel="noopener noreferrer"
                         >
                           Sceller sur WhatsApp

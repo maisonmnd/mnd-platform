@@ -60,7 +60,7 @@ export const RITUEL_SEED: TempsRituel[] = [
   { nom: 'Purifier', cadence: 'chaque semaine', texte: 'Un lavage doux par semaine, en pressant sans frotter. Rincer longuement, à l’eau tiède.' },
   { nom: 'Nourrir', cadence: 'deux fois par semaine', texte: 'Quelques gouttes d’huile légère sur le cuir chevelu, en massage lent du bout des doigts.' },
   { nom: 'Sceller', cadence: 'après chaque lavage', texte: 'Sécher entièrement avant de nouer. Jamais de couronne humide sous le foulard.' },
-  { nom: 'Couronner', cadence: 'chaque nuit', texte: 'Foulard ou taie en satin pour la nuit — la friction du coton défait le travail des racines.' },
+  { nom: 'Couronner', cadence: 'chaque nuit', texte: 'Foulard ou taie en satin pour la nuit, la friction du coton défait le travail des racines.' },
 ];
 
 export const bilansStore = createStore<Bilan[]>('mnd_bilans', []);

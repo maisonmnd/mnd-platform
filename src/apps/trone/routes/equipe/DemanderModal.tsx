@@ -37,7 +37,7 @@ export function DemanderModal({ piece, sousTitre, onClose }: {
   const [priorite, setPriorite] = useState('');
 
   const nature = piece.kind === 'facture' ? 'la facture' : piece.kind === 'rituel' ? 'le rituel' : 'la fiche';
-  const parDefaut = `Traiter ${nature} — ${piece.label}.`;
+  const parDefaut = `Traiter ${nature}, ${piece.label}.`;
 
   const envoyer = () => {
     const aPrendre = qui === A_PRENDRE;
@@ -57,7 +57,7 @@ export function DemanderModal({ piece, sousTitre, onClose }: {
       /* Une pièce d'argent marque la demande : le sans-prix ne la verra pas. */
       argent: piece.kind === 'facture' || undefined,
     })]);
-    toast(aPrendre ? 'Demande posée — à prendre sur le Tableau.' : `Demande adressée à ${dest!.name}.`);
+    toast(aPrendre ? 'Demande posée, à prendre sur le Tableau.' : `Demande adressée à ${dest!.name}.`);
     onClose();
   };
 
@@ -69,13 +69,13 @@ export function DemanderModal({ piece, sousTitre, onClose }: {
           <br />
           La demande part dans <b style={{ color: 'var(--color-indigo)' }}>Le Fil</b> et sur
           le <b style={{ color: 'var(--color-indigo)' }}>Tableau</b>, la pièce attachée
-          {piece.kind === 'facture' ? ' — et se referme d’elle-même quand la facture sera réglée' : ''}.
+          {piece.kind === 'facture' ? ', et se referme d’elle-même quand la facture sera réglée' : ''}.
         </div>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>À qui</span>
           <Select value={qui} onChange={(e) => setQui(e.target.value)} style={{ fontSize: 12 }}>
             <option value="">Choisir…</option>
-            <option value={A_PRENDRE}>À prendre — qui veut s’en charge</option>
+            <option value={A_PRENDRE}>À prendre, qui veut s’en charge</option>
             {equipe.filter((m) => m.branchId === branch.id).map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}

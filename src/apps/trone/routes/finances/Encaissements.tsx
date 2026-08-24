@@ -171,7 +171,7 @@ export default function Encaissements() {
     /* SANS ÉQUIPE, ON NE TOUCHE À RIEN. Effacer d'abord et repartager entre
        personne aurait vidé « Mon mois » de tout le monde sans rien rendre. */
     if (equipe.filter((m) => m.part > 0).length === 0) {
-      window.alert('Aucune fiche du personnel dans cette branche (Personnel & paie) — rien n’a été touché : le repartage n’aurait crédité personne.');
+      window.alert('Aucune fiche du personnel dans cette branche (Personnel & paie), rien n’a été touché : le repartage n’aurait crédité personne.');
       return;
     }
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);
@@ -373,7 +373,7 @@ export default function Encaissements() {
     'pointé': { l: 'Pointé', couleur: 'var(--color-indigo)' },
     'autre-moyen': { l: 'Noté sous un autre moyen', couleur: 'var(--copper-700)' },
     'acompte': { l: 'Acompte à confirmer', couleur: 'var(--copper-700)' },
-    'orphelin': { l: 'Orphelin — à regarder', couleur: '#8f3b30' },
+    'orphelin': { l: 'Orphelin, à regarder', couleur: '#8f3b30' },
   };
 
   return (
@@ -381,7 +381,7 @@ export default function Encaissements() {
       <PageHead
         eyebrow="Finances · trésorerie"
         title="Encaissements."
-        sub="Tout ce que la Maison reçoit, d’où que ça vienne — et la preuve de chaque entrée. Registre de trésorerie : il compte l’argent entré, quand la Synthèse compte ce qui est gagné."
+        sub="Tout ce que la Maison reçoit, d’où que ça vienne, et la preuve de chaque entrée. Registre de trésorerie : il compte l’argent entré, quand la Synthèse compte ce qui est gagné."
         actions={
           <>
             <MonthNav month={month} onChange={setMonth} />
@@ -401,7 +401,7 @@ export default function Encaissements() {
         <div className="trf-panel" style={{ marginBottom: 18 }}>
           <div className="mnd-eyebrow">Pointer le relevé MoMo</div>
           <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5, maxWidth: 680 }}>
-            Colle le relevé du portail marchand MTN tel quel — export ou copie d’écran, une
+            Colle le relevé du portail marchand MTN tel quel, export ou copie d’écran, une
             opération par ligne. Je lis montant, date et référence où qu’ils soient sur la ligne,
             et je rapproche chaque entrée du registre : encaissements, acomptes en attente.
           </div>
@@ -435,7 +435,7 @@ export default function Encaissements() {
                       {ETAT_META[v.etat].l}
                     </span>
                     <span className="mnd-muted" style={{ fontSize: 12, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {v.detail ?? (v.etat === 'orphelin' ? 'Aucune entrée du registre à ce montant — paiement hors salon, ou à enregistrer.' : '')}
+                      {v.detail ?? (v.etat === 'orphelin' ? 'Aucune entrée du registre à ce montant, paiement hors salon, ou à enregistrer.' : '')}
                     </span>
                     {v.etat === 'acompte' && v.apptId && (
                       <Button size="sm" variant="copper" onClick={() => confirmerAcompte(v.apptId!, v.ligne.date)}>
@@ -447,7 +447,7 @@ export default function Encaissements() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
                 « Noté sous un autre moyen » : l’argent est arrivé en MoMo mais le registre dit
-                autre chose (Espèces, carte…) — à corriger sur la pièce d’origine. Le pointage ne
+                autre chose (Espèces, carte…), à corriger sur la pièce d’origine. Le pointage ne
                 s’enregistre pas : recolle le relevé pour le refaire, il retombe sur ses pieds.
               </div>
             </>
@@ -463,7 +463,7 @@ export default function Encaissements() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
           <div className="mnd-eyebrow" style={{ marginBottom: 0 }}>Ce que ces revenus sont devenus</div>
           <span className="mnd-muted" style={{ fontSize: 11 }}>
-            Les pourboires n’en sont pas — ils appartiennent à l’équipe.
+            Les pourboires n’en sont pas, ils appartiennent à l’équipe.
           </span>
         </div>
         <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', gap: 12, marginTop: 10, alignItems: 'stretch' } as CSSProperties}>
@@ -634,7 +634,7 @@ export default function Encaissements() {
                     type="button"
                     className="trf-rowbtn"
                     onClick={(e) => { e.stopPropagation(); navigate(`/comptes?avoir=${r.id.replace('r-cre-', '')}`); }}
-                    title="Corriger ce dépôt d’avoir — caisse, date, moyen"
+                    title="Corriger ce dépôt d’avoir, caisse, date, moyen"
                   >
                     Corriger
                   </button>
@@ -658,8 +658,8 @@ export default function Encaissements() {
 
       <p className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.6 }}>
         Un acompte figure au jour où il est reçu ; la facture qui le solde n’encaisse alors que le reste.
-        Le pourboire a sa propre ligne, créditée à la caisse Pourboires — l’argent des mains, jamais celui
-        de la facture. L’avoir n’est pas compté (c’est un crédit, pas des billets) —
+        Le pourboire a sa propre ligne, créditée à la caisse Pourboires, l’argent des mains, jamais celui
+        de la facture. L’avoir n’est pas compté (c’est un crédit, pas des billets),
         d’où l’écart normal avec le chiffre d’affaires de la Synthèse.
       </p>
     </div>

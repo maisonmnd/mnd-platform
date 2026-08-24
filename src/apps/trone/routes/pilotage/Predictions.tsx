@@ -340,7 +340,7 @@ export default function Predictions() {
               <button
                 type="button"
                 className="trv-minibtn trp-glisse__marque"
-                title={`${l.nom} vit à l’étranger — ne plus prédire son retour`}
+                title={`${l.nom} vit à l’étranger, ne plus prédire son retour`}
                 onClick={() => marquerDiaspora(l.clientId, l.nom)}
               >
                 Diaspora
@@ -348,13 +348,13 @@ export default function Predictions() {
             </div>
           ))}
           {enRetard.length === 0 && (
-            <div className="trp-break__empty">Aucune tête n’a glissé — la Maison est à jour.</div>
+            <div className="trp-break__empty">Aucune tête n’a glissé, la Maison est à jour.</div>
           )}
           {enRetard.length > 12 && (
             <button type="button" className="trp-voirtout" onClick={() => setTousRetards((v) => !v)}>
               {tousRetards
-                ? `Replier — n’en garder que les douze plus anciennes`
-                : `Ouvrir les ${enRetard.length - 12} autres — les douze plus anciennes d’abord`}
+                ? `Replier, n’en garder que les douze plus anciennes`
+                : `Ouvrir les ${enRetard.length - 12} autres, les douze plus anciennes d’abord`}
             </button>
           )}
         </div>
@@ -376,7 +376,7 @@ export default function Predictions() {
             ))}
             {medianeMaison && (
               <div className="trp-break__sub">
-                Médiane de la Maison : {medianeMaison} jours — {cadenceLabel(medianeMaison)}.
+                Médiane de la Maison : {medianeMaison} jours, {cadenceLabel(medianeMaison)}.
               </div>
             )}
           </div>
@@ -401,7 +401,7 @@ export default function Predictions() {
               </div>
             ))}
             <div className="trp-break__sub">
-              {muettes} tête{muettes > 1 ? 's' : ''} sans estimation — une seule venue, ou de passage.
+              {muettes} tête{muettes > 1 ? 's' : ''} sans estimation, une seule venue, ou de passage.
               La Maison ne prédit pas le retour de qui n’a pas encore de relation.
             </div>
           </div>
@@ -416,12 +416,12 @@ export default function Predictions() {
         <div className="trp-card">
           {saison.moisDHistoire < 12 ? (
             <div className="trp-break__sub" style={{ color: 'var(--copper-700)', marginBottom: 12 }}>
-              Moins d’une année complète en carnet — ce que vous lisez ci-dessous est l’HISTOIRE de
+              Moins d’une année complète en carnet, ce que vous lisez ci-dessous est l’HISTOIRE de
               la Maison, pas une saison. Un mois n’aura de sens de saison qu’une fois vu deux fois.
             </div>
           ) : (
             <div className="trp-break__sub" style={{ marginBottom: 12 }}>
-              Venues par mois, rapportées au nombre d’années où le mois a été observé — sinon un
+              Venues par mois, rapportées au nombre d’années où le mois a été observé, sinon un
               mois vu deux fois pèserait double. L’indice compare à un mois ordinaire.
             </div>
           )}
@@ -455,7 +455,7 @@ export default function Predictions() {
             <span><i className="trp-dot trp-dot--est" /> mois creux · indice sous 0,85</span>
             <span className="mnd-muted">
               {saison.vus.filter((n) => n === 0).length > 0
-                ? `${saison.vus.filter((n) => n === 0).length} mois jamais observé(s) — barre vide, pas un creux.`
+                ? `${saison.vus.filter((n) => n === 0).length} mois jamais observé(s), barre vide, pas un creux.`
                 : 'Tous les mois ont été observés au moins une fois.'}
             </span>
           </div>
@@ -500,7 +500,7 @@ export default function Predictions() {
               </div>
               <div className="trp-break__sub" style={{ marginTop: 14 }}>
                 Aucune prédiction n’a jamais été stockée : on ne peut pas relire ce que la Maison
-                avait annoncé. On la <b>rejoue</b> donc — à chaque venue depuis la troisième, avec
+                avait annoncé. On la <b>rejoue</b> donc, à chaque venue depuis la troisième, avec
                 les SEULES venues d’avant, puis on compare à la date réelle. Ceci éprouve la
                 cadence médiane, cœur de la prédiction ; pas les reports de jour fermé ni le jour
                 préféré, qui déplacent la date pour des raisons d’ouverture et ne disent rien de la
@@ -521,7 +521,7 @@ export default function Predictions() {
         <div className="trp-card">
           <ol className="trp-methode">
             <li>
-              <b>Un rendez-vous déjà pris passe devant.</b> C’est un fait, pas une prédiction —
+              <b>Un rendez-vous déjà pris passe devant.</b> C’est un fait, pas une prédiction,
               il s’affiche tel quel. {prises.length} tête{prises.length > 1 ? 's' : ''} dans ce cas.
             </li>
             <li>
@@ -530,13 +530,13 @@ export default function Predictions() {
               14 jours. Une série multi-séances compte pour UNE visite.
             </li>
             <li>
-              <b>La confiance mesure la régularité</b> — l’écart-type rapporté à la moyenne, pondéré
+              <b>La confiance mesure la régularité</b>, l’écart-type rapporté à la moyenne, pondéré
               par le nombre d’intervalles. Trois intervalles réguliers donnent « haute » ; deux
               venues seulement, « faible ».
             </li>
             <li>
               <b>Le cycle se rejoue tant qu’il tombe dans le passé</b> (16 août). C’est la prochaine
-              fois qu’on attend, pas la fois manquée — mais le retard, lui, se compte toujours
+              fois qu’on attend, pas la fois manquée, mais le retard, lui, se compte toujours
               depuis la première échéance.
             </li>
             <li>
@@ -551,7 +551,7 @@ export default function Predictions() {
           </ol>
           <div className="trp-break__sub">
             La limite, dite franchement : ceci lit le passé. Une cliente qui change de rythme, une
-            couronne qui pousse, une saison — rien de tout cela n’est su ici. C’est une aide à la
+            couronne qui pousse, une saison, rien de tout cela n’est su ici. C’est une aide à la
             relance, pas une promesse.
           </div>
         </div>
@@ -586,13 +586,13 @@ export default function Predictions() {
           })}
           {lignes.length === 0 && (
             <div className="trp-break__empty">
-              Aucune tête attendue — il faut au moins deux venues honorées pour lire une cadence.
+              Aucune tête attendue, il faut au moins deux venues honorées pour lire une cadence.
             </div>
           )}
           {lignes.length > 40 && (
             <button type="button" className="trp-voirtout" onClick={() => setToutesAttendues((v) => !v)}>
               {toutesAttendues
-                ? 'Replier — n’en garder que les quarante premières'
+                ? 'Replier, n’en garder que les quarante premières'
                 : `Ouvrir les ${lignes.length - 40} autres, plus loin dans le temps`}
             </button>
           )}

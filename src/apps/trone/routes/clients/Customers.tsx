@@ -96,9 +96,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Enfants déclarés" onClose={onClose} width={620}>
       <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.55 }}>
-        Depuis le 13 août, un enfant se rattache tout seul depuis Ma Couronne — la fiche naît
+        Depuis le 13 août, un enfant se rattache tout seul depuis Ma Couronne, la fiche naît
         aussitôt. Ici n’arrivent plus que les cas à arbitrer : une tête déjà connue du carnet
-        (même nom, même naissance) — on ne s’annexe pas la fiche d’une autre. Si c’est bien son
+        (même nom, même naissance), on ne s’annexe pas la fiche d’une autre. Si c’est bien son
         enfant : rattachez la fiche existante au compte famille (Finances › Comptes), puis
         refusez la demande avec un mot. Sinon, refusez simplement.
       </div>
@@ -140,9 +140,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
 
               <div className="trc-sub" style={{ marginTop: 10, lineHeight: 1.55 }}>
                 {fam
-                  ? <>Rejoindra <b style={{ fontWeight: 600 }}>{fam.name}</b>{fam.payerClientId === parent?.id ? '' : ' — attention, le parent payeur de ce compte est quelqu’un d’autre'}.</>
+                  ? <>Rejoindra <b style={{ fontWeight: 600 }}>{fam.name}</b>{fam.payerClientId === parent?.id ? '' : ', attention, le parent payeur de ce compte est quelqu’un d’autre'}.</>
                   : <>Ouvrira un compte famille au nom de <b style={{ fontWeight: 600 }}>{parent?.name ?? '—'}</b>, qui en sera le payeur.</>}
-                {' '}Fiche sans e-mail ni mot de passe — un mineur n’a pas de compte.
+                {' '}Fiche sans e-mail ni mot de passe, un mineur n’a pas de compte.
               </div>
 
               {refusFor === d.id ? (
@@ -278,7 +278,7 @@ function LocksCell({ client }: { client: Client }) {
       inputMode="numeric"
       value={draft}
       placeholder="—"
-      title="Nombre de locks (modèle) — pilote le prix personnalisé"
+      title="Nombre de locks (modèle), pilote le prix personnalisé"
       aria-label={`Nombre de locks de ${client.name}`}
       onClick={(e) => e.stopPropagation()}
       onFocus={() => setFocused(true)}
@@ -327,7 +327,7 @@ function DateEnClair({ value, onChange, ariaLabel }: {
         value={p.mois}
         onChange={(e) => maj({ mois: e.target.value })}
         style={{ flex: '1 1 120px', minWidth: 0 }}
-        aria-label={ariaLabel ? `${ariaLabel} — mois` : 'Mois'}
+        aria-label={ariaLabel ? `${ariaLabel}, mois` : 'Mois'}
       >
         <option value="">— mois —</option>
         {MOIS_FR.map((nom, i) => (
@@ -340,7 +340,7 @@ function DateEnClair({ value, onChange, ariaLabel }: {
         onChange={(e) => maj({ jour: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) })}
         placeholder="jour"
         style={{ width: 58, textAlign: 'right', flex: 'none' }}
-        aria-label={ariaLabel ? `${ariaLabel} — jour` : 'Jour'}
+        aria-label={ariaLabel ? `${ariaLabel}, jour` : 'Jour'}
       />
       <Input
         inputMode="numeric"
@@ -348,7 +348,7 @@ function DateEnClair({ value, onChange, ariaLabel }: {
         onChange={(e) => maj({ annee: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
         placeholder="année"
         style={{ width: 74, textAlign: 'right', flex: 'none' }}
-        aria-label={ariaLabel ? `${ariaLabel} — année` : 'Année'}
+        aria-label={ariaLabel ? `${ariaLabel}, année` : 'Année'}
       />
     </div>
   );
@@ -383,17 +383,17 @@ function AjoutEnfantAuCompte({ famille, parent, tetes }: { famille: Family; pare
   const poser = () => {
     const nomComplet = `${prenom.trim()} ${nom.trim()}`.replace(/\s+/g, ' ').trim();
     if (!prenom.trim()) { setErreur('Il manque son prénom.'); return; }
-    if (!nom.trim()) { setErreur('Il manque son nom de famille — le sien, tel qu’à l’état civil.'); return; }
-    if (!naissance) { setErreur('Il manque sa date de naissance — c’est elle qui dit la minorité.'); return; }
+    if (!nom.trim()) { setErreur('Il manque son nom de famille, le sien, tel qu’à l’état civil.'); return; }
+    if (!naissance) { setErreur('Il manque sa date de naissance, c’est elle qui dit la minorité.'); return; }
     if (!estMineur({ birthday: naissance }, todayISO())) {
-      setErreur('Cette personne est majeure — sa fiche se rattache au compte dans Finances › Comptes.');
+      setErreur('Cette personne est majeure, sa fiche se rattache au compte dans Finances › Comptes.');
       return;
     }
     const deja = tetes.some((c) => !c.archived
       && c.name.trim().replace(/\s+/g, ' ').toLowerCase() === nomComplet.toLowerCase()
       && c.birthday === naissance);
     if (deja) {
-      setErreur('Cette tête est déjà au carnet — rattachez sa fiche existante au compte (Finances › Comptes).');
+      setErreur('Cette tête est déjà au carnet, rattachez sa fiche existante au compte (Finances › Comptes).');
       return;
     }
     clientsStore.set((prev) => [...prev, {
@@ -484,7 +484,7 @@ function FusionModal({ client, onClose, onDone }: {
     <Modal title="Fusionner deux fiches." onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <p className="trc-sub" style={{ margin: 0, lineHeight: 1.6 }}>
-          Deux fiches pour une même personne — l’une porte l’histoire, l’autre est née
+          Deux fiches pour une même personne, l’une porte l’histoire, l’autre est née
           d’une inscription. La fusion les fond en une seule : l’historique suit
           (rendez-vous, factures, bilans, famille, avoir), les points s’additionnent,
           la coquille s’efface.
@@ -502,11 +502,11 @@ function FusionModal({ client, onClose, onDone }: {
             <div className="trc-sub" style={{ lineHeight: 1.7 }}>
               Fiche gardée : <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>{paire.survivant.name}</b>
               {paire.survivant.authUserId
-                ? ' — elle porte le compte Ma Couronne, le compte ne déménage pas.'
-                : ' — celle que vous tenez ouverte.'}
+                ? ', elle porte le compte Ma Couronne, le compte ne déménage pas.'
+                : ', celle que vous tenez ouverte.'}
               <br />
               Fiche fondue : <b style={{ fontWeight: 600 }}>{paire.absorbee.name}</b>
-              {nRdv > 0 ? ` — ses ${nRdv} rendez-vous suivent,` : ' —'} son téléphone, sa famille et
+              {nRdv > 0 ? `, ses ${nRdv} rendez-vous suivent,` : ' —'} son téléphone, sa famille et
               son histoire passent sur la fiche gardée, puis elle s’efface.
             </div>
           </div>
@@ -847,7 +847,7 @@ export default function Customers() {
             aria-pressed={focus === 'prixconvenu'}
             title={focus === 'prixconvenu'
               ? 'Revenir au carnet entier'
-              : 'Voir les têtes avec qui un prix a été convenu — tous registres confondus'}
+              : 'Voir les têtes avec qui un prix a été convenu, tous registres confondus'}
             onClick={() => ouvrirFocus('prixconvenu')}
           >
             <b>{tetesPrixConvenu.length}</b><span>Prix convenus</span>
@@ -863,7 +863,7 @@ export default function Customers() {
           <span>
             {FOCUS_LABEL[focus]} · <b style={{ fontWeight: 600 }}>{filtered.length}</b>
             {filtered.length > 1 ? ' têtes' : ' tête'}
-            {q ? ', recherche en cours' : ''} — registres et segments mis de côté.
+            {q ? ', recherche en cours' : ''}, registres et segments mis de côté.
           </span>
           <button type="button" className="trc-focus__x" onClick={() => setFocus('aucun')}>
             Voir tout le carnet
@@ -909,9 +909,9 @@ export default function Customers() {
 
       {view === 'visiteur' && (
         <div className="trc-passage-banner">
-          Une fiche sans aucune venue à ce jour — le plus souvent un compte ouvert seul sur Ma Couronne,
+          Une fiche sans aucune venue à ce jour, le plus souvent un compte ouvert seul sur Ma Couronne,
           parfois une tête déclarée qui n’est pas encore passée. Ils ne comptent ni dans les têtes
-          couronnées, ni dans la rétention — la Maison ne les a pas encore couronnés. Rien à faire :
+          couronnées, ni dans la rétention, la Maison ne les a pas encore couronnés. Rien à faire :
           le jour où l’un d’eux s’assied, il rejoint La Maison de lui-même. Les fiches créées au comptoir,
           elles, naissent « de passage » et vivent dans leur registre.
         </div>
@@ -922,7 +922,7 @@ export default function Customers() {
           Elles sont venues une fois. Leur rituel compte au chiffre d’affaires et
           à la production du maître ; elles restent hors des têtes couronnées, de
           la rétention et des relances. La marque se lève d’elle-même à leur
-          2ᵉ venue — ou d’un geste sur leur fiche.
+          2ᵉ venue, ou d’un geste sur leur fiche.
           {passageThisMonth > 0 && ` ${passageThisMonth} reçue${passageThisMonth > 1 ? 's' : ''} ce mois-ci.`}
         </div>
       )}
@@ -1004,13 +1004,13 @@ export default function Customers() {
             {view === 'passage'
               ? q
                 ? `Aucune cliente de passage ne répond à « ${query.trim()} ».`
-                : 'Aucune cliente de passage — elles s’enregistrent au fauteuil ou à la caisse, en deux champs.'
+                : 'Aucune cliente de passage, elles s’enregistrent au fauteuil ou à la caisse, en deux champs.'
               : view === 'diaspora'
               ? q
                 ? `Aucune cliente Diaspora ne répond à « ${query.trim()} ».`
-                : 'La liste Diaspora est vide — cherchez une cliente ci-dessus et ajoutez-la d’un geste.'
+                : 'La liste Diaspora est vide, cherchez une cliente ci-dessus et ajoutez-la d’un geste.'
               : clients.length === 0
-                ? 'Aucune tête couronnée — ajoutez la première.'
+                ? 'Aucune tête couronnée, ajoutez la première.'
                 : q
                   ? `Aucune cliente ne répond à « ${query.trim()} ».`
                   : 'Aucune tête couronnée sur ce segment.'}
@@ -1036,7 +1036,7 @@ export default function Customers() {
                         à chaque venue ; l'apprendre en ouvrant le Profil, c'est
                         l'apprendre après avoir annoncé le mauvais prix. */}
                     {Object.keys(c.prixFixes ?? {}).length > 0 && (
-                      <span className="trc-passage-tag" title="Des prix convenus avec elle — fiche → Profil → Ses prix fermes">
+                      <span className="trc-passage-tag" title="Des prix convenus avec elle, fiche → Profil → Ses prix fermes">
                         Prix convenus
                       </span>
                     )}
@@ -1044,7 +1044,7 @@ export default function Customers() {
                         coefficient sur TOUS ses prix. Il se règle dans
                         Finances → Le Juste Prix ; ici on le voit. */}
                     {(c.priceCoef ?? 1) > 0 && (c.priceCoef ?? 1) !== 1 && (
-                      <span className="trc-passage-tag" title="Tous ses prix sont modulés — Finances → Le Juste Prix">
+                      <span className="trc-passage-tag" title="Tous ses prix sont modulés, Finances → Le Juste Prix">
                         Juste Prix ×{String(c.priceCoef).replace('.', ',')}
                       </span>
                     )}
@@ -1340,7 +1340,7 @@ function Customer360({
     const first = client.name.split(' ')[0];
     const n = await pushToClient(
       client.id,
-      `Joyeux anniversaire — ${maisonNom()}`,
+      `Joyeux anniversaire, ${maisonNom()}`,
       `${first}, une séance vous est offerte pour votre anniversaire. La Maison vous attend pour la célébrer.`,
       '/couronne/',
       client.email,
@@ -1349,8 +1349,8 @@ function Customer360({
     setGiftBusy(false);
     window.alert(
       n > 0
-        ? `Cadeau envoyé — notification reçue sur le téléphone de ${first}.`
-        : `Cadeau enregistré côté Trône. ${first} n'a pas activé les notifications sur Ma Couronne — rien poussé sur son téléphone.`,
+        ? `Cadeau envoyé, notification reçue sur le téléphone de ${first}.`
+        : `Cadeau enregistré côté Trône. ${first} n'a pas activé les notifications sur Ma Couronne, rien poussé sur son téléphone.`,
     );
   };
 
@@ -1649,7 +1649,7 @@ function Customer360({
             {(client.priceCoef ?? 1) > 0 && (client.priceCoef ?? 1) !== 1 && (
               <div
                 style={{ marginTop: 8, marginLeft: estDePassage(client) || Object.keys(client.prixFixes ?? {}).length > 0 ? 8 : 0, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 2, padding: '3px 11px' }}
-                title="Tous ses prix sont modulés par ce coefficient — il se règle dans Finances → Le Juste Prix."
+                title="Tous ses prix sont modulés par ce coefficient, il se règle dans Finances → Le Juste Prix."
               >
                 Juste Prix ×{String(client.priceCoef).replace('.', ',')} · tous ses prix
               </div>
@@ -1722,7 +1722,7 @@ function Customer360({
               ? `${apptLabel(upcoming, byId)} · ${upcoming.master}`
               : predicted.template
                 ? `${apptLabel(predicted.template, byId)} · ${predicted.template.master}`
-                : 'La maison anticipe sa cadence — proposez le fauteuil.'}
+                : 'La maison anticipe sa cadence, proposez le fauteuil.'}
           </div>
 
           {/* Analyse de la cadence — visible seulement sur une prédiction */}
@@ -1730,7 +1730,7 @@ function Customer360({
             <div className="trc-next__cadence">
               {predicted.avgDays
                 ? <>Revient {cadenceLabel(predicted.avgDays)}{predicted.sample >= 1 ? ` · d’après ${predicted.sample + 1} visites` : ''}{predicted.confidence ? ` · confiance ${predicted.confidence}` : ''}.</>
-                : 'Première cadence estimée — à confirmer.'}
+                : 'Première cadence estimée, à confirmer.'}
               {predicted.overdueDays > 0 && <span className="trc-next__overdue">En retard de {predicted.overdueDays} j</span>}
             </div>
           )}
@@ -2017,8 +2017,8 @@ function Customer360({
                 {(() => {
                   const b = bandOf(client.lockCount, bands);
                   return b?.name
-                    ? `Calibre ${b.name} · ${client.lockCount} locks — c'est lui qui choisit ses créations et son barème.`
-                    : `${client.lockCount} locks — comptage inscrit, il pilote son prix personnalisé.`;
+                    ? `Calibre ${b.name} · ${client.lockCount} locks, c'est lui qui choisit ses créations et son barème.`
+                    : `${client.lockCount} locks, comptage inscrit, il pilote son prix personnalisé.`;
                 })()}
               </div>
             ) : client.lockCountDeclare ? (
@@ -2028,11 +2028,11 @@ function Customer360({
               <div className="trc-crown__meta">
                 {(() => {
                   const b = bandOf(client.lockCountDeclare, bands);
-                  return `Elle se déclare ${b?.name ? `calibre ${b.name}` : `à ${client.lockCountDeclare} locks`} — durée de créneau seulement. Compter au fauteuil pour ouvrir son prix.`;
+                  return `Elle se déclare ${b?.name ? `calibre ${b.name}` : `à ${client.lockCountDeclare} locks`}, durée de créneau seulement. Compter au fauteuil pour ouvrir son prix.`;
                 })()}
               </div>
             ) : (
-              <div className="trc-crown__meta">Locks à compter — sans eux, les prix s’annoncent « dès ».</div>
+              <div className="trc-crown__meta">Locks à compter, sans eux, les prix s’annoncent « dès ».</div>
             )}
             {/* CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne.
                 En lecture seule : une envie se déclare, elle ne se corrige pas
@@ -2092,7 +2092,7 @@ function Customer360({
                 </Select>
                 {client.jourPrefere !== undefined && JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.ferme && (
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, color: 'var(--copper-700)' }}>
-                    La Maison est fermée ce jour-là — la prédiction glissera au premier jour ouvert.
+                    La Maison est fermée ce jour-là, la prédiction glissera au premier jour ouvert.
                   </div>
                 )}
               </Field>
@@ -2126,7 +2126,7 @@ function Customer360({
                   <button
                     type="button"
                     className="trc-temps__mark"
-                    title={on ? `Fait le ${frShort(myTemps[t.key]!)} — cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
+                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
                     aria-pressed={on}
                     onClick={() => setTemps(client.id, t.key, on ? '' : today)}
                   >
@@ -2218,9 +2218,9 @@ function Customer360({
                   <div className="trc-sub" style={{ padding: '10px 13px', borderBottom: '1px solid var(--hairline)', lineHeight: 1.5 }}>
                     {remiseFamillePct(clientFamily, tetesBranche, todayISO()) > 0 ? (
                       <>Remise famille · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseFamillePct(clientFamily, tetesBranche, todayISO())}%</b>
-                        {clientFamily.remisePct === undefined ? ' (barème du foyer)' : ' (personnalisée)'} — posée d'office sur les rendez-vous des membres, hors forfaits.</>
+                        {clientFamily.remisePct === undefined ? ' (barème du foyer)' : ' (personnalisée)'}, posée d'office sur les rendez-vous des membres, hors forfaits.</>
                     ) : (
-                      <>Remise famille · <b style={{ fontWeight: 600 }}>aucune</b> — ce compte n'en porte pas (réglable dans Finances › Comptes).</>
+                      <>Remise famille · <b style={{ fontWeight: 600 }}>aucune</b>, ce compte n'en porte pas (réglable dans Finances › Comptes).</>
                     )}
                   </div>
 
@@ -2287,7 +2287,7 @@ function Customer360({
                   part si on ne le dit pas ici. */}
               {clientFamily && estLePayeur && membresDuCompte.some((m) => !m.birthday) && (
                 <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5, color: 'var(--copper-700)' }}>
-                  {membresDuCompte.filter((m) => !m.birthday).length} membre(s) sans date de naissance —
+                  {membresDuCompte.filter((m) => !m.birthday).length} membre(s) sans date de naissance,
                   elle ne les verra pas dans Ma Couronne tant qu’elle manque.
                 </div>
               )}
@@ -2324,16 +2324,16 @@ function Customer360({
                     <div
                       className="trc-sub"
                       style={{ marginTop: 6, lineHeight: 1.5 }}
-                      title="La maison y lira le rapport au prix, la hâte, les séjours, un grand jour à venir, une fibre fragile — et en tiendra compte pour son archétype."
+                      title="La maison y lira le rapport au prix, la hâte, les séjours, un grand jour à venir, une fibre fragile, et en tiendra compte pour son archétype."
                     >
-                      Phrases libres — la maison en tient compte pour son archétype.
+                      Phrases libres, la maison en tient compte pour son archétype.
                     </div>
                   );
                 }
                 return (
                   <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
                     {lu.length === 0
-                      ? 'La maison n’y lit aucun signal — reformulez si vous en attendiez un.'
+                      ? 'La maison n’y lit aucun signal, reformulez si vous en attendiez un.'
                       : <>La maison y lit : {lu.map(([k]) => SIGNAL_NOMS[k as SignalCle]).join(' · ')}.</>}
                   </div>
                 );
@@ -2345,7 +2345,7 @@ function Customer360({
             <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
               {client.personaFige ? (
                 <>
-                  Choisi par la Maison — la lecture automatique ne le corrige plus.{' '}
+                  Choisi par la Maison, la lecture automatique ne le corrige plus.{' '}
                   <button
                     type="button"
                     className="tre-link-btn"
@@ -2355,7 +2355,7 @@ function Customer360({
                   </button>
                 </>
               ) : (
-                'Relu à chaque mouvement du carnet — choisir ci-dessus le fige.'
+                'Relu à chaque mouvement du carnet, choisir ci-dessus le fige.'
               )}
             </div>
           </div>
@@ -2377,7 +2377,7 @@ function Customer360({
                 type="button"
                 className={`trc-chip ${!estDePassage(client) && venues >= 1 ? 'is-active' : ''}`}
                 disabled={venues === 0}
-                title={venues === 0 ? 'Elle ne s’est pas encore assise — c’est sa venue qui la couronnera.' : undefined}
+                title={venues === 0 ? 'Elle ne s’est pas encore assise, c’est sa venue qui la couronnera.' : undefined}
                 style={venues === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 onClick={() => patch({ dePassage: undefined })}
               >
@@ -2402,7 +2402,7 @@ function Customer360({
                 className={`trc-chip ${estDePassage(client) ? 'is-active' : ''}`}
                 disabled={!estDePassage(client) && venues >= 2}
                 title={!estDePassage(client) && venues >= 2
-                  ? 'Elle est revenue — la marque serait retirée aussitôt.'
+                  ? 'Elle est revenue, la marque serait retirée aussitôt.'
                   : undefined}
                 style={!estDePassage(client) && venues >= 2 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 onClick={() => patch({ dePassage: true })}
@@ -2420,20 +2420,20 @@ function Customer360({
                 ? 'Son argent et son travail comptent (chiffre, production, primes) ; elle reste hors des têtes couronnées, de la rétention et des relances.'
                 : venues === 0
                   ? 'Elle reste hors des têtes couronnées et de la rétention, sans rien à faire : sa première venue honorée l’y fera entrer d’elle-même.'
-                  : 'Têtes couronnées, rétention, relances — tout ce qui compte des relations la compte.'}
+                  : 'Têtes couronnées, rétention, relances, tout ce qui compte des relations la compte.'}
             >
               {estDePassage(client)
-                ? `De passage — la marque se lève à sa 2ᵉ venue (${venues} à ce jour).`
+                ? `De passage, la marque se lève à sa 2ᵉ venue (${venues} à ce jour).`
                 : venues === 0
-                  ? 'Aucune venue — c’est sa première qui la couronnera.'
+                  ? 'Aucune venue, c’est sa première qui la couronnera.'
                   : venues >= 2
-                    ? `Une relation — revenue ${venues} fois. « De passage » se lèverait aussitôt.`
+                    ? `Une relation, revenue ${venues} fois. « De passage » se lèverait aussitôt.`
                     : 'Elle compte comme relation.'}
             </div>
             <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
               {estDuCercle(venuesCercle, seuilCercle)
                 ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
-                : `Cercle au ${seuilCercle}ᵉ passage — elle en a ${venuesCercle}.`}
+                : `Cercle au ${seuilCercle}ᵉ passage, elle en a ${venuesCercle}.`}
             </div>
           </div>
 
@@ -2446,12 +2446,12 @@ function Customer360({
           <div>
             <span
               className="trc-microlabel"
-              title="Ni son nombre de locks ni une révision du catalogue ne le déplaceront — au fauteuil comme sur Ma Couronne, c’est ce montant qui sort."
+              title="Ni son nombre de locks ni une révision du catalogue ne le déplaceront, au fauteuil comme sur Ma Couronne, c’est ce montant qui sort."
             >
               Ses prix fermes
             </span>
             <div className="trc-sub" style={{ marginTop: 4, marginBottom: 8, lineHeight: 1.5 }}>
-              Un montant convenu avec elle, geste par geste — rien ne le déplace.
+              Un montant convenu avec elle, geste par geste, rien ne le déplace.
             </div>
 
             {Object.entries(client.prixFixes ?? {}).map(([sid, montant]) => {
@@ -2482,7 +2482,7 @@ function Customer360({
                         value={fixEdit.montant}
                         onChange={(e) => setFixEdit({ sid, montant: e.target.value })}
                         style={{ width: 120, textAlign: 'right' }}
-                        aria-label={`Prix ferme — ${sv?.name ?? sid}`}
+                        aria-label={`Prix ferme, ${sv?.name ?? sid}`}
                       />
                       <Button
                         variant="indigo"
@@ -2588,7 +2588,7 @@ function Customer360({
         <div>
           <span className="trc-microlabel">Factures & devis · {documents.length}</span>
           {documents.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document — ses factures et devis apparaîtront ici.</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document, ses factures et devis apparaîtront ici.</div>
           )}
           {documents.length > 0 && (
             <div className="trc-orders">
@@ -2816,7 +2816,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   /* L'IA propose, la maison dispose : la suggestion remplit les champs, elle ne
      valide rien. Rien n'est écrit tant que le maître n'a pas enregistré. */
   const suggest = async () => {
-    if (!nomComplet) { setError('Donnez d’abord un nom — l’IA n’a rien à lire.'); return; }
+    if (!nomComplet) { setError('Donnez d’abord un nom, l’IA n’a rien à lire.'); return; }
     setError(null);
     setWhy(null);
     setThinking(true);

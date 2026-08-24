@@ -533,7 +533,7 @@ export default function Synthese() {
               ? <>La maison dégage <strong style={{ fontWeight: 500, color: 'var(--trf-success)' }}>{fmtMoney(net, currency)}</strong> de résultat en {monthName}. La discipline paie.</>
               : month === thisMonth
                 ? <>Le mois est encore jeune : les charges fixes précèdent les encaissements. Le carnet comblera l’écart.</>
-                : <>Les charges ont dépassé les encaissements en {monthName} — le détail ci-dessous dit où.</>}
+                : <>Les charges ont dépassé les encaissements en {monthName}, le détail ci-dessous dit où.</>}
           </div>
         </div>
       </div>
@@ -545,7 +545,7 @@ export default function Synthese() {
       <div className="trf-panel" style={{ marginTop: 18 }}>
         <div className="trf-panel__title">Chiffre par maison · {monthName}</div>
         {sumTotals(revMaison) === 0 ? (
-          <div className="trf-empty">Aucun rituel honoré en {monthName} — rien à ventiler.</div>
+          <div className="trf-empty">Aucun rituel honoré en {monthName}, rien à ventiler.</div>
         ) : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginTop: 12 }}>
@@ -586,7 +586,7 @@ export default function Synthese() {
             </div>
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
               Rituels honorés du mois, ventilés ligne à ligne : une visite mixte nourrit les deux maisons,
-              chacune à hauteur de ce qu'elle a fait. « Plateau seul » — les lavages et soins vendus sans
+              chacune à hauteur de ce qu'elle a fait. « Plateau seul », les lavages et soins vendus sans
               rituel d'une maison : rien ne permet de les rattacher, on ne devine pas.
               {revenue - sumTotals(revMaison) > 0 && (
                 <> S'y ajoutent <strong style={{ fontWeight: 500 }}>{fmtMoney(revenue - sumTotals(revMaison), currency)}</strong> de
@@ -612,7 +612,7 @@ export default function Synthese() {
           </div>
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
             Du travail fourni ce mois-ci sans encaissement : ces séances étaient déjà réglées, à la vente
-            du forfait ou du pack. Elles ne comptent donc dans aucun chiffre d'affaires — mais elles ont
+            du forfait ou du pack. Elles ne comptent donc dans aucun chiffre d'affaires, mais elles ont
             occupé le fauteuil, et c'est ce que ce compte rend visible.
           </div>
         </div>
@@ -622,7 +622,7 @@ export default function Synthese() {
       <div className="tr-grid tr-grid--3" style={{ marginTop: 18, alignItems: 'start' }}>
         <div className="trf-panel">
           <div className="trf-panel__title">Top prestations · {monthName}</div>
-          {topServices.length === 0 && <div className="trf-empty">Aucun rituel honoré en {monthName} — le classement attend ses lauréates.</div>}
+          {topServices.length === 0 && <div className="trf-empty">Aucun rituel honoré en {monthName}, le classement attend ses lauréates.</div>}
           {topServices.map((s, i) => (
             <div
               className="trf-toprow trf-click"
@@ -650,7 +650,7 @@ export default function Synthese() {
 
         <div className="trf-panel">
           <div className="trf-panel__title">Meilleures clientes · {monthName}</div>
-          {topClients.length === 0 && <div className="trf-empty">Aucun encaissement en {monthName} — les têtes couronnées se font attendre.</div>}
+          {topClients.length === 0 && <div className="trf-empty">Aucun encaissement en {monthName}, les têtes couronnées se font attendre.</div>}
           {topClients.map((c, i) => (
             <div
               className="trf-toprow trf-click"
@@ -714,7 +714,7 @@ export default function Synthese() {
         </div>
         {showRev && (
           revSources.length === 0 ? (
-            <div className="trf-empty" style={{ marginTop: 14 }}>Aucun encaissement en {monthName} — ni facture payée, ni rituel honoré.</div>
+            <div className="trf-empty" style={{ marginTop: 14 }}>Aucun encaissement en {monthName}, ni facture payée, ni rituel honoré.</div>
           ) : (
             <div style={{ marginTop: 16 }}>
               <div className="trf-detail__grid">
@@ -763,7 +763,7 @@ export default function Synthese() {
         </div>
         {showExp && (
           expenseGroups.length === 0 ? (
-            <div className="trf-empty" style={{ marginTop: 14 }}>Aucune dépense engagée en {monthName} — la maison tient ses comptes au clair.</div>
+            <div className="trf-empty" style={{ marginTop: 14 }}>Aucune dépense engagée en {monthName}, la maison tient ses comptes au clair.</div>
           ) : (
             <div style={{ marginTop: 14 }}>
               {expenseGroups.map((g) => (

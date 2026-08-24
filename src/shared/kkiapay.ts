@@ -110,7 +110,7 @@ function wireListeners(): void {
     pending = null;
     if (!p) return;
     if (id) p.resolve({ transactionId: String(id) });
-    else p.reject(new Error('Paiement sans référence — contactez la Maison.'));
+    else p.reject(new Error('Paiement sans référence, contactez la Maison.'));
   });
   w.addFailedListener?.((r) => {
     const p = pending;
@@ -124,12 +124,12 @@ function wireListeners(): void {
    traduits pour la cliente, qui n'a pas à lire de l'anglais technique. */
 function failureMessage(r: unknown): string {
   const raw = JSON.stringify(r ?? '').toLowerCase();
-  if (raw.includes('invalid_number')) return 'Ce numéro Mobile Money n’est pas valide — vérifiez le pays et le numéro.';
+  if (raw.includes('invalid_number')) return 'Ce numéro Mobile Money n’est pas valide, vérifiez le pays et le numéro.';
   if (raw.includes('insufficient')) return 'Solde insuffisant sur le compte débité.';
   if (raw.includes('declined')) return 'Paiement refusé par l’opérateur.';
   if (raw.includes('fraud')) return 'Paiement bloqué par l’opérateur.';
   if (raw.includes('cancel')) return 'Paiement annulé.';
-  return 'Le paiement n’a pas abouti — réessayez ou envoyez l’acompte vous-même.';
+  return 'Le paiement n’a pas abouti, réessayez ou envoyez l’acompte vous-même.';
 }
 
 export type PayRequest = {
@@ -203,8 +203,8 @@ export async function verifyDeposit(input: {
 
 function verifyMessage(e: unknown): string {
   const raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
-  if (raw.includes('amount')) return 'Le montant reçu ne correspond pas à l’acompte attendu — la Maison vous contacte.';
-  if (raw.includes('not_found') || raw.includes('404')) return 'Transaction introuvable chez KkiaPay — gardez votre référence.';
+  if (raw.includes('amount')) return 'Le montant reçu ne correspond pas à l’acompte attendu, la Maison vous contacte.';
+  if (raw.includes('not_found') || raw.includes('404')) return 'Transaction introuvable chez KkiaPay, gardez votre référence.';
   if (raw.includes('failed')) return 'Le paiement n’a pas abouti.';
-  return 'Vérification impossible pour l’instant — votre référence est conservée, la Maison vérifiera.';
+  return 'Vérification impossible pour l’instant, votre référence est conservée, la Maison vérifiera.';
 }

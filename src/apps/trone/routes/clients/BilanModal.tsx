@@ -89,7 +89,7 @@ export function BilanModal({ client, honored, byId, branchId, onClose }: {
       rituel,
       remisLe: todayISO(),
     });
-    toast(`Bilan ${numero} remis — ${client.name.split(' ')[0]} le lit sur Ma Couronne.`);
+    toast(`Bilan ${numero} remis, ${client.name.split(' ')[0]} le lit sur Ma Couronne.`);
     onClose();
   };
 
@@ -100,8 +100,8 @@ export function BilanModal({ client, honored, byId, branchId, onClose }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
           {precedent
-            ? `Pré-rempli du bilan ${precedent.numero} (${frShort(precedent.date)}) — la couronne s'évalue dans la continuité.`
-            : 'Premier bilan de cette couronne — les Quatre Temps partent de la voix de la maison.'}
+            ? `Pré-rempli du bilan ${precedent.numero} (${frShort(precedent.date)}), la couronne s'évalue dans la continuité.`
+            : 'Premier bilan de cette couronne, les Quatre Temps partent de la voix de la maison.'}
           {' '}Numéro : <b style={{ fontWeight: 500 }}>{numero}</b>.
         </div>
 
@@ -156,7 +156,7 @@ export function BilanModal({ client, honored, byId, branchId, onClose }: {
         </div>
 
         <div>
-          <div style={lb}>Le rituel à domicile — les Quatre Temps</div>
+          <div style={lb}>Le rituel à domicile, les Quatre Temps</div>
           {rituel.map((t, i) => (
             <div key={t.nom} style={{ marginTop: 10 }}>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>

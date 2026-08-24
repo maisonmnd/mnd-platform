@@ -354,9 +354,9 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   /* Cycle de vie — un run clôturé est immuable (les chiffres sont figés). */
   const advance = (next: RunStatus) => {
     if (next === 'paye' && !window.confirm(
-      `Marquer ce run payé ?\n\nLa masse salariale nette (${fmtMoney(t.net, currency)}) s'inscrira dans les Dépenses, en catégorie Salaires — c'est ce qui la fait compter dans le résultat du salon et dans le Partage.`,
+      `Marquer ce run payé ?\n\nLa masse salariale nette (${fmtMoney(t.net, currency)}) s'inscrira dans les Dépenses, en catégorie Salaires, c'est ce qui la fait compter dans le résultat du salon et dans le Partage.`,
     )) return;
-    if (next === 'cloture' && !window.confirm('Clôturer ce run ? Il deviendra immuable — toute correction passera par un run de régularisation le mois suivant.')) return;
+    if (next === 'cloture' && !window.confirm('Clôturer ce run ? Il deviendra immuable, toute correction passera par un run de régularisation le mois suivant.')) return;
     const stamp = next === 'valide' ? { validatedAt: nowStamp() } : next === 'paye' ? { paidAt: nowStamp() } : next === 'cloture' ? { closedAt: nowStamp() } : {};
     setRun({ status: next, ...stamp });
     if (next === 'paye') inscrireCharges();
@@ -412,7 +412,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
       </div>
 
       {!editable && (
-        <div className="tre-inline-note" style={{ marginTop: 12 }}><span className="mark">!</span><span>Run {RUN_STATUS_LABEL[run.status].toLowerCase()} — les lignes sont figées. {run.status === 'cloture' ? 'Toute correction passe par un run de régularisation.' : ''}</span></div>
+        <div className="tre-inline-note" style={{ marginTop: 12 }}><span className="mark">!</span><span>Run {RUN_STATUS_LABEL[run.status].toLowerCase()}, les lignes sont figées. {run.status === 'cloture' ? 'Toute correction passe par un run de régularisation.' : ''}</span></div>
       )}
 
       {/* LE PONT VERS LES DÉPENSES, VISIBLE. Un run payé dont les charges ne
@@ -462,7 +462,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
           <span className="mark">!</span>
           <span>
             Maître{orphanMasters.length > 1 ? 's' : ''} au planning sans dossier dans l’équipe :{' '}
-            <b>{orphanMasters.join(' · ')}</b> — leurs rituels honorés du mois ne comptent dans aucune
+            <b>{orphanMasters.join(' · ')}</b>, leurs rituels honorés du mois ne comptent dans aucune
             commission. Nom renommé ou orthographe différente ? Alignez le dossier (Équipe) puis recréez
             le run en brouillon.
           </span>
@@ -600,7 +600,7 @@ export function PaieParametres() {
           <div className="tre-inline-note" style={{ marginBottom: 14 }}>
             <span className="mark">!</span>
             <span>
-              <b>Aucune cotisation n'est retenue ni due</b> tant que cet interrupteur est éteint — ni part
+              <b>Aucune cotisation n'est retenue ni due</b> tant que cet interrupteur est éteint, ni part
               salariale, ni part patronale, sur les bulletins comme dans le coût employeur. Les taux ci-dessous
               sont conservés : le jour où les employés seront déclarés, il suffira de rallumer.
             </span>
@@ -636,8 +636,8 @@ export function PaieParametres() {
           <div className="tre-inline-note" style={{ marginBottom: 14 }}>
             <span className="mark">!</span>
             <span>
-              <b>Aucun impôt n'est retenu</b> tant que cet interrupteur est éteint — le bulletin le dit en
-              toutes lettres (« suspendu — non appliqué »), pour qu'un zéro ne se lise pas comme un oubli.
+              <b>Aucun impôt n'est retenu</b> tant que cet interrupteur est éteint, le bulletin le dit en
+              toutes lettres (« suspendu, non appliqué »), pour qu'un zéro ne se lise pas comme un oubli.
               Le barème ci-dessous est conservé.
             </span>
           </div>

@@ -54,8 +54,8 @@ export async function suggestClient(
 function aiMessage(e: unknown): string {
   const raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
   if (raw.includes('forbidden')) return 'Réservé au personnel connecté.';
-  if (raw.includes('refusal')) return 'L’IA a préféré ne pas répondre — renseignez la fiche à la main.';
-  if (raw.includes('upstream') || raw.includes('502')) return 'L’IA est injoignable — réessayez dans un instant.';
+  if (raw.includes('refusal')) return 'L’IA a préféré ne pas répondre, renseignez la fiche à la main.';
+  if (raw.includes('upstream') || raw.includes('502')) return 'L’IA est injoignable, réessayez dans un instant.';
   if (raw.includes('bad request')) return 'Créez d’abord un persona et un segment.';
-  return 'Suggestion impossible — renseignez la fiche à la main.';
+  return 'Suggestion impossible, renseignez la fiche à la main.';
 }

@@ -64,11 +64,11 @@ const TABS: { k: Tab; l: string }[] = [
     réponse qui choisit le registre : on raconte, on ne range plus. */
 type Geste = 'foyer' | 'cote' | 'emprunt' | 'rembourse' | 'caisse';
 const GESTES: { k: Geste; t: string; s: string; pt: string; couleur: string }[] = [
-  { k: 'foyer', t: 'J’ai pris de l’argent pour le foyer', s: 'Marché, école, maison — sur le budget du mois.', pt: 'Retrait du foyer', couleur: 'var(--color-copper)' },
-  { k: 'cote', t: 'J’ai mis de côté', s: 'Réinvestissement ou réserve fiscale — l’argent part au coffre-fort.', pt: 'Mise de côté', couleur: 'var(--trf-success, #4A6B4F)' },
-  { k: 'emprunt', t: 'Le foyer a emprunté au salon', s: 'Une avance à rembourser — elle crée une dette.', pt: 'Emprunt', couleur: 'var(--trf-error, #A03D2E)' },
+  { k: 'foyer', t: 'J’ai pris de l’argent pour le foyer', s: 'Marché, école, maison, sur le budget du mois.', pt: 'Retrait du foyer', couleur: 'var(--color-copper)' },
+  { k: 'cote', t: 'J’ai mis de côté', s: 'Réinvestissement ou réserve fiscale, l’argent part au coffre-fort.', pt: 'Mise de côté', couleur: 'var(--trf-success, #4A6B4F)' },
+  { k: 'emprunt', t: 'Le foyer a emprunté au salon', s: 'Une avance à rembourser, elle crée une dette.', pt: 'Emprunt', couleur: 'var(--trf-error, #A03D2E)' },
   { k: 'rembourse', t: 'Le foyer rembourse le salon', s: 'Réduit la dette en cours.', pt: 'Remboursement', couleur: 'var(--indigo-400, #4E5790)' },
-  { k: 'caisse', t: 'Mouvement sur une caisse à part', s: 'Wells Fargo, Mes Euros… — sans lien avec le salon.', pt: 'Caisse à part', couleur: 'var(--color-argile)' },
+  { k: 'caisse', t: 'Mouvement sur une caisse à part', s: 'Wells Fargo, Mes Euros…, sans lien avec le salon.', pt: 'Caisse à part', couleur: 'var(--color-argile)' },
 ];
 
 /** Une pastille de choix — le geste, le motif, l'enveloppe. Un point de
@@ -546,7 +546,7 @@ export default function SalonFoyer() {
   const supprimeCaisse = (c: CaisseIndep) => {
     const n = mouvementsDe(mvtsCaisse, c.id).length;
     if (n > 0) {
-      window.alert(`« ${c.nom} » porte ${n} mouvement${n > 1 ? 's' : ''}. Retire-les d'abord — une caisse ne se ferme pas sur son registre.`);
+      window.alert(`« ${c.nom} » porte ${n} mouvement${n > 1 ? 's' : ''}. Retire-les d'abord, une caisse ne se ferme pas sur son registre.`);
       return;
     }
     if (!window.confirm(`Supprimer la caisse « ${c.nom} » ? Elle est vide, l'action est définitive.`)) return;
@@ -608,7 +608,7 @@ export default function SalonFoyer() {
     return (
       <div>
         <PageHead eyebrow="Finances · entreprise & foyer" title="Salon & Foyer." sub="Réservé au souverain de la Maison." />
-        <div className="trf-empty">Cet écran tient les prélèvements du foyer, la dette des associés et les caisses indépendantes — il ne s'ouvre qu'au souverain.</div>
+        <div className="trf-empty">Cet écran tient les prélèvements du foyer, la dette des associés et les caisses indépendantes, il ne s'ouvre qu'au souverain.</div>
       </div>
     );
   }
@@ -669,7 +669,7 @@ export default function SalonFoyer() {
       <PageHead
         eyebrow="Finances · entreprise & foyer"
         title="Salon & Foyer."
-        sub="Chaque franc encaissé se partage en quatre enveloppes ; le foyer vit sur la sienne. Le prélèvement n'est pas une charge — c'est une distribution du bénéfice."
+        sub="Chaque franc encaissé se partage en quatre enveloppes ; le foyer vit sur la sienne. Le prélèvement n'est pas une charge, c'est une distribution du bénéfice."
       />
 
       <div className="trf-tabs">
@@ -686,7 +686,7 @@ export default function SalonFoyer() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
               Un motif dit à quoi l’argent a servi ; ses sous-motifs le précisent.
-              Renommer un motif ne touche pas aux retraits déjà inscrits — ils gardent
+              Renommer un motif ne touche pas aux retraits déjà inscrits, ils gardent
               le mot sous lequel ils ont été écrits.
             </div>
 
@@ -972,7 +972,7 @@ export default function SalonFoyer() {
                       </span>
                       <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: apres >= 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
                         {fmtMoney(Math.abs(apres), currency)}
-                        {apres < 0 ? ' — il s’inscrira quand même' : ' ce mois'}
+                        {apres < 0 ? ', il s’inscrira quand même' : ' ce mois'}
                       </b>
                     </div>
                   )}
@@ -1105,7 +1105,7 @@ export default function SalonFoyer() {
               color="var(--color-copper)"
             />
             <Ligne
-              l="= Bénéfice réel — c'est LUI qui se partage"
+              l="= Bénéfice réel, c'est LUI qui se partage"
               v={fmtMoney(benefice, currency)}
               strong
               color={benefice > 0 ? 'var(--trf-success)' : 'var(--trf-error)'}
@@ -1121,7 +1121,7 @@ export default function SalonFoyer() {
               ))
             ) : (
               <div className="trf-empty" style={{ marginTop: 10 }}>
-                <b>Le salon n'a rien dégagé ce mois — il n'y a rien à partager.</b> Les trois enveloppes valent zéro :
+                <b>Le salon n'a rien dégagé ce mois, il n'y a rien à partager.</b> Les trois enveloppes valent zéro :
                 on ne répartit pas une perte. Tout retrait du foyer ce mois-ci dépasse donc un budget nul, et se
                 convertit en prêt des associés envers le salon.
                 {monthKey(todayISO()) === month && (
@@ -1140,7 +1140,7 @@ export default function SalonFoyer() {
             <Ligne l="Budget prélèvement (la règle)" v={fmtMoney(env.prelevement, currency)} />
             <Ligne l="Prélèvement réel du mois" v={fmtMoney(preleve, currency)} />
             <Ligne
-              l={ecart < 0 ? 'DÉPASSEMENT — le foyer a trop pris ce mois' : 'Reste à prélever'}
+              l={ecart < 0 ? 'DÉPASSEMENT, le foyer a trop pris ce mois' : 'Reste à prélever'}
               v={fmtMoney(Math.abs(ecart), currency)}
               strong
               color={ecart < 0 ? 'var(--trf-error)' : 'var(--trf-success)'}
@@ -1153,13 +1153,13 @@ export default function SalonFoyer() {
                     : `Convertir le dépassement en prêt (${fmtMoney(-ecart, currency)})`}
                 </button>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                  L'écart devient une dette du foyer envers le salon — tracée, remboursable, jamais oubliée.
+                  L'écart devient une dette du foyer envers le salon, tracée, remboursable, jamais oubliée.
                 </span>
               </div>
             )}
             {ecart >= 0 && pretDuMois && (
               <div className="trf-empty" style={{ marginTop: 10 }}>
-                Un prêt de {fmtMoney(pretDuMois.amountXof, currency)} avait été inscrit pour ce mois — le dépassement a disparu depuis.
+                Un prêt de {fmtMoney(pretDuMois.amountXof, currency)} avait été inscrit pour ce mois, le dépassement a disparu depuis.
                 S'il n'a plus lieu d'être, il se supprime dans l'onglet Prêts associés.
               </div>
             )}
@@ -1185,29 +1185,29 @@ export default function SalonFoyer() {
             })}
             <Ligne l="Épargne inscrite ce mois" v={fmtMoney(epargneInscrite, currency)} strong color="var(--trf-success)" />
             <div className="trf-empty" style={{ marginTop: 10 }}>
-              L'argent qui n'existait pas avant. Voilà de quoi réinvestir. Rien ne s'inscrit tout seul : la dotation se propose, le souverain l'inscrit — deux clics ne font qu'une ligne.
+              L'argent qui n'existait pas avant. Voilà de quoi réinvestir. Rien ne s'inscrit tout seul : la dotation se propose, le souverain l'inscrit, deux clics ne font qu'une ligne.
             </div>
           </Panel>
 
           <Panel title="Dette des associés envers le salon">
             <Ligne
-              l={dette > 0 ? 'Prêts en cours — à rembourser' : 'Prêts en cours'}
-              v={dette > 0 ? fmtMoney(dette, currency) : '0 — tout est remboursé'}
+              l={dette > 0 ? 'Prêts en cours, à rembourser' : 'Prêts en cours'}
+              v={dette > 0 ? fmtMoney(dette, currency) : '0, tout est remboursé'}
               strong
               color={dette > 0 ? 'var(--trf-error)' : 'var(--trf-success)'}
             />
             {dette > 0 && (
               <div className="trf-empty" style={{ marginTop: 10 }}>
                 Ce que le foyer doit rendre au salon. Remboursement conseillé : une retenue sur les prélèvements des
-                mois suivants, jusqu'à extinction — elle s'inscrit dans l'onglet Prêts associés.
+                mois suivants, jusqu'à extinction, elle s'inscrit dans l'onglet Prêts associés.
               </div>
             )}
           </Panel>
 
-          <Panel title="Caisses indépendantes · hors MND — pour information" style={{ background: 'var(--grad-indigo)', border: 'none' }}>
+          <Panel title="Caisses indépendantes · hors MND, pour information" style={{ background: 'var(--grad-indigo)', border: 'none' }}>
             {mesCaisses.length === 0 && (
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--indigo-100)' }}>
-                Aucune caisse indépendante — elles se créent dans l'onglet du même nom.
+                Aucune caisse indépendante, elles se créent dans l'onglet du même nom.
               </div>
             )}
             {mesCaisses.map((c) => (
@@ -1245,7 +1245,7 @@ export default function SalonFoyer() {
             <div className="trf-kpi" style={{ '--accent': ecart < 0 ? 'var(--trf-error)' : 'var(--trf-success)' } as CSSProperties}>
               <div className="l">{ecart < 0 ? 'Dépassement' : 'Reste à prélever'}</div>
               <div className="v">{fmtMoney(Math.abs(ecart), currency)}</div>
-              <div className="c">{ecart < 0 ? 'le foyer a trop pris — réduire, ou convertir en prêt (onglet Le mois)' : 'le foyer vit là-dessus, pas plus'}</div>
+              <div className="c">{ecart < 0 ? 'le foyer a trop pris, réduire, ou convertir en prêt (onglet Le mois)' : 'le foyer vit là-dessus, pas plus'}</div>
             </div>
           </div>
 
@@ -1265,7 +1265,7 @@ export default function SalonFoyer() {
               registre Dépenses (99 lignes du 11 août) portent des motifs
               DÉDUITS d'un libellé : ce sont les premiers à devoir se corriger. */}
           <Panel title={`Les retraits de ${monthTitle(month)}`}>
-            {duMois.length === 0 && <div className="trf-empty">Aucun retrait ce mois — le registre est vide, pas en panne.</div>}
+            {duMois.length === 0 && <div className="trf-empty">Aucun retrait ce mois, le registre est vide, pas en panne.</div>}
             {retraitsParJour.map((j) => (
               <Fragment key={j.date}>
                 <div className="trf-jour">
@@ -1292,7 +1292,7 @@ export default function SalonFoyer() {
                     <Field label="Note (libre)"><Input value={editPrel.note} onChange={(e) => setEditPrel({ ...editPrel, note: e.target.value })} /></Field>
                     <Field label={`Montant (${currency})`}>
                       {postesEditNets.length > 0
-                        ? <Input value={fmtMoney(montantEdit, currency)} readOnly title="La somme des postes fait le montant — modifiez les postes." style={{ opacity: 0.75 }} />
+                        ? <Input value={fmtMoney(montantEdit, currency)} readOnly title="La somme des postes fait le montant, modifiez les postes." style={{ opacity: 0.75 }} />
                         : <Input inputMode="numeric" value={editPrel.montant} onChange={(e) => setEditPrel({ ...editPrel, montant: e.target.value })} />}
                     </Field>
                   </div>
@@ -1304,7 +1304,7 @@ export default function SalonFoyer() {
                       <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Input
                           value={x.label}
-                          placeholder="Poste — marché, pharmacie, taxi…"
+                          placeholder="Poste, marché, pharmacie, taxi…"
                           onChange={(e) => setEditPrel({ ...editPrel, postes: editPrel.postes.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })}
                           style={{ flex: 1, minWidth: 160 }}
                         />
@@ -1336,7 +1336,7 @@ export default function SalonFoyer() {
                     <button className="trf-act" onClick={sauvePrelevement} disabled={montantEdit <= 0}>Enregistrer</button>
                     <button className="trf-act trf-act--ghost" onClick={() => setEditPrel(null)}>Annuler</button>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                      Changer la date pour un autre mois déplace ce retrait dans ce mois-là — et son budget.
+                      Changer la date pour un autre mois déplace ce retrait dans ce mois-là, et son budget.
                     </span>
                   </div>
                 </div>
@@ -1344,7 +1344,7 @@ export default function SalonFoyer() {
                 <div key={p.id} className="trf-tally">
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)', minWidth: 0 }}>
                     {/* La date a quitté la ligne : la journée la porte au-dessus. */}
-                    <strong style={{ color: 'var(--color-indigo)' }}>{p.beneficiaire}</strong> · {p.motif}{p.note ? ` — ${p.note}` : ''}
+                    <strong style={{ color: 'var(--color-indigo)' }}>{p.beneficiaire}</strong> · {p.motif}{p.note ? `, ${p.note}` : ''}
                     {/* Le détail se LIT sur la ligne — il n'était visible nulle
                         part une fois écrit (19 août). */}
                     {(p.items?.length ?? 0) > 0 && (
@@ -1379,9 +1379,9 @@ export default function SalonFoyer() {
           </div>
 
 
-          <Panel title="Le registre — du premier prêt à aujourd'hui">
+          <Panel title="Le registre, du premier prêt à aujourd'hui">
             {prets.filter((p) => p.branchId === branch.id).length === 0 && (
-              <div className="trf-empty">Aucun prêt — le foyer n'a jamais dépassé son budget, ou rien n'a encore été tracé.</div>
+              <div className="trf-empty">Aucun prêt, le foyer n'a jamais dépassé son budget, ou rien n'a encore été tracé.</div>
             )}
             {(() => {
               let cumul = 0;
@@ -1398,8 +1398,8 @@ export default function SalonFoyer() {
                           <Field label="Date"><Input type="date" value={editPret.date} onChange={(e) => setEditPret({ ...editPret, date: e.target.value })} /></Field>
                           <Field label="Type">
                             <Select value={editPret.type} onChange={(e) => setEditPret({ ...editPret, type: e.target.value as 'pret' | 'remboursement' })}>
-                              <option value="pret">Prêt — le foyer a pris au-delà du budget</option>
-                              <option value="remboursement">Remboursement — retenue ou versement</option>
+                              <option value="pret">Prêt, le foyer a pris au-delà du budget</option>
+                              <option value="remboursement">Remboursement, retenue ou versement</option>
                             </Select>
                           </Field>
                           <Field label="Associé">
@@ -1458,7 +1458,7 @@ export default function SalonFoyer() {
             <div className="trf-kpi" style={{ '--accent': 'var(--color-indigo)' } as CSSProperties}>
               <div className="l">Réinvestissement</div>
               <div className="v">{fmtMoney(soldeReinvest, currency)}</div>
-              <div className="c">matériel, expansion, formation — intouchable</div>
+              <div className="c">matériel, expansion, formation, intouchable</div>
             </div>
             <div className="trf-kpi" style={{ '--accent': 'var(--color-copper)' } as CSSProperties}>
               <div className="l">Fiscale & imprévus</div>
@@ -1476,7 +1476,7 @@ export default function SalonFoyer() {
             </div>
           </div>
 
-          <Panel title={`Dotations de ${monthTitle(month)} — proposées par le Partage`}>
+          <Panel title={`Dotations de ${monthTitle(month)}, proposées par le Partage`}>
             {ENVELOPPES_RESERVE.map((e) => {
               const propose = e === 'reinvestissement' ? env.reinvest : env.reserve;
               const inscrite = dotationInscrite(e);
@@ -1484,7 +1484,7 @@ export default function SalonFoyer() {
                 <div key={e} className="trf-tally">
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
                     {RESERVE_LABELS[e]} · proposé {fmtMoney(propose, currency)}
-                    {inscrite && <> · <span style={{ color: 'var(--trf-success)' }}>au coffre — {fmtMoney(inscrite.amountXof, currency)}</span></>}
+                    {inscrite && <> · <span style={{ color: 'var(--trf-success)' }}>au coffre, {fmtMoney(inscrite.amountXof, currency)}</span></>}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {(!inscrite || inscrite.amountXof !== propose) && propose > 0 && (
@@ -1507,7 +1507,7 @@ export default function SalonFoyer() {
               réserve, ce que la fenêtre « Inscrire un mouvement » ne propose
               pas (on met de côté d'un geste ; on reprend au coffre à bon
               escient, et cela se pèse). */}
-          <Panel title="Retirer d’une réserve — ou corriger à la main">
+          <Panel title="Retirer d’une réserve, ou corriger à la main">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <Field label="Date"><Input type="date" value={fRes.date} onChange={(e) => setFRes({ ...fRes, date: e.target.value })} /></Field>
               <Field label="Enveloppe">
@@ -1518,8 +1518,8 @@ export default function SalonFoyer() {
               </Field>
               <Field label="Sens">
                 <Select value={fRes.sens} onChange={(e) => { setFRes({ ...fRes, sens: e.target.value as 'dotation' | 'retrait' }); setVrsErr(null); }}>
-                  <option value="dotation">Dépôt — on met de côté</option>
-                  <option value="retrait">Retrait — à bon escient</option>
+                  <option value="dotation">Dépôt, on met de côté</option>
+                  <option value="retrait">Retrait, à bon escient</option>
                 </Select>
               </Field>
               <Field label="Note"><Input value={fRes.note} onChange={(e) => setFRes({ ...fRes, note: e.target.value })} placeholder="Achat fauteuil, acompte impôts…" /></Field>
@@ -1531,9 +1531,9 @@ export default function SalonFoyer() {
             </div>
           </Panel>
 
-          <Panel title="Le registre de l'épargne — au Coffre-fort">
+          <Panel title="Le registre de l'épargne, au Coffre-fort">
             {mvtsEnveloppe(coffre, branch.id).length === 0 && (
-              <div className="trf-empty">Rien de côté encore — la première dotation se met au coffre d'un clic, ci-dessus.</div>
+              <div className="trf-empty">Rien de côté encore, la première dotation se met au coffre d'un clic, ci-dessus.</div>
             )}
             {mvtsEnveloppe(coffre, branch.id).map((m) => (
               editEpa?.id === m.id ? (
@@ -1548,8 +1548,8 @@ export default function SalonFoyer() {
                     </Field>
                     <Field label="Sens">
                       <Select value={editEpa.sens} onChange={(e) => setEditEpa({ ...editEpa, sens: e.target.value as 'depot' | 'virement' })}>
-                        <option value="depot">Dépôt — on met de côté</option>
-                        <option value="virement">Retrait — à bon escient</option>
+                        <option value="depot">Dépôt, on met de côté</option>
+                        <option value="virement">Retrait, à bon escient</option>
                       </Select>
                     </Field>
                     <Field label="Note"><Input value={editEpa.note} onChange={(e) => setEditEpa({ ...editEpa, note: e.target.value })} /></Field>
@@ -1567,7 +1567,7 @@ export default function SalonFoyer() {
                 <div key={m.id} className="trf-tally">
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)' }}>
                     {frDay(m.date)} · <strong style={{ color: 'var(--color-indigo)' }}>{m.enveloppe ? RESERVE_LABELS[m.enveloppe] : 'Épargne'}</strong>
-                    {m.note ? ` — ${m.note}` : ''}
+                    {m.note ? `, ${m.note}` : ''}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500, color: m.kind === 'depot' ? 'var(--trf-success)' : 'var(--trf-error)' }}>
@@ -1659,8 +1659,8 @@ export default function SalonFoyer() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
                 {fMvt.sens === 'entree'
-                  ? 'De l’argent entre dans cette caisse — report de solde, versement reçu.'
-                  : 'De l’argent sort de cette caisse — une dépense, un virement fait.'}
+                  ? 'De l’argent entre dans cette caisse, report de solde, versement reçu.'
+                  : 'De l’argent sort de cette caisse, une dépense, un virement fait.'}
               </div>
             </div>
 
@@ -1758,7 +1758,7 @@ export default function SalonFoyer() {
 
             {enDevise && litMontant(fMvt.montant) > 0 && litMontant(fMvt.taux) > 0 && (
               <div className="mnd-bande" style={{ padding: '10px 12px', fontFamily: 'var(--font-sans)', fontSize: 12 }}>
-                Contre-valeur indicative : {fmtMoney(Math.round(litMontant(fMvt.montant) * litMontant(fMvt.taux)), currency)} — n’entre dans aucun total MND.
+                Contre-valeur indicative : {fmtMoney(Math.round(litMontant(fMvt.montant) * litMontant(fMvt.taux)), currency)}, n’entre dans aucun total MND.
               </div>
             )}
 
@@ -1804,7 +1804,7 @@ export default function SalonFoyer() {
                 <Field label="Nom"><Input value={fCaisse.nom} onChange={(e) => setFCaisse({ ...fCaisse, nom: e.target.value })} placeholder="Succession · Projet terrain · Tontine…" /></Field>
                 <Field label="Monnaie tenue">
                   <Select value={fCaisse.devise} onChange={(e) => setFCaisse({ ...fCaisse, devise: e.target.value })}>
-                    <option value={currency}>{currency} — la monnaie de la maison</option>
+                    <option value={currency}>{currency}, la monnaie de la maison</option>
                     {DEVISES_CAISSE.map((d) => <option key={d} value={d}>{d}</option>)}
                   </Select>
                 </Field>
@@ -1814,7 +1814,7 @@ export default function SalonFoyer() {
                 <button className="trf-act" onClick={creeCaisse} disabled={!fCaisse.nom.trim()}>Créer la caisse</button>
                 <button className="trf-act trf-act--ghost" onClick={() => setFCaisse(null)}>Annuler</button>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                  La monnaie se fige au premier mouvement — un solde ne se relit pas dans une autre devise.
+                  La monnaie se fige au premier mouvement, un solde ne se relit pas dans une autre devise.
                 </span>
               </div>
             </Panel>
@@ -1867,7 +1867,7 @@ export default function SalonFoyer() {
                         disabled={mvtsActifs.length > 0}
                         onChange={(e) => setFEdit({ ...fEdit, devise: e.target.value })}
                       >
-                        <option value={currency}>{currency} — la monnaie de la maison</option>
+                        <option value={currency}>{currency}, la monnaie de la maison</option>
                         {DEVISES_CAISSE.map((d) => <option key={d} value={d}>{d}</option>)}
                       </Select>
                     </Field>
@@ -1997,12 +1997,12 @@ export default function SalonFoyer() {
       {tab === 'regle' && (
         <div>
           <div className="trf-guard" style={{ marginTop: 8 }}>
-            Les charges se paient d'abord, à leur montant RÉEL. C'est le <b>bénéfice</b> — ce qui reste — qui se
+            Les charges se paient d'abord, à leur montant RÉEL. C'est le <b>bénéfice</b>, ce qui reste, qui se
             partage en trois. Le repère de charges ne prend rien au partage : il sert seulement à dire si vos
             charges tiennent l'objectif que vous vous êtes fixé.
           </div>
 
-          <Panel title="Les trois parts du bénéfice — leur somme doit faire 100 %">
+          <Panel title="Les trois parts du bénéfice, leur somme doit faire 100 %">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
               <Field label="Réinvestissement (%)"><Input inputMode="numeric" value={cfgForm.reinvest} onChange={(e) => setFCfg({ ...cfgForm, reinvest: e.target.value })} /></Field>
               <Field label="Réserve fiscale & imprévus (%)"><Input inputMode="numeric" value={cfgForm.reserve} onChange={(e) => setFCfg({ ...cfgForm, reserve: e.target.value })} /></Field>
@@ -2011,7 +2011,7 @@ export default function SalonFoyer() {
             </div>
             <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: cfgTotal === 100 ? 'var(--trf-success)' : 'var(--trf-error)' }}>
-                Total des trois parts · {cfgTotal} %{cfgTotal !== 100 && ' — la règle ne s’enregistre qu’à 100'}
+                Total des trois parts · {cfgTotal} %{cfgTotal !== 100 && ', la règle ne s’enregistre qu’à 100'}
               </span>
               <button className="trf-act" onClick={sauveCfg} disabled={cfgTotal !== 100}>Enregistrer la règle</button>
               {fCfg && <button className="trf-act trf-act--ghost" onClick={() => setFCfg(null)}>Annuler</button>}
@@ -2023,7 +2023,7 @@ export default function SalonFoyer() {
             </div>
           </Panel>
 
-          <Panel title="Ce que chaque enveloppe veut dire — à écrire dans vos mots">
+          <Panel title="Ce que chaque enveloppe veut dire, à écrire dans vos mots">
             <div style={{ display: 'grid', gap: 12 }}>
               {CLES_ENVELOPPES.map((k) => (
                 <Field key={k} label={ENVELOPPE_LABELS[k]}>
@@ -2040,11 +2040,11 @@ export default function SalonFoyer() {
               <button className="trf-act" onClick={sauveDits} disabled={!fDits}>Enregistrer les définitions</button>
               {fDits && <button className="trf-act trf-act--ghost" onClick={() => setFDits(null)}>Annuler</button>}
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                Un champ vidé retombe sur la phrase de départ — une enveloppe ne reste jamais muette.
+                Un champ vidé retombe sur la phrase de départ, une enveloppe ne reste jamais muette.
               </span>
             </div>
             <div className="trf-empty" style={{ marginTop: 10 }}>
-              Les charges du salon se saisissent dans l'écran DÉPENSES, comme toujours — sa nomenclature couvre le modèle
+              Les charges du salon se saisissent dans l'écran DÉPENSES, comme toujours, sa nomenclature couvre le modèle
               (Loyer → Local, Produits & Stock → Matières premières, Salaires employés → Salaires, Banque & frais → Frais bancaires).
               Les retraits du foyer, eux, ne s'y saisissent PLUS JAMAIS : ils vivent ici, dans l'annexe Prélèvements.
             </div>

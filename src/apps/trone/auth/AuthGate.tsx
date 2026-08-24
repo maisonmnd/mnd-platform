@@ -144,7 +144,7 @@ function Login() {
           {mode === 'connexion'
             ? 'Entrez dans la salle du conseil.'
             : mode === 'fondation'
-            ? 'Fondez la Maison — ce premier compte devient souverain.'
+            ? 'Fondez la Maison, ce premier compte devient souverain.'
             : mode === 'oubli'
             ? 'Indiquez votre e-mail : la Maison vous envoie un code à 6 chiffres.'
             : 'Saisissez le code reçu, puis choisissez votre nouveau mot de passe.'}
@@ -246,14 +246,14 @@ function Login() {
 function messageFor(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err);
   if (/invalid login credentials/i.test(m)) return 'E-mail ou mot de passe incorrect.';
-  if (/user already registered/i.test(m)) return 'Ce compte existe déjà — connectez-vous.';
+  if (/user already registered/i.test(m)) return 'Ce compte existe déjà, connectez-vous.';
   if (/email.*confirm/i.test(m)) return 'E-mail non confirmé. Vérifiez votre boîte.';
   if (/expired|invalid.*(token|otp)|(token|otp).*invalid/i.test(m))
-    return 'Code invalide ou expiré — demandez-en un nouveau.';
+    return 'Code invalide ou expiré, demandez-en un nouveau.';
   if (/should be different|same.*password/i.test(m))
     return 'Choisissez un mot de passe différent de l’ancien.';
-  if (/rate limit|too many/i.test(m)) return 'Trop de tentatives — patientez quelques minutes.';
+  if (/rate limit|too many/i.test(m)) return 'Trop de tentatives, patientez quelques minutes.';
   if (/sending|smtp|500|unexpected/i.test(m))
-    return 'L’envoi de l’e-mail a échoué côté maison — réessayez dans un instant.';
+    return 'L’envoi de l’e-mail a échoué côté maison, réessayez dans un instant.';
   return m;
 }

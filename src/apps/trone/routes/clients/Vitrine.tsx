@@ -50,7 +50,7 @@ export default function Vitrine() {
     return (
       <div className="mnd-rise">
         <PageHead eyebrow="Vitrine · L’écran de la cliente" title="La Vitrine." />
-        <div className="trc-empty">Aucune tête couronnée sur cette branche — la Vitrine attend sa première cliente.</div>
+        <div className="trc-empty">Aucune tête couronnée sur cette branche, la Vitrine attend sa première cliente.</div>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export default function Vitrine() {
           ))}
           {!query.trim() && filtered.length > 16 && (
             <span className="mnd-muted" style={{ fontSize: 12 }}>
-              … et {filtered.length - 16} autres — cherchez par nom ou téléphone.
+              … et {filtered.length - 16} autres, cherchez par nom ou téléphone.
             </span>
           )}
           {filtered.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune cliente ne correspond.</span>}
@@ -152,7 +152,7 @@ export function InvitationCouronne({ surComptoir }: {
     const fen = window.open('', '_blank', 'noopener,width=520,height=760');
     if (!fen) return;
     fen.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8" />
-<title>Ma Couronne — carte d'invitation</title>
+<title>Ma Couronne, carte d'invitation</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Jost:wght@400;500;600&display=swap" />
 <style>
   @page { size: A5 portrait; margin: 0; }
@@ -173,15 +173,15 @@ export function InvitationCouronne({ surComptoir }: {
   <div class="carte">
     <div class="marque">MAISON MND</div>
     <div class="titre">Ma Couronne.</div>
-    <div class="sous">Vos rendez-vous, le suivi de votre couronne, le Cercle — dans votre poche.</div>
+    <div class="sous">Vos rendez-vous, le suivi de votre couronne, le Cercle, dans votre poche.</div>
     <svg class="qr" viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="Scanner pour ouvrir Ma Couronne">
       <rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#F6F1E7" />
       <path d="${path}" fill="#1E2150" shape-rendering="crispEdges" />
     </svg>
     <div class="etapes">
       <b>1</b> · Scannez avec l'appareil photo<br />
-      <b>2</b> · Créez votre espace — votre couronne vous reconnaît<br />
-      <b>3</b> · « Ajouter à l'écran d'accueil » — elle s'installe comme une application
+      <b>2</b> · Créez votre espace, votre couronne vous reconnaît<br />
+      <b>3</b> · « Ajouter à l'écran d'accueil », elle s'installe comme une application
     </div>
     <div class="lien">${lienCouronne}</div>
     <div class="devise">${DEVISE_COMPLETE}</div>
@@ -224,7 +224,7 @@ export function InvitationCouronne({ surComptoir }: {
             size="sm"
             onClick={() => surComptoir({
               titre: 'Ma Couronne.',
-              phrase: 'Scannez — votre couronne vous reconnaît.',
+              phrase: 'Scannez, votre couronne vous reconnaît.',
               valeur: lienCouronne,
             })}
           >
@@ -237,7 +237,7 @@ export function InvitationCouronne({ surComptoir }: {
           size="sm"
           onClick={() => {
             void navigator.clipboard.writeText(lienCouronne).then(
-              () => toast('Lien copié — collez-le dans WhatsApp ou un statut.'),
+              () => toast('Lien copié, collez-le dans WhatsApp ou un statut.'),
               () => toast(`Le lien : ${lienCouronne}`),
             );
           }}
@@ -339,7 +339,7 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
             <div className="trc-fade" style={{ textAlign: 'center', maxWidth: 720 }}>
               <div className="trc-stage__eyebrow" style={{ letterSpacing: '.3em' }}>Un mot pour toi</div>
               <div className="trc-stage__line" style={{ fontSize: 30, color: 'var(--color-ivoire)', marginTop: 24 }}>
-                “{persona?.essence ?? 'Ta couronne raconte ta constance — la maison en est l’orfèvre.'}”
+                “{persona?.essence ?? 'Ta couronne raconte ta constance, la maison en est l’orfèvre.'}”
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 40 }}>
                 <span style={{ width: 40, height: 1, background: 'rgba(246,241,231,.25)' }} />
@@ -391,7 +391,7 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
                     <div style={{ fontSize: 12, letterSpacing: '.06em', color: 'var(--indigo-100)' }}>avec {nextAppt.master} · {apptLabel(nextAppt, byId)}</div>
                   </>
                 ) : (
-                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: 'var(--color-ivoire)' }}>Ton fauteuil t’attend — réserve ton prochain rituel.</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: 'var(--color-ivoire)' }}>Ton fauteuil t’attend, réserve ton prochain rituel.</div>
                 )}
               </div>
             </div>
@@ -417,7 +417,7 @@ function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) 
         </div>
       </div>
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-soft)', marginTop: 12 }}>
-        La Vitrine se joue d’elle-même pendant le rituel — chaque scène est composée à partir de l’histoire réelle de la cliente.
+        La Vitrine se joue d’elle-même pendant le rituel, chaque scène est composée à partir de l’histoire réelle de la cliente.
       </div>
     </div>
   );
@@ -633,7 +633,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                     return (
                       <label
                         key={c.id}
-                        title={couvert ? `Couvert par ${couvert.fon} — décocher le parent pour choisir plus fin.` : undefined}
+                        title={couvert ? `Couvert par ${couvert.fon}, décocher le parent pour choisir plus fin.` : undefined}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12, cursor: couvert ? 'default' : 'pointer', paddingLeft: profondeur(c) * 16, opacity: couvert ? 0.6 : 1 }}
                       >
                         <input
@@ -668,7 +668,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               />
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                  <b style={{ fontWeight: 500 }}>Le repli de la Maison</b> — ce qui se propose quand
+                  <b style={{ fontWeight: 500 }}>Le repli de la Maison</b>, ce qui se propose quand
                   l’archétype de la cliente n’a rien dit. La désignation qui compte se fait{' '}
                   <b style={{ fontWeight: 500 }}>par persona</b> (CRM → Les personas). Rien nulle
                   part = rien n’est recommandé, et le quiz ne s’ouvre pas sur son téléphone. Une
@@ -677,8 +677,8 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                     <><br />
                       <b style={{ fontWeight: 500, color: 'var(--copper-700)' }}>
                         Le quiz est éteint sur Ma Couronne
-                      </b>{' '}
-                      — ces désignations ne servent donc plus qu’au miroir du salon.
+                      </b>{' '},
+                      ces désignations ne servent donc plus qu’au miroir du salon.
                       Son interrupteur est dans l’onglet <b style={{ fontWeight: 500 }}>Ma Couronne</b>.
                     </>
                   )}
@@ -713,8 +713,8 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </h2>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--ink-soft)', marginTop: 5 }}>
             {portee === 'cliente'
-              ? <>Choisis ce que {client.name.split(' ')[0]} verra — et ce qu’elle ne verra pas.</>
-              : <>Ce que TOUTES les clientes verront — les masques individuels s’y ajoutent.</>}
+              ? <>Choisis ce que {client.name.split(' ')[0]} verra, et ce qu’elle ne verra pas.</>
+              : <>Ce que TOUTES les clientes verront, les masques individuels s’y ajoutent.</>}
           </div>
           {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
               la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
@@ -741,7 +741,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               <button
                 type="button"
                 onClick={() => {
-                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés — ateliers, prestations et produits redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
+                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés, ateliers, prestations et produits redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
                   vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [] }));
                 }}
                 style={{
@@ -759,7 +759,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               <button
                 type="button"
                 onClick={() => {
-                  if (!window.confirm(`Rétablir le tapis complet de ${client.name.split(' ')[0]} ? Tous SES masques seront levés — elle verra tout ce que la Maison montre. Les masques valant pour toutes les clientes ne bougent pas.`)) return;
+                  if (!window.confirm(`Rétablir le tapis complet de ${client.name.split(' ')[0]} ? Tous SES masques seront levés, elle verra tout ce que la Maison montre. Les masques valant pour toutes les clientes ne bougent pas.`)) return;
                   clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, vitrineMasques: undefined } : c)));
                 }}
                 style={{
@@ -780,7 +780,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             portait exactement là : masquer WÈWÈ™ à Façon sans perdre LES SOINS. */}
         <div style={{ background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 4, padding: '11px 14px', fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--copper-700)' }}>
           L’interrupteur de l’<b style={{ fontWeight: 500 }}>atelier</b> éteint tout ce qu’il contient.
-          Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle — masquer
+          Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle, masquer
           « WÈWÈ™ à Façon » laisse LES SOINS entiers. Une prestation masquée disparaît de la
           Vitrine, de Ma Couronne et des recommandations ; le comptoir, lui, la garde.
         </div>
@@ -809,14 +809,14 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
                 <div className="trc-microlabel" style={{ margin: 0 }}>
                   {cat.fon} · {cat.label}
-                  {catMaison && <span style={{ color: 'var(--copper-700)', textTransform: 'none', letterSpacing: 0 }}> — masqué pour toute la Maison</span>}
+                  {catMaison && <span style={{ color: 'var(--copper-700)', textTransform: 'none', letterSpacing: 0 }}>, masqué pour toute la Maison</span>}
                 </div>
                 <button
                   className={`trc-switch ${catOn ? 'is-on' : ''}`}
                   onClick={() => toggleCat(cat.id)}
                   aria-label={`Catégorie ${cat.fon}`}
                   title={catMaison
-                    ? 'Masqué pour toute la Maison — bascule sur « Pour toutes les clientes » pour le rallumer.'
+                    ? 'Masqué pour toute la Maison, bascule sur « Pour toutes les clientes » pour le rallumer.'
                     : catOn ? 'Catégorie visible' : 'Catégorie masquée'}
                 />
               </div>
@@ -851,11 +851,11 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             Le tapis de cuivre · {portee === 'cliente' ? client.name.split(' ')[0] : 'toute la Maison'}
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>
-            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre — rien d’autre.' : 'Le socle commun — chaque fiche peut encore y retrancher.'}
+            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre, rien d’autre.' : 'Le socle commun, chaque fiche peut encore y retrancher.'}
           </div>
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>
             {carpet.length === 0 ? (
-              <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-200)' }}>Tapis vide — allume au moins une pièce.</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-200)' }}>Tapis vide, allume au moins une pièce.</span>
             ) : (
               carpet.map((name) => <span key={name} className="trc-stage__piece">{name}</span>)
             )}
@@ -872,7 +872,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>L essai · ce que {client.name.split(' ')[0]} verra</div>
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 4, marginBottom: 12, lineHeight: 1.55 }}>
             Le miroir tel qu il se jouera devant elle. Réponds aux deux questions pour vérifier la
-            prestation proposée et son prix — ce sont les vrais, pris au catalogue.
+            prestation proposée et son prix, ce sont les vrais, pris au catalogue.
           </div>
           <Apercu client={client} />
         </div>
@@ -937,7 +937,7 @@ function ToggleCard({ name, sub, on, onToggle }: { name: string; sub: string; on
       className={`trc-toggle ${on ? 'is-on' : ''}`}
       onClick={onToggle}
       aria-pressed={on}
-      title={on ? `Masquer « ${name} » — elle seule, l'atelier ne bouge pas` : `Remettre « ${name} » sur le tapis`}
+      title={on ? `Masquer « ${name} », elle seule, l'atelier ne bouge pas` : `Remettre « ${name} » sur le tapis`}
     >
       <div className="trc-toggle__row">
         <span className="trc-toggle__name">{name}</span>
@@ -973,9 +973,9 @@ function SwitchRow({ label, sub, on, onToggle }: { label: string; sub: string; o
 const COURONNE_MODULES: { k: string; label: string; sub: string }[] = [
   { k: 'reserver', label: 'Réserver', sub: 'La prise de rendez-vous en ligne (tunnel en sept temps).' },
   { k: 'compose', label: 'Composer', sub: 'Le rituel sur-mesure (composeur).' },
-  { k: 'suivi', label: 'Carnet de Suivi', sub: 'Onglet Suivi — parcours, photos, recommandation.' },
-  { k: 'gamme', label: 'La Gamme', sub: 'Onglet boutique — produits maison, commandes.' },
-  { k: 'cercle', label: 'Le Cercle', sub: 'Onglet fidélité — points et paliers.' },
+  { k: 'suivi', label: 'Carnet de Suivi', sub: 'Onglet Suivi, parcours, photos, recommandation.' },
+  { k: 'gamme', label: 'La Gamme', sub: 'Onglet boutique, produits maison, commandes.' },
+  { k: 'cercle', label: 'Le Cercle', sub: 'Onglet fidélité, points et paliers.' },
   { k: 'offres', label: 'Offres instantanées', sub: 'Les offres du Marketing sur son accueil.' },
 ];
 
@@ -1054,7 +1054,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
 
   const screenOff = (k: 'suivi' | 'cercle') => (isOff(k) ? (
     <div style={{ margin: '30px 14px', padding: '18px 16px', textAlign: 'center', border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 12.5, lineHeight: 1.5 }}>
-      Module coupé pour {first} — cet onglet n'existe pas dans son application.
+      Module coupé pour {first}, cet onglet n'existe pas dans son application.
     </div>
   ) : null);
 
@@ -1092,7 +1092,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13.5 }}>L’application est ouverte</div>
             <div style={{ fontSize: 11, color: 'var(--indigo-100)', marginTop: 2, lineHeight: 1.5 }}>
-              Fermée, personne n’entre — même pas pour se connecter. Elles lisent votre mot.
+              Fermée, personne n’entre, même pas pour se connecter. Elles lisent votre mot.
             </div>
           </div>
           <button
@@ -1114,7 +1114,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
               aria-label="Le mot lu par les clientes"
             />
             <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 5, lineHeight: 1.5 }}>
-              Laissé vide, un mot de la Maison s’affiche. Dites pourquoi et quand vous rouvrez —
+              Laissé vide, un mot de la Maison s’affiche. Dites pourquoi et quand vous rouvrez,
               une porte close sans explication ne se comprend pas.
             </div>
           </div>
@@ -1131,7 +1131,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   {fermeMaison('reserver')
                     ? ' Sans effet : la réservation est fermée pour toutes.'
                     : ENVIES.every((e) => !cfg.recoParEnvie?.[e.k])
-                      && ' Rien n’est désigné en repli — il ne s’ouvrira que pour les têtes dont le persona propose quelque chose.'}
+                      && ' Rien n’est désigné en repli, il ne s’ouvrira que pour les têtes dont le persona propose quelque chose.'}
                 </div>
               </div>
               <button
@@ -1213,7 +1213,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: isOff(m.k) ? 'var(--ink-soft)' : 'var(--ink)' }}>{m.label}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
-                      {parLaMaison ? 'Fermé pour toutes — voir ci-dessus' : m.sub}
+                      {parLaMaison ? 'Fermé pour toutes, voir ci-dessus' : m.sub}
                     </div>
                   </div>
                   <button
@@ -1222,8 +1222,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                     disabled={parLaMaison}
                     aria-label={`Module ${m.label}`}
                     title={parLaMaison
-                      ? 'Fermé pour toute la Maison — se rouvre en haut de page'
-                      : isOff(m.k) ? 'Coupé pour elle — cliquer pour l’ouvrir' : 'Ouvert — cliquer pour le couper'}
+                      ? 'Fermé pour toute la Maison, se rouvre en haut de page'
+                      : isOff(m.k) ? 'Coupé pour elle, cliquer pour l’ouvrir' : 'Ouvert, cliquer pour le couper'}
                     style={{ flex: 'none', cursor: parLaMaison ? 'not-allowed' : 'pointer' }}
                   />
                 </div>
@@ -1231,7 +1231,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
             })}
             <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5 }}>
               Coupé = l'onglet disparaît de SON application (et les gestes associés se ferment avec un mot honnête).
-              L'Accueil et le Profil restent toujours ouverts. Réglage synchronisé — effet immédiat sur son téléphone.
+              L'Accueil et le Profil restent toujours ouverts. Réglage synchronisé, effet immédiat sur son téléphone.
             </div>
           </div>
 
@@ -1279,7 +1279,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   </div>
                   {ladder.length > 0 && (
                     <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
-                      {nextTier ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — elle en a ${points}.` : 'Tous les paliers sont honorés.'}
+                      {nextTier ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points, elle en a ${points}.` : 'Tous les paliers sont honorés.'}
                     </div>
                   )}
                 </div>
@@ -1301,7 +1301,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   <div style={{ border: '1px solid var(--color-indigo)', color: 'var(--color-indigo)', textAlign: 'center', borderRadius: 3, padding: '11px 10px', fontSize: 11.5, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 8 }}>✦ Composez votre rituel sur-mesure</div>
                 )}
                 {isOff('reserver') && (
-                  <div className="mnd-muted" style={{ fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>Réservation coupée — le bouton n'existe pas chez elle.</div>
+                  <div className="mnd-muted" style={{ fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>Réservation coupée, le bouton n'existe pas chez elle.</div>
                 )}
                 {reco && (
                   <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '11px 13px', marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -1320,13 +1320,13 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
               <div style={{ padding: 14 }}>
                 {isOff('reserver') && (
                   <div style={{ margin: '0 0 12px', padding: '12px 14px', border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 12, lineHeight: 1.5 }}>
-                    Module Réserver coupé — elle ne peut PAS ouvrir ce tunnel. Aperçu de ses tarifs quand même :
+                    Module Réserver coupé, elle ne peut PAS ouvrir ce tunnel. Aperçu de ses tarifs quand même :
                   </div>
                 )}
                 <div style={{ fontSize: 10.5, color: 'var(--copper-700)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>
                   {pricing.band
-                    ? `Ses prix — modèle ${client.lockCount} locks · ${bandLabel(pricing.band, bands)}`
-                    : 'Modèle non renseigné — elle voit les prix catalogue'}
+                    ? `Ses prix, modèle ${client.lockCount} locks · ${bandLabel(pricing.band, bands)}`
+                    : 'Modèle non renseigné, elle voit les prix catalogue'}
                 </div>
                 {sonApercu.cats.filter((c) => visServices.some((s) => s.categoryId === c.id)).map((cat) => (
                   <div key={cat.id} style={{ marginBottom: 14 }}>
@@ -1345,7 +1345,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                     ))}
                   </div>
                 ))}
-                {visServices.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucune prestation visible — vérifiez la Régie et le Catalogue.</div>}
+                {visServices.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucune prestation visible, vérifiez la Régie et le Catalogue.</div>}
               </div>
             )}
 
@@ -1370,7 +1370,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   </div>
                 ) : (
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, fontStyle: 'italic' }}>
-                    Aucun produit recommandé — choisissez-le sur sa fiche (La couronne · Produit recommandé).
+                    Aucun produit recommandé, choisissez-le sur sa fiche (La couronne · Produit recommandé).
                   </div>
                 )}
               </div>
@@ -1447,7 +1447,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
 
                 {refuseesDElle.slice(0, 2).map((d) => (
                   <div key={d.id} className="mnd-muted" style={{ fontSize: 11, marginTop: 7, lineHeight: 1.5 }}>
-                    {nomPropose(d)} — demande non retenue.{d.motif ? ` « ${d.motif} »` : ''}
+                    {nomPropose(d)}, demande non retenue.{d.motif ? ` « ${d.motif} »` : ''}
                   </div>
                 ))}
 
@@ -1455,7 +1455,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   + Ajouter un enfant
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 10, marginTop: 6, lineHeight: 1.5 }}>
-                  Elle y écrit son prénom, son nom et sa date de naissance — la fiche naît aussitôt
+                  Elle y écrit son prénom, son nom et sa date de naissance, la fiche naît aussitôt
                   sous son compte famille. Seule une tête déjà connue du carnet repasse par la maison.
                 </div>
 
@@ -1468,7 +1468,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   if (muettes.length === 0) return null;
                   return (
                     <div style={{ border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 10.5, lineHeight: 1.5, padding: '10px 12px', marginTop: 10 }}>
-                      {muettes.map((m) => m.name).join(', ')} — rattachée(s) au compte mais SANS date de naissance :
+                      {muettes.map((m) => m.name).join(', ')}, rattachée(s) au compte mais SANS date de naissance :
                       elle ne les voit pas ici. À renseigner sur leur fiche.
                     </div>
                   );

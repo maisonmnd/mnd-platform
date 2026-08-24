@@ -138,10 +138,10 @@ export default function Consultations() {
         <Modal title="Nouvelle consultation." onClose={() => setChooser(false)} width={620}>
           <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: -4, marginBottom: 16 }}>
             Choisissez le type de consultation à mener pour une cliente. Toutes vos consultations
-            sont ici — vous pourrez la remplir puis l’enregistrer au dossier.
+            sont ici, vous pourrez la remplir puis l’enregistrer au dossier.
           </p>
           {activeForms.length === 0 ? (
-            <div className="trc-empty">Aucune consultation disponible — créez un formulaire dans l’onglet « Formulaires ».</div>
+            <div className="trc-empty">Aucune consultation disponible, créez un formulaire dans l’onglet « Formulaires ».</div>
           ) : (
             <div className="tr-grid tr-grid--2">
               {activeForms.map((f) => (
@@ -451,7 +451,7 @@ function DossierPanel({
         <div>
           <span className="trc-microlabel">Historique du carnet</span>
           {history.length === 0 && (
-            <div className="trc-empty" style={{ marginTop: 4 }}>Aucun passage enregistré — le carnet de {client.name.split(' ')[0]} est encore vierge.</div>
+            <div className="trc-empty" style={{ marginTop: 4 }}>Aucun passage enregistré, le carnet de {client.name.split(' ')[0]} est encore vierge.</div>
           )}
           {history.length > 0 && (
             <div className="trc-timeline" style={{ flexDirection: 'column', gap: 0 }}>
@@ -501,7 +501,7 @@ function DossierPanel({
           {parsedNotes.blocks.length === 0 ? (
             <div className="trc-empty" style={{ marginTop: 4 }}>
               Aucune consultation enregistrée pour {client.name.split(' ')[0]}. Remplissez-en une via
-              « + Nouvelle consultation » — elle apparaîtra ici, avec « Modifier » et « Résumé (PDF) ».
+              « + Nouvelle consultation », elle apparaîtra ici, avec « Modifier » et « Résumé (PDF) ».
             </div>
           ) : (
             <ConsultCards blocks={parsedNotes.blocks} onSummary={summarizeBlock} onEdit={(i) => setEditIdx(i)} />
@@ -632,7 +632,7 @@ function FormsSection() {
     <div>
       {filling && <FillPanel form={filling} onClose={() => setFillId(null)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 16 }}>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Cinq formulaires prêts à l’emploi — ouvrez pour voir et personnaliser les questions, ou remplissez-en un pour une cliente.</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Cinq formulaires prêts à l’emploi, ouvrez pour voir et personnaliser les questions, ou remplissez-en un pour une cliente.</div>
         <Button variant="indigo" onClick={addForm}>+ Nouveau formulaire</Button>
       </div>
       <div className="tr-grid tr-grid--2">
@@ -743,7 +743,7 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
     if (!client) return;
     setPdfBusy(true);
     try { await buildPdf(); } finally { setPdfBusy(false); }
-    setWaNote('PDF téléchargé — joignez-le à votre message.');
+    setWaNote('PDF téléchargé, joignez-le à votre message.');
     const first = client.name.split(' ')[0];
     const msg = [
       `Bonjour ${first},`,
@@ -789,7 +789,7 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
         </div>
       ) : clients.length === 0 ? (
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="trc-empty">Aucune cliente sur cette branche — ajoutez d’abord une tête couronnée dans la fiche Clientes pour enregistrer une consultation.</div>
+          <div className="trc-empty">Aucune cliente sur cette branche, ajoutez d’abord une tête couronnée dans la fiche Clientes pour enregistrer une consultation.</div>
           <Button variant="ghost" onClick={onClose}>Fermer</Button>
         </div>
       ) : (
@@ -993,7 +993,7 @@ function OnlineSection() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>
-          Les diagnostics reçus depuis La Consultation Souveraine — confirmez la séance, traitez, puis clôturez.
+          Les diagnostics reçus depuis La Consultation Souveraine, confirmez la séance, traitez, puis clôturez.
         </div>
         <a
           href={asset('/consultation.html')}

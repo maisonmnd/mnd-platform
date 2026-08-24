@@ -539,7 +539,7 @@ export default function Analytics() {
       {!life.hasLife && (
         <div className="trp-panel" style={{ marginTop: 18 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-            L’intelligence a besoin de vécu — les indices apparaîtront avec l’activité de la maison.
+            L’intelligence a besoin de vécu, les indices apparaîtront avec l’activité de la maison.
           </div>
         </div>
       )}
@@ -577,7 +577,7 @@ export default function Analytics() {
           <div>
             <div className="trp-rev__eyebrow">Revenu encaissé · 12 mois</div>
             <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>
-              Rituels honorés et factures payées — la preuve se construit mois après mois.
+              Rituels honorés et factures payées, la preuve se construit mois après mois.
             </div>
           </div>
         </div>
@@ -607,7 +607,7 @@ export default function Analytics() {
           </svg>
         ) : (
           <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
-            Aucun encaissement encore — le premier rituel honoré posera la première pierre de cette courbe.
+            Aucun encaissement encore, le premier rituel honoré posera la première pierre de cette courbe.
           </div>
         )}
         <div className="trp-rev__foot">
@@ -660,7 +660,7 @@ export default function Analytics() {
           {fillRates.length === 0 && <div className="mnd-muted" style={{ fontSize: 13 }}>Aucun maître sur ce périmètre.</div>}
           {fillRates.length > 0 && fillRates.every((f) => f.pct === 0) && (
             <div className="mnd-muted" style={{ fontSize: 12, fontFamily: 'var(--font-serif)', fontStyle: 'italic', marginTop: 4 }}>
-              Les fauteuils attendent leurs premiers rendez-vous — le remplissage se lira ici.
+              Les fauteuils attendent leurs premiers rendez-vous, le remplissage se lira ici.
             </div>
           )}
         </div>
@@ -682,8 +682,8 @@ export default function Analytics() {
           </div>
           <div style={{ fontSize: 13, fontWeight: 300, color: 'var(--ink-soft)', marginTop: 10, lineHeight: 1.5 }}>
             {forecast > 0
-              ? 'Projection au rythme réel du carnet — portée par les rituels confirmés et honorés du mois.'
-              : 'La prévision attend les premiers rituels du mois — elle se calcule sur le rythme réel du carnet, jamais sur une hypothèse.'}
+              ? 'Projection au rythme réel du carnet, portée par les rituels confirmés et honorés du mois.'
+              : 'La prévision attend les premiers rituels du mois, elle se calcule sur le rythme réel du carnet, jamais sur une hypothèse.'}
           </div>
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
             L’humain décide · la maison propose.
@@ -716,8 +716,8 @@ export default function Analytics() {
           </div>
           <div style={{ fontSize: 12.5, fontWeight: 300, color: 'var(--indigo-100)', marginTop: 12, lineHeight: 1.5 }}>
             {hasTransmission
-              ? `${funnel[1].n} réservation${funnel[1].n > 1 ? 's' : ''} nées de la consultation · ${funnel[2].n} tête${funnel[2].n > 1 ? 's' : ''} fidélisée${funnel[2].n > 1 ? 's' : ''} — le coefficient de transmission se calculera avec la lignée.`
-              : 'Le Cercle s’exprimera dès les premières introductions — l’intelligence a besoin de vécu.'}
+              ? `${funnel[1].n} réservation${funnel[1].n > 1 ? 's' : ''} nées de la consultation · ${funnel[2].n} tête${funnel[2].n > 1 ? 's' : ''} fidélisée${funnel[2].n > 1 ? 's' : ''}, le coefficient de transmission se calculera avec la lignée.`
+              : 'Le Cercle s’exprimera dès les premières introductions, l’intelligence a besoin de vécu.'}
           </div>
         </div>
       </div>
@@ -727,7 +727,7 @@ export default function Analytics() {
         <div>
           <div className="trp-rev__eyebrow">Activité des clientes · 7 derniers jours</div>
           <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>
-            Visites sur Ma Couronne, jour après jour — la présence se lit comme le revenu.
+            Visites sur Ma Couronne, jour après jour, la présence se lit comme le revenu.
           </div>
         </div>
         {weekly.totalVisits > 0 ? (
@@ -749,7 +749,7 @@ export default function Analytics() {
           </svg>
         ) : (
           <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
-            Aucune visite cette semaine — la présence se dessinera dès la première cliente sur Ma Couronne.
+            Aucune visite cette semaine, la présence se dessinera dès la première cliente sur Ma Couronne.
           </div>
         )}
         <div className="trp-rev__foot">

@@ -426,7 +426,7 @@ export function useCaisses(month: string) {
         date: t.date,
         label: t.de === name
           ? (t.vers ? `Transféré vers ${t.vers}` : 'Sortie hors Maison')
-          : (t.de ? `Reçu de ${t.de}` : 'Apport — hors revenu'),
+          : (t.de ? `Reçu de ${t.de}` : 'Apport, hors revenu'),
         sub: [t.note || 'Transfert entre caisses', t.fichier ? 'pièce jointe' : null].filter(Boolean).join(' · '),
         delta: transfertSurCaisse(t, name),
         invoiceId: undefined as string | undefined,
@@ -597,7 +597,7 @@ export function ReleveCaisse({
     return (
       <Modal title={`${nom} · caisse discrète`} onClose={onClose} width={420}>
         <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
-          Cette caisse est fermée. Son relevé dirait son solde ligne à ligne —
+          Cette caisse est fermée. Son relevé dirait son solde ligne à ligne,
           il faut donc l’ouvrir d’abord, depuis l’écran des Caisses.
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
@@ -665,7 +665,7 @@ export function ReleveCaisse({
       )}
 
       <div className="mnd-muted" style={{ fontSize: 11.5, margin: '12px 0 4px', lineHeight: 1.5 }}>
-        {boxCur !== currency ? `Caisse en ${boxCur} — ` : ''}
+        {boxCur !== currency ? `Caisse en ${boxCur}, ` : ''}
         encaissements crédités (avoir déduit, pourboire inclus), dépenses vivantes débitées.
         {q ? ` ${affichees.length} ligne${affichees.length > 1 ? 's' : ''} trouvée${affichees.length > 1 ? 's' : ''}.` : ''}
       </div>
@@ -676,7 +676,7 @@ export function ReleveCaisse({
             {q
               ? 'Rien qui corresponde à cette recherche.'
               : portee === 'mois'
-                ? `Aucun mouvement en ${monthName} — ni encaissement, ni dépense.`
+                ? `Aucun mouvement en ${monthName}, ni encaissement, ni dépense.`
                 : 'Aucun mouvement depuis l’ouverture de cette caisse.'}
           </div>
         )}
@@ -739,7 +739,7 @@ export function ReleveCaisse({
             <button
               key={`${m.date}-${m.label}-${i}`}
               style={{ ...rowStyle, cursor: 'pointer' }}
-              title="Corriger ce mouvement — date, montant, motif"
+              title="Corriger ce mouvement, date, montant, motif"
               onClick={() => { const id = m.transfertId!; onClose(); onTransfert(id); }}
             >
               {body}
@@ -872,7 +872,7 @@ export function MontantDuTiroir({
       <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
         {caisse?.name} compte ses billets en {devise} ; le montant en {maison} est déjà convenu.
         {taux > 0 && ` Soit ${taux.toLocaleString('fr-FR')} ${maison} par ${devise}.`}
-        {saisi <= 0 && ` Laissé vide, cette écriture ne pèsera rien sur le tiroir — et le relevé le dira.`}
+        {saisi <= 0 && ` Laissé vide, cette écriture ne pèsera rien sur le tiroir, et le relevé le dira.`}
       </span>
     </label>
   );
@@ -908,7 +908,7 @@ export function ContrepartieMaison({
       <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
         {caisse?.name} {sortant ? 'perd' : 'gagne'} {m.saisi > 0 ? `${m.saisi.toLocaleString('fr-FR')} ${m.devise}` : `des ${m.devise}`}.
         {' '}Rempli au taux indicatif de la Maison ({Math.round(rateToXof(m.devise)).toLocaleString('fr-FR')} {maison}
-        {' '}pour 1 {m.devise}) — corrigez-le au taux réellement pratiqué, il fait foi.
+        {' '}pour 1 {m.devise}), corrigez-le au taux réellement pratiqué, il fait foi.
         {taux > 0 && m.saisi > 0 && ` Ici : ${taux.toLocaleString('fr-FR')} ${maison} par ${m.devise}.`}
       </span>
     </label>
@@ -959,8 +959,8 @@ export function LeTrousseau({
         ? 'Ce code n’ouvre aucune des caisses encore fermées.'
         : `${ouvre.length} caisse${ouvre.length > 1 ? 's' : ''} ouverte${ouvre.length > 1 ? 's' : ''}`
           + (restent > 0
-            ? ` — ${restent} garde${restent > 1 ? 'nt' : ''} son propre code. Essayez-le ici.`
-            : ' — plus rien de fermé.'));
+            ? `, ${restent} garde${restent > 1 ? 'nt' : ''} son propre code. Essayez-le ici.`
+            : ', plus rien de fermé.'));
       setCode('');
     } finally {
       setEnCours(false);
@@ -977,7 +977,7 @@ export function LeTrousseau({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
           Un code essayé sur toutes les caisses encore fermées : celles qu’il ouvre s’ouvrent
-          d’un geste. Les caisses ne partagent pas leur empreinte — si vos codes diffèrent,
+          d’un geste. Les caisses ne partagent pas leur empreinte, si vos codes diffèrent,
           entrez-les l’un après l’autre. Tout se referme au prochain chargement de la page.
         </div>
 
@@ -1120,7 +1120,7 @@ export function ReglerLeVerrou({
     <Modal title={hash ? 'Le code de cet écran' : 'Protéger cet écran'} onClose={onClose} width={430}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-          Un code demandé à l’ouverture de l’écran. Seule son <b>empreinte</b> est enregistrée —
+          Un code demandé à l’ouverture de l’écran. Seule son <b>empreinte</b> est enregistrée,
           il n’existe en clair nulle part.
           <br />
           <b style={{ color: 'var(--copper-700)' }}>Ce que cela protège :</b> un écran laissé ouvert, un regard au comptoir.
@@ -1129,7 +1129,7 @@ export function ReglerLeVerrou({
         </div>
         <label className="mnd-field">
           <span className="mnd-field__label">
-            {hash ? 'Nouveau code — vider pour retirer le verrou' : 'Code'}
+            {hash ? 'Nouveau code, vider pour retirer le verrou' : 'Code'}
           </span>
           <input
             className="mnd-input" type="password" autoFocus autoComplete="new-password"

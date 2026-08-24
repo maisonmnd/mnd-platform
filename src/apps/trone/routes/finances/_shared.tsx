@@ -180,14 +180,14 @@ export function ChampPieceJointe({
     /* Le compartiment refuse au-delà de 10 Mo (0059). Le dire AVANT le voyage
        vaut mieux qu'un refus du serveur trente secondes plus tard. */
     if (f.size > 10 * 1024 * 1024) {
-      setSouci(`« ${f.name} » pèse ${poidsEnClair(f.size)} — la limite est de 10 Mo.`);
+      setSouci(`« ${f.name} » pèse ${poidsEnClair(f.size)}, la limite est de 10 Mo.`);
       return;
     }
     setEnCours(true);
     const pose = await deposerFichier(branchId, f, dossier);
     setEnCours(false);
     if (!pose) {
-      setSouci('Le dépôt n’a pas abouti — sans connexion, la pièce ne peut pas être déposée. L’écriture s’enregistre quand même.');
+      setSouci('Le dépôt n’a pas abouti, sans connexion, la pièce ne peut pas être déposée. L’écriture s’enregistre quand même.');
       return;
     }
     onChange(pose);
@@ -197,7 +197,7 @@ export function ChampPieceJointe({
     if (!valeur) return;
     const url = await adresseSignee(valeur.chemin);
     if (url) window.open(url, '_blank', 'noopener');
-    else setSouci('La pièce n’a pas pu être ouverte — réessayez dans un instant.');
+    else setSouci('La pièce n’a pas pu être ouverte, réessayez dans un instant.');
   };
 
   return (
@@ -228,7 +228,7 @@ export function ChampPieceJointe({
       <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
         {enCours
           ? 'Dépôt en cours…'
-          : 'Photo ou PDF, 10 Mo au plus. La pièce dort dans le compartiment privé de la Maison —'
+          : 'Photo ou PDF, 10 Mo au plus. La pièce dort dans le compartiment privé de la Maison,'
             + ' elle ne s’ouvre qu’au personnel connecté, par une adresse valable une heure.'}
       </span>
       {souci && (

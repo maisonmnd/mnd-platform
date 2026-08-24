@@ -254,7 +254,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       '/trone/#/calendrier',
     );
     setScelle(true);
-    toast('Cycle transmis — la Maison confirme vos créneaux.');
+    toast('Cycle transmis, la Maison confirme vos créneaux.');
   };
 
   /* ═══════════════ SCELLÉ ═══════════════ */
@@ -266,7 +266,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
           <h2 style={{ marginTop: 18 }}>Votre cycle est posé.</h2>
           <p>
             {seances.length} séances sont entrées au carnet de la Maison. Elle vérifie votre
-            1ʳᵉ tranche et confirme vos créneaux — vous les retrouvez dans « Mes rendez-vous ».
+            1ʳᵉ tranche et confirme vos créneaux, vous les retrouvez dans « Mes rendez-vous ».
           </p>
           <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
             <div className="mc-recapcard__name">{forfait.name}</div>
@@ -305,7 +305,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       <div className="mc-scroll mc-flowbody" style={{ paddingBottom: 8 }}>
         <div className="mc-packintro">
           Vos dates sont déjà posées, à la cadence de la Maison. Changez celles qui ne vous vont
-          pas — le salon est fermé le lundi et le dimanche, ces jours ne se proposent jamais.
+          pas, le salon est fermé le lundi et le dimanche, ces jours ne se proposent jamais.
         </div>
 
         {seances.map((s, i) => {
@@ -347,7 +347,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
                       </button>
                     ))}
                     {joursOuverts.length === 0 && (
-                      <span className="mc-emptyline">Aucun jour libre dans les deux mois — la Maison vous rappellera.</span>
+                      <span className="mc-emptyline">Aucun jour libre dans les deux mois, la Maison vous rappellera.</span>
                     )}
                   </div>
                   {jourRetouche && (

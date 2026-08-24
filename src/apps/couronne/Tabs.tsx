@@ -93,7 +93,7 @@ function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void })
         ))}
 
         {bilan.prochaineVisite && (
-          <div className="mc-bilannext">Prochaine visite conseillée — {bilan.prochaineVisite}</div>
+          <div className="mc-bilannext">Prochaine visite conseillée, {bilan.prochaineVisite}</div>
         )}
         {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_COMPLETE}</div>}
 
@@ -213,10 +213,10 @@ function useNotifCount(): number {
    sa raison en toutes lettres — l'envie qu'ELLE a déclarée au quiz, jamais un
    fait inventé sur sa fibre. Une par envie, dans les mots de la maison. */
 const PHRASE_ENVIE: Record<EnvieKey, string> = {
-  longueur: 'Pour les centimètres que vous êtes venue chercher — la longueur se gagne à la racine, séance après séance.',
-  eclat: 'Pour l’éclat que vous êtes venue chercher — la lumière se scelle mèche après mèche.',
-  protection: 'Pour protéger ce qui pousse — la saison ne doit rien prendre à votre couronne.',
-  transformation: 'Pour la transformation que vous êtes venue chercher — sans rien sacrifier de votre couronne.',
+  longueur: 'Pour les centimètres que vous êtes venue chercher, la longueur se gagne à la racine, séance après séance.',
+  eclat: 'Pour l’éclat que vous êtes venue chercher, la lumière se scelle mèche après mèche.',
+  protection: 'Pour protéger ce qui pousse, la saison ne doit rien prendre à votre couronne.',
+  transformation: 'Pour la transformation que vous êtes venue chercher, sans rien sacrifier de votre couronne.',
 };
 
 function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
@@ -346,7 +346,7 @@ export function HomeTab({
     const key = `mc_rappel_${soon.id}_${soon.date}_${soon.time}`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, '1');
-    notifyLocal('Votre rituel approche', `${dayLabelIso(soon.date)} · ${soon.time} — la maison vous attend.`);
+    notifyLocal('Votre rituel approche', `${dayLabelIso(soon.date)} · ${soon.time}, la maison vous attend.`);
   }, [soon]);
 
   const pickOffer = (o: Offer) => {
@@ -379,7 +379,7 @@ export function HomeTab({
           <button className="mc-remindbanner" onClick={onOpenRdv}>
             <span className="mc-remindbanner__dot" aria-hidden="true" />
             <span className="mc-remindbanner__txt">
-              Votre rituel approche — {dayLabelIso(soon.date)} · {soon.time}
+              Votre rituel approche, {dayLabelIso(soon.date)} · {soon.time}
             </span>
             <span className="mc-remindbanner__go">Voir</span>
           </button>
@@ -419,7 +419,7 @@ export function HomeTab({
             <>
               <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}</div>
               <div className="mc-nextrdv__when">
-                d’après votre rythme{predite.avgDays ? ` — ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
+                d’après votre rythme{predite.avgDays ? `, ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
               </div>
               {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
                 <>
@@ -492,9 +492,9 @@ export function HomeTab({
               <span>
                 {`${cercle.venues} passage${cercle.venues > 1 ? 's' : ''} sur ${cercle.seuil}`}
                 {cercle.venues === 0
-                  ? ` — le Cercle s’ouvre au ${cercle.seuil}ᵉ`
+                  ? `, le Cercle s’ouvre au ${cercle.seuil}ᵉ`
                   : cercle.reste > 0
-                    ? ` — encore ${cercle.reste} avant le Cercle`
+                    ? `, encore ${cercle.reste} avant le Cercle`
                     : ''}
               </span>
             </div>
@@ -579,7 +579,7 @@ export function HomeTab({
                 <div className="mc-recocard__name">{recoPresta.service.name}</div>
                 <div className="mc-recocard__line">
                   {recoPresta.service.hidePrice
-                    ? 'Prix au fauteuil — la maison vous dira'
+                    ? 'Prix au fauteuil, la maison vous dira'
                     : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
                 </div>
                 {client?.envie && (
@@ -900,7 +900,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
           lng: Number(pos.coords.longitude.toFixed(6)),
         });
         setGeoBusy(false);
-        toast('Position partagée — la maison vous trouvera facilement.');
+        toast('Position partagée, la maison vous trouvera facilement.');
       },
       (err) => {
         setGeoBusy(false);
@@ -963,7 +963,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
     const note =
       mode === 'livraison'
         ? [
-            `Livraison à domicile${address.trim() ? ` — ${address.trim()}` : ''}`,
+            `Livraison à domicile${address.trim() ? `, ${address.trim()}` : ''}`,
             mapsLink ? `Position GPS : ${mapsLink}` : '',
           ]
             .filter(Boolean)
@@ -991,7 +991,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
     setCart({});
     setGeo(null);
     setOrderDone({ number: inv.number, totalXof: total, mode });
-    toast(`Commande transmise à la maison — ${confirmed}`);
+    toast(`Commande transmise à la maison, ${confirmed}`);
   };
 
   const closeBasket = () => {
@@ -1004,7 +1004,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
       <div className="mc-micro-eyebrow">La Gamme · Care & Store</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 4px' }}>Votre rituel.</h1>
       <p className="mc-lead" style={{ margin: '0 0 18px' }}>
-        Formules naturelles — moringa, karité, niaouli. Sans silicone ni paraben.
+        Formules naturelles, moringa, karité, niaouli. Sans silicone ni paraben.
       </p>
 
       {/* Suivre ses commandes — visible dès qu'une commande existe. */}
@@ -1026,7 +1026,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                 <div className="mc-micro-eyebrow" style={{ fontSize: 9.5 }}>{meta.tag}</div>
                 <div className="mc-productcard__name">{p.name}</div>
                 <div className="mc-productcard__line">{meta.line}</div>
-                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">Dernières pièces — {p.stock} en maison</div>}
+                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">Dernières pièces, {p.stock} en maison</div>}
               </div>
               <div className="mc-productcard__side">
                 <span className="mc-productcard__price">{fmtMoney(p.priceXof, currency)}</span>
@@ -1219,7 +1219,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                   </div>
                   <div className="mc-recapcard__line">
                     <span>Livraison</span>
-                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? fmtMoney(deliveryCost, currency) : 'Offerte') : 'Retrait — offert'}</span>
+                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? fmtMoney(deliveryCost, currency) : 'Offerte') : 'Retrait, offert'}</span>
                   </div>
                   <div className="mc-hairline" />
                   <div className="mc-recapcard__total"><span>Total</span><span>{fmtMoney(total, currency)}</span></div>
@@ -1306,9 +1306,9 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
             <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
             <div className="mc-pointscard__hint">
               {nextTier
-                ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points — encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
+                ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points, encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
                 : ladder.length > 0
-                  ? 'Tous les paliers sont honorés — la maison vous salue.'
+                  ? 'Tous les paliers sont honorés, la maison vous salue.'
                   : 'Chaque rituel honoré nourrit votre reconnaissance.'}
             </div>
             <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
@@ -1338,7 +1338,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           );
         })}
         {ladder.length === 0 && (
-          <div className="mc-emptyline">Les paliers du Cercle se préparent — la maison vous les révélera bientôt.</div>
+          <div className="mc-emptyline">Les paliers du Cercle se préparent, la maison vous les révélera bientôt.</div>
         )}
       </div>
       <div style={{ height: 14 }} />
@@ -1397,8 +1397,8 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
     setNaissance('');
     setOuvert(false);
     toast(r.enAttente
-      ? 'Cette tête est déjà connue de la maison — elle vérifie et vous prévient.'
-      : `${petit} est sur votre compte — réservez pour ${petit} dès maintenant.`);
+      ? 'Cette tête est déjà connue de la maison, elle vérifie et vous prévient.'
+      : `${petit} est sur votre compte, réservez pour ${petit} dès maintenant.`);
   };
 
   /* LE PROFIL NE PROPOSE PLUS UN ENFANT À TOUT LE MONDE.
@@ -1503,7 +1503,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
           indéfiniment, et personne ne comprend pourquoi. */}
       {refusees.slice(0, 2).map((d) => (
         <div key={d.id} className="mc-emptyline" style={{ marginTop: 8, lineHeight: 1.55 }}>
-          {d.prenom} — la maison n’a pas retenu cette demande.
+          {d.prenom}, la maison n’a pas retenu cette demande.
           {d.motif ? ` « ${d.motif} »` : ' Passez au salon, on en parle.'}
         </div>
       ))}
@@ -1527,7 +1527,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
-            Le sien, tel qu’il est écrit à l’état civil — il peut être différent du vôtre.
+            Le sien, tel qu’il est écrit à l’état civil, il peut être différent du vôtre.
           </div>
           <div className="mc-field-label" style={{ marginTop: 12 }}>Sa date de naissance</div>
           <input
@@ -1613,14 +1613,14 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       const ok = await enablePush(clientId);
       setPstate(await pushState());
       setPbusy(false);
-      toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées — autorisez-les dans le navigateur.');
+      toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées, autorisez-les dans le navigateur.');
     }
   };
 
   const save = () => {
     const n = name.trim();
     if (!n) {
-      toast('Votre nom est nécessaire — la maison vous appelle par votre nom.');
+      toast('Votre nom est nécessaire, la maison vous appelle par votre nom.');
       return;
     }
     /* LA FICHE D'ABORD, L'ÉCRITURE ENSUITE. Avant la fiche (synchronisation en
@@ -1630,7 +1630,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
        DIT au lieu de mentir. */
     ensureClient(clientId, session?.user?.email, branch.id, n, session?.user?.id);
     if (!clientsStore.get().some((c) => c.id === clientId)) {
-      toast('La maison synchronise encore votre dossier — réessayez dans un instant.');
+      toast('La maison synchronise encore votre dossier, réessayez dans un instant.');
       return;
     }
     clientsStore.set((prev) =>
@@ -1640,7 +1640,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           : c
       )
     );
-    toast('Profil enregistré — la maison vous connaît.');
+    toast('Profil enregistré, la maison vous connaît.');
   };
 
 
@@ -1684,7 +1684,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
               <div className="mc-pushrow__t">Rappels & confirmations sur ce téléphone</div>
               <div className="mc-pushrow__s">
                 {pstate === 'subscribed' ? 'Vous serez prévenue à chaque réservation, modification et avant vos rendez-vous.'
-                  : pstate === 'denied' ? 'Notifications bloquées — réactivez-les dans les réglages du navigateur.'
+                  : pstate === 'denied' ? 'Notifications bloquées, réactivez-les dans les réglages du navigateur.'
                   : 'Activez pour recevoir vos confirmations et rappels de rendez-vous.'}
               </div>
             </div>
@@ -1816,7 +1816,7 @@ export function MesCommandes({ onClose }: { onClose: () => void }) {
             <div className="mc-emptyzone__glyph">⬡</div>
             <div className="mc-emptyzone__t">Aucune commande pour l’instant.</div>
             <div className="mc-emptyzone__s">
-              Composez votre commande depuis la Gamme — vous suivrez ici chacun de ses états.
+              Composez votre commande depuis la Gamme, vous suivrez ici chacun de ses états.
             </div>
           </div>
         )}
@@ -1890,8 +1890,8 @@ export function Notifications({ onClose }: { onClose: () => void }) {
               </div>
               <div className="mc-notif__msg">
                 {d.status === 'acceptée'
-                  ? 'Devis accepté — la maison prépare votre rituel.'
-                  : 'La maison vous propose un devis — à accepter pour sceller le rituel.'}
+                  ? 'Devis accepté, la maison prépare votre rituel.'
+                  : 'La maison vous propose un devis, à accepter pour sceller le rituel.'}
               </div>
               <div className="mc-notif__total">{fmtMoney(invoiceTotal(d), currency)}</div>
               {d.status === 'envoyée' && (
@@ -1932,14 +1932,14 @@ export function Notifications({ onClose }: { onClose: () => void }) {
               </div>
               <div className="mc-notif__msg">
                 {a.status === 'confirmé'
-                  ? `${serviceNames(a, services) || 'Votre rituel'} confirmé — la maison vous attend, avec ${a.master}.`
-                  : `${serviceNames(a, services) || 'Votre rituel'} — acompte reçu, en attente de la maison.`}
+                  ? `${serviceNames(a, services) || 'Votre rituel'} confirmé, la maison vous attend, avec ${a.master}.`
+                  : `${serviceNames(a, services) || 'Votre rituel'}, acompte reçu, en attente de la maison.`}
               </div>
             </div>
           </div>
         ))}
 
-        {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>Aucune notification — la maison veille.</div>}
+        {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>Aucune notification, la maison veille.</div>}
       </div>
     </div>
   );

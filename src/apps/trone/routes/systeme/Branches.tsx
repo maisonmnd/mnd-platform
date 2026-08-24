@@ -159,7 +159,7 @@ export default function Branches() {
   const remove = (id: string) => {
     if (branches.length <= 1) return;
     const target = branches.find((b) => b.id === id);
-    if (!window.confirm(`Retirer la branche « ${target?.name ?? ''} » ? Elle disparaît du Trône. Les fiches ou rendez-vous éventuellement rattachés à cette branche ne sont pas supprimés — ils cessent simplement d'apparaître ici.`)) return;
+    if (!window.confirm(`Retirer la branche « ${target?.name ?? ''} » ? Elle disparaît du Trône. Les fiches ou rendez-vous éventuellement rattachés à cette branche ne sont pas supprimés, ils cessent simplement d'apparaître ici.`)) return;
     branchesStore.set((prev) => {
       const next = prev.filter((b) => b.id !== id);
       /* Retirer la Maison Mère : on promeut la première branche restante pour
@@ -180,7 +180,7 @@ export default function Branches() {
       <PageHead
         eyebrow="Système · Le territoire"
         title="Branches."
-        sub="Chaque branche reste souveraine de son carnet et de sa caisse — le Trône consolide, il ne dilue jamais."
+        sub="Chaque branche reste souveraine de son carnet et de sa caisse, le Trône consolide, il ne dilue jamais."
         actions={<Button variant="copper" onClick={openNew}>+ Ajouter une branche</Button>}
       />
 
@@ -267,7 +267,7 @@ export default function Branches() {
       </div>
 
       <div className="mnd-muted" style={{ marginTop: 22, fontSize: 11.5, maxWidth: 560, lineHeight: 1.6 }}>
-        Choisir une branche recharge partout clients, finances, analytics et devises — la branche active impose sa devise sur tous les montants du Trône.
+        Choisir une branche recharge partout clients, finances, analytics et devises, la branche active impose sa devise sur tous les montants du Trône.
       </div>
 
       {open && (
@@ -284,7 +284,7 @@ export default function Branches() {
                 <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} placeholder="Quartier, rue…" />
               </Field>
             </div>
-            <Field label="Lien de localisation — la fiche Google du salon">
+            <Field label="Lien de localisation, la fiche Google du salon">
               <Input
                 value={form.mapsUrl}
                 onChange={(e) => patch({ mapsUrl: e.target.value })}
@@ -292,7 +292,7 @@ export default function Branches() {
               />
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 C'est lui que porte le QR « Où nous trouver » et le lien qu'on envoie. Sans lui, la carte
-                ne peut chercher que la ville — et mène au centre, pas à la porte.
+                ne peut chercher que la ville, et mène au centre, pas à la porte.
               </div>
             </Field>
             <div className="tr-grid tr-grid--2">
@@ -314,7 +314,7 @@ export default function Branches() {
             <Field label={`Maîtres au fauteuil${form.masters.length ? ` · ${form.masters.length}` : ''}`}>
               <div className="sys-masters">
                 {form.masters.length === 0 && (
-                  <p className="sys-masters__empty">Aucun maître pour l’instant — ajoutez les noms ci-dessous.</p>
+                  <p className="sys-masters__empty">Aucun maître pour l’instant, ajoutez les noms ci-dessous.</p>
                 )}
                 {form.masters.map((m, i) => (
                   <div className="sys-master" key={i}>

@@ -122,11 +122,11 @@ export function composerPreparation(
   lignes: LignePreparation[],
   date: string,
 ): { ok: boolean; erreur?: string; id?: string } {
-  if (!clientId) return { ok: false, erreur: 'Il faut une cliente — une préparation se compose pour quelqu’un.' };
+  if (!clientId) return { ok: false, erreur: 'Il faut une cliente, une préparation se compose pour quelqu’un.' };
   if (!champs.nomFormule.trim()) return { ok: false, erreur: 'Il manque le nom de la formule.' };
   const propres = lignes.filter((l) => l.produitId && Number.isFinite(l.quantite) && l.quantite > 0);
   if (!propres.length) {
-    return { ok: false, erreur: 'Aucun ingrédient lié avec une quantité — rien ne serait consommé à la fabrication. Reliez les fiches dans La réserve.' };
+    return { ok: false, erreur: 'Aucun ingrédient lié avec une quantité, rien ne serait consommé à la fabrication. Reliez les fiches dans La réserve.' };
   }
   const id = `prep-${uid()}`;
   preparationsLabStore.set((prev) => [...prev, {
@@ -180,7 +180,7 @@ export function fabriquerPreparation(prep: Preparation, date: string): { ok: boo
 export function annulerFabrication(prep: Preparation): { ok: boolean; erreur?: string } {
   if (prep.statut === 'proposee') return { ok: false, erreur: 'Cette préparation n’est pas fabriquée.' };
   if (prep.invoiceId) {
-    return { ok: false, erreur: 'Elle porte une facture — annulez la facture d’abord, la fabrication ensuite.' };
+    return { ok: false, erreur: 'Elle porte une facture, annulez la facture d’abord, la fabrication ensuite.' };
   }
   retirerParReferences([REF_PREP(prep.id)]);
   preparationsLabStore.set((prev) => prev.map((p) => (
@@ -232,7 +232,7 @@ export function detacherFacture(invoiceIds: string[]): number {
 
 export function supprimerPreparation(prep: Preparation): { ok: boolean; erreur?: string } {
   if (prep.statut !== 'proposee') {
-    return { ok: false, erreur: 'Une préparation fabriquée ne se supprime pas — annulez d’abord sa fabrication.' };
+    return { ok: false, erreur: 'Une préparation fabriquée ne se supprime pas, annulez d’abord sa fabrication.' };
   }
   preparationsLabStore.set((prev) => prev.filter((p) => p.id !== prep.id));
   return { ok: true };

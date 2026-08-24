@@ -62,7 +62,7 @@ export default function Marque() {
       <PageHead
         eyebrow="Système · L’âme visible"
         title="Marque & thème."
-        sub="L’accent de prestige, le monogramme et le verbe de la Maison — le reste, MND le garde souverain."
+        sub="L’accent de prestige, le monogramme et le verbe de la Maison, le reste, MND le garde souverain."
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <Button variant="ghost" onClick={reset}>Réinitialiser</Button>
@@ -74,7 +74,7 @@ export default function Marque() {
       {saved && (
         <div className="tre-inline-note" style={{ marginBottom: 16 }}>
           <span className="mark">✦</span>
-          <span>Thème appliqué — l’accent {accentName} se pose sur tout le Trône.</span>
+          <span>Thème appliqué, l’accent {accentName} se pose sur tout le Trône.</span>
         </div>
       )}
 
@@ -83,7 +83,7 @@ export default function Marque() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Card className="sys-section">
             <div className="sys-section__title">L’accent de prestige</div>
-            <div className="sys-section__cap">Le cuivre ponctue toute la Maison. Choisis sa nuance — elle se pose à l’instant sur tout le Trône.</div>
+            <div className="sys-section__cap">Le cuivre ponctue toute la Maison. Choisis sa nuance, elle se pose à l’instant sur tout le Trône.</div>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
               {ACCENTS.map((a) => {
                 const on = a.hex.toLowerCase() === brand.accent.toLowerCase();

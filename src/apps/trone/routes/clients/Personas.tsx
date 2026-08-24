@@ -96,7 +96,7 @@ export default function Personas() {
       <PageHead
         eyebrow="CRM · Intelligence des profils"
         title="Les personas."
-        sub="La maison attribue un archétype à chaque cliente d’après ses signaux. Ici vous façonnez chaque persona — son nom, son essence — et vous gérez qui le porte."
+        sub="La maison attribue un archétype à chaque cliente d’après ses signaux. Ici vous façonnez chaque persona, son nom, son essence, et vous gérez qui le porte."
         actions={tab === 'archetypes' ? <Button variant="copper" onClick={addPersona}>+ Nouveau persona</Button> : undefined}
       />
 
@@ -141,7 +141,7 @@ export default function Personas() {
               </div>
 
               <div>
-                <span className="trc-microlabel">Essence — comment la maison l’accueille</span>
+                <span className="trc-microlabel">Essence, comment la maison l’accueille</span>
                 <Textarea
                   value={p.essence}
                   onChange={(e) => setField(p.id, 'essence', e.target.value)}
@@ -159,9 +159,9 @@ export default function Personas() {
                 )}
                 <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                   {initie
-                    ? 'Le seuil par où entre toute nouvelle cliente — modifiable, jamais supprimable.'
+                    ? 'Le seuil par où entre toute nouvelle cliente, modifiable, jamais supprimable.'
                     : p.builtin
-                      ? 'Archétype fondateur — modifiable et, si besoin, retirable.'
+                      ? 'Archétype fondateur, modifiable et, si besoin, retirable.'
                       : 'Persona sur-mesure de la maison.'}
                 </div>
                 {!initie &&
@@ -331,7 +331,7 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
       regles: [...c.regles, {
         id: `r-${uid()}`, actif: true, pour,
         signal: 'rituels', mode: 'seuil', valeur: 3, poids: 2,
-        dit: 'à décrire — ce que cet indice dira',
+        dit: 'à décrire, ce que cet indice dira',
       }],
     }));
 
@@ -554,7 +554,7 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
               <div className="trc-sub" style={{ lineHeight: 1.5, marginBottom: 10 }}>
                 Parmi les {apercu.sansVerdict} têtes que la pesée ne tranche pas, ces groupes
                 partagent un profil qu’aucun de vos archétypes ne décrit. Le nom n’est qu’une
-                suggestion — corrigez-le avant de créer.
+                suggestion, corrigez-le avant de créer.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {propositions.map((p) => (
@@ -584,7 +584,7 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, borderTop: '1px solid rgba(246,241,231,.2)', paddingTop: 5, marginTop: 3 }}>
-            <span>Sans verdict — laissées en place</span>
+            <span>Sans verdict, laissées en place</span>
             <span style={{ color: 'var(--indigo-100)' }}>{apercu.sansVerdict}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
@@ -626,7 +626,7 @@ function PropositionCarte({ p, onCreer }: { p: PropositionArchetype; onCreer: (p
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 3, padding: '12px 14px' }}>
         <span className="trc-sub">
           « {nom} » est créé, avec les règles qui le reconnaissent. Ses têtes s’y rangeront au
-          prochain mouvement du carnet — vous pouvez ajuster ses indices ci-dessus.
+          prochain mouvement du carnet, vous pouvez ajuster ses indices ci-dessus.
         </span>
       </div>
     );

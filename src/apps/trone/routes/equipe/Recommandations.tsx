@@ -32,7 +32,7 @@ export default function Recommandations() {
       <PageHead
         eyebrow="Équipe & Croissance · l’intelligence"
         title="Recommandations IA."
-        sub="Des signaux lus dans vos données, traduits en gestes possibles. Propositions sobres, jamais d’injonction — l’humain décide."
+        sub="Des signaux lus dans vos données, traduits en gestes possibles. Propositions sobres, jamais d’injonction, l’humain décide."
         actions={treated.length > 0 ? <Button variant="ghost" onClick={reset}>Rouvrir les traitées</Button> : undefined}
       />
 
@@ -57,7 +57,7 @@ export default function Recommandations() {
           <div className="tre-empty__title">{RECOS.length === 0 ? 'Aucun signal pour l’instant.' : 'Tout est traité.'}</div>
           <div className="tre-empty__sub">
             {RECOS.length === 0
-              ? 'Les recommandations naîtront de l’activité de la maison — rendez-vous, ventes, Cercle.'
+              ? 'Les recommandations naîtront de l’activité de la maison, rendez-vous, ventes, Cercle.'
               : 'L’IA reviendra vers vous dès qu’un signal mérite votre regard.'}
           </div>
         </Card>

@@ -137,7 +137,7 @@ export function createStore<T>(key: string, initial: T): Store<T> {
         /* La valeur restée au disque est PÉRIMÉE — la relire ferait reculer
            l'écran sur un état plus ancien que celui qu'on vient de poser. */
         try { localStorage.removeItem(nsKey(key)); } catch { /* rien à faire de plus */ }
-        console.warn(`[mnd-store] ${key} : le navigateur refuse d'écrire (mémoire saturée) — on continue en mémoire seule.`);
+        console.warn(`[mnd-store] ${key} : le navigateur refuse d'écrire (mémoire saturée), on continue en mémoire seule.`);
       }
       /* ② TOUJOURS prévenir l'écran, écriture réussie ou non. */
       window.dispatchEvent(new CustomEvent(EVT, { detail: key }));

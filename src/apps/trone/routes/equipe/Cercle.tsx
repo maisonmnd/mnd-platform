@@ -137,7 +137,7 @@ export default function Cercle() {
       <PageHead
         eyebrow="Le Cercle MND · transmission & lignée"
         title="Le Cercle."
-        sub={`${branch.name} — les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
+        sub={`${branch.name}, les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
         actions={<Button variant="copper" onClick={openTierNew}>+ Nouveau palier</Button>}
       />
 
@@ -152,7 +152,7 @@ export default function Cercle() {
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
             {pointsOn
               ? 'Chaque rituel honoré attribue ses points (1 point / ' + rate + ' F).'
-              : 'Aucun point n’est attribué aux encaissements ni aux rituels honorés — activez le jour du lancement du programme.'}
+              : 'Aucun point n’est attribué aux encaissements ni aux rituels honorés, activez le jour du lancement du programme.'}
           </div>
         </div>
       </div>
@@ -195,7 +195,7 @@ export default function Cercle() {
               <div>
                 <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>Comment se méritent les points</div>
                 <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 4 }}>
-                  Chaque dépense élève la couronne — jamais de date d’expiration, jamais de petits caractères.
+                  Chaque dépense élève la couronne, jamais de date d’expiration, jamais de petits caractères.
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -227,8 +227,7 @@ export default function Cercle() {
             {/* LA RÈGLE SE DIT, sinon un comptoir qui ne voit aucun point tomber
                 croit à une panne et finit par en ajouter à la main. */}
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
-              Un passage ne donne pas le Cercle. Les {seuil > 1 ? `${seuil - 1} premier${seuil > 2 ? 's' : ''} passage${seuil > 2 ? 's' : ''} n’attribue${seuil > 2 ? 'nt' : ''} aucun point` : 'points sont attribués dès la première venue'} —
-              la reconnaissance commence au {seuil}ᵉ, et rien n’est crédité après coup pour les venues d’avant.
+              Un passage ne donne pas le Cercle. Les {seuil > 1 ? `${seuil - 1} premier${seuil > 2 ? 's' : ''} passage${seuil > 2 ? 's' : ''} n’attribue${seuil > 2 ? 'nt' : ''} aucun point` : 'points sont attribués dès la première venue'}, la reconnaissance commence au {seuil}ᵉ, et rien n’est crédité après coup pour les venues d’avant.
               Une venue = un jour où un rituel a été honoré ; deux gestes le même jour ne comptent qu’une fois.
             </div>
           </Card>
@@ -240,7 +239,7 @@ export default function Cercle() {
                 <div className="tre-tier__pts">{t.pts.toLocaleString('fr-FR')} pts</div>
                 <div style={{ fontWeight: 500, fontSize: 12, marginTop: 6 }}>« {serviceName(t.serviceId)} » offert</div>
                 <div className="mnd-muted" style={{ fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>
-                  {t.desc || `Valeur ${fmtMoney(servicePrice(t.serviceId), currency)} — offerte, sans frais.`}
+                  {t.desc || `Valeur ${fmtMoney(servicePrice(t.serviceId), currency)}, offerte, sans frais.`}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   <button className="tre-chip" style={{ flex: 1, borderRadius: 2 }} onClick={() => openTierEdit(t)}>Modifier</button>
@@ -251,7 +250,7 @@ export default function Cercle() {
           </div>
 
           <div className="tre-quote" style={{ marginTop: 18 }}>
-            « Le point ne s’achète pas au sens d’un solde bancaire — il témoigne d’une fidélité. La Maison le rend en offrant ce qu’elle sait faire de mieux : un soin. »
+            « Le point ne s’achète pas au sens d’un solde bancaire, il témoigne d’une fidélité. La Maison le rend en offrant ce qu’elle sait faire de mieux : un soin. »
           </div>
         </div>
       )}
@@ -308,7 +307,7 @@ export default function Cercle() {
                 <div className="tre-empty__sub">
                   {q
                     ? 'Cherchez sur une autre orthographe, ou changez de registre.'
-                    : `Le Cercle s’ouvre au ${seuil}ᵉ passage${vue === 'membres' && auxPortes.length > 0 ? ` — ${auxPortes.length} tête${auxPortes.length > 1 ? 's' : ''} en approche, registre voisin.` : '.'}`}
+                    : `Le Cercle s’ouvre au ${seuil}ᵉ passage${vue === 'membres' && auxPortes.length > 0 ? `, ${auxPortes.length} tête${auxPortes.length > 1 ? 's' : ''} en approche, registre voisin.` : '.'}`}
                 </div>
               </Card>
             )}

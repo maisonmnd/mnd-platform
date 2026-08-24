@@ -509,7 +509,7 @@ export const motDesCaissesEnDevise = (ecartees: readonly Cashbox[], maison: stri
   const noms = ecartees.map((b) => `${b.name} (${cashboxCurrency(b)})`).join(
 );
   return `${noms} ${ecartees.length > 1 ? "n’apparaissent" : "n’apparaît"} pas ici : ce montant se saisit en ${maison}, `
-    + `et l’inscrire dans un tiroir en devise fausserait son solde — un tiroir compte SES billets.`;
+    + `et l’inscrire dans un tiroir en devise fausserait son solde, un tiroir compte SES billets.`;
 };
 export const caissesHorsBilan = (boxes: readonly Cashbox[], branchId: string): Set<string> =>
   new Set(boxes.filter((c) => c.branchId === branchId && c.horsBilan).map((c) => c.name));
@@ -1215,13 +1215,13 @@ export const flecherVersObjectif = (o: {
     id: `flch-${o.objectifId}-${o.date}-${o.montantXof}-a`,
     branchId: o.branchId, kind: 'depot', amountXof: o.montantXof, date: o.date,
     objectifId: o.objectifId, flechage: true,
-    note: `Fléché vers ${o.nomObjectif} — depuis le disponible`,
+    note: `Fléché vers ${o.nomObjectif}, depuis le disponible`,
   },
   {
     id: `flch-${o.objectifId}-${o.date}-${o.montantXof}-b`,
     branchId: o.branchId, kind: 'retrait', amountXof: o.montantXof, date: o.date,
     flechage: true,
-    note: `Fléché vers ${o.nomObjectif} — quitte le disponible`,
+    note: `Fléché vers ${o.nomObjectif}, quitte le disponible`,
   },
 ] as CoffreMovement[]);
 
