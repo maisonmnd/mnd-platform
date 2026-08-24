@@ -60,9 +60,9 @@ APPLIQUÉ EN PROD LE 24 AOÛT (Supabase SQL Editor / redéploiement Edge) :
   confirmés (`appointments`/`invoices`, BEFORE INSERT/UPDATE). Neutralise, pour
   une écriture CLIENTE directe (sync), les champs d'argent qu'elle ne devrait pas
   poser — `depositConfirmed`, `depositXof`, `paidXof`, statut `payée` d'une
-  facture. Staff et `service_role` (kkiapay) gardent plein droit. **TEST COMPTOIR
-  À CONFIRMER** : qu'une vente s'encaisse toujours normalement (rollback =
-  `drop trigger garde_argent_cliente_biu`, en pied du fichier). NON couvert : le
+  facture. Staff et `service_role` (kkiapay) gardent plein droit. **Test comptoir
+  OK (24 août)** : une vente s'encaisse normalement, staff non gêné (rollback
+  restait `drop trigger garde_argent_cliente_biu`). NON couvert : le
   prix figé `priceXof`/`discountXof` (une cliente peut figer un prix de 0) —
   décision produit, demande un recalcul serveur du prix.
 
