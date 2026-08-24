@@ -71,10 +71,17 @@ TRANCHÉ LE 24 AOÛT :
   branche est un filtre d'interface, pas une frontière de sécurité (maison
   unique ; le cloisonnement multi-tenant viendra avec l'`org_id` de LOKAA).
   Documenté dans `docs/BACKEND.md`. Aucun changement de policy en prod.
+- **Purge d'historique git** : ON NE PURGE PAS — résidu assumé. Des noms de
+  clientes restent dans les messages des commits `984b47d` (trois paires
+  mère-enfant), `f2a6233` (deux clientes) et `358e9fa` (rétrogradé — un proche).
+  Le dépôt a fui le 2 août et est déjà cloné : réécrire l'historique (force-push
+  d'un dépôt public de 711 commits, tous les SHA changent, re-clone obligatoire)
+  protégerait les futurs lecteurs, pas les copies déjà faites — bénéfice marginal
+  faible pour un coût irréversible. GARDE-FOU POUR L'AVENIR : un message de commit
+  est de l'HISTOIRE PUBLIQUE INEFFAÇABLE — mêmes initiales que le code, jamais un
+  nom complet. Voir [[commit-messages-are-public]].
 
 RESTE UNE DÉCISION DE TA PART (rien fait) :
-- **Purge d'historique git** : noms de clientes dans les messages des commits
-  984b47d et f2a6233 (réécriture + push force).
 - **Décisions de calcul** : la Synthèse exclut-elle les caisses hors-bilan ? Le
   net de Personnel intègre-t-il CNSS/ITS ? (bloquent l'unification `revenuDuMois`
   et de la paie).
