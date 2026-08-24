@@ -28,10 +28,10 @@ const J = (f) => (existsSync(join(dir, f)) ? JSON.parse(readFileSync(join(dir, f
    espaces et zéros de tête varient d'une saisie à l'autre pour un même abonné. */
 const tel = (p) => String(p ?? '').replace(/[^0-9]/g, '').replace(/^0+/, '').slice(-8);
 /* Nom : sans accents, sans casse, sans ponctuation — « Ghislaine F. »
-   et « Ghislaine Fifando » sont la même personne. */
+   et « Ghislaine Fictive » sont la même personne. */
 const nom = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
-/* Clé de nom insensible à l'ordre : « Lenny F. » = « Fassassi L. ». */
+/* Clé de nom insensible à l'ordre : « Aline B. » = « Boni A. ». */
 const nomTrie = (s) => nom(s).split(' ').sort().join(' ');
 
 const users = J('users.json'), pend = J('pendingClients.json');

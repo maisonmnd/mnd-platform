@@ -36,6 +36,16 @@ type Grand = {
    Les caractères que le format réserve s'échappent — un mot de passe qui
    porte un point-virgule reste un mot de passe entier. */
 const escWifi = (s: string) => s.replace(/([\\;,:"])/g, '\\$1');
+
+/* ÉCHAPPEMENT HTML — défense en profondeur. La carte A5 se bâtit par
+   concaténation de chaîne ; nom de la Maison, SSID, marchand MoMo et libellés
+   viennent de documents SYNCHRONISÉS (mnd_house_identity, mnd_auto_config),
+   qu'un autre poste peut écrire via l'API. L'impression est aujourd'hui inerte
+   (`window.open('', ..., 'noopener')` rend `null`), mais si elle est réparée un
+   jour sans garde, un balisage glissé dans ces champs s'exécuterait en même
+   origine. On échappe donc à la source, comme le fait déjà public/payer.html. */
+const escHtml = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 const wifiPayload = (ssid: string, pass: string) =>
   `WIFI:T:WPA;S:${escWifi(ssid)};P:${escWifi(pass)};;`;
 
@@ -43,7 +53,7 @@ const wifiPayload = (ssid: string, pass: string) =>
 const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; sousGrand?: string; etapes: string[]; ariaQr: string }) => {
   const { path, n } = qrMatrice(o.qr);
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8" />
-<title>${maisonNom()} — ${o.titre}</title>
+<title>${escHtml(maisonNom())} — ${escHtml(o.titre)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Jost:wght@400;500;600&display=swap" />
 <style>
   @page { size: A5 portrait; margin: 0; }
@@ -63,16 +73,16 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
   .devise { margin-top: auto; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: #9E6238; }
 </style></head><body>
   <div class="carte">
-    <div class="marque">${maisonNom().toUpperCase()}</div>
-    <div class="titre">${o.titre}</div>
-    <div class="sous">${o.sous}</div>
-    <svg class="qr" viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="${o.ariaQr}">
+    <div class="marque">${escHtml(maisonNom().toUpperCase())}</div>
+    <div class="titre">${escHtml(o.titre)}</div>
+    <div class="sous">${escHtml(o.sous)}</div>
+    <svg class="qr" viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="${escHtml(o.ariaQr)}">
       <rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#F6F1E7" />
       <path d="${path}" fill="#1E2150" shape-rendering="crispEdges" />
     </svg>
-    ${o.grand ? `<div class="grand">${o.grand}</div>` : ''}
-    ${o.sousGrand ? `<div class="sousgrand">${o.sousGrand}</div>` : ''}
-    <div class="etapes">${o.etapes.map((e, i) => `<b>${i + 1}</b> · ${e}`).join('<br />')}</div>
+    ${o.grand ? `<div class="grand">${escHtml(o.grand)}</div>` : ''}
+    ${o.sousGrand ? `<div class="sousgrand">${escHtml(o.sousGrand)}</div>` : ''}
+    <div class="etapes">${o.etapes.map((e, i) => `<b>${i + 1}</b> · ${escHtml(e)}`).join('<br />')}</div>
     <div class="devise">${DEVISE_COMPLETE}</div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>

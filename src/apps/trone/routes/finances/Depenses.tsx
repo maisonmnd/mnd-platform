@@ -11,7 +11,7 @@ import { expenseOccurrences,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
-  usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut,
+  usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut, caisseDiscrete,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
@@ -1306,13 +1306,20 @@ export default function Depenses() {
                         <span className="trf-benef__barre"><i style={{ width: `${Math.max(2, Math.round((b.total / hautP) * 100))}%` }} /></span>
                         {/* CE QUI RESTE DANS SES MAINS — la seule chose que le
                             total des achats ne dit pas. Il vient du solde de sa
-                            caisse : remis moins dépensé, au franc près. */}
+                            caisse : remis moins dépensé, au franc près.
+
+                            UN TIROIR À CODE SE TAIT ICI AUSSI — même règle stricte
+                            que `nomEtSolde` hors des Caisses (23 août) : cet écran
+                            n'est pas derrière `CLE_ECRAN`, le solde d'une caisse
+                            discrète ne s'y lit donc jamais, même ouverte pour la
+                            séance ailleurs. Sinon confier un tiroir à code à un
+                            porteur rouvrait son solde par la porte des Dépenses. */}
                         {(() => {
                           const sienne = caisseDuPorteur(branchBoxes, branch.id, b.nom);
                           if (!sienne) return null;
                           return (
                             <span className="trf-benef__reste">
-                              reste en main <b>{fmtIn(boxBalance(sienne.name), cashboxCurrency(sienne))}</b>
+                              reste en main <b>{caisseDiscrete(sienne) ? '••• •••' : fmtIn(boxBalance(sienne.name), cashboxCurrency(sienne))}</b>
                             </span>
                           );
                         })()}

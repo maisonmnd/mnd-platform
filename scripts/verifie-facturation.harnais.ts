@@ -147,6 +147,22 @@ const parAvoir = piece2([
 dit('le revenu du mois compte l’avoir', 81_000, invoiceRegleAu(parAvoir, '2026-08'));
 dit('… mais la caisse ne prend que les billets', 41_000, invoiceCaisseAu(parAvoir, '2026-08'));
 
+/* ── LE JOURNAL DU JOUR LIT LES VERSEMENTS, PAS LA PIÈCE EN BLOC — 24 août 2026.
+   La Caisse sommait `invoiceTotal` de chaque pièce DATÉE du jour : un solde reçu
+   le 28 septembre sur une pièce du 12 août n'entrait nulle part, une pièce du
+   jour à moitié réglée comptait en entier, et l'avoir/l'acompte gonflaient le
+   « Total encaissé · jour ». Le total d'un jour est la somme de SES versements,
+   l'avoir et l'acompte écartés — exactement `invoiceCaisseAu(piece, jour)`. */
+dit('le journal d’un jour ne prend que les versements de CE jour', 51_000, invoiceCaisseAu(deux, '2026-09-28'));
+dit('… et le 12 août, l’autre versement seul', 30_000, invoiceCaisseAu(deux, '2026-08-12'));
+/* Un acompte reçu un AUTRE jour n'entre pas dans la caisse du jour du solde. */
+const avecAcompte = piece2([
+  { id: 'pa1', date: '2026-08-10', amountXof: 25_000, method: 'Acompte', cashbox: 'Bocal' },
+  { id: 'pa2', date: '2026-08-12', amountXof: 56_000, method: 'Espèces', cashbox: 'Bocal' },
+]);
+dit('l’acompte d’un autre jour ne gonfle pas la caisse du jour du solde', 56_000, invoiceCaisseAu(avecAcompte, '2026-08-12'));
+dit('… et le jour de l’acompte ne compte que lui', 0, invoiceCaisseAu(avecAcompte, '2026-08-10'));
+
 /* LES PIÈCES D'AVANT NE BOUGENT PAS — sans journal, une soldée en vaut un
    d'une entrée, et les chiffres sont EXACTEMENT ceux d'hier. */
 const ancienne = piece2(undefined);

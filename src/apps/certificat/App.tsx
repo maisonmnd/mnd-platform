@@ -137,7 +137,7 @@ function initFromUrl() {
   const mentionParam = params.get('mention')?.trim();
   const mention = mentionParam && MENTIONS.includes(mentionParam) ? mentionParam : 'Excellence';
   return {
-    apprenant: params.get('apprenant')?.trim() || 'Vioutou Raimath Bonou',
+    apprenant: params.get('apprenant')?.trim() || 'Rachelle A.',
     formationId: match?.id ?? custom?.id ?? FORMATIONS[1].id,
     dateIso: validDate || new Date().toISOString().slice(0, 10),
     certNo: numero || `MND-AC-${annee}-0042`,

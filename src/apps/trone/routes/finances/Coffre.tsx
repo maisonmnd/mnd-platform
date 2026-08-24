@@ -11,7 +11,7 @@ import { useClients } from '../../../../shared/clients';
 import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
-  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison, cashboxCurrency,
+  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison, coffreVerseXof, coffreSortiBanqueXof, cashboxCurrency,
   caissesEnDevise, motDesCaissesEnDevise,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
@@ -120,12 +120,15 @@ export default function Coffre() {
      chaque compartiment en devise dit son propre total, chez lui. Additionner
      des euros à des francs ferait un nombre qui n'existe nulle part. */
   const balance = coffreBalanceMaison(moves);
-  const totalIn = moves.filter((m) => m.kind === 'depot').reduce((s, m) => s + m.amountXof, 0);
-  const totalOut = moves.filter((m) => m.kind === 'virement').reduce((s, m) => s + m.amountXof, 0);
+  /* LES TUILES LISENT LES MÊMES PORTES QUE LE SOLDE — 24 août. « Total versé »
+     et « Versé ce mois » sommaient TOUS les dépôts, fléchages et devises
+     compris : chaque fléchage (une paire interne qui ne fait rien entrer) les
+     gonflait, et versé − sorti ne retombait jamais sur le solde. Ces lectures
+     vivent désormais dans finance.ts, à côté de `coffreBalanceMaison`. */
   const thisMonth = monthKey(todayISO());
-  const inThisMonth = moves
-    .filter((m) => m.kind === 'depot' && monthKey(m.date) === thisMonth)
-    .reduce((s, m) => s + m.amountXof, 0);
+  const totalIn = coffreVerseXof(moves);
+  const inThisMonth = coffreVerseXof(moves, thisMonth);
+  const totalOut = coffreSortiBanqueXof(moves);
 
   /* Chiffre réalisé d'une cliente — pour proposer une part à mettre de côté.
      Rituels honorés (net) + factures payées hors règlements de RDV. */

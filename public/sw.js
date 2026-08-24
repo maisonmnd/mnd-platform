@@ -47,9 +47,20 @@ self.addEventListener('push', (event) => {
   })());
 });
 
+/* L'URL du clic ne quitte JAMAIS notre origine — défense en profondeur. Un push
+   ne s'émet qu'avec la clé VAPID privée (serveur), donc `data.url` n'est pas
+   atteignable par un tiers ; mais on ne navigue quand même que vers une adresse
+   de même origine, et l'on retombe sinon sur l'accueil de Ma Couronne. */
+function urlSure(brut) {
+  try {
+    const u = new URL(brut, self.location.origin);
+    return u.origin === self.location.origin ? u.href : '/couronne/';
+  } catch (_e) { return '/couronne/'; }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/couronne/';
+  const url = urlSure((event.notification.data && event.notification.data.url) || '/couronne/');
   event.waitUntil((async () => {
     await clearAll();
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

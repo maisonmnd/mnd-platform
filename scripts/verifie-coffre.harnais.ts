@@ -9,9 +9,9 @@ import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
   flecherVersObjectif, flechableVers, rythmeDuPlan,
   jalonsDeLObjectif, etatDeLObjectif, planPourTenir, moisEntre, moisPlusISO, attenduAuJour, objectifsASurveiller,
-  recuDansSaDevise, coffreBalanceMaison, compartimentEtranger, deviseDuCompartiment,
-  empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, caisseParDefaut, type Cashbox,
-  type CoffreMovement, type ObjectifCoffre,
+  recuDansSaDevise, coffreBalanceMaison, coffreVerseXof, coffreSortiBanqueXof, compartimentEtranger, deviseDuCompartiment,
+  empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, caisseParDefaut, depensesDuMois, type Cashbox,
+  type CoffreMovement, type ObjectifCoffre, type Expense,
 } from '../src/shared/finance';
 import { montantsDuTiroir } from '../src/apps/trone/routes/finances/tiroirs';
 import { fmtDay } from '../src/apps/trone/routes/finances/_shared';
@@ -472,6 +472,42 @@ dit('aucune caisse ne rend rien', undefined, caisseParDefaut([], 'br', 'XOF'));
 dit('la monnaie de la Maison, quelle qu’elle soit',
   'Tiroir EUR', caisseParDefaut(rangee, 'br', 'EUR')?.name);
 
+
+/* ── LES TUILES DU COFFRE LISENT LES MÊMES BILLETS QUE LE SOLDE — 24 août 2026.
+   « Total versé » et « Versé ce mois » sommaient TOUS les dépôts : chaque
+   fléchage (une paire interne qui ne fait rien entrer) et chaque devise les
+   gonflaient, si bien que versé − sorti ne retombait jamais sur le solde
+   affiché juste au-dessus. Les lectures vivent désormais dans finance.ts. */
+const flechagePaire = flecherVersObjectif({
+  branchId: 'br', objectifId: 'oT', nomObjectif: 'Voyage', montantXof: 40_000, date: '2026-08-05',
+});
+const coffreTuiles: CoffreMovement[] = [
+  dep('t1', 100_000, '2026-08-02'),                 // vrai versement, monnaie de la Maison
+  dep('t2', 30_000, '2026-07-20'),                  // vrai versement, mois précédent
+  depFx('t3', 200, 655, '2026-08-03', 'tiroirEur'), // devise : hors des tuiles en francs
+  ...flechagePaire,                                 // fléchage : n'entre ni ne sort
+  vir('t4', 25_000, '2026-08-10'),                  // virement bancaire = sortie
+  { id: 't5', branchId: 'br', kind: 'retrait', amountXof: 10_000, date: '2026-08-12' } as CoffreMovement,
+];
+dit('« Total versé » ne compte que les vrais versements en francs', 130_000, coffreVerseXof(coffreTuiles));
+dit('« Versé ce mois » borne au mois, hors fléchage et devise', 100_000, coffreVerseXof(coffreTuiles, '2026-08'));
+dit('« Sorti vers la banque » ne compte que les virements', 25_000, coffreSortiBanqueXof(coffreTuiles));
+
+/* ── LES DÉPENSES DU MOIS, UNE SEULE PORTE — 24 août 2026.
+   Le Dashboard ne comptait une récurrente qu'à son mois de saisie ; la Synthèse
+   et l'onglet Dépenses la faisaient courir sur chaque mois — un loyer de
+   300 000 F rendait le Résultat net du Dashboard trop beau d'autant.
+   `depensesDuMois` tient la règle pour tous les écrans. */
+const dpn = (id: string, xof: number, date: string, extra: Partial<Expense> = {}): Expense =>
+  ({ id, branchId: 'br', date, label: id, category: 'Divers', amountXof: xof, ...extra } as Expense);
+const loyer = dpn('loyer', 300_000, '2026-06-05', { recurring: 'mensuel' });
+const depenses = [loyer, dpn('achat', 50_000, '2026-08-10'), dpn('autre', 999, '2026-08-01', { branchId: 'zz' })];
+dit('une mensuelle de juin pèse encore en août', 300_000, depensesDuMois([loyer], 'br', '2026-08'));
+dit('Dashboard et Synthèse voient le même total du mois', 350_000, depensesDuMois(depenses, 'br', '2026-08'));
+dit('la borne du jour retient une ponctuelle engagée avant', 350_000, depensesDuMois(depenses, 'br', '2026-08', '2026-08-10'));
+dit('… et écarte une ponctuelle engagée après', 300_000, depensesDuMois(depenses, 'br', '2026-08', '2026-08-09'));
+dit('… mais garde la récurrente, engagement du mois entier', 300_000, depensesDuMois([loyer], 'br', '2026-08', '2026-08-01'));
+dit('chaque branche a son propre total', 999, depensesDuMois(depenses, 'zz', '2026-08'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

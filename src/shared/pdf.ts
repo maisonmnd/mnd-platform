@@ -20,6 +20,12 @@ const BRIQUE = '#96412E';
 const PDF_BAD_CODES = [0x00a0, 0x202f, 0x2007, 0x2008, 0x2009, 0x2060, 0x3000, 0xfeff];
 const PDF_BAD_SPACES = new RegExp('[' + PDF_BAD_CODES.map((c) => String.fromCharCode(c)).join('') + ']', 'g');
 
+/* LES CARACTÈRES DE CONTRÔLE PASSENT WinAnsi (code <= 0xFF) MAIS CASSENT LA
+   LIGNE — un \r, un \t ou un octet de contrôle glissé par la sync dans un nom
+   de cliente déplace le texte tracé. On les réduit à une espace ; seul le saut
+   de ligne \n (0x0A) survit, jsPDF sait le rendre. */
+const PDF_CONTROLS = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/g;
+
 /* LES LETTRES FON N'EXISTENT PAS EN WinAnsi — et jsPDF ne dégrade pas un
    caractère, il dégrade LA LIGNE : un seul « Ɔ » dans « KLƆKLƆ™ » bascule tout
    le texte en 16 bits et l'objet d'un reçu sortait en
@@ -37,7 +43,7 @@ const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜
 const winAnsiOk = (ch: string): boolean => ch.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(ch);
 
 function pdfSafe(s: string): string {
-  let t = s.normalize('NFC').replace(PDF_BAD_SPACES, ' ');
+  let t = s.replace(PDF_CONTROLS, ' ').normalize('NFC').replace(PDF_BAD_SPACES, ' ');
   /* Translittérer PUIS recomposer : « ɔ́ » (ɔ + accent flottant) devient
      « o + accent », que NFC referme en « ó » — un vrai glyphe WinAnsi. */
   t = t.replace(/[ƆɔƉɖƐɛŊŋƲʋ−‑]/g, (c) => PDF_TRANSLIT[c]).normalize('NFC');

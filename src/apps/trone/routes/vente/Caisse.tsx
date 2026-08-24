@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
@@ -461,15 +461,35 @@ export default function Caisse() {
     }
   };
 
-  /* — journal du jour — */
+  /* — journal du jour — CE QUI EST ENTRÉ EN CAISSE AUJOURD'HUI, versement par
+     versement, comme le relevé du tiroir (tiroirs.tsx) — jamais « la pièce en
+     bloc à sa date ». Corrigé le 24 août : le total sommait `invoiceTotal` de
+     chaque pièce datée du jour, donc (1) il comptait la part réglée par AVOIR
+     (un crédit, pas des billets) et l'ACOMPTE déjà entré un autre jour ; (2) un
+     versement reçu aujourd'hui sur une pièce d'hier n'apparaissait pas, et une
+     pièce du jour à moitié réglée comptait en entier ; (3) la ventilation
+     MoMo/Espèces/Carte imputait tout le total au PREMIER moyen d'une pièce
+     multi-moyens. On lit désormais les versements, chacun à son jour, sa caisse
+     et son moyen — l'avoir et l'acompte écartés (même règle qu'`invoiceCaisseAu`). */
   const today = todayIso();
-  const journal = invoices
-    .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée' && i.date === today)
-    .filter((i) => journalCaisse === 'Toutes' || (i.cashbox ?? 'Caisse principale') === journalCaisse);
-  const journalTotal = journal.reduce((s, i) => s + invoiceTotal(i), 0);
-  /* Pourboires encaissés dans la caisse — hors chiffre d'affaires, à reverser aux maîtres. */
-  const tipsTotal = journal.reduce((s, i) => s + (i.tipXof ?? 0), 0);
-  const sumBy = (fn: (p?: PaymentMethod) => boolean) => journal.filter((i) => fn(i.payment)).reduce((s, i) => s + invoiceTotal(i), 0);
+  const caisseDuVersement = (i: Invoice, p: InvoicePayment) => p.cashbox ?? i.cashbox ?? 'Caisse principale';
+  const versementsDuJour = invoices
+    .filter((i) => i.branchId === branch.id && i.kind === 'facture')
+    .flatMap((i) =>
+      invoiceReglements(i)
+        .filter((p) => (p.date ?? i.date) === today && p.method !== 'Avoir' && p.method !== 'Acompte')
+        .map((p) => ({ inv: i, p })),
+    )
+    .filter((e) => journalCaisse === 'Toutes' || caisseDuVersement(e.inv, e.p) === journalCaisse);
+  const journalTotal = versementsDuJour.reduce((s, e) => s + e.p.amountXof, 0);
+  /* Le pourboire est un fait de la PIÈCE, pas d'un versement : on le lit sur les
+     pièces DISTINCTES qui ont reçu un versement aujourd'hui, sans le compter deux
+     fois quand une pièce a été réglée en plusieurs fois. Hors chiffre d'affaires,
+     à reverser aux maîtres. */
+  const piecesDuJour = [...new Map(versementsDuJour.map((e) => [e.inv.id, e.inv])).values()];
+  const tipsTotal = piecesDuJour.reduce((s, i) => s + (i.tipXof ?? 0), 0);
+  const sumBy = (fn: (p?: PaymentMethod) => boolean) =>
+    versementsDuJour.filter((e) => fn(e.p.method)).reduce((s, e) => s + e.p.amountXof, 0);
   const clientName = (i: Invoice) => clients.find((c) => c.id === i.clientId)?.name ?? i.clientName ?? '—';
   const journalDateLabel = (() => {
     const s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -922,7 +942,7 @@ export default function Caisse() {
             <div className="trv-kpi trv-kpi--copper">
               <div className="l">Total encaissé · jour</div>
               <div className="v">{fmtMoney(journalTotal, currency)}</div>
-              <div className="c">{journal.length} transaction{journal.length > 1 ? 's' : ''}</div>
+              <div className="c">{versementsDuJour.length} versement{versementsDuJour.length > 1 ? 's' : ''}</div>
             </div>
             <div className="trv-kpi"><div className="l">Mobile Money</div><div className="v">{fmtMoney(sumBy((p) => p === 'MTN MoMo' || p === 'Moov'), currency)}</div></div>
             <div className="trv-kpi"><div className="l">Espèces</div><div className="v">{fmtMoney(sumBy((p) => p === 'Espèces'), currency)}</div></div>
@@ -949,9 +969,9 @@ export default function Caisse() {
               <span className="trv-th">Paiement</span>
               <span className="trv-th" style={{ textAlign: 'right' }}>Montant</span>
             </div>
-            {journal.map((i) => (
+            {versementsDuJour.map(({ inv: i, p }) => (
               <div
-                key={i.id}
+                key={`${i.id}-${p.id}`}
                 className="trv-journal-row"
                 onClick={() => navigate(`/factures?id=${i.id}`)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures?id=${i.id}`); } }}
@@ -962,26 +982,26 @@ export default function Caisse() {
               >
                 <span style={{ fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
                 <span>
-                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(i.date)}</span>
-                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{i.time ?? '—'}</span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(p.date ?? i.date)}</span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{p.time ?? i.time ?? '—'}</span>
                 </span>
                 <div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
                     {i.lines.map((l) => (l.qty > 1 ? `${l.label} ×${l.qty}` : l.label)).join(' · ')}
                   </div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3 }}>
-                    {clientName(i)} · {i.cashbox ?? 'Caisse principale'}
+                    {clientName(i)} · {caisseDuVersement(i, p)}
                   </div>
                 </div>
                 <div>
-                  <span className={`trv-paychip ${i.payment === 'MTN MoMo' || i.payment === 'Moov' ? 'momo' : ''}`}>{i.payment}</span>
+                  <span className={`trv-paychip ${p.method === 'MTN MoMo' || p.method === 'Moov' ? 'momo' : ''}`}>{p.method}</span>
                 </div>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', textAlign: 'right' }}>
-                  {fmtMoney(invoiceTotal(i), currency)}
+                  {fmtMoney(p.amountXof, currency)}
                 </span>
               </div>
             ))}
-            {journal.length === 0 && (
+            {versementsDuJour.length === 0 && (
               <div style={{ padding: '26px 24px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>
                 Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.
               </div>

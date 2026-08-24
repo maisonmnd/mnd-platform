@@ -233,6 +233,32 @@ export const expenseOccurrences = (e: Expense, mk: string): number => {
 export const expenseTotal = (e: Expense): number =>
   e.items && e.items.length ? e.items.reduce((s, it) => s + it.amountXof, 0) : e.amountXof;
 
+/** CE QUE LE MOIS `mk` A COÛTÉ — une seule porte pour tous les écrans.
+
+    La Synthèse et l'onglet Dépenses comptaient déjà une récurrente autant de
+    fois qu'elle traverse le mois (`expenseTotal × expenseOccurrences`) ; le
+    Dashboard, lui, ne la comptait qu'à son mois de saisie — un loyer de
+    300 000 F rendait le « Résultat net » du mois trop beau d'autant face à la
+    Synthèse. Le calcul vit donc ici, appelé des deux côtés : deux additions qui
+    divergent disent deux résultats pour le même mois.
+
+    `cut` (aaaa-mm-jj) sert la comparaison mois-à-date des KPI : une dépense
+    PONCTUELLE ne compte que si elle est engagée au plus tard ce jour ; une
+    récurrente est un engagement du mois entier et compte dès que le mois court,
+    pour que le mois précédent se lise au même point que le mois en cours. */
+export const depensesDuMois = (
+  expenses: readonly Expense[], branchId: string, mk: string, cut?: string,
+): number =>
+  expenses
+    .filter((e) => e.branchId === branchId && !e.stopped)
+    .reduce((s, e) => {
+      const occ = expenseOccurrences(e, mk);
+      if (occ === 0) return s;
+      const ponctuelle = !e.recurring || e.paused;
+      if (cut && ponctuelle && (e.date ?? '') > cut) return s;
+      return s + expenseTotal(e) * occ;
+    }, 0);
+
 /** LES REVENUS D'UNE DÉPENSE, BORNÉS PAR CE QU'ELLE A COÛTÉ.
 
     UNE DÉPENSE NE PEUT PAS CONSOMMER PLUS QU'ELLE N'A DÉPENSÉ. L'invariant
@@ -945,6 +971,25 @@ export const recuDansSaDevise = (
     total, chacun chez lui. Même règle que la trésorerie des caisses. */
 export const coffreBalanceMaison = (moves: readonly CoffreMovement[]): number =>
   Math.max(0, moves.filter((m) => !m.fx).reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/** CE QUE LE COFFRE A REÇU POUR DE VRAI — les vrais versements, en monnaie de la
+    Maison. Les FLÉCHAGES (paires internes qui ne font rien entrer ni sortir) et
+    les billets ÉTRANGERS en sont exclus, exactement comme pour le solde : sinon
+    « Total versé » gonflait de chaque fléchage sans qu'un franc n'entre, et
+    versé − sorti ne retombait jamais sur le solde affiché juste au-dessus.
+    `mk` (« aaaa-mm ») borne au mois voulu ; absent, c'est depuis l'ouverture. */
+export const coffreVerseXof = (moves: readonly CoffreMovement[], mk?: string): number =>
+  moves
+    .filter((m) => m.kind === 'depot' && !m.flechage && !m.fx && (!mk || m.date.slice(0, 7) === mk))
+    .reduce((s, m) => s + m.amountXof, 0);
+
+/** CE QUI EST SORTI VERS LA BANQUE — les virements seuls (la tuile le dit :
+    « virements bancaires cumulés »), hors fléchage et hors devise. Un retrait
+    rendu à une caisse est une autre sortie, nommée à part dans le registre. */
+export const coffreSortiBanqueXof = (moves: readonly CoffreMovement[]): number =>
+  moves
+    .filter((m) => m.kind === 'virement' && !m.flechage && !m.fx)
+    .reduce((s, m) => s + m.amountXof, 0);
 
 /** LE RYTHME, ET CE QU'IL PROMET. Moyenne mensuelle des versements fléchés sur
     les mois où il y en a eu — pas sur le calendrier, sinon un objectif ouvert

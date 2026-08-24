@@ -63,7 +63,7 @@ function initFromUrl() {
     try { contenu = JSON.parse(brut) as ContenuUrl; } catch { contenu = {}; }
   }
   return {
-    client: g('client') || 'Vioutou Raimath Bonou',
+    client: g('client') || 'Aïssatou D.',
     service: g('service') || SERVICES[1],
     dateIso: /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO(),
     praticien: g('praticien') || PRATICIENS[0],

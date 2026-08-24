@@ -7,7 +7,7 @@ import { signeLeMessage } from '../../../../shared/identite';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
-import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, expenseTotal, type Invoice } from '../../../../shared/finance';
+import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
@@ -120,10 +120,11 @@ export default function Dashboard() {
         .reduce((n, p) => n + p.amountXof, 0),
       0,
     );
-    const exp = (mk: string, cut?: string) =>
-      expenses
-        .filter((e) => e.branchId === branch.id && monthKey(e.date) === mk && !e.stopped && (!cut || e.date <= cut))
-        .reduce((s, e) => s + expenseTotal(e), 0);
+    /* UNE SEULE PORTE POUR LES DÉPENSES DU MOIS — récurrentes comprises, comme
+       la Synthèse et l'onglet Dépenses. Le filtre local d'avant oubliait les
+       récurrentes engagées un mois antérieur : le Résultat net s'en trouvait
+       trop beau. Voir `depensesDuMois` (shared/finance.ts). */
+    const exp = (mk: string, cut?: string) => depensesDuMois(expenses, branch.id, mk, cut);
 
     // Règlements de formation (Académie) — revenu réel de la Maison (hors branche).
     const formPays = apprenants.flatMap((ap) =>

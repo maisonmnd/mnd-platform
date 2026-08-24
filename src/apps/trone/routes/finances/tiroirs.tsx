@@ -121,6 +121,14 @@ export function useCaissesOuvertes(): ReadonlySet<string> {
 export const soldeVisible = (c: { id: string; codeHash?: string }, ouvertes: ReadonlySet<string>): boolean =>
   !c.codeHash || ouvertes.has(c.id);
 
+/** LE COFFRE MONTRE-T-IL SON SOLDE ? Même règle que `soldeVisible`, appliquée
+    au verrou du coffre (`CLE_COFFRE`) : un code posé et la séance non ouverte le
+    font se taire. Une seule source pour les écrans qui affichent le solde du
+    coffre AILLEURS que sur le Coffre — sinon le verrou du coffre ne tiendrait
+    que là où il est posé, et fuirait par Salon & Foyer ou les Objectifs. */
+export const coffreOuvert = (codeCoffreHash: string | undefined, ouvertes: ReadonlySet<string>): boolean =>
+  !codeCoffreHash || ouvertes.has(CLE_COFFRE);
+
 
 /** TOUT CE QU'UNE CAISSE SAIT D'ELLE-MÊME. Une seule porte, deux écrans. */
 export function useCaisses(month: string) {

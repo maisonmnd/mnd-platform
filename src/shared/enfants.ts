@@ -298,8 +298,8 @@ export async function rattacherEnfant(
     désigne le parent comme payeur.
 
     LE NOM NE SE DÉDUIT PAS DU PARENT. Il venait autrefois du patronyme de la
-    déclarante : un enfant déclaré « Mahoussi » par Awa Adamon devenait
-    « Mahoussi Adamon ». C'est faux deux fois — l'enfant porte le nom de son
+    déclarante : un enfant déclaré « Éli » par Awa A. devenait
+    « Éli Adé ». C'est faux deux fois — l'enfant porte le nom de son
     père, et la maman est souvent inscrite sous son nom de jeune fille. Le carnet
     le disait déjà : Christelle V. porte Enora H., Jocelyne S. porte Anasthasia Y.. Le nom est donc demandé au parent, et le
     comptoir peut le corriger ici — `nomComplet` est ce qu'il a sous les yeux au

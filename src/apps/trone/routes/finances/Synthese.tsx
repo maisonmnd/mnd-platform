@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { expenseOccurrences, useInvoices, useExpenses, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
+import { depensesDuMois, useInvoices, useExpenses, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -108,11 +108,10 @@ export default function Synthese() {
       honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0) +
       formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0) +
       aboPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
-    const expenseOf = (mk: string) =>
-      /* Meme regle qu'a l'ecran Depenses : une recurrente active pese sur chaque
-         mois qu'elle traverse. Sans cela les deux ecrans donneraient deux
-         resultats nets pour le meme mois. */
-      liveExp.reduce((s, e) => s + expenseTotal(e) * expenseOccurrences(e, mk), 0);
+    /* Meme regle qu'a l'ecran Depenses ET au Dashboard : une recurrente active
+       pese sur chaque mois qu'elle traverse. La porte unique `depensesDuMois`
+       (shared/finance.ts) tient cette regle pour tous les ecrans. */
+    const expenseOf = (mk: string) => depensesDuMois(expenses, branch.id, mk);
 
     // Fenêtre de 6 mois : elle se termine au présent (ou au futur navigué) et
     // glisse en arrière si le mois choisi sort du cadre — il reste toujours visible.

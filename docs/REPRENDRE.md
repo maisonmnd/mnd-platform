@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Audit de sécurité et de fiabilité — 24 août, CORRIGÉ DANS LE CODE, PAS ENCORE PUBLIÉ
+
+Le dépôt est PUBLIC et a déjà fui (2 août). Audit complet mené avec vérification
+adversariale de chaque trouvaille. Bonne nouvelle d'abord : AUCUN vrai secret
+nulle part — ni `service_role`, ni JWT, ni token Meta, ni clé privée VAPID, dans
+l'arbre suivi comme dans les 704 commits, toutes branches. La seule clé exposée
+est la clé `publishable`/anon, publique par conception (protection = RLS). Donc
+AUCUNE ROTATION DE CLÉ n'est nécessaire.
+
+CE QUI A ÉTÉ CORRIGÉ (code, sur la branche `audit-securite-corrections`, non
+poussée) :
+- **Données personnelles retirées des fichiers suivis** : le nom complet d'une
+  apprenante servait de valeur par défaut au Bilan et au Certificat (donc
+  compilé et servi par GitHub Pages) — remplacé par une initiale. Idem : nom de
+  cliente + prénom d'enfant dans un commentaire de `enfants.ts`, noms réels dans
+  `scripts/import-analyse.mjs`, trois noms de famille dans ce fichier-ci, un
+  patronyme dans `maquette-rapport-de-caisse.html`, l'adresse d'un compte
+  employé dans `MonMois.tsx`, un couple prénom-enfant/prénom-parent ici même.
+- **Verrous d'écran qui fuyaient** : le solde d'un tiroir à code s'imprimait en
+  clair dans « reste en main » des Dépenses (`Depenses.tsx`) ; le solde du coffre
+  se lisait hors de `CLE_COFFRE` par Salon & Foyer. Les deux se taisent
+  désormais (helper partagé `coffreOuvert`).
+- **Trois bugs d'argent, chacun tenu par une assertion neuve** : le Dashboard
+  ignorait `expenseOccurrences` (Résultat net trop beau) — porte unique
+  `depensesDuMois`, appelée aussi par la Synthèse ; le journal du jour de la
+  Caisse sommait `invoiceTotal` (avoir/acompte compris, pièce en bloc) — il lit
+  désormais les versements du jour ; les tuiles du Coffre gonflaient de chaque
+  fléchage et devise — lectures partagées `coffreVerseXof`/`coffreSortiBanqueXof`.
+- **Défense en profondeur injections** : échappement HTML de la carte A5
+  (`QrCodes.tsx`), filtrage des caractères de contrôle dans les PDF (`pdf.ts`),
+  contrôle de même origine dans `sw.js`.
+
+Rituel passé : typecheck 0 erreur, les 13 harnais au vert (dont les assertions
+neuves), `build`, `build-sites`, grep du bundle servi (nom d'apprenante disparu,
+aucun secret réel). Reste : décider les points ci-dessous, PUIS `push` +
+`publie.mjs`.
+
+CE QUI ATTEND UNE DÉCISION (rien fait) — voir le rapport d'audit :
+- **CRITIQUE — escalade de privilège** : la policy `staff_self_write`
+  (`0003_auth.sql`:86 / `apply_auth.sql`:86) laisse tout compte authentifié
+  s'INSÉRER dans `staff` en rôle `souverain`. Correctif = migration à écrire et à
+  appliquer en prod (changement de policy).
+- **RLS de production** : `dev_all` (anon tout ouvert) est le point de départ ; le
+  durcissement doit être vérifié en base (`select … from pg_policies`).
+- **Purge d'historique git** : des noms de clientes restent dans les messages de
+  commit (984b47d, f2a6233) — reécriture + push force à décider.
+- **jspdf 2.5.2** deux majeures de retard (migration 4.x cassante), et confirmer
+  que les 10 fiches-démo de `clients.ts` (commit 2de1ba3) étaient bien fictives.
+
 ## « Suspendre » ne sert plus qu’aux prélèvements — 24 août, PUBLIÉ
 
 « Le bouton suspendre une dépense sert à quoi ? A-t-elle toujours une utilité ? »
@@ -4120,10 +4169,10 @@ Le chantier n° 1 de la liste du matin, bouclé le soir même :
   ouvre au parent PAYEUR la lecture de ses MINEURS (clients, appointments,
   invoices, client_sessions) et l'écriture de leurs rendez-vous. Sans date de
   naissance : fermé — la minorité se prouve.
-- **Ma Couronne** : sélecteur « Pour : Moi · Keli » dans le tunnel (visible
+- **Ma Couronne** : sélecteur « Pour : Moi · Éli » dans le tunnel (visible
   seulement si la Maison a validé des mineurs sur le compte) — le RDV se pose
-  au nom de l'enfant, le personnel est notifié « Keli · par Valerie ». « Mes
-  rendez-vous » liste le FOYER entier (« — pour Keli » sur les rituels des
+  au nom de l'enfant, le personnel est notifié « Éli · par Awa ». « Mes
+  rendez-vous » liste le FOYER entier (« — pour Éli » sur les rituels des
   têtes). Le prix de l'enfant = même calcul que le parent (coefficient hérité
   à la validation, pas de modèle au dossier).
 - **Le contrôle de 0036** (relançable) a rendu l'état réel : 13 têtes
@@ -4951,8 +5000,8 @@ c'est ce qui faussait la rétention et le compte des têtes actives.
   fiches de ce script, jamais une marque posée à la main au comptoir.
 - **Le filet tient** : `usePassageVivant` ne sait que RETIRER la marque, à la
   2ᵉ venue honorée. Une erreur se répare donc à la prochaine visite.
-- Observations à garder : des FAMILLES entières y sont (trois Dossou-Yovo le
-  même jour, trois Aïssi, deux Biao) — chaque tête n'est venue qu'une fois,
+- Observations à garder : des FAMILLES entières y sont (trois têtes d'une même
+  famille le même jour, trois d'une autre, deux d'une troisième) — chaque tête n'est venue qu'une fois,
   mais c'est le PAYEUR qu'une relance devrait viser. Et une quinzaine de ces
   têtes sont celles de la liste diaspora (numéro étranger + une venue) : très
   probablement des passages pendant un séjour, ce qui réduit d'autant le

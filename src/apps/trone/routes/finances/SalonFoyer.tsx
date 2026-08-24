@@ -29,6 +29,8 @@ import {
   type MouvementCaisseIndep,
 } from '../../../../shared/foyer';
 import { todayISO, monthKey, monthTitle, MonthNav } from './_shared';
+import { useSettings } from '../../../../shared/settings';
+import { useCaissesOuvertes, coffreOuvert } from './tiroirs';
 import './finances.css';
 
 /* Salon & Foyer — la séparation entreprise / foyer (voir shared/foyer.ts).
@@ -141,6 +143,13 @@ export default function SalonFoyer() {
   /* Le Coffre-fort n'appartient pas à ce module — on le lit pour dire où
      l'épargne est PLACÉE, et le versement l'alimente par la porte prévue. */
   const [coffre] = useCoffre();
+  /* LE VERROU DU COFFRE VOYAGE AVEC SON SOLDE — cet écran n'a pas de verrou
+     propre, mais il annonçait « le coffre entier vaut X » : le code posé sur le
+     Coffre ne cachait donc son solde que sur l'écran Coffre. Même règle que les
+     tiroirs à code (23 août) : hors du Coffre, un coffre verrouillé se tait. */
+  const [reglages] = useSettings();
+  const seanceOuverte = useCaissesOuvertes();
+  const coffreSeMontre = coffreOuvert(reglages.codeCoffreHash, seanceOuverte);
 
   /* Les sources du REVENU — les mêmes que l'écran Encaissements, à l'identique :
      deux assemblages qui différeraient diraient deux revenus pour le même mois. */
@@ -1460,7 +1469,9 @@ export default function SalonFoyer() {
               <div className="l">Épargne au Coffre-fort</div>
               <div className="v">{fmtMoney(soldeReinvest + soldeFiscale, currency)}</div>
               <div className="c">
-                à l'abri · le coffre entier vaut {fmtMoney(coffreBalance(coffre.filter((m) => m.branchId === branch.id)), currency)}
+                à l'abri · le coffre entier vaut {coffreSeMontre
+                  ? fmtMoney(coffreBalance(coffre.filter((m) => m.branchId === branch.id)), currency)
+                  : '••• •••'}
               </div>
             </div>
           </div>
