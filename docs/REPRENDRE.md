@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## Audit de sécurité et de fiabilité — 24 août, CORRIGÉ DANS LE CODE, PAS ENCORE PUBLIÉ
+## Audit de sécurité et de fiabilité — 24 août, PUBLIÉ (front @ b524f22, gh-pages refondé)
 
 Le dépôt est PUBLIC et a déjà fui (2 août). Audit complet mené avec vérification
 adversariale de chaque trouvaille. Bonne nouvelle d'abord : AUCUN vrai secret
@@ -11,8 +11,7 @@ l'arbre suivi comme dans les 704 commits, toutes branches. La seule clé exposé
 est la clé `publishable`/anon, publique par conception (protection = RLS). Donc
 AUCUNE ROTATION DE CLÉ n'est nécessaire.
 
-CE QUI A ÉTÉ CORRIGÉ (code, sur la branche `audit-securite-corrections`, non
-poussée) :
+FRONT — CORRIGÉ ET PUBLIÉ EN LIGNE (main @ b524f22, gh-pages refondé le 24 août) :
 - **Données personnelles retirées des fichiers suivis** : le nom complet d'une
   apprenante servait de valeur par défaut au Bilan et au Certificat (donc
   compilé et servi par GitHub Pages) — remplacé par une initiale. Idem : nom de
@@ -34,24 +33,12 @@ poussée) :
   (`QrCodes.tsx`), filtrage des caractères de contrôle dans les PDF (`pdf.ts`),
   contrôle de même origine dans `sw.js`.
 
-Rituel passé : typecheck 0 erreur, les 13 harnais au vert (dont les assertions
-neuves), `build`, `build-sites`, grep du bundle servi (nom d'apprenante disparu,
-aucun secret réel). Reste : décider les points ci-dessous, PUIS `push` +
-`publie.mjs`.
-
-PRÉPARÉ, EN ATTENTE DE TON GESTE (écrit dans le code, RIEN appliqué ni déployé) :
-- **CRITIQUE — escalade de privilège `staff_self_write`** : migration
-  `supabase/migrations/0073_fermer_staff_self_write.sql` écrite (écriture directe
-  de `staff` réservée au souverain + déclencheur filet), et `apply_auth.sql`
-  patché pour les installations neuves. **À APPLIQUER une fois en prod** (SQL
-  Editor). Le flux légitime (RPC SECURITY DEFINER) n'est pas touché.
-- **kkiapay-verify ET kkiapay-webhook** durcis : le montant attendu se lit
-  désormais sur la fiche (`depositXof`), plus depuis le corps de requête du
-  client. **À REDÉPLOYER** (`supabase functions deploy …`) — ton geste.
-- **Onglet Objectifs** : les agrégats du coffre (fléché, non-fléché, solde de la
-  modale de virement) se masquent tant que `CLE_COFFRE` n'est pas ouverte.
-- **`npm audit fix`** non cassant appliqué : 6 → 2 vulnérabilités (react-router
-  7.18.2, nanoid, postcss). Les 2 restantes = jspdf→dompurify (cassant).
+Inclut aussi : le masquage des agrégats du coffre sur l'onglet Objectifs (hors
+`CLE_COFFRE`), et `npm audit fix` non cassant (6 → 2 vulnérabilités ; les 2
+restantes = jspdf→dompurify, cassant). Rituel passé ET publié : typecheck 0,
+13 harnais, `build`, `build-sites`, grep du bundle (nom d'apprenante disparu,
+aucun secret réel), `push origin main`, `MND_REFONDE=1 publie.mjs` — les 4 sites
+refondés et servis (build 20260824015551).
 
 APPLIQUÉ EN PROD LE 24 AOÛT (Supabase SQL Editor / redéploiement Edge) :
 - **Migration 0073** appliquée et vérifiée : `staff_self_write` a disparu, seul
@@ -69,16 +56,15 @@ APPLIQUÉ EN PROD LE 24 AOÛT (Supabase SQL Editor / redéploiement Edge) :
   publique. Corrigé par `enable row level security` (sans policy → deny-all ;
   service_role garde l'accès, données et rollback intacts). Voir [[supabase-repli-tables-need-rls]].
 
-PRÉPARÉ, EN ATTENTE DE TON APPLICATION EN PROD :
-- **Migration 0074 — `garde_argent_cliente`** : déclencheur sur `appointments`
-  et `invoices` qui neutralise, pour une écriture CLIENTE (Ma Couronne, sync
-  directe), les champs d'argent qu'elle ne devrait pas poser — `depositConfirmed`,
-  `depositXof`, `paidXof`, et le statut `payée` d'une facture. Staff et
-  `service_role` (kkiapay) gardent plein droit. À COLLER en prod puis tester les
-  trois chemins (comptoir encaisse, KkiaPay confirme, réservation cliente naît
-  non confirmée). Rollback = `drop trigger` (en pied du fichier).
-  NON couvert : le prix figé `priceXof`/`discountXof` (une cliente peut figer un
-  prix de 0) — décision produit, demande un recalcul serveur du prix.
+- **Migration 0074 — `garde_argent_cliente`** appliquée, les 4 déclencheurs
+  confirmés (`appointments`/`invoices`, BEFORE INSERT/UPDATE). Neutralise, pour
+  une écriture CLIENTE directe (sync), les champs d'argent qu'elle ne devrait pas
+  poser — `depositConfirmed`, `depositXof`, `paidXof`, statut `payée` d'une
+  facture. Staff et `service_role` (kkiapay) gardent plein droit. **TEST COMPTOIR
+  À CONFIRMER** : qu'une vente s'encaisse toujours normalement (rollback =
+  `drop trigger garde_argent_cliente_biu`, en pied du fichier). NON couvert : le
+  prix figé `priceXof`/`discountXof` (une cliente peut figer un prix de 0) —
+  décision produit, demande un recalcul serveur du prix.
 
 TRANCHÉ LE 24 AOÛT :
 - **Isolation par branche** : on ACTE que `is_staff()` global est la garde — la
