@@ -69,10 +69,12 @@ Ne jamais coder en dur une clé de service, un secret, ni un nom de domaine.
 - Animations fondues, sans rebond.
 - Graphiques SVG faits main (pas de librairie de charts).
 - La marque s'écrit **MND** — le ɖ appartient à *mi nyɔ́ ɖɛkpɛ* seulement.
-- **La devise s'écrit `mi nyɔ́ ɖɛkpɛ • la maison veille`** — une seule source,
+- **La devise s'écrit `mi nyɔ́ ɖɛkpɛ · la maison veille`** — une seule source,
   `DEVISE_COMPLETE` dans `shared/identite.ts`. Jamais recopiée à la main :
   chaque copie finissait par diverger (« · nous sommes beaux », « — la maison
-  veille. »). La puce ronde, pas le point médian : ce n’est pas une énumération.
+  veille. »). Point médian, comme tout ce qui sort de la Maison : un seul
+  séparateur partout (décision d’harmonisation du 24 août, l’ancienne puce ronde
+  jurait dans les pieds de page).
 - **Les lettres fon ne se translittèrent JAMAIS.** Ni Cormorant ni Jost ne
   portent ɔ, ɖ, ɛ : la police `MND Fon` (EB Garamond, sous-ensemble OFL) les
   sert à l'écran par `unicode-range`, et `pieDeLaMaison()` l'embarque dans les

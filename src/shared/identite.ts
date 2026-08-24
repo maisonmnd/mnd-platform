@@ -61,9 +61,10 @@ export const DEVISE_MAISON = 'mi nyɔ́ ɖɛkpɛ';
 export const DEVISE_TRADUITE = 'nous sommes beaux, et nous le savons';
 
 /* LA DEVISE ENTIÈRE, telle qu’elle s’écrit — 22 août 2026, rappel de Yéman.
-   Le fon et son écho français, séparés par une puce ronde et non par le point
-   médian du reste de la Maison : la devise n’est pas une énumération. */
-export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ • la maison veille';
+   Le fon et son écho français, séparés par le point médian du reste de la
+   Maison (« SÍNSÍN™ · La Reprise », « Maison MND · … ») : un seul point pour
+   tout ce qui sort, la devise comprise — décision d’harmonisation du 24 août. */
+export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ · la maison veille';
 
 /** Signature au bas d'un message : le picto de la branche, le nom, la devise.
     ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut

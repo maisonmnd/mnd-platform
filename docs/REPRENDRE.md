@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Devise — séparateur harmonisé, 24 août, PUBLIÉ
+
+`DEVISE_COMPLETE` passait de « mi nyɔ́ ɖɛkpɛ **•** la maison veille » (puce ronde)
+à « mi nyɔ́ ɖɛkpɛ **·** la maison veille » (point médian), pour n'avoir qu'un seul
+séparateur partout — comme « SÍNSÍN™ · La Reprise » et « Maison MND · … » : la
+puce jurait dans les pieds de page de facture. Source unique dans
+`shared/identite.ts` ; règle de marque de CLAUDE.md mise à jour en conséquence.
+Le détecteur `porteLaDevise` (mot fon aplati `dekpe`) et le harnais signature
+(qui n'assert que `DEVISE_MAISON`, le fon seul) sont insensibles au changement.
+
 ## Audit de sécurité et de fiabilité — 24 août, PUBLIÉ (front @ b524f22, gh-pages refondé)
 
 Le dépôt est PUBLIC et a déjà fui (2 août). Audit complet mené avec vérification
