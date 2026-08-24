@@ -53,10 +53,23 @@ PRÉPARÉ, EN ATTENTE DE TON GESTE (écrit dans le code, RIEN appliqué ni dépl
 - **`npm audit fix`** non cassant appliqué : 6 → 2 vulnérabilités (react-router
   7.18.2, nanoid, postcss). Les 2 restantes = jspdf→dompurify (cassant).
 
+APPLIQUÉ EN PROD LE 24 AOÛT (Supabase SQL Editor / redéploiement Edge) :
+- **Migration 0073** appliquée et vérifiée : `staff_self_write` a disparu, seul
+  `staff_admin_write` (`is_souverain()`) subsiste. Escalade fermée.
+- **kkiapay-verify et kkiapay-webhook** redéployés avec le contrôle de montant
+  côté serveur.
+- **RLS de prod vérifiée** : AUCUN `dev_all` nulle part (durcissement bien en
+  place) ; la clé anon ne lit que le catalogue, les branches, `blocages`,
+  `personas` et la config vitrine — jamais clients/factures/finances, et aucune
+  écriture anon.
+- **FUITE TROUVÉE ET FERMÉE — 5 tables `repli_*` sans RLS.** `repli_de_passage`,
+  `repli_fantomes_couronne`, `repli_forfaits_sources`, `repli_noms_couronne`,
+  `repli_reprise_foyer` (créées par des `local_*.sql`) avaient RLS OFF + tous les
+  GRANTs à `anon`/`authenticated` : lisibles ET effaçables par la clé anon
+  publique. Corrigé par `enable row level security` (sans policy → deny-all ;
+  service_role garde l'accès, données et rollback intacts). Voir [[supabase-repli-tables-need-rls]].
+
 RESTE UNE DÉCISION DE TA PART (rien fait) :
-- **Vérifier l'état RLS en prod** : `dev_all` (anon tout ouvert) est le point de
-  départ ; confirmer en base qu'`apply_rls_prod.sql` a bien remplacé partout
-  (`select tablename from pg_policies where schemaname='public'` — aucun `dev_all`).
 - **Isolation par branche** : `can_see_branch()` n'est câblée sur aucune policy
   active — acter que la garde est `is_staff()` global, ou la brancher.
 - **Écriture cliente de ses RDV/factures** sans validation serveur du contenu
