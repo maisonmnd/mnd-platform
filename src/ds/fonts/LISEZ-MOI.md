@@ -1,7 +1,15 @@
 # La police des lettres fon
 
 `devise-fon.woff2` (écran) et `public/assets/fonts/devise-fon.ttf` (PDF) sont
-**le même sous-ensemble** d'**EB Garamond** (poids 400).
+deux sous-ensembles d'**EB Garamond** (poids 400) :
+
+- **woff2 (écran)** — restreint aux seules lettres fon (`unicode-range` dans
+  `fonts.css`) : l'écran écrit tout le latin en Cormorant, la police fon ne sert
+  qu'à `ɔ ɖ ɛ` et leurs capitales. Elle reste donc minuscule.
+- **ttf (PDF)** — porte EN PLUS **l'alphabet latin complet**, car le pied de page
+  (`pieDeLaMaison`) écrit le nom de la Maison « Maison MND » dans cette police,
+  pour qu'il soit de la même main que la devise (décision du 24 août). jsPDF n'a
+  pas de police fon de secours : ce qu'il doit dessiner, il faut le lui embarquer.
 
 ## Pourquoi
 
@@ -21,22 +29,35 @@ possibles : Charis SIL, Noto Serif, Cardo — EB Garamond l'emporte par la forme
 
 ## D'où vient le fichier
 
-Sous-ensemble produit par Google Fonts, restreint aux caractères de la devise :
+Sous-ensemble produit par Google Fonts, via le paramètre `text=` :
 
 ```
 https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400&text=<les caractères>
 ```
 
-Caractères demandés (les changer oblige à régénérer le fichier) :
+Caractères demandés (les changer oblige à régénérer le fichier). Le **ttf** (PDF)
+demande, en plus de la devise et des noms fon des prestations, **tout l'alphabet
+latin A–Z / a–z** (pour « Maison MND · … » au pied de page) :
 
 ```
-mi nyɔ́ ɖɛkpɛ • la maison veille
+alphabet latin complet A-Z a-z 0-9
+· • — - , . ' ™ ÉÈÀÂÎÔÛÇéèàâîôûç ÍÌ
+lettres fon : ɔ Ɔ ɖ Ɖ ɛ Ɛ + accent flottant U+0301
+```
+
+Le **woff2** (écran) se régénère avec le seul jeu fon (la liste historique
+ci-dessous suffit) — inutile d'y mettre le latin, l'écran l'écrit en Cormorant :
+
+```
+mi nyɔ́ ɖɛkpɛ · la maison veille
 MI NYƆ́ ƉƐKPƐ LA MAISON VEILLE
  ·—-,.0123456789ÉÈÀÂÎÔÛÇéèàâîôûç
 ```
 
 Le `.ttf` s'obtient avec un en-tête `User-Agent: Mozilla/5.0` (sans indice de
-navigateur), le `.woff2` avec un User-Agent de navigateur moderne.
+navigateur), le `.woff2` avec un User-Agent de navigateur moderne. Après un
+nouveau `.ttf`, régénérer `src/shared/devise-fon-b64.ts` (le base64 embarqué
+dans les PDF) — c'est LUI que lit `pieDeLaMaison`, pas le fichier public.
 
 ## Licence
 

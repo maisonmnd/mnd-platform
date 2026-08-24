@@ -194,10 +194,13 @@ async function assureFon(doc: any): Promise<boolean> {
 }
 
 /* ── LE PIED DE LA MAISON ────────────────────────────────────────────
-   Le nom dans la police du document, la devise dans la sienne, l'ensemble
-   centré. Si la police fon manque (fichier absent, hors ligne), on retombe sur
-   la translittération plutôt que sur des glyphes parasites : une devise
-   approchée vaut mieux qu'une ligne de carrés vides. */
+   Le nom ET la devise dans la MÊME police (DeviseFon) : le sous-ensemble
+   EB Garamond porte l'alphabet latin complet, le nom « Maison MND » y compris
+   (demande du 24 août — le nom en helvetica jurait à côté de la devise en
+   garamond). L'ensemble est centré. Si la police fon manque (fichier absent,
+   hors ligne), on retombe sur la translittération dans la police du document
+   plutôt que sur des glyphes parasites : une ligne approchée vaut mieux qu'une
+   suite de carrés vides. */
 export async function pieDeLaMaison(
   doc: any,
   W: number,
@@ -209,34 +212,31 @@ export async function pieDeLaMaison(
   const prefixe = `${o.nom ?? maisonNom()} · `;
   const fonPrete = await assureFon(doc);
 
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(taille);
   doc.setTextColor(couleur);
 
   if (!fonPrete) {
+    doc.setFont('helvetica', 'normal');
     doc.text(prefixe + DEVISE_COMPLETE, W / 2, y, { align: 'center' });
     return;
   }
 
   /* Le texte brut : `normalizeSpaces` translittère tout ce qui passe par
-     `doc.text`, et c'est précisément ce qu'on ne veut pas ici. */
+     `doc.text`, et c'est précisément ce qu'on ne veut pas ici — ni pour la
+     devise, ni pour le nom (qui vit maintenant dans la même police). */
   const brut = (doc as any).__texteBrut ?? doc.text.bind(doc);
   const sansAccent = DEVISE_COMPLETE.replace(ACCENT, '');
   const iAccent = DEVISE_COMPLETE.indexOf(ACCENT);
   const avant = DEVISE_COMPLETE.slice(0, iAccent).replace(ACCENT, '');
 
-  const largeurNom = doc.getTextWidth(prefixe);
   doc.setFont(POLICE_FON, 'normal');
   doc.setFontSize(taille);
+  const largeurNom = doc.getTextWidth(prefixe);
   const largeurDevise = doc.getTextWidth(sansAccent);
   const x0 = (W - (largeurNom + largeurDevise)) / 2;
 
-  doc.setFont('helvetica', 'normal');
   doc.setTextColor(couleur);
-  doc.text(prefixe, x0, y);
-
-  doc.setFont(POLICE_FON, 'normal');
-  doc.setTextColor(couleur);
+  brut(prefixe, x0, y);
   brut(sansAccent, x0 + largeurNom, y);
   if (iAccent > 0) {
     const recul = RECUL_DE_L_ACCENT * taille * 25.4 / 72;

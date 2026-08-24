@@ -12,6 +12,18 @@ puce jurait dans les pieds de page de facture. Source unique dans
 Le détecteur `porteLaDevise` (mot fon aplati `dekpe`) et le harnais signature
 (qui n'assert que `DEVISE_MAISON`, le fon seul) sont insensibles au changement.
 
+## Pied de page PDF — le nom dans la police de la devise, 24 août, PUBLIÉ
+
+« Maison MND » sortait en **helvetica** (sans serif) à côté de la devise en
+**EB Garamond** (serif) : ça jurait. Désormais `pieDeLaMaison` écrit le nom ET la
+devise dans la même police (`DeviseFon`). Il a fallu **régénérer le sous-ensemble
+EB Garamond** : il ne contenait pas le « D » de MND (bâti pour la devise, sans
+majuscule latine). Nouveau `.ttf` (45 Ko) + `src/shared/devise-fon-b64.ts` avec
+l'alphabet latin complet ; le **woff2 (écran) reste fon-seul** (l'écran écrit le
+latin en Cormorant). Garde ajoutée au harnais signature (§⑥) : elle décode la
+police embarquée et vérifie qu'elle porte chaque lettre du nom + les lettres fon,
+pour attraper toute future régénération qui reperdrait une lettre.
+
 ## Audit de sécurité et de fiabilité — 24 août, PUBLIÉ (front @ b524f22, gh-pages refondé)
 
 Le dépôt est PUBLIC et a déjà fui (2 août). Audit complet mené avec vérification

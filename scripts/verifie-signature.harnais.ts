@@ -6,6 +6,7 @@
 import {
   DEVISE_MAISON, houseSignature, porteLaDevise, signeLeMessage, maisonNom,
 } from '../src/shared/identite';
+import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
 
 let echecs = 0;
 const dit = (ok: boolean, quoi: string) => {
@@ -43,6 +44,38 @@ dit(!signeLeMessage('Merci.\n\n\n').includes('\n\n\n'), 'jamais trois sauts de l
 /* ⑤ Le picto de la branche prend la place du monogramme, qui ne voyage pas. */
 dit(signeLeMessage('Merci.', '❦').includes('❦'), 'le picto de la branche signe');
 dit(DEVISE_MAISON === 'mi nyɔ́ ɖɛkpɛ', 'la devise s’écrit en fon, ton compris');
+
+/* ⑥ LA POLICE EMBARQUÉE DANS LES PDF porte le nom de la Maison ET les lettres
+   fon. Le pied de page écrit « Maison MND · … la maison veille » dans cette
+   seule police (DeviseFon) : jsPDF n'a pas de secours, une lettre absente sort
+   en carré vide. Le « D » de MND a justement manqué au sous-ensemble jusqu'au
+   24 août — ce test attrape toute régénération qui en reperdrait une. */
+const glyphesPdf = ((): Set<number> => {
+  const b = Buffer.from(DEVISE_FON_B64, 'base64');
+  const u16 = (o: number) => b.readUInt16BE(o);
+  const u32 = (o: number) => b.readUInt32BE(o);
+  let cmapOff = 0;
+  for (let i = 0, n = u16(4); i < n; i++) { const r = 12 + i * 16; if (b.toString('latin1', r, r + 4) === 'cmap') cmapOff = u32(r + 8); }
+  let best = 0;
+  for (let i = 0, n = u16(cmapOff + 2); i < n; i++) { const off = u32(cmapOff + 4 + i * 8 + 4); if (u16(cmapOff + off) === 4) best = cmapOff + off; }
+  const segX2 = u16(best + 6), seg = segX2 / 2;
+  const endO = best + 14, startO = endO + segX2 + 2, deltaO = startO + segX2, rangeO = deltaO + segX2;
+  const set = new Set<number>();
+  for (let s = 0; s < seg; s++) {
+    const end = u16(endO + s * 2), start = u16(startO + s * 2), delta = u16(deltaO + s * 2), ro = u16(rangeO + s * 2);
+    for (let c = start; c <= end && c !== 0xffff; c++) {
+      let g: number;
+      if (ro === 0) g = (c + delta) & 0xffff;
+      else { const gi = rangeO + s * 2 + ro + (c - start) * 2; if (gi + 1 >= b.length) continue; g = u16(gi); if (g) g = (g + delta) & 0xffff; }
+      if (g) set.add(c);
+    }
+  }
+  return set;
+})();
+for (const ch of maisonNom()) dit(ch === ' ' || glyphesPdf.has(ch.codePointAt(0)!), `la police PDF porte « ${ch} » (nom de la Maison)`);
+for (const [cp, nom] of [[0x254, 'ɔ'], [0x256, 'ɖ'], [0x25b, 'ɛ'], [0x186, 'Ɔ'], [0x189, 'Ɖ'], [0x190, 'Ɛ'], [0x301, 'accent ◌́'], [0xb7, '·']] as const) {
+  dit(glyphesPdf.has(cp), `la police PDF porte « ${nom} »`);
+}
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);
