@@ -68,6 +68,53 @@ function normalizeSpaces(doc: { text: (...args: any[]) => any }): void {
     orig(Array.isArray(text) ? text.map(fix) : fix(text), ...rest)) as any;
 }
 
+/* LES LETTRES FON RESTENT SUR LE PAPIER — règle de marque : elles ne se
+   translittèrent JAMAIS. La police `DeviseFon` (sous-ensemble EB Garamond de la
+   devise) porte Ɔ ɔ Ɖ ɖ Ɛ ɛ ; ces caractères-là se tracent dans cette police,
+   le reste dans la police du document — exactement comme l'écran par
+   `unicode-range`. Les lettres fon HORS sous-ensemble (Ŋ Ʋ) n'y figurent pas et
+   retombent, elles seules, sur la translittération. */
+const FON_PDF = 'ƆɔƉɖƐɛ';
+
+/** Comme `pdfSafe`, mais GARDE les lettres fon couvertes, pour qu'elles
+    survivent jusqu'au tracé dans leur police. Le reste est translittéré/borné
+    comme d'habitude (les fon non couvertes Ŋ Ʋ et la ponctuation comprises). */
+function pdfSafeGardeFon(s: string): string {
+  let t = s.replace(PDF_CONTROLS, ' ').normalize('NFC').replace(PDF_BAD_SPACES, ' ');
+  t = t.replace(/[ŊŋƲʋ−‑]/g, (c) => PDF_TRANSLIT[c]).normalize('NFC');
+  return [...t].map((ch) => {
+    if (FON_PDF.includes(ch)) return ch;
+    if (winAnsiOk(ch)) return ch;
+    const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
+    if (bare === '') return '';
+    return [...bare].every(winAnsiOk) ? bare : '?';
+  }).join('');
+}
+
+/** Trace un texte en respectant les lettres fon : chaque Ɔ ɔ Ɖ ɖ Ɛ ɛ passe dans
+    la police `DeviseFon`, le reste garde la police courante, caractère par
+    caractère (comme l'écran). `texte` doit déjà être passé par `pdfSafeGardeFon`.
+    REPLI : sans la police fon prête, on laisse `doc.text` translittérer
+    (KLƆKLƆ™ → KLOKLO™) plutôt que d'imprimer des carrés vides. */
+function texteFon(doc: any, texte: string, x: number, y: number): void {
+  if (!doc.__fonPrete) { doc.text(texte, x, y); return; }
+  const brut = doc.__texteBrut ?? doc.text.bind(doc);
+  const police = doc.getFont();
+  let cx = x;
+  let i = 0;
+  while (i < texte.length) {
+    const estFon = FON_PDF.includes(texte[i]);
+    let j = i + 1;
+    while (j < texte.length && FON_PDF.includes(texte[j]) === estFon) j += 1;
+    const seg = texte.slice(i, j);
+    if (estFon) doc.setFont(POLICE_FON, 'normal');
+    brut(seg, cx, y);
+    cx += doc.getTextWidth(seg);
+    if (estFon) doc.setFont(police.fontName, police.fontStyle);
+    i = j;
+  }
+}
+
 /** Charge le sceau MND (cuivre) en data-URL pour l'insérer dans le PDF. */
 async function loadSeal(): Promise<string | null> {
   try {
@@ -136,6 +183,23 @@ async function policeFon(): Promise<string | null> {
   return deviseEnBase64;
 }
 
+/** Embarque la police fon dans le document, UNE seule fois (le pied signe chaque
+    page ; réembarquer gonflerait le fichier). Rend `true` si elle est prête —
+    sinon l'appelant translittère. Partagée par `pieDeLaMaison` et `texteFon`. */
+async function assureFon(doc: any): Promise<boolean> {
+  if (doc.__fonPrete) return true;
+  const b64 = await policeFon();
+  if (!b64) return false;
+  try {
+    doc.addFileToVFS(FICHIER_FON, b64);
+    doc.addFont(FICHIER_FON, POLICE_FON, 'normal');
+    doc.__fonPrete = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /* ── LE PIED DE LA MAISON ────────────────────────────────────────────
    Le nom dans la police du document, la devise dans la sienne, l'ensemble
    centré. Si la police fon manque (fichier absent, hors ligne), on retombe sur
@@ -150,26 +214,13 @@ export async function pieDeLaMaison(
   const taille = o.taille ?? 8;
   const couleur = o.couleur ?? SOFT;
   const prefixe = `${o.nom ?? maisonNom()} · `;
-  const b64 = await policeFon();
+  const fonPrete = await assureFon(doc);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(taille);
   doc.setTextColor(couleur);
 
-  if (!b64) {
-    doc.text(prefixe + DEVISE_COMPLETE, W / 2, y, { align: 'center' });
-    return;
-  }
-
-  try {
-    /* Une seule fois par document : le rapport signe CHAQUE page, et
-       réembarquer la police à chaque pied gonflerait le fichier pour rien. */
-    if (!(doc as any).__fonPrete) {
-      doc.addFileToVFS(FICHIER_FON, b64);
-      doc.addFont(FICHIER_FON, POLICE_FON, 'normal');
-      (doc as any).__fonPrete = true;
-    }
-  } catch {
+  if (!fonPrete) {
     doc.text(prefixe + DEVISE_COMPLETE, W / 2, y, { align: 'center' });
     return;
   }
@@ -318,16 +369,21 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   const COL = W - M - 58 - (M + 3) - 4;
   const INTER = 4.4;
   const MAX_LIGNES = 3;
+  /* LES NOMS DE LA MAISON GARDENT LEURS LETTRES FON — KLƆKLƆ™ s'imprime avec le
+     Ɔ, jamais « KLOKLO™ » (règle de marque). On embarque la police fon, on
+     garde les lettres couvertes au repli (`pdfSafeGardeFon`), et `texteFon`
+     bascule caractère par caractère au tracé. */
+  await assureFon(doc);
   for (const l of d.lines) {
-    /* Mesurer le texte TEL QU'IL SERA TRACÉ : `doc.text` translittère le fon au
-       dernier moment (KƆKLƆ™ → KLOKLO™), la découpe doit voir la même chaîne. */
-    const replie = doc.splitTextToSize(pdfSafe(l.label), COL) as string[];
+    /* La découpe voit la chaîne AVEC ses lettres fon (elles ont à peu près la
+       largeur de leur translittération) ; le tracé les rend dans leur police. */
+    const replie = doc.splitTextToSize(pdfSafeGardeFon(l.label), COL) as string[];
     const bouts = replie.length ? replie.slice(0, MAX_LIGNES) : [''];
     if (replie.length > MAX_LIGNES) {
       bouts[MAX_LIGNES - 1] = `${bouts[MAX_LIGNES - 1].slice(0, -1)}…`;
     }
     const base = y + 6.5;
-    bouts.forEach((t, i) => doc.text(t, M + 3, base + i * INTER));
+    bouts.forEach((t, i) => texteFon(doc, t, M + 3, base + i * INTER));
     doc.text(String(l.qty), W - M - 58, base, { align: 'right' });
     doc.text(l.unit, W - M - 32, base, { align: 'right' });
     doc.text(l.total, W - M - 3, base, { align: 'right' });
@@ -481,6 +537,8 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   doc.text(d.amount, W - M, y + 9, { align: 'right' });
 
   y += 20;
+  /* « Objet » porte des noms de prestations : ils gardent leurs lettres fon. */
+  await assureFon(doc);
   const row = (label: string, value?: string) => {
     if (!value) return;
     doc.setFont('helvetica', 'normal');
@@ -494,10 +552,10 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
        se superposait à la ligne suivante. On le replie sur deux lignes au plus,
        et la hauteur du bloc suit ce qu'il a réellement écrit. */
     const VX = M + 36;
-    const bouts = doc.splitTextToSize(value, W - M - VX) as string[];
+    const bouts = doc.splitTextToSize(pdfSafeGardeFon(value), W - M - VX) as string[];
     const vues = bouts.slice(0, 2);
     if (bouts.length > 2) vues[1] = `${vues[1].slice(0, -1)}…`;
-    doc.text(vues, VX, y);
+    vues.forEach((t, i) => texteFon(doc, t, VX, y + i * 4.2));
     y += 6 + (vues.length - 1) * 4.2;
   };
   row('Objet', d.label);
