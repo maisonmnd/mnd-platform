@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, tetesVenues } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
-import { useApprenants } from '../equipe/data';
+import { useApprenants, useSubscribers } from '../equipe/data';
 import { estCouronnee, estDePassage, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceRegleAu, invoiceReglements, type Invoice } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
@@ -64,6 +64,7 @@ export default function Analytics() {
   const [invoices] = useInvoices();
   const [clients] = useClients();
   const [apprenants] = useApprenants();
+  const [abonnes] = useSubscribers();
   const [categories] = useCategories();
   const [queue] = useStore(consultationsQueueStore);
   const [sessions] = useClientSessions();
@@ -142,7 +143,14 @@ export default function Analytics() {
       .flatMap((ap) => ap.payments ?? [])
       .filter((pm) => { const j = payISOLocal(pm.date); return j >= periodStart && j <= today; })
       .reduce((s2, pm) => s2 + pm.amountXof, 0);
-    const revenue = revInv + revRit + revForm;
+    /* LES REGLEMENTS D'ABONNEMENT AUSSI (decision du 3 aout) : la Synthese et le
+       Dashboard les comptent, cet ecran les oubliait — meme motif que la
+       formation ci-dessus. Meme fenetre de dates. */
+    const revAbo = abonnes
+      .flatMap((sub) => sub.payments ?? [])
+      .filter((pm) => pm.amountXof > 0 && (() => { const j = payISOLocal(pm.date); return j >= periodStart && j <= today; })())
+      .reduce((s2, pm) => s2 + pm.amountXof, 0);
+    const revenue = revInv + revRit + revForm + revAbo;
     /* Des TÊTES, pas des venues : la passante a laissé son argent au-dessus,
        elle ne gonfle pas le compte des clientes de la Maison. */
     const heads = new Set(inWindow.filter((a) => !passageIds.has(a.clientId)).map((a) => a.clientId)).size;
@@ -153,7 +161,7 @@ export default function Analytics() {
       heads, basket, maxTicket,
       hasLife: revenue > 0 || inWindow.length > 0,
     };
-  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today, apprenants, passageIds]);
+  }, [scopedAppts, scopedPaidInvoices, byId, periodStart, today, apprenants, abonnes, passageIds]);
 
   const nameOf = (id: string) => clientNameById.get(id) ?? 'Cliente';
 
@@ -398,12 +406,17 @@ export default function Analytics() {
     });
   };
 
-  /* — revenu encaissé · 12 mois — factures payées + rituels honorés NON facturés.
-       Même règle que la carte du haut : un rituel encaissé par facture est déjà
-       compté par sa facture. Sans le `!a.invoiceId`, chaque barre du graphe
-       portait le double de ce qui était réellement entré. */
+  /* — revenu encaissé · 12 mois — MÊMES composantes que la carte du haut :
+       factures (versement par versement) + rituels honorés NON facturés +
+       formation + abonnements. Le `!a.invoiceId` évite de compter deux fois un
+       rituel déjà encaissé par sa facture. La formation et l'abonnement y
+       manquaient : chaque barre sous-estimait le mois. */
   const monthly = useMemo(() => {
     const now = new Date();
+    const fluxDuMois = (porteurs: { payments?: readonly { date: string; amountXof: number }[] }[], mk: string, positifSeul: boolean) =>
+      porteurs.flatMap((p) => p.payments ?? [])
+        .filter((pm) => (!positifSeul || pm.amountXof > 0) && payISOLocal(pm.date).slice(0, 7) === mk)
+        .reduce((s, pm) => s + pm.amountXof, 0);
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -411,9 +424,11 @@ export default function Analytics() {
         .filter((a) => a.status === 'honoré' && !a.invoiceId && a.date.slice(0, 7) === mk)
         .reduce((s, a) => s + apptNetXof(a, byId), 0);
       const inv = scopedPaidInvoices.reduce((s, x) => s + invoiceRegleAu(x, mk), 0);
-      return { mk, label: d.toLocaleDateString('fr-FR', { month: 'narrow' }).toUpperCase(), total: appt + inv };
+      const form = fluxDuMois(apprenants, mk, false);
+      const abo = fluxDuMois(abonnes, mk, true);
+      return { mk, label: d.toLocaleDateString('fr-FR', { month: 'narrow' }).toUpperCase(), total: appt + inv + form + abo };
     });
-  }, [scopedAppts, scopedPaidInvoices, byId]);
+  }, [scopedAppts, scopedPaidInvoices, byId, apprenants, abonnes]);
   const yearTotal = monthly.reduce((s, m) => s + m.total, 0);
   const chartMax = Math.max(...monthly.map((m) => m.total), 1);
 

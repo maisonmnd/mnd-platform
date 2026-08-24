@@ -1,7 +1,7 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
-import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof } from '../src/apps/trone/routes/clients/_shared';
-import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment } from '../src/shared/finance';
+import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois } from '../src/apps/trone/routes/clients/_shared';
+import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
 
@@ -193,5 +193,49 @@ alignerFacturesDuRituel({ ...rdvRemise, invoiceId: 'inv1', status: 'honoré' } a
 dit('la pièce garde les prix pleins', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
 dit('… le pourcentage sur la ligne', [50, 0], piece().lines.map((l) => l.discountPct));
 dit('… et les francs sur la sienne', [undefined, 5_000], piece().lines.map((l) => l.discountXof));
+
+/* ═══════════════════════════════════════════════════════════════════
+   LE CHIFFRE D'AFFAIRES DU MOIS — UNE SEULE PORTE — 24 août 2026.
+
+   Le même mois affichait des CA différents selon l'écran : la Synthèse comptait
+   les abonnements, le Dashboard / Analytics / Bilan les oubliaient ; le Bilan
+   seul écartait les caisses hors bilan. `revenuDuMois` tient la composition pour
+   tous : factures (versement par versement) + rituels honorés non facturés +
+   formation + abonnements. Ces assertions la tiennent — dont l'exclusion
+   hors-bilan (Bilan) et la borne du jour (KPI mois-à-date).
+   ═══════════════════════════════════════════════════════════════════ */
+const invMix: Invoice = {
+  id: 'invR', branchId: 'br', kind: 'facture', number: 'F-R', clientId: 'c1', date: '2026-08-01',
+  lines: [ligneFacture('Prestation', 50_000)], globalDiscountPct: 0, theme: 'Aube', status: 'payée',
+  payments: [
+    { id: 'r1', date: '2026-08-10', amountXof: 30_000, method: 'Espèces', cashbox: 'Bocal' },
+    { id: 'r2', date: '2026-08-20', amountXof: 20_000, method: 'Espèces', cashbox: 'Épargne' },
+  ],
+} as Invoice;
+const rdvHonore = {
+  id: 'apR', branchId: 'br', clientId: 'c1', serviceIds: ['a'], date: '2026-08-05',
+  time: '10:00', master: 'M', status: 'honoré',
+} as Appointment; // apptNetXof = prix de A = 10 000, et pas d'invoiceId → compté comme rituel
+const cbx: Cashbox[] = [
+  { id: 'k1', branchId: 'br', name: 'Bocal', sub: '', glyph: '◈', openingXof: 0 } as Cashbox,
+  { id: 'k2', branchId: 'br', name: 'Épargne', sub: '', glyph: '◈', openingXof: 0, horsBilan: true } as Cashbox,
+];
+const apprenantsR = [{ payments: [{ date: '2026-08-25', amountXof: 15_000 }] }];
+const abonnesR = [{ payments: [{ date: '2026-08-12', amountXof: 25_000 }, { date: '2026-08-12', amountXof: 0 }] }];
+const baseArgs = { invoices: [invMix], appts: [rdvHonore], byId, apprenants: apprenantsR, abonnes: abonnesR, branchId: 'br', cashboxes: cbx };
+
+/* Tout compte : 30 000 + 20 000 (factures) + 10 000 (rituel) + 15 000 (formation)
+   + 25 000 (abonnement ; le versement à 0 est écarté). */
+dit('le CA du mois somme les quatre composantes', 100_000, revenuDuMois(baseArgs, '2026-08'));
+/* Le Bilan écarte les caisses hors bilan : les 20 000 tombés dans « Épargne »
+   sortent, le reste tient. */
+dit('exclureHorsBilan retire les versements hors bilan', 80_000,
+  revenuDuMois(baseArgs, '2026-08', { exclureHorsBilan: true }));
+/* La borne du jour (KPI mois-à-date) : au 15, le versement du 20, la formation
+   du 25 sont dehors ; le versement du 10, le rituel du 5, l'abonnement du 12 restent. */
+dit('la borne du jour arrête au mois-à-date', 65_000,
+  revenuDuMois(baseArgs, '2026-08', { cut: '2026-08-15' }));
+/* Un autre mois ne prend rien de celui-ci. */
+dit('un mois voisin ne compte pas', 0, revenuDuMois(baseArgs, '2026-07'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

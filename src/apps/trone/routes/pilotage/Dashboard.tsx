@@ -8,7 +8,7 @@ import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../sh
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
-import { useApprenants, useEnvois } from '../equipe/data';
+import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
@@ -16,7 +16,7 @@ import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  DrillModal, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { useBilans } from '../../../../shared/bilans';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
@@ -69,6 +69,7 @@ export default function Dashboard() {
      Atelier ou côté Studio. */
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const [apprenants] = useApprenants();
+  const [abonnes] = useSubscribers();
 
   const [breakOpen, setBreakOpen] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
@@ -166,9 +167,12 @@ export default function Dashboard() {
 
     return {
       revMaison,
-      revenue: apptRev(thisMonth) + invRev(thisMonth) + formRev(thisMonth),
+      /* CA du mois par la porte unique `revenuDuMois` (clients/_shared) —
+         abonnements COMPRIS, comme la Synthèse (ils manquaient ici). Écran
+         opérationnel : toutes les caisses comptent. */
+      revenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth),
       /* À JOUR ÉGAL : le mois précédent s'arrête au même jour que nous. */
-      prevRevenue: apptRev(prevMonth, cutPrev) + invRev(prevMonth, cutPrev) + formRev(prevMonth, cutPrev),
+      prevRevenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, prevMonth, { cut: cutPrev }),
       spent: exp(thisMonth),
       prevSpent: exp(prevMonth, cutPrev),
       rev7,
@@ -176,7 +180,7 @@ export default function Dashboard() {
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
     };
-  }, [appts, byId, invoices, expenses, apprenants, branch.id, today, thisMonth, prevMonth, cutPrev]);
+  }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {

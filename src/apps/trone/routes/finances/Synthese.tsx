@@ -9,7 +9,7 @@ import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, type Part } from '../../../../shared/maisons';
 import { useClients } from '../../../../shared/clients';
 import { useSubscribers, useApprenants, useFormations } from '../equipe/data';
-import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById } from '../clients/_shared';
+import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById, revenuDuMois } from '../clients/_shared';
 import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv } from './_shared';
 import './finances.css';
 
@@ -103,11 +103,11 @@ export default function Synthese() {
         .map((pm) => ({ mk: payMonthKey(pm.date), amount: pm.amountXof })),
     );
 
+    /* LE CA DU MOIS PASSE PAR LA PORTE UNIQUE `revenuDuMois` (clients/_shared) —
+       la même que le Dashboard, Analytics et le Bilan. Écran opérationnel : toutes
+       les caisses comptent (pas d'exclusion hors bilan). */
     const revenueOf = (mk: string) =>
-      factInv.reduce((s, i) => s + invoiceRegleAu(i, mk), 0) +
-      honored.filter((a) => monthKey(a.date) === mk).reduce((s, a) => s + apptNetXof(a, byId), 0) +
-      formationPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0) +
-      aboPays.filter((p) => p.mk === mk).reduce((s, p) => s + p.amount, 0);
+      revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, mk);
     /* Meme regle qu'a l'ecran Depenses ET au Dashboard : une recurrente active
        pese sur chaque mois qu'elle traverse. La porte unique `depensesDuMois`
        (shared/finance.ts) tient cette regle pour tous les ecrans. */

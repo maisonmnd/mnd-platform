@@ -5,13 +5,13 @@ import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
-import { useApprenants } from '../equipe/data';
+import { useApprenants, useSubscribers } from '../equipe/data';
 import { estDePassage, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceRegleAu, invoiceReglements, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor, apptPayState, apptDueXof,
   frShort, todayISO, useServicesById, RdvModal, PayStatusPill,
-  DrillModal, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
 import './pilotage.css';
@@ -48,6 +48,7 @@ export default function BilanMensuel() {
   );
   const [clients] = useClients();
   const [apprenants] = useApprenants();
+  const [abonnes] = useSubscribers();
   const byId = useServicesById();
   const today = todayISO();
 
@@ -97,7 +98,16 @@ export default function BilanMensuel() {
       .flatMap((ap) => ap.payments ?? [])
       .filter((pm) => inMonth(payISOLocal(pm.date)))
       .reduce((s2, pm) => s2 + pm.amountXof, 0);
-    const revenue = revInv + revRit + revForm;
+    /* LE CA DU MOIS PAR LA PORTE UNIQUE `revenuDuMois` (clients/_shared), la même
+       que la Synthèse / le Dashboard / Analytics — mais avec `exclureHorsBilan`,
+       car le Bilan seul écarte les caisses hors bilan (livres officiels). Les
+       abonnements y ENTRENT désormais (ils manquaient — décision du 3 août).
+       revInv/revRit/revForm restent calculés au-dessus pour les ventilations. */
+    const revenue = revenuDuMois(
+      { invoices, appts, byId, apprenants, abonnes, branchId: branch.id, cashboxes },
+      month,
+      { exclureHorsBilan: true },
+    );
     const honoredNet = honoredValue.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const honoredCount = monthAppts.filter((a) => a.status === 'honoré').length;
     const totalRdv = monthAppts.length;
@@ -171,7 +181,7 @@ export default function BilanMensuel() {
       revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles, dePassage,
       days, dayMax, topClients, cliMax, services, svcCountMax, svcTotalCount,
     };
-  }, [appts, invoices, branch.id, month, byId, clients, apprenants]);
+  }, [appts, invoices, branch.id, month, byId, clients, apprenants, abonnes, cashboxes]);
 
   const hasLife = d.totalRdv > 0 || d.revenue > 0;
 

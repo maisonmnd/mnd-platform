@@ -23,7 +23,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, type ModelBand } from '../../../../shared/pricing';
-import { invoicesStore, invoiceTotal, type Invoice } from '../../../../shared/finance';
+import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 
@@ -162,6 +162,78 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.forfait) return Math.max(0, Math.round(a.forfait.totalXof));
   return Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
 };
+
+/* Date d'un règlement (jj/mm/aaaa OU ISO) → clé de mois « aaaa-mm », et → ISO
+   « aaaa-mm-jj » pour la borne du jour. Les règlements de formation/abonnement
+   se saisissent dans les deux formats ; ces deux helpers les unifient. */
+const revMonthKey = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (fr) return `${fr[3]}-${fr[2]}`;
+  const iso = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return iso ? `${iso[1]}-${iso[2]}` : '';
+};
+const revISO = (d: string): string => {
+  const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
+};
+
+type ReglementLite = { date: string; amountXof: number };
+type PorteurDeReglements = { payments?: readonly ReglementLite[] };
+
+/** LE CHIFFRE D'AFFAIRES D'UN MOIS — une seule porte pour TOUS les écrans.
+
+    L'histoire : le même mois affichait des CA différents selon l'écran — la
+    Synthèse comptait les abonnements (décidé le 3 août), le Dashboard, Analytics
+    et le Bilan les oubliaient ; le Bilan seul écartait les caisses hors bilan.
+    La composition vit donc ICI, appelée partout : factures (versement par
+    versement, à leur mois) + rituels honorés non encore facturés + règlements de
+    formation + règlements d'abonnement.
+
+    `cut` (aaaa-mm-jj) borne au jour, pour la comparaison mois-à-date des KPI.
+    `exclureHorsBilan` écarte les versements tombés dans une caisse hors bilan —
+    c'est le CA des livres officiels (le Bilan mensuel), pas la trésorerie réelle
+    des écrans opérationnels. */
+export function revenuDuMois(
+  args: {
+    invoices: readonly Invoice[];
+    appts: readonly Appointment[];
+    byId: Map<string, Service>;
+    apprenants: readonly PorteurDeReglements[];
+    abonnes: readonly PorteurDeReglements[];
+    branchId: string;
+    cashboxes?: readonly Cashbox[];
+  },
+  mk: string,
+  opts: { cut?: string; exclureHorsBilan?: boolean } = {},
+): number {
+  const { invoices, appts, byId, apprenants, abonnes, branchId, cashboxes } = args;
+  const { cut, exclureHorsBilan } = opts;
+  const exclues = exclureHorsBilan ? caissesHorsBilan(cashboxes ?? [], branchId) : null;
+
+  const factures = invoices
+    .filter((i) => i.branchId === branchId && i.kind === 'facture')
+    .reduce((s, i) => s + invoiceReglements(i)
+      .filter((p) => (p.date ?? '').startsWith(mk)
+        && (!cut || (p.date ?? '') <= cut)
+        && (!exclues || !exclues.has(p.cashbox ?? '')))
+      .reduce((n, p) => n + p.amountXof, 0), 0);
+
+  /* Rituels honorés SANS facture d'encaissement : celle-ci, quand elle existe,
+     les compte déjà (jamais deux fois). */
+  const rituels = appts
+    .filter((a) => a.branchId === branchId && a.status === 'honoré' && !a.invoiceId
+      && a.date.slice(0, 7) === mk && (!cut || a.date <= cut))
+    .reduce((s, a) => s + apptNetXof(a, byId), 0);
+
+  const flux = (porteurs: readonly PorteurDeReglements[], positifSeul: boolean): number =>
+    porteurs
+      .flatMap((p) => p.payments ?? [])
+      .filter((r) => (!positifSeul || r.amountXof > 0)
+        && revMonthKey(r.date) === mk && (!cut || revISO(r.date) <= cut))
+      .reduce((s, r) => s + r.amountXof, 0);
+
+  return factures + rituels + flux(apprenants, false) + flux(abonnes, true);
+}
 
 /* ---------- Les factures suivent le rituel ----------
 
