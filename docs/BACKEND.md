@@ -77,6 +77,28 @@ l'ERP s'ouvre comme avant tant que l'enforcement n'est pas demandé.
   `staff_branches`. Helpers RLS `is_staff()`, `has_rubric()`, `can_see_branch()`
   déjà en place pour le durcissement.
 
+### La branche n'est PAS une frontière de sécurité (décision, 24 août 2026)
+
+Les policies staff des tables métier sont gardées par `is_staff()` **global** :
+un membre du personnel authentifié voit et écrit les données de **toutes** les
+branches. `can_see_branch(branch_id)` existe mais n'est câblée sur **aucune**
+policy active — c'est **volontaire**. `branch_id` organise l'INTERFACE (tout est
+filtré par branche à l'affichage), il ne cloisonne pas les données au niveau
+serveur.
+
+Pourquoi : les branches de MND sont des lieux d'une **même maison, même
+propriétaire** — pas des tenants indépendants. Câbler `can_see_branch` partout
+serait invasif (il faudrait `staff_branches` parfaitement peuplée pour chacun,
+sous peine d'enfermer un membre hors de sa branche) et casserait les gestes
+inter-branches, pour un gain faible tant que c'est une seule maison. Le vrai
+cloisonnement multi-tenant, c'est **LOKAA**, et il passera par un `org_id`
+dédié (colonne + RLS), jamais par `can_see_branch`.
+
+Corollaire de sécurité : **un seul compte staff compromis expose toutes les
+branches.** C'est acceptable pour une maison unique ; ça ne le sera plus le jour
+où deux gérants doivent être étanches l'un à l'autre — ce jour-là, ce sera
+`org_id`, pas la branche.
+
 ### Mise en route auth
 1. SQL Editor → exécuter `supabase/apply_auth.sql` (tables `staff`, RPC, helpers, RLS).
 2. Auth → **Email** : pour un dev fluide, désactiver « Confirm email » (sinon le

@@ -80,9 +80,13 @@ PRÉPARÉ, EN ATTENTE DE TON APPLICATION EN PROD :
   NON couvert : le prix figé `priceXof`/`discountXof` (une cliente peut figer un
   prix de 0) — décision produit, demande un recalcul serveur du prix.
 
+TRANCHÉ LE 24 AOÛT :
+- **Isolation par branche** : on ACTE que `is_staff()` global est la garde — la
+  branche est un filtre d'interface, pas une frontière de sécurité (maison
+  unique ; le cloisonnement multi-tenant viendra avec l'`org_id` de LOKAA).
+  Documenté dans `docs/BACKEND.md`. Aucun changement de policy en prod.
+
 RESTE UNE DÉCISION DE TA PART (rien fait) :
-- **Isolation par branche** : `can_see_branch()` n'est câblée sur aucune policy
-  active — acter que la garde est `is_staff()` global, ou la brancher.
 - **Purge d'historique git** : noms de clientes dans les messages des commits
   984b47d et f2a6233 (réécriture + push force).
 - **Décisions de calcul** : la Synthèse exclut-elle les caisses hors-bilan ? Le
