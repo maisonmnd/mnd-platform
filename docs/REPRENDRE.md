@@ -90,15 +90,19 @@ FAIT ET PUBLIÉ (main @ 7ef2c7d, gh-pages refondé) :
   et overrides respectés. Personnel non déclaré : net inchangé, pas de ligne
   CNSS/ITS. Corrige le bug affiché≠enregistré.
 
-PRÊT, EN ATTENTE DE TON ŒIL PUIS PUBLICATION (commit local `f5968ff`, non poussé) :
+PUBLIÉ (main @ e3afa17, gh-pages refondé) :
 - **Les lettres fon restent sur les factures et reçus** — KLƆKLƆ™ garde son Ɔ
   (plus « KLOKLO™ »), règle de marque. Rendu PAR CARACTÈRE dans `pdf.ts`
   (`texteFon`/`pdfSafeGardeFon`/`assureFon`) : Ɔ ɔ Ɖ ɖ Ɛ ɛ dans la police fon
   (sous-ensemble EB Garamond), le reste dans la police du document ; les accents
-  LATINS (Ì Í de GBÌGBÌ™, FÍNFÍN™) sont intacts (Latin-1). Confirmé par la Maison :
-  aucune prestation ne porte d'accent SUR une lettre fon (ɔ́, Ɛ̀), donc rien de
-  plus à faire. À VÉRIFIER à l'œil (facture + reçu : lettres, accents, alignement)
-  avant push + republication ; repli = `git reset --hard 67fb37c`.
+  LATINS (Ì Í) intacts (Latin-1). La police est EMBARQUÉE EN DUR (`devise-fon-b64.ts`,
+  base64) — le fetch au tracé échouait selon le serveur et sortait « KLOKLO™ » ;
+  plus aucun réseau. Diag de session : le PDF sortait faux tant qu'on testait le
+  site en ligne (code non poussé), pas un build local frais.
+  RESTE (DONNÉE, pas rendu) : le service « SÍNSIN™ » est écrit avec UN seul
+  accent dans le catalogue (S-Í-N-S-I-N) — pour « SÍNSÍN™», renommer le service
+  dans le Catalogue (l'accent manque sur le 2e I ; le rendu, lui, préserve les
+  accents).
 
 TRANCHÉ :
 - **jspdf RESTE en 2.5.2.** La montée en 4.2.1 a été tentée puis ANNULÉE : elle
