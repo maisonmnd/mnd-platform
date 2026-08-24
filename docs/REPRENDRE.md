@@ -81,8 +81,7 @@ TRANCHÉ LE 24 AOÛT :
   est de l'HISTOIRE PUBLIQUE INEFFAÇABLE — mêmes initiales que le code, jamais un
   nom complet. Voir [[commit-messages-are-public]].
 
-FAIT DEPUIS (sur `main`, PAS ENCORE REPUBLIÉ sur les sites — refaire push +
-publie.mjs pour que ça passe en ligne) :
+FAIT ET PUBLIÉ (main @ 7ef2c7d, gh-pages refondé) :
 - **CA du mois unifié** (`revenuDuMois`, clients/_shared) : Synthèse, Dashboard,
   Analytics et Bilan comptent tous la même chose (abonnements COMPRIS) ; le Bilan
   seul écarte les caisses hors bilan (`exclureHorsBilan`). Assertion neuve.
