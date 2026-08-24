@@ -69,11 +69,20 @@ APPLIQUÉ EN PROD LE 24 AOÛT (Supabase SQL Editor / redéploiement Edge) :
   publique. Corrigé par `enable row level security` (sans policy → deny-all ;
   service_role garde l'accès, données et rollback intacts). Voir [[supabase-repli-tables-need-rls]].
 
+PRÉPARÉ, EN ATTENTE DE TON APPLICATION EN PROD :
+- **Migration 0074 — `garde_argent_cliente`** : déclencheur sur `appointments`
+  et `invoices` qui neutralise, pour une écriture CLIENTE (Ma Couronne, sync
+  directe), les champs d'argent qu'elle ne devrait pas poser — `depositConfirmed`,
+  `depositXof`, `paidXof`, et le statut `payée` d'une facture. Staff et
+  `service_role` (kkiapay) gardent plein droit. À COLLER en prod puis tester les
+  trois chemins (comptoir encaisse, KkiaPay confirme, réservation cliente naît
+  non confirmée). Rollback = `drop trigger` (en pied du fichier).
+  NON couvert : le prix figé `priceXof`/`discountXof` (une cliente peut figer un
+  prix de 0) — décision produit, demande un recalcul serveur du prix.
+
 RESTE UNE DÉCISION DE TA PART (rien fait) :
 - **Isolation par branche** : `can_see_branch()` n'est câblée sur aucune policy
   active — acter que la garde est `is_staff()` global, ou la brancher.
-- **Écriture cliente de ses RDV/factures** sans validation serveur du contenu
-  (statut, depositConfirmed) — à faire transiter par des RPC SECURITY DEFINER.
 - **Purge d'historique git** : noms de clientes dans les messages des commits
   984b47d et f2a6233 (réécriture + push force).
 - **Décisions de calcul** : la Synthèse exclut-elle les caisses hors-bilan ? Le
