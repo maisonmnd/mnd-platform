@@ -366,7 +366,19 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
      Ɔ, jamais « KLOKLO™ » (règle de marque). On embarque la police fon, on
      garde les lettres couvertes au repli (`pdfSafeGardeFon`), et `texteFon`
      bascule caractère par caractère au tracé. */
-  await assureFon(doc);
+  const _fonOk = await assureFon(doc);
+  /* DIAGNOSTIC TEMPORAIRE — à retirer. Dit si la police fon s'est chargée. */
+  {
+    let wOcap = -1;
+    try { doc.setFont(POLICE_FON, 'normal'); wOcap = doc.getTextWidth('Ɔ'); } catch (e) { wOcap = -2; }
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor('#cc0000');
+    doc.setFontSize(7);
+    doc.text(`DIAG v3 · fonOk=${_fonOk} · prete=${!!(doc as any).__fonPrete} · wƆ=${wOcap.toFixed(2)}`, M, 11);
+    doc.setTextColor(INK);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+  }
   for (const l of d.lines) {
     /* La découpe voit la chaîne AVEC ses lettres fon (elles ont à peu près la
        largeur de leur translittération) ; le tracé les rend dans leur police. */
