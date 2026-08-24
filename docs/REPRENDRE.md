@@ -90,13 +90,21 @@ FAIT ET PUBLIÉ (main @ 7ef2c7d, gh-pages refondé) :
   et overrides respectés. Personnel non déclaré : net inchangé, pas de ligne
   CNSS/ITS. Corrige le bug affiché≠enregistré.
 
-RESTE UNE DÉCISION DE TA PART (rien fait) :
+TRANCHÉ :
+- **jspdf RESTE en 2.5.2.** La montée en 4.2.1 a été tentée puis ANNULÉE : elle
+  cassait le rendu (une facture sortait en 101 pages / 9,8 Mo) — les
+  contournements de `pdf.ts` sont propres à jsPDF 2, et les réécrire ne se
+  justifie pas puisque les chemins vulnérables (AcroForm, `.html()`) ne sont pas
+  utilisés ici. `npm audit` garde donc 2 avis (jspdf→dompurify) ACCEPTÉS comme
+  non exploitables. Ne pas relancer la migration sans réécrire toute la couche PDF.
+- **Fiches-démo de `clients.ts` (2de1ba3)** : confirmées 100 % FICTIVES par la
+  Maison. Rien à purger.
+
+RESTE UNE SEULE DÉCISION (rien fait) :
 - **Moteur de commission de la paie** : le run calcule la commission au forfait
   (`commissionPct`), Personnel au détail (`computeComm` — prorata/paliers/
   produits). Le net Personnel ≠ net run tant que ce n'est pas tranché (ça change
   ce que les gens touchent). À décider : lequel fait foi.
-- **jspdf 4.x** (migration cassante) et confirmer que les 10 fiches-démo de
-  `clients.ts` (commit 2de1ba3) étaient bien fictives.
 
 ## « Suspendre » ne sert plus qu’aux prélèvements — 24 août, PUBLIÉ
 
