@@ -5,6 +5,7 @@
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
 import { maisonNom, DEVISE_COMPLETE } from './identite';
+import { DEVISE_FON_B64 } from './devise-fon-b64';
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -168,19 +169,11 @@ let deviseEnBase64: string | null | undefined;
 
 /** Charge la police fon une fois pour toutes. `null` = indisponible. */
 async function policeFon(): Promise<string | null> {
-  if (deviseEnBase64 !== undefined) return deviseEnBase64;
-  try {
-    const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
-    const res = await fetch(`${base}/assets/fonts/${FICHIER_FON}`);
-    if (!res.ok) { deviseEnBase64 = null; return null; }
-    const buf = new Uint8Array(await res.arrayBuffer());
-    let brut = '';
-    for (let i = 0; i < buf.length; i++) brut += String.fromCharCode(buf[i]);
-    deviseEnBase64 = btoa(brut);
-  } catch {
-    deviseEnBase64 = null;
-  }
-  return deviseEnBase64;
+  /* EMBARQUÉE EN DUR (devise-fon-b64.ts), plus de fetch : jsPDF a besoin des
+     octets de la police, et le chargement réseau échouait selon le serveur ou
+     le chemin (le PDF sortait alors translittéré, « KLOKLO™ »). Les octets sont
+     maintenant dans le bundle — la police est toujours disponible. */
+  return DEVISE_FON_B64;
 }
 
 /** Embarque la police fon dans le document, UNE seule fois (le pied signe chaque
