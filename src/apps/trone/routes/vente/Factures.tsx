@@ -15,7 +15,7 @@ import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
-import { adresseDe, lienPaiementMomo } from '../equipe/data';
+import { adresseDe, lienPaiementMomo, paiementMomoDeLaMaison } from '../equipe/data';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
@@ -517,10 +517,12 @@ export default function Factures() {
       clientName: clientNameForPdf(d),
       clientPhone: clientOf(d)?.phone,
       master: d.master,
-      /* LE QR DE PAIEMENT — seulement s'il reste à régler : une facture soldée
-         n'invite pas à payer. Un devis non plus : rien n'est dû avant l'accord. */
-      payLink: d.kind === 'facture' && invoiceResteXof(d) > 0
-        ? lienPaiementMomo(invoiceResteXof(d)) ?? undefined
+      /* DE QUOI PAYER — seulement s'il reste à régler : une facture soldée
+         n'invite pas à payer. Un devis non plus : rien n'est dû avant l'accord.
+         Le QR porte l'identifiant marchand MoMo (celui de l'affiche du comptoir,
+         que l'app reconnaît), le code à composer porte le montant. */
+      momo: d.kind === 'facture' && invoiceResteXof(d) > 0
+        ? paiementMomoDeLaMaison(invoiceResteXof(d))
         : undefined,
       /* Le papier dit QUAND, pas seulement COMMENT — un versement par ligne,
          avec sa date et sa part. */

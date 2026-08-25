@@ -7,6 +7,7 @@
 import qrcode from 'qrcode-generator';
 import { maisonNom, DEVISE_COMPLETE } from './identite';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
+import { estIdentifiantMomo } from './momo';
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -324,9 +325,10 @@ export type InvoicePdfData = {
   reglements?: { date: string; method: string; amount: string }[];
   status?: string;
   note?: string;
-  /** Lien de paiement Mobile Money (payer.html, montant compris) — dessiné en QR
-      au bas de la pièce quand un reste est dû. */
-  payLink?: string;
+  /** DE QUOI PAYER, au bas de la pièce : le QR porte l'IDENTIFIANT MARCHAND que
+      l'app MoMo reconnaît (jamais un lien web — leçon du 25 août), le code se
+      compose montant compris, et le marchand se nomme. */
+  momo?: { qr: string; code?: string; marchand?: string };
 };
 
 /** Construit et télécharge le PDF d'une facture / d'un devis. Renvoie le nom du fichier. */
@@ -490,7 +492,7 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
     doc.setFontSize(10);
     doc.setTextColor(INK);
     /* Le QR de paiement occupe le coin bas-droit : la note lui laisse la place. */
-    doc.text(doc.splitTextToSize(d.note, W - 2 * M - (d.payLink ? 34 : 0)), M, y);
+    doc.text(doc.splitTextToSize(d.note, W - 2 * M - (d.momo ? 34 : 0)), M, y);
   }
 
   /* — LE QR DE PAIEMENT (25 août) — il encode la page payer.html au MONTANT
@@ -499,15 +501,31 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
      comprise. Il ne se pose que s'il reste quelque chose à régler, et que la
      page a encore la place — une facture-fleuve le sacrifie plutôt que de
      l'écraser sur les totaux. */
-  if (d.payLink && y < 238) {
+  if (d.momo && estIdentifiantMomo(d.momo.qr) && y < 238) {
     try {
-      const T = 34;
+      const T = 30;
       const xQr = W - M - T;
+      const yQr = 246;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(SOFT);
-      doc.text('RÉGLER PAR MOBILE MONEY', xQr + T, 242, { align: 'right' });
-      dessineQrPaiement(doc, d.payLink, xQr, 244, T);
+      doc.text('RÉGLER PAR MOBILE MONEY', xQr + T, yQr - 3, { align: 'right' });
+      dessineQrPaiement(doc, d.momo.qr, xQr, yQr, T);
+      /* Le montant ne tient pas dans l'identifiant marchand : il se dit ici, en
+         clair, avec le code à composer pour qui ne scanne pas. */
+      let yTxt = yQr + T + 3.5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(SOFT);
+      if (d.momo.marchand) {
+        doc.text(pdfSafe(d.momo.marchand), xQr + T, yTxt, { align: 'right' });
+        yTxt += 3.2;
+      }
+      if (d.momo.code) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(INK);
+        doc.text(pdfSafe(d.momo.code), xQr + T, yTxt, { align: 'right' });
+      }
     } catch { /* un QR qui échoue ne doit pas priver la cliente de sa facture */ }
   }
 

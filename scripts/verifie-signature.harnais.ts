@@ -9,6 +9,7 @@ import {
 import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
 import { pdfSafe, pdfSafeGardeFon, dessineQrPaiement } from '../src/shared/pdf';
 import { decoupeTelephone, numeroTelReel } from '../src/shared/geo';
+import { estIdentifiantMomo, ussdAvecMontant } from '../src/shared/momo';
 import { appelsAActer, type AppelRecu } from '../src/shared/appels';
 
 let echecs = 0;
@@ -132,8 +133,8 @@ dit(acter[acter.length - 1] === 'e', 'un RDV sans date attend en dernier');
 /* ⑩ LE QR DE PAIEMENT DOIT ÊTRE LISIBLE PAR UNE MACHINE (25 août). Premier jet :
    « le QR y est mais ne marche pas ». Trois fautes, qu'on tient ici sur un faux
    document — la zone de silence, la soudure des modules, le noir pur. */
-const LIEN = 'https://exemple.test/trone/payer.html?m=Ets+ACIA1&c=506846&montant=30000';
-const T = 34;
+const LIEN = '506846@momopay';
+const T = 30;
 const traces: { x: number; y: number; w: number; h: number; noir: boolean }[] = [];
 let couranteNoire = false;
 dessineQrPaiement({
@@ -155,6 +156,18 @@ dit(modules.every((m) => m.x >= marge - 0.01 && m.y >= marge - 0.01
 /* La soudure : des rectangles fusionnés, donc bien moins nombreux que de modules. */
 dit(modules.every((m) => m.h > cell), 'les lignes se soudent (débord vertical)');
 dit(modules.some((m) => m.w > cell * 1.5), 'les modules voisins fusionnent en un seul rectangle');
+
+/* ⑪ UN QR DE PAIEMENT PORTE L'IDENTIFIANT MARCHAND, JAMAIS UN LIEN WEB.
+   Le premier QR imprimé encodait « …/payer.html?… » : l'app MoMo n'en fait rien,
+   et c'est pourtant là que la cliente le présente. Le QR de la facture doit
+   porter la MÊME valeur que l'affiche MTN du comptoir, celle qui marche. */
+dit(estIdentifiantMomo('506846@momopay'), 'un identifiant marchand est un QR de paiement valable');
+dit(!estIdentifiantMomo('https://exemple.test/trone/payer.html?montant=75000'), 'un lien web n’en est PAS un');
+dit(!estIdentifiantMomo(''), 'le vide non plus');
+/* Le montant vit dans le code à composer, pas dans l'identifiant. */
+dit(ussdAvecMontant('*880*41*506846*montant#', 75000) === '*880*41*506846*75000#', 'le code à composer porte le montant');
+dit(ussdAvecMontant('*880*41*506846*montant#') === '*880*41*506846*montant#', 'sans montant, le modèle reste intact');
+dit(ussdAvecMontant('*880*41*506846#', 75000) === '*880*41*506846#', 'on n’invente JAMAIS une syntaxe de paiement');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);

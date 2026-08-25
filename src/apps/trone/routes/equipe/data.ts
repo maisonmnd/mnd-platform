@@ -2,6 +2,7 @@ import { createStore, useStore, HOUSE_BLANK } from '../../../../shared/store';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
+import { ussdAvecMontant } from '../../../../shared/momo';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -308,11 +309,26 @@ export const MOMO_QR_DEFAUT = '506846@momopay';
 export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
 export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
 
+/** CE QU'IL FAUT POUR PAYER, tel que la facture doit l'imprimer : l'identifiant
+    marchand (le QR que l'app MoMo reconnaît — le même que l'affiche du comptoir),
+    le code à composer montant compris, et le nom du marchand. */
+export const paiementMomoDeLaMaison = (montantXof?: number): {
+  qr: string; code: string; marchand: string;
+} => {
+  const cfg = autoConfigStore.get() as { momoQr?: string; momoUssd?: string; momoMarchand?: string };
+  return {
+    qr: cfg.momoQr || MOMO_QR_DEFAUT,
+    code: ussdAvecMontant(cfg.momoUssd || MOMO_USSD_DEFAUT, montantXof),
+    marchand: cfg.momoMarchand || MOMO_MARCHAND_DEFAUT,
+  };
+};
+
 /** LE LIEN DE PAIEMENT DE LA MAISON (25 août) — la page `payer.html` (marchand +
     code à composer), avec le MONTANT EXACT pré-rempli quand on le connaît. C'est
-    ce lien qu'on envoie à une cliente pour régler une facture ou un reste dû, et
-    c'est lui que le QR de la facture PDF encode. Aucun domaine en dur : l'URL
-    naît de l'origine courante, comme le reste de la Maison. */
+    ce lien qu'on ENVOIE à une cliente (WhatsApp) : une page se lit, un QR se
+    scanne, et ce ne sont pas les mêmes gestes. Le QR de la facture, lui, porte
+    l'identifiant marchand (voir `paiementMomoDeLaMaison`). Aucun domaine en dur :
+    l'URL naît de l'origine courante, comme le reste de la Maison. */
 export const lienPaiementMomo = (montantXof?: number): string | null => {
   const cfg = autoConfigStore.get() as { momoUssd?: string; momoMarchand?: string };
   const ussd = cfg.momoUssd || MOMO_USSD_DEFAUT;

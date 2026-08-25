@@ -390,7 +390,22 @@ export default function QrCodes() {
               affiche: 'momopay-affiche.jpg',
             })}
           >
-            Afficher au comptoir
+            Afficher l’affiche
+          </button>
+          {/* LE QR SEUL, EN GRAND (25 août, demande de Yéman). L'affiche est
+              belle, mais elle entoure le code de tout un décor : de près, avec
+              un téléphone qui cherche à scanner, c'est le carré nu qu'on veut
+              tendre — plein écran, rien autour. */}
+          <button
+            type="button"
+            className="mnd-btn mnd-btn--copper"
+            onClick={() => setGrand({
+              titre: 'Régler par MoMo.',
+              phrase: `Marchand ${momoMarchand}, le montant en francs.`,
+              valeur: momoQr,
+            })}
+          >
+            Afficher le QR seul
           </button>
           <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimerMomo}>
             Imprimer la carte A5
