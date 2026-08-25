@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
@@ -1228,21 +1229,18 @@ function Customer360({
   /* Identité éditable — nom, téléphone, ville, segment principal. État local,
      enregistré en un geste ; réinitialisé quand on change de cliente. */
   const [segmentList] = useSegments();
-  /* L'INDICATIF EST DÉJÀ LÀ. Un champ téléphone vide s'ouvre sur l'indicatif du
-     pays de la branche (« +229 ») pour qu'on saisisse le numéro sans le retaper.
-     Mais l'indicatif SEUL n'est pas un numéro : `numeroReel` le ramène à vide, et
-     on ne l'enregistre pas, sans quoi la fiche porterait un « +229 » creux. */
-  const prefixeTel = `${branch.dial} `;
-  const numeroReel = (v: string) => (digitsOf(v) === digitsOf(branch.dial) ? '' : v.trim());
+  /* L'indicatif du pays est posé par le sélecteur du champ (défaut : la branche) ;
+     `numeroTelReel` ramène à vide un champ qui ne porte qu'un indicatif, pour ne
+     pas enregistrer un « +229 » creux. */
   const [idName, setIdName] = useState(client.name);
-  const [idPhone, setIdPhone] = useState(client.phone || prefixeTel);
-  const [idPhone2, setIdPhone2] = useState(client.phone2 || prefixeTel);
+  const [idPhone, setIdPhone] = useState(client.phone);
+  const [idPhone2, setIdPhone2] = useState(client.phone2 ?? '');
   const [idEmail, setIdEmail] = useState(client.email ?? '');
   const [idCity, setIdCity] = useState(client.city);
   useEffect(() => {
     setIdName(client.name);
-    setIdPhone(client.phone || prefixeTel);
-    setIdPhone2(client.phone2 || prefixeTel);
+    setIdPhone(client.phone);
+    setIdPhone2(client.phone2 ?? '');
     setIdEmail(client.email ?? '');
     setIdCity(client.city);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1314,8 +1312,8 @@ function Customer360({
   /* Enregistrement de l'identité — le nom ne peut pas être vidé ; le segment
      principal remplace le premier segment (ou le retire si laissé vide). */
   const idDirty =
-    idName !== client.name || numeroReel(idPhone) !== client.phone || idCity !== client.city
-    || numeroReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
+    idName !== client.name || numeroTelReel(idPhone) !== client.phone || idCity !== client.city
+    || numeroTelReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
   /* UN ENREGISTREMENT MUET SE LIT COMME UNE PANNE. L'écriture se faisait bien,
      mais rien ne le disait : le bouton se grisait, et l'on croyait que le clic
      n'avait servi à rien. On le dit donc, brièvement. */
@@ -1326,7 +1324,7 @@ function Customer360({
     return () => window.clearTimeout(t);
   }, [idSaved]);
   const saveIdentity = () => {
-    patch({ name: idName.trim() || client.name, phone: numeroReel(idPhone), phone2: numeroReel(idPhone2) || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
+    patch({ name: idName.trim() || client.name, phone: numeroTelReel(idPhone), phone2: numeroTelReel(idPhone2) || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
     setIdSaved(true);
   };
 
@@ -1965,10 +1963,10 @@ function Customer360({
               <Input value={idName} onChange={(e) => setIdName(e.target.value)} placeholder="Nom et prénom" />
             </Field>
             <Field label="Téléphone">
-              <Input id="c360-phone" value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="—" />
+              <ChampTelephone id="c360-phone" value={idPhone} onChange={setIdPhone} dialDefaut={branch.dial} />
             </Field>
             <Field label="Deuxième téléphone (facultatif)">
-              <Input id="c360-phone2" value={idPhone2} onChange={(e) => setIdPhone2(e.target.value)} placeholder="—" />
+              <ChampTelephone id="c360-phone2" value={idPhone2} onChange={setIdPhone2} dialDefaut={branch.dial} />
             </Field>
             <Field label="Adresse e-mail">
               <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />
@@ -2898,7 +2896,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       id: uid(),
       branchId: branch.id,
       name: nomComplet,
-      phone: phone.trim(),
+      phone: numeroTelReel(phone),
       email: email.trim() || undefined,
       city: city.trim() || branch.city,
       persona,
@@ -2949,7 +2947,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
 
         <div className="tr-grid tr-grid--2">
           <Field label="Téléphone">
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <ChampTelephone value={phone} onChange={setPhone} dialDefaut={branch.dial} />
           </Field>
           <Field label="Adresse e-mail">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" autoComplete="email" />

@@ -8,6 +8,7 @@ import {
 } from '../src/shared/identite';
 import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
 import { pdfSafe, pdfSafeGardeFon } from '../src/shared/pdf';
+import { decoupeTelephone, numeroTelReel } from '../src/shared/geo';
 
 let echecs = 0;
 const dit = (ok: boolean, quoi: string) => {
@@ -91,6 +92,24 @@ dit(pdfSafe('café à Cotonou') === 'café à Cotonou', 'les accents français s
 dit(pdfSafe('KLƆKLƆ™') === 'KLOKLO™', 'les lettres fon se translittèrent hors devise (pdfSafe)');
 dit(pdfSafeGardeFon('KLƆKLƆ™').includes('Ɔ'), 'pdfSafeGardeFon garde les lettres fon couvertes');
 dit(pdfSafe('a\u{1F600}b') === 'ab', 'un emoji non traçable est retiré, pas rendu en « ? »');
+
+/* ⑧ LE TÉLÉPHONE, INDICATIF ET NUMÉRO. Le champ pose l'indicatif du pays (défaut
+   la branche) et n'enregistre pas un indicatif seul, sinon la fiche porterait un
+   « +229 » creux. `decoupeTelephone` reconnaît « +590 » (Guadeloupe, hors
+   COUNTRIES) avant « +59 ». */
+const dq = (v: string, def: string, dial: string, local: string) => {
+  const r = decoupeTelephone(v, def);
+  dit(r.dial === dial && r.local === local, `« ${v || '∅'} » → ${dial} / « ${local} »`);
+};
+dq('+229 97 00 00 00', '+229', '+229', '97 00 00 00');
+dq('+33 6 12 34 56 78', '+229', '+33', '6 12 34 56 78');
+dq('+590 690 00 00', '+229', '+590', '690 00 00');       // Guadeloupe, hors COUNTRIES
+dq('', '+229', '+229', '');                               // vide → indicatif de la branche
+dq('97000000', '+229', '+229', '97000000');              // sans « + » → local sous l'indicatif défaut
+dit(numeroTelReel('+229 ') === '', 'un indicatif seul n’est pas un numéro');
+dit(numeroTelReel('+590') === '', '… même Guadeloupe seul');
+dit(numeroTelReel('+229 97000000') === '+229 97000000', 'un vrai numéro est conservé');
+dit(numeroTelReel('') === '', 'un champ vide reste vide');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);

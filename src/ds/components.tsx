@@ -1,4 +1,5 @@
 import { asset } from '../shared/asset';
+import { TELEPHONE_PAYS, decoupeTelephone } from '../shared/geo';
 import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 /* MND — primitives React partagées. Styles dans ds.css. */
@@ -129,6 +130,48 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
 }
 export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className="mnd-textarea" {...props} />;
+}
+
+/* CHAMP TÉLÉPHONE — indicatif du pays + numéro local (25 août). Le menu pose
+   l'indicatif (défaut : le pays de la branche) ; on ne tape que le numéro local,
+   et la valeur est stockée au format international (« +33 6 12 34 56 78 »), ce
+   qui fiabilise les liens WhatsApp. Les Antilles (Guadeloupe/Martinique) et les
+   voisins de la diaspora sont dans la liste ; un indicatif hors liste déjà
+   enregistré s'affiche quand même. */
+export function ChampTelephone({ value, onChange, dialDefaut, id }: {
+  value: string;
+  onChange: (v: string) => void;
+  dialDefaut: string;
+  id?: string;
+}) {
+  const { dial, local } = decoupeTelephone(value, dialDefaut);
+  const options = TELEPHONE_PAYS.some((p) => p.dial === dial)
+    ? TELEPHONE_PAYS
+    : [{ name: dial, dial }, ...TELEPHONE_PAYS];
+  const compose = (d: string, l: string) => `${d} ${l}`.trim();
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+      <Select
+        value={dial}
+        onChange={(e) => onChange(compose(e.target.value, local))}
+        aria-label="Indicatif du pays"
+        style={{ maxWidth: 176, flex: '0 0 auto' }}
+      >
+        {options.map((p) => (
+          <option key={`${p.name}-${p.dial}`} value={p.dial}>{p.name} {p.dial}</option>
+        ))}
+      </Select>
+      <Input
+        id={id}
+        value={local}
+        onChange={(e) => onChange(compose(dial, e.target.value))}
+        placeholder="numéro"
+        inputMode="tel"
+        autoComplete="tel-national"
+        style={{ flex: 1, minWidth: 0 }}
+      />
+    </div>
+  );
 }
 
 export function Badge({
