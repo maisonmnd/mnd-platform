@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -53,7 +54,17 @@ export default function Appels() {
       />
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0 12px' }}>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher (nom, numéro, motif)…" style={{ flex: '1 1 240px', minWidth: 0 }} />
+        {/* La loupe cuivre, comme au registre des Clientes et aux Factures. */}
+        <span style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 280px', minWidth: 0 }}>
+          <Search size={17} aria-hidden="true" style={{ position: 'absolute', left: 13, color: 'var(--color-copper)', pointerEvents: 'none' }} />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Chercher (nom, numéro, motif)…"
+            aria-label="Chercher un appel"
+            style={{ width: '100%', padding: '12px 14px 12px 40px', fontSize: 14.5, border: '1.5px solid var(--copper-300)', borderRadius: 3 }}
+          />
+        </span>
         <button type="button" style={onglet(vue === 'a-traiter')} onClick={() => setVue('a-traiter')}>À traiter <span style={{ opacity: .6, marginLeft: 4 }}>{aTraiter.length}</span></button>
         <button type="button" style={onglet(vue === 'traites')} onClick={() => setVue('traites')}>Traités <span style={{ opacity: .6, marginLeft: 4 }}>{traites.length}</span></button>
         <button type="button" style={onglet(vue === 'tous')} onClick={() => setVue('tous')}>Tous</button>

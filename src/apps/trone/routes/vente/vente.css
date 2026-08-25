@@ -358,12 +358,20 @@
   min-width: 220px;
   padding: 0 12px;
   background: var(--surface-card);
-  border: 1px solid var(--hairline);
+  /* LA RECHERCHE SE VOIT (25 août) — même traitement que le registre des
+     Clientes : cadre affirmé et loupe cuivre. Sur 405 pièces, c'est par ce
+     champ qu'on entre dans l'écran ; il ne doit pas se fondre dans la page. */
+  border: 1.5px solid var(--copper-300);
   border-radius: var(--radius-sm);
   color: var(--ink-soft);
-  transition: border-color var(--dur-fast) var(--ease-soft);
+  box-shadow: 0 1px 0 rgba(30, 33, 80, .04);
+  transition: border-color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
 }
-.trv-search__field:focus-within { border-color: var(--color-copper); }
+.trv-search__field > svg { color: var(--color-copper); flex: none; }
+.trv-search__field:focus-within {
+  border-color: var(--color-copper);
+  box-shadow: 0 0 0 3px rgba(185, 122, 74, .16);
+}
 .trv-search__input {
   flex: 1;
   min-width: 0;
