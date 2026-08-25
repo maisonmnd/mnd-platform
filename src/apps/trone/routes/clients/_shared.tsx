@@ -2114,7 +2114,13 @@ export function RdvModal({
                 const r = remisesL[pos] ?? {};
                 const posee = (r.pct ?? 0) > 0 || (r.xof ?? 0) > 0;
                 const ouverte = posee || remisesOuvertes.includes(sv.id);
-                const plein = svcPriceForAppt({ ...appt, longueur } as Appointment, sv);
+                /* LE PRIX D'ORIGINE DE LA REMISE = le prix RÉEL de la ligne pour
+                   cette cliente (`prixPlein` : personnalisé/calibre/longueur), le
+                   même que le total applique. `svcPriceForAppt` donnait le prix
+                   CATALOGUE de base — d'où « au lieu de 20 000 » sous une ligne à
+                   30 000. Le montant facturé était déjà juste ; seul l'affichage
+                   mentait. */
+                const plein = prixPlein(sv);
                 const net = Math.max(0, Math.round(plein * (1 - (r.pct ?? 0) / 100)) - (r.xof ?? 0));
                 const poser = (patch: { pct?: number; xof?: number }) => setRemisesL((prev) => {
                   const n = serviceIds.map((_, k) => prev[k] ?? null);

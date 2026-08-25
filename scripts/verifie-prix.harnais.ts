@@ -50,6 +50,15 @@ dit('… et le prix par longueur', 20_000,
 const autre = svc({ id: 'sv2', priceXof: 30_000 });
 dit('une AUTRE prestation garde son prix', 15_000, personalPriceXof(autre, ferme));
 
+/* ── LA REMISE PART DU PRIX RÉEL DE LA LIGNE, PAS DU CATALOGUE (25 août) ──
+   Une ligne au prix personnalisé (ici ferme 20 000, catalogue 45 000) : une
+   remise −20 % vaut 16 000 (sur 20 000), jamais 36 000 (sur le catalogue). Le
+   panneau de remise de la modale RDV lisait `priceXof` — d'où « au lieu de
+   20 000 » sous une ligne à 30 000. La base doit être `personalPriceXof`. */
+const baseRemise = personalPriceXof(svc({}), ferme); // 20 000, personnalisé
+dit('la remise −20 % part du prix personnalisé', 16_000, Math.round(baseRemise * 0.8));
+dit('… qui n’est PAS le prix catalogue', true, baseRemise !== svc({}).priceXof);
+
 /* ── ZÉRO ET NÉGATIF NE SONT PAS DES PRIX ──
    Un rituel offert se dit « offert » sur le rendez-vous ; le déguiser en prix
    fixe à 0 F ferait disparaître le geste de tous les comptes en silence. */
