@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, clientsStore, estDePassage, aUnPrixConvenu, comptePrixConvenus, type Client } from '../../../../shared/clients';
 import { useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { estDependant, depenseFoyerXof } from '../../../../shared/accounts';
-import { useServices } from '../../../../shared/catalog';
+import { useServices, useCategories, catsDansLOrdre } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, type FoyerTier } from '../../../../shared/offers';
 import {
@@ -29,6 +29,19 @@ export default function Cercle() {
   const [families] = useFamilies();
   const [appts] = useAppointments();
   const [services] = useServices();
+  const [categories] = useCategories();
+  /* LE MENU DES PRESTATIONS, RANGÉ COMME LE CATALOGUE (25 août) — groupé par
+     catégorie dans l'ordre du catalogue, trié par nom dans chaque groupe. Sans
+     ça, la liste sortait dans l'ordre brut de création, « dans tous les sens ». */
+  const servicesGroupes = useMemo(() => {
+    const ord = catsDansLOrdre(categories);
+    const connues = new Set(ord.map((c) => c.id));
+    const groupes = ord
+      .map((c) => ({ cat: c, svcs: services.filter((s) => s.categoryId === c.id).sort((a, b) => a.name.localeCompare(b.name, 'fr')) }))
+      .filter((g) => g.svcs.length > 0);
+    const orphelins = services.filter((s) => !connues.has(s.categoryId)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    return { groupes, orphelins };
+  }, [categories, services]);
   const [tiers, setTiers] = useTiers();
   const [rate, setRate] = useStore(pointsRateStore);
   const [pointsOn, setPointsOn] = useStore(pointsEnabledStore);
@@ -594,9 +607,20 @@ export default function Cercle() {
             </Field>
             <Field label="Prestation offerte · tirée du catalogue">
               <Select value={tierForm.serviceId} onChange={(e) => setTierForm({ ...tierForm, serviceId: e.target.value })}>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
+                {servicesGroupes.groupes.map((g) => (
+                  <optgroup key={g.cat.id} label={g.cat.fon || g.cat.label}>
+                    {g.svcs.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
+                    ))}
+                  </optgroup>
                 ))}
+                {servicesGroupes.orphelins.length > 0 && (
+                  <optgroup label="Autres">
+                    {servicesGroupes.orphelins.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
+                    ))}
+                  </optgroup>
+                )}
               </Select>
             </Field>
             <Field label="Description · une phrase">
