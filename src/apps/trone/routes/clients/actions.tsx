@@ -17,7 +17,8 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, c
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT } from '../equipe/data';
+import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
+import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { useStaff } from '../equipe/data';
@@ -1089,6 +1090,27 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               {fmtMoney(due, currency)}
             </span>
           </div>
+          {/* LE LIEN DE PAIEMENT EN UN CLIC — la page payer.html au montant du
+              reste, envoyée à la PAYEUSE sur WhatsApp. Pour la cliente à
+              distance qui règle par Mobile Money avant de passer. */}
+          {due > 0 && (() => {
+            const lien = lienPaiementMomo(due);
+            const tel = (payerClient?.phone ?? client?.phone ?? '').replace(/\D/g, '');
+            if (!lien || !tel) return null;
+            const prenom = (payerClient?.name ?? client?.name ?? '').split(' ')[0];
+            const msg = signeLeMessage(
+              `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
+            );
+            return (
+              <a
+                href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
+                target="_blank" rel="noreferrer"
+                style={{ display: 'inline-block', marginTop: 9, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-200)', textDecoration: 'none' }}
+              >
+                Envoyer le lien de paiement par WhatsApp
+              </a>
+            );
+          })()}
         </div>
 
         {isFamilyPayer && (

@@ -308,6 +308,25 @@ export const MOMO_QR_DEFAUT = '506846@momopay';
 export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
 export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
 
+/** LE LIEN DE PAIEMENT DE LA MAISON (25 août) — la page `payer.html` (marchand +
+    code à composer), avec le MONTANT EXACT pré-rempli quand on le connaît. C'est
+    ce lien qu'on envoie à une cliente pour régler une facture ou un reste dû, et
+    c'est lui que le QR de la facture PDF encode. Aucun domaine en dur : l'URL
+    naît de l'origine courante, comme le reste de la Maison. */
+export const lienPaiementMomo = (montantXof?: number): string | null => {
+  const cfg = autoConfigStore.get() as { momoUssd?: string; momoMarchand?: string };
+  const ussd = cfg.momoUssd || MOMO_USSD_DEFAUT;
+  const marchand = cfg.momoMarchand || MOMO_MARCHAND_DEFAUT;
+  const code = (ussd.match(/\d{4,}/g) ?? []).slice(-1)[0] ?? '';
+  if (!code && !marchand) return null;
+  if (typeof window === 'undefined') return null;
+  const u = new URL(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/payer.html`, window.location.href);
+  if (marchand) u.searchParams.set('m', marchand);
+  if (code) u.searchParams.set('c', code);
+  if (montantXof && montantXof > 0) u.searchParams.set('montant', String(Math.round(montantXof)));
+  return u.href;
+};
+
 /** Le lien d'avis Google de la Maison — remis par Yéman le 18 août 2026.
     Public par nature : c'est le lien qu'on DONNE aux clientes. Il se corrige
     dans Paramètres › Automatisations sans toucher au code. */

@@ -4,6 +4,7 @@
    l'API WhatsApp Business (serveur) — ici on télécharge le PDF puis on ouvre le
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
+import qrcode from 'qrcode-generator';
 import { maisonNom, DEVISE_COMPLETE } from './identite';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 
@@ -283,6 +284,9 @@ export type InvoicePdfData = {
   reglements?: { date: string; method: string; amount: string }[];
   status?: string;
   note?: string;
+  /** Lien de paiement Mobile Money (payer.html, montant compris) — dessiné en QR
+      au bas de la pièce quand un reste est dû. */
+  payLink?: string;
 };
 
 /** Construit et télécharge le PDF d'une facture / d'un devis. Renvoie le nom du fichier. */
@@ -445,7 +449,37 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
     doc.setFont('times', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(INK);
-    doc.text(doc.splitTextToSize(d.note, W - 2 * M), M, y);
+    /* Le QR de paiement occupe le coin bas-droit : la note lui laisse la place. */
+    doc.text(doc.splitTextToSize(d.note, W - 2 * M - (d.payLink ? 34 : 0)), M, y);
+  }
+
+  /* — LE QR DE PAIEMENT (25 août) — il encode la page payer.html au MONTANT
+     EXACT du reste dû : la facture imprimée (ou montrée sur un autre écran) se
+     scanne avec le téléphone qui paie, et le code à composer s'affiche, somme
+     comprise. Il ne se pose que s'il reste quelque chose à régler, et que la
+     page a encore la place — une facture-fleuve le sacrifie plutôt que de
+     l'écraser sur les totaux. */
+  if (d.payLink && y < 242) {
+    const taille = 26;
+    const xQr = W - M - taille;
+    const yQr = 250;
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(d.payLink);
+      qr.make();
+      const n = qr.getModuleCount();
+      const cell = taille / n;
+      doc.setFillColor(INK);
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (qr.isDark(r, c)) doc.rect(xQr + c * cell, yQr + r * cell, cell, cell, 'F');
+        }
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(SOFT);
+      doc.text('RÉGLER PAR MOBILE MONEY', xQr + taille, yQr - 2.5, { align: 'right' });
+    } catch { /* un QR qui échoue ne doit pas priver la cliente de sa facture */ }
   }
 
   // — Pied —

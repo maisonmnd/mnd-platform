@@ -15,7 +15,7 @@ import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
-import { adresseDe } from '../equipe/data';
+import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
@@ -517,6 +517,11 @@ export default function Factures() {
       clientName: clientNameForPdf(d),
       clientPhone: clientOf(d)?.phone,
       master: d.master,
+      /* LE QR DE PAIEMENT — seulement s'il reste à régler : une facture soldée
+         n'invite pas à payer. Un devis non plus : rien n'est dû avant l'accord. */
+      payLink: d.kind === 'facture' && invoiceResteXof(d) > 0
+        ? lienPaiementMomo(invoiceResteXof(d)) ?? undefined
+        : undefined,
       /* Le papier dit QUAND, pas seulement COMMENT — un versement par ligne,
          avec sa date et sa part. */
       reglements: invoiceReglements(d)
@@ -1286,6 +1291,24 @@ export default function Factures() {
                 </Button>
               )}
               <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
+              {/* LE LIEN DE PAIEMENT, EN UN CLIC — la page payer.html au montant
+                  exact du reste dû, envoyée sur le WhatsApp de la cliente. Le
+                  message de facture, lui, reste sobre (décision du 22 août) :
+                  ceci est un geste séparé, pour quand on RÉCLAME un règlement. */}
+              {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (() => {
+                const lien = lienPaiementMomo(invoiceResteXof(selected));
+                const tel = clientOf(selected)?.phone.replace(/\D/g, '') ?? '';
+                if (!lien || !tel) return null;
+                const msg = signeLeMessage(
+                  `${maisonNom()} · Facture ${selected.number}\n` +
+                  `Bonjour ${prenomOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
+                );
+                return (
+                  <a className="trv-wa-btn" style={{ textDecoration: 'none' }} href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">
+                    Envoyer le lien de paiement
+                  </a>
+                );
+              })()}
               {geoDest && (
                 <a
                   className="trv-route-btn"
