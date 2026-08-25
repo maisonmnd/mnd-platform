@@ -360,10 +360,13 @@ export default function Fil() {
       : x)));
   };
 
+  /* LA PIÈCE S'OUVRE SUR ELLE-MÊME, PAS SUR SON REGISTRE (25 août). « Ouvrir la
+     fiche » menait à la LISTE des clientes : l'identifiant se perdait en route,
+     et il fallait rechercher à la main la tête dont le message parlait. */
   const ouvrirLaPiece = (p: FilPiece) => {
     if (p.kind === 'facture') navigate(`/factures?id=${p.id}`);
     else if (p.kind === 'rituel') navigate('/carnet');
-    else navigate('/customers');
+    else navigate(`/customers?id=${p.id}`);
   };
 
   return (

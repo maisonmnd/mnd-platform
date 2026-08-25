@@ -121,6 +121,46 @@ function texteFon(doc: any, texte: string, x: number, y: number): void {
   }
 }
 
+/* ── LE QR DE PAIEMENT, LISIBLE PAR UNE MACHINE ───────────────────────
+   Premier jet (25 août) : QR présent mais INSCANNABLE. Trois fautes, toutes
+   classiques, corrigées ici — et c'est pourquoi ce dessin vit dans SA fonction,
+   éprouvée par `scripts/verifie-qr.mjs` :
+
+   ① LA ZONE DE SILENCE. Un QR exige 4 modules de blanc tout autour ; le libellé
+     se posait à 2,5 mm et mordait dedans. Elle est désormais COMPRISE dans la
+     boîte (`taille`), avec un fond blanc explicite : rien ne peut s'y coucher.
+   ② LES FENTES BLANCHES. Des carrés voisins dessinés un par un laissent des
+     cheveux blancs au rendu (arrondi sous-pixel), et le lecteur perd la trame.
+     On fusionne donc chaque suite horizontale en UN rectangle, et on déborde
+     d'un chouïa en hauteur pour souder les lignes entre elles.
+   ③ LE CONTRASTE. Noir pur, jamais l'encre de la Maison (#14141B) : un QR se
+     lit en noir sur blanc, c'est sa seule coquetterie. */
+export function dessineQrPaiement(doc: any, valeur: string, x: number, y: number, taille: number): void {
+  const qr = qrcode(0, 'M');
+  qr.addData(valeur);
+  qr.make();
+  const n = qr.getModuleCount();
+  const MARGE = 4;                       // modules de silence, norme QR
+  const cell = taille / (n + MARGE * 2);
+  const x0 = x + MARGE * cell;
+  const y0 = y + MARGE * cell;
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x, y, taille, taille, 'F');
+  doc.setFillColor(0, 0, 0);
+  const souda = cell * 0.04;             // soudure verticale contre les fentes
+  for (let r = 0; r < n; r++) {
+    let c = 0;
+    while (c < n) {
+      if (!qr.isDark(r, c)) { c += 1; continue; }
+      let fin = c;
+      while (fin + 1 < n && qr.isDark(r, fin + 1)) fin += 1;
+      doc.rect(x0 + c * cell, y0 + r * cell, (fin - c + 1) * cell, cell + souda, 'F');
+      c = fin + 1;
+    }
+  }
+}
+
 /** Charge le sceau MND (cuivre) en data-URL pour l'insérer dans le PDF. */
 async function loadSeal(): Promise<string | null> {
   try {
@@ -459,26 +499,15 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
      comprise. Il ne se pose que s'il reste quelque chose à régler, et que la
      page a encore la place — une facture-fleuve le sacrifie plutôt que de
      l'écraser sur les totaux. */
-  if (d.payLink && y < 242) {
-    const taille = 26;
-    const xQr = W - M - taille;
-    const yQr = 250;
+  if (d.payLink && y < 238) {
     try {
-      const qr = qrcode(0, 'M');
-      qr.addData(d.payLink);
-      qr.make();
-      const n = qr.getModuleCount();
-      const cell = taille / n;
-      doc.setFillColor(INK);
-      for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-          if (qr.isDark(r, c)) doc.rect(xQr + c * cell, yQr + r * cell, cell, cell, 'F');
-        }
-      }
+      const T = 34;
+      const xQr = W - M - T;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(SOFT);
-      doc.text('RÉGLER PAR MOBILE MONEY', xQr + taille, yQr - 2.5, { align: 'right' });
+      doc.text('RÉGLER PAR MOBILE MONEY', xQr + T, 242, { align: 'right' });
+      dessineQrPaiement(doc, d.payLink, xQr, 244, T);
     } catch { /* un QR qui échoue ne doit pas priver la cliente de sa facture */ }
   }
 

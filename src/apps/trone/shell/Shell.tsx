@@ -23,8 +23,12 @@ import { RdvModal } from '../routes/clients/_shared';
    carte de la Maison, ouverte à chaque prix qu'on vérifie et à chaque
    prestation qu'on retouche. */
 /* Le Fil et le Tableau APRÈS le Catalogue — l'ordre du comptoir d'abord,
-   le registre interne ensuite (Yéman, 18 août). */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/caisse', '/customers', '/factures', '/catalogue', '/fil', '/tableau'];
+   le registre interne ensuite (Yéman, 18 août).
+
+   LA CAISSE POS EN REDESCEND le 25 août : on encaisse depuis « + Encaisser »,
+   qui est déjà dans l'en-tête, et depuis le Carnet — la ligne du menu faisait
+   double emploi. Elle retrouve sa place sous « Vente ». */
+const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/customers', '/factures', '/catalogue', '/fil', '/tableau'];
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 
 /* ── LA MAIN RANGE SON MENU — 22 août 2026 ──────────────────────────
@@ -248,6 +252,10 @@ export default function Shell() {
   const [appelOpen, setAppelOpen] = useState(false);
   const [appelInitial, setAppelInitial] = useState<{ phone?: string; nom?: string } | null>(null);
   const [rdvPour, setRdvPour] = useState<{ clientId: string; appelId: string; avant: number } | null>(null);
+  /* + RDV — poser un rendez-vous depuis N'IMPORTE OÙ, comme on encaisse depuis
+     n'importe où : le geste du comptoir ne doit pas dépendre de l'écran où l'on
+     se trouve (demande du 25 août). */
+  const [rdvNouveau, setRdvNouveau] = useState(false);
   const [appels] = useAppels();
   const appelsEnAttente = appelsAActer(appels, branch.id).length;
 
@@ -454,6 +462,7 @@ export default function Shell() {
               <span style={{ marginLeft: 6, background: 'var(--color-copper)', color: '#fff', borderRadius: 999, fontSize: 11, padding: '0 6px', fontWeight: 600 }}>{appelsEnAttente}</span>
             )}
           </Button>
+          <Button variant="ghost" onClick={() => setRdvNouveau(true)} title="Poser un rendez-vous">+ RDV</Button>
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
           {session && (
             <button
@@ -473,6 +482,7 @@ export default function Shell() {
           onClose={() => { setAppelOpen(false); setAppelInitial(null); }}
           onPoserRdv={(clientId, appelId) => setRdvPour({ clientId, appelId, avant: appointmentsStore.get().filter((x) => x.clientId === clientId).length })}
         />
+        {rdvNouveau && <RdvModal title="Nouveau rendez-vous" onClose={() => setRdvNouveau(false)} />}
         {rdvPour && (
           <RdvModal
             title="Rendez-vous depuis un appel"

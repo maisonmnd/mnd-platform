@@ -7,7 +7,7 @@ import {
   DEVISE_MAISON, houseSignature, porteLaDevise, signeLeMessage, maisonNom,
 } from '../src/shared/identite';
 import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
-import { pdfSafe, pdfSafeGardeFon } from '../src/shared/pdf';
+import { pdfSafe, pdfSafeGardeFon, dessineQrPaiement } from '../src/shared/pdf';
 import { decoupeTelephone, numeroTelReel } from '../src/shared/geo';
 import { appelsAActer, type AppelRecu } from '../src/shared/appels';
 
@@ -128,6 +128,33 @@ dit(!acter.includes('c'), 'un appel fait ne remonte pas');
 dit(!acter.includes('d'), 'un appel d’une autre branche non plus');
 dit(acter[0] === 'b' && acter[1] === 'a', 'l’échéance la plus proche d’abord');
 dit(acter[acter.length - 1] === 'e', 'un RDV sans date attend en dernier');
+
+/* ⑩ LE QR DE PAIEMENT DOIT ÊTRE LISIBLE PAR UNE MACHINE (25 août). Premier jet :
+   « le QR y est mais ne marche pas ». Trois fautes, qu'on tient ici sur un faux
+   document — la zone de silence, la soudure des modules, le noir pur. */
+const LIEN = 'https://exemple.test/trone/payer.html?m=Ets+ACIA1&c=506846&montant=30000';
+const T = 34;
+const traces: { x: number; y: number; w: number; h: number; noir: boolean }[] = [];
+let couranteNoire = false;
+dessineQrPaiement({
+  setFillColor: (r: number, g: number, b: number) => { couranteNoire = r === 0 && g === 0 && b === 0; },
+  rect: (x: number, y: number, w: number, h: number) => traces.push({ x, y, w, h, noir: couranteNoire }),
+}, LIEN, 0, 0, T);
+
+const fond = traces[0];
+const modules = traces.filter((t) => t.noir);
+dit(!!fond && !fond.noir && fond.w === T && fond.h === T, 'un fond BLANC couvre toute la boîte du QR');
+dit(modules.length > 0, 'les modules du QR sont dessinés');
+/* La zone de silence : rien de noir dans les 4 modules du pourtour. */
+const cell = modules.length ? Math.min(...modules.map((m) => m.h)) / 1.04 : 0;
+const marge = 4 * cell;
+dit(cell > 0.7, `un module mesure plus de 0,7 mm (${cell.toFixed(2)} mm)`);
+dit(modules.every((m) => m.x >= marge - 0.01 && m.y >= marge - 0.01
+  && m.x + m.w <= T - marge + 0.01 && m.y + m.h <= T - marge + 0.05),
+'la zone de silence de 4 modules reste vierge');
+/* La soudure : des rectangles fusionnés, donc bien moins nombreux que de modules. */
+dit(modules.every((m) => m.h > cell), 'les lignes se soudent (débord vertical)');
+dit(modules.some((m) => m.w > cell * 1.5), 'les modules voisins fusionnent en un seul rectangle');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);
