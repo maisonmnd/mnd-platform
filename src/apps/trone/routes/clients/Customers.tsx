@@ -619,7 +619,7 @@ export default function Customers() {
     const td = digitsOf(t);
     return clients
       .filter((c) => !isDiaspora(c) && !estDePassage(c))
-      .filter((c) => c.name.toLowerCase().includes(t) || (td !== '' && digitsOf(c.phone).includes(td)))
+      .filter((c) => c.name.toLowerCase().includes(t) || (td !== '' && (digitsOf(c.phone).includes(td) || (c.phone2 ? digitsOf(c.phone2).includes(td) : false))))
       .slice(0, 8);
   }, [clients, diaQ]);
 
@@ -744,7 +744,7 @@ export default function Customers() {
     if (q) {
       const qd = digitsOf(q);
       list = list.filter((c) =>
-        c.name.toLowerCase().includes(q) || (qd !== '' && digitsOf(c.phone).includes(qd)),
+        c.name.toLowerCase().includes(q) || (qd !== '' && (digitsOf(c.phone).includes(qd) || (c.phone2 ? digitsOf(c.phone2).includes(qd) : false))),
       );
     }
     const st = (id: string) => stats.get(id);
@@ -1230,11 +1230,13 @@ function Customer360({
   const [segmentList] = useSegments();
   const [idName, setIdName] = useState(client.name);
   const [idPhone, setIdPhone] = useState(client.phone);
+  const [idPhone2, setIdPhone2] = useState(client.phone2 ?? '');
   const [idEmail, setIdEmail] = useState(client.email ?? '');
   const [idCity, setIdCity] = useState(client.city);
   useEffect(() => {
     setIdName(client.name);
     setIdPhone(client.phone);
+    setIdPhone2(client.phone2 ?? '');
     setIdEmail(client.email ?? '');
     setIdCity(client.city);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1307,7 +1309,7 @@ function Customer360({
      principal remplace le premier segment (ou le retire si laissé vide). */
   const idDirty =
     idName !== client.name || idPhone !== client.phone || idCity !== client.city
-    || idEmail !== (client.email ?? '');
+    || idPhone2 !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
   /* UN ENREGISTREMENT MUET SE LIT COMME UNE PANNE. L'écriture se faisait bien,
      mais rien ne le disait : le bouton se grisait, et l'on croyait que le clic
      n'avait servi à rien. On le dit donc, brièvement. */
@@ -1318,7 +1320,7 @@ function Customer360({
     return () => window.clearTimeout(t);
   }, [idSaved]);
   const saveIdentity = () => {
-    patch({ name: idName.trim() || client.name, phone: idPhone.trim(), email: idEmail.trim() || undefined, city: idCity.trim() });
+    patch({ name: idName.trim() || client.name, phone: idPhone.trim(), phone2: idPhone2.trim() || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
     setIdSaved(true);
   };
 
@@ -1383,6 +1385,7 @@ function Customer360({
 
   const bday = client.birthday ? bdayInfo(client.birthday) : null;
   const phoneDigits = digitsOf(client.phone);
+  const phone2Digits = client.phone2 ? digitsOf(client.phone2) : '';
 
   /* Itinéraire vers la cliente : position GPS précise (partagée à la livraison)
      si disponible, sinon recherche par ville. */
@@ -1675,6 +1678,14 @@ function Customer360({
                 <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => { setTab('profil'); focusField('c360-phone'); }}>WhatsApp</button>
               )}
 
+              {/* Second numéro — seulement s'il existe, pour ne pas charger l'en-tête. */}
+              {client.phone2 && (
+                <a className="trc-cover-act" href={telHref(client.phone2)} title={`Deuxième numéro · ${client.phone2}`}>Appeler · 2</a>
+              )}
+              {client.phone2 && phone2Digits && (
+                <a className="trc-cover-act" href={`https://wa.me/${phone2Digits}`} target="_blank" rel="noreferrer" title={`Deuxième numéro · ${client.phone2}`}>WhatsApp · 2</a>
+              )}
+
               {itineraireHref ? (
                 <a
                   className="trc-cover-act"
@@ -1946,6 +1957,9 @@ function Customer360({
             </Field>
             <Field label="Téléphone">
               <Input id="c360-phone" value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="—" />
+            </Field>
+            <Field label="Deuxième téléphone (facultatif)">
+              <Input id="c360-phone2" value={idPhone2} onChange={(e) => setIdPhone2(e.target.value)} placeholder="—" />
             </Field>
             <Field label="Adresse e-mail">
               <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />

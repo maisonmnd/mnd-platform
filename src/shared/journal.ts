@@ -115,7 +115,7 @@ export const NOM_DES_CHAMPS: Record<string, string> = {
   amountXof: 'Montant', totalXof: 'Total', deposit: 'Acompte', depositXof: 'Acompte',
   payment: 'Moyen', cashbox: 'Caisse', payments: 'Versements', number: 'Numéro',
   tipXof: 'Pourboire', avoirXof: 'Réglé par avoir', lines: 'Lignes',
-  name: 'Nom', nom: 'Nom', phone: 'Téléphone', email: 'E-mail', city: 'Ville',
+  name: 'Nom', nom: 'Nom', phone: 'Téléphone', phone2: 'Deuxième téléphone', email: 'E-mail', city: 'Ville',
   segments: 'Segments', notes: 'Notes', longueur: 'Longueur', lockCount: 'Nombre de locks',
   crownSince: 'Couronne depuis', since: 'Cliente depuis', familyId: 'Compte famille',
   label: 'Libellé', category: 'Catégorie', subcategory: 'Sous-catégorie',

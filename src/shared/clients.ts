@@ -12,6 +12,10 @@ export type Client = {
   branchId: string;
   name: string;
   phone: string;
+  /** Un second numéro, facultatif — un mari, une sœur, une ligne WhatsApp à
+      part. Le premier reste le contact principal (messages, rappels) ; celui-ci
+      n'est qu'un recours, appelable et joignable sur WhatsApp depuis la fiche. */
+  phone2?: string;
   email?: string;
   /** LE COMPTE MA COURONNE RATTACHÉ À CETTE FICHE.
 
