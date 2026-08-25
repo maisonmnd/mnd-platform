@@ -4,9 +4,9 @@ import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients, useFamilies, clientsStore, estDePassage, aUnPrixConvenu, type Client } from '../../../../shared/clients';
+import { useClients, useFamilies, clientsStore, estDePassage, aUnPrixConvenu, comptePrixConvenus, type Client } from '../../../../shared/clients';
 import { useAppointments, venuesHonorees } from '../../../../shared/agenda';
-import { estDependant } from '../../../../shared/accounts';
+import { estDependant, depenseFoyerXof } from '../../../../shared/accounts';
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, type FoyerTier } from '../../../../shared/offers';
@@ -49,7 +49,7 @@ export default function Cercle() {
      croise pas en descendant. D'où la recherche, les deux registres séparés, et
      les gestes repliés sous la ligne qui les concerne. */
   const [recherche, setRecherche] = useState('');
-  const [vue, setVue] = useState<'membres' | 'portes'>('membres');
+  const [vue, setVue] = useState<'membres' | 'portes' | 'foyers' | 'convenus'>('membres');
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [montre, setMontre] = useState(20);
 
@@ -89,6 +89,28 @@ export default function Cercle() {
     [branchClients, venuesDe, seuil, families],
   );
   const sortedTiers = useMemo(() => [...tiers].sort((a, b) => a.pts - b.pts), [tiers]);
+
+  /* LES COMPTES RECONNUS AUTREMENT (25 août) — exclus du Cercle, ils se
+     remplissent d'eux-mêmes ici : les FOYERS (un par famille, sur sa dépense
+     cumulée et son palier) et les PRIX CONVENUS. On les voit sans les chercher. */
+  const foyersList = useMemo(() => branchClients
+    .filter((c) => c.familyId && families.some((f) => f.id === c.familyId))
+    .reduce((acc, c) => {
+      if (acc.some((x) => x.famId === c.familyId)) return acc;
+      const fam = families.find((f) => f.id === c.familyId)!;
+      const payeur = branchClients.find((x) => x.id === fam.payerClientId) ?? c;
+      const depense = depenseFoyerXof(payeur, clients, families, appts);
+      const palier = meilleurPalierFoyer(depense, foyerTiers);
+      const prochain = sortedFoyerTiers.find((t) => depense < t.seuilXof) ?? null;
+      acc.push({ famId: fam.id, nom: fam.name, depense, palier, prochain });
+      return acc;
+    }, [] as { famId: string; nom: string; depense: number; palier: FoyerTier | null; prochain: FoyerTier | null }[])
+    .sort((a, b) => b.depense - a.depense),
+    [branchClients, families, clients, appts, foyerTiers, sortedFoyerTiers]);
+  const convenusList = useMemo(
+    () => branchClients.filter((c) => aUnPrixConvenu(c)).slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [branchClients],
+  );
 
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue';
   const servicePrice = (id: string) => services.find((s) => s.id === id)?.priceXof ?? 0;
@@ -339,6 +361,8 @@ export default function Cercle() {
           : l);
         const mbr = cherche(members);
         const portes = cherche(auxPortes);
+        const foyersF = q ? foyersList.filter((f) => f.nom.toLowerCase().includes(q)) : foyersList;
+        const convenusF = cherche(convenusList);
         /* AUX PORTES, ON N'AFFICHE PAS TOUT D'UN COUP — cent cinquante-deux
            lignes ne se lisent pas, elles se cherchent. Le reste s'ouvre à la
            demande, et le compte est dit pour qu'on sache ce qui reste dessous. */
@@ -369,9 +393,21 @@ export default function Cercle() {
               >
                 Aux portes <span style={{ opacity: .6, marginLeft: 4 }}>{portes.length}</span>
               </button>
+              <button
+                className={`tre-chip ${vue === 'foyers' ? 'is-on' : ''}`}
+                onClick={() => { setVue('foyers'); setOuvert(null); }}
+              >
+                Foyers <span style={{ opacity: .6, marginLeft: 4 }}>{foyersF.length}</span>
+              </button>
+              <button
+                className={`tre-chip ${vue === 'convenus' ? 'is-on' : ''}`}
+                onClick={() => { setVue('convenus'); setOuvert(null); }}
+              >
+                Prix convenus <span style={{ opacity: .6, marginLeft: 4 }}>{convenusF.length}</span>
+              </button>
             </div>
 
-            {visibles.length === 0 && (
+            {(vue === 'membres' || vue === 'portes') && visibles.length === 0 && (
               <Card className="tre-empty">
                 <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
                 <div className="tre-empty__title">
@@ -385,7 +421,7 @@ export default function Cercle() {
               </Card>
             )}
 
-            {visibles.length > 0 && (
+            {(vue === 'membres' || vue === 'portes') && visibles.length > 0 && (
               <div className="tre-reg">
                 {visibles.map((c) => {
                   const membre = vue === 'membres';
@@ -461,6 +497,66 @@ export default function Cercle() {
                 Afficher {Math.min(40, caches)} tête{Math.min(40, caches) > 1 ? 's' : ''} de plus · {caches} restante{caches > 1 ? 's' : ''}
               </button>
             )}
+
+            {/* LES FOYERS — un par famille, sur sa dépense cumulée et son palier. */}
+            {vue === 'foyers' && (foyersF.length === 0 ? (
+              <Card className="tre-empty">
+                <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
+                <div className="tre-empty__title">{q ? 'Aucun foyer à ce nom.' : 'Aucun compte famille pour l’instant.'}</div>
+                <div className="tre-empty__sub">Les comptes famille apparaissent ici avec leur dépense cumulée et le palier atteint.</div>
+              </Card>
+            ) : (
+              <div className="tre-reg">
+                {foyersF.map((f) => {
+                  const pct = f.prochain ? Math.round((f.depense / Math.max(1, f.prochain.seuilXof)) * 100) : 100;
+                  return (
+                    <div key={f.famId} className="tre-reg__row">
+                      <span className="tre-avatar" style={{ width: 26, height: 26, fontSize: 11 }}>{f.nom.slice(0, 1)}</span>
+                      <span className="tre-reg__ident">
+                        <span className="tre-reg__nom">{f.nom}</span>
+                        <span className="tre-reg__meta">
+                          {f.palier
+                            ? `Palier « ${serviceName(f.palier.serviceId)} » à offrir à la maisonnée`
+                            : f.prochain
+                              ? `encore ${fmtMoney(Math.max(0, f.prochain.seuilXof - f.depense), currency)} avant un geste`
+                              : 'aucun palier Foyer défini'}
+                        </span>
+                      </span>
+                      <span className="tre-reg__jauge"><Bar pct={pct} /></span>
+                      <span className="tre-reg__pts">{fmtMoney(f.depense, currency)}</span>
+                      <span />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+
+            {/* LES PRIX CONVENUS — le prix est déjà leur reconnaissance. */}
+            {vue === 'convenus' && (convenusF.length === 0 ? (
+              <Card className="tre-empty">
+                <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
+                <div className="tre-empty__title">{q ? 'Aucune tête à ce nom.' : 'Aucun prix convenu pour l’instant.'}</div>
+                <div className="tre-empty__sub">Une tête à qui un prix ferme est accordé (fiche → Ses prix fermes) apparaît ici.</div>
+              </Card>
+            ) : (
+              <div className="tre-reg">
+                {convenusF.map((c) => {
+                  const n = comptePrixConvenus(c);
+                  return (
+                    <div key={c.id} className="tre-reg__row">
+                      <span className="tre-avatar" style={{ width: 26, height: 26, fontSize: 11 }}>{c.name.slice(0, 1)}</span>
+                      <span className="tre-reg__ident">
+                        <span className="tre-reg__nom">{c.name}</span>
+                        <span className="tre-reg__meta">{n} prix ferme{n > 1 ? 's' : ''} · le prix est sa reconnaissance</span>
+                      </span>
+                      <span className="tre-reg__jauge" />
+                      <span className="tre-reg__pts" style={{ fontSize: 11, letterSpacing: '.04em', color: 'var(--copper-700)' }}>Prix convenu</span>
+                      <span />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         );
       })()}
