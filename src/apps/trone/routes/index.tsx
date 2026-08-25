@@ -1,6 +1,6 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
-  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay,
+  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
   Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, Handshake as PoigneeDeMain, type LucideIcon,
 } from 'lucide-react';
@@ -37,6 +37,7 @@ export const NAV: TroneGroup[] = [
     items: [
       /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
       { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
+      { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
       { path: '/consultations', label: 'Consultations', icon: ClipboardList, Component: lazy(() => import('./clients/Consultations')) },

@@ -677,7 +677,10 @@ export default function Dashboard() {
         <div style={{ marginTop: 22, border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '12px 16px', borderBottom: '1px solid var(--hairline)', background: 'var(--copper-50, #FAF1E9)' }}>
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Appels à traiter</span>
-            <span className="mnd-muted" style={{ fontSize: 12 }}>{appelsAFaire.length} en attente</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{appelsAFaire.length} en attente</span>
+              <button type="button" onClick={() => navigate('/appels')} style={{ background: 'none', border: 'none', color: 'var(--color-copper)', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>Voir tout →</button>
+            </span>
           </div>
           {appelsAFaire.map((a) => {
             const enRetard = a.suite === 'rappel' && !!a.quand && a.quand < todayISO();

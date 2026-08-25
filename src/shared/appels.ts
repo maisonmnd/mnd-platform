@@ -40,5 +40,7 @@ export const poserAppel = (a: Omit<AppelRecu, 'id' | 'at' | 'fait'>): string => 
 };
 export const marquerAppelFait = (id: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, fait: true } : a)));
+export const rouvrirAppel = (id: string): void =>
+  appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, fait: false } : a)));
 export const reporterAppel = (id: string, quand: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, quand } : a)));
