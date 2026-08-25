@@ -1228,15 +1228,21 @@ function Customer360({
   /* Identité éditable — nom, téléphone, ville, segment principal. État local,
      enregistré en un geste ; réinitialisé quand on change de cliente. */
   const [segmentList] = useSegments();
+  /* L'INDICATIF EST DÉJÀ LÀ. Un champ téléphone vide s'ouvre sur l'indicatif du
+     pays de la branche (« +229 ») pour qu'on saisisse le numéro sans le retaper.
+     Mais l'indicatif SEUL n'est pas un numéro : `numeroReel` le ramène à vide, et
+     on ne l'enregistre pas, sans quoi la fiche porterait un « +229 » creux. */
+  const prefixeTel = `${branch.dial} `;
+  const numeroReel = (v: string) => (digitsOf(v) === digitsOf(branch.dial) ? '' : v.trim());
   const [idName, setIdName] = useState(client.name);
-  const [idPhone, setIdPhone] = useState(client.phone);
-  const [idPhone2, setIdPhone2] = useState(client.phone2 ?? '');
+  const [idPhone, setIdPhone] = useState(client.phone || prefixeTel);
+  const [idPhone2, setIdPhone2] = useState(client.phone2 || prefixeTel);
   const [idEmail, setIdEmail] = useState(client.email ?? '');
   const [idCity, setIdCity] = useState(client.city);
   useEffect(() => {
     setIdName(client.name);
-    setIdPhone(client.phone);
-    setIdPhone2(client.phone2 ?? '');
+    setIdPhone(client.phone || prefixeTel);
+    setIdPhone2(client.phone2 || prefixeTel);
     setIdEmail(client.email ?? '');
     setIdCity(client.city);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1308,8 +1314,8 @@ function Customer360({
   /* Enregistrement de l'identité — le nom ne peut pas être vidé ; le segment
      principal remplace le premier segment (ou le retire si laissé vide). */
   const idDirty =
-    idName !== client.name || idPhone !== client.phone || idCity !== client.city
-    || idPhone2 !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
+    idName !== client.name || numeroReel(idPhone) !== client.phone || idCity !== client.city
+    || numeroReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
   /* UN ENREGISTREMENT MUET SE LIT COMME UNE PANNE. L'écriture se faisait bien,
      mais rien ne le disait : le bouton se grisait, et l'on croyait que le clic
      n'avait servi à rien. On le dit donc, brièvement. */
@@ -1320,7 +1326,7 @@ function Customer360({
     return () => window.clearTimeout(t);
   }, [idSaved]);
   const saveIdentity = () => {
-    patch({ name: idName.trim() || client.name, phone: idPhone.trim(), phone2: idPhone2.trim() || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
+    patch({ name: idName.trim() || client.name, phone: numeroReel(idPhone), phone2: numeroReel(idPhone2) || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
     setIdSaved(true);
   };
 
