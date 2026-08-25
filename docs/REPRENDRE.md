@@ -2,6 +2,21 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Journal des appels — 25 août, PUBLIÉ
+
+Suivre les appels des clientes (elles appellent pour un RDV, on oublie après avoir
+raccroché). LIMITE ASSUMÉE : une app WEB ne peut PAS détecter l'appel (pas de
+SYSTEM_ALERT_WINDOW ni d'état d'appel dans le navigateur ; seul un compagnon
+Android natif le pourrait — projet à part, non fait). Ce qui est fait : saisie
+instantanée + relance. Bouton « Appel reçu » dans l'en-tête (Shell.tsx, badge du
+nombre en attente), `AppelRecuModal` (cliente connue via ClientPicker ou nouveau
+nom+ChampTelephone, motif, choix « rappel » avec date / « RDV à caler »). Store
+`shared/appels.ts` (`appelsStore` synchronisé, `appelsAActer`, `poserAppel`,
+`marquerAppelFait`, `reporterAppel`). Liste « Appels à traiter » en haut du
+Tableau de bord (Ouvrir la fiche `/customers?id=`, Demain, Fait). Gardé par
+verifie-signature §⑨. SUITE possible : share_target « Partager → Le Trône » depuis
+les appels récents (2 taps, pré-rempli) ; et l'app native pour le pop-up sur appel.
+
 ## Fidélité — Cercle par tête, Prix convenu, Foyer, 25 août, PUBLIÉ
 
 Réforme validée par maquette (public/maquette-cercle-et-foyer.html). Le Cercle

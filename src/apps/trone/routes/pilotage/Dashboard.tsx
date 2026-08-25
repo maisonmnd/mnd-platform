@@ -6,6 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { signeLeMessage } from '../../../../shared/identite';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
+import { useAppels, appelsAActer, marquerAppelFait, reporterAppel } from '../../../../shared/appels';
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
@@ -48,6 +49,9 @@ const payISO = (d: string): string => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
+  const [appels] = useAppels();
+  const appelsAFaire = appelsAActer(appels, branch.id);
+  const demainAppel = addDaysISO(todayISO(), 1);
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const [allClients] = useClients();
@@ -660,6 +664,52 @@ export default function Dashboard() {
       >
         {greeting}{who ? `, ${who}` : ''}.
       </h2>
+
+      {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
+          soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
+      {appelsAFaire.length > 0 && (
+        <div style={{ marginTop: 22, border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '12px 16px', borderBottom: '1px solid var(--hairline)', background: 'var(--copper-50, #FAF1E9)' }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Appels à traiter</span>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>{appelsAFaire.length} en attente</span>
+          </div>
+          {appelsAFaire.map((a) => {
+            const enRetard = a.suite === 'rappel' && !!a.quand && a.quand < todayISO();
+            const tag = a.suite === 'rdv'
+              ? { t: 'RDV à caler', bg: '#ECEEF6', c: 'var(--color-indigo)', b: '#C7CCE2' }
+              : { t: 'à rappeler', bg: 'var(--copper-50, #FAF1E9)', c: '#8A5A32', b: 'var(--copper-300, #E3C9AE)' };
+            const chip = { border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 11px', fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface, #fff)', cursor: 'pointer' } as const;
+            return (
+              <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: 12, alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--hairline)' }}>
+                <span style={{ width: 30, height: 30, borderRadius: 999, background: 'var(--color-indigo)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12 }}>{a.nom.slice(0, 1)}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 500 }}>
+                    {a.nom}
+                    <span style={{ fontSize: 10, borderRadius: 999, padding: '1px 8px', marginLeft: 8, background: tag.bg, color: tag.c, border: `1px solid ${tag.b}` }}>{tag.t}</span>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 12.5 }}>{a.motif || 'Sans note'}{a.phone ? ` · ${a.phone}` : ''}</div>
+                  {a.suite === 'rappel' && a.quand && (
+                    <div style={{ fontSize: 11, fontWeight: 500, color: enRetard ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
+                      {a.quand === todayISO() ? "Aujourd'hui" : a.quand === demainAppel ? 'Demain' : a.quand}{enRetard ? ' · en retard' : ''}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {a.clientId && (
+                    <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => navigate(`/customers?id=${a.clientId}`)}>
+                      {a.suite === 'rdv' ? 'Créer le RDV' : 'Ouvrir la fiche'}
+                    </button>
+                  )}
+                  {a.suite === 'rappel' && a.quand !== demainAppel && (
+                    <button type="button" style={chip} onClick={() => reporterAppel(a.id, demainAppel)}>Demain</button>
+                  )}
+                  <button type="button" style={chip} onClick={() => marquerAppelFait(a.id)}>Fait</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* KPI majeurs */}
       <div className="tr-grid tr-grid--3" style={{ marginTop: 24 }}>

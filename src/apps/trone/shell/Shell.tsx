@@ -7,6 +7,8 @@ import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
+import { AppelRecuModal } from './AppelRecuModal';
+import { useAppels, appelsAActer } from '../../../shared/appels';
 
 /* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les gestes du comptoir —
    reste toujours déplié ; le reste se replie, et s'en souvient PAR POSTE
@@ -242,6 +244,9 @@ export default function Shell() {
   usePassageVivant();
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
+  const [appelOpen, setAppelOpen] = useState(false);
+  const [appels] = useAppels();
+  const appelsEnAttente = appelsAActer(appels, branch.id).length;
   const closeSide = () => setSideOpen(false);
 
   /* Le menu à deux étages ne s'impose que s'il fait gagner quelque chose :
@@ -426,6 +431,11 @@ export default function Shell() {
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>
           <NotificationsBell />
+          <Button variant="ghost" onClick={() => setAppelOpen(true)} title="Poser un appel reçu">
+            Appel reçu{appelsEnAttente > 0 && (
+              <span style={{ marginLeft: 6, background: 'var(--color-copper)', color: '#fff', borderRadius: 999, fontSize: 11, padding: '0 6px', fontWeight: 600 }}>{appelsEnAttente}</span>
+            )}
+          </Button>
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
           {session && (
             <button
@@ -438,6 +448,8 @@ export default function Shell() {
             </button>
           )}
         </header>
+
+        <AppelRecuModal open={appelOpen} onClose={() => setAppelOpen(false)} />
 
         <main className="tr-content">
           <div className="tr-content__inner">

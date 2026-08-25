@@ -9,6 +9,7 @@ import {
 import { DEVISE_FON_B64 } from '../src/shared/devise-fon-b64';
 import { pdfSafe, pdfSafeGardeFon } from '../src/shared/pdf';
 import { decoupeTelephone, numeroTelReel } from '../src/shared/geo';
+import { appelsAActer, type AppelRecu } from '../src/shared/appels';
 
 let echecs = 0;
 const dit = (ok: boolean, quoi: string) => {
@@ -110,6 +111,23 @@ dit(numeroTelReel('+229 ') === '', 'un indicatif seul n’est pas un numéro');
 dit(numeroTelReel('+590') === '', '… même Guadeloupe seul');
 dit(numeroTelReel('+229 97000000') === '+229 97000000', 'un vrai numéro est conservé');
 dit(numeroTelReel('') === '', 'un champ vide reste vide');
+
+/* ⑨ LE JOURNAL DES APPELS. Un appel posé reste « à traiter » tant qu'il n'est
+   pas fait ; on ne voit que sa branche ; l'échéance la plus proche remonte, et
+   un RDV sans date attend en fin de liste. */
+const mkAp = (o: Partial<AppelRecu>): AppelRecu =>
+  ({ id: 'x', branchId: 'br', nom: 'N', motif: '', suite: 'rappel', fait: false, at: '2026-08-25T09:00:00Z', ...o });
+const acter = appelsAActer([
+  mkAp({ id: 'a', quand: '2026-08-27' }),
+  mkAp({ id: 'b', quand: '2026-08-25', at: '2026-08-25T08:00:00Z' }),
+  mkAp({ id: 'c', fait: true, quand: '2026-08-24' }),
+  mkAp({ id: 'd', branchId: 'autre', quand: '2026-08-24' }),
+  mkAp({ id: 'e', suite: 'rdv', at: '2026-08-25T07:00:00Z' }),
+], 'br').map((a) => a.id);
+dit(!acter.includes('c'), 'un appel fait ne remonte pas');
+dit(!acter.includes('d'), 'un appel d’une autre branche non plus');
+dit(acter[0] === 'b' && acter[1] === 'a', 'l’échéance la plus proche d’abord');
+dit(acter[acter.length - 1] === 'e', 'un RDV sans date attend en dernier');
 
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);
