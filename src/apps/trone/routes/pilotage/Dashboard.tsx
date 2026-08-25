@@ -52,6 +52,12 @@ export default function Dashboard() {
   const [appels] = useAppels();
   const appelsAFaire = appelsAActer(appels, branch.id);
   const demainAppel = addDaysISO(todayISO(), 1);
+  /* « Créer le RDV » ouvre DIRECTEMENT le formulaire de rendez-vous (pré-rempli
+     de la cliente), pas sa fiche. On retient le nombre de ses RDV avant, pour
+     marquer l'appel « fait » seulement si un rendez-vous a bien été posé. */
+  const [rdvPour, setRdvPour] = useState<{ clientId: string; appelId: string; avant: number } | null>(null);
+  const ouvrirRdv = (clientId: string, appelId: string) =>
+    setRdvPour({ clientId, appelId, avant: appointmentsStore.get().filter((x) => x.clientId === clientId).length });
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const [allClients] = useClients();
@@ -695,9 +701,14 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {a.clientId && (
+                  {a.clientId && a.suite === 'rdv' && (
+                    <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>
+                      Créer le RDV
+                    </button>
+                  )}
+                  {a.clientId && a.suite === 'rappel' && (
                     <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => navigate(`/customers?id=${a.clientId}`)}>
-                      {a.suite === 'rdv' ? 'Créer le RDV' : 'Ouvrir la fiche'}
+                      Ouvrir la fiche
                     </button>
                   )}
                   {a.suite === 'rappel' && a.quand !== demainAppel && (
@@ -1006,6 +1017,19 @@ export default function Dashboard() {
 
       {/* Modification d’un rendez-vous du carnet du jour */}
       {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} />}
+
+      {/* « Créer le RDV » depuis un appel — le formulaire, pré-rempli de la cliente. */}
+      {rdvPour && (
+        <RdvModal
+          title="Rendez-vous depuis un appel"
+          initial={{ clientId: rdvPour.clientId }}
+          onClose={() => {
+            const apres = appointmentsStore.get().filter((x) => x.clientId === rdvPour.clientId).length;
+            if (apres > rdvPour.avant) marquerAppelFait(rdvPour.appelId);
+            setRdvPour(null);
+          }}
+        />
+      )}
 
       {/* Encaissement d’un rendez-vous du carnet du jour */}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
