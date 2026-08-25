@@ -8,7 +8,8 @@ import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
-import { useAppels, appelsAActer } from '../../../shared/appels';
+import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
+import { RdvModal } from '../routes/clients/_shared';
 
 /* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les gestes du comptoir —
    reste toujours déplié ; le reste se replie, et s'en souvient PAR POSTE
@@ -246,6 +247,7 @@ export default function Shell() {
   const [sideOpen, setSideOpen] = useState(false);
   const [appelOpen, setAppelOpen] = useState(false);
   const [appelInitial, setAppelInitial] = useState<{ phone?: string; nom?: string } | null>(null);
+  const [rdvPour, setRdvPour] = useState<{ clientId: string; appelId: string; avant: number } | null>(null);
   const [appels] = useAppels();
   const appelsEnAttente = appelsAActer(appels, branch.id).length;
 
@@ -465,7 +467,23 @@ export default function Shell() {
           )}
         </header>
 
-        <AppelRecuModal open={appelOpen} initial={appelInitial} onClose={() => { setAppelOpen(false); setAppelInitial(null); }} />
+        <AppelRecuModal
+          open={appelOpen}
+          initial={appelInitial}
+          onClose={() => { setAppelOpen(false); setAppelInitial(null); }}
+          onPoserRdv={(clientId, appelId) => setRdvPour({ clientId, appelId, avant: appointmentsStore.get().filter((x) => x.clientId === clientId).length })}
+        />
+        {rdvPour && (
+          <RdvModal
+            title="Rendez-vous depuis un appel"
+            initial={{ clientId: rdvPour.clientId }}
+            onClose={() => {
+              const apres = appointmentsStore.get().filter((x) => x.clientId === rdvPour.clientId).length;
+              if (apres > rdvPour.avant) marquerAppelFait(rdvPour.appelId);
+              setRdvPour(null);
+            }}
+          />
+        )}
 
         <main className="tr-content">
           <div className="tr-content__inner">

@@ -33,8 +33,10 @@ export function appelsAActer(appels: AppelRecu[], branchId: string): AppelRecu[]
     .sort((a, b) => (a.quand ?? '9999-99').localeCompare(b.quand ?? '9999-99') || a.at.localeCompare(b.at));
 }
 
-export const poserAppel = (a: Omit<AppelRecu, 'id' | 'at' | 'fait'>): void => {
-  appelsStore.set((prev) => [{ ...a, id: `ap-${uid()}`, at: new Date().toISOString(), fait: false }, ...prev]);
+export const poserAppel = (a: Omit<AppelRecu, 'id' | 'at' | 'fait'>): string => {
+  const id = `ap-${uid()}`;
+  appelsStore.set((prev) => [{ ...a, id, at: new Date().toISOString(), fait: false }, ...prev]);
+  return id;
 };
 export const marquerAppelFait = (id: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, fait: true } : a)));

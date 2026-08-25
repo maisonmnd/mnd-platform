@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Field, Input, ChampTelephone } from '../../../ds/components';
 import { useBranch } from '../../../shared/branches';
-import { useClients } from '../../../shared/clients';
+import { useClients, clientsStore, clienteDePassage, ensureInitiePersona } from '../../../shared/clients';
 import { poserAppel } from '../../../shared/appels';
 import { numeroTelReel } from '../../../shared/geo';
 import { ClientPicker, todayISO, addDaysISO } from '../routes/clients/_shared';
 
 /* LE MODALE « APPEL REÇU » — poser l'appel en trois secondes. On choisit à chaque
    fois : un simple rappel (avec sa date), ou un rendez-vous à caler. */
-export function AppelRecuModal({ open, onClose, initial }: {
+export function AppelRecuModal({ open, onClose, initial, onPoserRdv }: {
   open: boolean;
   onClose: () => void;
   /** Pré-remplissage venu d'un partage « Partager → Le Trône » (numéro/nom). */
   initial?: { phone?: string; nom?: string } | null;
+  /** Enchaîner sur le formulaire de rendez-vous, pour la cliente donnée. */
+  onPoserRdv?: (clientId: string, appelId: string) => void;
 }) {
   const { branch } = useBranch();
   const [clients] = useClients();
@@ -46,15 +48,25 @@ export function AppelRecuModal({ open, onClose, initial }: {
 
   const enregistrer = () => {
     if (!nomFinal) return;
-    poserAppel({
+    /* POSER LE RDV DIRECTEMENT : pour un « RDV à caler », on ouvre le formulaire
+       de rendez-vous tout de suite. Une cliente inconnue reçoit d'abord une fiche
+       minimale (nom + numéro) pour pouvoir la réserver. */
+    let cid = clientId;
+    if (suite === 'rdv' && !cid) {
+      const nouvelle = clienteDePassage({ branchId: branch.id, name: nomFinal, phone: phoneFinal || undefined, since: todayISO(), persona: ensureInitiePersona() });
+      clientsStore.set((prev) => [...prev, nouvelle]);
+      cid = nouvelle.id;
+    }
+    const appelId = poserAppel({
       branchId: branch.id,
-      clientId: clientId || undefined,
+      clientId: cid || undefined,
       nom: nomFinal,
       phone: phoneFinal || undefined,
       motif: motif.trim(),
       suite,
       quand: suite === 'rappel' ? quand : undefined,
     });
+    if (suite === 'rdv' && cid && onPoserRdv) onPoserRdv(cid, appelId);
     onClose();
   };
 
@@ -108,8 +120,8 @@ export function AppelRecuModal({ open, onClose, initial }: {
               )}
             </button>
             <button type="button" style={optStyle(suite === 'rdv')} onClick={() => setSuite('rdv')}>
-              <div style={{ fontWeight: 500, color: 'var(--color-indigo)', fontSize: 14 }}>Un RDV à caler</div>
-              <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.4 }}>À traiter : depuis la liste, un tap ouvre sa fiche pour poser le créneau.</div>
+              <div style={{ fontWeight: 500, color: 'var(--color-indigo)', fontSize: 14 }}>Poser le RDV maintenant</div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.4 }}>Ouvre le formulaire de rendez-vous tout de suite, cliente pré-remplie (une nouvelle reçoit d'abord une fiche).</div>
             </button>
           </div>
         </div>
@@ -117,7 +129,7 @@ export function AppelRecuModal({ open, onClose, initial }: {
         <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
           <Button variant="copper" style={{ flex: 1 }} onClick={enregistrer} disabled={!nomFinal}>
-            Enregistrer l'appel
+            {suite === 'rdv' ? 'Poser le rendez-vous' : "Enregistrer l'appel"}
           </Button>
         </div>
       </div>
