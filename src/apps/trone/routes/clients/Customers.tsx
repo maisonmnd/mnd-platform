@@ -8,7 +8,7 @@ import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
 import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
-import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
+import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
@@ -24,7 +24,7 @@ import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, derni
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
-import { usePointsHistory, cercleSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
+import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
 import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
@@ -1410,13 +1410,16 @@ function Customer360({
      le même chiffre, sinon le comptoir voit « 2 séances » et s'étonne qu'elle
      soit encore de passage. */
   const venues = venuesHonorees(appts, client.id);
-  /* Le Cercle, lui, compte par la PAYEUSE — la même clé que les points. Il faut
-     donc TOUT le carnet de la branche : un rituel qu'elle a offert à une autre
-     ne figure pas dans `appts`, qui ne porte que ceux où elle s'est assise. */
+  /* LE STATUT DE FIDÉLITÉ (25 août) : Cercle par SES venues, ou prix convenu, ou
+     Foyer. Un seul juge, `statutFidelite`, partagé avec Ma Couronne. Il faut TOUT
+     le carnet de la branche pour la dépense du foyer. */
   const branchAppts = useBranchAppointments();
+  const clientsBranche = useBranchClients();
   const [seuilCercle] = useStore(cercleSeuilStore);
+  const [seuilFoyer] = useStore(foyerSeuilStore);
   const [pointsOn] = useStore(pointsEnabledStore);
-  const venuesCercle = venuesHonorees(branchAppts, client.id, true);
+  const statut = statutFidelite(client, clientsBranche, families, branchAppts, seuilCercle, seuilFoyer);
+  const venuesCercle = statut.venues;
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
   /* Bilan de séance — le Carnet de Suivi se RÉDIGE et se REMET depuis la
@@ -2445,9 +2448,16 @@ function Customer360({
                     : 'Elle compte comme relation.'}
             </div>
             <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-              {estDuCercle(venuesCercle, seuilCercle)
-                ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
-                : `Cercle au ${seuilCercle}ᵉ passage, elle en a ${venuesCercle}.`}
+              {statut.convenu
+                ? 'Prix convenu · sa reconnaissance est déjà son prix. Elle n’entre pas au Cercle et ne cumule pas de points.'
+                : statut.dependant
+                  ? `Dépendante du foyer · ses venues nourrissent le Foyer, pas le Cercle.${statut.foyer ? ` Foyer : ${fmtMoney(statut.depenseFoyer, currency)} / ${fmtMoney(statut.seuilFoyer, currency)}.` : ''}`
+                  : statut.membreCercle
+                    ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
+                    : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
+              {statut.foyer && !statut.dependant && (
+                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} / {fmtMoney(statut.seuilFoyer, currency)}{statut.foyerAtteint ? ' — palier atteint.' : '.'}</>
+              )}
             </div>
           </div>
 

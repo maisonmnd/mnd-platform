@@ -14,6 +14,9 @@ import {
 } from '../src/shared/foyer';
 import { coffreStore, coffreBalance } from '../src/shared/finance';
 import type { Receipt } from '../src/shared/receipts';
+import { statutFidelite } from '../src/shared/accounts';
+import type { Client, Family } from '../src/shared/clients';
+import type { Appointment } from '../src/shared/agenda';
 
 const BR = 'br';
 let ko = 0;
@@ -284,6 +287,43 @@ const veille = pretsASurveiller([
 ], BRP, '2026-08-23');
 dit('seule l’échéance proche remonte', ['Proche'], veille.map((e) => e.nom));
 
+
+/* ── LE CERCLE PAR TÊTE, LE FOYER À PART (25 août) ──
+   Le Cercle se gagne par SES propres venues, à plein tarif. Un prix convenu et
+   une tête dépendante (enfant, membre non payeur) n'y entrent pas. Le Foyer se
+   lit sur la dépense cumulée de toutes les têtes de la famille. */
+const cli = (o: Partial<Client>): Client => ({
+  id: 'x', branchId: BR, name: 'Tête', phone: '', city: '', persona: 'p',
+  since: '2026-01-01', segments: [], priceCoef: 1, loyaltyPoints: 0, ...o,
+} as Client);
+const rdvH = (clientId: string, date: string, paid: number): Appointment => ({
+  id: `a-${clientId}-${date}`, branchId: BR, clientId, serviceIds: ['s1'], date,
+  time: '10:00', master: 'M', status: 'honoré', paidXof: paid,
+} as Appointment);
+
+const famF: Family[] = [{ id: 'fam', branchId: BR, name: 'Famille', payerClientId: 'mere' } as Family];
+const mere = cli({ id: 'mere', familyId: 'fam' });
+const enfant = cli({ id: 'enf', familyId: 'fam' });
+const solo = cli({ id: 'solo' });
+const vip = cli({ id: 'vip', prixFixes: { s1: 20000 } });
+const gens = [mere, enfant, solo, vip];
+
+const troisSolo = [rdvH('solo', '2026-05-01', 10000), rdvH('solo', '2026-05-08', 10000), rdvH('solo', '2026-05-15', 10000)];
+dit('une tête seule à 3 venues entre au Cercle', 'cercle', statutFidelite(solo, gens, famF, troisSolo, 3, 300000).genre);
+dit('… à 2 venues, elle est encore aux portes', 'aux-portes', statutFidelite(solo, gens, famF, troisSolo.slice(0, 2), 3, 300000).genre);
+
+const troisVip = [rdvH('vip', '2026-05-01', 20000), rdvH('vip', '2026-05-08', 20000), rdvH('vip', '2026-05-15', 20000)];
+dit('un prix convenu n’entre pas au Cercle, même à 3 venues', false, statutFidelite(vip, gens, famF, troisVip, 3, 300000).membreCercle);
+dit('… son genre est « convenu »', 'convenu', statutFidelite(vip, gens, famF, troisVip, 3, 300000).genre);
+
+const troisEnf = [rdvH('enf', '2026-05-01', 5000), rdvH('enf', '2026-05-08', 5000), rdvH('enf', '2026-05-15', 5000)];
+dit('un enfant dépendant n’entre pas au Cercle', 'dependant', statutFidelite(enfant, gens, famF, troisEnf, 3, 300000).genre);
+dit('les venues de l’enfant ne font PAS entrer la mère au Cercle', false, statutFidelite(mere, gens, famF, troisEnf, 3, 300000).membreCercle);
+
+const foyerRdv = [rdvH('mere', '2026-05-01', 120000), ...troisEnf]; // 120000 + 3×5000
+dit('la dépense du foyer additionne toutes les têtes', 135000, statutFidelite(mere, gens, famF, foyerRdv, 3, 300000).depenseFoyer);
+dit('le palier Foyer se franchit à son seuil', true, statutFidelite(mere, gens, famF, foyerRdv, 3, 100000).foyerAtteint);
+dit('… et pas en dessous', false, statutFidelite(mere, gens, famF, foyerRdv, 3, 300000).foyerAtteint);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

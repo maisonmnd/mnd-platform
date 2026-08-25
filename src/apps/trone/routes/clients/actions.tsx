@@ -4,16 +4,16 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { useClients, clientsStore, useFamilies } from '../../../../shared/clients';
+import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
   type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
-import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
+import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
-import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle } from '../../../../shared/offers';
+import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
@@ -62,15 +62,26 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
      pas celle qui s'est assise : c'est elle qui a sorti les 110 000 F. Le rituel
      reste au parcours de la soignée — seule la reconnaissance change de main. */
   const beneficiaire = apptPayeurId(appt);
-  /* Le rendez-vous n'est pas encore « honoré » dans le magasin : on compte les
-     venues déjà acquises et on ajoute celle-ci, sauf si un autre rituel du même
-     jour l'a déjà comptée (deux gestes le même jour = une seule venue). */
+  /* LE CERCLE EST INDIVIDUEL, À PLEIN TARIF (25 août). Les points ne se gagnent
+     que sur SA PROPRE venue : un rituel réglé pour un membre du foyer nourrit le
+     Foyer, pas le Cercle de la payeuse (`estVenuePropre`). Une tête à prix
+     convenu — sa reconnaissance est déjà son prix — et une tête dépendante n'en
+     gagnent pas. On compte SES venues (par tête, pas par la payeuse), celle-ci
+     comprise, sauf si un autre de SES rituels du même jour l'a déjà comptée. */
   const acquises = appointmentsStore.get();
-  const dejaCeJour = acquises.some((a) =>
-    a.id !== appt.id && a.status === 'honoré' && a.date === appt.date && apptPayeurId(a) === beneficiaire);
-  const venues = venuesHonorees(acquises, beneficiaire, true) + (dejaCeJour ? 0 : 1);
+  const beneficiaireClient = clientsStore.get().find((c) => c.id === beneficiaire);
+  const families = familiesStore.get();
+  const estVenuePropre = appt.clientId === beneficiaire;
+  const dejaSaVenue = acquises.some((a) =>
+    a.id !== appt.id && a.status === 'honoré' && a.date === appt.date && a.clientId === beneficiaire);
+  const venues = venuesHonorees(acquises, beneficiaire, false) + (estVenuePropre && !dejaSaVenue ? 1 : 0);
+  const eligible = estVenuePropre
+    && !!beneficiaireClient
+    && !aUnPrixConvenu(beneficiaireClient)
+    && !estDependant(beneficiaireClient, families)
+    && estDuCercle(venues, cercleSeuilStore.get());
 
-  const awarded = appt.pointsAwarded || !estDuCercle(venues)
+  const awarded = appt.pointsAwarded || !eligible
     ? 0
     : awardLoyalty(beneficiaire, total, `Rituel honoré · ${frShort(appt.date)}`);
   appointmentsStore.set((prev) =>

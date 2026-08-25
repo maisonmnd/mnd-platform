@@ -78,9 +78,16 @@ export const pointsRateStore = createStore<number>('mnd_points_rate', 100);
     points. */
 export const cercleSeuilStore = createStore<number>('mnd_cercle_seuil', 3);
 
-/** Est-elle du Cercle ? `venues` vient de `venuesHonorees(appts, id, true)`. */
+/** Est-elle du Cercle ? `venues` compte désormais SES PROPRES venues (par tête,
+    `venuesHonorees(appts, id, false)`) — plus par la payeuse. Le statut complet
+    (prix convenu, dépendant, foyer) se lit par `statutFidelite` (shared/accounts). */
 export const estDuCercle = (venues: number, seuil = cercleSeuilStore.get()): boolean =>
   venues >= Math.max(1, seuil);
+
+/** LE SEUIL DU FOYER (25 août) — dépense honorée CUMULÉE d'une famille (F CFA) à
+    partir de laquelle la maisonnée reçoit un geste. Une reconnaissance de
+    famille, distincte du Cercle individuel. Réglable d'un champ, comme le Cercle. */
+export const foyerSeuilStore = createStore<number>('mnd_foyer_seuil', 300000);
 
 /** Attribution des points Cercle — COUPÉE tant que la maison ne l'active pas
     (Cercle MND) : aucune écriture de points à l'encaissement/honneur avant que

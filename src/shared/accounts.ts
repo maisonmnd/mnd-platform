@@ -1,4 +1,6 @@
 import type { Client, Family } from './clients';
+import { aUnPrixConvenu } from './clients';
+import { venuesHonorees, apptPayeurId, apptPaidXof, type Appointment } from './agenda';
 import type { CreditHolder } from './finance';
 
 /* Comptes & avoirs — résolution du porteur d'avoir et du payeur d'une cliente.
@@ -94,4 +96,77 @@ export function pointsDuCompte(client: Client, clients: Client[], families: Fami
   return clients
     .filter((c) => c.familyId === fam.id && !c.archived)
     .reduce((n, c) => n + (c.loyaltyPoints ?? 0), 0);
+}
+
+/* ── LA RECONNAISSANCE, TÊTE PAR TÊTE (25 août) ───────────────────────
+   Le Cercle récompensait la fidélité comptée PAR LA PAYEUSE : une famille de
+   trois têtes, une venue chacune, l'ouvrait sans qu'une seule personne ait été
+   fidèle ; et une tête à prix convenu y entrait par-dessus son tarif négocié.
+   On sépare : le Cercle se gagne par SES PROPRES venues, à plein tarif ; le prix
+   convenu EST déjà la reconnaissance ; la famille a son palier « Foyer », sur la
+   dépense cumulée. Ces règles vivent ICI, lues à l'identique par le Trône et par
+   Ma Couronne — un seul juge, deux écrans. */
+
+/** Une tête est DÉPENDANTE quand une autre règle pour elle (enfant, membre non
+    payeur d'un foyer). Sa venue nourrit le Foyer, jamais un Cercle individuel. */
+export const estDependant = (client: Client, families: Family[]): boolean =>
+  payerClientIdOf(client, families) !== client.id;
+
+/** Dépense honorée CUMULÉE du foyer — tout ce qui est réellement entré sur les
+    rituels de TOUTES les têtes du foyer (par leur `clientId`, pas par la payeuse :
+    un enfant réglé par sa mère porte le rituel à son nom). Sert au palier Foyer.
+    Sans famille, c'est la dépense de la tête seule. */
+export const depenseFoyerXof = (
+  client: Client, clients: Client[], families: Family[], appts: readonly Appointment[],
+): number => {
+  const fam = client.familyId ? families.find((f) => f.id === client.familyId) : undefined;
+  const ids = fam
+    ? new Set(clients.filter((c) => c.familyId === fam.id && !c.archived).map((c) => c.id))
+    : new Set([client.id]);
+  return appts.reduce((s, a) => (a.status === 'honoré' && ids.has(a.clientId) ? s + apptPaidXof(a) : s), 0);
+};
+
+export type StatutFidelite = {
+  /** Le mot juste pour cette tête. */
+  genre: 'cercle' | 'convenu' | 'dependant' | 'aux-portes' | 'passage';
+  membreCercle: boolean;
+  venues: number;   // SES propres venues honorées
+  seuil: number;
+  reste: number;
+  convenu: boolean;
+  dependant: boolean;
+  foyer: boolean;   // rattachée à un compte famille
+  depenseFoyer: number;
+  seuilFoyer: number;
+  foyerAtteint: boolean;
+  resteFoyer: number;
+};
+
+/** LE STATUT DE FIDÉLITÉ d'une tête — la source unique. `seuilCercle` en venues,
+    `seuilFoyer` en F CFA (voir `cercleSeuilStore` / `foyerSeuilStore`). */
+export function statutFidelite(
+  client: Client,
+  clients: Client[],
+  families: Family[],
+  appts: readonly Appointment[],
+  seuilCercle: number,
+  seuilFoyer: number,
+): StatutFidelite {
+  const convenu = aUnPrixConvenu(client);
+  const dependant = estDependant(client, families);
+  const foyer = !!client.familyId && families.some((f) => f.id === client.familyId);
+  const venues = venuesHonorees(appts, client.id, false); // SES venues, pas par la payeuse
+  const membreCercle = !convenu && !dependant && venues >= Math.max(1, seuilCercle);
+  const depenseFoyer = foyer ? depenseFoyerXof(client, clients, families, appts) : 0;
+  const foyerAtteint = foyer && depenseFoyer >= Math.max(1, seuilFoyer);
+  const genre: StatutFidelite['genre'] = convenu ? 'convenu'
+    : dependant ? 'dependant'
+      : membreCercle ? 'cercle'
+        : venues > 0 ? 'aux-portes'
+          : 'passage';
+  return {
+    genre, membreCercle, venues, seuil: seuilCercle, reste: Math.max(0, seuilCercle - venues),
+    convenu, dependant, foyer, depenseFoyer, seuilFoyer, foyerAtteint,
+    resteFoyer: Math.max(0, seuilFoyer - depenseFoyer),
+  };
 }

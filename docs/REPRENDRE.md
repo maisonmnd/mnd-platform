@@ -2,6 +2,31 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Fidélité — Cercle par tête, Prix convenu, Foyer, 25 août, PUBLIÉ
+
+Réforme validée par maquette (public/maquette-cercle-et-foyer.html). Le Cercle
+récompensait la fidélité comptée PAR LA PAYEUSE : une famille l'ouvrait à trois
+têtes une venue chacune, et un prix convenu y entrait par-dessus son tarif. On a
+séparé, source unique `statutFidelite` (shared/accounts.ts), lue par le Trône ET
+Ma Couronne :
+- **Le Cercle** = SES propres venues honorées (`venuesHonorees(..., parPayeur=false`),
+  ≥ seuil. Une tête à **prix convenu** (`aUnPrixConvenu`) ou **dépendante**
+  (`estDependant` : une autre paie pour elle) n'y entre pas.
+- **Points** (honorAppointment) : crédités seulement sur SA propre venue
+  (`appt.clientId === beneficiaire`), jamais convenu/dépendant. Un rituel réglé
+  pour un membre du foyer nourrit le Foyer, pas le Cercle de la payeuse.
+- **Le Foyer** = dépense honorée CUMULÉE de toutes les têtes du foyer
+  (`depenseFoyerXof`, par `clientId` des membres), seuil réglable
+  `foyerSeuilStore` (défaut 300 000 F, éditable dans écran Le Cercle).
+Écrans touchés : Cercle.tsx (liste par tête + exclusions + champ seuil Foyer),
+Customers fiche (statut : Cercle / Prix convenu / Foyer), Ma Couronne CercleTab
+(carte par genre + progression Foyer, échelle de points masquée pour convenu/
+dépendant). Gardé par verifie-foyer.harnais (§ Cercle par tête).
+RESTE (suite possible, non fait) : la REMISE automatique du geste Foyer quand le
+palier est franchi (aujourd'hui : progression affichée, geste posé à la main),
+et des paliers Foyer multiples comme les paliers du Cercle.
+
+
 ## Devise — séparateur harmonisé, 24 août, PUBLIÉ
 
 `DEVISE_COMPLETE` passait de « mi nyɔ́ ɖɛkpɛ **•** la maison veille » (puce ronde)

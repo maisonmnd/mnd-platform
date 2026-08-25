@@ -16,10 +16,10 @@ import { envieLabel, type EnvieKey } from '../../shared/quiz';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
-import { ageDe, tetesPortees } from '../../shared/accounts';
+import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
-import { cercleSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
@@ -153,17 +153,24 @@ function useNextAppointment(cibleId?: string): Appointment | undefined {
     cliente qui n'y est pas encore ne doit pas lire « 0 point » sans comprendre —
     c'est ainsi qu'un programme de fidélité passe pour cassé. Elle voit donc le
     chemin qu'il lui reste, pas une porte close. */
-function useCercle(): { venues: number; seuil: number; membre: boolean; reste: number } {
+function useCercle(): StatutFidelite & { membre: boolean } {
   const [appts] = useAppointments();
-  const clientId = useClientId();
+  const client = useClient();
+  const [clients] = useClients();
+  const [families] = useFamilies();
   const [seuil] = useStore(cercleSeuilStore);
+  const [seuilFoyer] = useStore(foyerSeuilStore);
   return useMemo(() => {
-    /* Par la PAYEUSE, comme les points : un rituel qu'on lui a offert ne la fait
-       pas entrer — c'est celle qui a payé que la Maison reconnaît. */
-    const venues = venuesHonorees(appts, clientId, true);
-    const membre = estDuCercle(venues, seuil);
-    return { venues, seuil, membre, reste: Math.max(0, seuil - venues) };
-  }, [appts, clientId, seuil]);
+    /* PAR TÊTE (25 août) : le Cercle se gagne par SES propres venues, à plein
+       tarif. Un prix convenu, un enfant/membre dépendant, un foyer — chacun sa
+       reconnaissance. Un seul juge, partagé avec le Trône (`statutFidelite`). */
+    if (!client) {
+      return { genre: 'passage', membreCercle: false, venues: 0, seuil, reste: seuil, convenu: false,
+        dependant: false, foyer: false, depenseFoyer: 0, seuilFoyer, foyerAtteint: false, resteFoyer: seuilFoyer, membre: false };
+    }
+    const s = statutFidelite(client, clients, families, appts, seuil, seuilFoyer);
+    return { ...s, membre: s.membreCercle };
+  }, [appts, client, clients, families, seuil, seuilFoyer]);
 }
 
 /* ---------- devis — le pont Factures du Trône ---------- */
@@ -1272,15 +1279,40 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
       {/* LE SEUIL, DIT AVANT LES POINTS. Un compteur à zéro sans un mot se lit
           comme une panne ; le chemin restant se lit comme une invitation. */}
-      {!cercle.membre ? (
+      {cercle.convenu ? (
+        /* Prix convenu — le prix EST la reconnaissance, pas de points. */
         <div className="mc-pointscard">
           <div className="mc-pointscard__watermark" aria-hidden="true" />
           <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Le Cercle s’ouvre au {cercle.seuil}ᵉ passage</div>
+            <div className="mc-pointscard__label">Un prix rien qu’à vous</div>
+            <div className="mc-pointscard__row">
+              <span className="mc-pointscard__big" style={{ fontSize: 32 }}>Prix convenu</span>
+            </div>
+            <div className="mc-pointscard__hint">
+              La maison vous a accordé un prix à vous, geste par geste. C’est votre reconnaissance, à chaque venue, avant tout barème.
+            </div>
+          </div>
+        </div>
+      ) : cercle.dependant ? (
+        /* Dépendant d'un foyer — ses venues nourrissent le Foyer, pas un compte à part. */
+        <div className="mc-pointscard">
+          <div className="mc-pointscard__watermark" aria-hidden="true" />
+          <div className="mc-pointscard__inner">
+            <div className="mc-pointscard__label">Rattaché à votre foyer</div>
+            <div className="mc-pointscard__hint" style={{ marginTop: 6 }}>
+              Vos rendez-vous sont réglés par votre foyer : ils nourrissent la reconnaissance de la famille, le Foyer, plutôt qu’un compte à part.
+            </div>
+          </div>
+        </div>
+      ) : !cercle.membre ? (
+        <div className="mc-pointscard">
+          <div className="mc-pointscard__watermark" aria-hidden="true" />
+          <div className="mc-pointscard__inner">
+            <div className="mc-pointscard__label">Le Cercle s’ouvre à votre {cercle.seuil}ᵉ venue</div>
             <div className="mc-pointscard__row">
               <span className="mc-pointscard__big">{cercle.venues}</span>
               <span className="mc-pointscard__unit">
-                {cercle.venues > 1 ? 'passages' : 'passage'} sur {cercle.seuil}
+                {cercle.venues > 1 ? 'venues' : 'venue'} sur {cercle.seuil}
               </span>
             </div>
             <div className="mc-bar mc-bar--invert">
@@ -1288,8 +1320,8 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
             </div>
             <div className="mc-pointscard__hint">
               {cercle.venues === 0
-                ? `Votre lignée commence à votre première venue. Le Cercle vous accueillera au ${cercle.seuil}ᵉ passage.`
-                : `Encore ${cercle.reste} passage${cercle.reste > 1 ? 's' : ''} et la maison vous accueille dans son Cercle.`}
+                ? `Votre lignée commence à votre première venue. Le Cercle vous accueillera à votre ${cercle.seuil}ᵉ.`
+                : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} et la maison vous accueille dans son Cercle.`}
             </div>
           </div>
         </div>
@@ -1318,7 +1350,30 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
         </div>
       )}
 
+      {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée. */}
+      {cercle.foyer && !cercle.dependant && (
+        <div className="mc-pointscard" style={{ marginTop: 12 }}>
+          <div className="mc-pointscard__watermark" aria-hidden="true" />
+          <div className="mc-pointscard__inner">
+            <div className="mc-pointscard__label">Le Foyer{cercle.foyerAtteint ? ' · palier atteint' : ''}</div>
+            <div className="mc-pointscard__row">
+              <span className="mc-pointscard__big">{Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cercle.seuilFoyer)) * 100))}%</span>
+              <span className="mc-pointscard__unit">de votre palier famille</span>
+            </div>
+            <div className="mc-bar mc-bar--invert">
+              <div style={{ width: `${Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cercle.seuilFoyer)) * 100))}%` }} />
+            </div>
+            <div className="mc-pointscard__hint">
+              {cercle.foyerAtteint
+                ? 'Votre foyer a franchi son palier, la maison a un geste pour la maisonnée.'
+                : 'La venue de chaque membre du foyer avance vers un geste offert à la famille.'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* paliers de reconnaissance — définis au Trône */}
+      {!cercle.convenu && !cercle.dependant && (<>
       <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>
       <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
         {ladder.map((t, i) => {
@@ -1341,6 +1396,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-emptyline">Les paliers du Cercle se préparent, la maison vous les révélera bientôt.</div>
         )}
       </div>
+      </>)}
       <div style={{ height: 14 }} />
     </div>
   );

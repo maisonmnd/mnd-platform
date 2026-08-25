@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Cercle & le Foyer — Maquette · Maison MND</title>
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1;
+    --ivoire:    #FBF8F2;
+    --sable:     #E8DFCE;
+    --indigo:    #1E2150;
+    --indigo-2:  #3A3F72;
+    --cuivre:    #B97A4A;
+    --cuivre-p:  #E3C9AE;
+    --cuivre-f:  #FAF1E9;
+    --vert:      #4A6B52;
+    --brique:    #96412E;
+    --encre:     #2A2722;
+    --encre-d:   #746F65;
+    --filet:     #D9CFBC;
+    --serif: Georgia, 'Cormorant Garamond', 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--parchemin); color: var(--encre); font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1080px; margin: 0 auto; padding: 56px 24px 110px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 14px; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 6vw, 60px); line-height: 1.05; letter-spacing: -.015em; color: var(--indigo); margin: 0 0 18px; text-wrap: balance; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3vw, 32px); color: var(--indigo); margin: 0 0 8px; letter-spacing: -.01em; }
+  .chapeau { max-width: 64ch; font-size: 16.5px; color: var(--encre-d); margin: 0; }
+  .chapeau b { color: var(--encre); font-weight: 500; }
+  section { margin-top: 60px; }
+  .intro { max-width: 68ch; color: var(--encre-d); margin: 0 0 26px; }
+  .intro b { color: var(--encre); font-weight: 500; }
+
+  /* Fuites */
+  .fuites { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .fuites { grid-template-columns: 1fr; } }
+  .fuite { border: 1px solid var(--filet); border-left: 3px solid var(--brique); border-radius: 4px; background: var(--ivoire); padding: 18px 20px; }
+  .fuite h3 { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--brique); margin: 0 0 6px; }
+  .fuite p { margin: 0; color: var(--encre-d); font-size: 14.5px; }
+  .fuite p b { color: var(--encre); font-weight: 500; }
+
+  /* Trois statuts */
+  .trois { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .trois { grid-template-columns: 1fr; } }
+  .statut { border: 1px solid var(--filet); border-radius: 4px; background: var(--ivoire); overflow: hidden; display: flex; flex-direction: column; }
+  .statut__band { padding: 16px 20px 14px; color: #fff; }
+  .statut--cercle .statut__band { background: var(--indigo); }
+  .statut--convenu .statut__band { background: linear-gradient(135deg, #7A4E2E, var(--cuivre)); }
+  .statut--foyer .statut__band { background: var(--indigo-2); }
+  .statut__nom { font-family: var(--serif); font-size: 25px; font-weight: 400; margin: 0; letter-spacing: -.01em; }
+  .statut__sous { font-size: 12px; letter-spacing: .04em; color: rgba(255,255,255,.82); margin: 3px 0 0; }
+  .statut__corps { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .bloc__label { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--cuivre); margin: 0 0 5px; }
+  .bloc p { margin: 0; font-size: 14px; color: var(--encre); }
+  .bloc p .muted { color: var(--encre-d); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; font-size: 11px; letter-spacing: .05em; padding: 2px 10px; font-weight: 500; }
+  .badge--cercle { background: var(--indigo); color: #fff; }
+  .badge--convenu { background: var(--cuivre-f); color: #8A5A32; border: 1px solid var(--cuivre-p); }
+  .badge--foyer { background: #ECEEF6; color: var(--indigo); border: 1px solid #C7CCE2; }
+  .seal { font-family: var(--serif); font-style: italic; }
+
+  /* Avant / après */
+  .cas { border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; }
+  .cas__row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 0; border-top: 1px solid var(--filet); }
+  .cas__row:first-child { border-top: 0; }
+  .cas__row > div { padding: 13px 16px; font-size: 14px; }
+  .cas__row > div + div { border-left: 1px solid var(--filet); }
+  .cas__head { background: var(--sable); }
+  .cas__head > div { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--encre-d); font-weight: 500; }
+  .cas__qui { background: var(--ivoire); }
+  .cas__qui b { font-weight: 500; }
+  .cas__qui .muted { color: var(--encre-d); font-size: 12.5px; display: block; margin-top: 2px; }
+  .cas__av { background: #FBF6EE; color: var(--brique); }
+  .cas__ap { background: #F4F7F1; color: var(--vert); }
+  .cas__av b, .cas__ap b { font-weight: 600; }
+
+  /* Règles */
+  .regles { background: var(--indigo); color: #E9E7F1; border-radius: 4px; padding: 26px 26px 22px; }
+  .regles h2 { color: #fff; }
+  .regle { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid rgba(255,255,255,.12); }
+  .regle:first-of-type { border-top: 0; }
+  @media (max-width: 620px) { .regle { grid-template-columns: 1fr; gap: 4px; } }
+  .regle__clef { font-family: var(--serif); font-size: 19px; color: #fff; }
+  .regle__val { font-size: 14.5px; color: #CFCEE0; }
+  .regle__val b { color: #fff; font-weight: 500; }
+  .regle__val code { font-family: var(--sans); background: rgba(255,255,255,.10); border-radius: 3px; padding: 1px 6px; font-size: 13px; color: #EDECF6; }
+
+  .note { margin-top: 22px; font-size: 13px; color: var(--encre-d); border-top: 1px solid var(--filet); padding-top: 14px; }
+  .note b { color: var(--encre); font-weight: 500; }
+  .devise { text-align: center; margin-top: 70px; font-family: var(--serif); font-style: italic; color: var(--encre-d); font-size: 14.5px; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maison MND · Réforme de la fidélité</p>
+  <h1>Le Cercle, les Prix convenus,<br>et le Foyer</h1>
+  <p class="chapeau">Aujourd'hui, une seule reconnaissance sert tout le monde — et elle s'ouvre trop vite à ceux qui devraient être reconnus autrement. On la sépare en <b>trois</b> : la fidélité d'une tête, l'accord d'un prix, et la famille. Chacune honnête, chacune à sa place.</p>
+
+  <section>
+    <h2>Les deux fuites qu'on ferme</h2>
+    <div class="fuites" style="margin-top:22px">
+      <div class="fuite">
+        <h3>La famille entrait par la porte de côté</h3>
+        <p>Le Cercle comptait les venues <b>par la payeuse</b>. Trois têtes d'un même foyer, une venue chacune, et le Cercle s'ouvrait — sans qu'<b>une seule personne</b> ait été fidèle. Les enfants comptaient comme des patrons.</p>
+      </div>
+      <div class="fuite">
+        <h3>Le prix convenu était payé deux fois</h3>
+        <p>Une tête à qui la Maison a déjà accordé un <b>prix ferme</b> recevait, en plus, les cadeaux du Cercle. Un avantage sur un avantage. Sa reconnaissance, c'est déjà son prix.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Trois reconnaissances distinctes</h2>
+    <div class="trois" style="margin-top:22px">
+
+      <div class="statut statut--cercle">
+        <div class="statut__band">
+          <p class="statut__nom">Le Cercle</p>
+          <p class="statut__sous">La fidélité d'une tête</p>
+        </div>
+        <div class="statut__corps">
+          <div class="bloc">
+            <p class="bloc__label">Comment on l'obtient</p>
+            <p>Par <b>ses propres venues</b> honorées, à plein tarif. Le seuil reste réglable — <span class="muted">« le Cercle s'ouvre à votre 3ᵉ venue »</span>. Compté <b>par tête</b>, jamais par la famille.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Ce qu'il donne</p>
+            <p>Les paliers-cadeaux de la Maison — une prestation offerte à chaque palier de points atteint.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Qui n'y entre pas</p>
+            <p class="muted">Une tête dépendante (payée par un autre) et une tête à prix convenu. Elles sont reconnues ailleurs.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="statut statut--convenu">
+        <div class="statut__band">
+          <p class="statut__nom">Prix convenu</p>
+          <p class="statut__sous">L'accord personnel</p>
+        </div>
+        <div class="statut__corps">
+          <div class="bloc">
+            <p class="bloc__label">Comment on l'obtient</p>
+            <p>Un <b>prix ferme</b> accordé à une tête, prestation par prestation. C'est la Maison qui l'accorde, à la fiche.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Ce qu'il donne</p>
+            <p>Le prix <b>est</b> la reconnaissance. <b>Aucun point</b> sur les lignes à prix ferme, <b>aucun cadeau du Cercle</b> empilé par-dessus.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Ce qu'on voit sur la fiche</p>
+            <p><span class="badge badge--convenu">Prix convenu</span> à la place du sceau du Cercle.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="statut statut--foyer">
+        <div class="statut__band">
+          <p class="statut__nom">Le Foyer</p>
+          <p class="statut__sous">La famille</p>
+        </div>
+        <div class="statut__corps">
+          <div class="bloc">
+            <p class="bloc__label">Comment on l'obtient</p>
+            <p>Par la <b>dépense cumulée</b> de toutes les têtes du foyer. Les enfants et les membres <b>nourrissent le Foyer</b>, pas le Cercle.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Ce qu'il donne</p>
+            <p>Un palier de <b>famille</b>, distinct du Cercle : un geste offert au foyer quand la maisonnée franchit un seuil de dépense.</p>
+          </div>
+          <div class="bloc">
+            <p class="bloc__label">Ce qu'on voit sur la fiche</p>
+            <p><span class="badge badge--foyer">Foyer · palier Ⅱ</span> sur le compte famille.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qui change, tête par tête</h2>
+    <p class="intro" style="margin-top:14px">La même situation, avant et après — pour voir que rien d'injuste ne se produit.</p>
+    <div class="cas">
+      <div class="cas__row cas__head">
+        <div>La tête</div><div>Avant</div><div>Après</div>
+      </div>
+      <div class="cas__row">
+        <div class="cas__qui"><b>Aïcha</b>, régulière, plein tarif<span class="muted">3 venues à elle</span></div>
+        <div class="cas__av">Cercle à sa 3ᵉ venue</div>
+        <div class="cas__ap"><b>Cercle</b> à sa 3ᵉ venue — <b>inchangé</b></div>
+      </div>
+      <div class="cas__row">
+        <div class="cas__qui"><b>Le foyer Sagbohan</b><span class="muted">3 têtes, 1 venue chacune</span></div>
+        <div class="cas__av">Cercle ouvert (3 venues cumulées)</div>
+        <div class="cas__ap">Pas de Cercle automatique — le foyer <b>avance vers le Foyer</b></div>
+      </div>
+      <div class="cas__row">
+        <div class="cas__qui"><b>Mme Aguiar</b>, prix convenus<span class="muted">déjà un tarif négocié</span></div>
+        <div class="cas__av">Prix négocié <b>+</b> cadeaux du Cercle</div>
+        <div class="cas__ap">Badge <b>Prix convenu</b> — pas de cadeaux empilés</div>
+      </div>
+      <div class="cas__row">
+        <div class="cas__qui"><b>Darcy</b>, enfant du foyer<span class="muted">vient avec sa mère</span></div>
+        <div class="cas__av">Ses venues poussaient le compte au Cercle</div>
+        <div class="cas__ap"><b>Bénéficiaire</b> — ne pousse personne au Cercle</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="regles">
+      <h2>Les règles précises</h2>
+      <p class="intro" style="color:#B9BAD4;margin:6px 0 20px;max-width:64ch">Ce que le code appliquera — à valider avant que je l'écrive.</p>
+
+      <div class="regle">
+        <div class="regle__clef">Le Cercle</div>
+        <div class="regle__val">Venues honorées comptées <b>par tête</b> (<code>parPayeur = faux</code>), à plein tarif, ≥ le seuil. Une tête <b>dépendante</b> (le compte est payé par un autre) ou <b>à prix convenu</b> n'y entre pas.</div>
+      </div>
+      <div class="regle">
+        <div class="regle__clef">Les points</div>
+        <div class="regle__val"><b>Aucun point</b> n'est crédité sur une ligne facturée à un <b>prix ferme</b>. Le reste inchangé : 1 point / 100 F sur les lignes à tarif courant.</div>
+      </div>
+      <div class="regle">
+        <div class="regle__clef">Le Foyer</div>
+        <div class="regle__val">Somme des <b>dépenses honorées</b> de toutes les têtes du foyer ≥ palier(s) Foyer → un geste offert à la famille. Les paliers se règlent d'un champ, comme ceux du Cercle.</div>
+      </div>
+      <div class="regle">
+        <div class="regle__clef">Ce qui ne bouge pas</div>
+        <div class="regle__val">Le prix convenu, le Juste Prix, les enfants qui se rattachent, la façon d'encaisser. On ne touche qu'à <b>qui gagne quoi</b>.</div>
+      </div>
+    </div>
+
+    <p class="note"><b>À trancher avec toi ensuite :</b> le seuil du Foyer (en francs), et si une tête à prix convenu garde quand même le badge relationnel « Cercle » sans les cadeaux, ou bien seulement le badge « Prix convenu ». La maquette pose le principe ; les chiffres se calent à la validation.</p>
+  </section>
+
+  <p class="devise">mi nyɔ́ ɖɛkpɛ · la maison veille</p>
+</div>
+</body>
+</html>
