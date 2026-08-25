@@ -44,3 +44,10 @@ export const rouvrirAppel = (id: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, fait: false } : a)));
 export const reporterAppel = (id: string, quand: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, quand } : a)));
+
+/** Le message WhatsApp pré-écrit pour rappeler une cliente suite à son appel.
+    À signer par `signeLeMessage` avant de le passer à `wa.me`. */
+export const messageAppel = (a: Pick<AppelRecu, 'nom' | 'motif'>): string => {
+  const prenom = a.nom.trim().split(/\s+/)[0] || a.nom.trim();
+  return `Bonjour ${prenom}, la Maison MND a bien reçu votre appel${a.motif ? ` au sujet de « ${a.motif} »` : ''}. Quand vous conviendrait-il de passer ?`;
+};

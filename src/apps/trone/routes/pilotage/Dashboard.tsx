@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { signeLeMessage } from '../../../../shared/identite';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
-import { useAppels, appelsAActer, marquerAppelFait, reporterAppel } from '../../../../shared/appels';
+import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
@@ -704,6 +704,9 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {a.phone && (
+                    <a href={`https://wa.me/${a.phone.replace(/\D/g, '')}?text=${encodeURIComponent(signeLeMessage(messageAppel(a)))}`} target="_blank" rel="noreferrer" style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
+                  )}
                   {a.clientId && a.suite === 'rdv' && (
                     <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>
                       Créer le RDV
