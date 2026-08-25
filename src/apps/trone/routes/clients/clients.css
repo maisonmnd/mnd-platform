@@ -1587,8 +1587,46 @@
   flex-wrap: wrap;
   margin-bottom: 12px;
 }
-.trc-toolbar .trc-searchwrap { flex: 1 1 240px; min-width: 200px; }
-.trc-toolbar .trc-searchwrap input { width: 100%; box-sizing: border-box; }
+/* LA RECHERCHE, VISIBLE (25 août). Le champ se confondait avec le reste de la
+   page ; c'est pourtant par lui qu'on entre dans un carnet de cent têtes. La
+   loupe s'assoit dedans, le cadre s'affirme, et le cuivre le désigne dès qu'on
+   y écrit. */
+.trc-toolbar .trc-searchwrap {
+  flex: 1 1 320px;
+  min-width: 220px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.trc-toolbar .trc-searchwrap > svg {
+  position: absolute;
+  left: 13px;
+  color: var(--color-copper);
+  pointer-events: none;
+}
+.trc-toolbar .trc-searchwrap input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 38px 12px 40px;
+  font-size: 14.5px;
+  background: var(--surface-card, #fff);
+  border: 1.5px solid var(--copper-300);
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(30, 33, 80, .04);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.trc-toolbar .trc-searchwrap input::placeholder { color: var(--ink-soft); opacity: .85; }
+.trc-toolbar .trc-searchwrap input:focus {
+  outline: none;
+  border-color: var(--color-copper);
+  box-shadow: 0 0 0 3px rgba(185, 122, 74, .16);
+}
+.trc-searchwrap__x {
+  position: absolute; right: 8px;
+  width: 24px; height: 24px; border: none; background: none; cursor: pointer;
+  color: var(--ink-soft); font-size: 19px; line-height: 1; border-radius: 50%;
+}
+.trc-searchwrap__x:hover { color: var(--color-brique, #96412E); background: var(--paper-2); }
 
 /* ---------- Lignes du CRM : présence, montants, actions rapides ---------- */
 .trc-avatarwrap { position: relative; display: inline-flex; flex: none; }

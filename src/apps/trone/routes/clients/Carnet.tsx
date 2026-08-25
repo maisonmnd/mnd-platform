@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
@@ -432,6 +433,7 @@ export default function Carnet() {
 
       <div className="trc-toolbar">
         <div className="trc-searchwrap">
+          <Search size={17} aria-hidden="true" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

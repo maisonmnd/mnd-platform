@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { Search } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Select, Textarea } from '../../../../ds/components';
 import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
@@ -708,6 +709,7 @@ function ClienteleTab({ personas, clients }: { personas: Persona[]; clients: Cli
       {/* Recherche dans le persona courant */}
       <div className="trc-toolbar" style={{ marginBottom: 14 }}>
         <div className="trc-searchwrap">
+          <Search size={17} aria-hidden="true" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Rechercher dans « ${selName} »…`} aria-label="Rechercher une cliente" />
         </div>
       </div>

@@ -35,7 +35,7 @@ import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera } from 'lucide-react';
+import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frShort, frDay,
@@ -930,13 +930,21 @@ export default function Customers() {
 
       {/* Recherche & tri */}
       <div className="trc-toolbar">
+        {/* LA RECHERCHE SE VOIT (25 août). Elle se fondait dans la page, entre
+            deux rangées de filtres : sur 114 têtes, c'est pourtant le geste le
+            plus fréquent de l'écran. Une loupe, un champ plus haut, un cadre
+            net — on la trouve sans la chercher. */}
         <div className="trc-searchwrap">
+          <Search size={17} aria-hidden="true" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher une cliente (nom, téléphone)…"
             aria-label="Rechercher une cliente"
           />
+          {query && (
+            <button type="button" className="trc-searchwrap__x" onClick={() => setQuery('')} aria-label="Effacer la recherche">×</button>
+          )}
         </div>
         <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 200, flex: 'none' }} aria-label="Trier les clientes">
           <option value="nom">Tri · Nom</option>
