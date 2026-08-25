@@ -8,7 +8,12 @@ import { ClientPicker, todayISO, addDaysISO } from '../routes/clients/_shared';
 
 /* LE MODALE « APPEL REÇU » — poser l'appel en trois secondes. On choisit à chaque
    fois : un simple rappel (avec sa date), ou un rendez-vous à caler. */
-export function AppelRecuModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AppelRecuModal({ open, onClose, initial }: {
+  open: boolean;
+  onClose: () => void;
+  /** Pré-remplissage venu d'un partage « Partager → Le Trône » (numéro/nom). */
+  initial?: { phone?: string; nom?: string } | null;
+}) {
   const { branch } = useBranch();
   const [clients] = useClients();
   const [clientId, setClientId] = useState('');
@@ -20,7 +25,15 @@ export function AppelRecuModal({ open, onClose }: { open: boolean; onClose: () =
 
   useEffect(() => {
     if (!open) return;
-    setClientId(''); setNom(''); setPhone(''); setMotif(''); setSuite('rappel'); setQuand(todayISO());
+    setMotif(''); setSuite('rappel'); setQuand(todayISO());
+    /* PARTAGE → LE TRÔNE : si un numéro arrive, on tente de reconnaître la fiche
+       (mêmes chiffres) ; sinon on ouvre en « nouvelle », le numéro déjà posé. */
+    const digits = (s?: string) => (s ?? '').replace(/\D/g, '');
+    const p = initial?.phone;
+    const match = p ? clients.find((c) => c.phone && digits(c.phone) === digits(p)) : undefined;
+    if (match) { setClientId(match.id); setNom(''); setPhone(''); }
+    else { setClientId(''); setNom(initial?.nom ?? ''); setPhone(p ?? ''); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;

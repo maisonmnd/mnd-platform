@@ -245,8 +245,24 @@ export default function Shell() {
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const [appelOpen, setAppelOpen] = useState(false);
+  const [appelInitial, setAppelInitial] = useState<{ phone?: string; nom?: string } | null>(null);
   const [appels] = useAppels();
   const appelsEnAttente = appelsAActer(appels, branch.id).length;
+
+  /* PARTAGER → LE TRÔNE (25 août). Depuis les appels récents du téléphone,
+     « Partager » vers l'app installée arrive ici avec le numéro (share_target du
+     manifest). On ouvre « Appel reçu » pré-rempli, puis on nettoie l'URL pour
+     qu'un rafraîchissement ne rouvre pas le modale. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const texte = [params.get('text'), params.get('title'), params.get('url')].filter(Boolean).join(' ').trim();
+    if (!texte) return;
+    const m = texte.match(/\+?\d[\d\s().-]{5,}\d/);
+    const phone = m ? m[0].replace(/[().-]/g, '').trim() : undefined;
+    setAppelInitial({ phone, nom: phone ? undefined : texte.slice(0, 60) });
+    setAppelOpen(true);
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  }, []);
   const closeSide = () => setSideOpen(false);
 
   /* Le menu à deux étages ne s'impose que s'il fait gagner quelque chose :
@@ -449,7 +465,7 @@ export default function Shell() {
           )}
         </header>
 
-        <AppelRecuModal open={appelOpen} onClose={() => setAppelOpen(false)} />
+        <AppelRecuModal open={appelOpen} initial={appelInitial} onClose={() => { setAppelOpen(false); setAppelInitial(null); }} />
 
         <main className="tr-content">
           <div className="tr-content__inner">
