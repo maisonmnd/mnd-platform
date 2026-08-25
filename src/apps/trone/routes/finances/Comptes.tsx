@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, Card, Field, Input, Modal, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -383,8 +383,11 @@ export default function Comptes() {
                       </button>
                     </div>
 
-                    <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                      ★ <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{nameOf(f.payerClientId) || 'payeur à désigner'}</b> règle pour tous
+                    <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <span>★ <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{nameOf(f.payerClientId) || 'payeur à désigner'}</b> règle pour tous</span>
+                      {payeuse?.phone && (
+                        <WaLien phone={payeuse.phone} message={`Bonjour ${payeuse.name.split(' ')[0]}, la Maison MND revient vers vous au sujet de votre compte famille « ${f.name} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                      )}
                     </div>
 
                     {remiseOuverte === f.id && (

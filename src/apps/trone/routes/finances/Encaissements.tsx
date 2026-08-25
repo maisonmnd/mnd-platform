@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, Input, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -604,6 +604,14 @@ export default function Encaissements() {
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, minWidth: 0 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <b style={{ fontWeight: 'var(--weight-medium)' }}>{r.clientName}</b>
+                  {(() => {
+                    const cli = clients.find((c) => c.id === r.clientId);
+                    return cli?.phone
+                      ? <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
+                          <WaLien phone={cli.phone} message={`Bonjour ${cli.name.split(' ')[0]}, la Maison MND vous remercie pour votre règlement. À très bientôt !`} style={{ fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        </span>
+                      : null;
+                  })()}
                   <span className="trc-src">{receiptKindLabel(r.kind)}</span>
                   {r.ref && <span className="mnd-muted" style={{ fontSize: 11 }}>{r.ref}</span>}
                   {(() => {

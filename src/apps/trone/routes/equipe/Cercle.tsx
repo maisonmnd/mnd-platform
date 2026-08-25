@@ -1,6 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -115,9 +115,9 @@ export default function Cercle() {
       const depense = depenseFoyerXof(payeur, clients, families, appts);
       const palier = meilleurPalierFoyer(depense, foyerTiers);
       const prochain = sortedFoyerTiers.find((t) => depense < t.seuilXof) ?? null;
-      acc.push({ famId: fam.id, nom: fam.name, depense, palier, prochain });
+      acc.push({ famId: fam.id, nom: fam.name, depense, palier, prochain, phone: payeur.phone, prenom: payeur.name.split(' ')[0] });
       return acc;
-    }, [] as { famId: string; nom: string; depense: number; palier: FoyerTier | null; prochain: FoyerTier | null }[])
+    }, [] as { famId: string; nom: string; depense: number; palier: FoyerTier | null; prochain: FoyerTier | null; phone?: string; prenom: string }[])
     .sort((a, b) => b.depense - a.depense),
     [branchClients, families, clients, appts, foyerTiers, sortedFoyerTiers]);
   const convenusList = useMemo(
@@ -487,6 +487,15 @@ export default function Cercle() {
                               Offrir « {serviceName(best.serviceId)} » · −{best.pts.toLocaleString('fr-FR')} pts
                             </Button>
                           )}
+                          {c.phone && (
+                            <WaLien
+                              phone={c.phone}
+                              message={best
+                                ? `Bonjour ${c.name.split(' ')[0]}, un cadeau vous attend au Cercle de la Maison MND : « ${serviceName(best.serviceId)} », offert. Quand passez-vous ?`
+                                : `Bonjour ${c.name.split(' ')[0]}, la Maison MND est heureuse de vous compter dans son Cercle.`}
+                              style={{ fontSize: 12, fontWeight: 600, color: 'var(--copper-700)' }}
+                            />
+                          )}
                           <span className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', flex: 'none' }}>Ajustement</span>
                           <Input
                             inputMode="numeric"
@@ -537,7 +546,11 @@ export default function Cercle() {
                       </span>
                       <span className="tre-reg__jauge"><Bar pct={pct} /></span>
                       <span className="tre-reg__pts">{fmtMoney(f.depense, currency)}</span>
-                      <span />
+                      {f.phone
+                        ? <WaLien phone={f.phone} message={f.palier
+                            ? `Bonjour ${f.prenom}, un geste attend votre foyer à la Maison MND : « ${serviceName(f.palier.serviceId)} », offert à la maisonnée.`
+                            : `Bonjour ${f.prenom}, la Maison MND revient vers votre foyer « ${f.nom} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        : <span />}
                     </div>
                   );
                 })}
@@ -564,7 +577,9 @@ export default function Cercle() {
                       </span>
                       <span className="tre-reg__jauge" />
                       <span className="tre-reg__pts" style={{ fontSize: 11, letterSpacing: '.04em', color: 'var(--copper-700)' }}>Prix convenu</span>
-                      <span />
+                      {c.phone
+                        ? <WaLien phone={c.phone} message={`Bonjour ${c.name.split(' ')[0]}, la Maison MND revient vers vous.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        : <span />}
                     </div>
                   );
                 })}

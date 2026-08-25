@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -382,7 +382,15 @@ export default function Abonnements() {
                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot(m.status), flex: 'none' }} />
                           <span>
                             <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
-                            <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5 }}>abonnée depuis {m.sinceIso ? anciennete(m.sinceIso) : m.since}</span>
+                            <span className="mnd-muted" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, flexWrap: 'wrap' }}>
+                              <span>abonnée depuis {m.sinceIso ? anciennete(m.sinceIso) : m.since}</span>
+                              {(() => {
+                                const cli = clients.find((c) => c.id === m.clientId);
+                                return cli?.phone
+                                  ? <WaLien phone={cli.phone} message={`Bonjour ${m.name.split(' ')[0]}, la Maison MND pense à vous au sujet de votre abonnement${plan ? ` « ${plan.name} »` : ''}.`} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                                  : null;
+                              })()}
+                            </span>
                           </span>
                         </span>
                       </td>
