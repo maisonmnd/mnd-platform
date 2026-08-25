@@ -15,6 +15,7 @@ import {
 import { coffreStore, coffreBalance } from '../src/shared/finance';
 import type { Receipt } from '../src/shared/receipts';
 import { statutFidelite } from '../src/shared/accounts';
+import { meilleurPalierFoyer, type FoyerTier } from '../src/shared/offers';
 import type { Client, Family } from '../src/shared/clients';
 import type { Appointment } from '../src/shared/agenda';
 
@@ -324,6 +325,15 @@ const foyerRdv = [rdvH('mere', '2026-05-01', 120000), ...troisEnf]; // 120000 + 
 dit('la dépense du foyer additionne toutes les têtes', 135000, statutFidelite(mere, gens, famF, foyerRdv, 3, 300000).depenseFoyer);
 dit('le palier Foyer se franchit à son seuil', true, statutFidelite(mere, gens, famF, foyerRdv, 3, 100000).foyerAtteint);
 dit('… et pas en dessous', false, statutFidelite(mere, gens, famF, foyerRdv, 3, 300000).foyerAtteint);
+
+/* Les paliers du Foyer : le geste s'offre dès le seuil de dépense cumulée passé. */
+const paliersFoyer: FoyerTier[] = [
+  { id: 'f1', seuilXof: 100000, serviceId: 's1', desc: '', g: '' },
+  { id: 'f2', seuilXof: 300000, serviceId: 's2', desc: '', g: '' },
+];
+dit('sous le premier seuil, aucun palier Foyer', null, meilleurPalierFoyer(50000, paliersFoyer));
+dit('au-delà du premier, le premier palier', 'f1', meilleurPalierFoyer(150000, paliersFoyer)?.id ?? null);
+dit('au-delà du second, le meilleur (le plus haut atteint)', 'f2', meilleurPalierFoyer(400000, paliersFoyer)?.id ?? null);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

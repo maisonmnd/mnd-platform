@@ -9,7 +9,7 @@ import { useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { estDependant } from '../../../../shared/accounts';
 import { useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
-import { cercleSeuilStore, foyerSeuilStore, estDuCercle } from '../../../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, type FoyerTier } from '../../../../shared/offers';
 import {
   pointsHistoryStore, pointsRateStore, pointsEnabledStore, useTiers,
   type PointsEvent, type RewardTier,
@@ -36,7 +36,12 @@ export default function Cercle() {
   const [tab, setTab] = useState<Tab>('points');
   const [tierModal, setTierModal] = useState(false);
   const [tierEditId, setTierEditId] = useState<string | null>(null);
+  /* Un seul formulaire pour les deux échelles : `tierKind` dit laquelle. Pour le
+     Foyer, le champ numérique porte un SEUIL en F cumulés, pas des points. */
+  const [tierKind, setTierKind] = useState<'cercle' | 'foyer'>('cercle');
   const [tierForm, setTierForm] = useState<TierForm>({ pts: '', serviceId: services[0]?.id ?? '', desc: '' });
+  const [foyerTiers, setFoyerTiers] = useFoyerTiers();
+  const sortedFoyerTiers = useMemo(() => [...foyerTiers].sort((a, b) => a.seuilXof - b.seuilXof), [foyerTiers]);
   const [adjust, setAdjust] = useState<Record<string, string>>({});
   /* LE REGISTRE ÉTAIT UN MUR. Une carte par tête, deux par ligne : cinq membres
      et cent cinquante-deux têtes aux portes faisaient cinq mille pixels de
@@ -94,23 +99,37 @@ export default function Cercle() {
     return eligible.length ? eligible[eligible.length - 1] : null;
   };
 
-  const openTierNew = () => {
+  const openTierNew = (kind: 'cercle' | 'foyer' = 'cercle') => {
+    setTierKind(kind);
     setTierEditId(null);
     setTierForm({ pts: '', serviceId: services[0]?.id ?? '', desc: '' });
     setTierModal(true);
   };
   const openTierEdit = (t: RewardTier) => {
+    setTierKind('cercle');
     setTierEditId(t.id);
     setTierForm({ pts: String(t.pts), serviceId: t.serviceId, desc: t.desc });
     setTierModal(true);
   };
+  const openFoyerTierEdit = (t: FoyerTier) => {
+    setTierKind('foyer');
+    setTierEditId(t.id);
+    setTierForm({ pts: String(t.seuilXof), serviceId: t.serviceId, desc: t.desc });
+    setTierModal(true);
+  };
   const saveTier = () => {
-    const pts = parseInt(tierForm.pts, 10);
-    if (!pts || pts <= 0 || !tierForm.serviceId) return;
-    if (tierEditId) {
-      setTiers((prev) => prev.map((t) => (t.id === tierEditId ? { ...t, pts, serviceId: tierForm.serviceId, desc: tierForm.desc } : t)));
+    const n = parseInt(tierForm.pts, 10);
+    if (!n || n <= 0 || !tierForm.serviceId) return;
+    if (tierKind === 'foyer') {
+      if (tierEditId) {
+        setFoyerTiers((prev) => prev.map((t) => (t.id === tierEditId ? { ...t, seuilXof: n, serviceId: tierForm.serviceId, desc: tierForm.desc } : t)));
+      } else {
+        setFoyerTiers((prev) => [...prev, { id: `ftier-${uid()}`, seuilXof: n, serviceId: tierForm.serviceId, desc: tierForm.desc, g: '' }]);
+      }
+    } else if (tierEditId) {
+      setTiers((prev) => prev.map((t) => (t.id === tierEditId ? { ...t, pts: n, serviceId: tierForm.serviceId, desc: tierForm.desc } : t)));
     } else {
-      setTiers((prev) => [...prev, { id: `tier-${uid()}`, pts, serviceId: tierForm.serviceId, desc: tierForm.desc, g: '' }]);
+      setTiers((prev) => [...prev, { id: `tier-${uid()}`, pts: n, serviceId: tierForm.serviceId, desc: tierForm.desc, g: '' }]);
     }
     setTierModal(false);
   };
@@ -146,7 +165,7 @@ export default function Cercle() {
         eyebrow="Le Cercle MND · transmission & lignée"
         title="Le Cercle."
         sub={`${branch.name}, les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
-        actions={<Button variant="copper" onClick={openTierNew}>+ Nouveau palier</Button>}
+        actions={<Button variant="copper" onClick={() => openTierNew('cercle')}>+ Nouveau palier</Button>}
       />
 
       {/* Le programme n'attribue RIEN tant que la maison ne l'a pas lancé — pas de
@@ -273,6 +292,39 @@ export default function Cercle() {
           <div className="tre-quote" style={{ marginTop: 18 }}>
             « Le point ne s’achète pas au sens d’un solde bancaire, il témoigne d’une fidélité. La Maison le rend en offrant ce qu’elle sait faire de mieux : un soin. »
           </div>
+
+          {/* ── LES PALIERS DU FOYER — la famille, sur sa dépense cumulée ── */}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '34px 0 12px', borderTop: '1px solid var(--hairline)', paddingTop: 24 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--color-indigo)' }}>Les paliers du Foyer</div>
+              <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 2 }}>
+                Franchis par la dépense CUMULÉE de la famille. Le geste s’offre de lui-même dès le seuil passé, sur Ma Couronne comme au comptoir.
+              </div>
+            </div>
+            <Button variant="ghost" onClick={() => openTierNew('foyer')}>+ Palier Foyer</Button>
+          </div>
+          {sortedFoyerTiers.length === 0 ? (
+            <div className="mnd-muted" style={{ fontSize: 12.5, border: '1px dashed var(--hairline)', borderRadius: 2, padding: '16px 18px' }}>
+              Aucun palier Foyer encore. Ajoutez-en un : « à {fmtMoney(300000, currency)} cumulés, un soin offert à la maisonnée. »
+            </div>
+          ) : (
+            <div className="tr-grid tr-grid--3">
+              {sortedFoyerTiers.map((t, i) => (
+                <Card key={t.id} className="tre-tier" filet="indigo">
+                  <span className="tre-tier__seal">{ROMANS[i] ?? '✦'}</span>
+                  <div className="tre-tier__pts">{fmtMoney(t.seuilXof, currency)} cumulés</div>
+                  <div style={{ fontWeight: 500, fontSize: 12, marginTop: 6 }}>« {serviceName(t.serviceId)} » offert au foyer</div>
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>
+                    {t.desc || `Valeur ${fmtMoney(servicePrice(t.serviceId), currency)}, offerte à la famille, sans frais.`}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button className="tre-chip" style={{ flex: 1, borderRadius: 2 }} onClick={() => openFoyerTierEdit(t)}>Modifier</button>
+                    <button className="tre-chip" style={{ flex: 1, borderRadius: 2, color: '#8f3b30' }} onClick={() => setFoyerTiers((prev) => prev.filter((x) => x.id !== t.id))}>Retirer</button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -439,10 +491,10 @@ export default function Cercle() {
       )}
 
       {tierModal && (
-        <Modal title={tierEditId ? 'Modifier le palier.' : 'Nouveau palier de récompense.'} onClose={() => setTierModal(false)} width={520}>
+        <Modal title={tierEditId ? 'Modifier le palier.' : tierKind === 'foyer' ? 'Nouveau palier du Foyer.' : 'Nouveau palier de récompense.'} onClose={() => setTierModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Field label="Points requis · seuil">
-              <Input inputMode="numeric" value={tierForm.pts} placeholder="Ex. 3000" onChange={(e) => setTierForm({ ...tierForm, pts: e.target.value.replace(/[^0-9]/g, '') })} />
+            <Field label={tierKind === 'foyer' ? 'Dépense cumulée du foyer · seuil (F CFA)' : 'Points requis · seuil'}>
+              <Input inputMode="numeric" value={tierForm.pts} placeholder={tierKind === 'foyer' ? 'Ex. 300000' : 'Ex. 3000'} onChange={(e) => setTierForm({ ...tierForm, pts: e.target.value.replace(/[^0-9]/g, '') })} />
             </Field>
             <Field label="Prestation offerte · tirée du catalogue">
               <Select value={tierForm.serviceId} onChange={(e) => setTierForm({ ...tierForm, serviceId: e.target.value })}>

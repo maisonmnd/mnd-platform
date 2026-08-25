@@ -89,6 +89,26 @@ export const estDuCercle = (venues: number, seuil = cercleSeuilStore.get()): boo
     famille, distincte du Cercle individuel. Réglable d'un champ, comme le Cercle. */
 export const foyerSeuilStore = createStore<number>('mnd_foyer_seuil', 300000);
 
+/** LES PALIERS DU FOYER (25 août) — comme les paliers du Cercle, mais franchis
+    par la DÉPENSE CUMULÉE de la famille (F CFA) et non par des points. Quand un
+    foyer passe un seuil, le geste s'offre de lui-même. Gérés au Trône (Cercle),
+    lus par Ma Couronne. */
+export type FoyerTier = {
+  id: string;
+  seuilXof: number;   // dépense cumulée du foyer à partir de laquelle le geste s'offre
+  serviceId: string;  // prestation offerte, du catalogue
+  desc: string;
+  g: string;          // chiffre du sceau
+};
+export const foyerTiersStore = createStore<FoyerTier[]>('mnd_foyer_tiers', []);
+export const useFoyerTiers = () => useStore(foyerTiersStore);
+
+/** Le meilleur palier Foyer déjà atteint pour une dépense donnée (null sinon). */
+export const meilleurPalierFoyer = (depenseXof: number, tiers: FoyerTier[]): FoyerTier | null => {
+  const atteints = tiers.filter((t) => t.seuilXof <= depenseXof).sort((a, b) => a.seuilXof - b.seuilXof);
+  return atteints.length ? atteints[atteints.length - 1] : null;
+};
+
 /** Attribution des points Cercle — COUPÉE tant que la maison ne l'active pas
     (Cercle MND) : aucune écriture de points à l'encaissement/honneur avant que
     le programme ne soit officiellement lancé. */
@@ -110,5 +130,7 @@ bindDocument(offersStore, 'mnd_offers');
 bindDocument(tiersStore, 'mnd_cercle_tiers');
 bindDocument(pointsRateStore, 'mnd_points_rate');
 bindDocument(cercleSeuilStore, 'mnd_cercle_seuil');
+bindDocument(foyerSeuilStore, 'mnd_foyer_seuil');
+bindDocument(foyerTiersStore, 'mnd_foyer_tiers');
 bindDocument(pointsEnabledStore, 'mnd_points_enabled');
 bindDocument(pointsHistoryStore, 'mnd_points_history');

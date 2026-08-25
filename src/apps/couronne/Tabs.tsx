@@ -19,7 +19,7 @@ import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
-import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useTiers } from '../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useTiers, useFoyerTiers } from '../../shared/offers';
 import { deliveryFee } from '../../shared/settings';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
@@ -1262,6 +1262,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 export function CercleTab({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const [tiers] = useTiers();
+  const [foyerTiers] = useFoyerTiers();
   const [services] = useServices();
   const points = client?.loyaltyPoints ?? 0;
   const cercle = useCercle();
@@ -1269,6 +1270,11 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
   /* Les paliers sont ceux définis au Trône (Cercle) — la prestation offerte
      vient du catalogue partagé. */
   const ladder = useMemo(() => tiers.slice().sort((a, b) => a.pts - b.pts), [tiers]);
+  /* Les paliers du Foyer, franchis par la dépense cumulée de la famille. */
+  const foyerLadder = useMemo(() => foyerTiers.slice().sort((a, b) => a.seuilXof - b.seuilXof), [foyerTiers]);
+  const prochainFoyer = foyerLadder.find((t) => cercle.depenseFoyer < t.seuilXof);
+  const cibleFoyer = prochainFoyer?.seuilXof ?? cercle.seuilFoyer;
+  const pctFoyer = Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cibleFoyer)) * 100));
   const nextTier = ladder.find((t) => points < t.pts);
   const pct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
 
@@ -1355,22 +1361,43 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
         <div className="mc-pointscard" style={{ marginTop: 12 }}>
           <div className="mc-pointscard__watermark" aria-hidden="true" />
           <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Le Foyer{cercle.foyerAtteint ? ' · palier atteint' : ''}</div>
+            <div className="mc-pointscard__label">Le Foyer</div>
             <div className="mc-pointscard__row">
-              <span className="mc-pointscard__big">{Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cercle.seuilFoyer)) * 100))}%</span>
-              <span className="mc-pointscard__unit">de votre palier famille</span>
+              <span className="mc-pointscard__big">{pctFoyer}%</span>
+              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain geste du foyer' : 'de votre palier famille'}</span>
             </div>
-            <div className="mc-bar mc-bar--invert">
-              <div style={{ width: `${Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cercle.seuilFoyer)) * 100))}%` }} />
-            </div>
+            <div className="mc-bar mc-bar--invert"><div style={{ width: `${pctFoyer}%` }} /></div>
             <div className="mc-pointscard__hint">
-              {cercle.foyerAtteint
-                ? 'Votre foyer a franchi son palier, la maison a un geste pour la maisonnée.'
-                : 'La venue de chaque membre du foyer avance vers un geste offert à la famille.'}
+              {prochainFoyer
+                ? `Encore un peu et « ${services.find((s) => s.id === prochainFoyer.serviceId)?.name ?? 'un soin'} » s’offre à la maisonnée.`
+                : cercle.foyerAtteint
+                  ? 'Votre foyer a franchi son palier, la maison a un geste pour la maisonnée.'
+                  : 'La venue de chaque membre du foyer avance vers un geste offert à la famille.'}
             </div>
           </div>
         </div>
       )}
+
+      {/* Les paliers du Foyer — le geste s'offre de lui-même dès le seuil passé. */}
+      {cercle.foyer && !cercle.dependant && foyerLadder.length > 0 && (<>
+        <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Les paliers du Foyer</div>
+        <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
+          {foyerLadder.map((t, i) => {
+            const on = cercle.depenseFoyer >= t.seuilXof;
+            const svc = services.find((s) => s.id === t.serviceId);
+            return (
+              <div key={t.id} className={`mc-rewardrow ${on ? 'is-on' : ''}`}>
+                <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
+                <div className="mc-rewardrow__body">
+                  <div className="mc-rewardrow__t">{svc?.name ?? 'Un soin de la maison'}</div>
+                  <div className="mc-rewardrow__s">{t.desc || 'Offert à la maisonnée'}</div>
+                </div>
+                <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>{on ? 'Offert' : 'À venir'}</span>
+              </div>
+            );
+          })}
+        </div>
+      </>)}
 
       {/* paliers de reconnaissance — définis au Trône */}
       {!cercle.convenu && !cercle.dependant && (<>

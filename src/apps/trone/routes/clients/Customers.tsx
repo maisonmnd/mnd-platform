@@ -25,7 +25,7 @@ import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, derni
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
-import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore } from '../../../../shared/offers';
+import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
 import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
@@ -1424,6 +1424,8 @@ function Customer360({
   const [pointsOn] = useStore(pointsEnabledStore);
   const statut = statutFidelite(client, clientsBranche, families, branchAppts, seuilCercle, seuilFoyer);
   const venuesCercle = statut.venues;
+  const [foyerTiers] = useFoyerTiers();
+  const palierFoyer = statut.foyer ? meilleurPalierFoyer(statut.depenseFoyer, foyerTiers) : null;
   const myInvoices = invoices.filter((i) => i.clientId === client.id);
 
   /* Bilan de séance — le Carnet de Suivi se RÉDIGE et se REMET depuis la
@@ -2460,7 +2462,7 @@ function Customer360({
                     ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
                     : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
               {statut.foyer && !statut.dependant && (
-                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} / {fmtMoney(statut.seuilFoyer, currency)}{statut.foyerAtteint ? ' — palier atteint.' : '.'}</>
+                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <> — palier « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
               )}
             </div>
           </div>

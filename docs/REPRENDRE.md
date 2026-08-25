@@ -22,9 +22,12 @@ Ma Couronne :
 Customers fiche (statut : Cercle / Prix convenu / Foyer), Ma Couronne CercleTab
 (carte par genre + progression Foyer, échelle de points masquée pour convenu/
 dépendant). Gardé par verifie-foyer.harnais (§ Cercle par tête).
-RESTE (suite possible, non fait) : la REMISE automatique du geste Foyer quand le
-palier est franchi (aujourd'hui : progression affichée, geste posé à la main),
-et des paliers Foyer multiples comme les paliers du Cercle.
+PALIERS FOYER (25 août, fait) : comme les paliers du Cercle, mais franchis par la
+dépense cumulée (`foyerTiersStore`, `meilleurPalierFoyer`, synchronisés). Gérés
+dans l'écran Le Cercle (section « Les paliers du Foyer »), affichés « Offert / À
+venir » sur Ma Couronne et « palier à offrir » sur la fiche dès le seuil passé —
+le geste s'offre de lui-même. Le geste reste posé à la main au fauteuil (pas de
+décompte, la dépense est un historique, pas un solde).
 
 
 ## Devise — séparateur harmonisé, 24 août, PUBLIÉ
