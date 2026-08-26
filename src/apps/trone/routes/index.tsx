@@ -61,6 +61,10 @@ export const NAV: TroneGroup[] = [
     items: [
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
+      /* LES CRÉANCES (26 août) — ce que la Maison attend, rangé par ÂGE. Le dû
+         se lisait rituel par rituel dans le Carnet : on savait qu'on attendait
+         de l'argent, jamais depuis quand ni de qui d'abord. */
+      { path: '/creances', label: 'Les créances', icon: HandCoins, Component: lazy(() => import('./finances/Creances')) },
       /* LES CAISSES ONT LEUR ÉCRAN — 22 août 2026. Elles vivaient sous
          « Dépenses » par accident d'histoire : une caisse n'appartient pas
          aux dépenses, c'est le tiroir par lequel TOUT passe. */

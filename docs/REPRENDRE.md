@@ -2,6 +2,45 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le compte client — débit / crédit / créances, 26 août, PUBLIÉ
+
+« Un vrai compte client pour mieux suivre les crédits », et « bien suivre les
+mouvements impayés et depuis quand date une créance ». La Maison savait dire le
+reste dû d'UN rituel ; elle ne savait pas répondre à « elle doit combien, en
+tout, et depuis quand ».
+
+Trois pièces, un seul cœur — `src/shared/compte.ts`, pur, éprouvé par
+`node scripts/verifie-compte.mjs` (28 assertions) :
+
+1. **Onglet Compte** sur la fiche 360 — le relevé chronologique, le solde qui
+   court ligne à ligne, le plus vieil impayé, et le plafond éditable sur place.
+2. **Écran Les créances** (`/creances`, menu Finances) — ce que la Maison
+   attend, rangé par ÂGE en quatre tranches (0-30 / 30-60 / 60-90 / 90+), chaque
+   tranche disant son poids et filtrant d'un clic, relance WhatsApp par ligne.
+3. **Alerte au comptoir** — la modale d'encaissement compare le plafond au dû
+   pour dire si elle peut partir en devant.
+
+**Trois règles qui ne se devinent pas** :
+
+- **RIEN N'EST STOCKÉ.** Tout se dérive des rituels, factures et avoirs. Un
+  solde écrit à côté de ses écritures finit toujours par les contredire.
+- **LE RITUEL FAIT FOI.** Une facture ATTACHÉE à un rituel (`invoiceId`) ne
+  réécrit pas la dette, sinon la cliente doit deux fois ce qu'elle doit une
+  fois. Seules les factures LIBRES (produits, caisse) entrent à leur tour.
+  C'est le piège de cet écran, et la première chose qu'éprouve le harnais.
+- **SANS PLAFOND, AUCUN CRÉDIT.** `plafondCreditXof` absent = elle règle avant
+  de partir. Le crédit s'accorde nommément, il ne se suppose pas. Et le dû
+  comparé est celui du FOYER ENTIER (`duDuCompte`) : dans une famille la dette
+  naît sur le rituel de l'enfant tandis que le plafond est posé sur la payeuse.
+
+La date qui fait foi est celle du RITUEL, jamais celle de la dernière relance :
+une créance ne rajeunit pas parce qu'on en a reparlé. Un rituel `annulé` n'est
+pas une créance — personne ne l'encaissera.
+
+**La Maison avertit, elle ne bloque pas** : c'est Yéman qui tient le comptoir.
+Un blocage dur ferait contourner la caisse, et la trace se perdrait — ce qu'on
+cherche justement à éviter.
+
 ## Journal des appels — 25 août, PUBLIÉ
 
 Suivre les appels des clientes (elles appellent pour un RDV, on oublie après avoir

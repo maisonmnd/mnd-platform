@@ -89,6 +89,14 @@ export type Client = {
       ses venues retombent sous le seuil. Posé quand la marque est levée — par
       le hook comme à la main — et jamais retiré. */
   futDePassage?: boolean;
+  /** CE QU'ELLE PEUT EMPORTER SANS PAYER (26 août) — le plafond de crédit
+      accordé à CETTE tête, en XOF. Le comptoir est prévenu quand un
+      encaissement le ferait dépasser.
+
+      ABSENT = AUCUN CRÉDIT, et c'est le bon défaut : le crédit s'accorde
+      nommément, il ne se suppose pas. Une Maison qui autoriserait par défaut
+      découvrirait ses créances après coup. */
+  plafondCreditXof?: number;
   /** SES PRIX FERMES — un montant convenu avec ELLE, prestation par prestation.
       Clé = identifiant de prestation, valeur = prix en XOF.
 

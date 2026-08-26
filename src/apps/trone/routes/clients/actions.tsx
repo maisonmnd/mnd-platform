@@ -12,6 +12,7 @@ import {
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
   type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
+import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
@@ -560,6 +561,20 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const partage = repartirPourboire(tip, beneficiaires);
   const nomDe = (id: string) => team.find((s) => s.id === id)?.name ?? '—';
   const remainingAfter = Math.max(0, due - settleTotal);
+
+  /* ── LE PLAFOND DE CRÉDIT, AU MOMENT OÙ IL DÉCIDE (26 août) ────────
+     Un plafond qui ne vit que sur la fiche ne sert à rien : la question « peut
+     elle partir en devant ? » ne se pose qu'ICI, la main sur le tiroir. Le dû
+     comparé est celui des AUTRES rituels — celui-ci est encore sur la table —
+     plus ce qu'elle laisserait aujourd'hui.
+
+     La Maison AVERTIT, elle ne bloque pas : c'est Yéman qui tient le comptoir,
+     pas l'écran. Un blocage dur ferait contourner la caisse, et la trace se
+     perdrait — exactement ce qu'on cherche à éviter. */
+  const tetesDuFoyer = payerClient ? tetesDuCompte(payerClient, clients, families) : [payerId];
+  const duAilleurs = Math.max(0, duDuCompte(tousLesRdv, tetesDuFoyer, (a) => apptDueXof(a, byId)) - due);
+  const verdict = peutPartirDevant(payerClient?.plafondCreditXof, duAilleurs, remainingAfter);
+  const alerteCredit = remainingAfter > 0 && !verdict.autorise;
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
   const [settings] = useSettings();
@@ -1383,6 +1398,28 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
               {remainingAfter === 0 ? 'tout est réglé' : `il resterait ${fmtMoney(remainingAfter, currency)} dû`}
             </b>
+          </div>
+        )}
+
+        {alerteCredit && (
+          <div style={{
+            borderRadius: 3, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.6,
+            background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+          }}>
+            {verdict.plafond === 0 ? (
+              <>
+                <b style={{ fontWeight: 600 }}>Aucun plafond de crédit sur ce compte.</b>{' '}
+                {payerClient?.name ? `${payerClient.name.split(' ')[0]} règle avant de partir.` : 'Elle règle avant de partir.'}
+                {duAilleurs > 0 && ` Elle doit déjà ${fmtMoney(duAilleurs, currency)} par ailleurs.`}
+                {' '}Le crédit se pose nommément, onglet Compte de sa fiche.
+              </>
+            ) : (
+              <>
+                <b style={{ fontWeight: 600 }}>Plafond dépassé de {fmtMoney(verdict.depassementXof, currency)}.</b>{' '}
+                Elle partirait en devant {fmtMoney(verdict.apres, currency)} pour un plafond de {fmtMoney(verdict.plafond, currency)}
+                {duAilleurs > 0 ? ` (dont ${fmtMoney(duAilleurs, currency)} déjà dus)` : ''}.
+              </>
+            )}
           </div>
         )}
 
