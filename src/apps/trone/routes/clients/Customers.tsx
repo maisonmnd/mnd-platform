@@ -2477,7 +2477,9 @@ function Customer360({
                 disabled={venues === 0}
                 title={venues === 0 ? 'Elle ne s’est pas encore assise, c’est sa venue qui la couronnera.' : undefined}
                 style={venues === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-                onClick={() => patch({ dePassage: undefined })}
+                /* La Maison retient qu'elle a porté la marque : si ses venues
+                   retombent sous le seuil, elle la retrouvera d'elle-même. */
+                onClick={() => patch({ dePassage: undefined, futDePassage: true })}
               >
                 Tête couronnée
               </button>
@@ -2503,7 +2505,7 @@ function Customer360({
                   ? 'Elle est revenue, la marque serait retirée aussitôt.'
                   : undefined}
                 style={!estDePassage(client) && venues >= 2 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-                onClick={() => patch({ dePassage: true })}
+                onClick={() => patch({ dePassage: true, futDePassage: true })}
               >
                 De passage
               </button>

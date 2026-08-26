@@ -8,6 +8,7 @@ import { predictNextVisit, tauxDeRealisation } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
+import { mouvementsDePassage, type TetePassage } from '../src/shared/clients';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -167,6 +168,38 @@ dit('… ni par le SEGMENT, l’ancienne vérité', null,
 const prisDiaspora = { ...rdv('2026-09-05'), status: 'confirmé' } as Appointment;
 dit('son rendez-vous déjà pris s’affiche quand même', '2026-09-05',
   predictNextVisit([...histoire, prisDiaspora], [parLeChamp], 'c1', '2026-08-16').iso);
+
+/* ── LA MARQUE « DE PASSAGE » VA DANS LES DEUX SENS (26 août) ──
+   Elle ne savait que se lever : une facture supprimée ramenait une tête à UNE
+   venue, et elle restait « de la Maison » — les têtes couronnées gonflaient.
+   Elle revient maintenant, mais SEULEMENT chez qui l'a déjà portée : une
+   nouvelle inscrite n'a aucune venue sans être de passage pour autant, et un
+   carnet mal chargé ne doit jamais marquer une fidèle. */
+const tete = (o: Partial<TetePassage> & { id: string }): TetePassage => ({ ...o });
+const venuesFixes = (n: Record<string, number>) => (id: string) => n[id] ?? 0;
+
+const m = mouvementsDePassage([
+  tete({ id: 'revient', dePassage: true }),                       // 2 venues → se lève
+  tete({ id: 'retombe', futDePassage: true }),                    // 1 venue, l'a été → revient
+  tete({ id: 'nouvelle' }),                                       // 0 venue, jamais → intouchée
+  tete({ id: 'fidele', futDePassage: true }),                     // 5 venues → intouchée
+  tete({ id: 'ancienne', dePassage: true }),                      // marquée sans souvenir
+], venuesFixes({ revient: 2, retombe: 1, nouvelle: 0, fidele: 5, ancienne: 1 }));
+
+dit('elle revient au fauteuil : la marque se lève', ['revient'], [...m.promues]);
+dit('sa venue disparaît et elle l’a déjà été : la marque revient', ['retombe'], [...m.rendues]);
+dit('une nouvelle inscrite n’est JAMAIS marquée', false, m.rendues.has('nouvelle'));
+dit('une fidèle non plus', false, m.rendues.has('fidele'));
+dit('une marquée sans souvenir en reçoit un, sans rien changer d’autre', ['ancienne'], [...m.aMemoriser]);
+
+/* Le seuil se respecte des deux côtés : exactement 2 venues suffit à se lever,
+   et ne fait jamais retomber. */
+const bord = mouvementsDePassage(
+  [tete({ id: 'pile', dePassage: true, futDePassage: true }), tete({ id: 'juste', futDePassage: true })],
+  venuesFixes({ pile: 2, juste: 2 }),
+);
+dit('deux venues suffisent à lever la marque', ['pile'], [...bord.promues]);
+dit('… et deux venues ne la reposent pas', 0, bord.rendues.size);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppointments, venuesHonorees } from '../../../shared/agenda';
-import { clientsStore, estDePassage, useClients } from '../../../shared/clients';
+import { clientsStore, estDePassage, mouvementsDePassage, useClients, VENUES_POUR_REVENIR } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 
 /* ELLE EST REVENUE — Le Trône, 9 août 2026.
@@ -22,10 +22,16 @@ import { useAuth } from '../../../shared/auth';
 
    ② ON N'AGIT QUE SUR DU CHARGÉ. Ni fiche ni rendez-vous en mémoire = on attend.
 
-   ③ LE GESTE EST À SENS UNIQUE. On ne remet jamais quelqu'un « de passage » :
-     la marque se pose à la main, au comptoir, au moment où on la reçoit. Une
-     machine qui saurait la reposer finirait par le faire sur une fidèle dont le
-     carnet a mal chargé.
+   ③ ON NE MARQUE QUE CELLES QUI L'ONT DÉJÀ ÉTÉ (revu le 26 août). Le geste était
+     à sens unique — la marque se levait, jamais ne revenait. Une facture
+     supprimée ramenait donc une tête à UNE venue, et elle restait « de la
+     Maison » : les têtes couronnées gonflaient d'un passage.
+
+     Reposer la marque sur tout le monde reste exclu, pour la raison d'origine :
+     une nouvelle inscrite n'a aucune venue sans être de passage pour autant, et
+     un carnet mal chargé marquerait des fidèles. Le témoin `futDePassage`
+     tranche : SEULE une tête qui l'a déjà été peut le redevenir. Une cliente
+     inscrite en bonne et due forme n'est jamais marquée par cette machine.
 
    Le calcul est idempotent : une deuxième passe n'écrit rien. */
 
@@ -37,8 +43,6 @@ import { useAuth } from '../../../shared/auth';
     DEUX SEUILS, ET C'EST VOULU : elle cesse d'être de passage à la 2ᵉ venue —
     la Maison la reconnaît comme une relation — et elle entre au Cercle à la 3ᵉ.
     Être une cliente et être reconnue ne se gagnent pas au même prix. */
-const VENUES_POUR_REVENIR = 2;
-
 export function usePassageVivant(): void {
   const { session } = useAuth();
   const [appts] = useAppointments();
@@ -48,17 +52,21 @@ export function usePassageVivant(): void {
     if (!session) return;                                   // ① la session fait foi
     if (!clients.length || !appts.length) return;           // ② rien de chargé
 
-    const passantes = clients.filter(estDePassage);
-    if (passantes.length === 0) return;
+    /* La règle vit dans `mouvementsDePassage` (shared/clients.ts), pure et
+       éprouvée par le harnais : celles qui reviennent, celles qui retombent, et
+       celles dont on note simplement le souvenir. */
+    const { promues, rendues, aMemoriser } = mouvementsDePassage(
+      clients, (id) => venuesHonorees(appts, id), VENUES_POUR_REVENIR,
+    );
 
-    const promues = new Set<string>();
-    for (const c of passantes) {
-      if (venuesHonorees(appts, c.id) >= VENUES_POUR_REVENIR) promues.add(c.id);
-    }
-
-    if (promues.size === 0) return;
+    if (promues.size === 0 && rendues.size === 0 && aMemoriser.size === 0) return;
     clientsStore.set((prev) =>
-      prev.map((c) => (promues.has(c.id) ? { ...c, dePassage: undefined } : c)),
+      prev.map((c) => {
+        if (promues.has(c.id)) return { ...c, dePassage: undefined, futDePassage: true };
+        if (rendues.has(c.id)) return { ...c, dePassage: true };
+        if (aMemoriser.has(c.id)) return { ...c, futDePassage: true };
+        return c;
+      }),
     );
   }, [session, appts, clients]);
 }

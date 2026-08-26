@@ -77,6 +77,18 @@ export type Client = {
       est légitime — elle porte sur un fait observé, elle est revenue, et non
       sur une supposition quant à sa vie. */
   dePassage?: boolean;
+  /** ELLE A DÉJÀ ÉTÉ DE PASSAGE — la mémoire de la marque (26 août).
+
+      La marque ne savait que se lever : une facture supprimée, un rituel
+      dés-honoré, et une tête revenue à UNE seule venue restait « de la Maison »,
+      gonflant les têtes couronnées. La reposer sur tout le monde était exclu
+      (une nouvelle inscrite n'a aucune venue sans être de passage pour autant,
+      et un carnet mal chargé marquerait des fidèles).
+
+      Ce témoin tranche : SEULE une tête qui l'a déjà été peut le redevenir, si
+      ses venues retombent sous le seuil. Posé quand la marque est levée — par
+      le hook comme à la main — et jamais retiré. */
+  futDePassage?: boolean;
   /** SES PRIX FERMES — un montant convenu avec ELLE, prestation par prestation.
       Clé = identifiant de prestation, valeur = prix en XOF.
 
@@ -319,6 +331,42 @@ export const comptePrixConvenus = (c: Pick<Client, 'prixFixes'>): number =>
 export const aUnPrixConvenu = (c: Pick<Client, 'prixFixes'>): boolean =>
   comptePrixConvenus(c) > 0;
 
+/** Nombre de venues honorées à partir duquel une tête cesse d'être de passage. */
+export const VENUES_POUR_REVENIR = 2;
+
+export type TetePassage = Pick<Client, 'id' | 'dePassage' | 'futDePassage'>;
+
+/** CE QUE LA MARQUE « DE PASSAGE » DOIT DEVENIR (26 août) — décision PURE, pour
+    qu'elle soit éprouvée par un harnais plutôt que devinée dans un effet React.
+
+    Trois mouvements, et pas un de plus :
+    · elle revient (≥ seuil) → la marque se lève, et la Maison s'en souvient ;
+    · elle retombe (< seuil) ET l'a déjà portée → la marque revient ;
+    · elle la porte sans souvenir → on note le souvenir, sans rien changer.
+
+    Une tête qui n'a JAMAIS été de passage n'est jamais marquée par cette
+    machine : c'est ce qui protège les nouvelles inscrites et les fidèles dont
+    le carnet aurait mal chargé. */
+export function mouvementsDePassage(
+  clients: readonly TetePassage[],
+  venuesDe: (id: string) => number,
+  seuil: number = VENUES_POUR_REVENIR,
+): { promues: Set<string>; rendues: Set<string>; aMemoriser: Set<string> } {
+  const promues = new Set<string>();
+  const rendues = new Set<string>();
+  const aMemoriser = new Set<string>();
+  for (const c of clients) {
+    const venues = venuesDe(c.id);
+    if (estDePassage(c)) {
+      if (venues >= seuil) promues.add(c.id);
+      else if (!c.futDePassage) aMemoriser.add(c.id);
+    } else if (c.futDePassage && venues < seuil) {
+      rendues.add(c.id);
+    }
+  }
+  return { promues, rendues, aMemoriser };
+}
+
 /* ---------- Les clientes de passage ----------
    Un seul prédicat pour toute la Maison. Chaque écran qui compte des TÊTES
    (têtes couronnées, têtes actives, nouvelles du mois, audience d'une relance)
@@ -421,6 +469,7 @@ export function clienteDePassage(input: {
     priceCoef: 1,
     loyaltyPoints: 0,
     dePassage: true,
+    futDePassage: true,
   };
 }
 
