@@ -41,6 +41,39 @@ pas une créance — personne ne l'encaissera.
 Un blocage dur ferait contourner la caisse, et la trace se perdrait — ce qu'on
 cherche justement à éviter.
 
+### L'onglet Compte refait le jour même, et pourquoi
+
+La première version ouvrait sur trois cartouches et le relevé complet. Verdict
+de Yéman, quelques heures après la mise en ligne : « je ne comprends rien au
+compte crédit, c'est juste comme un relevé ». **Le reproche était juste** : un
+relevé dit ce qui s'est PASSÉ, il ne dit pas quoi FAIRE, et il laissait faire
+l'addition de tête. Tout était là, rien ne répondait.
+
+L'ordre a donc été renversé, et c'est la leçon à retenir pour les prochains
+écrans d'argent :
+
+1. **La phrase d'abord.** « Faith doit 45 000 F à la Maison. Depuis 62 jours,
+   sa Reprise du 25 juin, jamais soldée. » Puis les deux gestes : Encaisser,
+   Relancer sur WhatsApp.
+2. **Ce qui reste dû seulement** (`lignesImpayees`), une livraison par ligne, la
+   plus vieille d'abord, avec l'âge en pastille (sable / cuivre / brique aux
+   seuils 30 et 60 jours) et ce qui a déjà été versé dessus.
+3. **La question du crédit**, puis le relevé entier REPLIÉ — il ne sert qu'à
+   vérifier un versement, ce n'est pas une lecture d'ouverture.
+
+**LE MOT « PLAFOND » A QUITTÉ L'ERP** (pour le crédit ; il reste légitime sur
+les calibres et les RDV par jour). Il ne veut rien dire le tiroir à la main. À
+sa place, la question qu'on se pose au comptoir : *« Faith peut partir sans
+payer ? » → Non, règlement avant de partir / Oui, jusqu'à ___*. Le montant
+n'apparaît qu'après un oui, et la conséquence s'écrit dessous en clair, jauge
+comprise : « il lui reste 5 000 F avant que la Maison vous prévienne ».
+
+**Les phrases portent le PRÉNOM, pas un pronom** : la Maison reçoit aussi des
+hommes, et « peut-elle » se trompait une fois sur vingt.
+
+L'alerte d'encaissement dit désormais la conséquence, pas la règle : « Faith
+dépasserait de 10 000 F ce que vous l'autorisez à devoir. »
+
 ## Journal des appels — 25 août, PUBLIÉ
 
 Suivre les appels des clientes (elles appellent pour un RDV, on oublie après avoir

@@ -143,7 +143,9 @@ export default function Creances() {
                   <div style={{ fontWeight: 500 }}>{nomDe(c.clientId)}</div>
                   <div style={{ fontSize: 12, color: chaude ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
                     impayé depuis <b style={{ fontWeight: 600 }}>{c.depuisJours} jours</b>
-                    {tete?.plafondCreditXof ? ` · plafond ${fmtMoney(tete.plafondCreditXof, currency)}` : ''}
+                    {/* Le mot « plafond » a quitté l'ERP le 26 août : au comptoir
+                        on dit ce qu'on autorise, pas le nom de la borne. */}
+                    {tete?.plafondCreditXof ? ` · autorisée jusqu’à ${fmtMoney(tete.plafondCreditXof, currency)}` : ''}
                   </div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', whiteSpace: 'nowrap' }}>

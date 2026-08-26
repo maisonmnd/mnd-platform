@@ -7,7 +7,7 @@
    première chose qu'on éprouve ici. */
 import {
   ecrituresDuCompte, soldeDuCompte, creancesDeLaMaison, trancheDe, peutPartirDevant,
-  duDeLaTete, duDuCompte, tetesDuCompte,
+  duDeLaTete, duDuCompte, tetesDuCompte, lignesImpayees,
 } from '../src/shared/compte';
 import type { Appointment } from '../src/shared/agenda';
 import type { Invoice, CreditMovement } from '../src/shared/finance';
@@ -58,6 +58,26 @@ const fLibre: Invoice = { ...fLiee, id: 'inv-libre', number: 'F-10', date: '2026
   lines: [{ id: 'l2', label: 'Gamme', qty: 1, unitXof: 5_000, discountPct: 0 }] } as Invoice;
 const e3 = ecrituresDuCompte({ ids: ['c1'], appts: [a2], invoices: [fLiee, fLibre], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
 dit('une facture libre entre au débit', 45_000, e3.reduce((s, e) => s + e.debitXof, 0));
+
+/* ── ②bis CE QUI RESTE DÛ, LIGNE PAR LIGNE ─────────────────────────
+   La seconde lecture du même relevé : seulement les livraisons non soldées, la
+   plus vieille d'abord, chacune sachant ce qui a déjà été versé dessus. */
+const aPartiel = rdv({ id: 'ap', date: '2026-06-25', netTest: 40_000, duTest: 30_000,
+  payments: [{ id: 'vv', amountXof: 10_000, date: '2026-07-28', method: 'Momopay' }] } as never);
+const aSolde = rdv({ id: 'as', date: '2026-08-18', netTest: 20_000, duTest: 0,
+  payments: [{ id: 'vs', amountXof: 20_000, date: '2026-08-18', method: 'Espèces' }] } as never);
+const aRecent = rdv({ id: 'ar', date: '2026-08-02', netTest: 15_000, duTest: 15_000 } as never);
+const impayes = lignesImpayees(ecrituresDuCompte({
+  ids: ['c1'], appts: [aSolde, aRecent, aPartiel], invoices: [], credits: [],
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+}));
+dit('seules les livraisons NON soldées entrent', ['ap', 'ar'], impayes.map((l) => l.refId));
+dit('… la plus vieille d’abord, c’est elle qui presse', '2026-06-25', impayes[0].date);
+dit('… elle sait ce qui a déjà été versé dessus', 10_000, impayes[0].verseXof);
+dit('… et ce qu’il reste', 30_000, impayes[0].resteXof);
+dit('… l’âge est celui de la LIVRAISON', 62, impayes[0].depuisJours);
+dit('un rituel soldé ne laisse aucune ligne', false, impayes.some((l) => l.refId === 'as'));
+dit('le total dû égale la somme des lignes', 45_000, impayes.reduce((s, l) => s + l.resteXof, 0));
 
 /* ── ③ L'ÂGE DE LA CRÉANCE ─────────────────────────────────────────
    La date qui fait foi est celle du rituel, jamais celle d'une relance. */

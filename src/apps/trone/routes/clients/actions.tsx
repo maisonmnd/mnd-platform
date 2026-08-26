@@ -575,6 +575,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const duAilleurs = Math.max(0, duDuCompte(tousLesRdv, tetesDuFoyer, (a) => apptDueXof(a, byId)) - due);
   const verdict = peutPartirDevant(payerClient?.plafondCreditXof, duAilleurs, remainingAfter);
   const alerteCredit = remainingAfter > 0 && !verdict.autorise;
+  /* Le prénom plutôt qu'un pronom : la Maison reçoit aussi des hommes. */
+  const prenomPayeur = (payerClient?.name || '').trim().split(/\s+/)[0] || 'Cette tête';
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
   const [settings] = useSettings();
@@ -1406,18 +1408,26 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             borderRadius: 3, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.6,
             background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
           }}>
+            {/* LA PHRASE DIT LA CONSÉQUENCE, PAS LA RÈGLE. Le mot « plafond »
+                a quitté l'ERP le 26 août : il ne veut rien dire le tiroir à la
+                main. Ici comme sur la fiche, la Maison dit ce qui se passe. */}
             {verdict.plafond === 0 ? (
               <>
-                <b style={{ fontWeight: 600 }}>Aucun plafond de crédit sur ce compte.</b>{' '}
-                {payerClient?.name ? `${payerClient.name.split(' ')[0]} règle avant de partir.` : 'Elle règle avant de partir.'}
-                {duAilleurs > 0 && ` Elle doit déjà ${fmtMoney(duAilleurs, currency)} par ailleurs.`}
-                {' '}Le crédit se pose nommément, onglet Compte de sa fiche.
+                <b style={{ fontWeight: 600 }}>
+                  {prenomPayeur} n’est pas autorisé{' '}à partir sans payer.
+                </b>{' '}
+                {duAilleurs > 0
+                  ? `${fmtMoney(duAilleurs, currency)} sont déjà dus par ailleurs, et ${fmtMoney(remainingAfter, currency)} s’y ajouteraient.`
+                  : `${fmtMoney(remainingAfter, currency)} resteraient dus.`}
+                {' '}Pour l’autoriser, répondez à la question du crédit dans l’onglet Compte de sa fiche.
               </>
             ) : (
               <>
-                <b style={{ fontWeight: 600 }}>Plafond dépassé de {fmtMoney(verdict.depassementXof, currency)}.</b>{' '}
-                Elle partirait en devant {fmtMoney(verdict.apres, currency)} pour un plafond de {fmtMoney(verdict.plafond, currency)}
-                {duAilleurs > 0 ? ` (dont ${fmtMoney(duAilleurs, currency)} déjà dus)` : ''}.
+                <b style={{ fontWeight: 600 }}>
+                  {prenomPayeur} dépasserait de {fmtMoney(verdict.depassementXof, currency)} ce que vous l’autorisez à devoir.
+                </b>{' '}
+                Départ en devant {fmtMoney(verdict.apres, currency)}, pour une autorisation de {fmtMoney(verdict.plafond, currency)}
+                {duAilleurs > 0 ? `, dont ${fmtMoney(duAilleurs, currency)} déjà dus` : ''}.
               </>
             )}
           </div>

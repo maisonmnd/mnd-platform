@@ -2162,3 +2162,39 @@
   font: inherit; font-size: 11px; color: var(--copper-700); text-decoration: underline;
 }
 .trc-note__geste:hover { color: var(--color-brique, #96412E); }
+
+/* ── LE COMPTE D'UNE TÊTE — 26 août ──────────────────────────────────
+   Deux lectures d'un même relevé. « Ce qui reste dû » porte le geste :
+   la date, la prestation, l'âge, le montant, et le bouton qui encaisse.
+   Sur petit écran la ligne se replie sans jamais pousser la page de côté. */
+.trc-compte__du {
+  display: grid;
+  grid-template-columns: 74px 1fr auto auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+}
+.trc-compte__rel {
+  display: grid;
+  grid-template-columns: 74px 1fr auto auto;
+  gap: 14px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .trc-compte__du {
+    grid-template-columns: 1fr auto;
+    row-gap: 7px;
+    padding: 15px 0;
+  }
+  /* La date et l'âge prennent leur propre rang : le montant reste collé à la
+     prestation, qui est le couple qu'on lit. */
+  .trc-compte__du > :nth-child(1) { grid-column: 1 / -1; }
+  .trc-compte__du > :nth-child(3) { grid-column: 1; justify-self: start; }
+  .trc-compte__du > :nth-child(5) { grid-column: 2; justify-self: end; }
+  .trc-compte__rel { grid-template-columns: 62px 1fr auto; }
+  .trc-compte__rel > :nth-child(4) { display: none; }
+}

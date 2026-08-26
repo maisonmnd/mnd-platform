@@ -154,6 +154,47 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
 export const soldeDuCompte = (ecritures: readonly EcritureCompte[]): number =>
   ecritures.reduce((s, e) => s + e.creditXof - e.debitXof, 0);
 
+/* ── CE QUI RESTE DÛ, LIGNE PAR LIGNE (26 août) ───────────────────────
+   Le relevé complet répond à « que s'est-il passé ». Il ne répond pas à
+   « qu'est-ce que je fais maintenant » : il faut le lire, trier les versements
+   des prestations, et additionner de tête. C'est ce reproche-là qui a fait
+   refaire l'écran.
+
+   Cette liste ne garde que les livraisons NON SOLDÉES, chacune avec son âge et
+   ce qui a déjà été versé dessus — de quoi encaisser ou relancer sans lire une
+   seule autre ligne. Elle se dérive du même relevé : deux lectures d'une seule
+   vérité, jamais deux calculs. */
+
+export type LigneImpayee = {
+  /** L'identifiant du rituel ou de la facture — pour rouvrir l'encaissement. */
+  refId: string;
+  kind: 'rituel' | 'facture';
+  date: string;
+  libelle: string;
+  totalXof: number;
+  verseXof: number;
+  resteXof: number;
+  depuisJours: number;
+};
+
+/** Les livraisons non soldées, la plus vieille d'abord : c'est elle qui presse. */
+export function lignesImpayees(ecritures: readonly EcritureCompte[]): LigneImpayee[] {
+  return ecritures
+    .filter((e) => (e.impayeXof ?? 0) > 0 && (e.source === 'rituel' || e.source === 'facture'))
+    .map((e) => ({
+      /* `r-<id>` / `f-<id>` : on rend l'identifiant nu à l'appelant. */
+      refId: e.id.slice(2),
+      kind: e.source === 'rituel' ? ('rituel' as const) : ('facture' as const),
+      date: e.date,
+      libelle: e.libelle,
+      totalXof: e.debitXof,
+      verseXof: Math.max(0, e.debitXof - (e.impayeXof ?? 0)),
+      resteXof: e.impayeXof ?? 0,
+      depuisJours: e.impayeDepuisJours ?? 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export type Creance = {
   clientId: string;
   duXof: number;

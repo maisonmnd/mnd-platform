@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { asset } from '../../../../shared/asset';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
@@ -42,7 +42,7 @@ import {
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
-import { ecrituresDuCompte, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
+import { ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
@@ -1310,13 +1310,36 @@ const C360_TABS: { k: C360Tab; l: string }[] = [
   { k: 'docs', l: 'Documents' },
 ];
 
-/* ── LE RELEVÉ D'UNE TÊTE ────────────────────────────────────────────
-   Rien n'est stocké : tout se dérive (voir `shared/compte.ts`). Le solde court
-   ligne à ligne, comme un relevé de banque — c'est la seule lecture qui répond
-   à « où on en est » sans faire d'addition de tête. */
+/* ── LE COMPTE D'UNE TÊTE ────────────────────────────────────────────
+   REFAIT LE 26 AOÛT, sur un reproche juste de Yéman : « je ne comprends rien
+   au compte crédit, c'est juste comme un relevé ». C'était exact. Un relevé dit
+   ce qui s'est PASSÉ ; il ne dit pas quoi FAIRE, et il laissait faire l'addition
+   de tête. La première version ouvrait sur trois cartouches et le va-et-vient
+   complet : tout était là, rien ne répondait.
+
+   L'ordre est donc renversé. LA PHRASE D'ABORD — « elle doit 45 000 F, depuis
+   62 jours » — puis les seules livraisons NON soldées, puis la question du
+   crédit, puis, replié, le relevé entier pour le jour où l'on vérifie un
+   versement. Rien n'est stocké, tout se dérive de `shared/compte.ts`.
+
+   LE MOT « PLAFOND » A DISPARU. Il ne veut rien dire au comptoir ; la question
+   qu'on s'y pose est « peut-elle partir sans payer ? ». Le montant ne s'affiche
+   qu'après un oui, et la conséquence s'écrit dessous en clair. */
+
+const AGE_STYLE = (j: number): { bg: string; fg: string; bord: string } => (
+  j >= 60 ? { bg: '#F7E4E0', fg: 'var(--color-brique, #96412E)', bord: '#E0B3A9' }
+    : j >= 30 ? { bg: 'var(--copper-50)', fg: 'var(--copper-700)', bord: 'var(--copper-300)' }
+      : { bg: 'var(--color-sable)', fg: 'var(--ink-soft)', bord: 'transparent' }
+);
+
 function PanneauCompte({
-  client, appts, byId,
-}: { client: Client; appts: Appointment[]; byId: ReturnType<typeof useServicesById> }) {
+  client, appts, byId, onEncaisser,
+}: {
+  client: Client;
+  appts: Appointment[];
+  byId: ReturnType<typeof useServicesById>;
+  onEncaisser: (a: Appointment) => void;
+}) {
   const { currency } = useBranch();
   const [invoices] = useInvoices();
   const [credits] = useCredits();
@@ -1332,116 +1355,266 @@ function PanneauCompte({
   }), [ids, appts, invoices, credits, aujourdhui, byId]);
 
   const solde = soldeDuCompte(ecritures);
-  const doit = solde < 0;
+  const impayes = useMemo(() => lignesImpayees(ecritures), [ecritures]);
+  const totalDu = impayes.reduce((s, l) => s + l.resteXof, 0);
+  const doit = totalDu > 0;
+  const plusVieille = impayes[0];
+  const prenom = (client.name || '').trim().split(/\s+/)[0] || 'Elle';
+
+  /* LE CRÉDIT, POSÉ COMME UNE QUESTION. L'état « oui » n'existe que si un
+     montant est écrit : un oui sans montant n'autorise rien de mesurable, et
+     laisserait croire à un crédit illimité. */
   const plafond = client.plafondCreditXof;
+  const [ditOui, setDitOui] = useState<boolean>(!!plafond);
+  const [brouillon, setBrouillon] = useState(plafond ? String(plafond) : '');
+  useEffect(() => { setDitOui(!!plafond); setBrouillon(plafond ? String(plafond) : ''); }, [client.id, plafond]);
 
-  const [editePlafond, setEditePlafond] = useState(false);
-  const [brouillon, setBrouillon] = useState('');
-  const poserLePlafond = () => {
-    const n = Math.max(0, Math.round(Number(brouillon) || 0));
+  const poserLeCredit = (oui: boolean, montant: string) => {
+    const n = oui ? Math.max(0, Math.round(Number(montant) || 0)) : 0;
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id
-      ? { ...c, ...(n > 0 ? { plafondCreditXof: n } : { plafondCreditXof: undefined }) }
-      : c)));
-    setEditePlafond(false);
-    toast(n > 0 ? `Plafond posé à ${fmtMoney(n, currency)}.` : 'Plafond retiré : elle règle avant de partir.');
+      ? { ...c, plafondCreditXof: n > 0 ? n : undefined } : c)));
   };
-  const impayes = ecritures.filter((e) => (e.impayeXof ?? 0) > 0);
-  const plusVieux = impayes.reduce((m, e) => Math.max(m, e.impayeDepuisJours ?? 0), 0);
+  const repondNon = () => {
+    setDitOui(false); setBrouillon('');
+    poserLeCredit(false, '');
+    toast(`${prenom} règle désormais avant de partir.`);
+  };
+  const enregistreMontant = () => {
+    const n = Math.max(0, Math.round(Number(brouillon) || 0));
+    poserLeCredit(true, brouillon);
+    if (n > 0) toast(`${prenom} peut partir en devant jusqu’à ${fmtMoney(n, currency)}.`);
+  };
 
-  /* Le solde court : chaque ligne porte l'état du compte APRÈS elle. */
+  const autorise = plafond ?? 0;
+  const marge = Math.max(0, autorise - totalDu);
+  const partPrise = autorise > 0 ? Math.min(100, Math.round((totalDu / autorise) * 100)) : 0;
+
+  /* Le relevé entier : replié, car il ne sert qu'à vérifier. Le solde court
+     ligne à ligne, chaque ligne portant l'état du compte APRÈS elle. */
+  const [releveOuvert, setReleveOuvert] = useState(false);
   let courant = 0;
-  const lignes = ecritures.map((e) => {
+  const releve = ecritures.map((e) => {
     courant += e.creditXof - e.debitXof;
     return { e, apres: courant };
   }).reverse();
 
+  const rituelDe = (refId: string) => appts.find((a) => a.id === refId);
+
   return (
     <div className="mnd-rise">
-      <div className="tr-grid tr-grid--3" style={{ marginBottom: 16 }}>
-        <div className="mnd-card" style={{ padding: '14px 16px' }}>
-          <div className="mnd-stat__label">{doit ? 'Elle doit à la Maison' : 'La Maison lui doit'}</div>
-          <div className="mnd-stat__value" style={{ fontSize: 26, color: doit ? 'var(--color-brique, #96412E)' : 'var(--color-indigo)' }}>
-            {fmtMoney(Math.abs(solde), currency)}
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 4 }}>
-            {solde === 0 ? 'compte soldé' : ids.length > 1 ? `compte du foyer · ${ids.length} têtes` : 'compte personnel'}
-          </div>
-        </div>
-        <div className="mnd-card" style={{ padding: '14px 16px' }}>
-          <div className="mnd-stat__label">Plus vieil impayé</div>
-          <div className="mnd-stat__value" style={{ fontSize: 26 }}>{plusVieux > 0 ? `${plusVieux} j` : '—'}</div>
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 4 }}>
-            {impayes.length > 0 ? `${impayes.length} ligne${impayes.length > 1 ? 's' : ''} non soldée${impayes.length > 1 ? 's' : ''}` : 'rien ne traîne'}
-          </div>
-        </div>
-        {/* LE PLAFOND s'accorde nommément — l'absence de plafond n'autorise
-            RIEN, et c'est le bon défaut : le crédit se donne, il ne se suppose
-            pas. Il s'édite ici, contre le relevé qui le justifie. */}
-        <div className="mnd-card" style={{ padding: '14px 16px' }}>
-          <div className="mnd-stat__label">Plafond de crédit</div>
-          {editePlafond ? (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
-              <Input
-                type="number" min={0} step={1000} autoFocus value={brouillon}
-                onChange={(e) => setBrouillon(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') poserLePlafond(); if (e.key === 'Escape') setEditePlafond(false); }}
-                style={{ maxWidth: 130 }} aria-label="Plafond de crédit en XOF"
-              />
-              <Button size="sm" onClick={poserLePlafond}>Poser</Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setBrouillon(plafond ? String(plafond) : ''); setEditePlafond(true); }}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
-            >
-              <div className="mnd-stat__value" style={{ fontSize: 26 }}>{plafond ? fmtMoney(plafond, currency) : 'Aucun'}</div>
-            </button>
-          )}
-          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 4 }}>
-            {editePlafond ? 'vider le champ retire le crédit' : plafond ? 'elle peut partir en devant, jusque-là' : 'elle règle avant de partir'}
-          </div>
-        </div>
-      </div>
 
-      {lignes.length === 0 ? (
-        <div className="mnd-muted" style={{ fontSize: 13, border: '1px dashed var(--hairline)', borderRadius: 4, padding: '18px 20px' }}>
-          Aucun mouvement : le compte s’ouvrira au premier rituel honoré.
-        </div>
-      ) : (
-        <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
-          {lignes.map(({ e, apres }) => (
-            <div
-              key={e.id}
+      {/* ① LA PHRASE — la réponse avant toute lecture. */}
+      <div style={{ paddingBottom: doit ? 20 : 6, borderBottom: doit ? '1px solid var(--hairline)' : 'none' }}>
+        <p style={{
+          fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 32, lineHeight: 1.18,
+          margin: '0 0 6px', textWrap: 'balance',
+        }}>
+          {doit ? (
+            <>{prenom} doit <span style={{ color: 'var(--color-brique, #96412E)' }}>{fmtMoney(totalDu, currency)}</span> à la Maison.</>
+          ) : solde > 0 ? (
+            <>La Maison doit <span style={{ color: 'var(--color-indigo)' }}>{fmtMoney(solde, currency)}</span> à {prenom}.</>
+          ) : (
+            <><span style={{ color: 'var(--color-vert, #2E6B4F)' }}>{prenom} ne doit rien</span> à la Maison.</>
+          )}
+        </p>
+        <p className="mnd-muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>
+          {doit && plusVieille ? (
+            <>Depuis <b style={{ fontWeight: 500, color: 'var(--ink)' }}>{plusVieille.depuisJours} jours</b>
+              {' · '}{plusVieille.libelle.replace(/^Rituel · /, '')} du {frShort(plusVieille.date)}, jamais soldé.</>
+          ) : solde > 0 ? 'un avoir dort sur son compte, il se consommera au prochain rituel'
+            : 'tout est réglé'}
+          {ids.length > 1 && ` · compte du foyer, ${ids.length} têtes`}
+        </p>
+        {doit && (
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+            {plusVieille && rituelDe(plusVieille.refId) && (
+              <Button variant="copper" size="sm" onClick={() => onEncaisser(rituelDe(plusVieille.refId)!)}>Encaisser</Button>
+            )}
+            <WaLien
+              phone={client.phone}
+              message={`Bonjour ${prenom}, la Maison MND revient vers vous : il reste ${fmtMoney(totalDu, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
               style={{
-                display: 'grid', gridTemplateColumns: '86px 1fr auto auto', gap: 12, alignItems: 'baseline',
-                padding: '11px 14px', borderTop: '1px solid var(--hairline)', fontSize: 13,
+                fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500, letterSpacing: '.04em',
+                padding: '9px 17px', borderRadius: 3, border: '1px solid var(--copper-600)',
+                color: 'var(--copper-700)', textDecoration: 'none',
               }}
             >
-              <span className="mnd-muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{frShort(e.date)}</span>
-              <span style={{ minWidth: 0 }}>
-                {e.libelle}
-                {e.detail && <span className="mnd-muted" style={{ fontSize: 11.5 }}> · {e.detail}</span>}
-                {(e.impayeXof ?? 0) > 0 && (
-                  <span style={{ fontSize: 11.5, color: 'var(--color-brique, #96412E)' }}>
-                    {' · '}reste {fmtMoney(e.impayeXof!, currency)} depuis {e.impayeDepuisJours} j
+              Relancer sur WhatsApp
+            </WaLien>
+          </div>
+        )}
+      </div>
+
+      {/* ② CE QUI RESTE DÛ — une livraison par ligne, la plus vieille d'abord. */}
+      {doit && (
+        <div style={{ marginTop: 22 }}>
+          <span className="trc-microlabel">Ce qui reste dû</span>
+          <div style={{ marginTop: 4 }}>
+            {impayes.map((l, i) => {
+              const age = AGE_STYLE(l.depuisJours);
+              const rdv = rituelDe(l.refId);
+              return (
+                <div
+                  key={`${l.kind}-${l.refId}`}
+                  className="trc-compte__du"
+                  style={{ borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+                >
+                  <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.03em' }}>{frShort(l.date)}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: 14 }}>{l.libelle.replace(/^Rituel · /, '')}</span><br />
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>
+                      {l.verseXof > 0
+                        ? `${fmtMoney(l.verseXof, currency)} déjà versés sur ${fmtMoney(l.totalXof, currency)}`
+                        : 'rien versé'}
+                    </span>
                   </span>
-                )}
-              </span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: e.debitXof > 0 ? 'var(--ink)' : 'var(--color-vert, #2E6B4F)' }}>
-                {e.debitXof > 0 ? `− ${fmtMoney(e.debitXof, currency)}` : `+ ${fmtMoney(e.creditXof, currency)}`}
-              </span>
-              <span className="mnd-muted" style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontSize: 11.5 }}>
-                {fmtMoney(apres, currency)}
+                  <span style={{
+                    fontSize: 11, letterSpacing: '.05em', textTransform: 'uppercase', fontWeight: 500,
+                    padding: '4px 9px', borderRadius: 999, whiteSpace: 'nowrap',
+                    background: age.bg, color: age.fg, border: `1px solid ${age.bord}`,
+                  }}>
+                    {l.depuisJours} jour{l.depuisJours > 1 ? 's' : ''}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-serif)', fontSize: 20, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                  }}>
+                    {fmtMoney(l.resteXof, currency)}
+                  </span>
+                  {rdv
+                    ? <Button variant="ghost" size="sm" onClick={() => onEncaisser(rdv)}>Encaisser</Button>
+                    : <span className="mnd-muted" style={{ fontSize: 11.5 }}>facture</span>}
+                </div>
+              );
+            })}
+          </div>
+          {impayes.length > 1 && (
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+              paddingTop: 12, marginTop: 4, borderTop: '2px solid var(--ink)',
+            }}>
+              <span className="trc-microlabel" style={{ margin: 0 }}>Total dû</span>
+              <span style={{
+                fontFamily: 'var(--font-serif)', fontSize: 25, color: 'var(--color-brique, #96412E)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {fmtMoney(totalDu, currency)}
               </span>
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>
-        Le solde ne se stocke pas, il se recalcule : un chiffre écrit à côté de ses écritures finit toujours par les
-        contredire. Une facture attachée à un rituel ne redit pas la dette, le rituel fait foi.
+      {/* ③ LA QUESTION DU CRÉDIT — telle qu'elle se pose au comptoir. */}
+      <div
+        style={{
+          marginTop: 24, padding: '18px 20px', borderRadius: 3,
+          border: `1px solid ${ditOui ? 'var(--copper-300)' : 'var(--hairline)'}`,
+          background: ditOui ? 'var(--copper-50)' : 'rgba(255,255,255,.5)',
+        }}
+      >
+        {/* La question porte le PRÉNOM, pas un pronom : la Maison reçoit aussi
+            des hommes, et « peut-elle » se trompait une fois sur vingt. */}
+        <p style={{ fontFamily: 'var(--font-serif)', fontSize: 21, fontWeight: 300, margin: '0 0 12px' }}>
+          {prenom} peut partir sans payer ?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+            <input
+              type="radio" name={`credit-${client.id}`} checked={!ditOui} onChange={repondNon}
+              style={{ accentColor: 'var(--copper-600)', width: 15, height: 15 }}
+            />
+            Non, règlement avant de partir
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer', flexWrap: 'wrap' }}>
+            <input
+              type="radio" name={`credit-${client.id}`} checked={ditOui}
+              onChange={() => setDitOui(true)}
+              style={{ accentColor: 'var(--copper-600)', width: 15, height: 15 }}
+            />
+            Oui, jusqu’à
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Input
+                type="number" min={0} step={1000} value={brouillon}
+                onChange={(e) => { setDitOui(true); setBrouillon(e.target.value); }}
+                onBlur={() => ditOui && enregistreMontant()}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enregistreMontant(); } }}
+                placeholder="—"
+                aria-label={`Montant que ${prenom} peut devoir`}
+                style={{ maxWidth: 108, textAlign: 'right' }}
+              />
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{currency}</span>
+            </span>
+          </label>
+        </div>
+
+        {/* La conséquence, en clair — c'est elle qui rend la réponse utile. */}
+        <div style={{ marginTop: 14, paddingTop: 13, borderTop: '1px solid var(--hairline)', fontSize: 13, lineHeight: 1.65 }}>
+          {autorise > 0 ? (
+            <>
+              <div style={{ height: 5, borderRadius: 999, background: 'var(--color-sable)', overflow: 'hidden', margin: '0 0 9px' }}>
+                <i style={{
+                  display: 'block', height: '100%', width: `${partPrise}%`,
+                  background: marge === 0 ? 'var(--color-brique, #96412E)' : 'var(--copper-600)',
+                }} />
+              </div>
+              {totalDu === 0
+                ? <>{prenom} ne doit rien : jusqu’à <b style={{ fontWeight: 500 }}>{fmtMoney(autorise, currency)}</b> peuvent partir sans être réglés.</>
+                : marge > 0
+                  ? <>{prenom} doit déjà <b style={{ fontWeight: 500 }}>{fmtMoney(totalDu, currency)}</b>. Il lui reste <b style={{ fontWeight: 500 }}>{fmtMoney(marge, currency)}</b> avant que la Maison vous prévienne au comptoir.</>
+                  : <>{prenom} doit déjà <b style={{ fontWeight: 500, color: 'var(--color-brique, #96412E)' }}>{fmtMoney(totalDu, currency)}</b> : la marge est épuisée. La Maison vous préviendra au prochain encaissement partiel.</>}
+            </>
+          ) : (
+            <span className="mnd-muted">
+              Aucun crédit accordé. Si vous encaissez un rituel partiellement, la Maison vous le signalera au comptoir.
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ④ LE RELEVÉ ENTIER, REPLIÉ — il ne sert qu'à vérifier un versement. */}
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--hairline)' }}>
+        <button
+          type="button"
+          onClick={() => setReleveOuvert((v) => !v)}
+          style={{
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500,
+            letterSpacing: '.04em', color: 'var(--copper-700)',
+          }}
+        >
+          {releveOuvert ? '▾' : '▸'} Tout le compte · {releve.length} mouvement{releve.length > 1 ? 's' : ''}
+        </button>
+
+        {releveOuvert && (releve.length === 0 ? (
+          <div className="mnd-muted" style={{ fontSize: 13, marginTop: 12 }}>
+            Aucun mouvement : le compte s’ouvrira au premier rituel honoré.
+          </div>
+        ) : (
+          <div style={{ marginTop: 12 }}>
+            {releve.map(({ e, apres }) => (
+              <div key={e.id} className="trc-compte__rel">
+                <span className="mnd-muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{frShort(e.date)}</span>
+                <span style={{ minWidth: 0 }}>
+                  {e.libelle}
+                  {e.detail && <span className="mnd-muted" style={{ fontSize: 11.5 }}> · {e.detail}</span>}
+                </span>
+                <span style={{
+                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                  color: e.debitXof > 0 ? 'var(--ink)' : 'var(--color-vert, #2E6B4F)',
+                }}>
+                  {e.debitXof > 0 ? `− ${fmtMoney(e.debitXof, currency)}` : `+ ${fmtMoney(e.creditXof, currency)}`}
+                </span>
+                <span className="mnd-muted" style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontSize: 11.5 }}>
+                  {fmtMoney(apres, currency)}
+                </span>
+              </div>
+            ))}
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>
+              Le solde ne se stocke pas, il se recalcule : un chiffre écrit à côté de ses écritures finit toujours par
+              les contredire. Une facture attachée à un rituel ne redit pas la dette, le rituel fait foi.
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -2492,7 +2665,7 @@ function Customer360({
         </>
         )}
 
-        {tab === 'compte' && <PanneauCompte client={client} appts={appts} byId={byId} />}
+        {tab === 'compte' && <PanneauCompte client={client} appts={appts} byId={byId} onEncaisser={setPayAppt} />}
 
         {tab === 'parcours' && (
         <>
