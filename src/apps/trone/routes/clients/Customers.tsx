@@ -1100,7 +1100,7 @@ export default function Customers() {
             <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} onClick={() => setSelId(c.id)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <span className="trc-avatarwrap">
-                  <Avatar client={c} size={36} />
+                  <Avatar client={c} size={36} ouvrable />
                   {online && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
                 </span>
                 <span style={{ minWidth: 0 }}>
@@ -1731,7 +1731,7 @@ function Customer360({
             {/* La photo s'ajoute et se change ici même : un clic sur le portrait
                 ouvre le sélecteur de fichier. Le badge appareil le signale. */}
             <label className="trc-avatar-edit" title={photoBusy ? 'Traitement…' : client.photo ? 'Changer la photo' : 'Ajouter une photo'}>
-              <Avatar client={client} size={64} />
+              <Avatar client={client} size={64} ouvrable />
               <span className="trc-avatar-edit__badge" aria-hidden>{photoBusy ? '…' : <Camera size={12} strokeWidth={1.6} aria-hidden />}</span>
               <input type="file" accept="image/*" style={{ display: 'none' }} disabled={photoBusy} onChange={(e) => void onPhoto(e.target.files?.[0])} />
             </label>

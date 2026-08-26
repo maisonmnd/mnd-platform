@@ -814,7 +814,15 @@ export async function readImageDownscaled(file: File, max = 512): Promise<string
   }
 }
 
-export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'photo'>; size?: number }) {
+export function Avatar({ client, size = 36, ouvrable = false }: {
+  client: Pick<Client, 'name' | 'photo'>;
+  size?: number;
+  /* OUVRIR LA PHOTO (26 août) — un visage en 36 pixels ne se reconnaît pas.
+     Opt-in : là où la ligne entière est cliquable (Carnet, Calendrier), on ne
+     détourne pas le geste sans le vouloir. */
+  ouvrable?: boolean;
+}) {
+  const [ouverte, setOuverte] = useState(false);
   const initials = client.name
     .split(' ')
     .map((w) => w[0])
@@ -822,7 +830,45 @@ export function Avatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'p
     .slice(0, 2)
     .join('');
   if (client.photo) {
-    return <img className="trc-avatar" src={client.photo} alt="" width={size} height={size} style={{ width: size, height: size }} />;
+    const photo = client.photo;
+    return (
+      <>
+        <img
+          className="trc-avatar"
+          src={photo}
+          alt={ouvrable ? `Photo de ${client.name}, agrandir` : ''}
+          width={size}
+          height={size}
+          style={{ width: size, height: size, cursor: ouvrable ? 'zoom-in' : undefined }}
+          onClick={ouvrable ? (e) => { e.stopPropagation(); setOuverte(true); } : undefined}
+        />
+        {ouverte && (
+          <div
+            role="dialog"
+            aria-label={`Photo de ${client.name}`}
+            onClick={(e) => { e.stopPropagation(); setOuverte(false); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 4000, background: 'rgba(20,20,27,.92)',
+              display: 'grid', placeItems: 'center', padding: 24, cursor: 'zoom-out',
+            }}
+          >
+            <img
+              src={photo}
+              alt={`Photo de ${client.name}`}
+              style={{ maxWidth: '92vw', maxHeight: '82vh', borderRadius: 4, boxShadow: '0 18px 60px rgba(0,0,0,.5)' }}
+            />
+            <div style={{
+              marginTop: 14, fontFamily: 'var(--font-serif)', fontSize: 20, color: '#EFEAE0', textAlign: 'center',
+            }}>
+              {client.name}
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#B9B5C6', marginTop: 4 }}>
+                toucher l’écran pour fermer
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
   return (
     <span className="trc-avatar" style={{ width: size, height: size, fontSize: size * 0.4 }}>
