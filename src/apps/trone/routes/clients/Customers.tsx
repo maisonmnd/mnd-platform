@@ -793,6 +793,37 @@ export default function Customers() {
   }, [clients, maisonClients, passageClients, tetesNouvelles, tetesAnniversaire, tetesEnLigne,
     focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre]);
 
+  /* ── LE GESTE GROUPÉ (26 août) ────────────────────────────────────
+     Quatorze têtes à remettre « de passage » après un ménage du carnet, c'est
+     quatorze fiches à ouvrir. On coche, et la Maison écrit une fois.
+
+     DEUX GARDES : le mode ne s'allume qu'à la demande (le registre se lit bien
+     plus souvent qu'il ne se coche), et l'écriture nomme ce qu'elle va faire,
+     sur combien de têtes, avant de le faire. */
+  const [selMode, setSelMode] = useState(false);
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const basculeSelection = (id: string) => setSelection((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const quitterSelection = () => { setSelMode(false); setSelection(new Set()); };
+  const marquerEnLot = (dePassage: boolean) => {
+    const ids = [...selection];
+    if (ids.length === 0) return;
+    const noms = clients.filter((c) => selection.has(c.id)).map((c) => c.name);
+    const apercu = noms.slice(0, 6).join(', ') + (noms.length > 6 ? `, et ${noms.length - 6} autre${noms.length - 6 > 1 ? 's' : ''}` : '');
+    const verbe = dePassage ? 'Marquer « de passage »' : 'Couronner';
+    if (!window.confirm(`${verbe} ${ids.length} tête${ids.length > 1 ? 's' : ''} ?\n\n${apercu}`)) return;
+    clientsStore.set((prev) => prev.map((c) => (selection.has(c.id)
+      /* Le témoin se pose dans les deux sens : la Maison retient qu'elles ont
+         porté la marque, et le geste inverse leur reste ouvert. */
+      ? { ...c, dePassage: dePassage ? true : undefined, futDePassage: true }
+      : c)));
+    toast(`${ids.length} tête${ids.length > 1 ? 's' : ''} ${dePassage ? 'remise' : 'couronnée'}${ids.length > 1 ? 's' : ''}.`);
+    quitterSelection();
+  };
+
   /* Les têtes par calibre, comptées UNE fois — l'en-tête de groupe le dit, et
      le recompter à chaque ligne coûterait un balayage complet par ligne. */
   const comptesParCalibre = useMemo(() => {
@@ -988,6 +1019,14 @@ export default function Customers() {
             <button type="button" className="trc-searchwrap__x" onClick={() => setQuery('')} aria-label="Effacer la recherche">×</button>
           )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => (selMode ? quitterSelection() : setSelMode(true))}
+          style={{ flex: 'none' }}
+        >
+          {selMode ? 'Quitter la sélection' : 'Sélectionner'}
+        </Button>
         <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 200, flex: 'none' }} aria-label="Trier les clientes">
           <option value="nom">Tri · Nom</option>
           <option value="modele">Tri · Modèle (calibre)</option>
@@ -997,6 +1036,38 @@ export default function Customers() {
           <option value="anniversaire">Tri · Anniversaire</option>
         </Select>
       </div>
+
+      {/* La barre du lot — elle ne paraît qu'en sélection, et dit toujours
+          combien de têtes elle tient : on n'écrit pas sur un nombre inconnu. */}
+      {selMode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          padding: '11px 14px', marginBottom: 14,
+          border: '1px solid var(--copper-300)', borderRadius: 3, background: 'var(--copper-50)',
+        }}>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+            {selection.size} tête{selection.size > 1 ? 's' : ''} choisie{selection.size > 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            className="trc-note__geste"
+            onClick={() => setSelection(new Set(filtered.map((c) => c.id)))}
+          >
+            Tout cocher ({filtered.length})
+          </button>
+          {selection.size > 0 && (
+            <button type="button" className="trc-note__geste" onClick={() => setSelection(new Set())}>Tout décocher</button>
+          )}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="ghost" size="sm" disabled={selection.size === 0} onClick={() => marquerEnLot(false)}>
+              Couronner
+            </Button>
+            <Button variant="copper" size="sm" disabled={selection.size === 0} onClick={() => marquerEnLot(true)}>
+              Marquer « de passage »
+            </Button>
+          </span>
+        </div>
+      )}
 
       {view === 'maison' && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -1097,8 +1168,24 @@ export default function Customers() {
                 </span>
               </div>
             )}
-            <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} onClick={() => setSelId(c.id)}>
+            <div
+              className="trc-sheet__row"
+              style={{ gridTemplateColumns: GRID, cursor: 'pointer', background: selection.has(c.id) ? 'var(--copper-50)' : undefined }}
+              onClick={() => (selMode ? basculeSelection(c.id) : setSelId(c.id))}
+            >
               <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                {/* EN LOT — la case ne paraît qu'en mode sélection : le registre
+                    se lit neuf fois sur dix, il ne se coche que rarement. */}
+                {selMode && (
+                  <input
+                    type="checkbox"
+                    checked={selection.has(c.id)}
+                    onChange={() => basculeSelection(c.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Sélectionner ${c.name}`}
+                    style={{ width: 17, height: 17, accentColor: 'var(--color-copper)', flex: 'none', cursor: 'pointer' }}
+                  />
+                )}
                 <span className="trc-avatarwrap">
                   <Avatar client={c} size={36} ouvrable />
                   {online && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
