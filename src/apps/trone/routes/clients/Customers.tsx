@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
@@ -13,7 +13,7 @@ import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/ac
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
-import { bandOf, useModelBands } from '../../../../shared/pricing';
+import { bandOf, bandRange, sortedBands, useModelBands } from '../../../../shared/pricing';
 import { envieLabel } from '../../../../shared/quiz';
 import {
   enAttente, nomPropose, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
@@ -53,7 +53,7 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
 
 const GRID = '2.1fr 1fr 0.95fr 0.9fr 0.5fr 96px 84px';
 
-type SortKey = 'nom' | 'visite' | 'depense' | 'points' | 'anniversaire';
+type SortKey = 'nom' | 'modele' | 'visite' | 'depense' | 'points' | 'anniversaire';
 
 /* LES INDICATEURS SONT DES PORTES. Ils annonçaient trois chiffres sans donner
    les noms qui les composent : « 3 anniversaires sous 30 j » n'aide personne si
@@ -538,6 +538,21 @@ export default function Customers() {
   const [query, setQuery] = useState('');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<SortKey>('nom');
+  /* LE MODÈLE RANGE LE CARNET (26 août) — le barème des calibres, pour trier et
+     regrouper les têtes par tranche de locks. Une tête sans comptage n'a pas de
+     calibre : elle se range à part, à la fin, plutôt que d'être rangée de force
+     dans une tranche qu'on ne lui a jamais mesurée. */
+  const [bandsCrm] = useModelBands();
+  const rangDuCalibre = useMemo(() => {
+    const m = new Map<string, number>();
+    sortedBands(bandsCrm).forEach((b, i) => m.set(b.id, i));
+    return m;
+  }, [bandsCrm]);
+  const calibreDeLaTete = (c: Client) => bandOf(c.lockCount, bandsCrm);
+  const groupeDeLaTete = (c: Client): string => {
+    const b = calibreDeLaTete(c);
+    return b ? (b.name?.trim() || bandRange(b, bandsCrm)) : 'Modèle non compté';
+  };
   const [focus, setFocus] = useState<Focus>('aucun');
   /* Un second clic sur la même carte referme — sinon il faudrait chercher par où
      revenir. Et les anniversaires se rangent d'office du plus proche au plus
@@ -751,6 +766,19 @@ export default function Customers() {
     const st = (id: string) => stats.get(id);
     const arr = [...list];
     if (sort === 'nom') arr.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    /* PAR MODÈLE — les calibres dans l'ordre du barème (du plus fin au plus
+       fourni), et dans chaque calibre le comptage décroissant, puis le nom. Les
+       têtes jamais comptées ferment la marche : elles n'ont pas de calibre, et
+       leur en inventer un fausserait le prix qu'on leur annonce. */
+    else if (sort === 'modele') {
+      const rang = (c: Client) => {
+        const b = calibreDeLaTete(c);
+        return b ? (rangDuCalibre.get(b.id) ?? 998) : 999;
+      };
+      arr.sort((a, b) => rang(a) - rang(b)
+        || (b.lockCount ?? 0) - (a.lockCount ?? 0)
+        || a.name.localeCompare(b.name, 'fr'));
+    }
     else if (sort === 'visite') arr.sort((a, b) => (st(b.id)?.lastISO ?? '').localeCompare(st(a.id)?.lastISO ?? ''));
     else if (sort === 'depense') arr.sort((a, b) => (st(b.id)?.spend ?? 0) - (st(a.id)?.spend ?? 0));
     else if (sort === 'points') arr.sort((a, b) => (b.loyaltyPoints ?? 0) - (a.loyaltyPoints ?? 0));
@@ -761,8 +789,22 @@ export default function Customers() {
         - (b.birthday ? bdayInfo(b.birthday).daysUntil : 9999));
     }
     return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, maisonClients, passageClients, tetesNouvelles, tetesAnniversaire, tetesEnLigne,
-    focus, seg, q, sort, stats, view]);
+    focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre]);
+
+  /* Les têtes par calibre, comptées UNE fois — l'en-tête de groupe le dit, et
+     le recompter à chaque ligne coûterait un balayage complet par ligne. */
+  const comptesParCalibre = useMemo(() => {
+    const m = new Map<string, number>();
+    if (sort !== 'modele') return m;
+    for (const c of filtered) {
+      const g = groupeDeLaTete(c);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sort, bandsCrm]);
 
   const selected = clients.find((c) => c.id === selId) ?? null;
 
@@ -948,6 +990,7 @@ export default function Customers() {
         </div>
         <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 200, flex: 'none' }} aria-label="Trier les clientes">
           <option value="nom">Tri · Nom</option>
+          <option value="modele">Tri · Modèle (calibre)</option>
           <option value="visite">Tri · Dernière visite</option>
           <option value="depense">Tri · Dépensé</option>
           <option value="points">Tri · Points</option>
@@ -1025,13 +1068,36 @@ export default function Customers() {
                   : 'Aucune tête couronnée sur ce segment.'}
           </div>
         )}
-        {filtered.map((c) => {
+        {filtered.map((c, i) => {
           const next = predictNext(c.id);
           const st = stats.get(c.id);
           const online = onlineIds.has(c.id);
           const bd = c.birthday ? bdayInfo(c.birthday) : null;
+          /* L'EN-TÊTE DE CALIBRE — seulement au tri par modèle, et seulement à
+             la première tête de chaque tranche : le carnet se lit alors par
+             groupes, chacun annoncé par son étendue et son compte. */
+          const grp = sort === 'modele' ? groupeDeLaTete(c) : null;
+          const ouvreGroupe = grp !== null && (i === 0 || groupeDeLaTete(filtered[i - 1]) !== grp);
+          const bandeDuGrp = ouvreGroupe ? calibreDeLaTete(c) : undefined;
+          const nDuGrp = ouvreGroupe && grp ? (comptesParCalibre.get(grp) ?? 0) : 0;
           return (
-            <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} key={c.id} onClick={() => setSelId(c.id)}>
+            <Fragment key={c.id}>
+            {ouvreGroupe && (
+              <div style={{
+                display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+                padding: '12px 14px 8px', borderTop: '1px solid var(--hairline)',
+                background: 'var(--paper-2)',
+              }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{grp}</span>
+                {bandeDuGrp && (
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>{bandRange(bandeDuGrp, bandsCrm)}</span>
+                )}
+                <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>
+                  {nDuGrp} tête{nDuGrp > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+            <div className="trc-sheet__row" style={{ gridTemplateColumns: GRID, cursor: 'pointer' }} onClick={() => setSelId(c.id)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <span className="trc-avatarwrap">
                   <Avatar client={c} size={36} />
@@ -1114,6 +1180,7 @@ export default function Customers() {
                 )}
               </span>
             </div>
+            </Fragment>
           );
         })}
       </div>
