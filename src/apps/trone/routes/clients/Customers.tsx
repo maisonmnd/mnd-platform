@@ -1270,6 +1270,29 @@ function Customer360({
     setNoteTexte('');
     toast('Note posée sur sa fiche.');
   };
+  /* Reprendre et effacer SA note — la même règle que Le Fil, où ces notes
+     vivent : on ne touche qu'à ce qu'on a écrit soi-même. Le garde-fou est
+     redit ici, car l'écran n'est pas le seul juge : un bouton caché n'est pas
+     une permission. */
+  const [noteEditee, setNoteEditee] = useState<string | null>(null);
+  const [noteEditTexte, setNoteEditTexte] = useState('');
+  const maNote = (id: string) => {
+    const n = notesTete.find((x) => x.id === id);
+    return n && n.auteurMail.trim().toLowerCase() === monMailFiche ? n : null;
+  };
+  const enregistrerLaNote = (id: string) => {
+    const dit = noteEditTexte.trim();
+    if (!dit || !maNote(id)) return;
+    filStore.set((prev) => prev.map((m) => (m.id === id ? { ...m, texte: dit } : m)));
+    setNoteEditee(null);
+    toast('Note reprise.');
+  };
+  const effacerLaNote = (id: string) => {
+    if (!maNote(id)) return;
+    if (!window.confirm('Effacer cette note ? Elle disparaîtra aussi du Fil, pour tout le monde.')) return;
+    filStore.set((prev) => prev.filter((m) => m.id !== id));
+    toast('Note effacée.');
+  };
   const [sessions] = useClientSessions();
   const [subs] = useSubscribers();
   const [plans] = usePlans();
@@ -1896,12 +1919,45 @@ function Customer360({
           {notesTete.length === 0 && (
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune note. Écrivez la première.</div>
           )}
-          {notesTete.map((n) => (
-            <div key={n.id} className="trc-note">
-              <div>{n.texte}</div>
-              <small>{n.auteurNom} · {n.at.slice(0, 10).split('-').reverse().join('/')} {n.at.slice(11)}</small>
-            </div>
-          ))}
+          {/* ÉDITER ET EFFACER SA NOTE (26 août) — les notes vivent dans Le Fil,
+              où ces deux gestes existaient déjà ; ils manquaient ici, alors que
+              c'est sur la fiche qu'on les relit. Mêmes règles, pas d'exception :
+              chacun ne reprend et n'efface QUE ce qu'il a écrit. */}
+          {notesTete.map((n) => {
+            const mienne = n.auteurMail.trim().toLowerCase() === monMailFiche;
+            const enCours = noteEditee === n.id;
+            return (
+              <div key={n.id} className="trc-note">
+                {enCours ? (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      className="mnd-input"
+                      value={noteEditTexte}
+                      onChange={(e) => setNoteEditTexte(e.target.value)}
+                      style={{ flex: 1, minWidth: 180, padding: '7px 10px', fontSize: 13 }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') enregistrerLaNote(n.id); }}
+                      autoFocus
+                    />
+                    <Button variant="ghost" size="sm" disabled={!noteEditTexte.trim()} onClick={() => enregistrerLaNote(n.id)}>Enregistrer</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setNoteEditee(null)}>Annuler</Button>
+                  </div>
+                ) : (
+                  <div>{n.texte}</div>
+                )}
+                <small>
+                  {n.auteurNom} · {n.at.slice(0, 10).split('-').reverse().join('/')} {n.at.slice(11)}
+                  {mienne && !enCours && (
+                    <>
+                      {' · '}
+                      <button type="button" className="trc-note__geste" onClick={() => { setNoteEditee(n.id); setNoteEditTexte(n.texte); }}>Modifier</button>
+                      {' · '}
+                      <button type="button" className="trc-note__geste" onClick={() => effacerLaNote(n.id)}>Effacer</button>
+                    </>
+                  )}
+                </small>
+              </div>
+            );
+          })}
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <input
               className="mnd-input"

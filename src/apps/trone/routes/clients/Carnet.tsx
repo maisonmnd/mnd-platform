@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -6,6 +6,7 @@ import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
+import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
@@ -234,6 +235,41 @@ export default function Carnet() {
   /* Chiffres seulement — ce qu'attend wa.me. Un numéro vide rend '' et la
      pastille ne s'affiche pas : mieux vaut rien qu'un lien mort. */
   const tel = (s?: string) => String(s ?? '').replace(/\D/g, '');
+
+  /* ── LE CARNET SE LIT PAR MOIS (26 août) ──────────────────────────
+     « Organise mes RDV passés et à venir par mois avec un total mensuel, comme
+     ça je fais de meilleures prévisions » (Yéman). Quatre cent trente lignes à
+     la file ne se prévoient pas : elles se comptent. Chaque mois s'annonce donc
+     avec son nombre de rituels et ce qu'il pèse, et l'œil compare août à
+     septembre sans additionner à la main. */
+  const parMois = (liste: Appointment[]) => {
+    const stats = new Map<string, { n: number; xof: number }>();
+    for (const a of liste) {
+      const k = a.date.slice(0, 7);
+      const cur = stats.get(k) ?? { n: 0, xof: 0 };
+      cur.n += 1;
+      cur.xof += apptNetXof(a, byId);
+      stats.set(k, cur);
+    }
+    const out: ReactNode[] = [];
+    let mois = '';
+    for (const a of liste) {
+      const k = a.date.slice(0, 7);
+      if (k !== mois) {
+        mois = k;
+        const s = stats.get(k)!;
+        out.push(
+          <div key={`mois-${k}`} className="trc-carnet-mois">
+            <span className="trc-carnet-mois__nom">{monthTitle(k)}</span>
+            <span className="trc-carnet-mois__n">{s.n} rituel{s.n > 1 ? 's' : ''}</span>
+            {!sansPrix && <span className="trc-carnet-mois__xof">{fmtMoney(s.xof, currency)}</span>}
+          </div>,
+        );
+      }
+      out.push(renderRow(a));
+    }
+    return out;
+  };
 
   const renderRow = (a: Appointment) => {
     const c = clientOf(a.clientId);
@@ -540,7 +576,7 @@ export default function Carnet() {
               : 'Le carnet est libre, la maison respire.'}
           </div>
         )}
-        {upcoming.map(renderRow)}
+        {parMois(upcoming)}
 
         {/* La vue « À venir » masque les passés — c'est ce qu'on lui demande.
             Afficher « Rendez-vous passés (0) » ferait croire qu'il n'y en a pas. */}
@@ -554,7 +590,7 @@ export default function Carnet() {
                   : 'Aucun rendez-vous passé sur cette branche.'}
               </div>
             )}
-            {past.map(renderRow)}
+            {parMois(past)}
           </>
         )}
       </div>

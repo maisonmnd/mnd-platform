@@ -87,6 +87,32 @@
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+/* LE MOIS QUI S'ANNONCE (26 août) — le Carnet se lit par mois, chacun avec son
+   nombre de rituels et ce qu'il pèse : c'est ainsi qu'on compare un mois au
+   suivant sans additionner à la main. Plus discret que l'en-tête de section
+   (« Rendez-vous passés »), qui reste au-dessus de lui. */
+.trc-carnet-mois {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 13px 18px 9px;
+  border-top: 1px solid var(--hairline);
+  background: var(--paper);
+}
+.trc-carnet-mois__nom {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--color-indigo);
+  text-transform: capitalize;
+}
+.trc-carnet-mois__n { font-size: 11.5px; color: var(--ink-soft); }
+.trc-carnet-mois__xof {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--copper-700);
+  font-variant-numeric: tabular-nums;
+}
 .trc-sheet__row {
   display: grid;
   align-items: center;
@@ -2129,3 +2155,10 @@
 .trc-note { border-bottom: 1px solid var(--hairline); padding: 8px 0; font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo); }
 .trc-note:last-of-type { border-bottom: none; }
 .trc-note small { display: block; color: var(--ink-soft); font-size: 11px; margin-top: 2px; }
+/* Reprendre ou effacer SA note — discret dans la signature, jamais un bouton
+   qui pèse : ces gestes sont rares, et la note se lit d'abord. */
+.trc-note__geste {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 11px; color: var(--copper-700); text-decoration: underline;
+}
+.trc-note__geste:hover { color: var(--color-brique, #96412E); }
