@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Clock, Crown, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { toast } from '../../../../ds/components';
@@ -9,7 +10,7 @@ import { maisonNom, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
-import { InvitationCouronne } from './Vitrine';
+import { imprimeCarteCouronne, lienMaCouronne } from './Vitrine';
 import { todayISO } from './_shared';
 import './clients.css';
 
@@ -96,23 +97,123 @@ const imprime = (html: string) => {
   fen.document.close();
 };
 
-/* ── UNE CARTE WI-FI ────────────────────────────────────────────────────
-   La maison a DEUX réseaux : la carte est un gabarit, chaque réseau a la
-   sienne. Nom et mot de passe se posent ici et vivent dans la BASE de la
-   maison (jamais dans le code : le dépôt est public). Tant qu'ils manquent,
-   la carte attend au lieu de montrer un code muet. */
-function CarteWifi({ titre, sous, ssid, pass, pose, surComptoir }: {
-  titre: string;
-  sous: string;
+/* ── LA CARTE D'UN CODE ─────────────────────────────────────────────────
+   REFAITE LE 27 AOÛT, sur « il y a trop de QR et je me mélange beaucoup »
+   (Yéman). La page empilait sept cartes identiques : sept carrés noirs qui se
+   ressemblent, les mêmes deux boutons partout, rien pour dire lequel était
+   lequel. Le mélange venait de là, pas du nombre.
+
+   Trois choses distinguent désormais une carte : SON SIGNE (une épingle, une
+   onde, un téléphone — un pictogramme se reconnaît de loin, un QR non), SA
+   PHRASE en capitales cuivre qui dit QUI scanne et CE QUI SE PASSE, et LE
+   MOMENT de la visite où elle est rangée. */
+
+type Geste = { texte: string; faire: () => void; fort?: boolean; empeche?: string };
+
+function CarteCode({ signe, nom, qui, dit, valeur, vide, champ, gestes, large, enfants }: {
+  signe: LucideIcon;
+  nom: string;
+  /** « La cliente scanne · elle règle » — le sujet et la conséquence. */
+  qui: string;
+  dit: ReactNode;
+  /** Le contenu du carré. Vide = pas encore renseigné, la carte le dit. */
+  valeur?: string;
+  vide?: string;
+  champ?: { lab: string; val: ReactNode; lab2?: string; val2?: ReactNode };
+  gestes: Geste[];
+  large?: boolean;
+  enfants?: ReactNode;
+}) {
+  const Signe = signe;
+  const pret = !!valeur;
+  return (
+    <div className={`trq-carte${large ? ' trq-carte--large' : ''}${pret ? '' : ' trq-carte--muette'}`}>
+      <div className="trq-carte__tete">
+        <span className={`trq-badge${pret ? '' : ' trq-badge--vide'}`}>
+          <Signe size={20} strokeWidth={1.5} aria-hidden="true" />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <p className="trq-carte__nom">{nom}</p>
+          <p className="trq-carte__qui">{qui}</p>
+        </div>
+      </div>
+
+      <p className="trq-carte__dit">{dit}</p>
+
+      {enfants ?? (
+        <div className="trq-carte__corps">
+          {pret
+            ? <div className="trq-qr"><QrSvg valeur={valeur} style={{ width: '100%', height: '100%', display: 'block' }} /></div>
+            : <div className="trq-qr trq-qr--vide">{vide ?? 'à renseigner'}</div>}
+          {champ && (
+            <div style={{ minWidth: 0 }}>
+              <div className="trq-lab">{champ.lab}</div>
+              <div className="trq-val">{champ.val}</div>
+              {champ.lab2 && <div className="trq-lab" style={{ marginTop: 6 }}>{champ.lab2}</div>}
+              {champ.val2 && <div className="trq-val">{champ.val2}</div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {gestes.length > 0 && (
+      <div className="trq-gestes">
+        {gestes.map((g) => (
+          <button
+            key={g.texte}
+            type="button"
+            className={`mnd-btn mnd-btn--sm ${g.fort ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+            disabled={!!g.empeche}
+            title={g.empeche}
+            onClick={g.faire}
+          >
+            {g.texte}
+          </button>
+        ))}
+      </div>
+      )}
+    </div>
+  );
+}
+
+/* Le titre d'un moment de la visite. */
+function Moment({ titre, quand, sous, children }: {
+  titre: string; quand: string; sous: string; children: ReactNode;
+}) {
+  return (
+    <section style={{ marginTop: 34 }}>
+      <div className="trq-sec">
+        <h2 className="trq-sec__titre">{titre}</h2>
+        <span className="trq-sec__quand">{quand}</span>
+        <span className="trq-sec__rule" />
+      </div>
+      <p className="trq-sec__sous">{sous}</p>
+      {children}
+    </section>
+  );
+}
+
+/* ── LE WIFI, DEUX BOX EN UNE SEULE CARTE ───────────────────────────────
+   Elles étaient deux cartes jumelles — « Installez-vous. » et « Le second
+   réseau. » — avec des noms presque identiques et LE MÊME mot de passe. Deux
+   entrées pour une seule chose : c'était à soi seul une source de mélange.
+
+   Elles n'en font plus qu'une. Ce qui les sépare vraiment n'est pas leur nom,
+   c'est leur portée : la 5G près du fauteuil, la 2G jusqu'au fond. C'est donc
+   ça qui s'écrit. Face cliente, la phrase reste la même pour les deux :
+   « Installez-vous. » */
+function BoxWifi({ rang, portee, ssid, pass, pose, surComptoir }: {
+  rang: string;
+  portee: string;
   ssid: string;
   pass: string;
   pose: (ssid: string, pass: string) => void;
   surComptoir: (g: Grand) => void;
 }) {
   const pret = ssid.trim() !== '' && pass.trim() !== '';
+  const [ouvre, setOuvre] = useState(false);
   const valeur = pret ? wifiPayload(ssid.trim(), pass.trim()) : '';
-  /* Face cliente — plein écran et carte imprimée — la phrase est LA MÊME
-     pour les deux réseaux : elle accueille, elle ne parle pas de boxes. */
+
   const imprimer = () => imprime(carteA5({
     titre: 'Installez-vous.',
     sous: 'Le réseau de la Maison est à vous, scannez, votre téléphone se connecte seul.',
@@ -125,65 +226,52 @@ function CarteWifi({ titre, sous, ssid, pass, pose, surComptoir }: {
     ],
     ariaQr: 'QR du réseau Wi-Fi de la maison',
   }));
+
   return (
-    <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-      {pret ? (
-        <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
-          <QrSvg valeur={valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-        </div>
-      ) : (
-        <div style={{ width: 96, height: 96, flex: 'none', border: '1px dashed var(--copper-300)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 13, textAlign: 'center', padding: 6 }}>
-          à renseigner
-        </div>
-      )}
-      <div style={{ flex: 1, minWidth: 240 }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-          {titre}
-        </div>
-        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-          {sous}
-        </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-          <label className="mnd-field" style={{ width: 200 }}>
-            <span className="mnd-field__label">Nom du réseau</span>
-            <input
-              className="mnd-input"
-              value={ssid}
-              onChange={(e) => pose(e.target.value, pass)}
-              placeholder="Le réseau du salon"
-              autoComplete="off"
-            />
-          </label>
-          <label className="mnd-field" style={{ width: 200 }}>
-            <span className="mnd-field__label">Mot de passe</span>
-            <input
-              className="mnd-input"
-              value={pass}
-              onChange={(e) => pose(ssid, e.target.value)}
-              placeholder="Celui de la box"
-              autoComplete="off"
-            />
-          </label>
-        </div>
+    <div className="trq-box">
+      <span className="trq-box__rang">{rang}</span>
+      {pret
+        ? <div className="trq-qr"><QrSvg valeur={valeur} style={{ width: '100%', height: '100%', display: 'block' }} /></div>
+        : <div className="trq-qr trq-qr--vide">à renseigner</div>}
+
+      <div className="trq-box__nom">
+        <div className="trq-lab">{portee}</div>
+        {pret && !ouvre
+          ? <div className="trq-val">{ssid}</div>
+          : (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
+              <label className="mnd-field" style={{ width: 168 }}>
+                <span className="mnd-field__label">Nom du réseau</span>
+                <input className="mnd-input" value={ssid} onChange={(e) => pose(e.target.value, pass)} placeholder="Le réseau du salon" autoComplete="off" />
+              </label>
+              <label className="mnd-field" style={{ width: 148 }}>
+                <span className="mnd-field__label">Mot de passe</span>
+                <input className="mnd-input" value={pass} onChange={(e) => pose(ssid, e.target.value)} placeholder="Celui de la box" autoComplete="off" />
+              </label>
+            </div>
+          )}
       </div>
-      {pret && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--copper"
-            onClick={() => surComptoir({ titre: 'Installez-vous.', phrase: 'Le réseau de la Maison est à vous.', valeur })}
-          >
-            Afficher au comptoir
-          </button>
-          <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimer}>
-            Imprimer la carte A5
-          </button>
-        </div>
-      )}
+
+      <div className="trq-gestes" style={{ marginTop: 0 }}>
+        {pret && !ouvre && (
+          <>
+            <button
+              type="button"
+              className="mnd-btn mnd-btn--sm mnd-btn--copper"
+              onClick={() => surComptoir({ titre: 'Installez-vous.', phrase: 'Le réseau de la Maison est à vous.', valeur })}
+            >
+              Afficher
+            </button>
+            <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={imprimer}>Carte A5</button>
+          </>
+        )}
+        <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => setOuvre((v) => !v)}>
+          {ouvre ? 'Terminé' : 'Modifier'}
+        </button>
+      </div>
     </div>
   );
 }
-
 /* ── LE PLEIN ÉCRAN DU COMPTOIR ─────────────────────────────────────────
    Parchemin, marque, le code aussi grand que l'écran le permet. On le tourne
    vers la cliente ; un toucher n'importe où — ou Échap — le referme. */
@@ -264,7 +352,6 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
     </div>
   );
 }
-
 export default function QrCodes() {
   const navigate = useNavigate();
   const [autoRaw, setAuto] = useStore(autoConfigStore);
@@ -284,11 +371,10 @@ export default function QrCodes() {
      « C'est des liens individuels, pas un seul lien pour toute la page » puis
      « juste pour MoMoPay et la localisation du salon » (Yéman).
 
-     Deux liens, et deux seulement. Le Wi-Fi n'en a pas : ses mots de passe
-     s'affichent au comptoir le temps d'un scan, alors qu'un lien se transfère,
-     se capture d'écran et reste dans une conversation. Le code du jour non
-     plus — il sert à pointer, et un lien qui pointe pour vous n'est plus une
-     preuve de présence.
+     Le Wi-Fi n'a pas de lien : ses mots de passe s'affichent au comptoir le
+     temps d'un scan, alors qu'un lien se transfère, se capture d'écran et reste
+     dans une conversation. Le code du jour non plus — il sert à pointer, et un
+     lien qui pointe pour vous n'est plus une preuve de présence.
 
      L'adresse se construit sur l'origine COURANTE : jamais de domaine écrit en
      dur, changer de compte ne casse rien. */
@@ -304,9 +390,6 @@ export default function QrCodes() {
     u.searchParams.set('c', codeMarchand);
     return u.href;
   };
-  /* La localisation : l'adresse de la branche, telle que la Maison l'a écrite,
-     confiée à une carte. Sans adresse, pas de lien — on ne devine pas où l'on
-     est. */
   const adresseComplete = [branch.address, branch.city, branch.country].filter(Boolean).join(', ');
   /* LE LIEN DE LA FICHE PRIME SUR L'ADRESSE ÉCRITE — 18 août 2026. Chercher
      « Cotonou, Bénin » posait le point au centre de la ville : une cliente qui
@@ -316,6 +399,8 @@ export default function QrCodes() {
   const lienPlan = branch.mapsUrl?.trim()
     || (adresseComplete ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresseComplete)}` : '');
   const planPrecis = !!branch.mapsUrl?.trim();
+  const lienCouronne = lienMaCouronne();
+
   const copier = (lien: string, quoi: string) => {
     navigator.clipboard.writeText(lien)
       .then(() => toast(`Lien ${quoi} copié, collez-le dans WhatsApp.`))
@@ -336,230 +421,200 @@ export default function QrCodes() {
     ariaQr: 'QR MoMoPay de la maison',
   }));
 
+  /* ── CE QUI EST PRÊT, CE QUI DORT INCOMPLET ─────────────────────
+     Un carré à moitié réglé ne se voit pas : il a l'air d'un carré. La barre le
+     compte, pour qu'on ne découvre pas le manque le jour où on le tend. */
+  const wifi1 = !!(autoRaw.wifiSsid?.trim() && autoRaw.wifiPass?.trim());
+  const wifi2 = !!(autoRaw.wifi2Ssid?.trim() && autoRaw.wifi2Pass?.trim());
+  const etats = [!!lienPlan, wifi1 || wifi2, !!momoQr, !!lienAvis, !!lienCouronne, !!codeJour];
+  const prets = etats.filter(Boolean).length;
+
   return (
     <div className="mnd-rise">
       <PageHead
         eyebrow="Clients & Agenda · Les portes"
-        title="QR Codes."
-        sub="Tous les codes de la Maison, réunis, à montrer au comptoir, imprimer, afficher au miroir."
+        title="Les codes de la Maison."
+        sub="Rangés par moment de la visite, chacun avec son signe. À montrer au comptoir, imprimer, afficher au miroir."
       />
 
-      {/* ① L'invitation Ma Couronne — la même carte que la Vitrine. */}
-      <InvitationCouronne surComptoir={setGrand} />
-
-      {/* ② et ③ Les deux réseaux Wi-Fi — « Installez-vous. » */}
-      <CarteWifi
-        titre="Installez-vous."
-        sous="Le réseau de la Maison est à vous, scanné, ce code connecte le téléphone de la cliente sans qu’elle tape le mot de passe. Le nom et le mot de passe restent dans la base de la maison, nulle part ailleurs."
-        ssid={autoRaw.wifiSsid ?? ''}
-        pass={autoRaw.wifiPass ?? ''}
-        pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })}
-        surComptoir={setGrand}
-      />
-      <CarteWifi
-        titre="Le second réseau."
-        sous="La maison a deux réseaux, même geste pour l’autre box. Face cliente, la carte et le plein écran disent la même chose : « Installez-vous. »"
-        ssid={autoRaw.wifi2Ssid ?? ''}
-        pass={autoRaw.wifi2Pass ?? ''}
-        pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })}
-        surComptoir={setGrand}
-      />
-
-      {/* ④ L'encaissement MoMoPay. */}
-      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-        <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
-          <QrSvg valeur={momoQr} style={{ width: '100%', height: '100%', display: 'block' }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-            Encaisser par MoMoPay.
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            La cliente scanne avec son application MoMo, marchand <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>,
-            ou compose {momoUssd}. Le code et le marchand se règlent dans Paramètres › L’encaissement.
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--copper"
-            onClick={() => setGrand({
-              titre: 'Régler par MoMo.',
-              phrase: `Marchand ${momoMarchand}, le montant en francs.`,
-              valeur: momoQr,
-              affiche: 'momopay-affiche.jpg',
-            })}
-          >
-            Afficher l’affiche
-          </button>
-          {/* LE QR SEUL, EN GRAND (25 août, demande de Yéman). L'affiche est
-              belle, mais elle entoure le code de tout un décor : de près, avec
-              un téléphone qui cherche à scanner, c'est le carré nu qu'on veut
-              tendre — plein écran, rien autour. */}
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--copper"
-            onClick={() => setGrand({
-              titre: 'Régler par MoMo.',
-              phrase: `Marchand ${momoMarchand}, le montant en francs.`,
-              valeur: momoQr,
-            })}
-          >
-            Afficher le QR seul
-          </button>
-          <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimerMomo}>
-            Imprimer la carte A5
-          </button>
-          {/* LE LIEN QU'ON ENVOIE. Il mène à une page STATIQUE qui ne sait que
-              ce que son adresse lui dit — ni base, ni clé, ni session. Rien à
-              en extraire, donc rien à protéger. */}
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--ghost"
-            disabled={!codeMarchand}
-            title={codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement'}
-            onClick={() => copier(lienMomo(), 'de paiement')}
-          >
-            Copier le lien à envoyer
-          </button>
-        </div>
-      </div>
-
-      {/* ④bis OÙ NOUS TROUVER — 18 août 2026, « juste pour MoMoPay et la
-          localisation du salon ». Le carré se scanne au comptoir ; le lien
-          s'envoie à celle qui cherche la porte. Sans adresse renseignée, la
-          carte le dit au lieu de mener nulle part. */}
-      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-        <div style={{ width: 96, height: 96, flex: 'none', border: `1px ${lienPlan ? 'solid var(--hairline)' : 'dashed var(--copper-300)'}`, borderRadius: 3, padding: 5, background: '#f6f1e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {lienPlan
-            ? <QrSvg valeur={lienPlan} style={{ width: '100%', height: '100%', display: 'block' }} />
-            : <span style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--copper-700)', textAlign: 'center' }}>adresse à écrire</span>}
-        </div>
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-            Où nous trouver.
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            {lienPlan
-              ? (planPrecis
-                ? <>La cliente scanne, sa carte s'ouvre sur <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>la fiche du salon</b>, la porte, pas le quartier. Le lien s'envoie aussi par message.</>
-                : <>Ce carré ne mène qu'à <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{adresseComplete}</b>, le centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu'il désigne la porte.</>)
-              : <>Aucune adresse ni lien pour cette branche, Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--copper"
-            disabled={!lienPlan}
-            onClick={() => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan })}
-          >
-            Afficher au comptoir
-          </button>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--ghost"
-            disabled={!lienPlan}
-            onClick={() => copier(lienPlan, 'de localisation')}
-          >
-            Copier le lien à envoyer
-          </button>
-        </div>
-      </div>
-
-      {/* ④ter LAISSEZ-NOUS UN AVIS — 18 août 2026, « je veux que mes nouvelles
-          clientes de passage laissent un avis Google ». Le carré s'imprime pour
-          le comptoir, le lien s'envoie par message — et la Maison le propose
-          d'elle-même par WhatsApp à la première venue soldée. */}
-      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-        <div style={{ width: 96, height: 96, flex: 'none', border: `1px ${lienAvis ? 'solid var(--hairline)' : 'dashed var(--copper-300)'}`, borderRadius: 3, padding: 5, background: '#f6f1e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {lienAvis
-            ? <QrSvg valeur={lienAvis} style={{ width: '100%', height: '100%', display: 'block' }} />
-            : <span style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--copper-700)', textAlign: 'center' }}>lien à écrire</span>}
-        </div>
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-            Laissez-nous un avis.
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            {lienAvis
-              ? <>La cliente scanne et le formulaire d’avis Google s’ouvre, pas la carte, <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>l’avis</b>. À l’encaissement d’une <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>première venue</b>, la Maison propose aussi l’envoi WhatsApp d’elle-même.</>
-              : <>Aucun lien d’avis, Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--copper"
-            disabled={!lienAvis}
-            onClick={() => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis })}
-          >
-            Afficher au comptoir
-          </button>
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--ghost"
-            disabled={!lienAvis}
-            onClick={() => copier(lienAvis, 'd’avis Google')}
-          >
-            Copier le lien à envoyer
-          </button>
-          {/* LE MESSAGE ENTIER, PAS SEULEMENT LE LIEN — 19 août 2026 : « où
-              récupérer le message si la cliente n'a pas WhatsApp sur le numéro
-              de son profil ? ». Nulle part : il ne naissait qu'à l'instant où
-              WhatsApp s'ouvrait. Le voici à copier — pour un SMS, un mail,
-              n'importe quel canal. La même phrase que l'envoi automatique,
-              sans le prénom : on l'ajoute en collant. */}
-          <button
-            type="button"
-            className="mnd-btn mnd-btn--ghost"
-            disabled={!lienAvis}
-            onClick={() => copier(
-              `Merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}`,
-              'd’avis à envoyer (message entier)',
-            )}
-          >
-            Copier le message
-          </button>
-        </div>
-      </div>
-
-      {/* ⑤ Le code du jour — pointage de l'équipe (il naît au Comptoir). */}
-      <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-        {codeJour ? (
-          <div style={{ width: 96, height: 96, flex: 'none', border: '1px solid var(--hairline)', borderRadius: 3, padding: 5, background: '#f6f1e8' }}>
-            <QrSvg valeur={lienDuJour(codeJour)} style={{ width: '100%', height: '100%', display: 'block' }} />
-          </div>
-        ) : (
-          <div style={{ width: 96, height: 96, flex: 'none', border: '1px dashed var(--copper-300)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 13, textAlign: 'center', padding: 6 }}>
-            pas encore né
-          </div>
+      <div className="trq-etat">
+        <span className="trq-etat__item"><b>{etats.length}</b> codes</span>
+        <span className="trq-etat__item"><b>{prets}</b> prêts à montrer</span>
+        {prets < etats.length && (
+          <span className="trq-etat__item trq-etat__item--manque">
+            <b>{etats.length - prets}</b> à renseigner
+          </span>
         )}
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
-            Le code du jour · pointage.
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '62ch' }}>
-            {codeJour
-              ? <>Le carré que l’équipe scanne pour pointer, aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>. Il se renouvelle chaque nuit.</>
-              : 'Le carré que l’équipe scanne pour pointer. Il naît à l’ouverture du Comptoir, ouvrez-le pour créer celui d’aujourd’hui.'}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' }}>
-          {codeJour && (
-            <button
-              type="button"
-              className="mnd-btn mnd-btn--copper"
-              onClick={() => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) })}
-            >
-              Afficher au comptoir
-            </button>
-          )}
-          <button type="button" className={`mnd-btn ${codeJour ? 'mnd-btn--ghost' : 'mnd-btn--copper'}`} onClick={() => navigate('/comptoir')}>
-            Ouvrir le Comptoir
-          </button>
-        </div>
       </div>
+
+      {/* ══ ELLE ARRIVE ══ */}
+      <Moment
+        titre="Elle arrive."
+        quand="avant de s’asseoir"
+        sous="Ce qu’on tend à celle qui cherche la porte, puis à celle qui vient de s’installer."
+      >
+        <div className="trq-grille">
+          <CarteCode
+            signe={MapPin}
+            nom="Où nous trouver."
+            qui="La cliente scanne · sa carte s’ouvre"
+            dit={lienPlan
+              ? (planPrecis
+                ? <>Le point tombe sur <b>la fiche du salon</b>, la porte, pas le quartier.</>
+                : <>Ce carré ne mène qu’au centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu’il désigne la porte.</>)
+              : <>Aucune adresse ni lien pour cette branche, Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
+            valeur={lienPlan}
+            vide="adresse à écrire"
+            champ={{ lab: 'Le point', val: adresseComplete || 'à renseigner' }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan }), empeche: lienPlan ? undefined : 'Renseignez l’adresse dans Système › Branches' },
+              { texte: 'Copier le lien', faire: () => copier(lienPlan, 'de localisation'), empeche: lienPlan ? undefined : 'Renseignez l’adresse dans Système › Branches' },
+            ]}
+          />
+
+          <CarteCode
+            signe={Wifi}
+            nom="Le wifi de la Maison."
+            qui="La cliente scanne · elle est connectée"
+            /* La phrase ne promet le mot de passe commun que s'il l'est
+               vraiment : la ligne du bas ne s'affiche qu'alors. */
+            dit={<>Deux box, la 5G près du fauteuil et la 2G jusqu’au fond. Elle n’a rien à taper.</>}
+            valeur={wifi1 || wifi2 ? 'ok' : ''}
+            gestes={[]}
+            enfants={
+              <>
+                <BoxWifi
+                  rang="5G"
+                  portee="Le plus rapide, près du fauteuil"
+                  ssid={autoRaw.wifiSsid ?? ''}
+                  pass={autoRaw.wifiPass ?? ''}
+                  pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })}
+                  surComptoir={setGrand}
+                />
+                <BoxWifi
+                  rang="2G"
+                  portee="Porte plus loin, jusqu’au fond"
+                  ssid={autoRaw.wifi2Ssid ?? ''}
+                  pass={autoRaw.wifi2Pass ?? ''}
+                  pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })}
+                  surComptoir={setGrand}
+                />
+                {autoRaw.wifiPass?.trim() && autoRaw.wifiPass.trim() === autoRaw.wifi2Pass?.trim() && (
+                  <div className="trq-motdepasse">
+                    <span>Mot de passe des deux box</span>
+                    <b>{autoRaw.wifiPass.trim()}</b>
+                  </div>
+                )}
+              </>
+            }
+          />
+        </div>
+      </Moment>
+
+      {/* ══ ELLE REPART ══ */}
+      <Moment
+        titre="Elle repart."
+        quand="au comptoir, le rituel fini"
+        sous="Les deux carrés du départ : celui qui encaisse, et celui qui fait parler d’elle."
+      >
+        <div className="trq-grille">
+          <CarteCode
+            signe={Smartphone}
+            nom="Payer par MoMoPay."
+            qui="La cliente scanne · elle règle"
+            dit={<>Elle scanne avec son application MoMo et saisit le montant en francs. Le code et le marchand se règlent dans Paramètres › L’encaissement.</>}
+            valeur={momoQr}
+            champ={{
+              lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>,
+              lab2: 'ou composez', val2: momoUssd,
+            }}
+            gestes={[
+              /* LE QR SEUL D'ABORD (25 août) : l'affiche est belle, mais elle
+                 entoure le code de tout un décor. De près, avec un téléphone
+                 qui cherche à scanner, c'est le carré nu qu'on tend. */
+              { texte: 'Afficher le QR seul', fort: true, faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr }) },
+              { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.jpg' }) },
+              { texte: 'Carte A5', faire: imprimerMomo },
+              /* LE LIEN QU'ON ENVOIE mène à une page STATIQUE qui ne sait que
+                 ce que son adresse lui dit — ni base, ni clé, ni session. */
+              { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
+            ]}
+          />
+
+          <CarteCode
+            signe={Star}
+            nom="Laisser un avis."
+            qui="La cliente scanne · l’avis s’ouvre"
+            dit={lienAvis
+              ? <>Le formulaire Google s’ouvre directement, pas la carte. À la <b>première venue</b> soldée, la Maison propose déjà l’envoi WhatsApp d’elle-même.</>
+              : <>Aucun lien d’avis, Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
+            valeur={lienAvis}
+            vide="lien à écrire"
+            champ={{ lab: 'Mène à', val: 'Le formulaire d’avis Google' }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
+              { texte: 'Copier le lien', faire: () => copier(lienAvis, 'd’avis Google'), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
+              /* LE MESSAGE ENTIER, PAS SEULEMENT LE LIEN — 19 août 2026 : « où
+                 récupérer le message si la cliente n'a pas WhatsApp sur le
+                 numéro de son profil ? ». Nulle part : il ne naissait qu'à
+                 l'instant où WhatsApp s'ouvrait. Le voici à copier, pour un
+                 SMS, un mail, n'importe quel canal. */
+              { texte: 'Copier le message', faire: () => copier(`Merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}`, 'd’avis à envoyer (message entier)'), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
+            ]}
+          />
+        </div>
+      </Moment>
+
+      {/* ══ ELLE RESTE AVEC NOUS ══ */}
+      <Moment
+        titre="Elle reste avec nous."
+        quand="une fois, et pour longtemps"
+        sous="Le seul carré qu’on ne tend qu’une fois : après, elle a la Maison dans sa poche."
+      >
+        <div className="trq-grille trq-grille--1">
+          <CarteCode
+            signe={Crown}
+            nom="Ma Couronne."
+            qui="La cliente scanne · elle installe l’application"
+            dit={<>Elle se crée un compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application. Son parcours, ses rendez-vous et son Cercle la suivent.</>}
+            valeur={lienCouronne}
+            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCouronne}</span> }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) },
+              { texte: 'Carte A5', faire: imprimeCarteCouronne },
+              { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
+            ]}
+          />
+        </div>
+      </Moment>
+
+      {/* ══ L'ÉQUIPE ══
+          À PART, ET POUR UNE RAISON : c'est le seul carré de la page que la
+          cliente ne doit jamais scanner. Le ranger avec les siens, c'était
+          inviter la confusion au comptoir. */}
+      <Moment
+        titre="L’équipe."
+        quand="chaque matin"
+        sous="Le seul carré que la cliente ne doit jamais scanner. Il est à part pour cette raison."
+      >
+        <div className="trq-grille trq-grille--1">
+          <CarteCode
+            signe={Clock}
+            nom="Le code du jour."
+            qui="L’équipe scanne · elle pointe"
+            dit={codeJour
+              ? <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. Celui d’aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>.</>
+              : <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. <b>Celui d’aujourd’hui n’existe pas encore.</b></>}
+            valeur={codeJour ? lienDuJour(codeJour) : ''}
+            vide="pas encore né"
+            champ={{ lab: 'Code d’aujourd’hui', val: codeJour || 'à créer au Comptoir' }}
+            gestes={[
+              ...(codeJour ? [{ texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) }] : []),
+              { texte: 'Ouvrir le Comptoir', fort: !codeJour, faire: () => navigate('/comptoir') },
+            ]}
+          />
+        </div>
+      </Moment>
 
       {grand && <AuComptoir g={grand} onClose={() => setGrand(null)} />}
     </div>

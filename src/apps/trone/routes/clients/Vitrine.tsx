@@ -139,15 +139,18 @@ export default function Vitrine() {
    JAMAIS un domaine en dur (changer de compte GitHub ne casse rien : on
    réimprime, c'est tout). Ma Couronne est une PWA : scannée puis « Ajouter à
    l'écran d'accueil », elle s'installe comme une application. */
-export function InvitationCouronne({ surComptoir }: {
-  /** Posé par la page QR Codes : ouvre ce code en plein écran, face cliente. */
-  surComptoir?: (g: { titre: string; phrase: string; valeur: string }) => void;
-} = {}) {
-  /* Sur le site déployé, le Trône vit sous /trone/ et sa sœur sous /couronne/ ;
-     en développement (une seule origine), l'entrée est couronne.html. */
-  const lienCouronne = `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
+/* L'ADRESSE DE MA COURONNE. Sur le site déployé, le Trône vit sous /trone/ et
+   sa sœur sous /couronne/ ; en développement (une seule origine), l'entrée est
+   couronne.html. Jamais de domaine en dur : changer de compte ne casse rien. */
+export const lienMaCouronne = () =>
+  `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
 
-  const imprimer = () => {
+/* LA CARTE A5 DE L'INVITATION, PARTAGÉE — 27 août. La page QR Codes la
+   réclame aussi ; deux gabarits imprimés pour une seule carte finiraient par
+   diverger, comme la devise l'a fait avant d'avoir sa source unique. */
+export const imprimeCarteCouronne = () => {
+  const lienCouronne = lienMaCouronne();
+  {
     const { path, n } = qrMatrice(lienCouronne);
     const fen = window.open('', '_blank', 'noopener,width=520,height=760');
     if (!fen) return;
@@ -189,7 +192,15 @@ export function InvitationCouronne({ surComptoir }: {
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body></html>`);
     fen.document.close();
-  };
+  }
+};
+
+export function InvitationCouronne({ surComptoir }: {
+  /** Posé par la page QR Codes : ouvre ce code en plein écran, face cliente. */
+  surComptoir?: (g: { titre: string; phrase: string; valeur: string }) => void;
+} = {}) {
+  const lienCouronne = lienMaCouronne();
+  const imprimer = imprimeCarteCouronne;
 
   return (
     <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>

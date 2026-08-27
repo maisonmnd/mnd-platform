@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les codes de la Maison — rangés par moment de la visite, 27 août, PUBLIÉ
+
+« Il y a trop de QR et je me mélange beaucoup » (Yéman). La page empilait sept
+cartes IDENTIQUES : sept carrés noirs qui se ressemblent, les mêmes deux boutons
+partout, rien pour dire lequel était lequel. **Le mélange venait de la
+ressemblance, pas du nombre** — c'est la leçon transposable.
+
+Trois choses distinguent désormais une carte :
+
+1. **Son signe.** Un pictogramme (épingle, onde, téléphone, étoile, couronne,
+   horloge) se reconnaît de loin ; un QR non, ils sont tous noirs et carrés.
+2. **Sa phrase**, en petites capitales cuivre : « La cliente scanne · elle
+   règle ». Le sujet et la conséquence, avant même la description.
+3. **Son moment** : `Elle arrive` (où nous trouver, le wifi) · `Elle repart`
+   (MoMoPay, l'avis) · `Elle reste avec nous` (Ma Couronne) · `L'équipe` (le
+   code du jour).
+
+**LE CODE DU JOUR EST À PART**, et pour une raison : c'est le seul carré de la
+page que la cliente ne doit JAMAIS scanner. Le ranger avec les siens invitait la
+confusion au comptoir.
+
+**LES DEUX WIFI N'EN FONT PLUS QU'UN.** Ils étaient deux cartes jumelles avec
+des noms presque identiques et le même mot de passe — une source de mélange à
+eux seuls. Ce qui les sépare vraiment n'est pas leur nom mais leur portée : 5G
+près du fauteuil, 2G jusqu'au fond. C'est ça qui s'écrit. Les champs de saisie
+se replient derrière « Modifier » une fois le réseau posé.
+
+Une barre en tête compte ce qui est **prêt** et ce qui **dort incomplet** : un
+carré à moitié réglé n'a l'air de rien, il ressemble à un carré. Les cartes
+incomplètes restent visibles en pointillé plutôt que masquées — masquées, on
+saurait moins qu'elles existent.
+
+`lienMaCouronne()` et `imprimeCarteCouronne()` sont sortis de `Vitrine.tsx` :
+deux gabarits imprimés pour une seule carte finiraient par diverger, comme la
+devise l'a fait avant d'avoir sa source unique.
+
 ## Le compte client — débit / crédit / créances, 26 août, PUBLIÉ
 
 « Un vrai compte client pour mieux suivre les crédits », et « bien suivre les
