@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
-import { useAuth, useStaff } from '../../../../shared/auth';
+import { useAuth, useStaff, vientDeMaCouronne, type CompteEnAttente } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { NAV, ROUTES_MAITRE, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
@@ -14,7 +14,7 @@ import './systeme.css';
    fonctions SECURITY DEFINER (migration 0007) qui vérifient elles-mêmes que
    l'appelant est souverain ; sans elles, l'écran reste inerte. */
 
-type Pending = { user_id: string; email: string | null; created_at: string };
+type Pending = CompteEnAttente;
 type StaffFull = { user_id: string; email: string | null; name: string | null; role: string; rubrics: string[]; created_at: string };
 type Role = 'souverain' | 'gerant' | 'maitre';
 
@@ -57,11 +57,17 @@ export default function Acces() {
      (`useClientId`). Un compte en attente qui porte déjà une fiche vient donc
      de Ma Couronne, et non du Trône. */
   const [clients] = useClients();
-  const fichesClientes = new Set(clients.map((c) => c.id));
+  /* LES DEUX FAÇONS D'ÊTRE SA FICHE. À l'origine, l'identifiant d'une fiche
+     cliente ÉTAIT celui de son compte ; depuis l'adoption (0045), une cliente
+     reconnue garde l'identifiant de son ANCIENNE fiche et son compte s'inscrit
+     dans `authUserId`. Ne lire que le premier renvoyait toutes les adoptées
+     dans la file du Trône. */
+  const fichesClientes = new Set(clients.flatMap((c) => [c.id, c.authUserId ?? '']));
   const estCliente = (userId: string) => fichesClientes.has(userId);
-  const attenteTrone = pending.filter((u) => !estCliente(u.user_id));
-  const attenteCouronne = pending.filter((u) => estCliente(u.user_id));
-  const nomCliente = (userId: string) => clients.find((c) => c.id === userId)?.name ?? '—';
+  const attenteTrone = pending.filter((u) => !vientDeMaCouronne(u, estCliente));
+  const attenteCouronne = pending.filter((u) => vientDeMaCouronne(u, estCliente));
+  const nomCliente = (userId: string) =>
+    clients.find((c) => c.authUserId === userId || c.id === userId)?.name ?? 'Cliente Ma Couronne';
   const basculeDomaine = (userId: string, d: string) =>
     setAcces((prev) => ({
       ...prev,
@@ -175,13 +181,14 @@ export default function Acces() {
             <div className="sys-section__cap">
               Des personnes se sont connectées au Trône mais n'ont pas encore accès.
               Donnez-leur un rôle pour les faire entrer.
-              {/* LA RECONNAISSANCE A UNE LIMITE, et la taire serait pire que de
-                  ne rien reconnaitre : une cliente inscrite qui n'a jamais
-                  ouvert Ma Couronne n'a pas encore de fiche, et arrive donc
-                  ici. L'adresse reste le dernier juge. */}
+              {/* LES CLIENTES NE SONT PLUS ICI. Chaque compte porte désormais la
+                  porte par laquelle il est né, et Ma Couronne la repose à chaque
+                  session : les comptes d'avant se rangent d'eux-mêmes dès leur
+                  prochaine ouverture. Un compte qui n'a encore jamais ouvert Ma
+                  Couronne peut rester ici un temps, d'où la phrase qui suit. */}
               <span style={{ display: 'block', marginTop: 6 }}>
-                Vérifiez l’adresse avant d’autoriser : une cliente qui vient de s’inscrire sans
-                avoir encore ouvert Ma Couronne n’a pas de fiche, et apparaît dans cette liste.
+                Vérifiez l’adresse avant d’autoriser. Une inscrite de Ma Couronne qui n’a jamais
+                ouvert l’application peut encore apparaître ici, le temps de sa première visite.
               </span>
             </div>
 
@@ -232,8 +239,8 @@ export default function Acces() {
               </div>
               <div className="sys-section__cap">
                 Des clientes inscrites sur Ma Couronne. Elles n'ont pas à entrer dans Le Trône,
-                leur compte leur sert à réserver et à suivre leurs rituels. Reconnues à leur fiche
-                cliente, qui porte le même identifiant que leur compte.
+                leur compte leur sert à réserver et à suivre leurs rituels. Reconnues à la porte
+                par laquelle elles se sont inscrites, ou à leur fiche cliente.
               </div>
               {attenteCouronne.map((u) => (
                 <div className="sys-acc-row" key={u.user_id}>

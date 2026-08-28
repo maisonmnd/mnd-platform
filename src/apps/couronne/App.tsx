@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
-import { useAuth, requireAuth, signOut } from '../../shared/auth';
+import { useAuth, requireAuth, signOut, signInWithGoogle } from '../../shared/auth';
 import { useClients, useFamilies } from '../../shared/clients';
 import { ageDe, tetesPortees } from '../../shared/accounts';
 import { useEnsureClient, useActivityTracker, useClientId, useClient, useCompteEnDouble, useCompteMaison, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
@@ -326,13 +326,19 @@ export default function App() {
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
             <h1 className="mc-closed__t">Cette adresse a déjà son espace.</h1>
             <p className="mc-closed__s">
-              Un compte existe déjà pour {session?.user?.email ?? 'cette adresse'}, ouvert par une
-              autre porte (e-mail et mot de passe, ou Google). Reconnectez-vous par la porte
-              utilisée la première fois pour retrouver votre couronne, vos enfants et vos
-              rendez-vous. Un doute ? Écrivez à la maison, on vous ouvre.
+              Votre couronne, vos enfants et vos rendez-vous sont bien là. Ils sont attachés à
+              l’autre porte de cette même adresse. Reprenez par celle-là, tout vous attend
+              derrière. Un doute ? Écrivez à la maison, on vous ouvre.
             </p>
-            <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={() => void signOut()}>
-              Se déconnecter
+            {/* DEUX PORTES, PAS UNE CONSIGNE. L'écran disait « reconnectez-vous
+                par la porte utilisée la première fois » sans dire LAQUELLE, et
+                sans rien à toucher : la cliente restait dehors avec un conseil.
+                Les deux portes sont ici, elle en pousse une. */}
+            <button className="mc-cta" style={{ marginTop: 18 }} onClick={() => void signInWithGoogle()}>
+              Continuer avec Google
+            </button>
+            <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={() => void signOut()}>
+              Entrer par e-mail et mot de passe
             </button>
           </div>
         </div>

@@ -2,6 +2,60 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PORTE DU COMPTE — 28 août, PUBLIÉ (code) · 0075 À PASSER
+
+Deux plaies, une seule racine : le serveur ne savait pas D'OÙ venait un compte.
+
+### ① Le Trône proposait d'autoriser ses propres clientes
+
+`list_pending_staff` rend tout compte absent de `staff`. Une inscrite de Ma
+Couronne y arrivait donc, avec un bouton « Autoriser » à portée de clic, qui lui
+aurait ouvert la paie, le coffre et les fiches de toutes les autres. L'écran
+devinait l'origine en cherchant une fiche du même identifiant : une inscrite de
+la veille n'en a pas encore, et une ADOPTÉE (0045) garde celui de son ancienne
+fiche. Les deux retombaient du mauvais côté.
+
+On cesse de deviner. `marqueOrigine()` inscrit la porte sur le compte, et **Ma
+Couronne la repose à chaque session** : les comptes nés avant cette règle se
+rangent d'eux-mêmes à leur prochaine ouverture, sans migration ni geste au
+comptoir. `vientDeMaCouronne()` lit trois preuves, de la plus forte à la plus
+faible : la marque, la fiche vue par le serveur, la fiche lue d'ici.
+
+**La marque n'est pas un droit.** Elle oriente une liste, rien de plus : seul
+`authorize_staff` ouvre un accès, et il reste réservé au souverain. Un compte
+peut donc écrire sa propre marque sans qu'aucune porte ne s'ouvre. Le doute, lui,
+penche toujours vers la file du Trône : un compte rangé par erreur dans
+Ma Couronne ne serait jamais autorisé, et une collègue attendrait sans comprendre.
+
+### ② Une cliente restait dehors devant sa propre couronne
+
+Au verdict `occupee`, l'application affichait « cette adresse a déjà son espace »
+et renvoyait vers « la porte utilisée la première fois », sans dire laquelle et
+sans rien à toucher. Une cliente inscrite par mot de passe qui revenait par
+Google, ou l'inverse, n'avait plus aucun moyen d'entrer.
+
+Le mur avait sa raison (14 août) : une adresse NON CONFIRMÉE se tape à la main,
+et pourrait adopter la fiche d'une autre. Mais **une adresse confirmée est une
+preuve** : Supabase n'admet qu'un seul compte confirmé par adresse, donc l'autre
+porte est la sienne aussi. 0075 lui rend la fiche (`statut: 'reprise'`) au lieu
+de la barrer. Adresse non confirmée, le mur tient à l'identique.
+
+En attendant 0075, le mur porte enfin ses deux portes : « Continuer avec Google »
+et « Entrer par e-mail et mot de passe ». Elle en pousse une, elle n'attend plus.
+
+### À faire côté Supabase
+
+1. `supabase/voir_la_porte_des_comptes.sql` (lecture seule) pour voir l'état.
+2. `supabase/migrations/0075_la_porte_du_compte.sql`, une seule fois.
+3. Repasser ① pour vérifier.
+
+`0075` retire puis recrée `list_pending_staff` : son type de retour change, et
+Postgres l'exige. `adopter_ma_fiche` garde sa signature.
+
+Harnais : `scripts/verifie-porte.mjs` (18e), 15 assertions sur le routage.
+
+---
+
 ## LA JUSTE CADENCE — 28 août, PUBLIÉ
 
 Demandée telle quelle : « un abonnement de lavage et resserrage qui s'utilise

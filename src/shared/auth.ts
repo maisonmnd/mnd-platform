@@ -52,6 +52,59 @@ export function useAuth(): AuthState {
   );
 }
 
+/* ══ L'ORIGINE D'UN COMPTE — par quelle porte il est né ═══════════
+   Le Trône listait comme CANDIDATES au personnel tous les comptes absents de
+   `staff` : une cliente inscrite sur Ma Couronne y arrivait donc, avec un
+   bouton « Autoriser » à portée de clic, qui lui aurait ouvert l'ERP entier.
+   L'écran devinait l'origine en cherchant une fiche cliente du même
+   identifiant, mais une cliente qui vient de s'inscrire n'en a pas encore, et
+   une cliente ADOPTÉE porte l'identifiant de son ancienne fiche : les deux
+   retombaient du mauvais côté.
+
+   On cesse de deviner : la porte s'inscrit sur le compte au moment où elle est
+   franchie. Ma Couronne repose la marque à CHAQUE session, ce qui range aussi,
+   sans migration ni geste, tous les comptes nés avant cette règle.
+
+   LA MARQUE N'EST PAS UN DROIT. Elle ne fait qu'orienter une liste : se
+   marquer « trone » n'autorise rien (seul `authorize_staff` le fait, réservé
+   au souverain), et se marquer « couronne » ne retire rien. Un compte peut
+   donc l'écrire lui-même sans qu'aucune porte ne s'ouvre. */
+export type Origine = 'trone' | 'couronne';
+
+/** L'origine lue sur une session, ou `undefined` si le compte est né avant. */
+export const origineDeLaSession = (s: Session | null): Origine | undefined => {
+  const o = (s?.user?.user_metadata as { origine?: string } | undefined)?.origine;
+  return o === 'trone' || o === 'couronne' ? o : undefined;
+};
+
+/** Pose l'origine sur le compte connecté. Sans effet si elle y est déjà, pour
+    ne pas rafraîchir le jeton à chaque ouverture de l'application. */
+export async function marqueOrigine(origine: Origine): Promise<void> {
+  if (!supabase) return;
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return;
+  if ((data.user.user_metadata as { origine?: string } | undefined)?.origine === origine) return;
+  const { error } = await supabase.auth.updateUser({ data: { origine } });
+  if (error) console.warn('[auth] marqueOrigine:', error.message);
+}
+
+/** UN COMPTE EN ATTENTE, tel que le rend `list_pending_staff`. `origine` et
+    `a_fiche` n'existent qu'une fois la migration passée : le typage les rend
+    facultatifs pour que l'écran fonctionne avant comme après. */
+export type CompteEnAttente = {
+  user_id: string; email: string | null; created_at: string;
+  origine?: string | null; a_fiche?: boolean | null;
+};
+
+/** VIENT-ELLE DE MA COURONNE ? Trois preuves, de la plus forte à la plus
+    faible : la marque posée à la porte, la fiche vue par le serveur, la fiche
+    vue d'ici. Une seule suffit — chacune dit la même chose, et les trois se
+    complètent selon ce qui est déjà déployé. */
+export const vientDeMaCouronne = (
+  u: CompteEnAttente,
+  aUneFiche: (userId: string) => boolean,
+): boolean => u.origine === 'couronne' || u.a_fiche === true || aUneFiche(u.user_id);
+
 // ---------- Actions personnel (e-mail + mot de passe) ----------
 export async function signInEmail(email: string, password: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');
@@ -70,7 +123,7 @@ export async function signUpEmail(
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
-    options: { emailRedirectTo: appRedirect() },
+    options: { emailRedirectTo: appRedirect(), data: { origine: 'trone' } },
   });
   if (error) throw error;
   if (data.session) await ensureFounder(name);
@@ -129,7 +182,7 @@ export async function signUpClient(
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
-    options: { emailRedirectTo: appRedirect(), data: { name: name.trim() } },
+    options: { emailRedirectTo: appRedirect(), data: { name: name.trim(), origine: 'couronne' } },
   });
   if (error) throw error;
   return { needsConfirmation: !data.session };

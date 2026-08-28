@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createStore, useStore } from '../../shared/store';
 import { clientSessionsStore } from '../../shared/activity';
-import { useAuth, useStaff } from '../../shared/auth';
+import { useAuth, useStaff, marqueOrigine } from '../../shared/auth';
 import { supabase } from '../../shared/supabase';
 import {
   useCategories,
@@ -194,7 +194,17 @@ export function useEnsureClient(): string {
         /* La maison n'ouvre pas d'espace cliente ; une adresse au compte d'un
            autre non plus — les écrans d'App.tsx disent chacun leur mot. */
         if (statut === 'staff' || statut === 'occupee') return;
-        if (statut === 'adoptee') {
+        /* ELLE VIENT DE MA COURONNE, ET LE TRÔNE DOIT LE SAVOIR. La marque se
+           repose à chaque session : les comptes nés avant cette règle se
+           rangent d'eux-mêmes à leur prochaine ouverture, sans migration ni
+           geste au comptoir. Après le verdict, jamais avant — un compte de la
+           maison ne doit pas se marquer « cliente ». */
+        void marqueOrigine('couronne');
+        /* « reprise » (0075) : mon adresse était portée par la fiche d'un
+           AUTRE compte, et ma boîte aux lettres l'a prouvée mienne. Le
+           serveur me l'a rendue au lieu de me barrer le passage. Même geste
+           que l'adoption : on relit avec les bons droits. */
+        if (statut === 'adoptee' || statut === 'reprise') {
           /* La fiche vient de devenir la nôtre CÔTÉ SERVEUR : un rechargement
              la lit avec les bons droits (famille, enfants, rituels compris).
              Pas de boucle possible — au prochain passage, le verdict est
