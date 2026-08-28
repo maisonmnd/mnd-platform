@@ -392,20 +392,12 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   doc.setFontSize(13);
   doc.setTextColor(INK);
   doc.text(d.clientName, M, y + 6);
-  /* La payeuse, juste sous la tête soignée : deux noms, deux rôles, aucun
-     doute sur celui à qui la couronne appartient. */
-  if (d.payeurName) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(SOFT);
-    doc.text(pdfSafe(`Réglée par ${d.payeurName}`), M, y + 11);
-  }
   const cmeta = [d.clientPhone, d.master ? `Maître · ${d.master}` : ''].filter(Boolean).join('   ·   ');
   if (cmeta) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(SOFT);
-    doc.text(cmeta, M, y + (d.payeurName ? 16 : 11));
+    doc.text(cmeta, M, y + 11);
   }
   y += 20;
 
@@ -497,6 +489,11 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
       row(`Règlement · ${pdfSafe(r.date)}`, `${pdfSafe(r.method)} · ${r.amount}`);
     }
   } else if (d.payment) row('Règlement', d.payment);
+  /* LA PAYEUSE APPARTIENT AU BLOC DU RÈGLEMENT — 28 août. Elle vivait sous le
+     nom de la tête soignée, en tête de pièce : deux informations de nature
+     différente collées l'une à l'autre. Le haut dit POUR QUI l'on a
+     travaillé, le bas dit COMMENT et PAR QUI c'est réglé. */
+  if (d.payeurName) row('Au compte de', pdfSafe(d.payeurName), false, COPPER);
   if (d.status) row('Statut', d.status);
 
   // — Note —

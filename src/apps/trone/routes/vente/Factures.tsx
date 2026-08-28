@@ -1396,9 +1396,6 @@ export default function Factures() {
               </div>
 
               <div className="trv-doc__pour">Pour {prenomOf(active)},</div>
-              {payeurAutreQue(active) && (
-                <div className="trv-doc__payeur">Réglée par {payeurAutreQue(active)}</div>
-              )}
               <div className="trv-doc__verse">{theme.verse}</div>
               <div className="trv-doc__sep">·, ✦, ·</div>
 
@@ -1512,6 +1509,14 @@ export default function Factures() {
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 7 }}>
                       {journal.length > 1 ? 'Règlements' : 'Réglé par'}
                     </div>
+                    {/* LA PAYEUSE APPARTIENT AU BLOC DU RÈGLEMENT — 28 août.
+                        Elle vivait sous le nom de la tête soignée, en tête de
+                        pièce : deux informations de nature différente collées
+                        l'une à l'autre. Le haut dit POUR QUI l'on a travaillé,
+                        le bas dit COMMENT et PAR QUI c'est réglé. */}
+                    {payeurAutreQue(active) && (
+                      <div className="trv-doc__payeur">Au compte de {payeurAutreQue(active)}</div>
+                    )}
                     {journal.map((p) => (
                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
                         <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>

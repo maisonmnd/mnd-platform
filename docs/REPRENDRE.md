@@ -147,6 +147,12 @@ rien.
 À l'écran (`trv-doc__payeur`) et dans le PDF (`InvoicePdfData.payeurName`,
 sous le bloc CLIENTE, la méta décalée en conséquence).
 
+**LA PAYEUSE EST DESCENDUE AU BLOC DU RÈGLEMENT** (28 août, second passage) :
+elle vivait sous le nom de la tête soignée, deux informations de nature
+différente collées l'une à l'autre. Le haut de la pièce dit POUR QUI l'on a
+travaillé, le bas dit COMMENT et PAR QUI c'est réglé. Elle s'y lit « Au compte
+de Merine Zinsou », à l'écran comme dans le PDF.
+
 **LE REÇU GARDE LA PAYEUSE EN TÊTE** : « REÇU DE » nomme celle de qui l'argent
 est venu, et c'est juste. Une facture dit ce qu'on a fait et pour qui ; un reçu
 dit qui a payé.

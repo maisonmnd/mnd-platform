@@ -735,7 +735,7 @@
    dessein : c'est un rappel, pas le sujet de la pièce. */
 .trv-doc__payeur {
   font-family: var(--font-sans); font-size: 12px; letter-spacing: .03em;
-  color: var(--ink-soft); margin-top: 3px;
+  color: var(--ink-soft); margin-bottom: 6px;
 }
 .trv-doc__verse { font-family: var(--font-serif); font-style: italic; font-size: 19px; line-height: 1.5; color: var(--copper-700); white-space: pre-line; margin: 14px 0 4px; max-width: 330px; }
 .trv-doc__sep { text-align: center; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.3em; color: var(--color-argile); margin: 22px 0; }
