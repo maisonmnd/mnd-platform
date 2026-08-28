@@ -1333,14 +1333,27 @@ const AGE_STYLE = (j: number): { bg: string; fg: string; bord: string } => (
 );
 
 function PanneauCompte({
-  client, appts, byId, onEncaisser,
+  client, byId, onEncaisser,
 }: {
   client: Client;
-  appts: Appointment[];
   byId: ReturnType<typeof useServicesById>;
   onEncaisser: (a: Appointment) => void;
 }) {
   const { currency } = useBranch();
+  /* ── LES RENDEZ-VOUS DE TOUT LE FOYER — 28 août 2026 ────────────────
+     « Je ne vois nulle part que Merine doit 36 400 F pour le compte de sa
+     fille Chloey » (Yéman). La cause n'était pas dans le calcul : ce panneau
+     recevait en prop les rendez-vous de LA SEULE TÊTE OUVERTE.
+
+     Le compte d'un foyer se bâtissait donc sur les rituels d'une personne :
+     sur la fiche de Merine, ceux de Chloey n'existaient tout simplement pas,
+     et aucune somme ne pouvait les faire apparaître. Le moteur avait raison,
+     on lui donnait la mauvaise matière.
+
+     Il lit désormais LUI-MÊME les rendez-vous de la branche, comme il lit
+     déjà les factures et les avoirs, et filtre sur les têtes du compte. Un
+     écran qui décide de sa portée ne doit pas la recevoir de son parent. */
+  const appts = useBranchAppointments();
   const [invoices] = useInvoices();
   const [credits] = useCredits();
   const [clients] = useStore(clientsStore);
@@ -2785,7 +2798,7 @@ function Customer360({
         </>
         )}
 
-        {tab === 'compte' && <PanneauCompte client={client} appts={appts} byId={byId} onEncaisser={setPayAppt} />}
+        {tab === 'compte' && <PanneauCompte client={client} byId={byId} onEncaisser={setPayAppt} />}
 
         {tab === 'parcours' && (
         <>

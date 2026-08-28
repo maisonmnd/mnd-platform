@@ -54,6 +54,33 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LE COMPTE D'UN FOYER NE VOYAIT QU'UNE TÊTE — 28 août, PUBLIÉ
+
+« Je ne vois nulle part que Merine doit 36 400 F pour le compte de sa fille
+Chloey » (Yéman, après un premier correctif qui n'avait rien changé).
+
+**LA CAUSE N'ÉTAIT PAS DANS LE CALCUL.** `PanneauCompte` recevait en prop
+`appts={apptsOf(selected.id)}` — les rendez-vous de LA SEULE TÊTE OUVERTE. Le
+compte d'un foyer se bâtissait donc sur les rituels d'une personne : sur la
+fiche de Merine, ceux de Chloey n'existaient tout simplement pas, et aucune
+somme ne pouvait les faire apparaître.
+
+C'est ce qui rendait le défaut si difficile à voir : les factures venaient de
+`useInvoices()`, non filtré, donc les factures de Chloey PARAISSAIENT sur la
+fiche de Merine — mais pas ses rituels. Un relevé à moitié complet ressemble à
+un relevé complet.
+
+**LE MOTEUR AVAIT RAISON, ON LUI DONNAIT LA MAUVAISE MATIÈRE.** Les 73
+assertions du harnais passaient toutes : elles éprouvent le calcul, pas le
+câblage.
+
+Le panneau lit désormais LUI-MÊME `useBranchAppointments()`, comme il lit déjà
+les factures et les avoirs. **Un écran qui décide de sa portée ne doit pas la
+recevoir de son parent** — la prop a disparu, la faute ne peut plus se répéter.
+
+Les deux autres lectures (Créances, alerte au comptoir) lisaient déjà la branche
+entière ; vérifié.
+
 ## LA PAYEUSE VOIT CE QUE SON FOYER DOIT — 28 août, PUBLIÉ
 
 « Chloey reste devoir 36 400 F que je ne vois pas sur le compte du parent
