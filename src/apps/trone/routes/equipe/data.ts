@@ -4,6 +4,7 @@ import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
 import { ussdAvecMontant } from '../../../../shared/momo';
 import type { Echeance } from '../../../../shared/echeancier';
+import type { OptionCouleur } from '../../../../shared/couleur';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -802,6 +803,11 @@ export type Subscriber = {
       (voir `shared/echeancier.ts`). Un « payé » écrit à côté de ses versements
       finit toujours par les contredire. */
   echeances?: Echeance[];
+  /** L'OPTION COULEUR — les blancs couverts, ou le gris sublimé. Elle vit sur
+      l'ABONNÉE et non sur la formule : la même Année Sereine se prend avec ou
+      sans, et une dame peut changer de voie sans résilier. Voir
+      `shared/couleur.ts`. Absente = elle n'a pas pris l'option. */
+  couleur?: OptionCouleur;
   note?: string;
   /* — pack à crédits — */
   /** Jour d'achat du pack (ISO). C'est le début de sa fenêtre de consommation :

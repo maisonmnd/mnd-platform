@@ -54,6 +54,49 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## L'option couleur — les cheveux blancs, 28 août, PUBLIÉ
+
+« J'ai de plus en plus de jeunes dames dans la quarantaine, cinquantaine, qui
+bataillent avec leurs cheveux blancs ou gris. On doit créer l'option avec tous
+les abonnements » (Yéman).
+
+**CE N'EST PAS UNE FORMULE, C'EST UNE OPTION.** Elle vit sur l'ABONNÉE
+(`Subscriber.couleur`), pas sur la formule : la même Année Sereine se prend avec
+ou sans, et une dame change de voie sans résilier. Lui donner sa propre carte
+l'aurait mise en concurrence avec les onze autres, alors qu'elle les accompagne.
+
+**DEUX VOIES, parce qu'elles ne veulent pas toutes la même chose.**
+`L'Ébène` — « Les blancs disparaissent » · `L'Argent` — « Le gris devient une
+couleur choisie ». Celle qui cache aujourd'hui assume souvent deux ans plus
+tard ; une option qui porte les deux voies la garde.
+
+**DEUX RYTHMES** — `Régulière` (à chaque venue) et `Légère` (une sur deux),
+parce que les blancs ne reviennent pas à la même vitesse chez toutes. En rythme
+léger le compte s'arrondit **vers le haut** : sur cinq venues elle a trois
+reprises, jamais deux. La Maison donne le passage de trop.
+
+**LA COULEUR SUIT LE RESSERRAGE, JAMAIS LE LAVAGE.** Le nombre de reprises se
+compte sur le quota de l'atelier d'entretien `atl-ii-gbeji`, pas sur le plus
+gros quota de la formule — L'Année Fraîche porte 12 lavages et 6 resserrages,
+elle donne 6 reprises et non 12.
+
+**AUCUN PRIX N'EST ÉCRIT DANS LE CODE.** Le supplément se calcule sur le tarif
+que la prestation porte AU CATALOGUE à l'instant du calcul, moins 15 %. Un tarif
+recopié aurait vieilli au premier changement de prix, et la cliente aurait payé
+l'ancien. La prestation elle-même **se choisit** dans la modale (atelier
+`atl-iii-yekpe`) : une option accrochée à une prestation disparue se
+facturerait zéro sans rien dire.
+
+Le supplément entre dans le **total à découper** (elle se paie avec
+l'abonnement, pas à côté) et dans le **MRR ramené au mois** — un supplément
+annuel non normalisé gonflerait le revenu récurrent du mois de la signature puis
+disparaîtrait.
+
+`src/shared/couleur.ts` + `verifie-couleur` (32 assertions). Deux attentes du
+harnais étaient fausses à la première exécution, pas le code : 3 × 25 000 × 0,85
+fait 63 750 qui s'arrondit à 64 000, et une remise négative doit ramener à zéro
+remise et non à la remise par défaut.
+
 ## Le parcours des formules — 28 août, PUBLIÉ
 
 « Respecte la maquette avec le rangement du parcours des abonnements : le

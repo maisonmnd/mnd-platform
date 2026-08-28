@@ -14,6 +14,7 @@ import {
 import { useServices } from '../../../../shared/catalog';
 import { useAppointments } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
+import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -21,7 +22,7 @@ import './equipe.css';
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | '' };
-type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null };
+type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null; voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -45,7 +46,7 @@ export default function Abonnements() {
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -182,27 +183,94 @@ export default function Abonnements() {
     });
   };
 
+  /* ── L'OPTION COULEUR, ACCROCHÉE À LA FORMULE ───────────────────────
+     « J'ai de plus en plus de jeunes dames dans la quarantaine, cinquantaine,
+     qui bataillent avec leurs cheveux blancs » (Yéman, 28 août).
+
+     LA COULEUR SUIT LE RESSERRAGE, jamais le lavage : on reprend les racines
+     quand on reprend les racines. Le nombre de reprises se compte donc sur le
+     quota de l'atelier d'ENTRETIEN (GBÈJÍ™), pas sur le plus gros quota de la
+     formule — L'Année Fraîche porte douze lavages et six resserrages, elle
+     donne six reprises et non douze. */
+  const ATELIER_ENTRETIEN = 'atl-ii-gbeji';
+  const ATELIER_COULEUR = 'atl-iii-yekpe';
+  const svcDe = (id: string) => services.find((s) => s.id === id);
+
+  const venuesDeLaFormule = (p: Plan): number => {
+    const inc = p.included ?? [];
+    const entretien = inc.filter((i) => svcDe(i.serviceId)?.categoryId === ATELIER_ENTRETIEN);
+    const source = entretien.length > 0 ? entretien : inc;
+    const q = source.reduce((m, i) => Math.max(m, i.qty ?? 0), 0);
+    /* Sans prestation rattachée, un cycle porte au moins UNE venue ; un pack,
+       lui, ne se devine pas — il faut savoir combien de crédits il donne. */
+    return q > 0 ? q : (p.mode === 'pack' ? 0 : 1);
+  };
+  /* Les mois que couvre un règlement, pour ramener l'option au MRR. */
+  const moisCouverts = (p: Plan, c: SubCycle): number =>
+    (p.mode === 'pack' ? Math.max(1, Math.round((p.validityDays ?? 365) / 30))
+      : c === 'annuel' ? 12 : c === 'semestriel' ? 6 : 1);
+
+  /* Les prestations de l'atelier couleur — celles qu'on peut rattacher à une voie. */
+  const servicesCouleur = useMemo(
+    () => services.filter((s) => s.categoryId === ATELIER_COULEUR),
+    [services],
+  );
+  /* La prestation retenue pour la voie choisie : celle demandée, sinon celle
+     que la voie attend, sinon la première de l'atelier. Jamais rien d'inventé. */
+  const serviceDeLaVoie = (voie: VoieCouleur | ''): string => {
+    if (!voie) return '';
+    if (subForm.couleurServiceId && svcDe(subForm.couleurServiceId)) return subForm.couleurServiceId;
+    const attendu = voieDe(voie).serviceIdDefaut;
+    return svcDe(attendu) ? attendu : (servicesCouleur[0]?.id ?? '');
+  };
+
+  /* Ce que l'option coûterait, à l'instant où on le lit — jamais un prix figé. */
+  const chiffreLOption = (p: Plan | undefined, c: SubCycle) => {
+    if (!p || !subForm.voie) return null;
+    const serviceId = serviceDeLaVoie(subForm.voie);
+    const prix = svcDe(serviceId)?.priceXof ?? 0;
+    const venues = venuesDeLaFormule(p);
+    const reprises = reprisesDeCouleur(venues, subForm.rythme);
+    return {
+      serviceId, prix, venues, reprises,
+      supplement: supplementCouleurXof(reprises, prix),
+      plein: supplementSansRemiseXof(reprises, prix),
+      mois: moisCouverts(p, c),
+    };
+  };
+
   const saveSub = () => {
     const plan = planOf(subForm.planId);
     const client = clients.find((c) => c.id === subForm.clientId);
     if (!client || !plan) return;
     const cycle = subForm.cycle;
+    const opt = chiffreLOption(plan, cycle);
+    /* Le total À DÉCOUPER inclut l'option : elle se paie avec l'abonnement,
+       pas à côté. La découper séparément ferait deux échéanciers à suivre. */
+    const totalXof = subCycleAmountXof(plan.priceXof, cycle) + (opt?.supplement ?? 0);
     const nm: Subscriber = {
       id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
       cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
       nextIso: addDaysISO(cycleDays(cycle)),
-      sinceIso: todayISO(), since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
+      sinceIso: todayISO(), since: 'ce mois', status: 'new', payments: [],
+      /* Le MRR porte l'option, ramenée au mois : un supplément annuel non
+         normalisé gonflerait le revenu récurrent du mois de la signature,
+         puis disparaîtrait des mois suivants. */
+      mrrXof: subMonthlyXof(plan.priceXof, cycle) + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
+      ...(opt && opt.supplement > 0
+        ? { couleur: { voie: subForm.voie as VoieCouleur, rythme: subForm.rythme, serviceId: opt.serviceId, supplementXof: opt.supplement } }
+        : {}),
       /* L'ÉCHÉANCIER S'ÉCRIT ICI, une seule fois. Au-delà de 100 000 F, la tête
          a pu choisir de payer en 2 ou 4 fois : la découpe est figée à la
          signature, comme une parole donnée. Elle ne se recalcule jamais. */
-      ...(subForm.parts && peutEtreEchelonne(subCycleAmountXof(plan.priceXof, cycle))
-        ? { echeances: construitEcheancier(subCycleAmountXof(plan.priceXof, cycle), subForm.parts, todayISO()) }
+      ...(subForm.parts && peutEtreEchelonne(totalXof)
+        ? { echeances: construitEcheancier(totalXof, subForm.parts, todayISO()) }
         : {}),
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' });
     if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
@@ -471,7 +539,35 @@ export default function Abonnements() {
             </section>
           ))}
 
-          <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 26 }}>
+          {/* L'OPTION COULEUR N'EST PAS UNE FORMULE : elle s'ajoute à
+              n'importe laquelle. Lui donner sa propre carte l'aurait mise en
+              concurrence avec les autres, alors qu'elle les accompagne. */}
+          <div style={{
+            marginTop: 26, padding: '16px 20px', borderRadius: 3,
+            background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+          }}>
+            <div className="tre-parcours__quand" style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 10 }}>
+              Sur toutes les formules
+            </div>
+            <p style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)', margin: '5px 0 8px' }}>
+              L’option couleur.
+            </p>
+            <div className="tr-grid tr-grid--2" style={{ gap: 14 }}>
+              {VOIES.map((v) => (
+                <div key={v.k}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{v.nom}</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>{v.promesse}</div>
+                  <div className="mnd-muted" style={{ fontSize: 12, marginTop: 3, lineHeight: 1.55 }}>{v.dit}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 11, lineHeight: 1.6 }}>
+              Deux rythmes au choix, à chaque venue ou une sur deux. Le supplément se calcule sur le prix du
+              catalogue et se remise de {REMISE_OPTION_PCT} %. Elle se choisit à l’inscription d’une abonnée.
+            </div>
+          </div>
+
+          <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 22 }}>
             Chaque formule réserve un créneau <span style={{ color: 'var(--copper-700)' }}>rien qu’à vous</span>, prélèvement Mobile Money, sans paperasse, résiliable à tout moment.
           </div>
         </div>
@@ -483,7 +579,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           <Card style={{ overflow: 'hidden' }}>
@@ -521,6 +617,15 @@ export default function Abonnements() {
                           {cycleLabel(m.cycle ?? 'mensuel').split(' · ')[0]}
                           {(plan?.included?.length ?? 0) > 0 ? ` · ${plan!.included!.length} prestation${plan!.included!.length > 1 ? 's' : ''} incluse${plan!.included!.length > 1 ? 's' : ''}` : ''}
                         </div>
+                        {/* L'OPTION COULEUR SE VOIT DANS LE TABLEAU : c'est
+                            elle qui dit au maître ce qu'il doit préparer avant
+                            que la dame s'asseye. */}
+                        {m.couleur && (
+                          <div style={{ fontSize: 10.5, marginTop: 3, color: 'var(--copper-700)', fontWeight: 500 }}>
+                            {libelleCouleur(m.couleur)}
+                            {m.couleur.supplementXof ? ` · + ${fmtMoney(m.couleur.supplementXof, currency)}` : ''}
+                          </div>
+                        )}
                       </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
                       <td data-label="Prochaine échéance">
@@ -834,13 +939,119 @@ export default function Abonnements() {
               <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
             </Field>
 
+            {/* ── L'OPTION COULEUR, SUR TOUTES LES FORMULES ─────────────
+                Deux voies parce que ces dames ne veulent pas la même chose :
+                l'une veut que les blancs disparaissent, l'autre veut que son
+                gris devienne beau. Deux rythmes parce que les blancs ne
+                reviennent pas à la même vitesse chez toutes — c'est elle qui
+                sait, pas la Maison. */}
+            {(() => {
+              const plan = planOf(subForm.planId);
+              if (!plan) return null;
+              const opt = chiffreLOption(plan, subForm.cycle);
+              const venues = venuesDeLaFormule(plan);
+              return (
+                <Field label="L’option couleur · les cheveux blancs">
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`tre-chip ${subForm.voie === '' ? 'is-on' : ''}`}
+                      onClick={() => setSubForm({ ...subForm, voie: '' })}
+                    >
+                      Aucune
+                    </button>
+                    {VOIES.map((v) => (
+                      <button
+                        key={v.k}
+                        type="button"
+                        className={`tre-chip ${subForm.voie === v.k ? 'is-on' : ''}`}
+                        onClick={() => setSubForm({ ...subForm, voie: v.k })}
+                        title={v.promesse}
+                      >
+                        {v.nom}
+                      </button>
+                    ))}
+                  </div>
+
+                  {subForm.voie && (
+                    <>
+                      <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--color-indigo)', margin: '11px 0 3px' }}>
+                        {voieDe(subForm.voie).promesse}
+                      </p>
+                      <p className="mnd-muted" style={{ fontSize: 12, margin: '0 0 11px', lineHeight: 1.55 }}>
+                        {voieDe(subForm.voie).dit}
+                      </p>
+
+                      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                        {RYTHMES.map((r) => (
+                          <button
+                            key={r.k}
+                            type="button"
+                            className={`tre-chip ${subForm.rythme === r.k ? 'is-on' : ''}`}
+                            onClick={() => setSubForm({ ...subForm, rythme: r.k })}
+                          >
+                            {r.nom} · {r.dit}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* LA PRESTATION SE CHOISIT, elle ne se suppose pas : le
+                          catalogue de la Maison renomme et déplace, et une
+                          option accrochée à une prestation disparue se
+                          facturerait zéro sans rien dire. */}
+                      <div style={{ marginTop: 10 }}>
+                        <Select
+                          value={serviceDeLaVoie(subForm.voie)}
+                          onChange={(e) => setSubForm({ ...subForm, couleurServiceId: e.target.value })}
+                          aria-label="La prestation qui sert cette voie"
+                        >
+                          {servicesCouleur.length === 0 && <option value="">Aucune prestation dans l’atelier couleur</option>}
+                          <OptionsPrestations services={servicesCouleur} prix devise={currency} />
+                        </Select>
+                      </div>
+
+                      <div style={{
+                        marginTop: 11, padding: '11px 13px', borderRadius: 3,
+                        background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+                        fontSize: 12.5, lineHeight: 1.65,
+                      }}>
+                        {venues === 0 ? (
+                          <span style={{ color: 'var(--color-brique, #96412E)' }}>
+                            Cette formule ne dit pas combien de venues elle porte. Rattachez-lui ses prestations
+                            incluses, l’option saura alors se chiffrer.
+                          </span>
+                        ) : opt && opt.supplement > 0 ? (
+                          <>
+                            <b style={{ fontWeight: 600 }}>
+                              + {fmtMoney(opt.supplement, currency)}
+                              {plan.mode === 'pack' ? ' pour l’année' : subForm.cycle === 'mensuel' ? ' par mois' : ' par cycle'}
+                            </b>
+                            {' · '}{opt.reprises} reprise{opt.reprises > 1 ? 's' : ''} sur {venues} venue{venues > 1 ? 's' : ''}
+                            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 3 }}>
+                              {fmtMoney(opt.plein, currency)} à la carte, elle gagne {fmtMoney(opt.plein - opt.supplement, currency)}.
+                            </div>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--color-brique, #96412E)' }}>
+                            Cette prestation n’a pas de prix au catalogue, l’option ne peut pas se chiffrer.
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </Field>
+              );
+            })()}
+
             {/* PAYER EN PLUSIEURS FOIS — la porte ne s'ouvre qu'au-delà de
                 100 000 F. En dessous, quatre échéances coûtent plus cher à
                 suivre qu'elles ne rapportent, et elles habituent la Maison à
-                courir après des miettes. */}
+                courir après des miettes. L'option couleur entre dans le total
+                à découper : elle se paie AVEC l'abonnement, pas à côté. */}
             {(() => {
               const plan = planOf(subForm.planId);
-              const total = plan ? subCycleAmountXof(plan.priceXof, subForm.cycle) : 0;
+              const supp = chiffreLOption(plan, subForm.cycle)?.supplement ?? 0;
+              const total = (plan ? subCycleAmountXof(plan.priceXof, subForm.cycle) : 0) + supp;
               if (!peutEtreEchelonne(total)) return null;
               const apercu = subForm.parts ? construitEcheancier(total, subForm.parts, todayISO()) : [];
               return (
