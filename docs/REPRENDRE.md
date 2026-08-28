@@ -54,6 +54,37 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## CHAQUE TÊTE A SES PROPRES MOUVEMENTS — 28 août, PUBLIÉ
+
+« Les mouvements des enfants dans un foyer portent tous les mouvements de leur
+parent. Faire la distinction. Chloey et Kaitlyn doivent avoir des mouvements
+propres à elles-mêmes » (Yéman).
+
+Le relevé d'un foyer se lisait **entier sur la fiche de chaque tête** : la fille
+voyait les rituels de sa sœur, et rien ne disait lesquels étaient les siens.
+
+`EcritureCompte.pour` porte désormais la tête concernée : le rituel et ses
+versements vont à `a.clientId`, la facture à **`i.forClientId ?? i.clientId`**
+(une mère qui paie le rituel de sa fille reste la payeuse, mais le mouvement
+appartient à la fille).
+
+**LES AVOIRS RESTENT AU FOYER** — `pour` absent. Ils sont portés par le compte,
+jamais par une personne : c'est la payeuse qui a déposé, et n'importe quelle
+tête les consomme. Les attribuer à l'une d'elles serait faux.
+
+L'écran ouvre sur **« Ses mouvements »** ; « Tout le foyer » se demande, et
+chaque ligne y dit alors de qui elle est, ou « au foyer » pour les avoirs.
+
+### L'ordre d'une même journée, corrigé au passage
+
+Trouvé en éprouvant les foyers : les écritures se rangeaient par identifiant à
+date égale, si bien qu'un règlement (`p-…`) passait **avant** le rituel (`r-…`)
+qu'il paie. Le solde courant montrait la cliente en crédit avant que le service
+existe. Ce qui est LIVRÉ vient d'abord, ce qui est VERSÉ ensuite —
+`rituel · facture · avoir · règlement`.
+
+`verifie-compte` monte à **68 assertions**.
+
 ## UN PAQUET NE SE MULTIPLIE PAS — 28 août, PUBLIÉ
 
 « L'Éclosion est un abonnement annuel, pourquoi c'est écrit prix mensuel ? De

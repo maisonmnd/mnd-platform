@@ -8,6 +8,7 @@
 import {
   ecrituresDuCompte, soldeDuCompte, creancesDeLaMaison, trancheDe, peutPartirDevant,
   duDeLaTete, duDuCompte, tetesDuCompte, lignesImpayees, rituelAuCompte,
+  ecrituresDeLaTete, ecrituresDuFoyer,
 } from '../src/shared/compte';
 import type { Appointment } from '../src/shared/agenda';
 import type { Invoice, CreditMovement } from '../src/shared/finance';
@@ -296,6 +297,56 @@ const aVenir = rdv({ id: 'av', clientId: 'c1', date: demain, netTest: 50_000, du
 dit('un rituel à venir ne fait aucune créance', 0,
   creancesDeLaMaison({ appts: [aVenir], dûDuRituel: du, aujourdhui: AUJ }).length);
 dit('… ni aucun dû', 0, duDeLaTete([aVenir], 'c1', du, AUJ));
+
+/* ── ⑪ CHAQUE TÊTE A SES PROPRES MOUVEMENTS ────────────────────────
+   « Les mouvements des enfants dans un foyer portent tous les mouvements de
+   leur parent. Chloey et Kaitlyn doivent avoir des mouvements propres à
+   elles-mêmes » (Yéman, 28 août).
+
+   Le relevé d'un foyer se lisait ENTIER sur la fiche de chaque tête : la fille
+   voyait les rituels de sa sœur, et rien ne disait lesquels étaient les siens.
+   Chaque écriture porte désormais la tête qu'elle concerne. */
+const foyerTrois = ecrituresDuCompte({
+  ids: ['mere', 'chloey', 'kaitlyn'],
+  porteurs: [{ type: 'family', id: 'fam' }],
+  invoices: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  appts: [
+    rdv({ id: 'rc', clientId: 'chloey', date: '2026-08-12', netTest: 50_700, duTest: 36_400,
+      payments: [{ id: 'pc', amountXof: 14_300, date: '2026-08-12', method: 'Espèces' }] } as never),
+    rdv({ id: 'rk', clientId: 'kaitlyn', date: '2026-08-12', netTest: 50_700, duTest: 0,
+      payments: [{ id: 'pk', amountXof: 50_700, date: '2026-08-12', method: 'MTN MoMo' }] } as never),
+  ],
+  credits: [av({ id: 'dv', kind: 'depot', amountXof: 65_000, date: '2026-08-12',
+    holderType: 'family', holderId: 'fam' } as never)],
+});
+
+dit('le foyer porte tout', 5, foyerTrois.length);
+dit('Chloey ne voit que les siens', ['r-rc', 'p-pc'],
+  ecrituresDeLaTete(foyerTrois, 'chloey').map((e) => e.id));
+dit('Kaitlyn ne voit que les siens', ['r-rk', 'p-pk'],
+  ecrituresDeLaTete(foyerTrois, 'kaitlyn').map((e) => e.id));
+dit('… et l’une ne voit rien de l’autre', false,
+  ecrituresDeLaTete(foyerTrois, 'chloey').some((e) => e.id.includes('k')));
+
+/* SON SOLDE EST LE SIEN : Chloey doit 36 400, Kaitlyn ne doit rien. */
+dit('Chloey doit ce qu’elle doit', -36_400, soldeDuCompte(ecrituresDeLaTete(foyerTrois, 'chloey')));
+dit('Kaitlyn ne doit rien', 0, soldeDuCompte(ecrituresDeLaTete(foyerTrois, 'kaitlyn')));
+
+/* L'AVOIR RESTE AU FOYER : il est porté par le compte, jamais par une
+   personne. L'attribuer à l'une d'elles serait faux. */
+dit('l’avoir n’appartient à aucune tête', ['a-dv'], ecrituresDuFoyer(foyerTrois).map((e) => e.id));
+dit('… et n’entre dans le solde de personne', 0,
+  soldeDuCompte(ecrituresDeLaTete(foyerTrois, 'mere')));
+dit('… mais bien dans celui du foyer entier', 28_600, soldeDuCompte(foyerTrois));
+
+/* Une tête SEULE voit tout ce qui la concerne, avoirs compris — il n'y a pas
+   de foyer pour les porter ailleurs. */
+const seule = ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [], invoices: [],
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  credits: [av({ id: 'ds', kind: 'depot', amountXof: 20_000, date: '2026-08-01' })],
+});
+dit('une tête seule garde son avoir au compte', 20_000, soldeDuCompte(seule));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

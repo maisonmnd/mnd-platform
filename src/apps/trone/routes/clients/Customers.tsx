@@ -42,7 +42,7 @@ import {
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
-import { ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
+import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
@@ -1370,8 +1370,28 @@ function PanneauCompte({
     dûDuRituel: (a) => apptDueXof(a, byId),
   }), [ids, porteurs, appts, invoices, credits, aujourdhui, byId]);
 
-  const solde = soldeDuCompte(ecritures);
-  const impayes = useMemo(() => lignesImpayees(ecritures), [ecritures]);
+  /* ── SES MOUVEMENTS, PAS CEUX DE SA MÈRE — 28 août ─────────────────
+     « Les mouvements des enfants dans un foyer portent tous les mouvements de
+     leur parent. Chloey et Kaitlyn doivent avoir des mouvements propres à
+     elles-mêmes » (Yéman).
+
+     Le relevé d'un foyer se lisait ENTIER sur la fiche de chaque tête : la
+     fille voyait les rituels de sa sœur, et rien ne disait lesquels étaient
+     les siens. On ouvre donc sur LES SIENS, et le foyer se demande.
+
+     LES AVOIRS RESTENT AU FOYER : ils sont portés par le compte, jamais par
+     une personne. C'est la payeuse qui a déposé, et n'importe quelle tête les
+     consomme — les attribuer à l'une d'elles serait faux. */
+  const enFoyer = ids.length > 1;
+  const [portee, setPortee] = useState<'sienne' | 'foyer'>('sienne');
+  const vues = useMemo(
+    () => (enFoyer && portee === 'sienne' ? ecrituresDeLaTete(ecritures, client.id) : ecritures),
+    [enFoyer, portee, ecritures, client.id],
+  );
+  const nomDeLaTete = (id?: string) => (id ? clients.find((c) => c.id === id)?.name : undefined);
+
+  const solde = soldeDuCompte(vues);
+  const impayes = useMemo(() => lignesImpayees(vues), [vues]);
   const totalDu = impayes.reduce((s, l) => s + l.resteXof, 0);
   const doit = totalDu > 0;
   const plusVieille = impayes[0];
@@ -1409,7 +1429,7 @@ function PanneauCompte({
      ligne à ligne, chaque ligne portant l'état du compte APRÈS elle. */
   const [releveOuvert, setReleveOuvert] = useState(false);
   let courant = 0;
-  const releve = ecritures.map((e) => {
+  const releve = vues.map((e) => {
     courant += e.creditXof - e.debitXof;
     return { e, apres: courant };
   }).reverse();
@@ -1439,8 +1459,31 @@ function PanneauCompte({
               {' · '}{plusVieille.libelle.replace(/^Rituel · /, '')} du {frShort(plusVieille.date)}, jamais soldé.</>
           ) : solde > 0 ? 'un avoir dort sur son compte, il se consommera au prochain rituel'
             : 'tout est réglé'}
-          {ids.length > 1 && ` · compte du foyer, ${ids.length} têtes`}
+          {enFoyer && (portee === 'sienne'
+            ? ` · ses mouvements seuls, foyer de ${ids.length} têtes`
+            : ` · tout le foyer, ${ids.length} têtes`)}
         </p>
+
+        {/* LA PORTÉE — on ouvre sur les SIENS : c'est sa fiche. Le foyer se
+            demande, il ne s'impose pas. */}
+        {enFoyer && (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
+            <button
+              type="button"
+              className={`tre-chip ${portee === 'sienne' ? 'is-on' : ''}`}
+              onClick={() => setPortee('sienne')}
+            >
+              Ses mouvements
+            </button>
+            <button
+              type="button"
+              className={`tre-chip ${portee === 'foyer' ? 'is-on' : ''}`}
+              onClick={() => setPortee('foyer')}
+            >
+              Tout le foyer · {ids.length} têtes
+            </button>
+          </div>
+        )}
         {doit && (
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
             {plusVieille && rituelDe(plusVieille.refId) && (
@@ -1613,6 +1656,14 @@ function PanneauCompte({
                 <span style={{ minWidth: 0 }}>
                   {e.libelle}
                   {e.detail && <span className="mnd-muted" style={{ fontSize: 11.5 }}> · {e.detail}</span>}
+                  {/* En vue foyer, chaque ligne dit DE QUI elle est — sinon on
+                      relit le même mélange qu'avant, en plus large. */}
+                  {portee === 'foyer' && e.pour && e.pour !== client.id && (
+                    <span style={{ fontSize: 11.5, color: 'var(--copper-700)' }}> · {nomDeLaTete(e.pour)}</span>
+                  )}
+                  {portee === 'foyer' && !e.pour && (
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}> · au foyer</span>
+                  )}
                 </span>
                 <span style={{
                   fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',

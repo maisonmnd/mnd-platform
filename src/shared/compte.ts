@@ -34,7 +34,30 @@ export type EcritureCompte = {
   /** Jours écoulés depuis une livraison NON soldée — l'âge de la créance. */
   impayeDepuisJours?: number;
   impayeXof?: number;
+  /** LA TÊTE QUE CETTE ÉCRITURE CONCERNE — 28 août 2026, sur « les mouvements
+      des enfants dans un foyer portent tous les mouvements de leur parent,
+      faire la distinction ».
+
+      Le relevé d'un foyer se lit sur la fiche de CHACUNE de ses têtes : sans
+      ce champ, la fille voyait les rituels de sa mère et de sa sœur, et
+      personne ne pouvait dire lesquels étaient les siens.
+
+      ABSENT = L'ÉCRITURE EST CELLE DU FOYER, pas d'une tête. C'est le cas des
+      avoirs : ils sont portés par le compte, jamais par une personne — c'est
+      la payeuse qui a déposé, et n'importe quelle tête du foyer les consomme. */
+  pour?: string;
 };
+
+/** Les écritures d'UNE tête : les siennes, et rien du foyer. */
+export const ecrituresDeLaTete = (
+  ecritures: readonly EcritureCompte[], clientId: string,
+): EcritureCompte[] => ecritures.filter((e) => e.pour === clientId);
+
+/** Les écritures qui n'appartiennent à personne en particulier — les avoirs
+    du foyer. Elles se lisent à part, sous le nom du compte. */
+export const ecrituresDuFoyer = (
+  ecritures: readonly EcritureCompte[],
+): EcritureCompte[] => ecritures.filter((e) => !e.pour);
 
 const jours = (deIso: string, aIso: string): number => {
   const a = new Date(`${deIso}T12:00:00`).getTime();
@@ -109,8 +132,8 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
     const dû = o.dûDuRituel(a);
     if (net > 0) {
       out.push({
-        id: `r-${a.id}`, date: a.date, source: 'rituel',
-        libelle: a.clientName ? `Rituel · ${a.clientName}` : 'Rituel honoré',
+        id: `r-${a.id}`, date: a.date, source: 'rituel', pour: a.clientId,
+        libelle: a.clientName ? `Rituel · ${a.clientName}` : 'Rituel',
         debitXof: net, creditXof: 0,
         ...(dû > 0 ? { impayeXof: dû, impayeDepuisJours: jours(a.date, o.aujourdhui) } : {}),
       });
@@ -121,14 +144,14 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
       for (const p of a.payments ?? []) {
         if (p.amountXof > 0) {
           out.push({
-            id: `p-${p.id}`, date: p.date || a.date, source: 'reglement',
+            id: `p-${p.id}`, date: p.date || a.date, source: 'reglement', pour: a.clientId,
             libelle: p.method || 'Règlement', debitXof: 0, creditXof: p.amountXof,
           });
         }
       }
       if (!a.payments?.length) {
         out.push({
-          id: `p-${a.id}`, date: a.date, source: 'reglement',
+          id: `p-${a.id}`, date: a.date, source: 'reglement', pour: a.clientId,
           libelle: 'Règlement', debitXof: 0, creditXof: verse,
         });
       }
@@ -137,13 +160,16 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
 
   /* ② LES FACTURES LIBRES — produits, caisse : ce que le rituel ne porte pas. */
   for (const i of o.invoices) {
-    const pour = i.clientId;
-    if (!ids.has(pour) || i.kind !== 'facture' || liees.has(i.id)) continue;
+    /* LA TÊTE POUR QUI LA FACTURE EST FAITE, pas celle qui la règle : une mère
+       qui paie le rituel de sa fille reste la payeuse, mais le mouvement
+       appartient à la fille. `forClientId` porte ce lien quand il existe. */
+    const pour = i.forClientId ?? i.clientId;
+    if (!(ids.has(pour) || ids.has(i.clientId)) || i.kind !== 'facture' || liees.has(i.id)) continue;
     const total = invoiceTotal(i);
     if (total > 0) {
       const reste = invoiceResteXof(i);
       out.push({
-        id: `f-${i.id}`, date: i.date, source: 'facture',
+        id: `f-${i.id}`, date: i.date, source: 'facture', pour,
         libelle: `Facture ${i.number}`, debitXof: total, creditXof: 0,
         ...(reste > 0 ? { impayeXof: reste, impayeDepuisJours: jours(i.date, o.aujourdhui) } : {}),
       });
@@ -151,7 +177,7 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
     for (const p of invoiceReglements(i)) {
       if (p.amountXof > 0) {
         out.push({
-          id: `fp-${p.id}`, date: p.date || i.date, source: 'reglement',
+          id: `fp-${p.id}`, date: p.date || i.date, source: 'reglement', pour,
           libelle: p.method || 'Règlement', detail: `Facture ${i.number}`,
           debitXof: 0, creditXof: p.amountXof,
         });
@@ -201,7 +227,17 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
     });
   }
 
-  return out.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  /* L'ORDRE D'UNE MÊME JOURNÉE — trouvé le 28 août en éprouvant les foyers.
+     Les écritures se rangeaient par identifiant à date égale, si bien qu'un
+     règlement (`p-…`) passait AVANT le rituel (`r-…`) qu'il paie : le solde
+     courant montrait la cliente en crédit avant que le service existe.
+
+     Ce qui est LIVRÉ vient d'abord, ce qui est VERSÉ ensuite. C'est l'ordre
+     de la vie, et le seul qui rende le solde courant lisible ligne à ligne. */
+  const rang: Record<SourceEcriture, number> = { rituel: 0, facture: 1, avoir: 2, reglement: 3 };
+  return out.sort((a, b) => a.date.localeCompare(b.date)
+    || rang[a.source] - rang[b.source]
+    || a.id.localeCompare(b.id));
 }
 
 /** LE SOLDE — négatif : elle doit à la Maison ; positif : la Maison lui doit. */
