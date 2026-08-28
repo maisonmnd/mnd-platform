@@ -7,7 +7,7 @@
    première chose qu'on éprouve ici. */
 import {
   ecrituresDuCompte, soldeDuCompte, creancesDeLaMaison, trancheDe, peutPartirDevant,
-  duDeLaTete, duDuCompte, tetesDuCompte, lignesImpayees,
+  duDeLaTete, duDuCompte, tetesDuCompte, lignesImpayees, rituelAuCompte,
 } from '../src/shared/compte';
 import type { Appointment } from '../src/shared/agenda';
 import type { Invoice, CreditMovement } from '../src/shared/finance';
@@ -136,16 +136,16 @@ const rdvFoyer = [
   rdv({ id: 'f2', clientId: 'enfant', date: '2026-08-02', duTest: 25_000 } as never),
   rdv({ id: 'f3', clientId: 'etrangere', date: '2026-08-03', duTest: 99_000 } as never),
 ];
-dit('le dû du FOYER additionne toutes ses têtes', 35_000, duDuCompte(rdvFoyer, ['mere', 'enfant'], du));
-dit('… la payeuse seule dirait bien moins', 10_000, duDeLaTete(rdvFoyer, 'mere', du));
+dit('le dû du FOYER additionne toutes ses têtes', 35_000, duDuCompte(rdvFoyer, ['mere', 'enfant'], du, AUJ));
+dit('… la payeuse seule dirait bien moins', 10_000, duDeLaTete(rdvFoyer, 'mere', du, AUJ));
 dit('… et un plafond de 30 000 ne couvre donc PAS le foyer', false,
-  peutPartirDevant(30_000, duDuCompte(rdvFoyer, ['mere', 'enfant'], du), 0).autorise);
+  peutPartirDevant(30_000, duDuCompte(rdvFoyer, ['mere', 'enfant'], du, AUJ), 0).autorise);
 
 dit('le dû d’une tête ignore les annulés', 10_000, duDeLaTete([
   rdv({ id: 'y1', clientId: 'c1', date: '2026-08-01', duTest: 10_000 } as never),
   rdv({ id: 'y2', clientId: 'c1', date: '2026-08-02', duTest: 7_000, status: 'annulé' } as never),
   rdv({ id: 'y3', clientId: 'c9', date: '2026-08-03', duTest: 3_000 } as never),
-], 'c1', du));
+], 'c1', du, AUJ));
 
 /* ── ⑦ LE FOYER — la tête rattachée voit le compte de SON FOYER ───── */
 const cl = (id: string, familyId?: string): Client => ({ id, name: id, branchId: 'br', familyId } as Client);
@@ -245,6 +245,57 @@ dit('un avoir tout consommé rend zéro', 0, soldeDuCompte(ecrituresDuCompte({
     av({ id: 'u2', kind: 'usage', amountXof: 25_000, date: '2026-08-05' }),
   ],
 })));
+
+/* ── ⑩ UN SEUL JUGE POUR TOUS LES ÉCRANS ───────────────────────────
+   « Pourquoi quand je vais sur le compte de Merine ce n'est pas marqué qu'elle
+   doit à la Maison ? Aligner toutes les informations » (Yéman, 28 août).
+
+   Trois écrans jugeaient différemment : le Compte n'acceptait que les rituels
+   marqués `honoré`, les Impayés et les Créances tout ce qui n'est pas annulé.
+   La même tête devait 104 400 F dans un écran et rien dans l'autre.
+
+   « HONORÉ » NE PEUT PAS ÊTRE LE JUGE : c'est un geste séparé, souvent posé
+   en retard, parfois jamais. Faire dépendre la dette d'un clic qu'on oublie,
+   c'est cacher de l'argent dû. */
+const hier = '2026-08-25';
+const demain = '2026-09-30';
+dit('un rituel passé compte, honoré ou non', true,
+  rituelAuCompte(rdv({ id: 'j1', date: hier, status: 'planifié' } as never), AUJ));
+dit('… même marqué honoré, évidemment', true,
+  rituelAuCompte(rdv({ id: 'j2', date: hier, status: 'honoré' }), AUJ));
+dit('celui du jour compte aussi', true, rituelAuCompte(rdv({ id: 'j3', date: AUJ }), AUJ));
+dit('un rituel À VENIR n’est pas une dette', false,
+  rituelAuCompte(rdv({ id: 'j4', date: demain }), AUJ));
+dit('un rituel ANNULÉ n’entre jamais', false,
+  rituelAuCompte(rdv({ id: 'j5', date: hier, status: 'annulé' }), AUJ));
+
+/* UN ACOMPTE VERSÉ D'AVANCE fait entrer le rituel : sinon le relevé porterait
+   un crédit sans le débit qui lui répond, et le solde mentirait. */
+dit('un rituel à venir DÉJÀ PAYÉ entre au compte', true, rituelAuCompte(rdv({
+  id: 'j6', date: demain,
+  payments: [{ id: 'ac', amountXof: 10_000, date: AUJ, method: 'Espèces' }],
+} as never), AUJ));
+
+/* LE RELEVÉ ET LES CRÉANCES DISENT LE MÊME CHIFFRE — c'est tout l'objet du
+   juge partagé. Un rituel non honoré, passé, avec un reste dû. */
+const oublie = rdv({ id: 'ou', clientId: 'c1', date: hier, status: 'planifié',
+  netTest: 68_000, duTest: 68_000 } as never);
+const releveOublie = ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [oublie],
+  invoices: [], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+});
+dit('un rituel non honoré paraît AU RELEVÉ', -68_000, soldeDuCompte(releveOublie));
+dit('… et dans les créances, du même montant', 68_000,
+  creancesDeLaMaison({ appts: [oublie], dûDuRituel: du, aujourdhui: AUJ })[0]?.duXof);
+dit('… et dans le dû de la tête', 68_000, duDeLaTete([oublie], 'c1', du, AUJ));
+dit('les trois lectures concordent', true,
+  Math.abs(soldeDuCompte(releveOublie)) === duDeLaTete([oublie], 'c1', du, AUJ));
+
+/* Un rituel à venir ne fait de créance nulle part. */
+const aVenir = rdv({ id: 'av', clientId: 'c1', date: demain, netTest: 50_000, duTest: 50_000 } as never);
+dit('un rituel à venir ne fait aucune créance', 0,
+  creancesDeLaMaison({ appts: [aVenir], dûDuRituel: du, aujourdhui: AUJ }).length);
+dit('… ni aucun dû', 0, duDeLaTete([aVenir], 'c1', du, AUJ));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

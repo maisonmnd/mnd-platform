@@ -16,6 +16,7 @@ import {
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
 import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
+import { rituelAuCompte } from '../../../../shared/compte';
 import { PayAppointmentModal } from '../clients/actions';
 import { ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
 import { todayISO } from './_shared';
@@ -202,8 +203,13 @@ export default function Comptes() {
   /** Impayés d'un compte : rituels avec un reste dû + factures « envoyées ». */
   const unpaidOfHolder = (holder: CreditHolder) => {
     const ids = new Set(membersOfHolder(holder).map((c) => c.id));
+    /* LE MÊME JUGE QUE LA FICHE — 28 août. Cet écran acceptait tout rituel non
+       annulé, la fiche n'acceptait que les « honorés » : la Famille Zinsou
+       devait 104 400 F ici et rien du tout là-bas. `rituelAuCompte` tranche
+       une fois pour toutes, sur la DATE (voir `shared/compte.ts`). */
     const dueAppts = appts
-      .filter((a) => a.branchId === branch.id && ids.has(a.clientId) && a.status !== 'annulé' && apptDueXof(a, byId) > 0)
+      .filter((a) => a.branchId === branch.id && ids.has(a.clientId)
+        && rituelAuCompte(a, todayISO()) && apptDueXof(a, byId) > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
     const linked = new Set(appts.filter((a) => a.invoiceId).map((a) => a.invoiceId));
     const dueInvoices = invoices

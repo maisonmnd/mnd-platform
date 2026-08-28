@@ -51,6 +51,29 @@ export function tetesDuCompte(client: Client, clients: readonly Client[], famili
   return clients.filter((c) => c.familyId === fam.id && !c.archived).map((c) => c.id);
 }
 
+/* ── QUAND UN RITUEL ENTRE-T-IL AU COMPTE ? — 28 août 2026 ────────────
+   « Pourquoi quand je vais sur le compte de Merine ce n'est pas marqué
+   qu'elle doit à la Maison ? Aligner toutes les informations » (Yéman).
+
+   TROIS ÉCRANS JUGEAIENT DIFFÉREMMENT, et c'est de là que venait le
+   désaccord : le Compte n'acceptait que les rituels marqués `honoré`, tandis
+   que les Impayés et les Créances acceptaient tout ce qui n'est pas annulé.
+   La même tête devait 104 400 F dans un écran et rien du tout dans l'autre.
+
+   « HONORÉ » NE PEUT PAS ÊTRE LE JUGE. C'est un geste SÉPARÉ dans cette
+   Maison — « encaisser ≠ honorer », la Maison le dit elle-même — et il se
+   pose souvent en retard, parfois jamais. Faire dépendre la dette d'un clic
+   qu'on oublie, c'est cacher de l'argent dû : la faute la plus grave des deux.
+
+   « NON ANNULÉ » NE SUFFIT PAS NON PLUS : un rituel prévu le mois prochain
+   n'est pas une dette d'aujourd'hui.
+
+   LE JUGE EST DONC LA DATE. Un rituel entre au compte quand il A EU LIEU —
+   ou quand de l'argent a déjà été posé dessus, sinon un acompte versé
+   d'avance ferait un crédit sans le débit qui lui répond. */
+export const rituelAuCompte = (a: Appointment, aujourdhui: string): boolean =>
+  a.status !== 'annulé' && (a.date <= aujourdhui || apptPaidXof(a) > 0);
+
 /** Une facture est-elle ATTACHÉE à un rituel ? Alors elle ne compte pas à part. */
 const facturesLiees = (appts: readonly Appointment[]): Set<string> => {
   const s = new Set<string>();
@@ -78,10 +101,10 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
   const liees = facturesLiees(o.appts.filter((a) => ids.has(a.clientId)));
   const out: EcritureCompte[] = [];
 
-  /* ① LES RITUELS LIVRÉS — honorés seulement : on ne doit pas ce qu'on n'a pas
-     reçu, et un rendez-vous à venir n'est pas une dette. */
+  /* ① LES RITUELS QUI ONT EU LIEU — voir `rituelAuCompte` : ni « honoré »,
+     un clic qu'on oublie, ni « non annulé », qui compterait le mois prochain. */
   for (const a of o.appts) {
-    if (!ids.has(a.clientId) || a.status !== 'honoré') continue;
+    if (!ids.has(a.clientId) || !rituelAuCompte(a, o.aujourdhui)) continue;
     const net = o.netDuRituel(a);
     const dû = o.dûDuRituel(a);
     if (net > 0) {
@@ -244,7 +267,9 @@ export function creancesDeLaMaison(o: {
 }): Creance[] {
   const par = new Map<string, Creance>();
   for (const a of o.appts) {
-    if (a.status === 'annulé') continue;
+    /* LE MÊME JUGE QUE LE COMPTE : une créance qui n'apparaîtrait pas sur la
+       fiche de la tête serait une créance qu'on ne peut pas expliquer. */
+    if (!rituelAuCompte(a, o.aujourdhui)) continue;
     const dû = o.dûDuRituel(a);
     if (dû <= 0) continue;
     const cur = par.get(a.clientId);
@@ -302,7 +327,9 @@ export function peutPartirDevant(plafond: number | undefined, dejaDu: number, mo
 /** Le dû d'une tête, du même juge que le Carnet — pour l'alerte au fauteuil. */
 export const duDeLaTete = (
   appts: readonly Appointment[], clientId: string, dûDuRituel: (a: Appointment) => number,
-): number => appts.reduce((s, a) => (a.clientId === clientId && a.status !== 'annulé' ? s + dûDuRituel(a) : s), 0);
+  aujourdhui: string,
+): number => appts.reduce(
+  (s, a) => (a.clientId === clientId && rituelAuCompte(a, aujourdhui) ? s + dûDuRituel(a) : s), 0);
 
 /** LE DÛ DU COMPTE ENTIER — car dans un foyer la dette naît souvent sur le
     rituel de l'enfant tandis que le plafond est posé sur la payeuse. Comparer
@@ -310,9 +337,11 @@ export const duDeLaTete = (
     indéfiniment en devant. */
 export const duDuCompte = (
   appts: readonly Appointment[], ids: readonly string[], dûDuRituel: (a: Appointment) => number,
+  aujourdhui: string,
 ): number => {
   const set = new Set(ids);
-  return appts.reduce((s, a) => (set.has(a.clientId) && a.status !== 'annulé' ? s + dûDuRituel(a) : s), 0);
+  return appts.reduce(
+    (s, a) => (set.has(a.clientId) && rituelAuCompte(a, aujourdhui) ? s + dûDuRituel(a) : s), 0);
 };
 
 /* Réexports pour les appelants : un seul juge du dû et du net. */

@@ -54,6 +54,42 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## UN SEUL JUGE DU DÛ — 28 août, PUBLIÉ
+
+« Pourquoi quand je vais sur le compte de Merine ce n'est pas marqué qu'elle
+doit à la Maison ? Aligner toutes les informations, rendre tout cohérent »
+(Yéman). La Famille Zinsou devait **104 400 F** dans l'écran des Impayés et
+**rien du tout** sur la fiche.
+
+**TROIS ÉCRANS JUGEAIENT DIFFÉREMMENT :**
+
+| Écran | Ce qu'il acceptait |
+| --- | --- |
+| Le Compte (fiche) | `status === 'honoré'` seulement |
+| Les Impayés (Comptes & Avoirs) | tout ce qui n'est pas `annulé` |
+| Les Créances | tout ce qui n'est pas `annulé` |
+
+**« HONORÉ » NE PEUT PAS ÊTRE LE JUGE.** C'est un geste SÉPARÉ dans cette
+Maison — « encaisser ≠ honorer », elle le dit elle-même — posé souvent en
+retard, parfois jamais. Faire dépendre la dette d'un clic qu'on oublie, c'est
+**cacher de l'argent dû** : la faute la plus grave des deux.
+
+**« NON ANNULÉ » NE SUFFIT PAS NON PLUS** : un rituel prévu le mois prochain
+n'est pas une dette d'aujourd'hui.
+
+**LE JUGE EST DONC LA DATE.** `rituelAuCompte(a, aujourdhui)` dans
+`shared/compte.ts` : le rituel entre quand il A EU LIEU, ou quand de l'argent a
+déjà été posé dessus — sinon un acompte versé d'avance ferait un crédit sans le
+débit qui lui répond.
+
+Il gouverne désormais `ecrituresDuCompte`, `creancesDeLaMaison`, `duDeLaTete`,
+`duDuCompte` et l'écran des Impayés. `duDeLaTete` et `duDuCompte` prennent un
+argument de plus (`aujourdhui`) : le compilateur a trouvé l'appelant de
+l'alerte au comptoir.
+
+`verifie-compte` monte à **58 assertions**, dont une qui vérifie explicitement
+que le relevé, les créances et le dû de la tête **disent le même chiffre**.
+
 ## Le carré de la carte des prix — 28 août, PUBLIÉ
 
 « Dans QR code, crée-moi le QR code et le lien pour accéder à la page du

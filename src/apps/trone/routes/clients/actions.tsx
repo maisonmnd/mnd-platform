@@ -572,7 +572,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      pas l'écran. Un blocage dur ferait contourner la caisse, et la trace se
      perdrait — exactement ce qu'on cherche à éviter. */
   const tetesDuFoyer = payerClient ? tetesDuCompte(payerClient, clients, families) : [payerId];
-  const duAilleurs = Math.max(0, duDuCompte(tousLesRdv, tetesDuFoyer, (a) => apptDueXof(a, byId)) - due);
+  const duAilleurs = Math.max(0, duDuCompte(tousLesRdv, tetesDuFoyer, (a) => apptDueXof(a, byId), todayISO()) - due);
   const verdict = peutPartirDevant(payerClient?.plafondCreditXof, duAilleurs, remainingAfter);
   const alerteCredit = remainingAfter > 0 && !verdict.autorise;
   /* Le prénom plutôt qu'un pronom : la Maison reçoit aussi des hommes. */
