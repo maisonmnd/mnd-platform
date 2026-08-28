@@ -73,7 +73,44 @@ export type CarteConfig = {
   defileFormules: boolean;
   /** Secondes par formule — le temps de lire, pas celui de s'ennuyer. */
   secondesParFormule: number;
+  /** LE VOLET DU WI-FI — « après Réserver il faut ajouter l'onglet pour le
+      Code Wifi » (Yéman, 28 août). Éteint par défaut : allumer publie le mot
+      de passe dans un document lisible sans compte, et ce choix appartient à
+      la Maison, pas au code. */
+  wifi: boolean;
+  wifiSsid: string;
+  wifiPass: string;
+  wifi2Ssid: string;
+  wifi2Pass: string;
 };
+
+/* ── LE GLISSEMENT — 28 août 2026 ─────────────────────────────────────
+   « Je préfère swiper sur l'écran et aller au suivant et revenir en arrière à
+   ma convenance » (Yéman). Les pastilles demandent de viser ; le doigt qui
+   glisse ne vise rien, il pousse.
+
+   LE MOUVEMENT VERTICAL NE COMPTE PAS. La carte défile de haut en bas : sans
+   cette garde, chaque défilement du pouce ferait sauter une formule, et
+   personne ne comprendrait pourquoi l'écran bouge tout seul. On ne retient un
+   glissement que s'il est franchement HORIZONTAL. */
+
+/** Le seuil en pixels sous lequel un mouvement n'est qu'un tremblement. */
+export const SEUIL_GLISSE = 48;
+
+/** Le sens d'un glissement : −1 revient en arrière, +1 va au suivant, 0 ne
+    fait rien. Un doigt qui va vers la GAUCHE tire la suivante vers soi. */
+export function directionDuGlisse(dx: number, dy: number, seuil = SEUIL_GLISSE): -1 | 0 | 1 {
+  if (Math.abs(dx) < seuil) return 0;
+  /* Franchement horizontal : au moins autant de large que de haut. */
+  if (Math.abs(dy) > Math.abs(dx)) return 0;
+  return dx < 0 ? 1 : -1;
+}
+
+/** L'index suivant, qui BOUCLE : après la dernière revient la première, et
+    avant la première vient la dernière. Un écran de comptoir n'a pas de fin ;
+    buter sur un bord donnerait l'impression qu'il est cassé. */
+export const indexSuivant = (i: number, n: number, sens: -1 | 0 | 1): number =>
+  (n <= 0 ? 0 : (((i + sens) % n) + n) % n);
 
 export const CARTE_DEFAUT: CarteConfig = {
   rituels: true,
@@ -84,6 +121,14 @@ export const CARTE_DEFAUT: CarteConfig = {
   produitsMasques: [],
   defileFormules: true,
   secondesParFormule: 9,
+  /* ÉTEINT PAR DÉFAUT. Allumer publie le mot de passe du réseau dans un
+     document lisible sans compte : c'est un choix de la Maison, pas un
+     réglage qu'on hérite sans l'avoir voulu. */
+  wifi: false,
+  wifiSsid: '',
+  wifiPass: '',
+  wifi2Ssid: '',
+  wifi2Pass: '',
 };
 
 /** Les réglages de la carte, complétés — une Maison d'avant ce champ n'a rien

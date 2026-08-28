@@ -9,7 +9,7 @@
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
 import { formuleLaPlusUtile, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
-import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte } from '../src/shared/bridges';
+import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte, directionDuGlisse, indexSuivant, SEUIL_GLISSE } from '../src/shared/bridges';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -240,6 +240,51 @@ dit('un masque sur un inconnu ne retire rien', ['a', 'b', 'c'],
   gardeSurLaCarte(troisChoses, ['zzz']).map((x) => x.id));
 dit('tout masquer laisse une carte vide, sans planter', [],
   gardeSurLaCarte(troisChoses, ['a', 'b', 'c']).map((x) => x.id));
+
+/* ── ⑬ LE GLISSEMENT ───────────────────────────────────────────────
+   « Je préfère swiper et aller au suivant et revenir en arrière à ma
+   convenance » (Yéman). Deux pièges se tiennent là, et aucun ne se voit à
+   l'œil : le tremblement pris pour un geste, et le défilement vertical pris
+   pour un changement de formule. */
+
+/* LE MOUVEMENT VERTICAL NE COMPTE PAS. La carte défile de haut en bas : sans
+   cette garde, chaque coup de pouce ferait sauter une formule et personne ne
+   comprendrait pourquoi l'écran bouge tout seul. */
+dit('un défilement vertical ne change rien', 0, directionDuGlisse(30, 200));
+dit('… même large, s’il est plus haut que large', 0, directionDuGlisse(100, 160));
+dit('un geste franchement horizontal compte', 1, directionDuGlisse(-120, 20));
+
+/* Un doigt qui va vers la GAUCHE tire la suivante vers soi. */
+dit('vers la gauche, on avance', 1, directionDuGlisse(-90, 0));
+dit('vers la droite, on revient', -1, directionDuGlisse(90, 0));
+
+/* UN TREMBLEMENT N'EST PAS UN GESTE : sous le seuil, l'écran ne bouge pas. */
+dit('sous le seuil, rien ne bouge', 0, directionDuGlisse(-20, 0));
+dit('le seuil vaut quarante-huit pixels', 48, SEUIL_GLISSE);
+/* AU SEUIL EXACT, LE GESTE COMPTE. Sur un écran tactile la version indulgente
+   est la bonne : un doigt qui a franchement parcouru la distance demandée ne
+   doit pas se voir refuser pour un pixel. */
+dit('un pixel sous le seuil, rien', 0, directionDuGlisse(-47, 0));
+dit('au seuil exact, le geste compte', 1, directionDuGlisse(-48, 0));
+dit('un geste nul ne fait rien', 0, directionDuGlisse(0, 0));
+
+/* L'INDEX BOUCLE : un écran de comptoir n'a pas de fin, et buter sur un bord
+   donnerait l'impression qu'il est cassé. */
+dit('après la dernière revient la première', 0, indexSuivant(4, 5, 1));
+dit('avant la première vient la dernière', 4, indexSuivant(0, 5, -1));
+dit('au milieu, on avance simplement', 3, indexSuivant(2, 5, 1));
+dit('un sens nul ne déplace rien', 2, indexSuivant(2, 5, 0));
+dit('une liste vide ne plante pas', 0, indexSuivant(0, 0, 1));
+
+/* ── ⑭ LE WI-FI DE LA CARTE ────────────────────────────────────────
+   Éteint par défaut : allumer publie le mot de passe dans un document lisible
+   sans compte, et ce choix appartient à la Maison, pas au code. */
+dit('le volet wifi est éteint par défaut', false, CARTE_DEFAUT.wifi);
+dit('… et sans réseau posé', ['', '', '', ''],
+  [CARTE_DEFAUT.wifiSsid, CARTE_DEFAUT.wifiPass, CARTE_DEFAUT.wifi2Ssid, CARTE_DEFAUT.wifi2Pass]);
+dit('un réseau posé se retrouve', 'MND-Invite',
+  carteReglages({ carte: { wifi: true, wifiSsid: 'MND-Invite' } }).wifiSsid);
+dit('… et le volet reste allumable', true, carteReglages({ carte: { wifi: true } }).wifi);
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

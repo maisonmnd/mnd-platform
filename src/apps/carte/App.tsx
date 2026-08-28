@@ -4,7 +4,7 @@ import { fmtMoney } from '../../shared/currency';
 import { DEVISE_COMPLETE, maisonNom } from '../../shared/identite';
 import { useCategories, useProducts, useServices, catsDansLOrdre, priceModeOf } from '../../shared/catalog';
 import { FAMILLES_FORMULES, usePlans } from '../../shared/abonnements';
-import { carteReglages, gardeSurLaCarte, vitrineConfigStore } from '../../shared/bridges';
+import { carteReglages, directionDuGlisse, gardeSurLaCarte, indexSuivant, vitrineConfigStore } from '../../shared/bridges';
 import { useStore } from '../../shared/store';
 import { QrSvg } from './Qr';
 
@@ -27,7 +27,7 @@ import { QrSvg } from './Qr';
    déconnecter — et la cliente suivante hériterait du dossier de la
    précédente. Le carré déporte la réservation là où elle est déjà connue. */
 
-type Volet = 'rituels' | 'formules' | 'reserver';
+type Volet = 'rituels' | 'formules' | 'produits' | 'reserver' | 'wifi';
 
 /** Deux minutes sans un geste, et la carte revient à son début : la cliente
     suivante la trouve au commencement, pas là où la précédente s'est arrêtée. */
@@ -42,12 +42,23 @@ export default function App() {
   const [vitrine] = useStore(vitrineConfigStore);
   const reglages = carteReglages(vitrine);
 
+  /* Les réseaux posés, et eux seuls : un carré Wi-Fi sans mot de passe ne
+     connecte rien, il déçoit. */
+  const reseaux = useMemo(() => ([
+    { rang: '5G', portee: 'Le plus rapide, près du fauteuil', ssid: reglages.wifiSsid, pass: reglages.wifiPass },
+    { rang: '2G', portee: 'Porte plus loin, jusqu’au fond', ssid: reglages.wifi2Ssid, pass: reglages.wifi2Pass },
+  ].filter((r) => r.ssid.trim() !== '' && r.pass.trim() !== '')),
+  [reglages.wifiSsid, reglages.wifiPass, reglages.wifi2Ssid, reglages.wifi2Pass]);
+
   const volets = useMemo(() => ([
     ...(reglages.rituels ? [{ k: 'rituels' as const, l: 'Les rituels' }] : []),
     ...(reglages.formules ? [{ k: 'formules' as const, l: 'Les formules' }] : []),
     ...(reglages.produits ? [{ k: 'produits' as const, l: 'Care & Store' }] : []),
     { k: 'reserver' as const, l: 'Réserver' },
-  ]), [reglages.rituels, reglages.formules, reglages.produits]);
+    /* LE WI-FI VIENT APRÈS RÉSERVER : c'est ce qu'on demande une fois assise,
+       pas ce qu'on cherche en entrant. */
+    ...(reglages.wifi && reseaux.length > 0 ? [{ k: 'wifi' as const, l: 'Le wifi' }] : []),
+  ]), [reglages.rituels, reglages.formules, reglages.produits, reglages.wifi, reseaux.length]);
 
   const [volet, setVolet] = useState<string>(volets[0]?.k ?? 'reserver');
   /* Un volet qu'on éteint ne doit pas laisser l'écran sur du vide. */
@@ -119,6 +130,7 @@ export default function App() {
           <Produits produits={gardeSurLaCarte(produits, reglages.produitsMasques)} currency={currency} />
         )}
         {volet === 'reserver' && <Reserver lien={lienCouronne} ville={branch.city} />}
+        {volet === 'wifi' && <Wifi reseaux={reseaux} />}
       </div>
     </div>
   );
@@ -206,11 +218,42 @@ function Formules({ plans, currency, defile, secondes }: {
     return () => window.clearTimeout(t);
   }, [defile, liste.length, secondes, i]);
 
+  /* ── LE GLISSEMENT ────────────────────────────────────────────────
+     « Je préfère swiper et aller au suivant et revenir en arrière à ma
+     convenance » (Yéman). Les pastilles demandent de viser ; le doigt qui
+     glisse ne vise rien, il pousse. Le départ du geste est mémorisé, le sens
+     se juge à la levée — et un mouvement plus vertical qu'horizontal ne
+     compte pas, sans quoi chaque défilement du pouce ferait sauter une
+     formule. */
+  const depart = useRef<{ x: number; y: number } | null>(null);
+  const pousse = (sens: -1 | 0 | 1) => { if (sens !== 0) setI((n) => indexSuivant(n, liste.length, sens)); };
+  const surDepart = (x: number, y: number) => { depart.current = { x, y }; };
+  const surFin = (x: number, y: number) => {
+    const d = depart.current;
+    depart.current = null;
+    if (d) pousse(directionDuGlisse(x - d.x, y - d.y));
+  };
+
   if (liste.length === 0) return <Vide dit="Les formules de la Maison s’ouvriront bientôt." />;
 
   const { p, f } = liste[Math.min(i, liste.length - 1)];
   return (
-    <div className="kio-defile">
+    <div
+      className="kio-defile"
+      onTouchStart={(e) => surDepart(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchEnd={(e) => surFin(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
+      onPointerDown={(e) => { if (e.pointerType === 'mouse') surDepart(e.clientX, e.clientY); }}
+      onPointerUp={(e) => { if (e.pointerType === 'mouse') surFin(e.clientX, e.clientY); }}
+      /* Le clavier aussi : une tablette branchée sur un clavier reste une
+         tablette, et les flèches sont le geste attendu. */
+      tabIndex={0}
+      role="group"
+      aria-label="Les formules, glissez pour changer"
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') pousse(-1);
+        if (e.key === 'ArrowRight') pousse(1);
+      }}
+    >
       <div className="kio-moment">
         <span className="kio-moment__titre">{f.titre}</span>
         <span className="kio-moment__quand">{f.quand}</span>
@@ -230,17 +273,61 @@ function Formules({ plans, currency, defile, secondes }: {
         </ul>
       </article>
 
-      <div className="kio-points" role="tablist" aria-label="Les formules">
-        {liste.map(({ p: q }, n) => (
-          <button
-            key={q.id}
-            type="button"
-            role="tab"
-            aria-selected={n === i}
-            aria-label={q.name}
-            className={`kio-point ${n === i ? 'on' : ''}`}
-            onClick={() => setI(n)}
-          />
+      {/* Les flèches encadrent les pastilles : le doigt glisse, la souris
+          clique, et le rang reste lisible entre les deux. */}
+      <div className="kio-nav">
+        <button type="button" className="kio-fleche" aria-label="La formule précédente" onClick={() => pousse(-1)}>‹</button>
+        <div className="kio-points" role="tablist" aria-label="Les formules">
+          {liste.map(({ p: q }, n) => (
+            <button
+              key={q.id}
+              type="button"
+              role="tab"
+              aria-selected={n === i}
+              aria-label={q.name}
+              className={`kio-point ${n === i ? 'on' : ''}`}
+              onClick={() => setI(n)}
+            />
+          ))}
+        </div>
+        <button type="button" className="kio-fleche" aria-label="La formule suivante" onClick={() => pousse(1)}>›</button>
+      </div>
+      <p className="kio-indice">
+        {i + 1} sur {liste.length} · glissez du doigt pour la suivante
+      </p>
+    </div>
+  );
+}
+
+/* ── LE WI-FI ─────────────────────────────────────────────────────────
+   « Après Réserver il faut ajouter l'onglet pour le Code Wifi » (Yéman).
+   Le carré se scanne et connecte le téléphone sans rien taper ; le nom et le
+   mot de passe restent écrits dessous, pour celle dont le téléphone ne sait
+   pas lire un QR Wi-Fi. */
+const wifiPayload = (ssid: string, pass: string) =>
+  `WIFI:T:WPA;S:${ssid.replace(/([\\;,:"])/g, '\\$1')};P:${pass.replace(/([\\;,:"])/g, '\\$1')};;`;
+
+function Wifi({ reseaux }: { reseaux: { rang: string; portee: string; ssid: string; pass: string }[] }) {
+  if (reseaux.length === 0) return <Vide dit="Le réseau de la Maison n’est pas encore posé." />;
+  return (
+    <div className="kio-wifi">
+      <h2 className="kio-wifi__titre">Installez-vous.</h2>
+      <p className="kio-wifi__dit">
+        Le réseau de la Maison est à vous. Scannez le carré, votre téléphone se connecte seul.
+      </p>
+      <div className="kio-wifi__grille">
+        {reseaux.map((r) => (
+          <div className="kio-reseau" key={r.rang}>
+            <div className="kio-reseau__qr"><QrSvg valeur={wifiPayload(r.ssid, r.pass)} /></div>
+            <div className="kio-reseau__dit">
+              <span className="kio-reseau__rang">{r.rang}</span>
+              <div className="kio-reseau__portee">{r.portee}</div>
+              <div className="kio-reseau__lab">Nom du réseau</div>
+              <div className="kio-reseau__val">{r.ssid}</div>
+              <div className="kio-reseau__lab">Mot de passe</div>
+              <div className="kio-reseau__val">{r.pass}</div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

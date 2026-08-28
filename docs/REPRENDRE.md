@@ -54,6 +54,49 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## La Carte : le glissement et le wifi — 28 août, PUBLIÉ
+
+### Le doigt pousse, il ne vise plus
+
+« Je préfère swiper sur l'écran et aller au suivant et revenir en arrière à ma
+convenance » (Yéman). Les pastilles demandaient de viser ; le glissement ne vise
+rien.
+
+`directionDuGlisse(dx, dy)` dans `bridges.ts` — **le mouvement vertical ne
+compte pas**. La carte défile de haut en bas : sans cette garde, chaque coup de
+pouce ferait sauter une formule et personne ne comprendrait pourquoi l'écran
+bouge tout seul. Un geste n'est retenu que s'il est franchement horizontal
+(`|dx| >= |dy|`) et dépasse 48 px.
+
+`indexSuivant` **boucle** : après la dernière revient la première. Un écran de
+comptoir n'a pas de fin ; buter sur un bord donnerait l'impression qu'il est
+cassé.
+
+Le doigt glisse, les flèches servent la souris, les pastilles disent le rang, et
+les flèches du clavier marchent aussi. `touch-action: pan-y` laisse le
+défilement vertical intact.
+
+### Le volet du wifi, après Réserver
+
+⚠️ **ALLUMER LE WIFI PUBLIE LE MOT DE PASSE dans un document lisible sans
+compte.** La carte n'est personne : pour qu'elle affiche le réseau, il doit
+vivre dans `mnd_vitrine_config`, qui est en lecture `anon`. Jusqu'ici le mot de
+passe ne se voyait qu'au comptoir.
+
+C'est pourquoi le volet est **éteint par défaut** et que la Régie l'écrit en
+toutes lettres : le choix appartient à la Maison, pas au code. Un réseau invité,
+séparé de celui de la caisse, reste le plus sage.
+
+Le carré se scanne et connecte le téléphone sans rien taper ; le nom et le mot
+de passe restent écrits en grand dessous, pour les téléphones qui ne lisent pas
+les QR wifi. Un bouton « Reprendre le réseau des QR Codes » recopie ce qui est
+déjà posé.
+
+`verifie-formules` monte à **97 assertions**. Une attente était plus stricte que
+le code sur le seuil de glissement : à 48 px pile le geste compte, et c'est la
+bonne version — un doigt qui a parcouru la distance demandée ne doit pas se voir
+refuser pour un pixel.
+
 ## DEUX DÉFAUTS DE COMPTE, corrigés — 28 août, PUBLIÉ
 
 « Pourquoi la Maison doit à toutes ces clientes ? Pourquoi elles ont les mêmes

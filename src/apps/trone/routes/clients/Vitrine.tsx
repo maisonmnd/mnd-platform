@@ -17,6 +17,7 @@ import { useStore } from '../../../../shared/store';
 import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
 import { QrSvg, qrMatrice } from '../equipe/Comptoir';
 import { carteReglages, type CarteConfig } from '../../../../shared/bridges';
+import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
 import './clients.css';
 
@@ -1537,6 +1538,7 @@ function ReglagesDeLaCarte() {
   const [plans] = usePlans();
   const { currency } = useBranch();
   const [ouvert, setOuvert] = useState<'services' | 'formules' | 'produits' | null>(null);
+  const [auto] = useStore(autoConfigStore);
 
   const poser = (p: Partial<CarteConfig>) =>
     setCfg({ ...cfg, carte: { ...(cfg.carte ?? {}), ...p } });
@@ -1632,6 +1634,68 @@ function ReglagesDeLaCarte() {
           )}
         </div>
       )}
+
+      {/* ── LE VOLET DU WI-FI ─────────────────────────────────────────
+          « Après Réserver il faut ajouter l'onglet pour le Code Wifi »
+          (Yéman). La carte est une entrée SANS COMPTE : pour qu'elle lise le
+          réseau, il faut le poser dans un document lisible sans être
+          personne. Ça se dit, ça ne se cache pas — d'où l'avertissement, et
+          le défaut ÉTEINT. */}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--hairline)' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={`tre-chip ${r.wifi ? 'is-on' : ''}`}
+            onClick={() => poser({ wifi: !r.wifi })}
+          >
+            {r.wifi ? '◉' : '○'} Le wifi, après Réserver
+          </button>
+          {r.wifi && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                poser({
+                  wifiSsid: auto.wifiSsid ?? '', wifiPass: auto.wifiPass ?? '',
+                  wifi2Ssid: auto.wifi2Ssid ?? '', wifi2Pass: auto.wifi2Pass ?? '',
+                });
+                toast('Réseau repris depuis les QR Codes.');
+              }}
+            >
+              Reprendre le réseau des QR Codes
+            </Button>
+          )}
+        </div>
+
+        {r.wifi && (
+          <>
+            <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 12 }}>
+              {([['wifiSsid', 'Nom du réseau · 5G'], ['wifiPass', 'Mot de passe · 5G'],
+                ['wifi2Ssid', 'Nom du réseau · 2G'], ['wifi2Pass', 'Mot de passe · 2G']] as const).map(([k, l]) => (
+                <label key={k} className="mnd-field">
+                  <span className="mnd-field__label">{l}</span>
+                  <Input
+                    value={r[k]}
+                    onChange={(e) => poser({ [k]: e.target.value } as Partial<CarteConfig>)}
+                    placeholder="—"
+                    autoComplete="off"
+                  />
+                </label>
+              ))}
+            </div>
+            <div style={{
+              marginTop: 11, padding: '10px 13px', borderRadius: 3, fontSize: 11.5, lineHeight: 1.65,
+              background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+            }}>
+              <b style={{ fontWeight: 600 }}>Ce mot de passe devient lisible sans compte.</b> La carte
+              n’est personne : pour qu’elle affiche le réseau, il doit vivre dans le document public de
+              la Vitrine. Jusqu’ici il ne se voyait qu’au comptoir. Un réseau que tout le salon lit déjà
+              ne perd pas grand-chose, mais c’est votre décision, pas celle du code. Un réseau invité,
+              séparé de celui de la caisse, serait le plus sage.
+            </div>
+          </>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 16 }}>
         <Button size="sm" variant="ghost" onClick={() => setOuvert(ouvert === 'services' ? null : 'services')}>
