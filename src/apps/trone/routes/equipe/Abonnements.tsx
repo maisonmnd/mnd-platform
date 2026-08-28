@@ -125,8 +125,25 @@ export default function Abonnements() {
     setPlanModal(true);
   };
   const savePlan = () => {
+    /* ── UN REFUS SE DIT — 28 août 2026 ────────────────────────────────
+       « Je n'arrive pas à enregistrer le moment du parcours pour le FORFAIT
+       VÈKPÈ™ × GBÈJÍ™ » (Yéman). Le formulaire refusait toute formule à prix
+       nul et RETOURNAIT EN SILENCE : le bouton restait cuivré, le clic ne
+       faisait rien, et rien ne disait pourquoi.
+
+       Deux fautes en une, et la seconde est la pire. D'abord un refus muet :
+       un écran qui n'obéit pas doit dire pourquoi, toujours. Ensuite un refus
+       DÉPLACÉ : ses forfaits tirent leur prix de leur composition et valent
+       0 F dans la fiche ; leur interdire de changer de MOMENT DU PARCOURS,
+       qui n'a rien à voir avec le prix, c'était le punir d'un état qu'il
+       n'avait pas choisi ici.
+
+       Seul le NOM reste obligatoire — une formule sans nom ne se vend pas. */
     const priceXof = parseInt(planForm.price, 10) || 0;
-    if (!planForm.name.trim() || priceXof <= 0) return;
+    if (!planForm.name.trim()) {
+      toast('Donnez un nom à la formule pour l’enregistrer.');
+      return;
+    }
     const perks = planForm.perks.split('·').map((s) => s.trim()).filter(Boolean);
     const included = planForm.included.filter((i) => i.serviceId);
     const featured = planForm.popular;
@@ -151,6 +168,11 @@ export default function Abonnements() {
       ]);
     }
     setPlanModal(false);
+    /* Le prix nul ne bloque plus, mais il ne passe pas inaperçu : une formule
+       à 0 F s'affiche à la carte et ne rapporte rien. */
+    toast(priceXof > 0
+      ? 'Formule enregistrée.'
+      : 'Formule enregistrée. Son prix est à 0 : elle ne rapportera rien tant qu’il n’est pas posé.');
   };
 
   /* Prestations incluses — édition dans le formulaire de formule. */
@@ -275,7 +297,9 @@ export default function Abonnements() {
   const saveSub = () => {
     const plan = planOf(subForm.planId);
     const client = clients.find((c) => c.id === subForm.clientId);
-    if (!client || !plan) return;
+    /* Un refus se dit — même leçon que `savePlan` le 28 août. */
+    if (!client) { toast('Choisissez la tête couronnée à inscrire.'); return; }
+    if (!plan) { toast('Choisissez une formule.'); return; }
     const cycle = subForm.cycle;
     const opt = chiffreLOption(plan, cycle);
     /* Le total À DÉCOUPER inclut l'option : elle se paie avec l'abonnement,
@@ -341,7 +365,7 @@ export default function Abonnements() {
   const savePay = () => {
     if (!payFor) return;
     const amount = parseInt(payForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
-    if (amount <= 0) return;
+    if (amount <= 0) { toast('Saisissez le montant encaissé.'); return; }
     const pmt: Payment = { id: `pay-${uid()}`, amountXof: amount, date: payForm.date || todayISO(), method: payForm.method || undefined };
     const cycle = payFor.cycle ?? 'mensuel';
     /* Échéance d'ANNIVERSAIRE : on avance depuis l'échéance précédente — payer en
@@ -957,7 +981,7 @@ export default function Abonnements() {
 
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPlanModal(false)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={savePlan} disabled={!planForm.name.trim() || !planForm.price}>
+              <Button variant="copper" style={{ flex: 1 }} onClick={savePlan} disabled={!planForm.name.trim()}>
                 {planEditId ? 'Enregistrer la formule' : 'Créer la formule'}
               </Button>
             </div>

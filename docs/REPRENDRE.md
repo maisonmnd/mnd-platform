@@ -54,6 +54,32 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## UN REFUS SE DIT, TOUJOURS — 28 août, PUBLIÉ
+
+« Je n'arrive pas à enregistrer le moment du parcours pour le FORFAIT VÈKPÈ™ ×
+GBÈJÍ™ » (Yéman). Le bouton restait cuivré, le clic ne faisait rien, et rien ne
+disait pourquoi.
+
+`savePlan` refusait toute formule à **prix nul** et **retournait en silence**.
+Deux fautes en une, et la seconde est la pire :
+
+1. **UN REFUS MUET.** Un écran qui n'obéit pas doit dire pourquoi, toujours. Le
+   bouton n'était même pas désactivé — sa garde testait la CHAÎNE `price`, et
+   `"0"` est une chaîne vraie.
+2. **UN REFUS DÉPLACÉ.** Les forfaits de la Maison tirent leur prix de leur
+   composition et valent 0 F dans la fiche. Leur interdire de changer de
+   **moment du parcours**, qui n'a rien à voir avec le prix, c'était punir
+   Yéman d'un état qu'il n'avait pas choisi là.
+
+Seul le **nom** reste obligatoire — une formule sans nom ne se vend pas. Le prix
+nul passe, avec un mot qui le signale : « elle ne rapportera rien tant qu'il
+n'est pas posé ».
+
+**LE MÊME DÉFAUT AILLEURS**, cherché aussitôt et trouvé trois fois : `saveSub`
+(tête ou formule manquante), `savePay` (montant nul) et `saveTier` du Cercle
+(seuil ou prestation manquante) retournaient tous en silence. Ils disent
+maintenant ce qui manque.
+
 ## CHAQUE TÊTE A SES PROPRES MOUVEMENTS — 28 août, PUBLIÉ
 
 « Les mouvements des enfants dans un foyer portent tous les mouvements de leur

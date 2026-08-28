@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { OptionsPrestations, PageHead, WaLien } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, clientsStore, estDePassage, aUnPrixConvenu, comptePrixConvenus, type Client } from '../../../../shared/clients';
@@ -145,7 +145,9 @@ export default function Cercle() {
   };
   const saveTier = () => {
     const n = parseInt(tierForm.pts, 10);
-    if (!n || n <= 0 || !tierForm.serviceId) return;
+    /* Un refus se dit — même leçon que les formules, le 28 août. */
+    if (!n || n <= 0) { toast('Posez le seuil du palier.'); return; }
+    if (!tierForm.serviceId) { toast('Choisissez la prestation offerte.'); return; }
     if (tierKind === 'foyer') {
       if (tierEditId) {
         setFoyerTiers((prev) => prev.map((t) => (t.id === tierEditId ? { ...t, seuilXof: n, serviceId: tierForm.serviceId, desc: tierForm.desc } : t)));
