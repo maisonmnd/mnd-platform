@@ -388,6 +388,60 @@ dit('… et exactement leur somme', duDe(lignesImpayees(foyerMerine)),
   ['merine', 'chloey', 'kaitlyn']
     .reduce((t, id) => t + duDe(lignesImpayees(ecrituresDeLaTete(foyerMerine, id))), 0));
 
+/* ── ⑬ LE LIEN RITUEL ↔ FACTURE SE LIT DANS LES DEUX SENS ──────────
+   « Pourquoi Ahmed au lieu de devoir 242 000 F il doit 484 000 F ? C'est le
+   double. Ça fait ça pour tous les comptes » (Yéman, 28 août).
+
+   La règle « le rituel fait foi » existait et la vérification ② l'éprouvait —
+   mais dans UN SEUL SENS, `Appointment.invoiceId`. La Maison porte aussi
+   `Invoice.apptId`, posé quand un devis accepté fait naître son rituel : une
+   facture liée par CE côté-là passait à travers le garde-fou, et chaque vente
+   comptait deux fois.
+
+   Un seul sens de lecture pour une relation à deux sens. La vérification ②
+   ne pouvait pas le voir : elle ne construisait que des liens du premier
+   type. Un garde-fou n'éprouve que les portes qu'on lui montre. */
+const rdvNu = rdv({ id: 'anu', clientId: 'c1', date: '2026-08-10',
+  netTest: 145_000, duTest: 145_000 } as never);
+/* La facture pointe vers le rituel — et le rituel, lui, ne sait rien d'elle. */
+const factureQuiPointe: Invoice = {
+  id: 'inv-rev', branchId: 'br', clientId: 'c1', kind: 'facture', number: 'MND-2026-0009',
+  date: '2026-08-10', globalDiscountPct: 0, apptId: 'anu', status: 'envoyée',
+  lines: [{ id: 'l', label: 'Rituel', qty: 1, unitXof: 145_000, discountPct: 0 }],
+} as Invoice;
+
+const sansDouble = ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }],
+  appts: [rdvNu], invoices: [factureQuiPointe],
+  credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+});
+dit('une facture liée PAR ELLE ne redit pas la dette', 145_000,
+  sansDouble.reduce((t, e) => t + e.debitXof, 0));
+dit('… le solde ne double pas', -145_000, soldeDuCompte(sansDouble));
+dit('… et une seule ligne reste due', 1, lignesImpayees(sansDouble).length);
+dit('… du bon montant', 145_000, lignesImpayees(sansDouble)[0]?.resteXof);
+
+/* Une facture qui pointe vers un rituel D'UNE AUTRE TÊTE ne se tait pas : elle
+   n'a rien à voir avec ce compte-ci, elle doit compter chez elle. */
+const factureAilleurs: Invoice = { ...factureQuiPointe, id: 'inv-ail', apptId: 'inconnu' } as Invoice;
+dit('une facture pointant ailleurs compte bien', 290_000, ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }],
+  appts: [rdvNu], invoices: [factureAilleurs],
+  credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+}).reduce((t, e) => t + e.debitXof, 0));
+
+/* LES DEUX SENS À LA FOIS, sur la même vente : aucun double non plus. */
+const rdvLie = rdv({ id: 'ali', clientId: 'c1', date: '2026-08-11', invoiceId: 'inv-deux',
+  netTest: 60_000, duTest: 60_000 } as never);
+const factureDeuxSens: Invoice = { ...factureQuiPointe, id: 'inv-deux', number: 'MND-2026-0008',
+  date: '2026-08-11', apptId: 'ali',
+  lines: [{ id: 'l', label: 'Rituel', qty: 1, unitXof: 60_000, discountPct: 0 }] } as Invoice;
+dit('lié des deux côtés, compté une fois', 60_000, ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }],
+  appts: [rdvLie], invoices: [factureDeuxSens],
+  credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+}).reduce((t, e) => t + e.debitXof, 0));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

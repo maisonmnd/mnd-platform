@@ -54,6 +54,34 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LE COMPTE DOUBLAIT TOUTES LES DETTES — 28 août, PUBLIÉ
+
+« Pourquoi Ahmed au lieu de devoir 242 000 F il doit 484 000 F ? C'est le
+double. Ça fait ça pour tous les comptes » (Yéman).
+
+Chaque vente comptait **deux fois** : une fois comme rituel, une fois comme sa
+facture. 145 000 + 60 000 + 37 000, puis les mêmes trois pièces.
+
+**LE LIEN NE SE LISAIT QUE DANS UN SENS.** La règle « le rituel fait foi »
+existait, et le harnais l'éprouvait — mais uniquement par
+`Appointment.invoiceId`, du rendez-vous vers la pièce. La Maison porte AUSSI
+`Invoice.apptId`, de la pièce vers le rendez-vous, posé notamment quand un devis
+accepté fait naître son rituel. Une facture liée par CE côté-là passait à
+travers le garde-fou.
+
+**UN SEUL SENS DE LECTURE POUR UNE RELATION À DEUX SENS.** Et la vérification
+d'origine ne pouvait pas le voir : elle ne construisait que des liens du premier
+type. **Un garde-fou n'éprouve que les portes qu'on lui montre.**
+
+Corrigé dans `shared/compte.ts` ET dans l'écran des Impayés (`Comptes.tsx`), qui
+portait exactement le même `linked` à sens unique.
+
+`supabase/voir_doubles_compte.sql` — trois requêtes de LECTURE SEULE pour
+vérifier que c'était bien la cause, et débusquer les pièces **orphelines**
+(liées d'aucun côté) qui pourraient encore doubler un compte.
+
+`verifie-compte` monte à **79 assertions**.
+
 ## LA CONFIRMATION À LA PRISE DU RENDEZ-VOUS — 28 août, À DÉPLOYER
 
 « Je peux avoir une confirmation WhatsApp automatique pour tous les nouveaux

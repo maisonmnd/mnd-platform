@@ -97,10 +97,28 @@ export function tetesDuCompte(client: Client, clients: readonly Client[], famili
 export const rituelAuCompte = (a: Appointment, aujourdhui: string): boolean =>
   a.status !== 'annulé' && (a.date <= aujourdhui || apptPaidXof(a) > 0);
 
-/** Une facture est-elle ATTACHÉE à un rituel ? Alors elle ne compte pas à part. */
-const facturesLiees = (appts: readonly Appointment[]): Set<string> => {
+/* ── LE LIEN SE LIT DANS LES DEUX SENS — 28 août 2026 ─────────────────
+   « Pourquoi Ahmed au lieu de devoir 242 000 F il doit 484 000 F ? C'est le
+   double. Ça fait ça pour tous les comptes » (Yéman).
+
+   Le rituel et sa facture disent LA MÊME DETTE : la règle « le rituel fait
+   foi » existait, mais elle ne reconnaissait le lien que dans UN SENS —
+   `Appointment.invoiceId`, du rendez-vous vers la pièce. Or la Maison porte
+   aussi `Invoice.apptId`, de la pièce vers le rendez-vous, posé notamment
+   quand un devis accepté fait naître son rituel.
+
+   Une facture liée par CE côté-là passait donc à travers le garde-fou, et
+   chaque vente comptait deux fois. Un seul sens de lecture pour une relation
+   à deux sens : c'est la faute, et elle doublait tous les comptes. */
+const facturesLiees = (
+  appts: readonly Appointment[], invoices: readonly Invoice[],
+): Set<string> => {
   const s = new Set<string>();
+  const rdv = new Set(appts.map((a) => a.id));
+  /* ① du rendez-vous vers la pièce. */
   for (const a of appts) if (a.invoiceId) s.add(a.invoiceId);
+  /* ② de la pièce vers le rendez-vous — le sens qui manquait. */
+  for (const i of invoices) if (i.apptId && rdv.has(i.apptId)) s.add(i.id);
   return s;
 };
 
@@ -121,7 +139,8 @@ export type CompteArgs = {
 /** LE RELEVÉ, dans l'ordre où la vie l'a écrit. */
 export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
   const ids = new Set(o.ids);
-  const liees = facturesLiees(o.appts.filter((a) => ids.has(a.clientId)));
+  const miens = o.appts.filter((a) => ids.has(a.clientId));
+  const liees = facturesLiees(miens, o.invoices);
   const out: EcritureCompte[] = [];
 
   /* ① LES RITUELS QUI ONT EU LIEU — voir `rituelAuCompte` : ni « honoré »,

@@ -211,7 +211,15 @@ export default function Comptes() {
       .filter((a) => a.branchId === branch.id && ids.has(a.clientId)
         && rituelAuCompte(a, todayISO()) && apptDueXof(a, byId) > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const linked = new Set(appts.filter((a) => a.invoiceId).map((a) => a.invoiceId));
+    /* LE LIEN SE LIT DANS LES DEUX SENS — 28 août. Ce garde-fou ne lisait
+       que `Appointment.invoiceId` ; la Maison porte aussi `Invoice.apptId`,
+       et une facture liée par ce côté-là faisait compter la vente deux fois.
+       Même faute, même jour, que dans `shared/compte.ts`. */
+    const idsRdv = new Set(appts.map((a) => a.id));
+    const linked = new Set([
+      ...appts.filter((a) => a.invoiceId).map((a) => a.invoiceId),
+      ...invoices.filter((i) => i.apptId && idsRdv.has(i.apptId)).map((i) => i.id),
+    ]);
     const dueInvoices = invoices
       .filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'envoyée'
         && (ids.has(i.clientId) || (i.forClientId ? ids.has(i.forClientId) : false)))
