@@ -1395,6 +1395,20 @@ function PanneauCompte({
   const totalDu = impayes.reduce((s, l) => s + l.resteXof, 0);
   const doit = totalDu > 0;
   const plusVieille = impayes[0];
+
+  /* ── CE QUE LE FOYER DOIT, TOUJOURS VISIBLE — 28 août 2026 ──────────
+     « Chloey reste devoir 36 400 F que je ne vois pas sur le compte du parent
+     payeur » (Yéman). Conséquence directe de l'ouverture sur « ses
+     mouvements » : Merine ne devait rien ELLE-MÊME, donc sa fiche annonçait
+     « ne doit rien » — alors que son foyer devait 36 400 F, et que c'est elle
+     qui règle.
+
+     LE DÛ DU FOYER SE DIT SUR CHAQUE FICHE DU FOYER, quelle que soit la
+     portée choisie. On peut regarder ses mouvements à elle sans cesser de
+     savoir ce que la maisonnée doit : c'est la payeuse qu'on a devant soi. */
+  const impayesFoyer = useMemo(() => lignesImpayees(ecritures), [ecritures]);
+  const duFoyer = impayesFoyer.reduce((s, l) => s + l.resteXof, 0);
+  const foyerDoitPlus = enFoyer && duFoyer > totalDu;
   const prenom = (client.name || '').trim().split(/\s+/)[0] || 'Elle';
 
   /* LE CRÉDIT, POSÉ COMME UNE QUESTION. L'état « oui » n'existe que si un
@@ -1445,8 +1459,15 @@ function PanneauCompte({
           fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 32, lineHeight: 1.18,
           margin: '0 0 6px', textWrap: 'balance',
         }}>
+          {/* LA PHRASE NE PEUT PAS DIRE « NE DOIT RIEN » quand le foyer doit.
+              Merine ne devait rien SUR SES PROPRES RITUELS, et sa fiche
+              l'annonçait en grand et en vert — alors que sa maisonnée devait
+              36 400 F et que c'est elle qui règle. La tête qu'on a devant soi
+              répond du foyer : la phrase le dit. */}
           {doit ? (
             <>{prenom} doit <span style={{ color: 'var(--color-brique, #96412E)' }}>{fmtMoney(totalDu, currency)}</span> à la Maison.</>
+          ) : foyerDoitPlus ? (
+            <>Le foyer de {prenom} doit <span style={{ color: 'var(--color-brique, #96412E)' }}>{fmtMoney(duFoyer, currency)}</span> à la Maison.</>
           ) : solde > 0 ? (
             <>La Maison doit <span style={{ color: 'var(--color-indigo)' }}>{fmtMoney(solde, currency)}</span> à {prenom}.</>
           ) : (
@@ -1457,12 +1478,40 @@ function PanneauCompte({
           {doit && plusVieille ? (
             <>Depuis <b style={{ fontWeight: 500, color: 'var(--ink)' }}>{plusVieille.depuisJours} jours</b>
               {' · '}{plusVieille.libelle.replace(/^Rituel · /, '')} du {frShort(plusVieille.date)}, jamais soldé.</>
+          ) : foyerDoitPlus && impayesFoyer[0] ? (
+            <>Depuis <b style={{ fontWeight: 500, color: 'var(--ink)' }}>{impayesFoyer[0].depuisJours} jours</b>
+              {' · '}{impayesFoyer[0].libelle.replace(/^Rituel · /, '')} du {frShort(impayesFoyer[0].date)}, jamais soldé.
+              {' '}Rien sur ses propres rituels.</>
           ) : solde > 0 ? 'un avoir dort sur son compte, il se consommera au prochain rituel'
             : 'tout est réglé'}
           {enFoyer && (portee === 'sienne'
             ? ` · ses mouvements seuls, foyer de ${ids.length} têtes`
             : ` · tout le foyer, ${ids.length} têtes`)}
         </p>
+
+        {/* LE FOYER DOIT DAVANTAGE — la ligne qui manquait. Elle mène d'un
+            clic au relevé qui l'explique : dire un chiffre sans donner le
+            chemin qui y conduit, c'est laisser chercher. */}
+        {foyerDoitPlus && (
+          <p style={{ fontSize: 13.5, margin: '0 0 14px' }}>
+            <span style={{ color: 'var(--color-brique, #96412E)', fontWeight: 500 }}>
+              Le foyer doit {fmtMoney(duFoyer, currency)} en tout
+            </span>
+            <span className="mnd-muted">
+              {totalDu > 0 ? `, dont ${fmtMoney(totalDu, currency)} sur ses propres rituels` : `, aucun sur les siens`}
+            </span>
+            {portee === 'sienne' && (
+              <button
+                type="button"
+                className="tre-link-btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setPortee('foyer')}
+              >
+                voir tout le foyer
+              </button>
+            )}
+          </p>
+        )}
 
         {/* LA PORTÉE — on ouvre sur les SIENS : c'est sa fiche. Le foyer se
             demande, il ne s'impose pas. */}
@@ -1484,14 +1533,18 @@ function PanneauCompte({
             </button>
           </div>
         )}
-        {doit && (
+        {(doit || foyerDoitPlus) && (
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            {plusVieille && rituelDe(plusVieille.refId) && (
-              <Button variant="copper" size="sm" onClick={() => onEncaisser(rituelDe(plusVieille.refId)!)}>Encaisser</Button>
-            )}
+            {/* On encaisse la plus vieille dette ATTEIGNABLE : la sienne quand
+                elle en a, celle du foyer sinon — c'est la payeuse qui règle. */}
+            {(() => {
+              const cible = plusVieille ?? impayesFoyer[0];
+              const rdv = cible && rituelDe(cible.refId);
+              return rdv ? <Button variant="copper" size="sm" onClick={() => onEncaisser(rdv)}>Encaisser</Button> : null;
+            })()}
             <WaLien
               phone={client.phone}
-              message={`Bonjour ${prenom}, la Maison MND revient vers vous : il reste ${fmtMoney(totalDu, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
+              message={`Bonjour ${prenom}, la Maison MND revient vers vous : il reste ${fmtMoney(doit ? totalDu : duFoyer, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
               style={{
                 fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500, letterSpacing: '.04em',
                 padding: '9px 17px', borderRadius: 3, border: '1px solid var(--copper-600)',

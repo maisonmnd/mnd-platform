@@ -348,6 +348,46 @@ const seule = ecrituresDuCompte({
 });
 dit('une tête seule garde son avoir au compte', 20_000, soldeDuCompte(seule));
 
+/* ── ⑫ LA PAYEUSE VOIT CE QUE SON FOYER DOIT ───────────────────────
+   « Chloey reste devoir 36 400 F que je ne vois pas sur le compte du parent
+   payeur » (Yéman, 28 août).
+
+   Conséquence directe de l'ouverture sur « ses mouvements » : Merine ne devait
+   rien SUR SES PROPRES RITUELS, et sa fiche annonçait « ne doit rien » en
+   grand et en vert — alors que sa maisonnée devait 36 400 F et que c'est elle
+   qui règle. Une fiche qui rassure à tort est pire qu'une fiche muette. */
+const foyerMerine = ecrituresDuCompte({
+  ids: ['merine', 'chloey', 'kaitlyn'],
+  porteurs: [{ type: 'family', id: 'fam' }],
+  invoices: [], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  appts: [
+    /* Merine : son rituel est soldé. */
+    rdv({ id: 'rm', clientId: 'merine', date: '2026-08-01', netTest: 115_000, duTest: 0,
+      payments: [{ id: 'pm', amountXof: 115_000, date: '2026-08-01', method: 'Espèces' }] } as never),
+    /* Chloey : 14 300 versés sur 50 700, il reste 36 400. */
+    rdv({ id: 'rch', clientId: 'chloey', date: '2026-08-12', netTest: 50_700, duTest: 36_400,
+      payments: [{ id: 'pch', amountXof: 14_300, date: '2026-08-12', method: 'Avoir' }] } as never),
+  ],
+});
+
+const duDe = (liste: ReturnType<typeof lignesImpayees>) => liste.reduce((t, l) => t + l.resteXof, 0);
+dit('Merine ne doit rien sur ses propres rituels', 0,
+  duDe(lignesImpayees(ecrituresDeLaTete(foyerMerine, 'merine'))));
+dit('… mais son foyer doit bien 36 400', 36_400, duDe(lignesImpayees(foyerMerine)));
+dit('… et ce dû est celui de Chloey', 36_400,
+  duDe(lignesImpayees(ecrituresDeLaTete(foyerMerine, 'chloey'))));
+
+/* LE DÛ DU FOYER NE PEUT JAMAIS ÊTRE INFÉRIEUR À CELUI D'UNE DE SES TÊTES :
+   si cela arrivait, une dette se serait perdue entre les deux lectures. */
+dit('le foyer doit au moins ce que chaque tête doit', [true, true, true],
+  ['merine', 'chloey', 'kaitlyn'].map((id) =>
+    duDe(lignesImpayees(foyerMerine)) >= duDe(lignesImpayees(ecrituresDeLaTete(foyerMerine, id)))));
+
+/* Et il vaut exactement la SOMME des têtes, sans rien inventer ni perdre. */
+dit('… et exactement leur somme', duDe(lignesImpayees(foyerMerine)),
+  ['merine', 'chloey', 'kaitlyn']
+    .reduce((t, id) => t + duDe(lignesImpayees(ecrituresDeLaTete(foyerMerine, id))), 0));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

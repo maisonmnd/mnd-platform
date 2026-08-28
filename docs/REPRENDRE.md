@@ -54,6 +54,34 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LA PAYEUSE VOIT CE QUE SON FOYER DOIT — 28 août, PUBLIÉ
+
+« Chloey reste devoir 36 400 F que je ne vois pas sur le compte du parent
+payeur » (Yéman). **Conséquence directe** de l'ouverture sur « ses mouvements »,
+faite le matin même : Merine ne devait rien SUR SES PROPRES RITUELS, et sa fiche
+annonçait **« Merine ne doit rien à la Maison »** en grand et en vert — alors
+que sa maisonnée devait 36 400 F et que c'est elle qui règle.
+
+**UNE FICHE QUI RASSURE À TORT EST PIRE QU'UNE FICHE MUETTE.** La leçon vaut
+pour toute portée qu'on restreint : restreindre la vue ne doit jamais
+restreindre la VÉRITÉ.
+
+Trois réparations :
+
+1. **La phrase d'ouverture** dit « Le foyer de Merine doit 36 400 F » quand elle
+   ne doit rien elle-même mais que sa maisonnée doit.
+2. **Une ligne sous la phrase**, sur chaque fiche du foyer et quelle que soit la
+   portée : « Le foyer doit X en tout, dont Y sur ses propres rituels », avec
+   *voir tout le foyer* qui bascule la portée. Dire un chiffre sans donner le
+   chemin qui y conduit, c'est laisser chercher.
+3. **Encaisser et Relancer** visent la plus vieille dette ATTEIGNABLE : la
+   sienne quand elle en a, celle du foyer sinon.
+
+`verifie-compte` monte à **73 assertions**, dont deux invariants qui n'existaient
+pas : le dû du foyer ne peut jamais être inférieur à celui d'une de ses têtes,
+et il vaut **exactement leur somme** — sans rien inventer ni perdre entre les
+deux lectures.
+
 ## UNE VEDETTE PAR MOMENT — 28 août, PUBLIÉ
 
 « Chaque moment du parcours doit avoir sa mise en vedette. Pas une seule mise en
