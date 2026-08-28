@@ -667,6 +667,34 @@ export const PLANS_MARKETING: Plan[] = [
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 12 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
   },
 
+  /* ②bis LA JUSTE CADENCE — 28 août 2026, demandée telle quelle : « un
+     abonnement de lavage et resserrage qui s'utilise toutes les six semaines,
+     total six séances sur l'année, ça dure environ dix mois ».
+
+     SIX SEMAINES EST LE VRAI RYTHME D'UNE COURONNE, entre les deux mois de
+     L'Année Sereine (un peu lâche) et les huit séances de L'Année Nette (un
+     peu serré). Six séances espacées de six semaines couvrent trente-six
+     semaines : huit mois et demi. La validité est posée à DIX MOIS, et cette
+     marge est le cœur de l'offre — une séance repoussée pour un voyage ou un
+     empêchement ne doit pas faire perdre la dernière.
+
+     MÊME CONTENU ET MÊME PRIX QUE L'ANNÉE SEREINE · DUO : on ne fait pas payer
+     plus pour un rythme plus serré à nombre de séances égal. Ce qui les
+     sépare est la CADENCE, pas la valeur. */
+  {
+    id: 'pl-mkt-juste-cadence', name: 'La Juste Cadence', tag: 'Toutes les six semaines', priceXof: 215000,
+    line: 'Le rythme que votre couronne demande, ni plus ni moins.',
+    perks: [
+      '6 GBÈJÍ™ resserrage racines',
+      '6 KLƆKLƆ™ Le Lavage',
+      'Une venue toutes les six semaines',
+      'Valable 10 mois, la marge pour souffler',
+      '270 000 F à la carte, vous gagnez 55 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 300, discountPct: 20, famille: 'annees',
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }],
+  },
+
   /* ③ L'ANNÉE NETTE — toutes les six semaines. Pour les couronnes qui
      poussent vite et les têtes exigeantes sur la netteté des racines. */
   {
@@ -699,7 +727,10 @@ export const PLANS_MARKETING: Plan[] = [
 ];
 
 /** Les six « Années » — les packs annuels des têtes qui font confiance. */
-export const PACKS_ANNUELS = PLANS_MARKETING.filter((p) => p.id.startsWith('pl-mkt-annee-'));
+/* LA FAMILLE FAIT FOI, PAS L'IDENTIFIANT. Le filtre lisait `pl-mkt-annee-` :
+   il a laissé La Juste Cadence dehors le jour de sa création, alors qu'elle est
+   bien une Année. Un nom d'identifiant n'est pas un classement. */
+export const PACKS_ANNUELS = PLANS_MARKETING.filter((p) => p.famille === 'annees');
 
 /** POSE LES FORMULES MARKETING QUI MANQUENT, et rien d'autre.
     Idempotent PAR IDENTIFIANT : une formule déjà posée n'est jamais réécrite,
