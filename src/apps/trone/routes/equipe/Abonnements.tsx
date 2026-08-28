@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -57,7 +57,39 @@ export default function Abonnements() {
 
   const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
   const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);
-  const churned = branchSubs.length - members.length;
+
+  /* ── LES PARTIS, RETROUVABLES — 28 août ─────────────────────────────
+     « Peux-tu retrouver les abonnements que j'avais auparavant ? » (Yéman).
+     Ils étaient là, et l'écran ne les montrait plus.
+
+     « Résilier » basculait le statut à `churn` d'un seul clic, SANS
+     confirmation, et la ligne disparaissait pour toujours : le tableau ne
+     lisait que les non-résiliés, et le nombre de partis ne vivait qu'en
+     chiffre au fond de la carte Rétention. Rien n'était perdu en base, mais
+     plus rien n'était atteignable depuis la Maison — ce qui revient au même
+     pour qui tient le comptoir.
+
+     Deux réparations, et la seconde est la vraie : le geste demande désormais
+     confirmation, et LES PARTIS ONT LEUR LISTE, d'où l'on réabonne. Une
+     résiliation est une décision, pas une suppression : la tête a payé, son
+     histoire appartient à la Maison. */
+  const partis = useMemo(() => branchSubs.filter((m) => m.status === 'churn'), [branchSubs]);
+  const churned = partis.length;
+  const [voirPartis, setVoirPartis] = useState(false);
+  const [aResilier, setAResilier] = useState<Subscriber | null>(null);
+
+  const resilier = (m: Subscriber) => {
+    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'churn' as const } : x)));
+    setAResilier(null);
+    setVoirPartis(true);
+    toast('Abonnement résilié. Il reste dans « Les partis », vous pouvez le reprendre.');
+  };
+  /* On rend le statut « actif », jamais « nouveau » : elle n'est pas une
+     nouvelle tête, elle revient. Le MRR repart avec elle. */
+  const reprendre = (m: Subscriber) => {
+    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'active' as const } : x)));
+    toast('Abonnement repris, la tête retrouve sa formule.');
+  };
   const retention = branchSubs.length > 0 ? Math.round((members.length / branchSubs.length) * 100) : null;
   const mrr = members.reduce((a, m) => a + m.mrrXof, 0);
   const planOf = (id: string) => plans.find((p) => p.id === id);
@@ -215,7 +247,17 @@ export default function Abonnements() {
               <div className="mnd-stat__label">Rétention</div>
               <div className="mnd-stat__value" style={{ fontSize: 30 }}>{retention != null ? `${retention} %` : '—'}</div>
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
-                {retention != null ? `${churned} résiliation${churned > 1 ? 's' : ''}` : 'se mesurera avec l’usage'}
+                {/* Le nombre de partis ne se contente plus d'être un chiffre :
+                    il ouvre leur liste. */}
+                {retention == null ? 'se mesurera avec l’usage' : churned === 0 ? 'aucune résiliation' : (
+                  <button
+                    type="button"
+                    className="tre-link-btn"
+                    onClick={() => { setVoirPartis(true); document.getElementById('trab-partis')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
+                  >
+                    {churned} résiliation{churned > 1 ? 's' : ''} · les revoir
+                  </button>
+                )}
               </div>
             </Card>
             <Card filet="copper" style={{ padding: 18 }}>
@@ -416,7 +458,7 @@ export default function Abonnements() {
                         <button
                           className="tre-link-btn tre-link-btn--danger"
                           style={{ marginLeft: 10 }}
-                          onClick={() => setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'churn' } : x)))}
+                          onClick={() => setAResilier(m)}
                         >
                           Résilier
                         </button>
@@ -431,7 +473,73 @@ export default function Abonnements() {
               </table>
             </div>
           </Card>
+
+          {/* LES PARTIS — la liste qui manquait. Un abonnement résilié n'est pas
+              un abonnement effacé : la tête a payé, son histoire appartient à
+              la Maison, et elle peut revenir. */}
+          {partis.length > 0 && (
+            <div style={{ marginTop: 18 }} id="trab-partis">
+              <button
+                type="button"
+                onClick={() => setVoirPartis((v) => !v)}
+                style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500,
+                  letterSpacing: '.04em', color: 'var(--copper-700)',
+                }}
+              >
+                {voirPartis ? '▾' : '▸'} Les partis · {partis.length} abonnement{partis.length > 1 ? 's' : ''} résilié{partis.length > 1 ? 's' : ''}
+              </button>
+
+              {voirPartis && (
+                <Card style={{ overflow: 'hidden', marginTop: 12 }}>
+                  <div className="mnd-scroll-x">
+                    <table className="tre-table tre-table--cards">
+                      <thead>
+                        <tr><th>Tête couronnée</th><th>Formule</th><th>Abonnée depuis</th><th style={{ textAlign: 'right' }}>MRR d’alors</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        {partis.map((m) => (
+                          <tr key={m.id}>
+                            <td data-label="Tête couronnée">{m.name}</td>
+                            <td data-label="Formule" className="mnd-muted">{planOf(m.planId)?.name ?? 'Formule retirée'}</td>
+                            <td data-label="Depuis" className="mnd-muted">{m.sinceIso ? shortDate(m.sinceIso) : m.since}</td>
+                            <td data-label="MRR" className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <button className="tre-link-btn" onClick={() => reprendre(m)}>Reprendre l’abonnement</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* LE GARDE-FOU. « Résilier » était un clic sec et sans retour : la ligne
+          disparaissait, et rien dans l'écran ne disait où elle était allée. */}
+      {aResilier && (
+        <Modal title="Résilier cet abonnement ?" onClose={() => setAResilier(null)} width={420}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
+              <b style={{ fontWeight: 500 }}>{aResilier.name}</b> quitte la formule
+              {' '}{planOf(aResilier.planId)?.name ?? 'retirée'}. La Maison perd
+              {' '}{fmtMoney(aResilier.mrrXof, currency)} de revenu mensuel.
+            </p>
+            <p className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
+              Rien n’est effacé : l’abonnement rejoint « Les partis », sous le tableau, d’où vous
+              pouvez le reprendre quand elle revient.
+            </p>
+            <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
+              <Button variant="ghost" onClick={() => setAResilier(null)}>Garder l’abonnement</Button>
+              <Button variant="copper" onClick={() => resilier(aResilier)}>Résilier</Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {planModal && (

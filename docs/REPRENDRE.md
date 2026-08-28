@@ -2,6 +2,33 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Les abonnements résiliés étaient devenus introuvables — 28 août, PUBLIÉ
+
+« Peux-tu retrouver les abonnements que j'avais auparavant ? » (Yéman).
+
+**Rien n'était perdu, tout était inatteignable.** « Résilier » basculait le
+statut à `churn` d'un seul clic, sans confirmation ; le tableau ne lisait que
+`status !== 'churn'` ; et le nombre de partis ne vivait qu'en chiffre au fond
+de la carte Rétention. La ligne disparaissait sans dire où elle allait.
+
+**La leçon** : un statut qui retire une ligne de la seule vue qui l'affiche
+équivaut à une suppression pour qui tient le comptoir. Avant d'ajouter un
+filtre `!== x`, il faut savoir où l'on voit les `x`.
+
+Trois réparations :
+
+1. **« Les partis »**, liste repliable sous le tableau des abonnés, avec
+   *Reprendre l'abonnement* qui rend le statut `active` (jamais `new` : elle
+   n'est pas une nouvelle tête, elle revient).
+2. **Confirmation sur Résilier**, disant ce que la Maison perd en MRR et où
+   l'abonnement va atterrir.
+3. **Le compteur de la carte Rétention devient un lien** qui déplie la liste.
+
+`supabase/voir_abonnements.sql` — cinq requêtes de LECTURE SEULE pour voir ce
+que la base contient réellement (par branche, par statut, résiliés seuls). Le
+second filtre qui peut cacher un abonnement est la BRANCHE : une tête posée sur
+une autre branche est invisible depuis celle affichée en tête d'écran.
+
 ## Les codes de la Maison — rangés par moment de la visite, 27 août, PUBLIÉ
 
 « Il y a trop de QR et je me mélange beaucoup » (Yéman). La page empilait sept
