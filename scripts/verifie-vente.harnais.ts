@@ -17,6 +17,7 @@ import {
   subServiceUsage, prixDeLaFormule,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
+import { formulesVisiblesPour, formuleEnVitrine } from '../src/shared/bridges';
 import type { Appointment } from '../src/shared/agenda';
 
 let ko = 0;
@@ -138,6 +139,59 @@ const sansPropre = subServiceUsage(
   abo({ startIso: '2026-01-01', expiresIso: '2026-12-31' }), PACK, deuxVenues);
 dit('sans contenu propre, les quotas de la formule', [6, 6], sansPropre.map((u) => u.qty));
 dit('… et deux lavages déjà pris', [0, 2], sansPropre.map((u) => u.used));
+
+/* ── ⑦ CE QU'ELLE VOIT EN VITRINE ──────────────────────────────────
+   « Je ne veux pas rendre visible tous les abonnements en ligne sur Ma
+   Couronne » (Yéman, 28 août). Elles y étaient TOUTES : celles qui se
+   négocient au comptoir, celles gardées pour une tête précise, celles qu'on
+   n'a pas fini d'écrire. Une formule mal ficelée, lue par une cliente avant
+   que la Maison l'ait décidée, se réclame ensuite au comptoir.
+
+   MASQUER N'EFFACE PAS. Le masque ne touche que la vitrine : celles qui la
+   portent gardent leur formule, leur prix et leurs quotas. C'est ce qui rend
+   ce geste sûr, et c'est pourquoi il ne doit JAMAIS toucher au reste. */
+const CATALOGUE = [PACK, CYCLE, { ...PACK, id: 'pl-troisieme' }];
+const ids = (l: readonly { id: string }[]) => l.map((x) => x.id);
+
+dit('sans masque, tout est en vitrine', ['pl-annee', 'pl-suite', 'pl-troisieme'],
+  ids(formulesVisiblesPour({ cfg: {}, plans: CATALOGUE })));
+dit('le masque de la Maison vaut pour toutes', ['pl-suite', 'pl-troisieme'],
+  ids(formulesVisiblesPour({ cfg: { hiddenPlans: ['pl-annee'] }, plans: CATALOGUE })));
+dit('le masque d’une fiche ne vaut que pour elle', ['pl-annee', 'pl-troisieme'],
+  ids(formulesVisiblesPour({ cfg: {}, masques: { plans: ['pl-suite'] }, plans: CATALOGUE })));
+
+/* LES DEUX S'AJOUTENT, ils ne se remplacent pas. Si le masque de la fiche
+   écrasait celui de la Maison, poser un masque individuel RALLUMERAIT tout le
+   reste pour cette tête — l'inverse exact de ce qui a été demandé. */
+dit('les deux masques s’ajoutent', ['pl-troisieme'],
+  ids(formulesVisiblesPour({
+    cfg: { hiddenPlans: ['pl-annee'] }, masques: { plans: ['pl-suite'] }, plans: CATALOGUE,
+  })));
+dit('une formule cachée à la Maison le reste pour chaque tête', false,
+  formuleEnVitrine('pl-annee', { hiddenPlans: ['pl-annee'] }, { plans: [] }));
+dit('… et la retirer de SON masque ne la rouvre pas', false,
+  formuleEnVitrine('pl-annee', { hiddenPlans: ['pl-annee'] }, { plans: ['pl-suite'] }));
+
+/* L'ORDRE DU CATALOGUE TIENT : la vitrine range les formules par moment du
+   parcours. Un filtre qui rebattrait l'ordre ferait apparaître une formule
+   ailleurs qu'à sa place le jour où l'on en masque une. */
+dit('l’ordre ne bouge pas', ['pl-suite', 'pl-troisieme'],
+  ids(formulesVisiblesPour({ cfg: { hiddenPlans: ['pl-annee'] }, plans: CATALOGUE })));
+
+/* LE CHAMP ABSENT N'EST PAS UN CHAMP FAUX : la Maison en ligne n'a aucun
+   `hiddenPlans` en base. S'il se lisait mal, elle perdrait sa vitrine entière
+   au chargement, sans qu'un seul écran ne le dise. */
+dit('sans le champ, rien n’est masqué', 3,
+  formulesVisiblesPour({ cfg: {}, masques: {}, plans: CATALOGUE }).length);
+dit('une liste vide ne masque rien', true,
+  formuleEnVitrine('pl-annee', { hiddenPlans: [] }, { plans: [] }));
+
+/* LE MASQUE NE TOUCHE PAS CE QUI EST VENDU, et la preuve est ici même : une
+   formule masquée continue de dire son prix et ses quotas à celle qui la
+   porte. Sans quoi masquer reviendrait à résilier en silence. */
+dit('masquée, elle vaut toujours son prix pour l’abonnée', 190_000,
+  prixVenduXof(merine, PACK, 'mensuel'));
+dit('… et ses quotas ne bougent pas', [6, 6], inclusVendus(abo({}), PACK).map((i) => i.qty));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

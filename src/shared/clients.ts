@@ -163,7 +163,7 @@ export type Client = {
       ateliers, prestations et produits que la régie éteint POUR ELLE. La
       config globale du miroir reste le socle de la Maison ; ces masques s'y
       ajoutent. Le juge unique est `catalogueVisiblePour` (shared/bridges). */
-  vitrineMasques?: { categories?: string[]; services?: string[]; products?: string[] };
+  vitrineMasques?: { categories?: string[]; services?: string[]; products?: string[]; plans?: string[] };
 };
 
 /** Compte famille — regroupe plusieurs clientes sous un même compte payeur. */

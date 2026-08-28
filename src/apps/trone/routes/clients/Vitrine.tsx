@@ -469,6 +469,9 @@ function QuizRow({ label, opts, value, onPick }: { label: string; opts: [string,
 /* ---------- Régie · la configuration de la Vitrine ---------- */
 function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const [servicesRegie] = useServices();
+  /* Les formules ont leur propre magasin, hors du catalogue des prestations :
+     c'est pourquoi la régie ne les portait pas encore. */
+  const [plansEnRegie] = usePlans();
   const [cfg] = useStore(vitrineConfigStore);
   const [categories] = useCategories();
   const [services] = useServices();
@@ -517,6 +520,25 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const toggleProd = (id: string) => (portee === 'maison'
     ? vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: bascule(c.hiddenProducts, id) }))
     : (masqueMaisonProd(id) ? undefined : setMasques({ products: bascule(herProds, id) })));
+  /* ── LES FORMULES, MÊME RÈGLE QUE TOUT LE RESTE — 28 août 2026 ──
+     « Je ne veux pas rendre visible tous les abonnements en ligne sur Ma
+     Couronne » (Yéman). Elles y étaient TOUTES, sans exception : celles qui se
+     négocient au comptoir, celles qu'on garde pour une tête précise, celles
+     qu'on n'a pas fini d'écrire. Une formule mal ficelée, lue par une cliente
+     avant que la Maison l'ait décidée, se réclame ensuite au comptoir.
+
+     MASQUER N'EFFACE PAS. Celles qui la portent déjà gardent leur formule,
+     leur prix et leurs quotas : le masque ne touche QUE la vitrine. C'est la
+     réponse à « la retirer de la vente sans l'effacer », que le bouton
+     « Retirer » ne pouvait pas donner puisqu'il refuse tant qu'une abonnée
+     est dessus. */
+  const herPlans = masques.plans ?? [];
+  const gPlans = cfg.hiddenPlans ?? [];
+  const masqueMaisonPlan = (id: string) => gPlans.includes(id);
+  const planVisible = (id: string) => (portee === 'maison' ? !gPlans.includes(id) : !herPlans.includes(id) && !gPlans.includes(id));
+  const togglePlan = (id: string) => (portee === 'maison'
+    ? vitrineConfigStore.set((c) => ({ ...c, hiddenPlans: bascule(c.hiddenPlans ?? [], id) }))
+    : (masqueMaisonPlan(id) ? undefined : setMasques({ plans: bascule(herPlans, id) })));
   const setFlag = (k: 'autoplay' | 'quizEnabled' | 'quizCouronne' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
 
   /* Ce que la portée choisie DONNE À VOIR — le juge unique. */
@@ -752,12 +774,12 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             ))}
             {/* LE RETOUR AUX DÉFAUTS DE LA MAISON — tout rallumer d'un geste
                 (les masques individuels des fiches, eux, ne bougent pas). */}
-            {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0) && (
+            {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0 || gPlans.length > 0) && (
               <button
                 type="button"
                 onClick={() => {
-                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés, ateliers, prestations et produits redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
-                  vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [] }));
+                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés, ateliers, prestations, produits et formules redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
+                  vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [], hiddenPlans: [] }));
                 }}
                 style={{
                   cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
@@ -859,6 +881,42 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           );
           });
         })()}
+
+        {/* ══ LES FORMULES EN VITRINE ══════════════════════════════
+            Elles ne vivent pas dans le catalogue des prestations : elles ont
+            leur propre magasin, leur propre écran, et n'avaient donc aucun
+            interrupteur ici. Elles en ont un maintenant, avec exactement la
+            même règle que les prestations — le socle de la Maison, puis le
+            masque de la fiche qui s'y ajoute. */}
+        {plansEnRegie.length > 0 && (
+          <div style={{ marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>Les formules</div>
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                {(() => {
+                  const n = plansEnRegie.filter((pl) => planVisible(pl.id)).length;
+                  return n === plansEnRegie.length
+                    ? 'Toutes en vitrine.'
+                    : `${n} sur ${plansEnRegie.length} en vitrine.`;
+                })()}
+                {' '}Masquer n’efface rien : celles qui la portent la gardent.
+              </span>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              {plansEnRegie.map((pl) => (
+                <ToggleCard
+                  key={pl.id}
+                  name={pl.name}
+                  sub={portee === 'cliente' && masqueMaisonPlan(pl.id)
+                    ? 'Formule · masquée pour toute la Maison'
+                    : (pl.mode === 'pack' ? 'Paquet de crédits' : 'Abonnement')}
+                  on={planVisible(pl.id)}
+                  onToggle={() => togglePlan(pl.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Le tapis de cuivre */}
         <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>

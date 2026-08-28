@@ -10,8 +10,8 @@ import {
 } from '../../shared/abonnements';
 import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
 import { libelleCouleur } from '../../shared/couleur';
-import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule } from '../../shared/bridges';
-import { uid } from '../../shared/store';
+import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
+import { uid, useStore } from '../../shared/store';
 import { useClient } from './lib';
 import './couronne.css';
 
@@ -274,6 +274,20 @@ export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
   const { branch } = useBranch();
   const client = useClient();
   const [plans] = usePlans();
+  /* CE QU'ELLE A LE DROIT DE VOIR — « je ne veux pas rendre visible tous les
+     abonnements en ligne sur Ma Couronne » (Yéman, 28 août). Le socle de la
+     Maison et le masque de sa fiche s'ajoutent, jugés par `formulesVisiblesPour`.
+
+     LA FORMULE QU'ELLE PORTE DÉJÀ N'EST PAS CONCERNÉE : le masque ne touche
+     que la VITRINE. Masquer une formule ne la retire à personne, et son suivi
+     continue de s'afficher plus haut — c'est tout l'intérêt de masquer plutôt
+     que d'effacer. */
+  const [cfgVitrine] = useStore(vitrineConfigStore);
+  const moi = useClient();
+  const enVitrine = useMemo(
+    () => formulesVisiblesPour({ cfg: cfgVitrine, masques: moi?.vitrineMasques, plans }),
+    [cfgVitrine, moi?.vitrineMasques, plans],
+  );
   const [subs] = useSubscribers();
   const [demandes] = useDemandesFormule();
 
@@ -323,7 +337,7 @@ export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
           )}
         </div>
       ) : (
-        <LaVitrine plans={plans} onDemande={demander} />
+        <LaVitrine plans={enVitrine} onDemande={demander} />
       )}
     </div>
   );

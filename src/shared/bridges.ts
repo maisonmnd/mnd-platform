@@ -178,6 +178,19 @@ export type VitrineConfig = {
   hiddenCategories?: string[];
   hiddenServices: string[];
   hiddenProducts: string[];
+  /** LES FORMULES QU'ON NE MONTRE PAS — « je ne veux pas rendre visible tous
+      les abonnements en ligne sur Ma Couronne » (Yéman, 28 août).
+
+      TOUTES LES FORMULES ÉTAIENT EN VITRINE, sans exception : celles qui se
+      négocient au comptoir, celles qu'on garde pour une tête précise, celles
+      qu'on n'a pas fini d'écrire. Une formule mal ficelée, lue par une cliente
+      avant que la Maison l'ait décidée, se réclame ensuite au comptoir.
+
+      MASQUER N'EFFACE PAS. Celles qui la portent déjà gardent leur formule,
+      leurs quotas et leur prix : le masque ne touche QUE la vitrine. C'est la
+      réponse à « retirer de la vente sans effacer », que le bouton Retirer ne
+      pouvait pas donner. */
+  hiddenPlans?: string[];
   /** CE QUE LE QUIZ RECOMMANDE, prestation par envie.
 
       Le miroir proposait quatre rituels écrits en dur dans le code — « Le Soin
@@ -268,7 +281,25 @@ export const surMesureDe = (cfg: VitrineConfig): { ponctuelPct: number; aboPct: 
    coupe toute sa descendance. L'ordre rendu est celui de l'ARBRE du
    Catalogue. Utilisé par Ma Couronne (useVisibleCatalog) ET par l'aperçu de
    la Vitrine — deux écrans, un seul juge. */
-export type VitrineMasques = { categories?: string[]; services?: string[]; products?: string[] };
+export type VitrineMasques = { categories?: string[]; services?: string[]; products?: string[]; plans?: string[] };
+
+/* ── LES FORMULES QU'UNE TÊTE VOIT — 28 août 2026 ────────────────────
+   Un seul juge, lu par Ma Couronne et par l'aperçu du Trône. Deux écrans qui
+   décideraient chacun de leur côté finiraient par montrer à la cliente autre
+   chose que ce que la régie annonce, et personne ne saurait lequel croire.
+
+   LES DEUX MASQUES S'AJOUTENT, ils ne se remplacent pas : le socle de la
+   Maison vaut pour toutes, celui de sa fiche s'y ajoute. Une formule cachée à
+   la Maison ne se rouvre pas pour une seule tête en la retirant de SON masque
+   — c'est la même règle que les prestations et les produits. */
+export const formuleEnVitrine = (
+  planId: string, cfg: Pick<VitrineConfig, 'hiddenPlans'>, masques?: VitrineMasques,
+): boolean => !(cfg.hiddenPlans ?? []).includes(planId) && !(masques?.plans ?? []).includes(planId);
+
+/** Les formules à montrer, dans leur ordre d'origine. */
+export const formulesVisiblesPour = <T extends { id: string }>(o: {
+  cfg: Pick<VitrineConfig, 'hiddenPlans'>; masques?: VitrineMasques; plans: readonly T[];
+}): T[] => o.plans.filter((p) => formuleEnVitrine(p.id, o.cfg, o.masques));
 
 export function catalogueVisiblePour(o: {
   cfg: VitrineConfig;

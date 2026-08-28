@@ -2,6 +2,37 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES FORMULES EN VITRINE — 28 août, PUBLIÉ
+
+« Je ne veux pas rendre visible tous les abonnements en ligne sur Ma Couronne. »
+
+Elles y étaient TOUTES, sans exception : celles qui se négocient au comptoir,
+celles gardées pour une tête précise, celles qu'on n'a pas fini d'écrire. Une
+formule mal ficelée, lue par une cliente avant que la Maison l'ait décidée, se
+réclame ensuite au comptoir.
+
+Les formules ont leur propre magasin, hors du catalogue des prestations : c'est
+pourquoi la régie de la vitrine ne les portait pas. Elle les porte maintenant,
+avec EXACTEMENT la règle des prestations et des produits, `hiddenPlans` sur
+`VitrineConfig` pour le socle de la Maison et `vitrineMasques.plans` sur la
+fiche. Le juge unique est `formulesVisiblesPour` (`shared/bridges.ts`), lu par
+Ma Couronne.
+
+**MASQUER N'EFFACE PAS.** Le masque ne touche que la VITRINE : celles qui la
+portent gardent leur formule, leur prix et leurs quotas, et leur suivi continue
+de s'afficher. C'est la réponse à « la retirer de la vente sans l'effacer », que
+le bouton « Retirer » ne pouvait pas donner puisqu'il refuse tant qu'une abonnée
+est dessus.
+
+Les deux masques S'AJOUTENT, ils ne se remplacent pas : si celui de la fiche
+écrasait celui de la Maison, poser un masque individuel rallumerait tout le reste
+pour cette tête. « Rétablir le tapis complet » lève aussi les formules.
+
+Écran : Clientes → Vitrine → Régie, section « Les formules », dans les deux
+portées. 11 assertions de plus sur `verifie-vente`.
+
+---
+
 ## « POURQUOI JE N'ARRIVE PAS A RETIRER L'ABONNEMENT ? » — 28 août, PUBLIÉ
 
 Le bouton « Retirer » d'une formule se taisait de DEUX façons, et aucune ne se
