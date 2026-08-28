@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA JUSTE CADENCE — 28 août, PUBLIÉ
+
+Demandée telle quelle : « un abonnement de lavage et resserrage qui s'utilise
+toutes les six semaines, total six séances sur l'année, ça dure environ dix
+mois ».
+
+`pl-mkt-juste-cadence`, famille **annees**, pack de 215 000 F, `validityDays:
+300`. Six GBÈJÍ™ resserrage + six KLƆKLƆ™ Le Lavage, soit 270 000 F à la carte,
+55 000 F de gain.
+
+**Pourquoi dix mois et non huit et demi.** Six séances espacées de six semaines
+couvrent trente-six semaines. La validité posée à dix mois n'est pas un
+arrondi : c'est la marge. Une séance repoussée pour un voyage ou un
+empêchement ne doit pas faire perdre la dernière, et c'est ce que la cliente
+achète autant que les séances.
+
+**Elle a le même prix que L'Année Sereine · Duo, et c'est voulu.** Même
+contenu, même valeur à la carte, même nombre de séances : on ne fait pas payer
+plus pour un rythme plus serré. Ce qui les sépare est la CADENCE — six
+semaines contre deux mois — et la fenêtre. Les deux noms doivent donc rester
+lisibles au comptoir ; si la Maison ne veut pas tenir les deux, c'est La Juste
+Cadence qui décrit le vrai rythme d'une couronne.
+
+### `PACKS_ANNUELS` filtrait sur un préfixe d'identifiant
+
+`p.id.startsWith('pl-mkt-annee-')` a laissé la nouvelle Année dehors le jour de
+sa création. Le filtre lit maintenant `p.famille === 'annees'`. Un identifiant
+n'est pas un classement — et c'est le harnais qui l'a dit, par l'assertion
+« PACKS_ANNUELS est exactement la famille des Années », posée pour ça.
+
+---
+
 ## Le choix d'une prestation, rangé par atelier — 28 août, PUBLIÉ
 
 « Ça va dans tous les sens et je ne me retrouve pas facilement. Partout où je
