@@ -477,6 +477,127 @@ export function ensureStarterPlans(): void {
   plansStore.set(STARTER_PLANS.map((p) => ({ ...p, perks: [...p.perks] })));
 }
 
+/* ═══ LES FORMULES MARKETING — 28 août 2026 ═══════════════════════════
+   « Créer des abonnements marketing pour que mes clients les prennent
+   massivement » (Yéman), dans le style de VÈKPÈ™ · Les 4 Premiers Entretiens.
+
+   CE QUI FAIT PRENDRE UN ABONNEMENT N'EST PAS SON PRIX, C'EST SON MOMENT.
+   VÈKPÈ™ · Les 4 Premiers Entretiens marche parce qu'il arrive quand la
+   question se pose déjà : elle vient de poser sa couronne, elle sait qu'il
+   faudra l'entretenir. Chacune des formules ci-dessous porte donc son moment,
+   écrit dans `line` — c'est ce qu'on dit au comptoir, pas un slogan.
+
+   LES PRIX SONT CALCULÉS SUR LE CATALOGUE RÉEL, pas inventés : resserrage
+   racines 25 000, soin assouplissant 20 000, entretien complet 40 000. Chaque
+   formule annonce sa remise (`discountPct`) telle qu'elle est dite à la vente,
+   et l'écart au prix à la carte est vrai. Une remise qu'on ne peut pas
+   justifier au comptoir se retourne contre la Maison.
+
+   LE FOYER A DEUX TAILLES parce qu'un abonnement famille qui n'aurait qu'une
+   taille obligerait la troisième tête à payer un abonnement entier — et c'est
+   exactement la tête qu'on veut faire entrer. La remise croît avec le nombre :
+   trois têtes gardent plus que deux, sinon rien ne pousse à monter. */
+export const PLANS_MARKETING: Plan[] = [
+  /* ① LA SUITE — le prolongement des 4 Premiers Entretiens. Le meilleur moment
+     de vente de la Maison : elle a déjà payé une fois, elle connaît le
+     fauteuil, et son quatrième entretien arrive. Aucune tête à convaincre. */
+  {
+    id: 'pl-mkt-suite', name: 'La Suite', tag: 'Après les quatre', priceXof: 35000,
+    line: 'Votre couronne ne s’arrête pas à quatre.',
+    perks: [
+      '1 SÍNSIN™ resserrage par mois',
+      '1 FÍNFÍN™ soin par mois',
+      'Votre créneau gardé, rien qu’à vous',
+      '−15 % sur la gamme',
+    ],
+    popular: true, mode: 'cycle', discountPct: 22,
+    included: [{ serviceId: 'sv-resserrage', qty: 1 }, { serviceId: 'sv-bain-vapeur', qty: 1 }],
+  },
+
+  /* ② LE CARNET DES SIX — la logique du carnet, comprise de tous. Deux effets
+     que le mensuel n'a pas : la caisse encaisse TOUT DE SUITE, et la tête
+     revient six fois au lieu d'aller voir ailleurs entre deux resserrages. */
+  {
+    id: 'pl-mkt-carnet', name: 'Le Carnet des Six', tag: 'Cinq payés, six pris', priceXof: 125000,
+    line: 'Le dernier resserrage que vous payez plein tarif.',
+    perks: [
+      '6 SÍNSIN™ resserrage racines',
+      'Le sixième est offert par la Maison',
+      'Valable 12 mois, à votre rythme',
+      'Transmissible à une tête de votre foyer',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 17,
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }],
+  },
+
+  /* ③ LE LAVAGE DU MOIS — la porte d'entrée. Ce qui se prend massivement est
+     ce qui coûte le moins cher à dire oui : un seul geste, un petit prix, tous
+     les mois. C'est la formule qu'on propose à celle qui hésite sur tout le
+     reste, et beaucoup montent ensuite vers La Suite. */
+  {
+    id: 'pl-mkt-lavage', name: 'Le Lavage du Mois', tag: 'La porte d’entrée', priceXof: 15000,
+    line: 'Une couronne propre, tous les mois, sans y penser.',
+    perks: [
+      '1 FÍNFÍN™ soin & lavage par mois',
+      'Rappel automatique la veille',
+      '−10 % sur la gamme',
+    ],
+    popular: false, mode: 'cycle', discountPct: 25,
+    included: [{ serviceId: 'sv-bain-vapeur', qty: 1 }],
+  },
+
+  /* ④ ET ⑤ LE FOYER — chaque abonnée devient une vendeuse : elle a intérêt à
+     trouver sa deuxième tête, puis sa troisième. C'est le seul levier de la
+     liste qui amène des têtes NEUVES sans que la Maison dépense un franc. */
+  {
+    id: 'pl-mkt-foyer2', name: 'Le Foyer · Deux Têtes', tag: 'À deux', priceXof: 60000,
+    line: 'Mère et fille, sœurs, amies : une seule formule pour deux couronnes.',
+    perks: [
+      '1 SÍNSIN™ + 1 FÍNFÍN™ chacune, par mois',
+      'Vos deux créneaux côte à côte',
+      '−15 % sur la gamme pour les deux',
+      '10 000 F de moins que deux Suite',
+    ],
+    popular: false, mode: 'cycle', discountPct: 33,
+    included: [{ serviceId: 'sv-resserrage', qty: 2 }, { serviceId: 'sv-bain-vapeur', qty: 2 }],
+  },
+  {
+    id: 'pl-mkt-foyer3', name: 'Le Foyer · Trois Têtes', tag: 'À trois', priceXof: 85000,
+    line: 'Trois couronnes sous le même toit, un seul rendez-vous à retenir.',
+    perks: [
+      '1 SÍNSIN™ + 1 FÍNFÍN™ chacune, par mois',
+      'Vos trois créneaux à la suite',
+      '−15 % sur la gamme pour les trois',
+      '20 000 F de moins que trois Suite',
+    ],
+    popular: false, mode: 'cycle', discountPct: 37,
+    included: [{ serviceId: 'sv-resserrage', qty: 3 }, { serviceId: 'sv-bain-vapeur', qty: 3 }],
+  },
+];
+
+/** POSE LES FORMULES MARKETING QUI MANQUENT, et rien d'autre.
+    Idempotent PAR IDENTIFIANT : une formule déjà posée n'est jamais réécrite,
+    même si son prix ou ses avantages ont été retouchés à l'écran. C'est la
+    règle de toutes les semences de la Maison — le geste de Yéman prime
+    toujours sur celui du code. Rend le nombre réellement ajouté. */
+export function poseLesFormulesMarketing(): number {
+  const cur = plansStore.get();
+  const connus = new Set((Array.isArray(cur) ? cur : []).map((p) => p.id));
+  const neuves = PLANS_MARKETING.filter((p) => !connus.has(p.id));
+  if (neuves.length === 0) return 0;
+  plansStore.set((prev) => [
+    ...prev,
+    ...neuves.map((p) => ({ ...p, perks: [...p.perks], included: p.included?.map((i) => ({ ...i })) })),
+  ]);
+  return neuves.length;
+}
+
+/** Combien des formules marketing manquent encore. */
+export const formulesMarketingAbsentes = (plans: readonly Plan[]): number => {
+  const connus = new Set(plans.map((p) => p.id));
+  return PLANS_MARKETING.filter((p) => !connus.has(p.id)).length;
+};
+
 /* Pré-remplissage des PRESTATIONS INCLUSES des 6 formules signées, à partir de
    leurs avantages, avec de VRAIES prestations du catalogue en ligne (ids réels
    relevés le 2026-07-21). Traduit « 1 resserrage / mois » en prestation

@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Cinq formules marketing — 28 août, PUBLIÉ
+
+« Créer des abonnements marketing pour que mes clients les prennent massivement »
+(Yéman), dans le style de VÈKPÈ™ · Les 4 Premiers Entretiens.
+
+**CE QUI FAIT PRENDRE UN ABONNEMENT N'EST PAS SON PRIX, C'EST SON MOMENT.** Les
+4 Premiers Entretiens marchent parce qu'ils arrivent quand la question se pose
+déjà : elle vient de poser sa couronne. Chaque formule porte donc son moment de
+vente, écrit dans `line` et dans le commentaire — c'est ce qu'on dit au
+comptoir, pas un slogan.
+
+| Formule | Mode | Prix | À la carte | Remise |
+| --- | --- | --- | --- | --- |
+| La Suite | cycle | 35 000 | 45 000 | 22 % |
+| Le Carnet des Six | pack 365 j | 125 000 | 150 000 | 17 % |
+| Le Lavage du Mois | cycle | 15 000 | 20 000 | 25 % |
+| Le Foyer · Deux Têtes | cycle | 60 000 | 90 000 | 33 % |
+| Le Foyer · Trois Têtes | cycle | 85 000 | 135 000 | 37 % |
+
+**Les prix sont calculés sur le CATALOGUE RÉEL**, pas inventés : `sv-resserrage`
+25 000, `sv-bain-vapeur` 20 000. Une remise qu'on ne peut pas justifier au
+comptoir se retourne contre la Maison, la cliente finit toujours par demander
+pourquoi.
+
+**LE FOYER A DEUX TAILLES** parce qu'une taille unique obligerait la troisième
+tête à payer un abonnement entier — exactement la tête qu'on veut faire entrer.
+La remise CROÎT avec le nombre (33 % puis 37 %) : sinon rien ne pousse à monter.
+C'est le seul levier qui amène des têtes neuves sans dépenser un franc.
+
+`poseLesFormulesMarketing()` — idempotent PAR IDENTIFIANT, jamais par « la liste
+est vide » : une formule déjà posée n'est pas réécrite même si son prix a été
+retouché à l'écran. Le bouton « Poser les N formules marketing » disparaît quand
+elles sont toutes là : une action qui ne fait plus rien ne doit plus s'offrir.
+
+Maquette validée : https://claude.ai/code/artifact/6a4c37f8-a142-4b19-a357-ef98c923e3f3
+
 ## Les abonnements résiliés étaient devenus introuvables — 28 août, PUBLIÉ
 
 « Peux-tu retrouver les abonnements que j'avais auparavant ? » (Yéman).

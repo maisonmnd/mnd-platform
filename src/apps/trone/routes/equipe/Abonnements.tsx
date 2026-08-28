@@ -8,7 +8,7 @@ import { usePaymentMethods } from '../../../../shared/finance';
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  subServiceUsage, cycleWindow,
+  subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded,
 } from './data';
 import { useServices } from '../../../../shared/catalog';
@@ -99,6 +99,15 @@ export default function Abonnements() {
     return { plan: p, count: list.length, mrr: list.reduce((a, m) => a + m.mrrXof, 0) };
   });
   const splitMax = Math.max(1, ...split.map((s) => s.count));
+
+  /* Les formules marketing du 28 août : posées d'un geste, jamais réécrites. */
+  const marketingAbsentes = formulesMarketingAbsentes(plans);
+  const poserLesFormules = () => {
+    const n = poseLesFormulesMarketing();
+    toast(n > 0
+      ? `${n} formule${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''}. Ajustez les prix, ils sont indicatifs.`
+      : 'Elles sont déjà toutes là.');
+  };
 
   const openPlanNew = () => {
     setPlanEditId(null);
@@ -331,6 +340,15 @@ export default function Abonnements() {
               Offrez-vous le rituel. <span className="mnd-muted" style={{ fontStyle: 'normal', fontSize: 13, fontFamily: 'var(--font-sans)' }}>, pour vous, ou pour quelqu’un que vous aimez.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* LES FORMULES MARKETING, POSÉES D'UN GESTE — 28 août. Cinq
+                  formulaires à remplir à la main, c'est cinq occasions de se
+                  tromper de prix. Le bouton disparaît quand elles sont là :
+                  une action qui ne fait plus rien ne doit plus s'offrir. */}
+              {marketingAbsentes > 0 && (
+                <Button size="sm" variant="ghost" onClick={poserLesFormules}>
+                  Poser les {marketingAbsentes} formules marketing
+                </Button>
+              )}
               <Button size="sm" onClick={openPlanNew}>+ Nouvelle formule</Button>
               <div style={{ display: 'flex', background: 'var(--hover-veil)', borderRadius: 999, padding: 3 }}>
                 {CYCLES.map((c) => (
