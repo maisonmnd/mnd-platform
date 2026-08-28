@@ -9,7 +9,7 @@ import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
-  prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, type PlanMode,
+  prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices } from '../../../../shared/catalog';
@@ -957,7 +957,68 @@ export default function Abonnements() {
                     exclure={(s) => planForm.included.some((i) => i.serviceId === s.id)}
                   />
                 </Select>
-                <div className="mnd-muted" style={{ fontSize: 10.5 }}>
+                {/* ── LE TOTAL À LA CARTE, EN DIRECT — 28 août ──────────
+                    « J'ai besoin de voir le calcul se faire dès que je
+                    choisis des services. Un total pour me situer » (Yéman).
+
+                    Le prix d'une formule ne se décide pas dans le vide, il se
+                    décide CONTRE la carte. Sans ce total sous les yeux, on
+                    pose un chiffre au jugé et on découvre trois mois plus tard
+                    qu'on a remisé de 40 % ou de 2 %. */}
+                {planForm.included.length > 0 && (() => {
+                  const v = valeurALaCarte(planForm.included, (id) => services.find((x) => x.id === id)?.priceXof);
+                  const prix = parseInt(planForm.price, 10) || 0;
+                  const r = remiseSurLaCarte(v.totalXof, prix);
+                  const trop = prix > 0 && v.totalXof > 0 && r.gainXof < 0;
+                  return (
+                    <div style={{
+                      marginTop: 10, padding: '11px 13px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.7,
+                      background: trop ? 'rgba(150,65,46,.07)' : 'var(--copper-50)',
+                      border: `1px solid ${trop ? 'var(--color-brique, #96412E)' : 'var(--copper-300)'}`,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                        <span className="mnd-muted">À la carte</span>
+                        <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400 }}>
+                          {fmtMoney(v.totalXof, currency)}
+                        </b>
+                      </div>
+                      {prix > 0 && v.totalXof > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 3 }}>
+                          <span className="mnd-muted">
+                            {planForm.mode === 'pack' ? 'Prix du paquet' : 'Prix mensuel'}
+                          </span>
+                          <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400 }}>
+                            {fmtMoney(prix, currency)}
+                          </b>
+                        </div>
+                      )}
+                      {prix > 0 && v.totalXof > 0 && (
+                        <div style={{
+                          marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--hairline)',
+                          color: trop ? 'var(--color-brique, #96412E)' : 'var(--color-vert, #2E6B4F)', fontWeight: 500,
+                        }}>
+                          {/* UNE FORMULE PLUS CHÈRE QUE LA CARTE NE SE VEND PAS.
+                              L'écran le crie plutôt que de l'afficher comme une
+                              remise négative, qui se lirait de travers. */}
+                          {trop
+                            ? `Plus chère que la carte de ${fmtMoney(-r.gainXof, currency)} : personne ne la prendra.`
+                            : `Elle gagne ${fmtMoney(r.gainXof, currency)} · ${r.pct} % de remise`}
+                        </div>
+                      )}
+                      {prix <= 0 && (
+                        <div className="mnd-muted" style={{ marginTop: 4 }}>Posez le prix pour voir la remise.</div>
+                      )}
+                      {(v.illimitees > 0 || v.introuvables > 0) && (
+                        <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.6 }}>
+                          {v.illimitees > 0 && `${v.illimitees} prestation${v.illimitees > 1 ? 's' : ''} illimitée${v.illimitees > 1 ? 's' : ''}, hors du calcul : un quota sans borne ne se chiffre pas. `}
+                          {v.introuvables > 0 && `${v.introuvables} prestation${v.introuvables > 1 ? 's' : ''} absente${v.introuvables > 1 ? 's' : ''} du catalogue.`}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 8 }}>
                   Le compteur de consommation se lit sur le cycle en cours et se remet à zéro à chaque échéance.
                 </div>
               </div>

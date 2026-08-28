@@ -7,7 +7,7 @@
    avantages, l'écart de remise qui pousse à monter d'un cran, et le seuil au
    delà duquel le paiement se découpe. */
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
-import { formuleLaPlusUtile, prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, type Plan } from '../src/shared/abonnements';
+import { formuleLaPlusUtile, prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
 import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte, directionDuGlisse, indexSuivant, SEUIL_GLISSE, wifiPayload } from '../src/shared/bridges';
 
@@ -363,6 +363,50 @@ dit('un paquet sans durée retombe sur douze', 12,
   moisDuPack({ ...suite, mode: 'pack', validityDays: undefined } as Plan));
 dit('un paquet de six mois le dit', 6,
   moisDuPack({ ...suite, mode: 'pack', validityDays: 180 } as Plan));
+
+/* ── ⑰ LE TOTAL À LA CARTE, SOUS LES YEUX ──────────────────────────
+   « J'ai besoin de voir le calcul se faire dès que je choisis des services.
+   Un total pour me situer » (Yéman, 28 août). Le prix d'une formule ne se
+   décide pas dans le vide : il se décide CONTRE la carte. */
+const carte = (id: string): number | undefined =>
+  ({ res: 25_000, lav: 20_000, soin: 20_000 } as Record<string, number>)[id];
+
+dit('six resserrages et six lavages valent 270 000', 270_000,
+  valeurALaCarte([{ serviceId: 'res', qty: 6 }, { serviceId: 'lav', qty: 6 }], carte).totalXof);
+dit('… et la remise se chiffre', { gainXof: 45_000, pct: 17 },
+  remiseSurLaCarte(270_000, 225_000));
+
+/* UN QUOTA ILLIMITÉ NE SE CHIFFRE PAS, et surtout ne vaut pas zéro : le
+   compter pour rien ferait croire à une remise énorme sur une formule qui n'a
+   peut-être aucune marge. Il se compte à part, et l'écran le dit. */
+const avecInfini = valeurALaCarte([{ serviceId: 'res', qty: 6 }, { serviceId: 'lav', qty: null }], carte);
+dit('un quota illimité sort du calcul', 150_000, avecInfini.totalXof);
+dit('… et se compte à part', 1, avecInfini.illimitees);
+
+/* UNE PRESTATION ABSENTE DU CATALOGUE se signale plutôt que de valoir zéro :
+   sinon la remise annoncée serait fausse sans que rien ne l'indique. */
+const avecTrou = valeurALaCarte([{ serviceId: 'res', qty: 2 }, { serviceId: 'disparue', qty: 3 }], carte);
+dit('une prestation absente ne vaut pas zéro', 50_000, avecTrou.totalXof);
+dit('… elle se signale', 1, avecTrou.introuvables);
+
+/* UNE FORMULE PLUS CHÈRE QUE LA CARTE : le gain devient négatif, et l'écran
+   doit le crier plutôt que d'afficher « −11 % de remise ». */
+dit('plus chère que la carte, le gain est négatif', -30_000,
+  remiseSurLaCarte(270_000, 300_000).gainXof);
+
+/* Les bornes : rien à comparer ne rend rien, jamais une division par zéro. */
+dit('sans carte, aucune remise', { gainXof: 0, pct: 0 }, remiseSurLaCarte(0, 225_000));
+dit('une liste vide vaut zéro', 0, valeurALaCarte([], carte).totalXof);
+dit('une liste absente aussi', 0, valeurALaCarte(undefined, carte).totalXof);
+
+/* LES ONZE FORMULES SIGNÉES tombent juste : L'Éclosion annonce 270 000 F à la
+   carte, et ses quotas valent bien 270 000 F. La promesse et le quota se
+   vérifient l'un l'autre. */
+/* Les retouches sont OFFERTES : absentes du barème, elles ne pèsent rien dans
+   la valeur à la carte, exactement comme la promesse l'annonce. */
+const carteMaison: Record<string, number> = { 'sv-resserrage': 25_000, 'sv-bain-vapeur': 20_000 };
+dit('L’Éclosion vaut ce qu’elle annonce', 270_000,
+  valeurALaCarte(par('pl-mkt-eclosion')!.included, (id) => carteMaison[id]).totalXof);
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

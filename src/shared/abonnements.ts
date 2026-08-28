@@ -380,3 +380,49 @@ export const partMensuelleDeLaFormule = (p: Plan, cycle: SubCycle): number => {
   const a = prixDeLaFormule(p, cycle);
   return a.moisCouverts <= 0 ? 0 : Math.round(a.montantXof / a.moisCouverts);
 };
+
+/* ── CE QUE LA FORMULE VAUT À LA CARTE — 28 août 2026 ─────────────────
+   « J'ai besoin de voir le calcul se faire dès que je choisis des services.
+   Un total pour me situer » (Yéman).
+
+   Le prix d'une formule ne se décide pas dans le vide : il se décide CONTRE
+   la carte. Sans ce total sous les yeux, on pose un chiffre au jugé et on
+   découvre trois mois plus tard qu'on a remisé de 40 % ou de 2 %.
+
+   LES QUOTAS ILLIMITÉS NE SE CHIFFRENT PAS, et on ne les compte donc pas
+   pour zéro : ce serait faire croire à une remise énorme sur une formule qui
+   n'a peut-être aucune marge. Ils se comptent à part, et l'écran le dit. */
+
+export type ValeurCarte = {
+  /** Ce que la cliente paierait à la carte pour ce qui est chiffrable. */
+  totalXof: number;
+  /** Combien de lignes sont illimitées — donc hors du calcul. */
+  illimitees: number;
+  /** Combien de lignes pointent une prestation absente du catalogue. */
+  introuvables: number;
+};
+
+export function valeurALaCarte(
+  included: readonly PlanIncluded[] | undefined,
+  prixDuService: (serviceId: string) => number | undefined,
+): ValeurCarte {
+  let totalXof = 0;
+  let illimitees = 0;
+  let introuvables = 0;
+  for (const i of included ?? []) {
+    const prix = prixDuService(i.serviceId);
+    if (prix === undefined) { introuvables++; continue; }
+    if (i.qty === null) { illimitees++; continue; }
+    totalXof += Math.max(0, prix) * Math.max(0, i.qty);
+  }
+  return { totalXof, illimitees, introuvables };
+}
+
+/** L'écart entre la carte et le prix demandé. Négatif = la formule coûte PLUS
+    cher que la carte, ce qu'aucune cliente n'accepte : l'écran doit le crier
+    plutôt que de l'afficher comme une remise négative. */
+export const remiseSurLaCarte = (carteXof: number, prixXof: number): { gainXof: number; pct: number } => {
+  if (carteXof <= 0) return { gainXof: 0, pct: 0 };
+  const gainXof = carteXof - Math.max(0, prixXof);
+  return { gainXof, pct: Math.round((gainXof / carteXof) * 100) };
+};

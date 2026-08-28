@@ -54,6 +54,34 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LE TOTAL À LA CARTE, SOUS LES YEUX — 28 août, PUBLIÉ
+
+« J'ai besoin de voir le calcul se faire dès que je choisis des services. Un
+total pour me situer » (Yéman).
+
+**LE PRIX D'UNE FORMULE NE SE DÉCIDE PAS DANS LE VIDE, il se décide CONTRE la
+carte.** Sans ce total sous les yeux, on pose un chiffre au jugé et on découvre
+trois mois plus tard qu'on a remisé de 40 % ou de 2 %.
+
+Sous « Prestations incluses », un encadré vivant : la valeur à la carte, le prix
+demandé, le gain en francs et en pourcentage. Il se recalcule à chaque quota
+changé.
+
+**UNE FORMULE PLUS CHÈRE QUE LA CARTE SE CRIE**, en brique : « Plus chère que la
+carte de 30 000 F : personne ne la prendra. » L'afficher comme une remise
+négative se lirait de travers.
+
+**UN QUOTA ILLIMITÉ NE VAUT PAS ZÉRO.** Le compter pour rien ferait croire à une
+remise énorme sur une formule qui n'a peut-être aucune marge : il sort du calcul
+et se compte à part, l'écran le dit. Même règle pour une prestation absente du
+catalogue — elle se signale plutôt que de fausser la remise en silence.
+
+`valeurALaCarte` et `remiseSurLaCarte` dans `shared/abonnements.ts`, avec le
+prix injecté comme partout ailleurs. `verifie-formules` monte à **132
+assertions**, dont une qui vérifie que L'Éclosion vaut bien les 270 000 F
+qu'elle annonce dans sa promesse : **le quota et la phrase se vérifient l'un
+l'autre.**
+
 ## LE COMPTE DOUBLAIT TOUTES LES DETTES — 28 août, PUBLIÉ
 
 « Pourquoi Ahmed au lieu de devoir 242 000 F il doit 484 000 F ? C'est le
