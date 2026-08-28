@@ -2,6 +2,33 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « POURQUOI JE N'ARRIVE PAS A RETIRER L'ABONNEMENT ? » — 28 août, PUBLIÉ
+
+Le bouton « Retirer » d'une formule se taisait de DEUX façons, et aucune ne se
+voyait à l'écran.
+
+**① Une formule EN VEDETTE n'avait pas de bouton du tout.** `{!p.popular && …}`
+le faisait disparaître. La mise en vedette est un choix d'affichage, pas un
+verrou, et rien ne disait qu'il fallait d'abord la retirer de la vedette. Le
+bouton paraît maintenant toujours.
+
+**② Une formule portée par une abonnée avait un bouton GRISÉ, sans un mot.**
+Le blocage est juste : effacer la formule laisserait ses abonnées sans prix ni
+contenu à lire. Mais il se DIT désormais, avec le nombre de têtes et les trois
+premiers noms. On cliquait dix fois en croyant l'écran cassé.
+
+Même famille que les quatre refus muets du 28 août (`savePlan`, `saveSub`,
+`savePay`, `saveTier`). **Un refus se dit, toujours.**
+
+### Ce qui reste ouvert
+
+Une formule portée par des abonnées ne peut toujours pas s'effacer, et c'est
+voulu. Ce qu'on veut souvent dans ce cas n'est pas l'effacer mais la RETIRER DE
+LA VENTE en la laissant vivre pour celles qui l'ont. Ce drapeau n'existe pas
+encore côté Trône (la carte du comptoir, elle, a déjà ses masques).
+
+---
+
 ## LE PRIX CONVENU — 28 août, PUBLIÉ
 
 « I need to be able to have it personnalized per clients and select a client to

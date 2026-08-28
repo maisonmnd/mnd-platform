@@ -697,11 +697,42 @@ export default function Abonnements() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
                     <Button size="sm" variant={p.popular ? 'copper' : 'ghost'} style={{ flex: 1 }} onClick={() => openPlanEdit(p)}>Modifier</Button>
-                    {!p.popular && (
-                      <Button size="sm" variant="ghost" onClick={() => setPlans((prev) => prev.filter((x) => x.id !== p.id))} disabled={members.some((m) => m.planId === p.id)}>
-                        Retirer
-                      </Button>
-                    )}
+                    {/* UN REFUS SE DIT, TOUJOURS (règle du 28 août). « Pourquoi
+                        je n'arrive pas à retirer l'abonnement VÈKPÈ ? » — parce
+                        que ce bouton se taisait de DEUX façons.
+
+                        ① Une formule EN VEDETTE n'avait pas de bouton du tout :
+                        `!p.popular` le faisait disparaître. La mise en vedette
+                        est un choix d'affichage, pas un verrou — on ne voit
+                        nulle part qu'il faut d'abord la retirer de la vedette.
+
+                        ② Une formule portée par une abonnée avait un bouton
+                        GRISÉ, sans un mot. Le blocage, lui, est juste : effacer
+                        la formule laisserait ses abonnées sans prix ni contenu
+                        à lire. Mais il doit se DIRE, et dire combien de têtes
+                        et lesquelles — sinon on clique dix fois en croyant que
+                        l'écran est cassé. */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const dessus = members.filter((m) => m.planId === p.id);
+                        if (dessus.length > 0) {
+                          const noms = dessus.slice(0, 3).map((m) => m.name).join(', ');
+                          const reste = dessus.length - Math.min(3, dessus.length);
+                          toast(
+                            `Impossible : ${dessus.length} abonnée${dessus.length > 1 ? 's' : ''} `
+                            + `${dessus.length > 1 ? 'sont' : 'est'} sur cette formule (${noms}${reste > 0 ? `, +${reste}` : ''}). `
+                            + 'Résiliez-les ou déplacez-les d’abord, sinon elles perdent leur prix et leur contenu.',
+                          );
+                          return;
+                        }
+                        setPlans((prev) => prev.filter((x) => x.id !== p.id));
+                        toast(`« ${p.name} » retirée du catalogue.`);
+                      }}
+                    >
+                      Retirer
+                    </Button>
                   </div>
                 </Card>
               );
