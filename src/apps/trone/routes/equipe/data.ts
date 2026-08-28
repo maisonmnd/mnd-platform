@@ -429,9 +429,21 @@ export type PlanMode = 'cycle' | 'pack';
    tête entre par la porte, elle prolonge, elle amène son foyer, et le jour où
    elle fait confiance elle prend son année. C'est cet ordre-là qui s'affiche,
    parce que c'est celui dans lequel une cliente les rencontre. */
-export type FamilleFormule = 'prolongement' | 'porte' | 'foyer' | 'annees';
+export type FamilleFormule = 'naissance' | 'prolongement' | 'porte' | 'foyer' | 'annees';
 
 export const FAMILLES_FORMULES: { k: FamilleFormule; titre: string; quand: string; sous: string }[] = [
+  /* LA NAISSANCE OUVRE LE PARCOURS — 28 août. « Dans quel moment du parcours
+     je mets VÈKPÈ™ Les 4 Premiers Entretiens ? » (Yéman). Dans aucun des
+     quatre : il les PRÉCÈDE tous.
+
+     Ce forfait se vend au moment où la couronne naît, avant qu'aucune autre
+     formule ait un sens — on ne prolonge pas ce qui n'existe pas encore, et
+     « La porte d'entrée » s'adresse à celle qui hésite, pas à celle qui vient
+     de payer une création. La Suite le dit d'ailleurs en toutes lettres :
+     « votre couronne ne s'arrête pas à quatre ». Sans ce premier moment, sa
+     promesse renvoyait à un vide. */
+  { k: 'naissance', titre: 'La naissance', quand: 'au sortir de la création',
+    sous: 'Ce qu’on tend avec la couronne elle-même, quand elle demande déjà qui l’entretiendra.' },
   { k: 'prolongement', titre: 'Le prolongement', quand: 'quand le paquet s’épuise',
     sous: 'Le meilleur moment de vente de la Maison : elle a déjà payé une fois, elle connaît le fauteuil.' },
   { k: 'porte', titre: 'La porte d’entrée', quand: 'le petit prix',

@@ -116,7 +116,7 @@ dit('une seule vedette', 1, PLANS_MARKETING.filter((p) => p.popular).length);
    dirait rien, elle serait juste au mauvais endroit — c'est exactement le
    genre d'erreur qu'aucun clic ne révèle. */
 const familles = new Set(FAMILLES_FORMULES.map((f) => f.k));
-dit('quatre moments dans le parcours', ['prolongement', 'porte', 'foyer', 'annees'],
+dit('cinq moments dans le parcours', ['naissance', 'prolongement', 'porte', 'foyer', 'annees'],
   FAMILLES_FORMULES.map((f) => f.k));
 dit('aucune formule marketing sans moment', [],
   PLANS_MARKETING.filter((p) => !p.famille).map((p) => p.id));
@@ -124,6 +124,11 @@ dit('… et aucun moment inconnu', [],
   PLANS_MARKETING.filter((p) => p.famille && !familles.has(p.famille)).map((p) => p.id));
 
 const combien = (k: string) => PLANS_MARKETING.filter((p) => p.famille === k).length;
+/* LA NAISSANCE N'A AUCUNE FORMULE SIGNÉE, et c'est voulu : le forfait qui
+   l'occupe est celui de la Maison (VÈKPÈ™ + les premiers entretiens), pas un
+   des onze. La section reste vide tant qu'il n'y est pas rangé, et une
+   section vide ne s'affiche pas. */
+dit('la naissance attend le forfait de la Maison', 0, combien('naissance'));
 dit('le prolongement en porte deux', 2, combien('prolongement'));
 dit('la porte d’entrée, une', 1, combien('porte'));
 dit('le foyer, deux', 2, combien('foyer'));
