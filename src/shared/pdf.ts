@@ -306,6 +306,16 @@ export type InvoicePdfData = {
   houseSub?: string;
   date: string;
   clientName: string;
+  /** QUI RÈGLE, quand ce n'est pas celle qu'on a soignée — 28 août 2026.
+      « Comment garder le nom des enfants sur la facture mais dire que c'est
+      Merine le parent qui paye ? Sinon cela sème la confusion : le parent
+      oublie si le service lui appartient » (Yéman).
+
+      La pièce nommait la PAYEUSE et perdait la tête servie : la mère lisait
+      son propre nom sur le rituel de sa fille. La facture nomme donc la tête
+      SOIGNÉE, et cette ligne dit qui a réglé. Absente quand c'est la même
+      personne — un « réglée par elle-même » n'apprend rien. */
+  payeurName?: string;
   clientPhone?: string;
   master?: string;
   lines: PdfLine[];
@@ -382,12 +392,20 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   doc.setFontSize(13);
   doc.setTextColor(INK);
   doc.text(d.clientName, M, y + 6);
+  /* La payeuse, juste sous la tête soignée : deux noms, deux rôles, aucun
+     doute sur celui à qui la couronne appartient. */
+  if (d.payeurName) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(SOFT);
+    doc.text(pdfSafe(`Réglée par ${d.payeurName}`), M, y + 11);
+  }
   const cmeta = [d.clientPhone, d.master ? `Maître · ${d.master}` : ''].filter(Boolean).join('   ·   ');
   if (cmeta) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(SOFT);
-    doc.text(cmeta, M, y + 11);
+    doc.text(cmeta, M, y + (d.payeurName ? 16 : 11));
   }
   y += 20;
 

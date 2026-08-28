@@ -487,9 +487,28 @@ export default function Factures() {
     setWaHint('Devis accepté → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
   };
 
-  const clientOf = (d: Invoice) => clients.find((c) => c.id === d.clientId);
+  /* ── LA TÊTE SOIGNÉE ET CELLE QUI RÈGLE — 28 août 2026 ─────────────
+     « Comment garder le nom des enfants sur la facture mais dire que c'est
+     Merine le parent qui paye ? Sinon cela sème la confusion : le parent
+     oublie si le service lui appartient » (Yéman).
+
+     La pièce nommait la PAYEUSE (`clientId`) et perdait la tête servie : la
+     mère lisait son propre nom sur le rituel de sa fille, et ne savait plus à
+     qui la couronne appartenait. `forClientId` porte la tête réellement
+     soignée depuis toujours — il n'était simplement affiché nulle part.
+
+     LA FACTURE NOMME LA TÊTE SOIGNÉE. La payeuse se dit dessous, en petit :
+     deux noms, deux rôles. Le reçu, lui, garde la payeuse en tête — c'est
+     d'elle que l'argent est venu. */
+  const payeurDe = (d: Invoice) => clients.find((c) => c.id === d.clientId);
+  const clientOf = (d: Invoice) => clients.find((c) => c.id === (d.forClientId ?? d.clientId));
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
   const prenomOf = (d: Invoice) => clientNameOf(d).split(' ')[0];
+  /** Le nom de la payeuse, seulement quand ce n'est pas la tête soignée. */
+  const payeurAutreQue = (d: Invoice): string | undefined => {
+    if (!d.forClientId || d.forClientId === d.clientId) return undefined;
+    return payeurDe(d)?.name;
+  };
 
   /* Nom pour le PDF — la cliente au CRM, sinon un nom libre, sinon « Cliente de passage ». */
   const clientNameForPdf = (d: Invoice) => {
@@ -515,6 +534,7 @@ export default function Factures() {
       houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
       date: fmtDateFr(d.date),
       clientName: clientNameForPdf(d),
+      ...(payeurAutreQue(d) ? { payeurName: payeurAutreQue(d) } : {}),
       clientPhone: clientOf(d)?.phone,
       master: d.master,
       /* DE QUOI PAYER — seulement s'il reste à régler : une facture soldée
@@ -1376,6 +1396,9 @@ export default function Factures() {
               </div>
 
               <div className="trv-doc__pour">Pour {prenomOf(active)},</div>
+              {payeurAutreQue(active) && (
+                <div className="trv-doc__payeur">Réglée par {payeurAutreQue(active)}</div>
+              )}
               <div className="trv-doc__verse">{theme.verse}</div>
               <div className="trv-doc__sep">·, ✦, ·</div>
 

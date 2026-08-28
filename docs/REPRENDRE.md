@@ -54,6 +54,28 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LA FACTURE NOMME LA TÊTE SOIGNÉE — 28 août, PUBLIÉ
+
+« Comment garder le nom des enfants sur la facture mais dire que c'est Merine
+le parent qui paye ? Sinon cela sème la confusion dans l'esprit : le parent
+oublie si le service lui appartient » (Yéman).
+
+La pièce nommait la **payeuse** (`clientId`) et perdait la tête servie : Merine
+lisait « Pour Merine » sur le rituel de Kaitlyn. `forClientId` porte la tête
+réellement soignée depuis toujours — **il n'était affiché nulle part**.
+
+**LA FACTURE NOMME DÉSORMAIS LA TÊTE SOIGNÉE**, et la payeuse se dit dessous,
+en petit : « Réglée par Merine Zinsou ». Deux noms, deux rôles. La ligne
+disparaît quand c'est la même personne — un « réglée par elle-même » n'apprend
+rien.
+
+À l'écran (`trv-doc__payeur`) et dans le PDF (`InvoicePdfData.payeurName`,
+sous le bloc CLIENTE, la méta décalée en conséquence).
+
+**LE REÇU GARDE LA PAYEUSE EN TÊTE** : « REÇU DE » nomme celle de qui l'argent
+est venu, et c'est juste. Une facture dit ce qu'on a fait et pour qui ; un reçu
+dit qui a payé.
+
 ## UN REFUS SE DIT, TOUJOURS — 28 août, PUBLIÉ
 
 « Je n'arrive pas à enregistrer le moment du parcours pour le FORFAIT VÈKPÈ™ ×

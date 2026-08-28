@@ -730,6 +730,13 @@
 .trv-doc__filet { height: 2px; background: var(--color-copper); width: 54px; margin: 18px 0 22px; }
 .trv-doc__kind { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--copper-600); }
 .trv-doc__pour { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 33px; color: var(--color-indigo); margin: 16px 0 0; letter-spacing: -0.01em; }
+/* LA PAYEUSE, sous la tête soignée — 28 août. Deux noms, deux rôles : la
+   facture nomme celle qu'on a servie, cette ligne dit qui a réglé. Discrète à
+   dessein : c'est un rappel, pas le sujet de la pièce. */
+.trv-doc__payeur {
+  font-family: var(--font-sans); font-size: 12px; letter-spacing: .03em;
+  color: var(--ink-soft); margin-top: 3px;
+}
 .trv-doc__verse { font-family: var(--font-serif); font-style: italic; font-size: 19px; line-height: 1.5; color: var(--copper-700); white-space: pre-line; margin: 14px 0 4px; max-width: 330px; }
 .trv-doc__sep { text-align: center; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.3em; color: var(--color-argile); margin: 22px 0; }
 .trv-doc__passage { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
