@@ -44,8 +44,76 @@ export type OnlineConsultation = {
   status: 'nouvelle' | 'traitée' | 'fermée';
 };
 
+/* ── LA CARTE DU COMPTOIR — ce qu'on y montre, 28 août 2026 ───────────
+   « Je veux la possibilité d'afficher ou pas des prestations, ou des
+   formules, ou des produits Care & Store » (Yéman).
+
+   LA CARTE A SES PROPRES MASQUES, distincts de ceux de la Vitrine. Le
+   comptoir et l'application cliente n'ont pas le même public : une prestation
+   qu'on montre à une cliente connue, dans son espace, ne va pas forcément sur
+   un écran que tout le salon peut lire par-dessus son épaule. Partager les
+   masques aurait obligé à choisir entre les deux surfaces.
+
+   MASQUER, PAS SÉLECTIONNER. On liste ce qu'on RETIRE, jamais ce qu'on garde :
+   une liste blanche cache toute prestation née après elle, et la Maison ne
+   s'en aperçoit que le jour où une cliente demande pourquoi la nouveauté n'est
+   pas à la carte. C'est la leçon de `visibleCategories`, resté vestige ici
+   même. */
+export type CarteConfig = {
+  /** Les trois volets, allumés ou éteints d'un geste. */
+  rituels: boolean;
+  formules: boolean;
+  produits: boolean;
+  /** Ce qu'on RETIRE de la carte, ligne par ligne. */
+  servicesMasques: string[];
+  formulesMasquees: string[];
+  produitsMasques: string[];
+  /** Le défilement des formules : elles passent l'une après l'autre pour se
+      laisser lire, plutôt que de s'entasser en petits caractères. */
+  defileFormules: boolean;
+  /** Secondes par formule — le temps de lire, pas celui de s'ennuyer. */
+  secondesParFormule: number;
+};
+
+export const CARTE_DEFAUT: CarteConfig = {
+  rituels: true,
+  formules: true,
+  produits: true,
+  servicesMasques: [],
+  formulesMasquees: [],
+  produitsMasques: [],
+  defileFormules: true,
+  secondesParFormule: 9,
+};
+
+/** Les réglages de la carte, complétés — une Maison d'avant ce champ n'a rien
+    en base, et l'absence doit valoir « tout montrer », jamais « rien ». */
+export const carteReglages = (cfg: { carte?: Partial<CarteConfig> } | null | undefined): CarteConfig => ({
+  ...CARTE_DEFAUT,
+  ...(cfg?.carte ?? {}),
+  servicesMasques: cfg?.carte?.servicesMasques ?? [],
+  formulesMasquees: cfg?.carte?.formulesMasquees ?? [],
+  produitsMasques: cfg?.carte?.produitsMasques ?? [],
+  /* Un défilement à zéro seconde ferait clignoter l'écran ; on borne à ce
+     qu'un œil peut suivre. */
+  secondesParFormule: Math.min(60, Math.max(3, cfg?.carte?.secondesParFormule ?? CARTE_DEFAUT.secondesParFormule)),
+});
+
+/** Ce qui reste à montrer, une fois les masques posés. */
+export const gardeSurLaCarte = <T extends { id: string }>(
+  liste: readonly T[], masques: readonly string[],
+): T[] => {
+  const hors = new Set(masques);
+  return liste.filter((x) => !hors.has(x.id));
+};
+
 export type VitrineConfig = {
   autoplay: boolean;
+  /** LES RÉGLAGES DE LA CARTE DU COMPTOIR — ils vivent ici parce que
+      `mnd_vitrine_config` est déjà lisible publiquement : la carte est une
+      entrée SANS compte, elle doit pouvoir lire ses réglages sans être
+      personne. Un document neuf aurait demandé sa propre règle RLS. */
+  carte?: Partial<CarteConfig>;
   /** VESTIGE (12 août) — la liste blanche n'est plus consultée par le juge :
       semée une fois, jamais entretenue, elle cachait toute catégorie née
       après. Conservée pour ne pas casser les données déjà en base. */

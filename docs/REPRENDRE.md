@@ -54,6 +54,63 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## La Carte du comptoir — 28 août, PUBLIÉ
+
+« Un catalogue des prix affiché sur un comptoir que le client peut faire défiler
+en toute autonomie : nos offres, nos abonnements, avec réserver votre rituel »
+(Yéman).
+
+**UNE NEUVIÈME ENTRÉE, PUBLIQUE ET SANS COMPTE** : `carte.html` →
+`src/apps/carte/`, livrée avec le site `trone` (donc `/trone/carte.html`). Ce
+n'est PAS une page du Trône : la tablette reste sur le comptoir, parfois sans
+surveillance, face à qui passe. Elle ne crée aucun dossier, n'ouvre aucune
+fiche, ne connaît personne. Même laissée seule, il n'y a rien à y prendre.
+
+Quatre volets : **Les rituels** (le catalogue par atelier, prix masqué = « sur
+devis », jamais un chiffre inventé), **Les formules** (une à la fois, qui
+défilent), **Care & Store**, **Réserver**.
+
+**RÉSERVER SE FAIT SUR SON TÉLÉPHONE.** Sur une tablette partagée, se connecter
+voudrait dire le faire devant tout le monde puis penser à se déconnecter, et la
+cliente suivante hériterait du dossier de la précédente. Le QR déporte la
+réservation là où elle est déjà connue.
+
+**LES FORMULES DÉFILENT UNE À UNE.** Douze cartes entassées se lisent en petits
+caractères, donc ne se lisent pas. Une seule, en grand, se lit. Neuf secondes
+par défaut, réglable de 3 à 60 ; le doigt peut toujours devancer le rythme, et
+tout geste remet le compteur à zéro.
+
+**DEUX MINUTES SANS UN GESTE et la carte revient à son début** : la cliente
+suivante la trouve au commencement, pas là où la précédente s'est arrêtée.
+
+### Les réglages · Vitrine client › Régie
+
+`VitrineConfig.carte` — logé là parce que **`mnd_vitrine_config` est déjà
+lisible publiquement** : la carte n'est personne, elle doit lire ses réglages
+sans compte. Un document neuf aurait demandé sa propre règle RLS et une
+migration.
+
+**ON MASQUE, ON NE SÉLECTIONNE PAS.** La liste dit ce qu'on RETIRE, jamais ce
+qu'on garde : une liste blanche cache toute prestation née après elle, et la
+Maison ne s'en aperçoit que le jour où une cliente demande pourquoi la nouveauté
+n'est pas à la carte. C'est exactement ce qui est arrivé à `visibleCategories`,
+resté vestige dans `Vitrine.tsx`.
+
+**Les masques de la carte sont les siens**, distincts de ceux de Ma Couronne :
+le comptoir et l'application cliente n'ont pas le même public.
+
+**L'ABSENCE VAUT « TOUT MONTRER ».** Une Maison d'avant ce réglage n'a rien en
+base : si le défaut masquait, sa carte s'ouvrirait vide sans que personne sache
+pourquoi. `carteReglages` complète, et borne le défilement (un zéro seconde
+ferait clignoter l'écran).
+
+`verifie-formules` monte à **78 assertions**.
+
+⚠️ Le tunnel du shell **avale un niveau d'échappement** dans les heredocs : un
+`\n` écrit dans un script Python/Node y arrive en vrai retour à la ligne, ce qui
+a cassé deux fois la conclusion d'un harnais. Construire la séquence avec
+`chr(92) + 'n'`, ou passer par l'outil d'édition.
+
 ## L'Éclosion, les dates éditables, la porte du paiement — 28 août, PUBLIÉ
 
 ### L'Éclosion · le pack de la première création

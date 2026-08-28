@@ -30,7 +30,7 @@ const SITES = [
   {
     name: 'trone',
     base: '/trone/',
-    apps: 'trone,consultation,certificat,bilan,bulletin',
+    apps: 'trone,consultation,certificat,bilan,bulletin,carte',
     rename: { 'trone.html': 'index.html' },
     // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail).
     env: { VITE_REQUIRE_AUTH: 'true' },

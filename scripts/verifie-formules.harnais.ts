@@ -9,6 +9,7 @@
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
 import { formuleLaPlusUtile, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
+import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte } from '../src/shared/bridges';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -154,8 +155,7 @@ dit('PACKS_ANNUELS est exactement la famille des Années',
 dit('chaque moment porte son titre et sa phrase', [],
   FAMILLES_FORMULES.filter((f) => !f.titre.trim() || !f.quand.trim() || !f.sous.trim()).map((f) => f.k));
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
-if (ko > 0) process.exit(1);
+
 
 /* ── ⑪ CE QU'ELLE AURAIT GAGNÉ ─────────────────────────────────────
    La phrase qui ouvre la vitrine de Ma Couronne se calcule sur SES rendez-vous.
@@ -200,6 +200,47 @@ dit('aucune suggestion sans rituel', null,
 dit('un pack n’entre pas dans la comparaison courte', null, formuleLaPlusUtile({
   plans: [PLAN_TEST[2]], rituels: [{ serviceIds: ['res'], netXof: 25_000 }], moisObserves: 3,
 }));
+
+/* ── ⑫ LA CARTE DU COMPTOIR ────────────────────────────────────────
+   L'écran est public et sans surveillance : ce qu'il montre PAR DÉFAUT compte
+   autant que ce qu'on peut lui cacher. */
+
+/* L'ABSENCE VAUT « TOUT MONTRER », JAMAIS « RIEN ». Une Maison d'avant ce
+   réglage n'a rien en base : si le défaut était de masquer, sa carte
+   s'ouvrirait vide et personne ne saurait pourquoi. */
+dit('sans réglage, les trois volets sont ouverts', [true, true, true],
+  [carteReglages(undefined).rituels, carteReglages(undefined).formules, carteReglages(undefined).produits]);
+dit('… et rien n’est masqué', [[], [], []], [
+  carteReglages(null).servicesMasques,
+  carteReglages(null).formulesMasquees,
+  carteReglages(null).produitsMasques,
+]);
+dit('… les formules défilent par défaut', true, carteReglages({}).defileFormules);
+dit('… neuf secondes, le temps de lire', 9, CARTE_DEFAUT.secondesParFormule);
+
+/* UN DÉFILEMENT À ZÉRO SECONDE FERAIT CLIGNOTER L'ÉCRAN. On borne à ce qu'un
+   œil peut suivre, plutôt que de faire confiance à la saisie. */
+dit('un défilement trop bref est ramené à trois secondes', 3,
+  carteReglages({ carte: { secondesParFormule: 0 } }).secondesParFormule);
+dit('… et un trop long, à soixante', 60,
+  carteReglages({ carte: { secondesParFormule: 9999 } }).secondesParFormule);
+
+/* UN VOLET S'ÉTEINT VRAIMENT : `false` doit passer, là où un simple `??`
+   l'aurait confondu avec l'absence et rallumé le volet. */
+dit('un volet éteint le reste', false, carteReglages({ carte: { produits: false } }).produits);
+dit('… sans éteindre les autres', [true, true],
+  [carteReglages({ carte: { produits: false } }).rituels, carteReglages({ carte: { produits: false } }).formules]);
+
+/* ON MASQUE, ON NE SÉLECTIONNE PAS : ce qui n'est pas nommé reste visible,
+   donc une nouveauté paraît d'elle-même. */
+const troisChoses = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+dit('sans masque, tout passe', ['a', 'b', 'c'], gardeSurLaCarte(troisChoses, []).map((x) => x.id));
+dit('ce qui est masqué sort', ['a', 'c'], gardeSurLaCarte(troisChoses, ['b']).map((x) => x.id));
+dit('un masque sur un inconnu ne retire rien', ['a', 'b', 'c'],
+  gardeSurLaCarte(troisChoses, ['zzz']).map((x) => x.id));
+dit('tout masquer laisse une carte vide, sans planter', [],
+  gardeSurLaCarte(troisChoses, ['a', 'b', 'c']).map((x) => x.id));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

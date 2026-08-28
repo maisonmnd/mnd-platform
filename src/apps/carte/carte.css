@@ -1,0 +1,193 @@
+@import '../../ds/tokens.css';
+@import '../../ds/ds.css';
+
+/* ── LA CARTE DU COMPTOIR — 28 août 2026 ─────────────────────────────
+   Une tablette posée face à la cliente, qu'elle fait défiler du doigt.
+
+   TOUT EST PLUS GRAND QU'AILLEURS. On lit cet écran debout, à un mètre,
+   parfois par-dessus l'épaule de quelqu'un : les tailles de l'ERP y seraient
+   illisibles. Les cibles tactiles ne descendent jamais sous 44 px, et le
+   texte courant sous 16.
+
+   L'ÉCRAN NE BOUGE PAS, SEUL LE CORPS DÉFILE. L'entête reste : la marque
+   doit être là quand quelqu'un lève les yeux, et les trois portes doivent
+   rester à portée de pouce sans remonter. */
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-ivoire);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Une carte ne se sélectionne pas au doigt : on évite le surlignage bleu
+     qui apparaît dès qu'un doigt s'attarde. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kio { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── L'entête, fixe ── */
+.kio-tete {
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  padding: 22px clamp(20px, 4vw, 44px) 0;
+  flex: none;
+  padding-top: max(22px, env(safe-area-inset-top));
+}
+.kio-marque {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+}
+.kio-nom {
+  font-family: var(--font-serif); font-weight: 300;
+  font-size: clamp(24px, 3.2vw, 34px); letter-spacing: .01em;
+}
+.kio-devise {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: clamp(13px, 1.5vw, 17px); color: var(--copper-300);
+}
+.kio-onglets { display: flex; gap: 4px; margin-top: 18px; overflow-x: auto; }
+.kio-onglet {
+  font-family: var(--font-sans); font-size: 13.5px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 15px 24px; min-height: 48px; white-space: nowrap;
+  color: var(--indigo-200); background: transparent;
+  border: none; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.kio-onglet.on { color: var(--color-ivoire); border-bottom-color: var(--color-copper); }
+
+/* ── Le corps, qui défile ── */
+.kio-corps {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: clamp(20px, 3vw, 34px) clamp(20px, 4vw, 44px);
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.kio-rule { height: 1px; background: var(--hairline); flex: 1; }
+
+/* ── Les ateliers et leurs prestations ── */
+.kio-atelier { margin-bottom: 36px; }
+.kio-atelier__tete { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+.kio-atelier__fon {
+  font-family: var(--font-serif); font-size: clamp(23px, 2.8vw, 30px);
+  color: var(--color-indigo); white-space: nowrap;
+}
+.kio-atelier__label {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: clamp(15px, 1.8vw, 18px); color: var(--copper-700); white-space: nowrap;
+}
+.kio-presta {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: baseline;
+  padding: 16px 0; border-bottom: 1px solid var(--hairline);
+}
+.kio-presta:last-child { border-bottom: none; }
+.kio-presta__nom { font-size: clamp(16px, 1.8vw, 18px); }
+.kio-presta__dit { font-size: 13.5px; color: var(--ink-soft); margin-top: 2px; }
+.kio-presta__prix {
+  font-family: var(--font-serif); font-size: clamp(21px, 2.4vw, 25px);
+  color: var(--color-indigo); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.kio-presta__prix.devis {
+  font-style: italic; font-size: clamp(16px, 1.8vw, 18px); color: var(--copper-700);
+}
+
+/* ── Les formules, une à la fois ──
+   Douze cartes entassées se lisent en petits caractères, donc ne se lisent
+   pas. Une seule, en grand, se lit. */
+.kio-defile { max-width: 760px; margin: 0 auto; }
+.kio-moment { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.kio-moment__titre {
+  font-family: var(--font-serif); font-size: clamp(20px, 2.4vw, 26px);
+  color: var(--color-indigo); white-space: nowrap;
+}
+.kio-moment__quand { font-size: 13px; color: var(--ink-soft); letter-spacing: .04em; }
+
+.kio-formule {
+  border: 1px solid var(--hairline); border-radius: 4px;
+  padding: clamp(22px, 3vw, 32px); background: #fff;
+  animation: kio-parait var(--dur-base, .28s) var(--ease-soft, ease);
+}
+.kio-formule.phare { border-color: var(--color-copper); background: var(--copper-50); }
+@keyframes kio-parait { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .kio-formule { animation: none; } }
+
+.kio-formule__tag {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--copper-600); font-weight: 600;
+}
+.kio-formule__nom {
+  font-family: var(--font-serif); font-weight: 300;
+  font-size: clamp(30px, 4vw, 42px); color: var(--color-indigo);
+  line-height: 1.08; margin: 6px 0 4px;
+}
+.kio-formule__ligne {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: clamp(17px, 2vw, 21px); color: var(--ink-soft); margin: 0 0 16px;
+}
+.kio-formule__prix {
+  font-family: var(--font-serif); font-size: clamp(32px, 4.4vw, 46px); color: var(--color-indigo);
+}
+.kio-formule__prix span { font-size: clamp(13px, 1.4vw, 15px); color: var(--ink-soft); font-family: var(--font-sans); }
+.kio-formule__perks {
+  list-style: none; padding: 0; margin: 18px 0 0;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.kio-formule__perks li {
+  font-size: clamp(15px, 1.7vw, 17px); padding-left: 19px; position: relative; line-height: 1.5;
+}
+.kio-formule__perks li::before {
+  content: '·'; position: absolute; left: 5px; top: -3px;
+  color: var(--copper-600); font-size: 21px;
+}
+
+.kio-points { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+.kio-point {
+  width: 44px; height: 44px; padding: 0; border: none; background: none;
+  cursor: pointer; position: relative;
+}
+.kio-point::after {
+  content: ''; position: absolute; inset: 18px;
+  border-radius: 50%; background: var(--color-argile);
+  transition: background var(--dur-base, .28s) var(--ease-soft, ease);
+}
+.kio-point.on::after { background: var(--copper-600); inset: 16px; }
+
+/* ── Réserver ── */
+.kio-reserver {
+  background: var(--color-indigo); color: var(--color-ivoire); border-radius: 4px;
+  padding: clamp(26px, 4vw, 44px);
+  display: grid; grid-template-columns: auto 1fr; gap: clamp(22px, 4vw, 38px); align-items: center;
+  max-width: 860px; margin: 0 auto;
+}
+.kio-qr {
+  width: clamp(150px, 20vw, 210px); height: clamp(150px, 20vw, 210px);
+  background: #fff; border-radius: 4px; padding: 10px; flex: none;
+}
+.kio-qr svg { width: 100%; height: 100%; display: block; }
+.kio-reserver h2 {
+  font-family: var(--font-serif); font-weight: 300;
+  font-size: clamp(28px, 3.6vw, 40px); margin: 0 0 10px; line-height: 1.1;
+}
+.kio-reserver p {
+  font-size: clamp(15px, 1.7vw, 17px); color: var(--indigo-100);
+  margin: 0 0 8px; line-height: 1.65; max-width: 48ch;
+}
+.kio-ou {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: clamp(16px, 1.9vw, 19px); color: var(--copper-300); margin-top: 16px;
+}
+
+.kio-vide {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: 19px; color: var(--ink-soft); text-align: center; padding: 60px 20px;
+}
+
+@media (max-width: 720px) {
+  .kio-reserver { grid-template-columns: minmax(0, 1fr); text-align: center; justify-items: center; }
+}

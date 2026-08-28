@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
-import { Button, Segs, toast } from '../../../../ds/components';
+import { Button, Input, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
@@ -16,6 +16,8 @@ import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
 import { useStore } from '../../../../shared/store';
 import { Avatar, apptLabel, frLong, frShort, fromISO, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
 import { QrSvg, qrMatrice } from '../equipe/Comptoir';
+import { carteReglages, type CarteConfig } from '../../../../shared/bridges';
+import { usePlans } from '../../../../shared/abonnements';
 import './clients.css';
 
 /* Vitrine client — le miroir personnalisé auto-joué pendant le rituel, et la régie
@@ -124,6 +126,7 @@ export default function Vitrine() {
       {mode === 'regie' && (
         <>
           <Regie client={client} />
+          <ReglagesDeLaCarte />
           <InvitationCouronne />
         </>
       )}
@@ -1509,5 +1512,151 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
         </div>
       </div>
     </>
+  );
+}
+
+/* ── LES RÉGLAGES DE LA CARTE DU COMPTOIR — 28 août 2026 ──────────────
+   « Je veux la possibilité d'afficher ou pas des prestations, ou des
+   formules, ou des produits Care & Store » (Yéman).
+
+   ON MASQUE, ON NE SÉLECTIONNE PAS. La liste dit ce qu'on RETIRE, jamais ce
+   qu'on garde : une liste blanche cache toute prestation née après elle, et
+   la Maison ne s'en aperçoit que le jour où une cliente demande pourquoi la
+   nouveauté n'est pas à la carte. C'est exactement ce qui est arrivé à
+   `visibleCategories`, resté vestige dans ce fichier même.
+
+   LES MASQUES DE LA CARTE SONT LES SIENS. Le comptoir et Ma Couronne n'ont
+   pas le même public : ce qu'on montre à une cliente connue, dans son espace,
+   ne va pas forcément sur un écran que tout le salon peut lire par-dessus son
+   épaule. */
+function ReglagesDeLaCarte() {
+  const [cfg, setCfg] = useStore(vitrineConfigStore);
+  const r = carteReglages(cfg);
+  const [services] = useServices();
+  const [produits] = useProducts();
+  const [plans] = usePlans();
+  const { currency } = useBranch();
+  const [ouvert, setOuvert] = useState<'services' | 'formules' | 'produits' | null>(null);
+
+  const poser = (p: Partial<CarteConfig>) =>
+    setCfg({ ...cfg, carte: { ...(cfg.carte ?? {}), ...p } });
+
+  const bascule = (cle: 'servicesMasques' | 'formulesMasquees' | 'produitsMasques', id: string) => {
+    const cur = r[cle];
+    poser({ [cle]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] } as Partial<CarteConfig>);
+  };
+
+  const lienCarte = `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/trone/carte.html' : '/carte.html'}`;
+
+  const volet = (cle: 'rituels' | 'formules' | 'produits', titre: string, dit: string) => (
+    <button
+      type="button"
+      className={`tre-chip ${r[cle] ? 'is-on' : ''}`}
+      onClick={() => poser({ [cle]: !r[cle] } as Partial<CarteConfig>)}
+      title={dit}
+    >
+      {r[cle] ? '◉' : '○'} {titre}
+    </button>
+  );
+
+  const liste = (
+    cle: 'servicesMasques' | 'formulesMasquees' | 'produitsMasques',
+    items: { id: string; name: string; priceXof: number }[],
+  ) => (
+    <div style={{ marginTop: 12, border: '1px solid var(--hairline)', borderRadius: 3, maxHeight: 300, overflowY: 'auto' }}>
+      {items.map((x) => {
+        const masque = r[cle].includes(x.id);
+        return (
+          <label
+            key={x.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '9px 13px',
+              borderTop: '1px solid var(--hairline)', fontSize: 13, cursor: 'pointer',
+              opacity: masque ? 0.5 : 1,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={!masque}
+              onChange={() => bascule(cle, x.id)}
+              style={{ accentColor: 'var(--copper-600)' }}
+            />
+            <span style={{ flex: 1, minWidth: 0, textDecoration: masque ? 'line-through' : undefined }}>{x.name}</span>
+            <span className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtMoney(x.priceXof, currency)}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="tr-card" style={{ padding: '18px 22px', marginBottom: 18 }}>
+      <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)' }}>
+        La carte du comptoir.
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.6, maxWidth: '66ch' }}>
+        L’écran posé face à la cliente, qu’elle fait défiler seule. Il lit vos prix en direct :
+        rien à réimprimer quand vous augmentez. Ouvrez-le sur la tablette du comptoir, en plein écran.
+      </div>
+
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 14 }}>
+        {volet('rituels', 'Les rituels', 'Le catalogue des prestations, par atelier')}
+        {volet('formules', 'Les formules', 'Les abonnements, par moment du parcours')}
+        {volet('produits', 'Care & Store', 'La gamme de la Maison')}
+      </div>
+
+      {/* LE DÉFILEMENT : douze formules entassées se lisent en petits
+          caractères, donc ne se lisent pas. Elles passent une à une. */}
+      {r.formules && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
+          <button
+            type="button"
+            className={`tre-chip ${r.defileFormules ? 'is-on' : ''}`}
+            onClick={() => poser({ defileFormules: !r.defileFormules })}
+          >
+            {r.defileFormules ? '◉' : '○'} Les formules défilent
+          </button>
+          {r.defileFormules && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5 }}>
+              <Input
+                type="number"
+                min={3}
+                max={60}
+                value={String(r.secondesParFormule)}
+                onChange={(e) => poser({ secondesParFormule: Math.max(3, Math.min(60, Number(e.target.value) || 9)) })}
+                style={{ width: 74, textAlign: 'right' }}
+                aria-label="Secondes par formule"
+              />
+              <span className="mnd-muted">secondes par formule</span>
+            </label>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 16 }}>
+        <Button size="sm" variant="ghost" onClick={() => setOuvert(ouvert === 'services' ? null : 'services')}>
+          {ouvert === 'services' ? '▾' : '▸'} Choisir les prestations · {services.length}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOuvert(ouvert === 'formules' ? null : 'formules')}>
+          {ouvert === 'formules' ? '▾' : '▸'} Choisir les formules · {plans.length}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOuvert(ouvert === 'produits' ? null : 'produits')}>
+          {ouvert === 'produits' ? '▾' : '▸'} Choisir les produits · {produits.length}
+        </Button>
+        <Button size="sm" variant="copper" onClick={() => window.open(lienCarte, '_blank', 'noopener')}>
+          Ouvrir la carte
+        </Button>
+      </div>
+
+      {ouvert === 'services' && liste('servicesMasques', services)}
+      {ouvert === 'formules' && liste('formulesMasquees', plans.map((p) => ({ id: p.id, name: p.name, priceXof: p.priceXof })))}
+      {ouvert === 'produits' && liste('produitsMasques', produits)}
+
+      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>
+        Décochez ce que vous ne voulez pas montrer. La liste dit ce qu’on RETIRE, jamais ce qu’on garde :
+        une nouveauté paraît donc d’elle-même, au lieu de rester invisible jusqu’à ce qu’on y pense.
+        Seules les formules rangées dans un moment du parcours s’affichent.
+      </div>
+    </div>
   );
 }
