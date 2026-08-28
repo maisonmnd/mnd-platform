@@ -54,6 +54,26 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## UNE VEDETTE PAR MOMENT — 28 août, PUBLIÉ
+
+« Chaque moment du parcours doit avoir sa mise en vedette. Pas une seule mise en
+vedette pour toutes les offres » (Yéman).
+
+La règle d'origine était « une seule vedette dans la Maison » : mettre
+L'Éclosion en avant **éteignait** La Suite, et un moment entier se retrouvait
+sans carte indigo.
+
+**LA VEDETTE NE COMPARE PAS LES DOUZE FORMULES ENTRE ELLES** — elle dit, DANS
+SON MOMENT, celle qu'on propose en premier. Cinq moments méritent cinq réponses.
+La carte indigo garde son sens tant qu'elle est SEULE DANS SA SECTION : c'est là
+que l'œil compare.
+
+`savePlan` n'éteint désormais que les formules de la MÊME famille. Les cinq
+vedettes posées : L'Éclosion (naissance), La Suite (prolongement), Le Lavage du
+Mois (porte), Le Foyer · Deux Têtes (foyer), L'Année Sereine · Trio (Années).
+
+`verifie-formules` pin `[1, 1, 1, 1, 1]` — une par moment, jamais deux.
+
 ## LA FACTURE NOMME LA TÊTE SOIGNÉE — 28 août, PUBLIÉ
 
 « Comment garder le nom des enfants sur la facture mais dire que c'est Merine

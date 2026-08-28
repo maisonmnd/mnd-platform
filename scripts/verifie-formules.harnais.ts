@@ -115,9 +115,26 @@ dit('L’Année Nette en donne huit', 8, quota('pl-mkt-annee-nette-duo', 'sv-res
 dit('un Duo n’inclut aucun soin', 0, quota('pl-mkt-annee-sereine-duo', 'zebpkpg6ar'));
 dit('un Trio en inclut', 6, quota('pl-mkt-annee-sereine-trio', 'zebpkpg6ar'));
 
-/* ── ⑨ UNE SEULE FORMULE VEDETTE ───────────────────────────────────
-   La carte indigo perd son sens s'il y en a plusieurs. */
-dit('une seule vedette', 1, PLANS_MARKETING.filter((p) => p.popular).length);
+/* ── ⑨ UNE VEDETTE PAR MOMENT, PAS UNE POUR TOUT ───────────────────
+   « Chaque moment du parcours doit avoir sa mise en vedette. Pas une seule
+   mise en vedette pour toutes les offres » (Yéman, 28 août).
+
+   La règle d'origine était « une seule vedette dans la Maison » : mettre
+   L'Éclosion en avant éteignait La Suite, et un moment entier se retrouvait
+   sans carte indigo. La vedette ne compare pas les douze formules entre
+   elles — elle dit, DANS SON MOMENT, celle qu'on propose en premier.
+
+   La carte indigo garde son sens tant qu'elle est SEULE DANS SA SECTION :
+   c'est là que l'œil compare. Deux vedettes dans un même moment, et la mise
+   en avant ne veut plus rien dire. */
+const vedettesParMoment = FAMILLES_FORMULES.map(
+  (f) => PLANS_MARKETING.filter((p) => p.famille === f.k && p.popular).length,
+);
+dit('chaque moment a SA vedette', [1, 1, 1, 1, 1], vedettesParMoment);
+dit('… jamais deux dans le même moment', [],
+  FAMILLES_FORMULES.filter((f) => PLANS_MARKETING.filter((p) => p.famille === f.k && p.popular).length > 1)
+    .map((f) => f.k));
+dit('cinq vedettes en tout, une par moment', 5, PLANS_MARKETING.filter((p) => p.popular).length);
 
 /* ── ⑩ LE PARCOURS EST COMPLET ─────────────────────────────────────
    Une formule sans famille tomberait dans « Les autres formules », en fin

@@ -154,17 +154,30 @@ export default function Abonnements() {
     const validityDays = mode === 'pack'
       ? Math.max(1, Math.min(60, Number(planForm.moisValidite) || 12)) * 30
       : undefined;
-    /* Une SEULE formule vedette à la fois : l'activer retire la mise en avant des
-       autres (la carte indigo perd son sens s'il y en a plusieurs). */
+    /* ── UNE VEDETTE PAR MOMENT, PAS UNE POUR TOUT — 28 août 2026 ──────
+       « Chaque moment du parcours doit avoir sa mise en vedette. Pas une
+       seule mise en vedette pour toutes les offres » (Yéman).
+
+       La règle d'origine était « une seule vedette dans la Maison » : mettre
+       L'Éclosion en avant éteignait La Suite, et un moment entier se
+       retrouvait sans carte indigo. Or la vedette ne compare pas les douze
+       formules entre elles — elle dit, DANS SON MOMENT, celle qu'on propose
+       en premier. Cinq moments méritent cinq réponses.
+
+       La carte indigo garde son sens tant qu'elle est SEULE DANS SA SECTION :
+       c'est là que l'œil compare. */
+    const famille = planForm.famille || undefined;
+    const memeMoment = (p: Plan) => (p.famille ?? undefined) === famille;
+
     if (planEditId) {
       setPlans((prev) => prev.map((p) =>
         p.id === planEditId
-          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille: planForm.famille || undefined, mode, validityDays }
-          : (featured ? { ...p, popular: false } : p)));
+          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille, mode, validityDays }
+          : (featured && memeMoment(p) ? { ...p, popular: false } : p)));
     } else {
       setPlans((prev) => [
-        ...(featured ? prev.map((p) => ({ ...p, popular: false })) : prev),
-        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille: planForm.famille || undefined, mode, validityDays },
+        ...(featured ? prev.map((p) => (memeMoment(p) ? { ...p, popular: false } : p)) : prev),
+        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille, mode, validityDays },
       ]);
     }
     setPlanModal(false);
@@ -975,7 +988,7 @@ export default function Abonnements() {
                 {planForm.popular ? '★ Formule vedette' : '☆ Mettre en vedette'}
               </button>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
-                La formule vedette s’affiche sur une carte indigo mise en avant. Une seule à la fois : l’activer retire la mise en avant des autres.
+                La formule vedette s’affiche sur une carte indigo mise en avant. <b style={{ fontWeight: 500 }}>Une par moment du parcours</b> : l’activer ne retire la mise en avant que dans sa propre section, jamais dans les autres.
               </div>
             </Field>
 

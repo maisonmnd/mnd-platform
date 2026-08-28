@@ -505,7 +505,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, dont 2 offerts',
       '270 000 F à la carte, vous gagnez 45 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 17, famille: 'naissance',
+    popular: true, mode: 'pack', validityDays: 365, discountPct: 17, famille: 'naissance',
     included: [
       { serviceId: 'sv-retouches-post-creation', qty: 2 },
       { serviceId: 'sv-resserrage', qty: 6 },
@@ -557,7 +557,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Rappel automatique la veille',
       '−10 % sur la gamme',
     ],
-    popular: false, mode: 'cycle', discountPct: 25, famille: 'porte',
+    popular: true, mode: 'cycle', discountPct: 25, famille: 'porte',
     included: [{ serviceId: 'sv-bain-vapeur', qty: 1 }],
   },
 
@@ -573,7 +573,7 @@ export const PLANS_MARKETING: Plan[] = [
       '−15 % sur la gamme pour les deux',
       '10 000 F de moins que deux Suite',
     ],
-    popular: false, mode: 'cycle', discountPct: 33, famille: 'foyer',
+    popular: true, mode: 'cycle', discountPct: 33, famille: 'foyer',
     included: [{ serviceId: 'sv-resserrage', qty: 2 }, { serviceId: 'sv-bain-vapeur', qty: 2 }],
   },
   {
@@ -634,7 +634,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '390 000 F à la carte, vous gagnez 85 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 22, famille: 'annees',
+    popular: true, mode: 'pack', validityDays: 365, discountPct: 22, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
   },
 
