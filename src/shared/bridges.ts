@@ -94,6 +94,15 @@ export type CarteConfig = {
    personne ne comprendrait pourquoi l'écran bouge tout seul. On ne retient un
    glissement que s'il est franchement HORIZONTAL. */
 
+/* ── LE CARRÉ WI-FI ───────────────────────────────────────────────────
+   Le format que tous les téléphones savent lire. Les caractères que le format
+   RÉSERVE s'échappent : un mot de passe qui porte un point-virgule couperait
+   la chaîne en deux, et le carré connecterait à un réseau au nom tronqué sans
+   que rien ne le signale. C'est le genre de panne qu'on met un mois à
+   comprendre, parce qu'elle ne touche qu'une Maison sur vingt. */
+export const wifiPayload = (ssid: string, pass: string): string =>
+  `WIFI:T:WPA;S:${ssid.replace(/([\\;,:"])/g, '\\$1')};P:${pass.replace(/([\\;,:"])/g, '\\$1')};;`;
+
 /** Le seuil en pixels sous lequel un mouvement n'est qu'un tremblement. */
 export const SEUIL_GLISSE = 48;
 

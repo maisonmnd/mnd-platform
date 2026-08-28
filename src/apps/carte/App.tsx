@@ -4,7 +4,7 @@ import { fmtMoney } from '../../shared/currency';
 import { DEVISE_COMPLETE, maisonNom } from '../../shared/identite';
 import { useCategories, useProducts, useServices, catsDansLOrdre, priceModeOf } from '../../shared/catalog';
 import { FAMILLES_FORMULES, usePlans } from '../../shared/abonnements';
-import { carteReglages, directionDuGlisse, gardeSurLaCarte, indexSuivant, vitrineConfigStore } from '../../shared/bridges';
+import { carteReglages, directionDuGlisse, gardeSurLaCarte, indexSuivant, vitrineConfigStore, wifiPayload } from '../../shared/bridges';
 import { useStore } from '../../shared/store';
 import { QrSvg } from './Qr';
 
@@ -301,19 +301,26 @@ function Formules({ plans, currency, defile, secondes }: {
 
 /* ── LE WI-FI ─────────────────────────────────────────────────────────
    « Après Réserver il faut ajouter l'onglet pour le Code Wifi » (Yéman).
-   Le carré se scanne et connecte le téléphone sans rien taper ; le nom et le
-   mot de passe restent écrits dessous, pour celle dont le téléphone ne sait
-   pas lire un QR Wi-Fi. */
-const wifiPayload = (ssid: string, pass: string) =>
-  `WIFI:T:WPA;S:${ssid.replace(/([\\;,:"])/g, '\\$1')};P:${pass.replace(/([\\;,:"])/g, '\\$1')};;`;
 
+   LE MOT DE PASSE NE S'AFFICHE PAS — « le QR code suffit » (Yéman, 28 août).
+   Le carré connecte le téléphone sans rien taper, et un mot de passe écrit en
+   grand au comptoir se recopie, se photographie, et vit ensuite loin du salon.
+
+   CE N'EST PAS UNE MESURE DE SÉCURITÉ, ET IL NE FAUT PAS s'y tromper : le
+   carré ENCODE le mot de passe, qui reste donc dans le document public de la
+   Vitrine. On retire ce qui se lit d'un coup d'œil, pas ce qui existe. La
+   seule vraie protection reste un réseau invité, séparé de celui de la caisse.
+
+   LE NOM DU RÉSEAU RESTE. Il ne connecte personne, et il dit à la cliente
+   quel réseau elle vient de rejoindre — utile quand deux box se ressemblent. */
 function Wifi({ reseaux }: { reseaux: { rang: string; portee: string; ssid: string; pass: string }[] }) {
   if (reseaux.length === 0) return <Vide dit="Le réseau de la Maison n’est pas encore posé." />;
   return (
     <div className="kio-wifi">
       <h2 className="kio-wifi__titre">Installez-vous.</h2>
       <p className="kio-wifi__dit">
-        Le réseau de la Maison est à vous. Scannez le carré, votre téléphone se connecte seul.
+        Le réseau de la Maison est à vous. Scannez le carré, votre téléphone se connecte seul,
+        sans mot de passe à taper.
       </p>
       <div className="kio-wifi__grille">
         {reseaux.map((r) => (
@@ -324,12 +331,13 @@ function Wifi({ reseaux }: { reseaux: { rang: string; portee: string; ssid: stri
               <div className="kio-reseau__portee">{r.portee}</div>
               <div className="kio-reseau__lab">Nom du réseau</div>
               <div className="kio-reseau__val">{r.ssid}</div>
-              <div className="kio-reseau__lab">Mot de passe</div>
-              <div className="kio-reseau__val">{r.pass}</div>
             </div>
           </div>
         ))}
       </div>
+      <p className="kio-wifi__pied">
+        Le carré porte le mot de passe pour vous. Si votre téléphone ne le lit pas, demandez-nous.
+      </p>
     </div>
   );
 }

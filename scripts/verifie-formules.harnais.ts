@@ -9,7 +9,7 @@
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
 import { formuleLaPlusUtile, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
-import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte, directionDuGlisse, indexSuivant, SEUIL_GLISSE } from '../src/shared/bridges';
+import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte, directionDuGlisse, indexSuivant, SEUIL_GLISSE, wifiPayload } from '../src/shared/bridges';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -285,6 +285,29 @@ dit('… et sans réseau posé', ['', '', '', ''],
 dit('un réseau posé se retrouve', 'MND-Invite',
   carteReglages({ carte: { wifi: true, wifiSsid: 'MND-Invite' } }).wifiSsid);
 dit('… et le volet reste allumable', true, carteReglages({ carte: { wifi: true } }).wifi);
+
+/* ── ⑮ LE CARRÉ WI-FI ──────────────────────────────────────────────
+   Le mot de passe ne s'affiche plus à l'écran — « le QR code suffit » (Yéman).
+   Tout repose donc sur le carré : s'il est mal formé, plus rien ne connecte,
+   et la panne est MUETTE. Le téléphone dit seulement « impossible de
+   rejoindre », jamais pourquoi.
+
+   LE PIÈGE EST L'ÉCHAPPEMENT. Le format réserve `;` `:` `,` `"` et
+   l'antislash : un mot de passe qui en porte un couperait la chaîne, et le
+   carré viserait un réseau au nom tronqué. C'est le genre de panne qu'on met
+   un mois à comprendre, parce qu'elle ne touche qu'une Maison sur vingt. */
+dit('un réseau simple se code', 'WIFI:T:WPA;S:MND-Invite;P:RootsCare2026;;',
+  wifiPayload('MND-Invite', 'RootsCare2026'));
+dit('un point-virgule dans le mot de passe est échappé',
+  'WIFI:T:WPA;S:MND;P:abc' + String.fromCharCode(92) + ';def;;',
+  wifiPayload('MND', 'abc;def'));
+dit('deux-points aussi', 'WIFI:T:WPA;S:MND' + String.fromCharCode(92) + ':5G;P:x;;',
+  wifiPayload('MND:5G', 'x'));
+dit('… et l’antislash lui-même',
+  'WIFI:T:WPA;S:MND;P:a' + String.fromCharCode(92, 92) + 'b;;',
+  wifiPayload('MND', 'a' + String.fromCharCode(92) + 'b'));
+dit('le mot de passe est bien DANS le carré, cacher n’est pas retirer', true,
+  wifiPayload('MND', 'RootsCare2026').includes('RootsCare2026'));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

@@ -78,6 +78,25 @@ défilement vertical intact.
 
 ### Le volet du wifi, après Réserver
 
+**LE MOT DE PASSE NE S'AFFICHE PAS** — « le QR code suffit » (Yéman). Le carré
+connecte le téléphone sans rien taper ; un mot de passe écrit en grand au
+comptoir se recopie, se photographie, et vit ensuite loin du salon. Le nom du
+réseau reste : il ne connecte personne et dit laquelle des deux box on a
+rejointe.
+
+**CE N'EST PAS UNE MESURE DE SÉCURITÉ, et il ne faut pas s'y tromper** : le
+carré ENCODE le mot de passe, qui reste donc dans le document public. On retire
+ce qui se lit d'un coup d'œil, pas ce qui existe. La Régie le dit en toutes
+lettres.
+
+`wifiPayload` est descendu dans `bridges.ts` et **éprouvé** : le format réserve
+`;` `:` `,` `"` et l'antislash, et un mot de passe qui en porte un couperait la
+chaîne. Le carré viserait alors un réseau au nom tronqué, et la panne serait
+MUETTE — le téléphone dit « impossible de rejoindre », jamais pourquoi. C'est le
+genre de défaut qu'on met un mois à comprendre parce qu'il ne touche qu'une
+Maison sur vingt.
+
+
 ⚠️ **ALLUMER LE WIFI PUBLIE LE MOT DE PASSE dans un document lisible sans
 compte.** La carte n'est personne : pour qu'elle affiche le réseau, il doit
 vivre dans `mnd_vitrine_config`, qui est en lecture `anon`. Jusqu'ici le mot de

@@ -1687,11 +1687,12 @@ function ReglagesDeLaCarte() {
               marginTop: 11, padding: '10px 13px', borderRadius: 3, fontSize: 11.5, lineHeight: 1.65,
               background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
             }}>
-              <b style={{ fontWeight: 600 }}>Ce mot de passe devient lisible sans compte.</b> La carte
-              n’est personne : pour qu’elle affiche le réseau, il doit vivre dans le document public de
-              la Vitrine. Jusqu’ici il ne se voyait qu’au comptoir. Un réseau que tout le salon lit déjà
-              ne perd pas grand-chose, mais c’est votre décision, pas celle du code. Un réseau invité,
-              séparé de celui de la caisse, serait le plus sage.
+              <b style={{ fontWeight: 600 }}>Le mot de passe ne s’affiche pas sur la carte</b> : seul
+              le carré le porte, et la cliente se connecte sans rien taper. Mais il doit tout de même
+              vivre dans le document public de la Vitrine, parce que la carte n’est personne et que le
+              carré l’encode. <b style={{ fontWeight: 600 }}>Le cacher à l’écran n’est donc pas une
+              protection</b>, c’est une propreté. La seule vraie protection reste un réseau invité,
+              séparé de celui de la caisse.
             </div>
           </>
         )}

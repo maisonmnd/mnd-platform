@@ -256,3 +256,10 @@ body {
   /* Celle-là, on la sélectionne. */
   -webkit-user-select: text; user-select: text;
 }
+
+/* Le mot de passe ne s'affiche plus : le carré le porte. Le nom du réseau
+   reste, il ne connecte personne et dit laquelle des deux box on a rejointe. */
+.kio-wifi__pied {
+  font-size: 13px; color: var(--ink-soft); margin: 18px 0 0;
+  font-family: var(--font-serif); font-style: italic;
+}
