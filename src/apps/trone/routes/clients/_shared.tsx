@@ -21,7 +21,7 @@ import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, cats
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
-import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import type { CommRates } from '../equipe/payroll';
@@ -1286,7 +1286,8 @@ export function RdvModal({
      moins une allocation (ou si ce RDV était déjà couvert). */
   const coverageRows = (membership && membershipPlan)
     ? chosen
-        .filter((sv) => membershipPlan.included?.some((i) => i.serviceId === sv.id))
+        /* SES prestations à elle : le contenu ajusté à la vente fait foi. */
+        .filter((sv) => inclusVendus(membership, membershipPlan).some((i) => i.serviceId === sv.id))
         .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, branchAppts, appt?.id) }))
     : [];
   const canCover = coverageRows.length > 0 && (coverageRows.some((r) => r.remaining === null || (r.remaining ?? 0) > 0) || !!appt?.coveredBySub);

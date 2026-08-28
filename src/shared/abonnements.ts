@@ -145,6 +145,35 @@ export type Subscriber = {
   /** Prix TOTAL payé pour le pack — à ne pas confondre avec `mrrXof`, qui
       normalise en mensuel pour le MRR et n'a pas de sens sur un paquet. */
   priceXof?: number;
+
+  /* ── CE QUI SE CONVIENT AU COMPTOIR — 28 août 2026 ────────────────
+     « I need to be able to have it personnalized per clients and select a
+     client to sell it to with its own price for each different client. »
+
+     TROIS CHAMPS, ET ILS VIVENT SUR L'ABONNÉE, JAMAIS SUR LA FORMULE. Poser
+     le prix négocié de Mérine sur L'Année Sereine le donnerait à toutes les
+     suivantes, et à la vitrine du comptoir. La formule reste la formule ;
+     ce qui se négocie se pose ici, sur cette tête-là.
+
+     TOUS TROIS FACULTATIFS, ET C'EST LA RÈGLE : absents, l'abonnement lit sa
+     formule exactement comme avant. Les abonnements déjà signés n'ont donc
+     rien à reprendre, et une vente ordinaire n'a pas un champ de plus à
+     remplir. */
+
+  /** LE PRIX CONVENU pour cette tête. Absent = le prix de la formule.
+      Sur un abonnement à cycle, c'est le montant DU CYCLE : il vaut donc
+      aussi pour les renouvellements, comme une parole donnée. */
+  prixConvenuXof?: number;
+  /** Pourquoi ce prix. Facultatif (décision du 28 août) : au comptoir, pressé,
+      on vend sans écrire. Mais un prix sans raison devient une discussion trois
+      mois plus tard, quand personne ne se souvient. */
+  motifConvenu?: string;
+  /** LE CONTENU AJUSTÉ pour cette tête — quantités changées, prestation
+      retirée, prestation ajoutée. Absent = le contenu de la formule. */
+  inclusPropres?: PlanIncluded[];
+  /** La durée de vie ajustée d'un pack, en jours. Absente = celle de la
+      formule. Sans effet sur un abonnement à cycle, qui ne s'épuise pas. */
+  validiteJours?: number;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -248,13 +277,72 @@ export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefine
     retrouvées à l'unité près, sans qu'aucun compteur ait été importé. */
 export type IncludedUsage = { serviceId: string; qty: number | null; used: number; remaining: number | null };
 export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] => {
-  const inc = plan?.included ?? [];
+  /* SES QUOTAS À ELLE. Lire ceux de la formule quand on lui en a promis
+     d'autres afficherait six jetons à qui on en a vendu huit — la plus sûre
+     façon de perdre sa confiance. */
+  const inc = inclusVendus(sub, plan);
   if (inc.length === 0) return [];
   const mine = appts.filter((a) => coversSub(a, sub, plan));
   return inc.map((i) => {
     const used = mine.filter((a) => a.serviceIds.includes(i.serviceId)).length;
     return { serviceId: i.serviceId, qty: i.qty, used, remaining: i.qty === null ? null : Math.max(0, i.qty - used) };
   });
+};
+
+/* ── CE QUI A ÉTÉ RÉELLEMENT VENDU — 28 août 2026 ────────────────────
+   Un prix négocié qui ne descendrait que dans l'écran de vente serait pire que
+   pas de prix négocié du tout : la caisse, le suivi et Ma Couronne diraient
+   chacun un chiffre différent, et personne ne saurait lequel croire. Ces
+   quatre fonctions sont donc LE SEUL JUGE de ce qui a été vendu. Tout écran
+   qui affiche un prix, un quota ou une échéance passe par elles.
+
+   LA RÈGLE EST LA MÊME PARTOUT : ce que porte l'abonnée l'emporte, et à
+   défaut la formule parle. */
+
+/** LE PRIX RÉELLEMENT VENDU pour un cycle (ou le total d'un pack). */
+export const prixVenduXof = (sub: Subscriber, plan: Plan | undefined, cycle: SubCycle): number =>
+  sub.prixConvenuXof ?? (plan ? prixDeLaFormule(plan, cycle).montantXof : 0);
+
+/** LE CONTENU RÉELLEMENT VENDU — ses quotas à elle, sinon ceux de la formule. */
+export const inclusVendus = (sub: Subscriber, plan: Plan | undefined): PlanIncluded[] =>
+  sub.inclusPropres ?? plan?.included ?? [];
+
+/** LA DURÉE DE VIE RÉELLEMENT VENDUE d'un pack, en jours. `null` = sans limite. */
+export const validiteVendueJours = (sub: Subscriber, plan: Plan | undefined): number | null =>
+  sub.validiteJours ?? plan?.validityDays ?? null;
+
+/** LES MOIS QUE COUVRE CE QUI A ÉTÉ VENDU — la durée ajustée fait foi sur un
+    pack, le cycle sur un abonnement récurrent. Sert à ramener au mois. */
+export const moisCouvertsVendus = (sub: Subscriber, plan: Plan | undefined, cycle: SubCycle): number => {
+  if (plan?.mode === 'pack') return Math.max(1, Math.round((validiteVendueJours(sub, plan) ?? 365) / 30));
+  return plan ? prixDeLaFormule(plan, cycle).moisCouverts : 1;
+};
+
+/** LA PART MENSUELLE DE CE QUI A ÉTÉ VENDU — c'est elle qui alimente le MRR.
+    Sur le prix du catalogue, la Maison lirait chaque mois un revenu qu'elle
+    n'encaisse pas. */
+export const partMensuelleVendueXof = (sub: Subscriber, plan: Plan | undefined, cycle: SubCycle): number => {
+  const mois = moisCouvertsVendus(sub, plan, cycle);
+  return mois <= 0 ? 0 : Math.round(prixVenduXof(sub, plan, cycle) / mois);
+};
+
+/** Cet abonnement porte-t-il un prix négocié ? Sert à afficher l'écart. */
+export const prixEstConvenu = (sub: Subscriber): boolean =>
+  typeof sub.prixConvenuXof === 'number' && sub.prixConvenuXof >= 0;
+
+/** L'ÉCART entre le prix du catalogue et le prix convenu. Négatif = elle paie
+    moins. `null` quand rien n'a été négocié — il n'y a alors pas d'écart à
+    montrer, et zéro n'est pas la même chose qu'absent. */
+export const ecartDuPrixConvenu = (
+  sub: Subscriber, plan: Plan | undefined, cycle: SubCycle,
+): { catalogueXof: number; convenuXof: number; ecartXof: number; pct: number } | null => {
+  if (!prixEstConvenu(sub) || !plan) return null;
+  const catalogueXof = prixDeLaFormule(plan, cycle).montantXof;
+  const convenuXof = sub.prixConvenuXof as number;
+  return {
+    catalogueXof, convenuXof, ecartXof: convenuXof - catalogueXof,
+    pct: catalogueXof > 0 ? Math.round(((convenuXof - catalogueXof) / catalogueXof) * 1000) / 10 : 0,
+  };
 };
 
 /* LE PONT AVEC SUPABASE, POSÉ ICI ET NULLE PART AILLEURS : les deux sœurs

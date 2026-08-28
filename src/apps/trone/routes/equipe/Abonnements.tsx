@@ -10,6 +10,7 @@ import {
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
+  prixVenduXof, ecartDuPrixConvenu, inclusVendus,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices } from '../../../../shared/catalog';
@@ -24,7 +25,23 @@ import './equipe.css';
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | ''; mode: PlanMode; moisValidite: string };
-type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null; voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string };
+type SubForm = {
+  clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null;
+  voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string;
+  /* ── CE QUI SE CONVIENT AU COMPTOIR — 28 août 2026 ──────────────
+     Tous vides par défaut : sans eux, la vente se fait au prix et au contenu
+     du catalogue, exactement comme avant. Personne n'a un champ de plus à
+     remplir pour une vente ordinaire. */
+  /** Saisi en chiffres. Vide = elle paie le prix de la formule. */
+  prixConvenu: string;
+  /** Pourquoi ce prix. Facultatif, jamais bloquant. */
+  motif: string;
+  /** `null` = le contenu de la formule, intact. Dès qu'on touche une quantité,
+      la liste devient CELLE DE CETTE VENTE et cesse de suivre la formule. */
+  inclus: PlanIncluded[] | null;
+  /** Durée de vie du paquet, en mois. Vide = celle de la formule. */
+  validiteMois: string;
+};
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -48,7 +65,7 @@ export default function Abonnements() {
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -230,6 +247,7 @@ export default function Abonnements() {
     setSubForm({
       clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel',
       parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '',
+      prixConvenu: '', motif: '', inclus: null, validiteMois: '',
     });
     setSubModal(true);
   };
@@ -307,6 +325,53 @@ export default function Abonnements() {
     };
   };
 
+  /* ── CE QUI SE CONVIENT AU COMPTOIR — les lectures du formulaire ──
+     Un seul endroit lit les champs négociés, et tout l'écran s'y réfère : le
+     prix affiché, le total à découper, la valeur à la carte et l'abonnement
+     enregistré. Deux lectures différentes du même champ, c'est un écran qui
+     annonce un chiffre et une caisse qui en encaisse un autre. */
+
+  /** Le prix convenu saisi, ou `null` si le champ est vide (elle paie le catalogue). */
+  const prixConvenuSaisi = (): number | null => {
+    const brut = subForm.prixConvenu.replace(/[^0-9]/g, '');
+    return brut === '' ? null : parseInt(brut, 10);
+  };
+  /** La durée convenue en JOURS, ou `null` si le champ est vide. */
+  const validiteConvenue = (): number | null => {
+    const brut = subForm.validiteMois.replace(/[^0-9]/g, '');
+    const mois = brut === '' ? 0 : parseInt(brut, 10);
+    return mois > 0 ? mois * 30 : null;
+  };
+  /** Le contenu tel qu'il sera vendu — le sien s'il a été touché, sinon celui
+      de la formule. */
+  const inclusDeLaVente = (): PlanIncluded[] => subForm.inclus ?? planOf(subForm.planId)?.included ?? [];
+  /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
+  const prixDeLaVente = (): number => {
+    const plan = planOf(subForm.planId);
+    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle).montantXof : 0);
+  };
+  /** Les mois que couvre cette vente — la durée convenue fait foi sur un pack. */
+  const moisDeLaVente = (): number => {
+    const plan = planOf(subForm.planId);
+    if (!plan) return 1;
+    if (plan.mode === 'pack') {
+      return Math.max(1, Math.round((validiteConvenue() ?? plan.validityDays ?? 365) / 30));
+    }
+    return prixDeLaFormule(plan, subForm.cycle).moisCouverts;
+  };
+
+  /* Toucher une quantité FIGE la liste sur cette vente : elle cesse de suivre
+     la formule, et le bouton « Revenir à la formule » paraît. */
+  const poseInclus = (maj: (l: PlanIncluded[]) => PlanIncluded[]) =>
+    setSubForm((f) => ({ ...f, inclus: maj(f.inclus ?? planOf(f.planId)?.included ?? []).map((i) => ({ ...i })) }));
+  const qteVente = (serviceId: string, qty: number | null) =>
+    poseInclus((l) => l.map((i) => (i.serviceId === serviceId ? { ...i, qty } : i)));
+  const ajouteVente = (serviceId: string) => {
+    if (!serviceId) return;
+    poseInclus((l) => (l.some((i) => i.serviceId === serviceId) ? l : [...l, { serviceId, qty: 1 }]));
+  };
+  const retireVente = (serviceId: string) => poseInclus((l) => l.filter((i) => i.serviceId !== serviceId));
+
   const saveSub = () => {
     const plan = planOf(subForm.planId);
     const client = clients.find((c) => c.id === subForm.clientId);
@@ -315,9 +380,23 @@ export default function Abonnements() {
     if (!plan) { toast('Choisissez une formule.'); return; }
     const cycle = subForm.cycle;
     const opt = chiffreLOption(plan, cycle);
+    /* CE QUI A ÉTÉ CONVENU AU COMPTOIR fait foi partout à partir d'ici : le
+       total à découper, le revenu récurrent, la fenêtre du paquet et les
+       quotas que Ma Couronne affichera. Retomber sur le catalogue à un seul
+       de ces endroits ferait dire un chiffre à l'écran et un autre à la
+       caisse, sans que personne sache lequel croire. */
+    const convenu = prixConvenuSaisi();
+    const joursVendus = validiteConvenue();
+    const prixVente = prixDeLaVente();
+    const moisVente = moisDeLaVente();
     /* Le total À DÉCOUPER inclut l'option : elle se paie avec l'abonnement,
        pas à côté. La découper séparément ferait deux échéanciers à suivre. */
-    const totalXof = prixDeLaFormule(plan, cycle).montantXof + (opt?.supplement ?? 0);
+    const totalXof = prixVente + (opt?.supplement ?? 0);
+    /* LA VIE DU PAQUET S'ÉCRIT À LA SIGNATURE. Sans `startIso` et
+       `expiresIso`, `subWindow` ouvrait la fenêtre jusqu'en 9999 : la durée de
+       vie d'un pack ne servait à rien, et une tête pouvait revenir trois ans
+       plus tard réclamer son dernier resserrage. */
+    const jours = joursVendus ?? plan.validityDays ?? null;
     const nm: Subscriber = {
       id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
       cycle,
@@ -327,7 +406,16 @@ export default function Abonnements() {
       /* Le MRR porte l'option, ramenée au mois : un supplément annuel non
          normalisé gonflerait le revenu récurrent du mois de la signature,
          puis disparaîtrait des mois suivants. */
-      mrrXof: partMensuelleDeLaFormule(plan, cycle) + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
+      mrrXof: (moisVente > 0 ? Math.round(prixVente / moisVente) : 0)
+        + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
+      /* — ce qui s'est convenu pour elle, et pour elle seule — */
+      ...(convenu !== null ? { prixConvenuXof: convenu } : {}),
+      ...(subForm.motif.trim() ? { motifConvenu: subForm.motif.trim() } : {}),
+      ...(subForm.inclus ? { inclusPropres: subForm.inclus.map((i) => ({ ...i })) } : {}),
+      ...(joursVendus !== null ? { validiteJours: joursVendus } : {}),
+      ...(plan.mode === 'pack'
+        ? { startIso: todayISO(), expiresIso: jours === null ? null : addDaysISO(jours), priceXof: prixVente }
+        : {}),
       ...(opt && opt.supplement > 0
         ? { couleur: { voie: subForm.voie as VoieCouleur, rythme: subForm.rythme, serviceId: opt.serviceId, supplementXof: opt.supplement } }
         : {}),
@@ -340,7 +428,7 @@ export default function Abonnements() {
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
     if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
@@ -352,8 +440,10 @@ export default function Abonnements() {
     const suivante = m.echeances?.length
       ? prochaineEcheance(etatDesEcheances(m.echeances, subPaid(m), todayISO()))
       : undefined;
-    const due = suivante ? suivante.resteXof
-      : plan ? prixDeLaFormule(plan, m.cycle ?? 'mensuel').montantXof : 0;
+    /* SON PRIX, PAS CELUI DU CATALOGUE. Réclamer 215 000 F à qui on en a
+       convenu 190 000 est la faute qu'aucune cliente ne pardonne, et elle se
+       ferait au comptoir, la caisse ouverte. */
+    const due = suivante ? suivante.resteXof : prixVenduXof(m, plan, m.cycle ?? 'mensuel');
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
     setPayFor(m);
   };
@@ -660,7 +750,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
@@ -725,8 +815,36 @@ export default function Abonnements() {
                         <Pill tone={plan?.popular ? 'copper' : 'muted'}>{plan?.name ?? '—'}</Pill>
                         <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 4 }}>
                           {cycleLabel(m.cycle ?? 'mensuel').split(' · ')[0]}
-                          {(plan?.included?.length ?? 0) > 0 ? ` · ${plan!.included!.length} prestation${plan!.included!.length > 1 ? 's' : ''} incluse${plan!.included!.length > 1 ? 's' : ''}` : ''}
+                          {(() => {
+                            /* SES prestations à elle, pas celles de la formule. */
+                            const n = inclusVendus(m, plan).length;
+                            return n > 0 ? ` · ${n} prestation${n > 1 ? 's' : ''} incluse${n > 1 ? 's' : ''}` : '';
+                          })()}
                         </div>
+                        {/* CE QUI S'EST CONVENU SE VOIT DANS LE TABLEAU. Un
+                            prix négocié qu'il faut ouvrir une fiche pour
+                            découvrir se re-négocie une deuxième fois, et la
+                            Maison ne se souvient plus de ce qu'elle a dit. */}
+                        {(() => {
+                          const e = ecartDuPrixConvenu(m, plan, m.cycle ?? 'mensuel');
+                          if (!e) return null;
+                          return (
+                            <div style={{ fontSize: 10.5, marginTop: 3, color: 'var(--copper-700)', fontWeight: 500 }}>
+                              Prix convenu · {fmtMoney(e.convenuXof, currency)}
+                              <span className="mnd-muted" style={{ textDecoration: 'line-through', marginLeft: 5, fontWeight: 400 }}>
+                                {fmtMoney(e.catalogueXof, currency)}
+                              </span>
+                              {m.motifConvenu ? (
+                                <div className="mnd-muted" style={{ fontWeight: 400, marginTop: 2 }}>{m.motifConvenu}</div>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
+                        {(m.inclusPropres?.length ?? 0) > 0 && (
+                          <div style={{ fontSize: 10.5, marginTop: 3, color: 'var(--copper-700)', fontWeight: 500 }}>
+                            Contenu ajusté pour elle
+                          </div>
+                        )}
                         {/* L'OPTION COULEUR SE VOIT DANS LE TABLEAU : c'est
                             elle qui dit au maître ce qu'il doit préparer avant
                             que la dame s'asseye. */}
@@ -1116,7 +1234,14 @@ export default function Abonnements() {
               <ClientPicker value={subForm.clientId} onChange={(id) => setSubForm({ ...subForm, clientId: id })} />
             </Field>
             <Field label="Formule">
-              <Select value={subForm.planId} onChange={(e) => setSubForm({ ...subForm, planId: e.target.value })}>
+              {/* CHANGER DE FORMULE EFFACE CE QUI AVAIT ÉTÉ CONVENU. 190 000 F
+                  posés sur L'Année Sereine ne veulent rien dire sur Le Lavage du
+                  Mois, et un contenu ajusté encore moins : garder l'un ou l'autre
+                  en silence vendrait un prix que personne n'a accepté. */}
+              <Select
+                value={subForm.planId}
+                onChange={(e) => setSubForm({ ...subForm, planId: e.target.value, prixConvenu: '', motif: '', inclus: null, validiteMois: '' })}
+              >
                 {plans.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} · {fmtMoney(p.priceXof, currency)}
@@ -1153,6 +1278,224 @@ export default function Abonnements() {
                 );
               })()}
             </Field>
+            {/* ══ SON PRIX À ELLE ======================================
+                « Select a client to sell it to with its own price for each
+                different client » (Yéman, 28 août).
+
+                LE PRIX VIT SUR L'ABONNEMENT, PAS SUR LA FORMULE. Poser le prix
+                négocié de cette tête sur L’Année Sereine le donnerait à toutes
+                les suivantes et à la vitrine du comptoir. La formule reste la
+                formule ; ce qui se négocie se pose ici.
+
+                CHAMP VIDE = PRIX DU CATALOGUE. Une vente ordinaire ne demande
+                rien de plus. */}
+            {(() => {
+              const plan = planOf(subForm.planId);
+              if (!plan) return null;
+              const catalogue = prixDeLaFormule(plan, subForm.cycle).montantXof;
+              const convenu = prixConvenuSaisi();
+              const ecart = convenu === null ? 0 : convenu - catalogue;
+              const pct = catalogue > 0 ? Math.round((ecart / catalogue) * 1000) / 10 : 0;
+              return (
+                <Field label="Son prix à elle · facultatif">
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 'none' }}>
+                      <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>Catalogue</div>
+                      <div style={{
+                        fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 400, lineHeight: 1.5,
+                        color: convenu === null ? 'var(--color-indigo)' : 'var(--ink-soft)',
+                        textDecoration: convenu === null ? 'none' : 'line-through',
+                      }}>
+                        {fmtMoney(catalogue, currency)}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>
+                        Prix convenu
+                      </div>
+                      <Input
+                        inputMode="numeric"
+                        value={subForm.prixConvenu}
+                        placeholder={String(catalogue)}
+                        onChange={(e) => setSubForm({ ...subForm, prixConvenu: e.target.value.replace(/[^0-9]/g, '') })}
+                      />
+                    </div>
+                  </div>
+                  {convenu !== null && ecart !== 0 && (
+                    <div style={{
+                      display: 'inline-block', marginTop: 8, fontSize: 11.5, letterSpacing: '.06em',
+                      padding: '2px 9px', borderRadius: 2,
+                      background: ecart < 0 ? 'rgba(74,107,82,.10)' : 'rgba(150,65,46,.09)',
+                      border: `1px solid ${ecart < 0 ? 'rgba(74,107,82,.35)' : 'rgba(150,65,46,.35)'}`,
+                      color: ecart < 0 ? 'var(--color-vert, #4A6B52)' : 'var(--color-brique, #96412E)',
+                    }}>
+                      {fmtMoney(Math.abs(ecart), currency)} {ecart < 0 ? 'de moins' : 'de plus'} - {Math.abs(pct)} %
+                    </div>
+                  )}
+                  <div style={{ marginTop: 10 }}>
+                    <Input
+                      value={subForm.motif}
+                      placeholder="Pourquoi ce prix (facultatif)"
+                      onChange={(e) => setSubForm({ ...subForm, motif: e.target.value })}
+                    />
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.6 }}>
+                    {convenu === null
+                      ? 'Laissez vide et elle paie le prix du catalogue.'
+                      : 'Un prix sans raison devient une discussion trois mois plus tard, quand personne ne se souvient.'}
+                  </div>
+                </Field>
+              );
+            })()}
+
+            {/* ══ LE CONTENU, AJUSTÉ POUR ELLE =========================
+                Les quantités de la formule s'affichent telles quelles. Des
+                qu’on en touche une, la liste devient CELLE DE CETTE VENTE et
+                cesse de suivre la formule, « Revenir à la formule » défait
+                le geste. Ma Couronne comptera SES jetons à elle : lui en
+                afficher six quand on lui en a vendu huit est la plus sûre
+                façon de perdre sa confiance. */}
+            {(() => {
+              const plan = planOf(subForm.planId);
+              if (!plan) return null;
+              const liste = inclusDeLaVente();
+              const ajuste = subForm.inclus !== null;
+              const v = valeurALaCarte(liste, (id) => services.find((x) => x.id === id)?.priceXof);
+              const vendu = prixDeLaVente();
+              const r = remiseSurLaCarte(v.totalXof, vendu);
+              return (
+                <Field label="Le contenu, ajusté pour elle">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {liste.length === 0 && (
+                      <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+                        Cette formule ne porte aucune prestation. Ajoutez-en pour qu’elle puisse la
+                        consommer sans payer, avec un suivi dans Ma Couronne.
+                      </div>
+                    )}
+                    {liste.map((i) => {
+                      const illimite = i.qty === null;
+                      const surLaFormule = plan.included?.find((x) => x.serviceId === i.serviceId);
+                      const change = !surLaFormule || surLaFormule.qty !== i.qty;
+                      return (
+                        <div key={i.serviceId} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 10px', background: 'var(--surface-card)' }}>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {serviceName(i.serviceId)}
+                          </span>
+                          {change && (
+                            <span style={{ flex: 'none', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-600)' }}>
+                              {surLaFormule ? 'modifié' : 'ajouté'}
+                            </span>
+                          )}
+                          {surLaFormule && change && (
+                            <span className="mnd-muted" style={{ flex: 'none', fontSize: 11 }}>
+                              au lieu de {surLaFormule.qty === null ? '∞' : surLaFormule.qty}
+                            </span>
+                          )}
+                          <Input
+                            inputMode="numeric"
+                            value={illimite ? '' : String(i.qty)}
+                            placeholder="∞"
+                            disabled={illimite}
+                            onChange={(e) => qteVente(i.serviceId, Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1))}
+                            style={{ width: 64, textAlign: 'center', flex: 'none' }}
+                          />
+                          <button
+                            type="button"
+                            className={`tre-chip ${illimite ? 'is-on' : ''}`}
+                            onClick={() => qteVente(i.serviceId, illimite ? 1 : null)}
+                            title="Illimité"
+                            style={{ flex: 'none' }}
+                          >
+                            ∞
+                          </button>
+                          <button onClick={() => retireVente(i.serviceId)} aria-label="Retirer" style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13, flex: 'none' }}>✕</button>
+                        </div>
+                      );
+                    })}
+                    <Select
+                      value=""
+                      onChange={(e) => { ajouteVente(e.target.value); e.currentTarget.value = ''; }}
+                      style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
+                    >
+                      <option value="" disabled>+ Ajouter une prestation pour elle...</option>
+                      <OptionsPrestations
+                        services={services}
+                        exclure={(sv) => liste.some((i) => i.serviceId === sv.id)}
+                      />
+                    </Select>
+
+                    {/* LA DURÉE SE NÉGOCIE AUSSI, sur un paquet seulement : un
+                        abonnement à cycle ne s’épuise pas, il se recharge. */}
+                    {plan.mode === 'pack' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span className="mnd-muted" style={{ fontSize: 12 }}>Valable</span>
+                        <Input
+                          inputMode="numeric"
+                          value={subForm.validiteMois}
+                          placeholder={String(moisDuPack(plan))}
+                          onChange={(e) => setSubForm({ ...subForm, validiteMois: e.target.value.replace(/[^0-9]/g, '') })}
+                          style={{ width: 70, textAlign: 'center', flex: 'none' }}
+                        />
+                        <span className="mnd-muted" style={{ fontSize: 12 }}>
+                          mois{subForm.validiteMois ? `  · au lieu de ${moisDuPack(plan)}` : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* LE TOTAL SE RECALCULE SUR CE QUI EST VENDU. Une formule
+                        dont on retire le soin ne vaut plus ce que dit son
+                        catalogue : continuer à l’écrire serait un chiffre faux
+                        tendu à une cliente. */}
+                    {liste.length > 0 && (
+                      <div style={{
+                        marginTop: 4, padding: '11px 13px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.7,
+                        background: r.gainXof < 0 ? 'rgba(150,65,46,.07)' : 'var(--copper-50)',
+                        border: `1px solid ${r.gainXof < 0 ? 'var(--color-brique, #96412E)' : 'var(--copper-300)'}`,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                          <span className="mnd-muted">À la carte{ajuste ? ', telle qu’ajustée' : ''}</span>
+                          <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400 }}>
+                            {fmtMoney(v.totalXof, currency)}
+                          </b>
+                        </div>
+                        {vendu > 0 && v.totalXof > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                            <span className="mnd-muted">
+                              {r.gainXof < 0 ? 'Elle paierait plus qu’à la carte' : 'Elle gagne'}
+                            </span>
+                            <b style={{ fontWeight: 500 }}>
+                              {fmtMoney(Math.abs(r.gainXof), currency)} - {Math.abs(r.pct)} %
+                            </b>
+                          </div>
+                        )}
+                        {v.introuvables > 0 && (
+                          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5 }}>
+                            {v.introuvables} prestation{v.introuvables > 1 ? 's' : ''} hors catalogue, non comptée{v.introuvables > 1 ? 's' : ''}.
+                          </div>
+                        )}
+                        {v.illimitees > 0 && (
+                          <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5 }}>
+                            {v.illimitees} prestation{v.illimitees > 1 ? 's' : ''} illimitée{v.illimitees > 1 ? 's' : ''} : sans quota, sa valeur ne se chiffre pas.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {ajuste && (
+                      <button
+                        type="button"
+                        className="tre-chip"
+                        style={{ alignSelf: 'flex-start' }}
+                        onClick={() => setSubForm({ ...subForm, inclus: null, validiteMois: '' })}
+                      >
+                        Revenir à la formule
+                      </button>
+                    )}
+                  </div>
+                </Field>
+              );
+            })()}
+
             <Field label="Son créneau réservé">
               <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
             </Field>
@@ -1269,7 +1612,11 @@ export default function Abonnements() {
             {(() => {
               const plan = planOf(subForm.planId);
               const supp = chiffreLOption(plan, subForm.cycle)?.supplement ?? 0;
-              const total = (plan ? prixDeLaFormule(plan, subForm.cycle).montantXof : 0) + supp;
+              /* LE SEUIL SE JUGE SUR CE QU'ELLE PAIE VRAIMENT. Une formule
+                 descendue sous 100 000 F ne se découpe plus, et l'écran doit
+                 le dire en refermant la porte plutôt que la laisser ouverte
+                 sur un montant qu'on n'accorde pas. */
+              const total = prixDeLaVente() + supp;
               if (!peutEtreEchelonne(total)) return null;
               const apercu = subForm.parts ? construitEcheancier(total, subForm.parts, todayISO()) : [];
               return (
@@ -1330,7 +1677,15 @@ export default function Abonnements() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
               {planOf(payFor.planId)?.name ?? '—'} · {cycleLabel(payFor.cycle ?? 'mensuel').split(' · ')[0].toLowerCase()}
-              {planOf(payFor.planId) ? ` · ${fmtMoney(prixDeLaFormule(planOf(payFor.planId)!, payFor.cycle ?? 'mensuel').montantXof, currency)}` : ''}
+              {planOf(payFor.planId) ? ` · ${fmtMoney(prixVenduXof(payFor, planOf(payFor.planId), payFor.cycle ?? 'mensuel'), currency)}` : ''}
+              {(() => {
+                const e = ecartDuPrixConvenu(payFor, planOf(payFor.planId), payFor.cycle ?? 'mensuel');
+                return e ? (
+                  <span className="mnd-muted" style={{ textDecoration: 'line-through', marginLeft: 6 }}>
+                    {fmtMoney(e.catalogueXof, currency)}
+                  </span>
+                ) : null;
+              })()}
             </div>
             {/* L'ÉCHÉANCIER, DÉRIVÉ DES RÈGLEMENTS. Les versements s'imputent
                 dans l'ordre, la plus vieille échéance d'abord : c'est la seule

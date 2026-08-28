@@ -2554,6 +2554,17 @@
 .cma-ech__mt { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cma-ech__mt.paye { text-decoration: line-through; color: var(--ink-mute, #70707B); }
 
+/* LE PRIX DU CATALOGUE, BARRÉ À CÔTÉ DU SIEN (28 août). Elle mesure ce que la
+   Maison lui accorde au lieu de le deviner. Discret : c'est SON prix qui doit
+   se lire en premier, l'autre n'est là que pour donner l'échelle. */
+.cma-ech__avant {
+  text-decoration: line-through;
+  color: var(--ink-mute, #70707B);
+  font-size: .86em;
+  margin-right: 7px;
+  font-weight: 400;
+}
+
 .cma-btn {
   display: block; width: 100%; text-align: center; margin-top: 14px;
   font-family: var(--font-sans); font-size: 12.5px; font-weight: 500; letter-spacing: .06em;

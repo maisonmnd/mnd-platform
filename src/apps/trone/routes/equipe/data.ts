@@ -411,13 +411,17 @@ export {
   subCycleAmountXof, subMonthlyXof, activeSubscriberOf, subPaid, addDaysFromISO,
   cycleWindow, subWindow, coversSub, subServiceUsage,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
+  /* Ce qui se convient au comptoir, 28 août — le prix et le contenu propres
+     à une tête. Voir `shared/abonnements.ts`. */
+  prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
+  partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
 } from '../../../../shared/abonnements';
 export type {
   Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage, PrixAffiche,
 } from '../../../../shared/abonnements';
 /* Les seuls usages INTERNES à ce fichier : les semences et le marketing en
    ont besoin comme valeurs, pas seulement comme types. */
-import { plansStore, subscribersStore, coversSub, type Payment, type Plan, type PlanIncluded, type Subscriber } from '../../../../shared/abonnements';
+import { plansStore, subscribersStore, coversSub, inclusVendus, type Payment, type Plan, type PlanIncluded, type Subscriber } from '../../../../shared/abonnements';
 
 
 
@@ -805,7 +809,10 @@ export function ensureStarterPlanIncluded(): void {
 export const coveredRemaining = (
   sub: Subscriber, plan: Plan | undefined, serviceId: string, appts: Appointment[], excludeApptId?: string,
 ): number | null | undefined => {
-  const i = plan?.included?.find((x) => x.serviceId === serviceId);
+  /* SON CONTENU À ELLE. Lire celui de la formule refuserait au comptoir une
+     prestation qu'on lui a vendue en propre, et en offrirait une qu'on lui
+     avait retirée — les deux devant elle, au moment de réserver. */
+  const i = inclusVendus(sub, plan).find((x) => x.serviceId === serviceId);
   if (!i) return undefined;
   if (i.qty === null) return null;
   const used = appts.filter(

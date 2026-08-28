@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Prix Convenu &mdash; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --vert: #4A6B52;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:68ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:70ch; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire);
+           overflow:hidden; box-shadow:0 1px 0 rgba(42,39,34,.04); }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:14px 18px;
+                 display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:22px; }
+
+  .champ { margin-bottom:16px; }
+  .champ__label { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-bottom:6px; }
+  .champ__boite { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:10px 12px; font-size:15px; }
+  .champ__boite.is-select { display:flex; justify-content:space-between; align-items:center; color:var(--encre); }
+  .champ__boite.is-select::after { content:'\2304'; color:var(--encre-d); }
+  .champ__aide { font-size:12px; color:var(--encre-d); margin-top:5px; }
+
+  .neuf { position:relative; border:1px solid var(--cuivre-p); background:var(--cuivre-f);
+          border-radius:3px; padding:18px 16px 14px; margin-bottom:16px; }
+  .neuf__tag { position:absolute; top:-9px; left:12px; background:var(--cuivre); color:#fff;
+               font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; padding:2px 8px; border-radius:2px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .duo { grid-template-columns:1fr; } }
+
+  .prix { font-family:var(--serif); font-size:30px; color:var(--indigo); line-height:1.1;
+          font-variant-numeric:tabular-nums; }
+  .prix--barre { font-size:19px; color:var(--encre-d); text-decoration:line-through; padding-top:8px; }
+  .ecart { display:inline-block; font-size:11.5px; letter-spacing:.08em; padding:2px 8px;
+           border-radius:2px; margin-top:8px; }
+  .ecart--bas { background:#EFF3EF; color:var(--vert); border:1px solid #CBDACE; }
+
+  .tableau { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; min-width:520px; }
+  th { text-align:left; font-weight:400; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--encre-d); padding:0 8px 8px 0; border-bottom:1px solid var(--filet); }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid #EDE5D6; vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.total td { border-bottom:none; border-top:1px solid var(--filet); font-weight:500; padding-top:12px; }
+  .qte { display:inline-flex; align-items:center; border:1px solid var(--filet); border-radius:3px;
+         background:#fff; overflow:hidden; }
+  .qte b { font-weight:400; padding:3px 12px; font-variant-numeric:tabular-nums; }
+  .qte i { font-style:normal; color:var(--encre-d); padding:3px 9px; background:#FAF6EE; }
+  .mod { font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--cuivre); }
+  .retire { color:var(--encre-d); text-decoration:line-through; }
+
+  .cta { display:inline-block; background:var(--cuivre); color:#fff; padding:11px 22px; border-radius:3px;
+         font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
+  .cta--fantome { background:transparent; color:var(--encre-d); border:1px solid var(--filet); }
+
+  .suite { border-left:2px solid var(--cuivre-p); padding-left:18px; margin:0; list-style:none; }
+  .suite li { margin-bottom:15px; color:var(--encre-d); }
+  .suite b { font-weight:500; color:var(--encre); }
+  .garde { border:1px solid var(--filet); border-left:3px solid var(--indigo); background:#fff;
+           border-radius:3px; padding:16px 18px; margin-top:16px; }
+  .garde h3 { margin-bottom:4px; }
+  .garde p { margin:0; color:var(--encre-d); font-size:14px; }
+
+  .trancher { border:1px solid var(--cuivre-p); border-radius:4px; background:#fff; padding:22px; margin-top:18px; }
+  .trancher h3 { color:var(--cuivre); }
+  .trancher ol { margin:14px 0 0; padding-left:20px; }
+  .trancher li { margin-bottom:16px; color:var(--encre-d); }
+  .trancher li b { color:var(--encre); font-weight:500; }
+  .pied { margin-top:76px; padding-top:22px; border-top:1px solid var(--filet);
+          font-size:12px; color:var(--encre-d); letter-spacing:.04em; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Tr&ocirc;ne &middot; Abonnements &middot; Maquette &agrave; valider</p>
+  <h1>Le prix convenu</h1>
+  <p class="chapeau">
+    Vendre une formule &agrave; une cliente pr&eacute;cise, <b>&agrave; son prix</b> et avec <b>son contenu</b>.
+    La formule reste la formule, au catalogue, pour tout le monde. Ce qui se n&eacute;gocie
+    au comptoir se pose sur l&rsquo;abonnement de cette t&ecirc;te-l&agrave;, et nulle part ailleurs.
+  </p>
+
+  <section>
+    <h2><span class="num">&#9312;</span> L&rsquo;&eacute;cran de vente</h2>
+    <p class="intro">
+      Deux blocs s&rsquo;ajoutent &agrave; la fen&ecirc;tre &laquo;&nbsp;Nouvel abonn&eacute;&nbsp;&raquo;, en cuivre ci-dessous.
+      Le reste ne bouge pas : la cliente se choisit d&eacute;j&agrave; dans le carnet, l&rsquo;option couleur et
+      le paiement en plusieurs fois sont d&eacute;j&agrave; l&agrave;.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Vendre une formule</h4>
+        <span>Le Tr&ocirc;ne &middot; Abonnements</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="champ">
+          <div class="champ__label">La t&ecirc;te couronn&eacute;e</div>
+          <div class="champ__boite is-select">M&eacute;rine A.</div>
+        </div>
+
+        <div class="champ">
+          <div class="champ__label">La formule</div>
+          <div class="champ__boite is-select">Les Ann&eacute;es &middot; L&rsquo;Ann&eacute;e Sereine &middot; Duo</div>
+          <div class="champ__aide">Paquet de cr&eacute;dits &middot; 12 mois &middot; 270&nbsp;000 F &agrave; la carte, 215&nbsp;000 F au catalogue.</div>
+        </div>
+
+        <div class="neuf">
+          <span class="neuf__tag">Nouveau</span>
+          <div class="duo">
+            <div>
+              <div class="champ__label">Prix du catalogue</div>
+              <div class="prix prix--barre">215&nbsp;000 F</div>
+            </div>
+            <div>
+              <div class="champ__label">Prix convenu pour M&eacute;rine</div>
+              <div class="champ__boite prix" style="font-size:24px;">190&nbsp;000 F</div>
+              <span class="ecart ecart--bas">25&nbsp;000 F de moins &middot; 11,6 %</span>
+            </div>
+          </div>
+          <div class="champ" style="margin:18px 0 0;">
+            <div class="champ__label">Pourquoi ce prix</div>
+            <div class="champ__boite" style="color:var(--encre-d);">Trois t&ecirc;tes au foyer, fid&egrave;le depuis 2024.</div>
+            <div class="champ__aide">
+              Un prix sans raison devient une discussion trois mois plus tard, quand personne
+              ne se souvient. La phrase se garde avec l&rsquo;abonnement.
+            </div>
+          </div>
+          <div class="champ__aide" style="margin-top:12px;">
+            Champ vide, la cliente paie le prix du catalogue. Rien &agrave; remplir pour une vente ordinaire.
+          </div>
+        </div>
+
+        <div class="neuf">
+          <span class="neuf__tag">Nouveau</span>
+          <div class="champ__label" style="margin-bottom:10px;">Le contenu, ajust&eacute; pour elle</div>
+          <div class="tableau">
+            <table>
+              <thead>
+                <tr>
+                  <th>Prestation</th>
+                  <th class="n">Formule</th>
+                  <th class="n">Pour M&eacute;rine</th>
+                  <th class="n">Valeur</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>S&Iacute;NSIN&trade; resserrage racines</td>
+                  <td class="n" style="color:var(--encre-d)">6</td>
+                  <td class="n"><span class="qte"><i>&minus;</i><b>6</b><i>+</i></span></td>
+                  <td class="n">150&nbsp;000 F</td>
+                </tr>
+                <tr>
+                  <td>KL&#390;KL&#390;&trade; Le Lavage</td>
+                  <td class="n" style="color:var(--encre-d)">6</td>
+                  <td class="n"><span class="qte"><i>&minus;</i><b>8</b><i>+</i></span> <span class="mod">modifi&eacute;</span></td>
+                  <td class="n">160&nbsp;000 F</td>
+                </tr>
+                <tr>
+                  <td class="retire">W&Egrave;W&Egrave;&trade; soin</td>
+                  <td class="n" style="color:var(--encre-d)">2</td>
+                  <td class="n"><span class="qte"><i>&minus;</i><b>0</b><i>+</i></span> <span class="mod">retir&eacute;</span></td>
+                  <td class="n retire">0 F</td>
+                </tr>
+                <tr class="total">
+                  <td>Valeur &agrave; la carte, telle qu&rsquo;ajust&eacute;e</td>
+                  <td></td><td></td>
+                  <td class="n">310&nbsp;000 F</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="champ__aide" style="margin-top:12px;">
+            <b style="color:var(--encre)">Revenir &agrave; la formule</b> remet les quantit&eacute;s du catalogue.
+            <b style="color:var(--encre)">+ Ajouter une prestation</b> en pose une qui n&rsquo;y est pas.
+            La valeur se recalcule &agrave; chaque geste : c&rsquo;est elle qui dit si le prix convenu tient debout.
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:22px; align-items:center; flex-wrap:wrap;">
+          <span class="cta">Inscrire l&rsquo;abonn&eacute;</span>
+          <span class="cta cta--fantome">Annuler</span>
+          <span style="font-size:13.5px; color:var(--encre);">
+            190&nbsp;000 F pour 310&nbsp;000 F &agrave; la carte &middot; elle gagne 120&nbsp;000 F
+          </span>
+        </div>
+
+      </div>
+    </div>
+    <p class="legende">
+      Le nombre du bas est la seule phrase qui compte au comptoir. Il se recalcule &agrave; chaque
+      changement de quantit&eacute; ou de prix, et c&rsquo;est lui qu&rsquo;on lit &agrave; la cliente.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">&#9313;</span> Ce que le prix convenu entra&icirc;ne</h2>
+    <p class="intro">
+      Un prix n&eacute;goci&eacute; qui ne descendrait que dans l&rsquo;&eacute;cran de vente serait pire que pas de prix
+      n&eacute;goci&eacute; du tout : la caisse, le suivi et l&rsquo;application cliente diraient chacun un chiffre
+      diff&eacute;rent. Il commande donc <b>tout ce qui en d&eacute;coule</b>.
+    </p>
+    <ul class="suite">
+      <li><b>Le revenu r&eacute;current.</b> Le MRR se calcule sur le prix convenu, pas sur celui du
+        catalogue. Sinon la Maison lirait chaque mois un revenu qu&rsquo;elle n&rsquo;encaisse pas.</li>
+      <li><b>L&rsquo;&eacute;ch&eacute;ancier.</b> Le paiement en 2 ou 4 fois se d&eacute;coupe sur le montant r&eacute;ellement d&ucirc;.
+        Le seuil des 100&nbsp;000 F se juge lui aussi sur le prix convenu : une formule descendue &agrave;
+        90&nbsp;000 F ne se d&eacute;coupe plus, et l&rsquo;&eacute;cran doit le dire au lieu de le taire.</li>
+      <li><b>La remise annonc&eacute;e.</b> Elle se recalcule sur le contenu ajust&eacute;. Une formule dont on
+        retire le soin ne vaut plus 270&nbsp;000 F &agrave; la carte, et continuer &agrave; l&rsquo;&eacute;crire serait un
+        chiffre faux tendu &agrave; une cliente.</li>
+      <li><b>Ma Couronne.</b> Les jetons de son suivi comptent SON contenu. Si elle a huit lavages
+        au lieu de six, elle voit huit jetons. Un quota lu sur la formule alors qu&rsquo;on lui en a
+        promis un autre est la plus s&ucirc;re fa&ccedil;on de perdre sa confiance.</li>
+      <li><b>Le reste d&ucirc;.</b> Ce qu&rsquo;elle doit encore se mesure au prix convenu. C&rsquo;est aussi lui qui
+        commande le blocage de r&eacute;servation quand une &eacute;ch&eacute;ance passe.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="num">&#9314;</span> Ce qui ne bouge pas</h2>
+    <div class="garde">
+      <h3>La formule reste la formule</h3>
+      <p>
+        Rien de ce qui se convient ici ne touche au catalogue. L&rsquo;Ann&eacute;e Sereine vaut toujours
+        215&nbsp;000 F pour la suivante, et pour la vitrine du comptoir. Le prix convenu et le
+        contenu ajust&eacute; vivent sur l&rsquo;abonnement de cette t&ecirc;te-l&agrave;, jamais sur la formule.
+      </p>
+    </div>
+    <div class="garde">
+      <h3>Une vente ordinaire ne demande rien de plus</h3>
+      <p>
+        Les deux blocs restent vides par d&eacute;faut. Sans prix convenu et sans ajustement,
+        l&rsquo;abonnement se vend exactement comme aujourd&rsquo;hui, au prix et au contenu du catalogue.
+        Personne n&rsquo;a un champ de plus &agrave; remplir pour une vente normale.
+      </p>
+    </div>
+    <div class="garde">
+      <h3>Les abonnements d&eacute;j&agrave; sign&eacute;s ne changent pas</h3>
+      <p>
+        Un abonnement sans prix convenu lit le prix de sa formule, comme il l&rsquo;a toujours fait.
+        Rien &agrave; reprendre, rien &agrave; ressaisir.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">&#9315;</span> Deux points &agrave; trancher</h2>
+    <div class="trancher">
+      <h3>Ce que je ne peux pas d&eacute;cider &agrave; votre place</h3>
+      <ol>
+        <li>
+          <b>Ce que M&eacute;rine voit dans Ma Couronne.</b> Son onglet &laquo;&nbsp;Ma formule&nbsp;&raquo; affiche un prix.
+          Faut-il lui montrer le prix du catalogue barr&eacute; &agrave; c&ocirc;t&eacute; du sien, pour qu&rsquo;elle mesure ce que
+          la Maison lui accorde ? Ou seulement son prix, sans comparaison ? Le premier flatte
+          celle qui en profite, et pique celle qui compare avec son amie.
+        </li>
+        <li>
+          <b>Le motif est-il obligatoire ?</b> L&rsquo;exiger vous oblige &agrave; &eacute;crire une raison &agrave; chaque fois,
+          y compris quand vous &ecirc;tes press&eacute; au comptoir. Ne pas l&rsquo;exiger laisse des prix sans
+          explication dans le dossier, qu&rsquo;il faudra d&eacute;fendre plus tard sans rien pour s&rsquo;appuyer.
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <p class="pied">Maison MND &middot; Le Tr&ocirc;ne &middot; maquette du 28 ao&ucirc;t 2026, &agrave; valider avant construction.</p>
+</div>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
+  prixVenduXof, ecartDuPrixConvenu,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
 } from '../../shared/abonnements';
 import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
@@ -168,7 +169,19 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
           <div className="cma-ech__ligne">
             <span className="cma-pastille avenir" />
             <span className="cma-ech__date">Prochaine échéance · {frCourt(sub.nextIso)}</span>
-            <span className="cma-ech__mt">{fmtMoney(prixDeLaFormule(plan, sub.cycle ?? 'mensuel').montantXof, currency)}</span>
+            {/* SON PRIX, ET CE QUE LA MAISON LUI ACCORDE (décision du 28 août).
+                Le prix du catalogue barré à côté du sien : elle mesure le geste
+                au lieu de le deviner. Sans prix convenu, rien n'est barré et la
+                ligne reste celle d'avant. */}
+            <span className="cma-ech__mt">
+              {(() => {
+                const e = ecartDuPrixConvenu(sub, plan, sub.cycle ?? 'mensuel');
+                return e && e.ecartXof < 0 ? (
+                  <span className="cma-ech__avant">{fmtMoney(e.catalogueXof, currency)}</span>
+                ) : null;
+              })()}
+              {fmtMoney(prixVenduXof(sub, plan, sub.cycle ?? 'mensuel'), currency)}
+            </span>
           </div>
         </div>
       )}

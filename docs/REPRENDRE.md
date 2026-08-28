@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PRIX CONVENU — 28 août, PUBLIÉ
+
+« I need to be able to have it personnalized per clients and select a client to
+sell it to with its own price for each different client. »
+
+Trois champs sur l'ABONNÉE, jamais sur la formule : `prixConvenuXof`,
+`motifConvenu`, `inclusPropres`, plus `validiteJours` pour la durée d'un pack.
+Poser le prix négocié d'une tête sur L'Année Sereine le donnerait à toutes les
+suivantes et à la vitrine du comptoir.
+
+**Tous facultatifs, et c'est la règle.** Absents, l'abonnement lit sa formule
+exactement comme avant : les abonnements déjà signés n'ont rien à reprendre, et
+une vente ordinaire n'a pas un champ de plus à remplir.
+
+### Ce qui a été vendu fait foi, partout
+
+`prixVenduXof`, `inclusVendus`, `validiteVendueJours`, `moisCouvertsVendus`,
+`partMensuelleVendueXof`, `ecartDuPrixConvenu` dans `shared/abonnements.ts` sont
+LE SEUL JUGE. Un prix convenu que l'un des écrans oublie de lire réclamerait le
+prix du catalogue à une cliente à qui on a dit un autre chiffre, au comptoir, la
+caisse ouverte. Sont branchés dessus : le MRR, l'échéancier et son seuil de
+100 000 F, le montant réclamé au règlement, les quotas de Ma Couronne
+(`subServiceUsage`), la couverture à la réservation (`coveredRemaining` et la
+liste de `_shared.tsx`), et la valeur à la carte affichée à la vente.
+
+### Décisions du 28 août
+
+- **Ma Couronne montre le prix du catalogue barré** à côté du sien. Elle mesure
+  ce que la Maison lui accorde au lieu de le deviner (`.cma-ech__avant`).
+- **Le motif est facultatif**, jamais bloquant.
+- **La durée se négocie aussi**, sur un pack seulement : un abonnement à cycle ne
+  s'épuise pas, il se recharge.
+
+### Un défaut trouvé au passage
+
+`saveSub` n'écrivait NI `startIso` NI `expiresIso`. `subWindow` ouvrait donc la
+fenêtre d'un paquet jusqu'en 9999 : la durée de vie était décorative, et une tête
+pouvait revenir trois ans plus tard réclamer son dernier resserrage. La vie du
+paquet s'écrit maintenant à la signature. Les packs vendus AVANT ce correctif
+gardent leur fenêtre infinie, rien ne les rattrape rétroactivement.
+
+Maquette : `public/maquette-le-prix-convenu.html`.
+Harnais : `scripts/verifie-vente.mjs` (19e), 30 assertions.
+
+---
+
 ## LA PORTE DU COMPTE — 28 août, PUBLIÉ (code) · 0075 À PASSER
 
 Deux plaies, une seule racine : le serveur ne savait pas D'OÙ venait un compte.
