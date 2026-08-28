@@ -1,4 +1,4 @@
-import { createStore } from './store';
+import { createStore, useStore } from './store';
 import { catsDansLOrdre, type CatalogCategory, type Product, type Service } from './catalog';
 
 /* Ponts inter-surfaces (mêmes clés localStorage que les prototypes) :
@@ -217,3 +217,40 @@ import { bindCollection, bindDocument } from './sync';
 bindCollection(consultationsQueueStore, 'consultations_queue');
 bindDocument(composeStore, 'mnd_couronne_compose');
 bindDocument(vitrineConfigStore, 'mnd_vitrine_config');
+
+/* ── LES DEMANDES DE FORMULE — Ma Couronne → Le Trône, 28 août 2026 ────
+   « Build an interactive way for the clients to purchase and follow their
+   packs and memberships » (Yéman).
+
+   LE BOUTON DE LA CLIENTE N'ACHÈTE RIEN, IL DEMANDE. Laisser l'application
+   créer des abonnements que personne n'a validés deviendrait ingérable le jour
+   où deux clientes réservent le même créneau réservé — et un abonnement porte
+   un créneau, c'est sa promesse. La demande arrive donc dans Le Trône, Yéman
+   confirme, encaisse, et l'abonnement naît de son geste à lui.
+
+   UNE SEULE DEMANDE OUVERTE PAR TÊTE. Deux demandes simultanées de la même
+   cliente obligeraient à deviner laquelle compte. */
+export type DemandeFormule = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  planId: string;
+  planName: string;
+  /** Jour de la demande — une attente qui porte une date engage la Maison ;
+      « en cours de traitement » n'engage personne. */
+  demandeeLe: string;
+  /** Posé quand la Maison a tranché — l'abonnement est né, ou la demande est
+      retirée. Une demande traitée ne disparaît pas : elle se tait. */
+  traiteeLe?: string;
+  /** L'abonnement né de cette demande, quand il existe. */
+  subId?: string;
+};
+
+export const demandesFormuleStore = createStore<DemandeFormule[]>('mnd_demandes_formule', []);
+export const useDemandesFormule = () => useStore(demandesFormuleStore);
+
+/** La demande OUVERTE d'une tête, s'il y en a une. */
+export const demandeOuverteDe = (liste: readonly DemandeFormule[], clientId: string) =>
+  liste.find((d) => d.clientId === clientId && !d.traiteeLe);
+
+bindCollection(demandesFormuleStore, 'demandes_formule');

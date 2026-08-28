@@ -7,6 +7,7 @@
    avantages, l'écart de remise qui pousse à monter d'un cran, et le seuil au
    delà duquel le paiement se découpe. */
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
+import { formuleLaPlusUtile, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
 
 let ko = 0;
@@ -144,6 +145,53 @@ dit('PACKS_ANNUELS est exactement la famille des Années',
 /* Chaque moment sait se dire : un titre sans phrase laisse l'écran muet. */
 dit('chaque moment porte son titre et sa phrase', [],
   FAMILLES_FORMULES.filter((f) => !f.titre.trim() || !f.quand.trim() || !f.sous.trim()).map((f) => f.k));
+
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
+if (ko > 0) process.exit(1);
+
+/* ── ⑪ CE QU'ELLE AURAIT GAGNÉ ─────────────────────────────────────
+   La phrase qui ouvre la vitrine de Ma Couronne se calcule sur SES rendez-vous.
+   Elle part vers la cliente sans que personne la relise : si elle exagère,
+   c'est la première facture qui la dément. */
+const PLAN_TEST: Plan[] = [
+  { id: 'p-suite', name: 'La Suite', tag: '', priceXof: 35_000, line: 'l', perks: [], popular: false,
+    mode: 'cycle', included: [{ serviceId: 'res', qty: 1 }, { serviceId: 'lav', qty: 1 }] },
+  { id: 'p-lavage', name: 'Le Lavage du Mois', tag: '', priceXof: 15_000, line: 'l', perks: [], popular: false,
+    mode: 'cycle', included: [{ serviceId: 'lav', qty: 1 }] },
+  { id: 'p-pack', name: 'Un pack', tag: '', priceXof: 125_000, line: 'l', perks: [], popular: false,
+    mode: 'pack', validityDays: 365, included: [{ serviceId: 'res', qty: 6 }] },
+];
+const troisMois = [
+  { serviceIds: ['res', 'lav'], netXof: 45_000 },
+  { serviceIds: ['res', 'lav'], netXof: 45_000 },
+  { serviceIds: ['res', 'lav'], netXof: 45_000 },
+];
+const sugg = formuleLaPlusUtile({ plans: PLAN_TEST, rituels: troisMois, moisObserves: 3 });
+dit('la meilleure formule est La Suite', 'La Suite', sugg?.plan.name);
+dit('… elle a dépensé 135 000', 135_000, sugg?.depenseXof);
+dit('… La Suite lui aurait coûté 105 000', 105_000, sugg?.auraitCouteXof);
+dit('… elle aurait donc gagné 30 000', 30_000, sugg?.economieXof);
+
+/* UN RITUEL À MOITIÉ COUVERT NE COMPTE PAS : « Le Lavage du Mois » n'inclut
+   pas le resserrage, ces rituels-là ne lui sont donc pas comparables. */
+const seulLavage = formuleLaPlusUtile({
+  plans: [PLAN_TEST[1]], rituels: troisMois, moisObserves: 3,
+});
+dit('un rituel à moitié couvert ne compte pas', null, seulLavage);
+
+/* Une formule qui ne fait rien gagner ne se propose pas : une suggestion à
+   économie nulle serait un mensonge poli. */
+dit('aucune suggestion quand rien n’est gagné', null, formuleLaPlusUtile({
+  plans: PLAN_TEST, rituels: [{ serviceIds: ['res', 'lav'], netXof: 20_000 }], moisObserves: 3,
+}));
+dit('aucune suggestion sans rituel', null,
+  formuleLaPlusUtile({ plans: PLAN_TEST, rituels: [], moisObserves: 3 }));
+
+/* LES PACKS NE SE COMPARENT PAS SUR TROIS MOIS : jugé sur une fenêtre courte,
+   un paquet annuel paraîtrait ruineux et ne serait jamais propose. */
+dit('un pack n’entre pas dans la comparaison courte', null, formuleLaPlusUtile({
+  plans: [PLAN_TEST[2]], rituels: [{ serviceIds: ['res'], netXof: 25_000 }], moisObserves: 3,
+}));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -15,6 +15,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useAppointments } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
+import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -171,6 +172,29 @@ export default function Abonnements() {
       }]
       : groupes;
   }, [plans]);
+
+  /* Les demandes venues de Ma Couronne, celles qui attendent encore. */
+  const [demandes] = useDemandesFormule();
+  const demandesOuvertes = useMemo(
+    () => demandes.filter((d) => !d.traiteeLe && clients.some((c) => c.id === d.clientId)),
+    [demandes, clients],
+  );
+  /* Inscrire depuis une demande : le formulaire s'ouvre DÉJÀ REMPLI de ce
+     qu'elle a choisi. Il ne reste que le créneau et le règlement — le reste,
+     elle l'a dit elle-même. */
+  const ouvrirDepuisDemande = (d: DemandeFormule) => {
+    setSubForm({
+      clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel',
+      parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '',
+    });
+    setSubModal(true);
+  };
+  /* CLASSER N'EFFACE PAS : la demande se tait, elle ne disparaît pas. La leçon
+     des abonnements résiliés du 28 août au matin vaut ici aussi. */
+  const classerDemande = (id: string) => {
+    demandesFormuleStore.set((prev) => prev.map((d) => (d.id === id ? { ...d, traiteeLe: todayISO() } : d)));
+    toast('Demande classée. Elle reste dans le registre.');
+  };
 
   const movePlan = (id: string, dir: -1 | 1) => {
     setPlans((prev) => {
@@ -581,6 +605,35 @@ export default function Abonnements() {
             </div>
             <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
+
+          {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
+              Le bouton de la cliente n'achète rien, il demande : c'est ici que
+              la demande arrive, et c'est le geste de Yéman qui fait naître
+              l'abonnement. Elles passent EN TÊTE parce qu'une demande qui
+              attend est une vente qui attend. */}
+          {demandesOuvertes.length > 0 && (
+            <Card style={{ padding: '16px 20px', marginBottom: 14, borderColor: 'var(--copper-300)', background: 'var(--copper-50)' }}>
+              <div className="tre-sec-label" style={{ marginBottom: 10 }}>
+                {demandesOuvertes.length} demande{demandesOuvertes.length > 1 ? 's' : ''} venue{demandesOuvertes.length > 1 ? 's' : ''} de Ma Couronne
+              </div>
+              {demandesOuvertes.map((d) => (
+                <div key={d.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                  flexWrap: 'wrap', padding: '9px 0', borderTop: '1px solid var(--hairline)',
+                }}>
+                  <span style={{ minWidth: 0 }}>
+                    <b style={{ fontWeight: 500 }}>{d.clientName}</b>
+                    <span className="mnd-muted" style={{ fontSize: 12.5 }}> veut « {d.planName} »</span>
+                    <div className="mnd-muted" style={{ fontSize: 11 }}>demandée le {shortDate(d.demandeeLe)}</div>
+                  </span>
+                  <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
+                    <Button size="sm" variant="copper" onClick={() => ouvrirDepuisDemande(d)}>Inscrire</Button>
+                    <Button size="sm" variant="ghost" onClick={() => classerDemande(d.id)}>Classer</Button>
+                  </span>
+                </div>
+              ))}
+            </Card>
+          )}
 
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">

@@ -1,0 +1,317 @@
+import { useMemo } from 'react';
+import { useBranch } from '../../shared/branches';
+import { fmtMoney } from '../../shared/currency';
+import { useAppointments } from '../../shared/agenda';
+import { useServices } from '../../shared/catalog';
+import {
+  FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, subCycleAmountXof,
+  subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
+} from '../../shared/abonnements';
+import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
+import { libelleCouleur } from '../../shared/couleur';
+import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule } from '../../shared/bridges';
+import { uid } from '../../shared/store';
+import { useClient } from './lib';
+import './couronne.css';
+
+/* ── MA FORMULE — l'abonnement vu par la cliente, 28 août 2026 ────────
+   « Build an interactive way for the clients to purchase and follow their
+   packs and memberships » (Yéman).
+
+   ELLE VIENT VÉRIFIER TROIS CHOSES, jamais plus : ce qu'il lui reste, ce
+   qu'elle doit, ce qu'elle pourrait prendre. L'écran s'ouvre donc sur ses
+   crédits, parce que c'est la seule raison pour laquelle elle l'ouvre.
+
+   LES JETONS PLUTÔT QU'UN CHIFFRE. « 4 séances sur 6 » se lit, six pastilles
+   se comptent. Le jeton en pointillé est le prochain : elle voit d'un coup
+   d'œil ce qu'elle a pris, ce qui l'attend, et combien de fois elle
+   reviendra. Un compteur numérique demande un calcul, une rangée non.
+
+   RIEN N'EST STOCKÉ. Les crédits se relisent depuis ses rendez-vous à chaque
+   ouverture (`subServiceUsage`). Un compteur écrit à côté de ses rendez-vous
+   finit toujours par les contredire — et c'est elle qui aurait raison.
+
+   L'ÉCRAN NE PRÉLÈVE PAS, ET LE BOUTON N'ACHÈTE RIEN. Il écrit à la Maison.
+   Laisser une application créer des abonnements que personne n'a validés
+   deviendrait ingérable le jour où deux clientes réservent le même créneau
+   réservé — et un abonnement porte un créneau, c'est sa promesse. */
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const frCourt = (iso?: string) => {
+  if (!iso) return '—';
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+};
+
+/** Les jetons d'une prestation incluse : pris, prochain, à venir. */
+function Jetons({ pris, total }: { pris: number; total: number }) {
+  /* Au-delà de douze, la rangée cesse d'être lisible d'un coup d'œil : on
+     rend alors le compte en clair plutôt qu'un mur de pastilles. */
+  if (total > 12) {
+    return <div className="cma-jetons__long">{pris} pris sur {total}</div>;
+  }
+  return (
+    <div className="cma-jetons">
+      {Array.from({ length: total }, (_, i) => {
+        const etat = i < pris ? 'pris' : i === pris ? 'suivant' : '';
+        return (
+          <span key={i} className={`cma-jeton ${etat}`} aria-hidden="true">
+            {etat === 'pris' ? '✓' : etat === 'suivant' ? '→' : ''}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── CE QU'ELLE A ────────────────────────────────────────────────────── */
+function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
+  const { currency, branch } = useBranch();
+  const [appts] = useAppointments();
+  const [services] = useServices();
+  const nomService = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
+
+  const usage = useMemo(() => subServiceUsage(sub, plan, appts), [sub, plan, appts]);
+  /* « Il vous reste N séances » — la plus contrainte des prestations, celle
+     qui s'épuisera la première. Annoncer la plus généreuse ferait une
+     promesse que la formule ne tient pas. */
+  const restant = usage.reduce<number | null>((m, u) => (
+    u.remaining === null ? m : (m === null ? u.remaining : Math.min(m, u.remaining))
+  ), null);
+  const total = usage.reduce((m, u) => Math.max(m, u.qty ?? 0), 0);
+
+  const etats = sub.echeances?.length
+    ? etatDesEcheances(sub.echeances, subPaid(sub), todayIso())
+    : [];
+  const suivante = prochaineEcheance(etats);
+
+  /* LE BOUTON ÉCRIT À LA MAISON, il ne prélève pas. Une application qui
+     prétendrait encaisser seule créerait des paiements que personne n'a vus. */
+  const numero = (branch.phone ?? '').replace(/\D/g, '');
+  const lienReglement = suivante && numero
+    ? `https://wa.me/${numero}?text=${encodeURIComponent(
+      `Bonjour, je souhaite régler ${fmtMoney(suivante.resteXof, currency)} sur mon abonnement « ${plan?.name ?? ''} ».`)}`
+    : '';
+
+  return (
+    <>
+      <div className="cma-carte">
+        <div className="cma-carte__tag">
+          {plan?.mode === 'pack' ? `${total} séances · valable 12 mois` : cycleLabel(sub.cycle ?? 'mensuel')}
+        </div>
+        <div className="cma-carte__nom">{plan?.name ?? 'Votre formule'}</div>
+        {plan?.line && <p className="cma-carte__ligne">{plan.line}</p>}
+        <div className="cma-carte__etat">
+          <span>Il vous reste</span>
+          <b>{restant === null ? 'sans limite' : `${restant} séance${restant > 1 ? 's' : ''}${total ? ` sur ${total}` : ''}`}</b>
+        </div>
+      </div>
+
+      {sub.couleur && (
+        <div className="cma-option">
+          <span className="cma-micro">Votre option couleur</span>
+          <div className="cma-option__val">{libelleCouleur(sub.couleur)}</div>
+        </div>
+      )}
+
+      {usage.length > 0 && (
+        <div className="cma-credits">
+          <span className="cma-micro">Vos crédits</span>
+          {usage.map((u) => (
+            <div key={u.serviceId} className="cma-credit">
+              <div className="cma-credit__tete">
+                <span className="cma-credit__nom">{nomService(u.serviceId)}</span>
+                <span className="cma-credit__compte">
+                  {u.qty === null
+                    ? 'sans limite'
+                    : `${u.used} pris · ${u.remaining} reste${(u.remaining ?? 0) > 1 ? 'nt' : ''}`}
+                </span>
+              </div>
+              {u.qty !== null && <Jetons pris={u.used} total={u.qty} />}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {etats.length > 0 && (
+        <div className="cma-ech">
+          <span className="cma-micro">Votre règlement · en {etats.length} fois</span>
+          {etats.map((e) => (
+            <div key={e.numero} className="cma-ech__ligne">
+              <span className={`cma-pastille ${e.soldee ? 'ok' : e.enRetard ? 'retard' : 'avenir'}`} />
+              <span className="cma-ech__date">
+                {e.numero}{e.numero === 1 ? 'ʳᵉ' : 'ᵉ'} · {frCourt(e.dueIso)}
+                {e.soldee ? ', réglée'
+                  : e.enRetard ? `, en retard de ${e.retardJours} j`
+                    : e.regleXof > 0 ? `, ${fmtMoney(e.regleXof, currency)} versés` : ''}
+              </span>
+              <span className={`cma-ech__mt ${e.soldee ? 'paye' : ''}`}>{fmtMoney(e.amountXof, currency)}</span>
+            </div>
+          ))}
+          {suivante && (
+            lienReglement
+              ? <a className="cma-btn" href={lienReglement} target="_blank" rel="noreferrer">
+                Régler {fmtMoney(suivante.resteXof, currency)}
+              </a>
+              : <div className="cma-vide">Il reste {fmtMoney(resteDeLEcheancier(etats), currency)} à régler au comptoir.</div>
+          )}
+          <p className="cma-note">
+            La Maison vous envoie le code MoMo et constate votre règlement au comptoir.
+          </p>
+        </div>
+      )}
+
+      {etats.length === 0 && plan && (
+        <div className="cma-ech">
+          <span className="cma-micro">Votre règlement</span>
+          <div className="cma-ech__ligne">
+            <span className="cma-pastille avenir" />
+            <span className="cma-ech__date">Prochaine échéance · {frCourt(sub.nextIso)}</span>
+            <span className="cma-ech__mt">{fmtMoney(subCycleAmountXof(plan.priceXof, sub.cycle ?? 'mensuel'), currency)}</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── CE QU'ELLE POURRAIT PRENDRE ─────────────────────────────────────── */
+function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) => void }) {
+  const { currency } = useBranch();
+  const [appts] = useAppointments();
+  const client = useClient();
+
+  /* LA PHRASE QUI VEND, et elle est la sienne : calculée sur SES rendez-vous
+     des trois derniers mois. C'est le seul argument qu'on ne peut pas
+     discuter, et il ne demande aucun effort de vente au comptoir. */
+  const suggestion = useMemo(() => {
+    if (!client) return null;
+    const depuis = new Date(Date.now() - 92 * 86_400_000).toISOString().slice(0, 10);
+    const miens = appts.filter((a) => a.clientId === client.id && a.status === 'honoré' && a.date >= depuis);
+    return formuleLaPlusUtile({
+      plans,
+      rituels: miens.map((a) => ({ serviceIds: a.serviceIds, netXof: a.paidXof ?? 0 })),
+      moisObserves: 3,
+    });
+  }, [client, appts, plans]);
+
+  /* LE MÊME RANGEMENT QUE LE TRÔNE, lu de la même source. Une vitrine qui
+     aurait son propre ordre aurait divergé au premier ajout, et la cliente
+     aurait vu autre chose que ce que la Maison croit montrer.
+
+     Les formules laissées « à part », sans moment du parcours, ne paraissent
+     pas : le champ devient la commande qui publie une formule ou la garde. */
+  const moments = useMemo(() => FAMILLES_FORMULES
+    .map((f) => ({ ...f, liste: plans.filter((p) => p.famille === f.k) }))
+    .filter((g) => g.liste.length > 0), [plans]);
+
+  return (
+    <>
+      <p className="cma-titre">Vous n’avez pas encore de formule.</p>
+      {suggestion ? (
+        <p className="cma-sous">
+          Vos {suggestion.rituels} derniers rituels vous auraient coûté{' '}
+          <b>{fmtMoney(suggestion.economieXof, currency)} de moins</b> avec {suggestion.plan.name}.
+        </p>
+      ) : (
+        <p className="cma-sous">Chacune réserve un créneau rien qu’à vous, et se règle sans paperasse.</p>
+      )}
+
+      {moments.length === 0 && (
+        <div className="cma-vide">La Maison n’a pas encore ouvert ses formules. Revenez bientôt.</div>
+      )}
+
+      {moments.map((m) => (
+        <section key={m.k}>
+          <div className="cma-moment">
+            <span className="cma-moment__titre">{m.titre}</span>
+            <span className="cma-moment__quand">{m.quand}</span>
+            <span className="cma-moment__rule" />
+          </div>
+          {m.liste.map((p) => (
+            <div key={p.id} className={`cma-offre ${suggestion?.plan.id === p.id ? 'phare' : ''}`}>
+              <div className="cma-offre__tag">{p.tag}</div>
+              <div className="cma-offre__nom">{p.name}</div>
+              <p className="cma-offre__ligne">{p.line}</p>
+              <div className="cma-offre__bas">
+                <span className="cma-offre__prix">
+                  {fmtMoney(p.priceXof, currency)}
+                  <span>{p.mode === 'pack' ? ' · 12 mois' : ' /mois'}</span>
+                </span>
+                {p.discountPct ? <span className="cma-offre__gain">−{p.discountPct} % sur la carte</span> : null}
+              </div>
+              <button
+                type="button"
+                className={`cma-btn cma-btn--sm ${suggestion?.plan.id === p.id ? '' : 'ghost'}`}
+                onClick={() => onDemande(p)}
+              >
+                Je veux cette formule
+              </button>
+            </div>
+          ))}
+        </section>
+      ))}
+    </>
+  );
+}
+
+/* ── L'ONGLET ────────────────────────────────────────────────────────── */
+export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
+  const { branch } = useBranch();
+  const client = useClient();
+  const [plans] = usePlans();
+  const [subs] = useSubscribers();
+  const [demandes] = useDemandesFormule();
+
+  const sub = client ? activeSubscriberOf(subs, client.id) : undefined;
+  const plan = sub ? plans.find((p) => p.id === sub.planId) : undefined;
+  const ouverte = client ? demandeOuverteDe(demandes, client.id) : undefined;
+
+  const demander = (p: Plan) => {
+    if (!client) return;
+    demandesFormuleStore.set((prev) => [...prev, {
+      id: `df-${uid()}`,
+      clientId: client.id,
+      clientName: client.name,
+      planId: p.id,
+      planName: p.name,
+      demandeeLe: todayIso(),
+    }]);
+    toast('Votre demande est partie, la Maison vous répond très vite.');
+  };
+
+  const numero = (branch.phone ?? '').replace(/\D/g, '');
+
+  return (
+    <div className="cma-wrap">
+      {sub ? (
+        <SaFormule sub={sub} plan={plan} />
+      ) : ouverte ? (
+        /* L'ATTENTE PORTE UNE DATE : elle engage la Maison, là où « en cours
+           de traitement » n'engage personne et laisse la cliente se demander
+           si le bouton a marché. */
+        <div className="cma-attente">
+          <div className="cma-attente__tag">Demande envoyée</div>
+          <p className="cma-attente__nom">{ouverte.planName}</p>
+          <p className="cma-attente__dit">
+            La Maison a reçu votre demande le {frCourt(ouverte.demandeeLe)}. Elle vous répond très
+            vite, et vous réglerez au comptoir ou par MoMo.
+          </p>
+          {numero && (
+            <a
+              className="cma-btn cma-btn--sm ghost"
+              href={`https://wa.me/${numero}?text=${encodeURIComponent(`Bonjour, je vous ai demandé la formule « ${ouverte.planName} ».`)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Écrire à la Maison
+            </a>
+          )}
+        </div>
+      ) : (
+        <LaVitrine plans={plans} onDemande={demander} />
+      )}
+    </div>
+  );
+}

@@ -11,16 +11,20 @@ import Booking from './Booking';
 import Compose from './Compose';
 import MesRendezVous from './MesRendezVous';
 import { HomeTab, HomeEnfant, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications, MesCommandes } from './Tabs';
+import { MaFormuleTab } from './MaFormule';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
    Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
    sur bureau, navigation verticale à gauche et contenu centré large. */
 
-type TabId = 'accueil' | 'suivi' | 'gamme' | 'cercle' | 'profil';
+type TabId = 'accueil' | 'suivi' | 'formule' | 'gamme' | 'cercle' | 'profil';
 
 const TABS: { id: TabId; label: string; glyph: string }[] = [
   { id: 'accueil', label: 'Accueil', glyph: '♛' },
   { id: 'suivi', label: 'Suivi', glyph: '◷' },
+  /* MA FORMULE — 28 aout. Entre le Suivi et la Gamme : c'est l'ecran ou
+     elle verifie ce qu'il lui reste, juste apres son parcours. */
+  { id: 'formule', label: 'Ma formule', glyph: '◈' },
   { id: 'gamme', label: 'Gamme', glyph: '⬡' },
   { id: 'cercle', label: 'Cercle', glyph: '✦' },
   { id: 'profil', label: 'Profil', glyph: '◈' },
@@ -186,6 +190,7 @@ function Shell() {
           />
         ))}
         {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}
+        {tab === 'formule' && <MaFormuleTab toast={toast} />}
         {tab === 'gamme' && <GammeTab toast={toast} onOpenOrders={openOrders} />}
         {tab === 'cercle' && <CercleTab toast={toast} />}
         {tab === 'profil' && <ProfilTab toast={toast} />}

@@ -2467,3 +2467,132 @@
   color: var(--color-ivoire);
 }
 .mc-pourqui__chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ── MA FORMULE — 28 août ────────────────────────────────────────────
+   Ce qu'il lui reste, ce qu'elle doit, ce qu'elle pourrait prendre. */
+.cma-wrap { display: flex; flex-direction: column; }
+
+.cma-micro {
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-mute, #70707B); font-weight: 600; display: block; margin-bottom: 10px;
+}
+.cma-titre {
+  font-family: var(--font-serif); font-weight: 300; font-size: 22px;
+  color: var(--color-indigo); margin: 0 0 4px; line-height: 1.2;
+}
+.cma-sous { font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; line-height: 1.6; }
+.cma-sous b { font-weight: 500; color: var(--ink); }
+.cma-note { font-size: 11px; color: var(--ink-soft); margin: 9px 0 0; line-height: 1.6; }
+.cma-vide {
+  font-size: 12.5px; color: var(--ink-soft); border: 1px dashed var(--hairline);
+  border-radius: 4px; padding: 15px 16px; margin-top: 10px;
+}
+
+/* La carte de la formule — la seule surface indigo de l'écran. */
+.cma-carte {
+  background: var(--color-indigo); color: var(--color-ivoire);
+  border-radius: 4px; padding: 18px; position: relative; overflow: hidden;
+}
+.cma-carte::after {
+  content: ''; position: absolute; right: -34px; top: -34px;
+  width: 110px; height: 110px; border-radius: 50%;
+  border: 1px solid rgba(185, 122, 74, .35);
+}
+.cma-carte__tag {
+  font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--copper-300); font-weight: 600;
+}
+.cma-carte__nom {
+  font-family: var(--font-serif); font-weight: 300; font-size: 26px;
+  line-height: 1.1; margin: 5px 0 3px;
+}
+.cma-carte__ligne {
+  font-family: var(--font-serif); font-style: italic; font-size: 13.5px;
+  color: var(--indigo-100); margin: 0 0 14px;
+}
+.cma-carte__etat {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-top: 12px; border-top: 1px solid rgba(211, 213, 229, .25);
+  font-size: 11.5px; color: var(--indigo-100);
+}
+.cma-carte__etat b {
+  font-family: var(--font-serif); font-size: 17px; font-weight: 400; color: var(--color-ivoire);
+}
+
+.cma-option { margin-top: 16px; }
+.cma-option__val { font-size: 13.5px; color: var(--copper-700); font-weight: 500; }
+
+/* LES JETONS PLUTÔT QU'UN CHIFFRE : six pastilles se comptent d'un coup
+   d'œil, « 4 sur 6 » demande un calcul. */
+.cma-credits { margin-top: 18px; }
+.cma-credit { margin-bottom: 15px; }
+.cma-credit__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cma-credit__nom { font-size: 13px; }
+.cma-credit__compte { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.cma-jetons { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+.cma-jetons__long { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+.cma-jeton {
+  width: 21px; height: 21px; border-radius: 50%; flex: none;
+  border: 1px solid var(--color-argile); background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--color-argile);
+}
+.cma-jeton.pris { background: var(--copper-600); border-color: var(--copper-600); color: #fff; }
+.cma-jeton.suivant { border-color: var(--copper-600); border-style: dashed; color: var(--copper-700); }
+
+/* L'échéancier — le retard se dit, il ne se cache pas. */
+.cma-ech { margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--hairline); }
+.cma-ech__ligne {
+  display: grid; grid-template-columns: 11px 1fr auto; gap: 9px;
+  align-items: baseline; padding: 7px 0; font-size: 12px;
+}
+.cma-pastille { width: 8px; height: 8px; border-radius: 50%; align-self: center; }
+.cma-pastille.ok { background: var(--color-vert, #2E6B4F); }
+.cma-pastille.retard { background: var(--color-brique, #96412E); }
+.cma-pastille.avenir { background: var(--color-argile); }
+.cma-ech__date { color: var(--ink-soft); }
+.cma-ech__mt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cma-ech__mt.paye { text-decoration: line-through; color: var(--ink-mute, #70707B); }
+
+.cma-btn {
+  display: block; width: 100%; text-align: center; margin-top: 14px;
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 500; letter-spacing: .06em;
+  padding: 11px 16px; border-radius: 3px; border: 1px solid var(--copper-600);
+  background: var(--copper-600); color: #fff; text-decoration: none; cursor: pointer;
+}
+.cma-btn.ghost { background: transparent; color: var(--copper-700); }
+.cma-btn--sm { padding: 8px 13px; font-size: 11.5px; width: auto; display: inline-block; margin-top: 9px; }
+
+/* La vitrine — le même rangement que Le Trône, lu de la même source. */
+.cma-moment { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 9px; }
+.cma-moment__titre { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); white-space: nowrap; }
+.cma-moment__quand { font-size: 10px; color: var(--ink-soft); letter-spacing: .04em; }
+.cma-moment__rule { height: 1px; background: var(--hairline); flex: 1; }
+
+.cma-offre {
+  border: 1px solid var(--hairline); border-radius: 3px; padding: 13px 14px;
+  margin-bottom: 9px; background: #fff;
+}
+.cma-offre.phare { border-color: var(--copper-300); background: var(--copper-50); }
+.cma-offre__tag { font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-600); font-weight: 600; }
+.cma-offre__nom { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); line-height: 1.15; margin: 3px 0 2px; }
+.cma-offre__ligne { font-family: var(--font-serif); font-style: italic; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 8px; }
+.cma-offre__bas { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cma-offre__prix { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
+.cma-offre__prix span { font-size: 10.5px; color: var(--ink-soft); font-family: var(--font-sans); }
+.cma-offre__gain { font-size: 10.5px; color: var(--color-vert, #2E6B4F); }
+
+/* L'attente porte une date : elle engage la Maison. */
+.cma-attente {
+  border: 1px dashed var(--copper-300); background: var(--copper-50);
+  border-radius: 4px; padding: 18px 16px; text-align: center;
+}
+.cma-attente__tag {
+  font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--copper-700); font-weight: 600;
+}
+.cma-attente__nom {
+  font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo);
+  margin: 8px 0 6px; line-height: 1.2;
+}
+.cma-attente__dit { font-size: 12.5px; color: var(--ink-soft); margin: 0; line-height: 1.6; }

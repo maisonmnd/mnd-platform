@@ -54,6 +54,70 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## Ma formule — l'abonnement vu par la cliente, 28 août, PUBLIÉ
+
+« Build an interactive way for the clients to purchase and follow their packs
+and memberships » (Yéman). Nouvel onglet dans Ma Couronne, entre le Suivi et la
+Gamme.
+
+### ⚠️ UNE MIGRATION À PASSER
+
+`supabase/apply_demandes_formule.sql` — **tant qu'elle n'est pas passée**, le
+bouton « Je veux cette formule » écrit en local sans jamais remonter : la
+cliente croit avoir demandé, et la Maison ne voit rien. La RLS est dans le même
+fichier — dépôt par `anon`, lecture réservée au personnel : sans elle, la clé
+anon rendrait la liste des demandes de toutes les clientes, avec leurs noms.
+
+### Le modèle est descendu dans `shared/`
+
+`src/shared/abonnements.ts` porte désormais formules, abonnées, cycles et
+consommation. **Ma Couronne n'importe RIEN du Trône** — cette séparation est ce
+qui garde l'application cliente légère. `routes/equipe/data.ts` réexporte tout :
+aucun des quarante imports existants n'a changé.
+
+**Les deux magasins sont créés ET liés dans `shared/abonnements.ts`, une seule
+fois.** Les créer des deux côtés aurait donné deux instances sur la même clé :
+les lectures auraient concordé, les rendus non — un geste posé d'un côté ne
+réveillant pas les écrans de l'autre. C'est le genre de désaccord qu'on met des
+mois à voir.
+
+### Trois états, trois écrans
+
+1. **Elle a une formule** — ses crédits en JETONS (« 4 sur 6 » se lit, six
+   pastilles se comptent ; le jeton pointillé est le prochain), son échéancier
+   avec le retard en brique, et un bouton qui propose exactement la prochaine
+   échéance. Le « il vous reste N séances » prend la prestation la PLUS
+   CONTRAINTE : annoncer la plus généreuse ferait une promesse que la formule ne
+   tient pas.
+2. **Elle n'en a pas** — la vitrine rangée par les cinq moments, lue de la même
+   source que Le Trône, ouverte sur une phrase calculée sur SES rendez-vous :
+   « vos 3 derniers rituels vous auraient coûté 30 000 F de moins avec La
+   Suite ». `formuleLaPlusUtile` ne compte QUE les rituels dont TOUTES les
+   prestations sont incluses — à moitié couvert, il gonflerait l'économie, et
+   elle le découvrirait à sa première facture.
+3. **Elle a demandé** — l'attente porte une date, qui engage la Maison là où
+   « en cours de traitement » n'engage personne.
+
+### Deux règles qui tiennent tout
+
+**LE BOUTON N'ACHÈTE RIEN, IL DEMANDE.** Laisser l'application créer des
+abonnements que personne n'a validés deviendrait ingérable le jour où deux
+clientes réservent le même créneau réservé — et un abonnement porte un créneau,
+c'est sa promesse. Les demandes arrivent en tête de Abonnements › Les membres ;
+« Inscrire » ouvre le formulaire déjà rempli, « Classer » fait taire la demande
+**sans l'effacer** (même leçon que les abonnements résiliés du matin).
+
+**L'ÉCRAN NE PRÉLÈVE PAS.** Le bouton écrit à la Maison sur WhatsApp avec le
+montant ; c'est elle qui envoie le code MoMo et constate le règlement. Une
+application qui prétendrait encaisser seule créerait des paiements que personne
+n'a vus. *(Le lien MoMo direct demanderait de faire passer `momoUssd` par
+`vitrineConfigStore` — pas fait, à décider.)*
+
+`verifie-formules` monte à **61 assertions**. Au passage : sa conclusion
+s'imprimait au MILIEU du fichier, si bien qu'un échec dans les assertions
+ajoutées n'aurait plus fait sortir en erreur. Corrigé — une seule conclusion, en
+toute fin.
+
 ## L'option couleur — les cheveux blancs, 28 août, PUBLIÉ
 
 « J'ai de plus en plus de jeunes dames dans la quarantaine, cinquantaine, qui
