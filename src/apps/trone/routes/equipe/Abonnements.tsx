@@ -13,7 +13,7 @@ import {
 } from './data';
 import { useServices } from '../../../../shared/catalog';
 import { useAppointments } from '../../../../shared/agenda';
- import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
+ import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
@@ -310,6 +310,15 @@ export default function Abonnements() {
       : plan ? subCycleAmountXof(plan.priceXof, m.cycle ?? 'mensuel') : 0;
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
     setPayFor(m);
+  };
+
+  /* REPOSER LA DATE D'UNE ÉCHÉANCE. Le magasin garde l'échéancier corrigé, et
+     `payFor` est relu depuis lui pour que la modale suive le geste. */
+  const reposerLaDate = (m: Subscriber, numero: number, iso: string) => {
+    if (!m.echeances || !iso) return;
+    const suite = deplaceEcheance(m.echeances, numero, iso);
+    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, echeances: suite } : x)));
+    setPayFor({ ...m, echeances: suite });
   };
 
   /* L'état de paiement d'une abonnée, pour le tableau — dérivé, jamais stocké. */
@@ -1193,11 +1202,25 @@ export default function Abonnements() {
                           width: 8, height: 8, borderRadius: '50%', flex: 'none',
                           background: e.soldee ? 'var(--color-vert, #2E6B4F)' : e.enRetard ? 'var(--color-brique, #96412E)' : 'var(--color-argile)',
                         }} />
-                        <span className="mnd-muted">
-                          {e.numero}ᵉ · {shortDate(e.dueIso)}
-                          {e.soldee ? ' · soldée'
-                            : e.enRetard ? ` · en retard de ${e.retardJours} jour${e.retardJours > 1 ? 's' : ''}`
-                              : e.regleXof > 0 ? ` · ${fmtMoney(e.regleXof, currency)} versés` : ' · à venir'}
+                        <span className="mnd-muted" style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                          <b style={{ fontWeight: 500 }}>{e.numero}ᵉ</b>
+                          {/* LA DATE S'ÉDITE — la vie ne suit pas le calendrier :
+                              un salaire qui tombe le 5, un voyage, un mois
+                              difficile. Une date qu'on ne peut pas déplacer se
+                              contourne en ne payant pas, et c'est la Maison qui
+                              perd la trace. Déplacer POUSSE les suivantes :
+                              l'imputation se fait dans l'ordre, l'ordre tient. */}
+                          <input
+                            type="date"
+                            className="mnd-input"
+                            value={e.dueIso}
+                            onChange={(ev) => reposerLaDate(payFor, e.numero, ev.target.value)}
+                            aria-label={`Date de la ${e.numero}ᵉ échéance`}
+                            style={{ padding: '3px 6px', fontSize: 11.5, width: 132 }}
+                          />
+                          {e.soldee ? 'soldée'
+                            : e.enRetard ? `en retard de ${e.retardJours} jour${e.retardJours > 1 ? 's' : ''}`
+                              : e.regleXof > 0 ? `${fmtMoney(e.regleXof, currency)} versés` : 'à venir'}
                         </span>
                         <b style={{ fontWeight: 500, whiteSpace: 'nowrap', textDecoration: e.soldee ? 'line-through' : undefined, color: e.soldee ? 'var(--ink-soft)' : undefined }}>
                           {fmtMoney(e.amountXof, currency)}

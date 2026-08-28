@@ -133,3 +133,94 @@ export const plusVieuxRetardJours = (etats: readonly EtatEcheance[]): number =>
     Ce n'est pas une erreur (avance, arrondi de la main), mais il faut le voir. */
 export const tropVerseXof = (echeances: readonly Echeance[], verseXof: number): number =>
   Math.max(0, Math.max(0, verseXof) - echeances.reduce((s, e) => s + e.amountXof, 0));
+
+/* ── DÉPLACER UNE ÉCHÉANCE — 28 août 2026 ─────────────────────────────
+   « Quand une cliente paie en plusieurs fois, permets-moi d'éditer les dates
+   de paiement » (Yéman). La vie ne suit pas le calendrier : un salaire qui
+   tombe le 5, un voyage, un mois difficile. Une date qu'on ne peut pas
+   déplacer se contourne en ne payant pas — et c'est la Maison qui perd la
+   trace.
+
+   L'ORDRE NE SE CASSE PAS. Les échéances s'imputent dans l'ordre (règle ③) :
+   une deuxième échéance datée AVANT la première rendrait le mot « retard »
+   incalculable. Déplacer une échéance POUSSE donc celles qui suivent, et ne
+   remonte jamais avant celle qui précède. C'est la seule contrainte, et elle
+   se voit à l'écran plutôt que de se deviner. */
+
+/** Repose la date d'une échéance sans jamais casser l'ordre.
+    Les suivantes sont poussées juste ce qu'il faut ; les précédentes ne
+    bougent pas, et la nouvelle date ne peut pas passer avant elles. */
+export function deplaceEcheance(
+  echeances: readonly Echeance[], numero: number, nouvelleIso: string,
+): Echeance[] {
+  const liste = [...echeances].sort((a, b) => a.numero - b.numero);
+  const i = liste.findIndex((e) => e.numero === numero);
+  if (i < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(nouvelleIso)) return liste;
+
+  /* Jamais avant celle qui précède : on borne plutôt que de refuser, pour
+     que le geste aboutisse toujours à quelque chose de cohérent. */
+  const plancher = i > 0 ? liste[i - 1].dueIso : '0000-01-01';
+  const posee = nouvelleIso < plancher ? plancher : nouvelleIso;
+
+  const out = liste.map((e, j) => (j === i ? { ...e, dueIso: posee } : { ...e }));
+  /* On pousse les suivantes juste ce qu'il faut, et pas davantage : une
+     échéance déjà plus tardive garde sa date. */
+  for (let j = i + 1; j < out.length; j++) {
+    if (out[j].dueIso < out[j - 1].dueIso) out[j] = { ...out[j], dueIso: out[j - 1].dueIso };
+  }
+  return out;
+}
+
+/* ── LE RENDEZ-VOUS SE MÉRITE — 28 août 2026 ──────────────────────────
+   « Quand une cliente ne paie pas selon l'échéance, elle ne peut pas prendre
+   RDV sur la plateforme. Les paiements aux dates respectées sont requis pour
+   bénéficier du RDV suivant » (Yéman).
+
+   C'est la contrepartie honnête du paiement en plusieurs fois : la Maison
+   avance un service contre une promesse de paiement, et la promesse tenue
+   ouvre la porte suivante. Sans cette règle, découper le paiement revenait à
+   offrir le pack et espérer.
+
+   LA PORTE SE FERME SUR LA PLATEFORME, PAS AU COMPTOIR. Une cliente peut
+   toujours venir, appeler, régler et repartir avec son rendez-vous : c'est
+   Yéman qui tient le comptoir. L'écran ne fait que cesser de servir en libre
+   accès celle qui doit — il ne la chasse pas.
+
+   UN SEUL JOUR DE RETARD NE FERME RIEN. Une échéance se règle rarement à
+   l'heure dite, et bloquer au premier jour ferait de la règle une punition
+   plutôt qu'un cadre. La Maison laisse passer une semaine. */
+
+/** Les jours de grâce après une échéance avant que la porte se ferme. */
+export const JOURS_DE_GRACE = 7;
+
+export type VerdictReservation = {
+  ouvert: boolean;
+  /** Ce qui est échu et impayé au-delà du délai de grâce. */
+  retardXof: number;
+  retardJours: number;
+  /** La phrase à montrer à la cliente — jamais un code, jamais un reproche. */
+  dit: string;
+};
+
+/** La cliente peut-elle réserver ? Sans échéancier, rien ne s'oppose : la
+    règle ne vaut que pour celles à qui la Maison a avancé quelque chose. */
+export function peutReserver(
+  echeances: readonly Echeance[] | undefined, verseXof: number, aujourdhui: string,
+): VerdictReservation {
+  if (!echeances || echeances.length === 0) {
+    return { ouvert: true, retardXof: 0, retardJours: 0, dit: '' };
+  }
+  const etats = etatDesEcheances(echeances, verseXof, aujourdhui);
+  const durs = etats.filter((e) => e.enRetard && e.retardJours > JOURS_DE_GRACE);
+  if (durs.length === 0) {
+    return { ouvert: true, retardXof: 0, retardJours: 0, dit: '' };
+  }
+  const retardXof = durs.reduce((s, e) => s + e.resteXof, 0);
+  const retardJours = durs.reduce((m, e) => Math.max(m, e.retardJours), 0);
+  return {
+    ouvert: false,
+    retardXof,
+    retardJours,
+    dit: `Une échéance de votre formule attend depuis ${retardJours} jours. Réglez-la et votre prochain rendez-vous se rouvre aussitôt.`,
+  };
+}

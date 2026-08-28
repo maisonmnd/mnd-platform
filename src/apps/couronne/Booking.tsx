@@ -5,6 +5,8 @@ import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
+import { useSubscribers, subPaid } from '../../shared/abonnements';
+import { peutReserver } from '../../shared/echeancier';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
@@ -117,6 +119,8 @@ type Props = {
 
 export default function Booking({ prefill, onClose, toast }: Props) {
   const { branch, currency } = useBranch();
+  /* Ses abonnements, pour la porte du paiement (voir plus bas). */
+  const [mesAbonnements] = useSubscribers();
   /* CE QU'ELLE PEUT RÉSERVER — la carte élaguée à sa mesure. Seules les
      PRESTATIONS en sortent : les catégories réservables se déduisent d'elles
      (voir `bookableCats`), donc rien d'invisible ne peut fuir par ce chemin. */
@@ -694,6 +698,68 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const totalLabel = allHidden ? 'Prix en salon' : `${anyVariable ? 'à partir de ' : ''}${fmtMoney(price, currency)}`;
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';
+
+  /* ── LA PORTE SE FERME SUR UNE ÉCHÉANCE OUBLIÉE — 28 août 2026 ──────
+     « Quand une cliente ne paie pas selon l'échéance, elle ne peut pas prendre
+     RDV sur la plateforme. Les paiements aux dates respectées sont requis pour
+     bénéficier du RDV suivant » (Yéman).
+
+     C'est la contrepartie honnête du paiement en plusieurs fois : la Maison
+     avance un service contre une promesse, et la promesse tenue ouvre la porte
+     suivante. Sans cette règle, découper le paiement revenait à offrir le pack
+     et espérer.
+
+     ELLE SE FERME ICI, PAS AU COMPTOIR. Une cliente peut toujours venir,
+     appeler, régler et repartir avec son rendez-vous — c'est Yéman qui tient
+     le comptoir. L'écran cesse seulement de servir en libre accès celle qui
+     doit ; il ne la chasse pas, et il lui dit exactement quoi faire. */
+  const verdictReservation = useMemo(() => {
+    const sien = mesAbonnements.find((s) => s.clientId === clientId && s.status !== 'churn' && s.echeances?.length);
+    if (!sien) return null;
+    const v = peutReserver(sien.echeances, subPaid(sien), todayIso());
+    return v.ouvert ? null : v;
+  }, [mesAbonnements, clientId]);
+
+  if (verdictReservation) {
+    const numero = (branch.phone ?? '').replace(/\D/g, '');
+    return (
+      <div className="mc-overlayscreen mc-slide">
+        <div className="mc-flowhead">
+          <div className="mc-flowhead__row">
+            <span />
+            <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+          </div>
+          <div className="mc-flowhead__titles">
+            <div>
+              <div className="mc-micro-eyebrow">Réserver</div>
+              <h1 className="mc-flowhead__h1">Une échéance vous attend.</h1>
+            </div>
+          </div>
+        </div>
+        <div className="mc-flowbody">
+          <div className="cma-attente">
+            <div className="cma-attente__tag">Réservation suspendue</div>
+            <p className="cma-attente__nom">{fmtMoney(verdictReservation.retardXof, currency)}</p>
+            <p className="cma-attente__dit">{verdictReservation.dit}</p>
+            {numero && (
+              <a
+                className="cma-btn cma-btn--sm"
+                href={`https://wa.me/${numero}?text=${encodeURIComponent(
+                  `Bonjour, je souhaite régler ${fmtMoney(verdictReservation.retardXof, currency)} sur mon abonnement et reprendre rendez-vous.`)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Régler {fmtMoney(verdictReservation.retardXof, currency)}
+              </a>
+            )}
+            <p className="cma-note">
+              Vous pouvez aussi passer au salon : la Maison encaisse et rouvre votre rendez-vous sur-le-champ.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mc-overlayscreen mc-slide">

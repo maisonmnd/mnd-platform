@@ -54,6 +54,67 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## L'Éclosion, les dates éditables, la porte du paiement — 28 août, PUBLIÉ
+
+### L'Éclosion · le pack de la première création
+
+« À la première création des locks, crée-moi le pack irrésistible avec 2 mois
+offerts, des retouches post-création, le lavage et le resserrage, pour la
+cliente qui doit se sentir suivie et en toute sécurité » (Yéman).
+
+**LE MOMENT LE PLUS FRAGILE DE TOUTE LA VIE D'UNE COURONNE.** Les premières
+semaines après une création, les locks bougent, la cliente doute, et c'est là
+qu'on la perd — pas au bout d'un an. Ce pack achète cette peur et la remplace
+par un calendrier.
+
+**Il ne contient PAS la création** : une VÈKPÈ™ va de 80 000 à 385 000 F selon
+le calibre, l'inclure rendrait le prix impossible à afficher. Il se vend AVEC
+elle, au comptoir, le jour de la naissance.
+
+225 000 F · 2 retouches offertes + 6 GBÈJÍ™ + 6 KLƆKLƆ™ · 12 mois. **Deux mois
+offerts au sens exact de la Maison** : 270 000 F de rythme sur douze, dix payés
+(270 000 × 10/12 = 225 000, le compte tombe juste et se vérifie devant elle).
+Les retouches viennent EN PLUS — c'est ce qui rend l'offre irrésistible plutôt
+que simplement avantageuse. Famille `naissance`, qui n'est donc plus vide.
+
+⚠️ `sv-retouches-post-creation` est un identifiant SUPPOSÉ. S'il n'existe pas au
+catalogue, le quota est filtré à la pose et il faut rattacher « Retouches Post
+Création » à la main.
+
+### Les dates d'échéance s'éditent
+
+La vie ne suit pas le calendrier : un salaire qui tombe le 5, un voyage. **Une
+date qu'on ne peut pas déplacer se contourne en ne payant pas**, et c'est la
+Maison qui perd la trace. Champ date sur chaque ligne de la modale Régler.
+
+`deplaceEcheance` — **l'ordre ne se casse jamais** : déplacer POUSSE les
+suivantes (juste ce qu'il faut, une échéance déjà plus tardive garde sa date) et
+une date antérieure à la précédente est BORNÉE plutôt que refusée. Les montants
+ne bougent pas. Sans cet ordre, « deux échéances de retard » deviendrait
+incalculable.
+
+### La porte du rendez-vous
+
+« Une cliente qui ne paie pas selon l'échéance ne peut pas prendre RDV sur la
+plateforme » (Yéman). C'est la contrepartie honnête du paiement découpé : sans
+elle, découper revenait à offrir le pack et espérer.
+
+`peutReserver` + `JOURS_DE_GRACE = 7`. **Un seul jour de retard ne ferme rien** :
+une échéance se règle rarement à l'heure dite, et bloquer au premier jour ferait
+de la règle une punition plutôt qu'un cadre. Au huitième jour, Ma Couronne
+remplace l'écran de réservation par le montant dû, un bouton WhatsApp, et la
+phrase qui dit quoi faire.
+
+**LA PORTE SE FERME SUR LA PLATEFORME, PAS AU COMPTOIR** : elle peut toujours
+venir, appeler, régler et repartir avec son rendez-vous. L'écran cesse de servir
+en libre accès celle qui doit, il ne la chasse pas. Régler rouvre aussitôt.
+
+Le chiffre montré ne compte QUE ce qui est hors grâce : annoncer une échéance
+qu'elle a encore le droit de devoir serait lui réclamer trop tôt.
+
+`verifie-echeancier` monte à **51 assertions**. Sa conclusion s'imprimait elle
+aussi au milieu du fichier — même défaut que `verifie-formules`, corrigé.
+
 ## Ma formule — l'abonnement vu par la cliente, 28 août, PUBLIÉ
 
 « Build an interactive way for the clients to purchase and follow their packs

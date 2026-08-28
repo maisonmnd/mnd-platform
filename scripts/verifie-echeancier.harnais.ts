@@ -9,6 +9,7 @@
 import {
   SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne, construitEcheancier, etatDesEcheances,
   resteDeLEcheancier, enRetardXof, prochaineEcheance, plusVieuxRetardJours, tropVerseXof,
+  deplaceEcheance, peutReserver, JOURS_DE_GRACE,
 } from '../src/shared/echeancier';
 
 let ko = 0;
@@ -89,6 +90,62 @@ dit('… et le juste compte n’en crée pas', 0, tropVerseXof(e4, 125_000));
 /* ── ⑧ LES BORNES ──────────────────────────────────────────────────── */
 dit('un total nul ne fait aucune échéance', 0, construitEcheancier(0, 2, '2026-08-28').length);
 dit('un versement négatif est ignoré', 125_000, resteDeLEcheancier(etatDesEcheances(e4, -9_000, '2026-08-28')));
+
+/* ── ⑨ DÉPLACER UNE ÉCHÉANCE SANS CASSER L'ORDRE ───────────────────
+   Une deuxième échéance datée AVANT la première rendrait le mot « retard »
+   incalculable : l'imputation se fait dans l'ordre, l'ordre doit tenir. */
+const base4 = construitEcheancier(120_000, 4, '2026-08-28');
+dit('les dates de départ', ['2026-08-28', '2026-09-27', '2026-10-27', '2026-11-26'],
+  base4.map((e) => e.dueIso));
+
+const recule = deplaceEcheance(base4, 2, '2026-10-05');
+dit('reculer la 2ᵉ la déplace', '2026-10-05', recule[1].dueIso);
+dit('… sans toucher la 1ʳᵉ', '2026-08-28', recule[0].dueIso);
+dit('… ni les suivantes, déjà plus tardives', ['2026-10-27', '2026-11-26'],
+  [recule[2].dueIso, recule[3].dueIso]);
+
+const pousse = deplaceEcheance(base4, 2, '2026-12-15');
+dit('une 2ᵉ poussée très loin POUSSE les suivantes',
+  ['2026-08-28', '2026-12-15', '2026-12-15', '2026-12-15'], pousse.map((e) => e.dueIso));
+
+const borne = deplaceEcheance(base4, 3, '2026-01-01');
+dit('une date antérieure à la précédente est bornée, jamais refusée',
+  '2026-09-27', borne[2].dueIso);
+dit('… et l’ordre tient toujours', true,
+  borne.every((e, i) => i === 0 || e.dueIso >= borne[i - 1].dueIso));
+
+dit('les montants ne bougent jamais quand on déplace une date',
+  base4.map((e) => e.amountXof), pousse.map((e) => e.amountXof));
+dit('une date illisible ne change rien', base4.map((e) => e.dueIso),
+  deplaceEcheance(base4, 2, 'demain').map((e) => e.dueIso));
+dit('un numéro inconnu ne change rien', base4.map((e) => e.dueIso),
+  deplaceEcheance(base4, 9, '2026-12-01').map((e) => e.dueIso));
+
+/* ── ⑩ LE RENDEZ-VOUS SE MÉRITE ────────────────────────────────────
+   Contrepartie honnête du paiement découpé : la Maison avance un service
+   contre une promesse, et la promesse tenue ouvre la porte suivante. */
+dit('la grâce dure sept jours', 7, JOURS_DE_GRACE);
+dit('sans échéancier, rien ne se ferme', true, peutReserver(undefined, 0, '2026-09-30').ouvert);
+dit('à jour, la porte est ouverte', true, peutReserver(base4, 120_000, '2026-11-30').ouvert);
+
+/* Un seul jour de retard ne ferme rien : bloquer au premier jour ferait de la
+   règle une punition plutôt qu'un cadre. */
+dit('un jour de retard ne ferme rien', true, peutReserver(base4, 0, '2026-08-29').ouvert);
+dit('sept jours non plus', true, peutReserver(base4, 0, '2026-09-04').ouvert);
+dit('huit jours ferment la porte', false, peutReserver(base4, 0, '2026-09-05').ouvert);
+
+const ferme = peutReserver(base4, 0, '2026-10-01');
+/* SEULES LES ÉCHÉANCES HORS GRÂCE COMPTENT. Au 1ᵉʳ octobre, la 1ʳᵉ a 34 jours
+   et la 2ᵉ seulement 4 : celle-ci est encore dans son délai, elle ne pèse pas
+   dans le chiffre qu'on montre à la cliente. Annoncer 60 000 lui ferait payer
+   une échéance qu'elle a encore le droit de devoir. */
+dit('… et le retard ne chiffre que ce qui est hors grâce', 30_000, ferme.retardXof);
+dit('… avec son âge', 34, ferme.retardJours);
+dit('… et une phrase, jamais un code', true, ferme.dit.includes('34 jours'));
+
+/* Régler rouvre la porte AUSSITÔT : la règle est un cadre, pas une sanction
+   qui dure. */
+dit('régler ce qui est échu rouvre la porte', true, peutReserver(base4, 60_000, '2026-10-01').ouvert);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

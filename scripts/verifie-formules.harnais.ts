@@ -29,9 +29,9 @@ const par = (id: string) => PLANS_MARKETING.find((p) => p.id === id);
 
 /* ── ① AUCUN DOUBLON D'IDENTIFIANT ─────────────────────────────────
    Deux formules de même id : la seconde ne serait jamais posée, en silence. */
-dit('onze formules', 11, PLANS_MARKETING.length);
-dit('… toutes d’identifiant unique', 11, new Set(PLANS_MARKETING.map((p) => p.id)).size);
-dit('… et de nom unique', 11, new Set(PLANS_MARKETING.map((p) => p.name)).size);
+dit('douze formules', 12, PLANS_MARKETING.length);
+dit('… toutes d’identifiant unique', 12, new Set(PLANS_MARKETING.map((p) => p.id)).size);
+dit('… et de nom unique', 12, new Set(PLANS_MARKETING.map((p) => p.name)).size);
 dit('six packs annuels', 6, PACKS_ANNUELS.length);
 
 /* ── ② CHAQUE FORMULE A UN PRIX ET UNE PROMESSE ────────────────────
@@ -44,7 +44,7 @@ dit('aucune formule sans avantages', [], PLANS_MARKETING.filter((p) => p.perks.l
    Sans `validityDays`, un paquet de crédits ne s'épuise jamais : la tête
    pourrait revenir cinq ans plus tard réclamer son sixième resserrage. */
 const packs = PLANS_MARKETING.filter((p) => p.mode === 'pack');
-dit('sept paquets de crédits', 7, packs.length);
+dit('huit paquets de crédits', 8, packs.length);
 dit('… tous avec une durée de vie', [], packs.filter((p) => !p.validityDays).map((p) => p.id));
 dit('… les Années durent douze mois', [365, 365, 365, 365, 365, 365], PACKS_ANNUELS.map((p) => p.validityDays));
 
@@ -57,6 +57,13 @@ const verifie = (id: string, r: number, l: number, s: number, carte: number, pac
   dit(`${p.name} · le prix du pack`, pack, p.priceXof);
   dit(`${p.name} · le gain annoncé`, carte - pack, Number(p.perks.join(' ').match(/gagnez ([\d\s ]+) F/)?.[1].replace(/\D/g, '')));
 };
+/* L'ÉCLOSION : six resserrages + six lavages = 270 000 F de rythme, dont deux
+   mois offerts sur douze — 270 000 × 10/12 = 225 000 F. Les deux retouches
+   post-création viennent en plus, offertes, et n'entrent donc pas au compte. */
+verifie('pl-mkt-eclosion', 6, 6, 0, 270_000, 225_000);
+dit('L’Éclosion offre bien deux mois sur douze', 225_000, Math.round(270_000 * 10 / 12));
+dit('… et ses retouches sont un quota, pas un prix', 2,
+  par('pl-mkt-eclosion')!.included?.find((i) => i.serviceId === 'sv-retouches-post-creation')?.qty);
 verifie('pl-mkt-annee-sereine-duo', 6, 6, 0, 270_000, 215_000);
 verifie('pl-mkt-annee-sereine-trio', 6, 6, 6, 390_000, 305_000);
 verifie('pl-mkt-annee-fraiche-duo', 6, 12, 0, 390_000, 310_000);
@@ -129,12 +136,13 @@ const combien = (k: string) => PLANS_MARKETING.filter((p) => p.famille === k).le
    l'occupe est celui de la Maison (VÈKPÈ™ + les premiers entretiens), pas un
    des onze. La section reste vide tant qu'il n'y est pas rangé, et une
    section vide ne s'affiche pas. */
-dit('la naissance attend le forfait de la Maison', 0, combien('naissance'));
+/* L'ÉCLOSION occupe la naissance : le moment n'est plus une section vide. */
+dit('la naissance porte L’Éclosion', 1, combien('naissance'));
 dit('le prolongement en porte deux', 2, combien('prolongement'));
 dit('la porte d’entrée, une', 1, combien('porte'));
 dit('le foyer, deux', 2, combien('foyer'));
 dit('les Années, six', 6, combien('annees'));
-dit('… et le compte est bon', 11, combien('prolongement') + combien('porte') + combien('foyer') + combien('annees'));
+dit('… et le compte est bon', 12, combien('naissance') + combien('prolongement') + combien('porte') + combien('foyer') + combien('annees'));
 
 /* Les six Années sont bien celles de la famille « annees », et pas l'inverse :
    deux listes qui se recoupent finissent toujours par diverger. */

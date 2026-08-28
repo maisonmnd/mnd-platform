@@ -476,6 +476,42 @@ export function ensureStarterPlans(): void {
    exactement la tête qu'on veut faire entrer. La remise croît avec le nombre :
    trois têtes gardent plus que deux, sinon rien ne pousse à monter. */
 export const PLANS_MARKETING: Plan[] = [
+  /* ⓪ L'ÉCLOSION — le pack de la première création, 28 août 2026.
+     « À la première création des locks, crée-moi le pack irrésistible avec
+     2 mois offerts, des retouches post-création, le lavage et le resserrage,
+     pour la cliente qui doit se sentir suivie et en toute sécurité » (Yéman).
+
+     LE MOMENT LE PLUS FRAGILE DE TOUTE LA VIE D'UNE COURONNE. Les premières
+     semaines après une création, les locks bougent, la cliente doute, et
+     c'est là qu'on la perd — pas au bout d'un an. Ce pack achète cette peur
+     et la remplace par un calendrier : elle sait déjà qui la suit et quand.
+
+     IL NE CONTIENT PAS LA CRÉATION. Une VÈKPÈ™ va de 80 000 à 385 000 F selon
+     le calibre : l'inclure rendrait le prix du pack impossible à afficher. Il
+     se vend AVEC elle, au comptoir, le jour de la naissance.
+
+     DEUX MOIS OFFERTS, AU SENS EXACT DE LA MAISON : 270 000 F de rythme sur
+     douze mois, dix payés. Le compte tombe juste, il se vérifie devant elle.
+     Les deux retouches post-création viennent EN PLUS, offertes — c'est ce
+     qui rend l'offre irrésistible plutôt que simplement avantageuse. */
+  {
+    id: 'pl-mkt-eclosion', name: 'L’Éclosion', tag: 'Le premier cycle, accompagné', priceXof: 225000,
+    line: 'Votre première année, jamais seule.',
+    perks: [
+      '2 retouches post-création, offertes',
+      '6 GBÈJÍ™ resserrage racines',
+      '6 KLƆKLƆ™ Le Lavage',
+      'Valable 12 mois, dont 2 offerts',
+      '270 000 F à la carte, vous gagnez 45 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 17, famille: 'naissance',
+    included: [
+      { serviceId: 'sv-retouches-post-creation', qty: 2 },
+      { serviceId: 'sv-resserrage', qty: 6 },
+      { serviceId: 'sv-bain-vapeur', qty: 6 },
+    ],
+  },
+
   /* ① LA SUITE — le prolongement des 4 Premiers Entretiens. Le meilleur moment
      de vente de la Maison : elle a déjà payé une fois, elle connaît le
      fauteuil, et son quatrième entretien arrive. Aucune tête à convaincre. */
