@@ -8,8 +8,8 @@ import { usePaymentMethods } from '../../../../shared/finance';
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes,
-  type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded,
+  subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
+  type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices } from '../../../../shared/catalog';
 import { useAppointments } from '../../../../shared/agenda';
@@ -20,7 +20,7 @@ import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean };
+type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | '' };
 type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
@@ -39,7 +39,7 @@ export default function Abonnements() {
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false });
+  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '' });
   const [services] = useServices();
   const [allAppts] = useAppointments();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
@@ -112,12 +112,12 @@ export default function Abonnements() {
 
   const openPlanNew = () => {
     setPlanEditId(null);
-    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false });
+    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '' });
     setPlanModal(true);
   };
   const openPlanEdit = (p: Plan) => {
     setPlanEditId(p.id);
-    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular });
+    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular, famille: p.famille ?? '' });
     setPlanModal(true);
   };
   const savePlan = () => {
@@ -131,12 +131,12 @@ export default function Abonnements() {
     if (planEditId) {
       setPlans((prev) => prev.map((p) =>
         p.id === planEditId
-          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured }
+          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille: planForm.famille || undefined }
           : (featured ? { ...p, popular: false } : p)));
     } else {
       setPlans((prev) => [
         ...(featured ? prev.map((p) => ({ ...p, popular: false })) : prev),
-        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included },
+        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille: planForm.famille || undefined },
       ]);
     }
     setPlanModal(false);
@@ -154,6 +154,23 @@ export default function Abonnements() {
 
   /* Réordonner les formules — l'ordre du tableau EST l'ordre d'affichage. On
      échange une formule avec sa voisine pour la lire dans l'ordre voulu. */
+  /* LE PARCOURS — les familles dans leur ordre, puis les orphelines. Une
+     section vide ne s'affiche pas : un titre sans rien dessous fait croire à
+     un chargement qui n'arrive jamais. */
+  const parFamille = useMemo(() => {
+    const groupes = FAMILLES_FORMULES
+      .map((f) => ({ ...f, liste: plans.filter((p) => p.famille === f.k) }))
+      .filter((g) => g.liste.length > 0);
+    const orphelines = plans.filter((p) => !p.famille || !FAMILLES_FORMULES.some((f) => f.k === p.famille));
+    return orphelines.length > 0
+      ? [...groupes, {
+        k: 'autres' as const, titre: 'Les autres formules', quand: 'les vôtres',
+        sous: 'Rangez-les dans un moment du parcours en les modifiant, elles remonteront d’elles-mêmes.',
+        liste: orphelines,
+      }]
+      : groupes;
+  }, [plans]);
+
   const movePlan = (id: string, dir: -1 | 1) => {
     setPlans((prev) => {
       const i = prev.findIndex((p) => p.id === id);
@@ -392,8 +409,26 @@ export default function Abonnements() {
             </div>
           </div>
 
-          <div className="tr-grid tr-grid--3" style={{ alignItems: 'start', marginTop: 8 }}>
-            {plans.map((p, idx) => {
+          {/* ── LE PARCOURS, SECTION PAR SECTION (28 août) ──────────────
+              Onze formules à plat dans une grille, c'était le mal des sept
+              carrés de la page QR : rien ne disait laquelle sert quand. Les
+              familles sont des MOMENTS DU PARCOURS, dans l'ordre où une tête
+              les rencontre : elle entre par la porte, elle prolonge, elle
+              amène son foyer, et le jour où elle fait confiance elle prend son
+              année. Les formules sans famille ne disparaissent pas — elles se
+              rangent en fin d'écran, sous « Les autres formules ». */}
+          {parFamille.map((groupe) => (
+            <section key={groupe.k} style={{ marginTop: 26 }}>
+              <div className="tre-parcours">
+                <h3 className="tre-parcours__titre">{groupe.titre}</h3>
+                <span className="tre-parcours__quand">{groupe.quand}</span>
+                <span className="tre-parcours__rule" />
+              </div>
+              <p className="tre-parcours__sous">{groupe.sous}</p>
+
+              <div className="tr-grid tr-grid--3" style={{ alignItems: 'start' }}>
+                {groupe.liste.map((p) => {
+              const idx = plans.findIndex((x) => x.id === p.id);
               const price = subCycleAmountXof(p.priceXof, cycle);
               const period = cycle === 'annuel' ? '/an' : cycle === 'semestriel' ? '/6 mois' : '/mois';
               const offered = cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '';
@@ -431,9 +466,12 @@ export default function Abonnements() {
                   </div>
                 </Card>
               );
-            })}
-          </div>
-          <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 18 }}>
+                })}
+              </div>
+            </section>
+          ))}
+
+          <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 26 }}>
             Chaque formule réserve un créneau <span style={{ color: 'var(--copper-700)' }}>rien qu’à vous</span>, prélèvement Mobile Money, sans paperasse, résiliable à tout moment.
           </div>
         </div>
@@ -673,6 +711,22 @@ export default function Abonnements() {
                   Le compteur de consommation se lit sur le cycle en cours et se remet à zéro à chaque échéance.
                 </div>
               </div>
+            </Field>
+
+            {/* LE MOMENT DU PARCOURS — pour que les formules de la Maison
+                puissent rejoindre les sections au lieu de rester en fin
+                d'écran. Le champ dit à quel instant on la propose, pas à
+                quel rayon elle appartient. */}
+            <Field label="Le moment du parcours">
+              <Select
+                value={planForm.famille}
+                onChange={(e) => setPlanForm({ ...planForm, famille: e.target.value as FamilleFormule | '' })}
+              >
+                <option value="">Aucun, elle se range à part</option>
+                {FAMILLES_FORMULES.map((f) => (
+                  <option key={f.k} value={f.k}>{f.titre} · {f.quand}</option>
+                ))}
+              </Select>
             </Field>
 
             <Field label="Mise en avant">

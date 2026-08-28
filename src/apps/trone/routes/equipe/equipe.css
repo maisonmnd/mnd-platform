@@ -1467,3 +1467,26 @@
   .tre-prov__btn { flex: 1 1 auto; text-align: center; }
   .tre-prov__btn--danger { flex: 0 0 100%; margin-left: 0; text-align: right; }
 }
+
+/* ── LE PARCOURS DES FORMULES — 28 août ──────────────────────────────
+   « Respecte la maquette avec le rangement du parcours des abonnements. »
+   Onze formules à plat, c'était le mal des sept carrés de la page QR : rien
+   ne disait laquelle sert quand. Les sections sont des MOMENTS, dans l'ordre
+   où une tête les rencontre.
+
+   Ces classes doublent celles de la page QR à dessein : l'écran des
+   abonnements charge `equipe.css`, pas `clients.css`. S'appuyer sur l'ordre
+   du bundle marcherait aujourd'hui et casserait le jour où une route bouge. */
+.tre-parcours { display: flex; align-items: baseline; gap: 14px; margin-bottom: 3px; }
+.tre-parcours__titre {
+  font-family: var(--font-serif); font-weight: 300; font-size: 25px;
+  margin: 0; white-space: nowrap; color: var(--color-indigo);
+}
+.tre-parcours__quand { font-size: 12px; color: var(--ink-soft); letter-spacing: .04em; }
+.tre-parcours__rule { height: 1px; background: var(--hairline); flex: 1; }
+.tre-parcours__sous { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 14px; max-width: 66ch; }
+
+@media (max-width: 560px) {
+  .tre-parcours { flex-wrap: wrap; }
+  .tre-parcours__titre { font-size: 21px; }
+}

@@ -419,6 +419,28 @@ export type PlanIncluded = { serviceId: string; qty: number | null };
     qu'elle les avait toutes consommées entre juin 2025 et juin 2026. */
 export type PlanMode = 'cycle' | 'pack';
 
+/* ── LE PARCOURS DES FORMULES — 28 août 2026 ──────────────────────────
+   « Respecte la maquette avec le rangement du parcours des abonnements »
+   (Yéman). Onze formules à plat dans une grille, c'est le même mal que les
+   sept carrés de la page QR : rien ne dit laquelle sert quand.
+
+   LES FAMILLES SONT DES MOMENTS DU PARCOURS, pas des rayons de magasin. Une
+   tête entre par la porte, elle prolonge, elle amène son foyer, et le jour où
+   elle fait confiance elle prend son année. C'est cet ordre-là qui s'affiche,
+   parce que c'est celui dans lequel une cliente les rencontre. */
+export type FamilleFormule = 'prolongement' | 'porte' | 'foyer' | 'annees';
+
+export const FAMILLES_FORMULES: { k: FamilleFormule; titre: string; quand: string; sous: string }[] = [
+  { k: 'prolongement', titre: 'Le prolongement', quand: 'quand le paquet s’épuise',
+    sous: 'Le meilleur moment de vente de la Maison : elle a déjà payé une fois, elle connaît le fauteuil.' },
+  { k: 'porte', titre: 'La porte d’entrée', quand: 'le petit prix',
+    sous: 'Ce qui se prend massivement est ce qui coûte le moins cher à dire oui.' },
+  { k: 'foyer', titre: 'Le foyer', quand: 'à deux, à trois',
+    sous: 'Le seul levier qui amène des têtes neuves sans que la Maison dépense un franc.' },
+  { k: 'annees', titre: 'Les Années', quand: 'pour celles qui font confiance',
+    sous: 'Des paquets de crédits valables douze mois : la caisse encaisse à la signature, elle vient à son rythme.' },
+];
+
 export type Plan = {
   id: string;
   name: string;
@@ -437,6 +459,9 @@ export type Plan = {
   validityDays?: number | null;
   /** Remise consentie sur le prix à la carte, telle qu'annoncée à la vente. */
   discountPct?: number;
+  /** Le moment du parcours où cette formule se propose. Absent = elle se range
+      sous « Les autres formules », en fin d'écran — jamais masquée. */
+  famille?: FamilleFormule;
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
@@ -511,7 +536,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Votre créneau gardé, rien qu’à vous',
       '−15 % sur la gamme',
     ],
-    popular: true, mode: 'cycle', discountPct: 22,
+    popular: true, mode: 'cycle', discountPct: 22, famille: 'prolongement',
     included: [{ serviceId: 'sv-resserrage', qty: 1 }, { serviceId: 'sv-bain-vapeur', qty: 1 }],
   },
 
@@ -527,7 +552,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       'Transmissible à une tête de votre foyer',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 17,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 17, famille: 'prolongement',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }],
   },
 
@@ -543,7 +568,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Rappel automatique la veille',
       '−10 % sur la gamme',
     ],
-    popular: false, mode: 'cycle', discountPct: 25,
+    popular: false, mode: 'cycle', discountPct: 25, famille: 'porte',
     included: [{ serviceId: 'sv-bain-vapeur', qty: 1 }],
   },
 
@@ -559,7 +584,7 @@ export const PLANS_MARKETING: Plan[] = [
       '−15 % sur la gamme pour les deux',
       '10 000 F de moins que deux Suite',
     ],
-    popular: false, mode: 'cycle', discountPct: 33,
+    popular: false, mode: 'cycle', discountPct: 33, famille: 'foyer',
     included: [{ serviceId: 'sv-resserrage', qty: 2 }, { serviceId: 'sv-bain-vapeur', qty: 2 }],
   },
   {
@@ -571,7 +596,7 @@ export const PLANS_MARKETING: Plan[] = [
       '−15 % sur la gamme pour les trois',
       '20 000 F de moins que trois Suite',
     ],
-    popular: false, mode: 'cycle', discountPct: 37,
+    popular: false, mode: 'cycle', discountPct: 37, famille: 'foyer',
     included: [{ serviceId: 'sv-resserrage', qty: 3 }, { serviceId: 'sv-bain-vapeur', qty: 3 }],
   },
 
@@ -607,7 +632,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '270 000 F à la carte, vous gagnez 55 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 20,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 20, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }],
   },
   {
@@ -620,7 +645,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '390 000 F à la carte, vous gagnez 85 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
   },
 
@@ -636,7 +661,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '390 000 F à la carte, vous gagnez 80 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 20,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 20, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 12 }],
   },
   {
@@ -649,7 +674,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '510 000 F à la carte, vous gagnez 115 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 12 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
   },
 
@@ -665,7 +690,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '360 000 F à la carte, vous gagnez 75 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 21,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 21, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 8 }, { serviceId: 'sv-bain-vapeur', qty: 8 }],
   },
   {
@@ -679,7 +704,7 @@ export const PLANS_MARKETING: Plan[] = [
       'Valable 12 mois, à votre rythme',
       '520 000 F à la carte, vous gagnez 115 000 F',
     ],
-    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22, famille: 'annees',
     included: [{ serviceId: 'sv-resserrage', qty: 8 }, { serviceId: 'sv-bain-vapeur', qty: 8 }, { serviceId: 'zebpkpg6ar', qty: 8 }],
   },
 ];

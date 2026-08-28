@@ -54,6 +54,39 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## Le parcours des formules — 28 août, PUBLIÉ
+
+« Respecte la maquette avec le rangement du parcours des abonnements : le
+prolongement, la porte d'entrée, le foyer, les Années » (Yéman).
+
+Onze formules à plat dans une grille, c'était **le mal des sept carrés de la
+page QR** : rien ne disait laquelle sert quand. L'onglet Les formules affiche
+désormais quatre sections.
+
+**LES FAMILLES SONT DES MOMENTS DU PARCOURS, pas des rayons de magasin.**
+L'ordre est celui dans lequel une cliente les rencontre : elle entre par la
+porte, elle prolonge, elle amène son foyer, et le jour où elle fait confiance
+elle prend son année.
+
+`FamilleFormule` + `FAMILLES_FORMULES` dans `equipe/data.ts` ; le champ
+`famille?` vit sur `Plan`. Les formules SANS famille ne disparaissent pas —
+elles se rangent en fin d'écran sous « Les autres formules », avec la phrase qui
+dit comment les classer. Le formulaire de formule porte un champ **« Le moment
+du parcours »** pour que les formules de la Maison rejoignent les sections.
+
+Une section vide ne s'affiche pas : un titre sans rien dessous fait croire à un
+chargement qui n'arrive jamais.
+
+**Les classes CSS sont dupliquées à dessein** (`.tre-parcours*` dans
+`equipe.css`, `.trq-sec*` dans `clients.css`) : l'écran des abonnements ne
+charge pas `clients.css`. S'appuyer sur l'ordre du bundle marcherait aujourd'hui
+et casserait le jour où une route bouge.
+
+`verifie-formules` monte à **55 assertions** : les quatre moments, aucune
+formule marketing sans famille, le compte par famille (2 · 1 · 2 · 6 = 11), et
+`PACKS_ANNUELS` exactement égal à la famille « annees » — deux listes qui se
+recoupent finissent toujours par diverger.
+
 ## Les Années — six packs annuels, 28 août, PUBLIÉ
 
 « Pour les clientes qui font confiance, qui veulent prendre un pack annuel avec

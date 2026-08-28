@@ -6,7 +6,7 @@
    tient donc ce qu'aucun écran ne rattrape : les prix annoncés dans les
    avantages, l'écart de remise qui pousse à monter d'un cran, et le seuil au
    delà duquel le paiement se découpe. */
-import { PLANS_MARKETING, PACKS_ANNUELS } from '../src/apps/trone/routes/equipe/data';
+import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
 
 let ko = 0;
@@ -109,6 +109,36 @@ dit('un Trio en inclut', 6, quota('pl-mkt-annee-sereine-trio', 'zebpkpg6ar'));
 /* ── ⑨ UNE SEULE FORMULE VEDETTE ───────────────────────────────────
    La carte indigo perd son sens s'il y en a plusieurs. */
 dit('une seule vedette', 1, PLANS_MARKETING.filter((p) => p.popular).length);
+
+/* ── ⑩ LE PARCOURS EST COMPLET ─────────────────────────────────────
+   Une formule sans famille tomberait dans « Les autres formules », en fin
+   d'écran : posée par la Maison mais rangée comme une orpheline. L'écran ne
+   dirait rien, elle serait juste au mauvais endroit — c'est exactement le
+   genre d'erreur qu'aucun clic ne révèle. */
+const familles = new Set(FAMILLES_FORMULES.map((f) => f.k));
+dit('quatre moments dans le parcours', ['prolongement', 'porte', 'foyer', 'annees'],
+  FAMILLES_FORMULES.map((f) => f.k));
+dit('aucune formule marketing sans moment', [],
+  PLANS_MARKETING.filter((p) => !p.famille).map((p) => p.id));
+dit('… et aucun moment inconnu', [],
+  PLANS_MARKETING.filter((p) => p.famille && !familles.has(p.famille)).map((p) => p.id));
+
+const combien = (k: string) => PLANS_MARKETING.filter((p) => p.famille === k).length;
+dit('le prolongement en porte deux', 2, combien('prolongement'));
+dit('la porte d’entrée, une', 1, combien('porte'));
+dit('le foyer, deux', 2, combien('foyer'));
+dit('les Années, six', 6, combien('annees'));
+dit('… et le compte est bon', 11, combien('prolongement') + combien('porte') + combien('foyer') + combien('annees'));
+
+/* Les six Années sont bien celles de la famille « annees », et pas l'inverse :
+   deux listes qui se recoupent finissent toujours par diverger. */
+dit('PACKS_ANNUELS est exactement la famille des Années',
+  PACKS_ANNUELS.map((p) => p.id).sort(),
+  PLANS_MARKETING.filter((p) => p.famille === 'annees').map((p) => p.id).sort());
+
+/* Chaque moment sait se dire : un titre sans phrase laisse l'écran muet. */
+dit('chaque moment porte son titre et sa phrase', [],
+  FAMILLES_FORMULES.filter((f) => !f.titre.trim() || !f.quand.trim() || !f.sous.trim()).map((f) => f.k));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
