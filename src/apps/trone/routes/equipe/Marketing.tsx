@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PageHead } from '../_ui';
+import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -562,9 +562,7 @@ export default function Marketing() {
               <Field label="Prestation liée · réservable en un geste">
                 <Select value={offerForm.serviceId} onChange={(e) => setOfferForm({ ...offerForm, serviceId: e.target.value })}>
                   <option value="">Aucune, offre libre</option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
-                  ))}
+                  <OptionsPrestations services={services} prix devise={currency} />
                 </Select>
               </Field>
               <Field label="Remise (%) · appliquée au prix">

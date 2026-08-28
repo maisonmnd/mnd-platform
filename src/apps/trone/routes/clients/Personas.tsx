@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
-import { PageHead } from '../_ui';
+import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Field, Input, Select, Textarea } from '../../../../ds/components';
 import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
 import { useServices } from '../../../../shared/catalog';
@@ -201,7 +201,7 @@ export default function Personas() {
                         style={{ fontSize: 12, minWidth: 0 }}
                       >
                         <option value="">— comme la Maison —</option>
-                        {servicesTries.map((sv) => <option key={sv.id} value={sv.id}>{sv.name}</option>)}
+                        <OptionsPrestations services={servicesTries} />
                       </Select>
                     </label>
                   ))}

@@ -2,7 +2,7 @@ import { asset } from '../../../../shared/asset';
 import { useSearchParams } from 'react-router-dom';
 import { CalendarClock, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { PageHead } from '../_ui';
+import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -1072,9 +1072,7 @@ export default function Factures() {
                   onChange={(e) => { addServiceLine(e.target.value); e.target.value = ''; }}
                 >
                   <option value="" disabled>+ Ajouter une prestation…</option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
-                  ))}
+                  <OptionsPrestations services={services} prix devise={currency} />
                 </select>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                   <input className="mnd-input" style={{ flex: 1, padding: '8px 10px', fontSize: 12 }} placeholder="Ligne libre, libellé" value={freeLabel} onChange={(e) => setFreeLabel(e.target.value)} />

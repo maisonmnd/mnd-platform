@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow } from '../../../../ds/components';
+import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, clientsStore, type Client } from '../../../../shared/clients';
@@ -250,9 +251,7 @@ function BaremeModeles({ currency }: { currency: string }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Prestation témoin</span>
           <select className="mnd-select" value={refService.id} onChange={(e) => setRefId(e.target.value)} style={{ width: 'auto', minWidth: 220 }} aria-label="Prestation témoin du barème">
-            {(modelServices.length ? modelServices : fallback).map((s) => (
-              <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
-            ))}
+            <OptionsPrestations services={modelServices.length ? modelServices : fallback} prix devise={currency} />
           </select>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Base du bareme</span>
           <input

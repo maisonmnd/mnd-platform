@@ -1,6 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
-import { PageHead, WaLien } from '../_ui';
+import { OptionsPrestations, PageHead, WaLien } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -29,19 +29,10 @@ export default function Cercle() {
   const [families] = useFamilies();
   const [appts] = useAppointments();
   const [services] = useServices();
-  const [categories] = useCategories();
-  /* LE MENU DES PRESTATIONS, RANGÉ COMME LE CATALOGUE (25 août) — groupé par
-     catégorie dans l'ordre du catalogue, trié par nom dans chaque groupe. Sans
-     ça, la liste sortait dans l'ordre brut de création, « dans tous les sens ». */
-  const servicesGroupes = useMemo(() => {
-    const ord = catsDansLOrdre(categories);
-    const connues = new Set(ord.map((c) => c.id));
-    const groupes = ord
-      .map((c) => ({ cat: c, svcs: services.filter((s) => s.categoryId === c.id).sort((a, b) => a.name.localeCompare(b.name, 'fr')) }))
-      .filter((g) => g.svcs.length > 0);
-    const orphelins = services.filter((s) => !connues.has(s.categoryId)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    return { groupes, orphelins };
-  }, [categories, services]);
+  /* LE MENU DES PRESTATIONS, RANGÉ COMME LE CATALOGUE (25 août) — le tri par
+     atelier est né ici, puis Yéman a demandé la même chose PARTOUT (28 août).
+     Il vit désormais dans `OptionsPrestations`, partagé par les huit écrans :
+     huit tris copiés auraient divergé au premier ajout de catégorie. */
   const [tiers, setTiers] = useTiers();
   const [rate, setRate] = useStore(pointsRateStore);
   const [pointsOn, setPointsOn] = useStore(pointsEnabledStore);
@@ -622,20 +613,9 @@ export default function Cercle() {
             </Field>
             <Field label="Prestation offerte · tirée du catalogue">
               <Select value={tierForm.serviceId} onChange={(e) => setTierForm({ ...tierForm, serviceId: e.target.value })}>
-                {servicesGroupes.groupes.map((g) => (
-                  <optgroup key={g.cat.id} label={g.cat.fon || g.cat.label}>
-                    {g.svcs.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
-                    ))}
-                  </optgroup>
-                ))}
-                {servicesGroupes.orphelins.length > 0 && (
-                  <optgroup label="Autres">
-                    {servicesGroupes.orphelins.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} · {fmtMoney(s.priceXof, currency)}</option>
-                    ))}
-                  </optgroup>
-                )}
+                {/* Le tri par atelier vivait ici, à lui tout seul ; il est
+                    devenu `OptionsPrestations`, partagé par les huit écrans. */}
+                <OptionsPrestations services={services} prix devise={currency} />
               </Select>
             </Field>
             <Field label="Description · une phrase">

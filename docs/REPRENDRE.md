@@ -2,6 +2,58 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## Le choix d'une prestation, rangé par atelier — 28 août, PUBLIÉ
+
+« Ça va dans tous les sens et je ne me retrouve pas facilement. Partout où je
+dois sélectionner des prestations, assure-toi de bien organiser la sélection »
+(Yéman).
+
+Sept écrans offraient la même liste À PLAT, dans l'ordre où le catalogue les
+rendait, c'est-à-dire aucun : une soixantaine de lignes où VÈKPÈ™, GBÈJÍ™ et le
+styling se succédaient sans logique.
+
+**LES ATELIERS SONT LA CARTE MENTALE DE LA MAISON** — ils nomment les
+prestations, ils sont dans la bouche de l'équipe. Les `<optgroup>` sont donc les
+ateliers, dans LEUR ordre (`order`), alphabétique à l'intérieur.
+
+`OptionsPrestations` dans `routes/_ui.tsx`, **un seul composant pour les sept
+écrans** : Abonnements, Factures, Marketing, Personas, Le Juste Prix, Le Cercle
+(qui avait son tri à lui, du 25 août, désormais retiré). Sept tris copiés
+auraient divergé au premier ajout de catégorie. Le Catalogue garde le sien, plus
+riche (il groupe aussi par « monde »).
+
+## Payer en 2 ou 4 fois — 28 août, PUBLIÉ
+
+« Mets un système de paiements en 2 ou 4 fois pour les abonnements au-delà de
+100 000 F » (Yéman). C'est un OUTIL DE VENTE avant d'être un outil comptable :
+peu de têtes sortent 125 000 F d'un coup, et la Maison perdait la vente entière
+faute d'avoir su la découper.
+
+`src/shared/echeancier.ts`, pur, éprouvé par `node scripts/verifie-echeancier.mjs`
+(31 assertions). **Trois règles qui ne se devinent pas** :
+
+1. **LE SEUIL EST UNE PORTE, pas une obligation.** Sous 100 000 F on ne découpe
+   pas : quatre échéances de 8 750 F coûtent plus cher à suivre qu'elles ne
+   rapportent, et habituent la Maison à courir après des miettes.
+2. **L'ARRONDI VA SUR LA PREMIÈRE.** 100 003 F en 2 fois donne 50 002 + 50 001,
+   jamais deux fois 50 001. La somme des parts vaut EXACTEMENT le total : un
+   franc perdu à l'arrondi devient un écart de caisse inexplicable un an plus
+   tard.
+3. **LES RÈGLEMENTS S'IMPUTENT DANS L'ORDRE**, la plus vieille échéance
+   d'abord ; ce qui déborde coule sur la suivante. Sans cette règle, « deux
+   échéances de retard » ne veut rien dire.
+
+L'échéancier (dates + montants) s'écrit UNE FOIS à la signature, comme une
+parole donnée. **L'état de chaque échéance ne se stocke jamais**, il se dérive
+des règlements — un « payé » écrit à côté de ses versements finit toujours par
+les contredire.
+
+Il se lit à trois endroits : le tableau des abonnés (un retard qu'il faut ouvrir
+une fiche pour voir n'est pas un retard vu), la modale de règlement (pastilles
+vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et le
+montant proposé par défaut, qui est celui de la prochaine échéance et non du
+cycle entier.
+
 ## Cinq formules marketing — 28 août, PUBLIÉ
 
 « Créer des abonnements marketing pour que mes clients les prennent massivement »

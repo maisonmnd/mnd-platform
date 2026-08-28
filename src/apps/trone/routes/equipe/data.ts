@@ -3,6 +3,7 @@ import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
 import { ussdAvecMontant } from '../../../../shared/momo';
+import type { Echeance } from '../../../../shared/echeancier';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -580,14 +581,22 @@ export const PLANS_MARKETING: Plan[] = [
     même si son prix ou ses avantages ont été retouchés à l'écran. C'est la
     règle de toutes les semences de la Maison — le geste de Yéman prime
     toujours sur celui du code. Rend le nombre réellement ajouté. */
-export function poseLesFormulesMarketing(): number {
+export function poseLesFormulesMarketing(idsDuCatalogue?: ReadonlySet<string>): number {
   const cur = plansStore.get();
   const connus = new Set((Array.isArray(cur) ? cur : []).map((p) => p.id));
   const neuves = PLANS_MARKETING.filter((p) => !connus.has(p.id));
   if (neuves.length === 0) return 0;
+  /* LES PRESTATIONS INCLUSES SONT FILTRÉES SUR LE CATALOGUE VIVANT. Les
+     identifiants écrits ici viennent d'un relevé ; le catalogue de la Maison a
+     pu les renommer, les déplacer, les retirer. Poser un quota sur une
+     prestation qui n'existe plus donnerait un suivi de consommation qui
+     compte toujours zéro, sans jamais dire pourquoi. Mieux vaut une formule
+     sans quota, qu'on rattache à l'écran en trois clics. */
+  const garde = (inc?: PlanIncluded[]) =>
+    (idsDuCatalogue ? inc?.filter((i) => idsDuCatalogue.has(i.serviceId)) : inc)?.map((i) => ({ ...i }));
   plansStore.set((prev) => [
     ...prev,
-    ...neuves.map((p) => ({ ...p, perks: [...p.perks], included: p.included?.map((i) => ({ ...i })) })),
+    ...neuves.map((p) => ({ ...p, perks: [...p.perks], included: garde(p.included) })),
   ]);
   return neuves.length;
 }
@@ -650,6 +659,13 @@ export type Subscriber = {
   status: 'active' | 'new' | 'risk' | 'churn' | 'exhausted';
   mrrXof: number; // NORMALISÉ mensuel (annuel = montant annuel / 12) — alimente le MRR
   payments?: Payment[]; // règlements enregistrés, avec dates
+  /** ÉCHÉANCIER — écrit UNE FOIS à la signature, quand l'abonnement dépasse
+      100 000 F et que la tête choisit de payer en 2 ou 4 fois. Absent = elle
+      règle en une fois, à chaque échéance de cycle, comme avant.
+      L'ÉTAT de chaque échéance ne se stocke pas : il se dérive des règlements
+      (voir `shared/echeancier.ts`). Un « payé » écrit à côté de ses versements
+      finit toujours par les contredire. */
+  echeances?: Echeance[];
   note?: string;
   /* — pack à crédits — */
   /** Jour d'achat du pack (ISO). C'est le début de sa fenêtre de consommation :

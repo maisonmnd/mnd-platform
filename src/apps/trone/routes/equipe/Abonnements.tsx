@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PageHead, WaLien } from '../_ui';
+import { OptionsPrestations, PageHead, WaLien } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -13,6 +13,7 @@ import {
 } from './data';
 import { useServices } from '../../../../shared/catalog';
 import { useAppointments } from '../../../../shared/agenda';
+ import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
@@ -20,7 +21,7 @@ import './equipe.css';
 type Tab = 'moteur' | 'formules' | 'membres';
 
 type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean };
-type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle };
+type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -44,7 +45,7 @@ export default function Abonnements() {
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -103,9 +104,9 @@ export default function Abonnements() {
   /* Les formules marketing du 28 août : posées d'un geste, jamais réécrites. */
   const marketingAbsentes = formulesMarketingAbsentes(plans);
   const poserLesFormules = () => {
-    const n = poseLesFormulesMarketing();
+    const n = poseLesFormulesMarketing(new Set(services.map((s) => s.id)));
     toast(n > 0
-      ? `${n} formule${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''}. Ajustez les prix, ils sont indicatifs.`
+      ? `${n} formule${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''}. Ajustez les prix et rattachez les prestations incluses.`
       : 'Elles sont déjà toutes là.');
   };
 
@@ -175,18 +176,40 @@ export default function Abonnements() {
       slot: subForm.slot.trim() || 'Créneau à réserver',
       nextIso: addDaysISO(cycleDays(cycle)),
       sinceIso: todayISO(), since: 'ce mois', status: 'new', mrrXof: subMonthlyXof(plan.priceXof, cycle), payments: [],
+      /* L'ÉCHÉANCIER S'ÉCRIT ICI, une seule fois. Au-delà de 100 000 F, la tête
+         a pu choisir de payer en 2 ou 4 fois : la découpe est figée à la
+         signature, comme une parole donnée. Elle ne se recalcule jamais. */
+      ...(subForm.parts && peutEtreEchelonne(subCycleAmountXof(plan.priceXof, cycle))
+        ? { echeances: construitEcheancier(subCycleAmountXof(plan.priceXof, cycle), subForm.parts, todayISO()) }
+        : {}),
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null });
+    if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
   /* Règlement d'un abonnement : paiement daté, échéance avancée, abonnée réactivée. */
   const openPay = (m: Subscriber) => {
     const plan = planOf(m.planId);
-    const due = plan ? subCycleAmountXof(plan.priceXof, m.cycle ?? 'mensuel') : 0;
+    /* Avec un échéancier, le montant proposé est celui de la PROCHAINE
+       échéance, pas le cycle entier : c'est ce qu'on lui réclame aujourd'hui. */
+    const suivante = m.echeances?.length
+      ? prochaineEcheance(etatDesEcheances(m.echeances, subPaid(m), todayISO()))
+      : undefined;
+    const due = suivante ? suivante.resteXof
+      : plan ? subCycleAmountXof(plan.priceXof, m.cycle ?? 'mensuel') : 0;
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
     setPayFor(m);
+  };
+
+  /* L'état de paiement d'une abonnée, pour le tableau — dérivé, jamais stocké. */
+  const etatPaiement = (m: Subscriber) => {
+    if (!m.echeances?.length) return null;
+    const etats = etatDesEcheances(m.echeances, subPaid(m), todayISO());
+    const retard = enRetardXof(etats);
+    const soldees = etats.filter((e) => e.soldee).length;
+    return { retard, soldees, total: etats.length, reste: resteDeLEcheancier(etats) };
   };
   const savePay = () => {
     if (!payFor) return;
@@ -422,7 +445,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           <Card style={{ overflow: 'hidden' }}>
@@ -465,6 +488,26 @@ export default function Abonnements() {
                       <td data-label="Prochaine échéance">
                         <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{shortDate(m.nextIso)}</span>
                         <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 2 }}>réglé {fmtMoney(paid, currency)}</div>
+                        {/* L'ÉTAT DE L'ÉCHÉANCIER SE LIT DANS LE TABLEAU, pas
+                            seulement dans la modale : un retard qu'il faut
+                            ouvrir une fiche pour voir n'est pas un retard vu. */}
+                        {(() => {
+                          const ep = etatPaiement(m);
+                          if (!ep) return null;
+                          return (
+                            <div style={{
+                              fontSize: 10.5, marginTop: 3, fontWeight: 500,
+                              color: ep.retard > 0 ? 'var(--color-brique, #96412E)'
+                                : ep.reste === 0 ? 'var(--color-vert, #2E6B4F)' : 'var(--copper-700)',
+                            }}>
+                              {ep.retard > 0
+                                ? `${fmtMoney(ep.retard, currency)} en retard · ${ep.soldees}/${ep.total} échéances`
+                                : ep.reste === 0
+                                  ? `échéancier soldé · ${ep.total} fois`
+                                  : `${ep.soldees}/${ep.total} échéances réglées`}
+                            </div>
+                          );
+                        })()}
                         {m.note && <div style={{ fontSize: 10.5, color: '#8f3b30', marginTop: 2 }}>{m.note}</div>}
                       </td>
                       <td className="num" data-label="MRR" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
@@ -621,9 +664,10 @@ export default function Abonnements() {
                   style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
                 >
                   <option value="" disabled>+ Ajouter une prestation du catalogue…</option>
-                  {services
-                    .filter((s) => !planForm.included.some((i) => i.serviceId === s.id))
-                    .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <OptionsPrestations
+                    services={services}
+                    exclure={(s) => planForm.included.some((i) => i.serviceId === s.id)}
+                  />
                 </Select>
                 <div className="mnd-muted" style={{ fontSize: 10.5 }}>
                   Le compteur de consommation se lit sur le cycle en cours et se remet à zéro à chaque échéance.
@@ -735,6 +779,61 @@ export default function Abonnements() {
             <Field label="Son créneau réservé">
               <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
             </Field>
+
+            {/* PAYER EN PLUSIEURS FOIS — la porte ne s'ouvre qu'au-delà de
+                100 000 F. En dessous, quatre échéances coûtent plus cher à
+                suivre qu'elles ne rapportent, et elles habituent la Maison à
+                courir après des miettes. */}
+            {(() => {
+              const plan = planOf(subForm.planId);
+              const total = plan ? subCycleAmountXof(plan.priceXof, subForm.cycle) : 0;
+              if (!peutEtreEchelonne(total)) return null;
+              const apercu = subForm.parts ? construitEcheancier(total, subForm.parts, todayISO()) : [];
+              return (
+                <Field label={`Règlement · ${fmtMoney(total, currency)} à encaisser`}>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`tre-chip ${subForm.parts === null ? 'is-on' : ''}`}
+                      onClick={() => setSubForm({ ...subForm, parts: null })}
+                    >
+                      En une fois
+                    </button>
+                    {DECOUPES.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={`tre-chip ${subForm.parts === n ? 'is-on' : ''}`}
+                        onClick={() => setSubForm({ ...subForm, parts: n })}
+                      >
+                        En {n} fois
+                      </button>
+                    ))}
+                  </div>
+                  {apercu.length > 0 ? (
+                    <div style={{ marginTop: 10, border: '1px solid var(--hairline)', borderRadius: 3, overflow: 'hidden' }}>
+                      {apercu.map((e) => (
+                        <div key={e.numero} style={{
+                          display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5,
+                          padding: '8px 12px', borderTop: e.numero === 1 ? 'none' : '1px solid var(--hairline)',
+                        }}>
+                          <span className="mnd-muted">
+                            {e.numero === 1 ? 'Aujourd’hui, à la signature' : `${e.numero}ᵉ · ${shortDate(e.dueIso)}`}
+                          </span>
+                          <b style={{ fontWeight: 500 }}>{fmtMoney(e.amountXof, currency)}</b>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.6 }}>
+                      Au-delà de {fmtMoney(SEUIL_ECHELONNEMENT_XOF, currency)}, la Maison peut découper.
+                      La première échéance tombe le jour même : on n’accorde pas un crédit qui commence par un délai.
+                    </div>
+                  )}
+                </Field>
+              );
+            })()}
+
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setSubModal(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveSub} disabled={!subForm.clientId}>Inscrire l’abonné</Button>
@@ -750,6 +849,66 @@ export default function Abonnements() {
               {planOf(payFor.planId)?.name ?? '—'} · {cycleLabel(payFor.cycle ?? 'mensuel').split(' · ')[0].toLowerCase()}
               {planOf(payFor.planId) ? ` · échéance ${fmtMoney(subCycleAmountXof(planOf(payFor.planId)!.priceXof, payFor.cycle ?? 'mensuel'), currency)}` : ''}
             </div>
+            {/* L'ÉCHÉANCIER, DÉRIVÉ DES RÈGLEMENTS. Les versements s'imputent
+                dans l'ordre, la plus vieille échéance d'abord : c'est la seule
+                règle qui permette de dire « deux échéances de retard » sans se
+                tromper. Voir `shared/echeancier.ts`, 31 vérifications. */}
+            {payFor.echeances && payFor.echeances.length > 0 && (() => {
+              const etats = etatDesEcheances(payFor.echeances, subPaid(payFor), todayISO());
+              const retard = enRetardXof(etats);
+              const suivante = prochaineEcheance(etats);
+              return (
+                <div>
+                  <div className="tre-sec-label" style={{ marginBottom: 8 }}>
+                    Réglable en {payFor.echeances.length} fois
+                    {retard > 0 && <span style={{ color: 'var(--color-brique, #96412E)' }}> · {fmtMoney(retard, currency)} en retard</span>}
+                  </div>
+                  <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, overflow: 'hidden' }}>
+                    {etats.map((e) => (
+                      <div key={e.numero} style={{
+                        display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'baseline',
+                        padding: '9px 12px', fontSize: 12.5,
+                        borderTop: e.numero === 1 ? 'none' : '1px solid var(--hairline)',
+                        background: e.enRetard ? 'rgba(150,65,46,.06)' : undefined,
+                      }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: '50%', flex: 'none',
+                          background: e.soldee ? 'var(--color-vert, #2E6B4F)' : e.enRetard ? 'var(--color-brique, #96412E)' : 'var(--color-argile)',
+                        }} />
+                        <span className="mnd-muted">
+                          {e.numero}ᵉ · {shortDate(e.dueIso)}
+                          {e.soldee ? ' · soldée'
+                            : e.enRetard ? ` · en retard de ${e.retardJours} jour${e.retardJours > 1 ? 's' : ''}`
+                              : e.regleXof > 0 ? ` · ${fmtMoney(e.regleXof, currency)} versés` : ' · à venir'}
+                        </span>
+                        <b style={{ fontWeight: 500, whiteSpace: 'nowrap', textDecoration: e.soldee ? 'line-through' : undefined, color: e.soldee ? 'var(--ink-soft)' : undefined }}>
+                          {fmtMoney(e.amountXof, currency)}
+                        </b>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9, fontSize: 12.5 }}>
+                    <span className="mnd-muted">
+                      {suivante ? `Prochaine échéance · ${fmtMoney(suivante.resteXof, currency)}` : 'Échéancier soldé'}
+                    </span>
+                    {suivante && (
+                      <button
+                        type="button"
+                        className="tre-link-btn"
+                        onClick={() => setPayForm({ ...payForm, amount: String(suivante.resteXof) })}
+                      >
+                        Encaisser ce montant
+                      </button>
+                    )}
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.6 }}>
+                    Reste {fmtMoney(resteDeLEcheancier(etats), currency)} sur l’échéancier. Un versement qui déborde
+                    coule sur l’échéance suivante.
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant (${currency})`}>
                 <Input inputMode="numeric" value={payForm.amount} onChange={(e) => setPayForm({ ...payForm, amount: e.target.value.replace(/[^0-9]/g, '') })} placeholder="0" />
