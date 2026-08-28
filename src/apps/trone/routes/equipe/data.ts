@@ -544,8 +544,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-suite', name: 'La Suite', tag: 'Après les quatre', priceXof: 35000,
     line: 'Votre couronne ne s’arrête pas à quatre.',
     perks: [
-      '1 SÍNSIN™ resserrage par mois',
-      '1 FÍNFÍN™ soin par mois',
+      '1 GBÈJÍ™ resserrage par mois',
+      '1 WÈWÈ™ soin par mois',
       'Votre créneau gardé, rien qu’à vous',
       '−15 % sur la gamme',
     ],
@@ -560,7 +560,7 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-carnet', name: 'Le Carnet des Six', tag: 'Cinq payés, six pris', priceXof: 125000,
     line: 'Le dernier resserrage que vous payez plein tarif.',
     perks: [
-      '6 SÍNSIN™ resserrage racines',
+      '6 GBÈJÍ™ resserrage racines',
       'Le sixième est offert par la Maison',
       'Valable 12 mois, à votre rythme',
       'Transmissible à une tête de votre foyer',
@@ -577,7 +577,7 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-lavage', name: 'Le Lavage du Mois', tag: 'La porte d’entrée', priceXof: 15000,
     line: 'Une couronne propre, tous les mois, sans y penser.',
     perks: [
-      '1 FÍNFÍN™ soin & lavage par mois',
+      '1 WÈWÈ™ soin & lavage par mois',
       'Rappel automatique la veille',
       '−10 % sur la gamme',
     ],
@@ -592,7 +592,7 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-foyer2', name: 'Le Foyer · Deux Têtes', tag: 'À deux', priceXof: 60000,
     line: 'Mère et fille, sœurs, amies : une seule formule pour deux couronnes.',
     perks: [
-      '1 SÍNSIN™ + 1 FÍNFÍN™ chacune, par mois',
+      '1 GBÈJÍ™ + 1 KLƆKLƆ™ chacune, par mois',
       'Vos deux créneaux côte à côte',
       '−15 % sur la gamme pour les deux',
       '10 000 F de moins que deux Suite',
@@ -604,7 +604,7 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-foyer3', name: 'Le Foyer · Trois Têtes', tag: 'À trois', priceXof: 85000,
     line: 'Trois couronnes sous le même toit, un seul rendez-vous à retenir.',
     perks: [
-      '1 SÍNSIN™ + 1 FÍNFÍN™ chacune, par mois',
+      '1 GBÈJÍ™ + 1 KLƆKLƆ™ chacune, par mois',
       'Vos trois créneaux à la suite',
       '−15 % sur la gamme pour les trois',
       '20 000 F de moins que trois Suite',
@@ -639,8 +639,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-sereine-duo', name: 'L’Année Sereine · Duo', tag: 'Six séances', priceXof: 215000,
     line: 'Toute l’année tenue, une venue tous les deux mois.',
     perks: [
-      '6 SÍNSIN™ resserrage racines',
-      '6 FÍNFÍN™ lavage',
+      '6 GBÈJÍ™ resserrage racines',
+      '6 KLƆKLƆ™ Le Lavage',
       'Tout dans la même séance, un seul rendez-vous',
       'Valable 12 mois, à votre rythme',
       '270 000 F à la carte, vous gagnez 55 000 F',
@@ -652,8 +652,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-sereine-trio', name: 'L’Année Sereine · Trio', tag: 'Six séances, soin compris', priceXof: 305000,
     line: 'La même année, le soin en plus.',
     perks: [
-      '6 SÍNSIN™ resserrage racines',
-      '6 FÍNFÍN™ lavage',
+      '6 GBÈJÍ™ resserrage racines',
+      '6 KLƆKLƆ™ Le Lavage',
       '6 WÈWÈ™ soin',
       'Valable 12 mois, à votre rythme',
       '390 000 F à la carte, vous gagnez 85 000 F',
@@ -669,8 +669,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-fraiche-duo', name: 'L’Année Fraîche · Duo', tag: 'Le lavage chaque mois', priceXof: 310000,
     line: 'Une couronne fraîche tous les mois, des racines nettes tous les deux.',
     perks: [
-      '6 SÍNSIN™ resserrage racines',
-      '12 FÍNFÍN™ lavage, un par mois',
+      '6 GBÈJÍ™ resserrage racines',
+      '12 KLƆKLƆ™ Le Lavage, un par mois',
       'Valable 12 mois, à votre rythme',
       '390 000 F à la carte, vous gagnez 80 000 F',
     ],
@@ -681,8 +681,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-fraiche-trio', name: 'L’Année Fraîche · Trio', tag: 'Lavage mensuel, soin compris', priceXof: 395000,
     line: 'Le lavage chaque mois, le soin à chaque resserrage.',
     perks: [
-      '6 SÍNSIN™ resserrage racines',
-      '12 FÍNFÍN™ lavage, un par mois',
+      '6 GBÈJÍ™ resserrage racines',
+      '12 KLƆKLƆ™ Le Lavage, un par mois',
       '6 WÈWÈ™ soin',
       'Valable 12 mois, à votre rythme',
       '510 000 F à la carte, vous gagnez 115 000 F',
@@ -697,8 +697,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-nette-duo', name: 'L’Année Nette · Duo', tag: 'Toutes les six semaines', priceXof: 285000,
     line: 'Des racines toujours nettes, huit fois dans l’année.',
     perks: [
-      '8 SÍNSIN™ resserrage racines',
-      '8 FÍNFÍN™ lavage',
+      '8 GBÈJÍ™ resserrage racines',
+      '8 KLƆKLƆ™ Le Lavage',
       'Toutes les six semaines',
       'Valable 12 mois, à votre rythme',
       '360 000 F à la carte, vous gagnez 75 000 F',
@@ -710,8 +710,8 @@ export const PLANS_MARKETING: Plan[] = [
     id: 'pl-mkt-annee-nette-trio', name: 'L’Année Nette · Trio', tag: 'Six semaines, soin compris', priceXof: 405000,
     line: 'Le rythme le plus serré, la couronne au plus haut.',
     perks: [
-      '8 SÍNSIN™ resserrage racines',
-      '8 FÍNFÍN™ lavage',
+      '8 GBÈJÍ™ resserrage racines',
+      '8 KLƆKLƆ™ Le Lavage',
       '8 WÈWÈ™ soin',
       'Toutes les six semaines',
       'Valable 12 mois, à votre rythme',
