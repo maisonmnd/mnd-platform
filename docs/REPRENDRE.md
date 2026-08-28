@@ -54,6 +54,35 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## LA CONFIRMATION À LA PRISE DU RENDEZ-VOUS — 28 août, À DÉPLOYER
+
+« Je peux avoir une confirmation WhatsApp automatique pour tous les nouveaux
+RDV ? » (Yéman). `supabase/functions/confirmation-rdv/index.ts`, sœur de
+`rappels-j1`.
+
+⚠️ **À DÉPLOYER À LA MAIN** (Supabase → Edge Functions) + un cron toutes les
+10 min. Marche à suivre complète : `docs/BRANCHER-ENVOIS.md`, étape 3 bis.
+
+**ELLE BALAIE, ELLE N'ÉCOUTE PAS.** Un rendez-vous naît de quatre endroits — le
+Calendrier, « + RDV », la modale d'appel reçu, Ma Couronne. Brancher l'envoi sur
+chaque écran, c'est quatre occasions de l'oublier, et zéro confirmation le jour
+où une cliente ferme son téléphone avant que la page ait fini. Le cron confirme
+ce qui est neuf, d'où que ça vienne.
+
+**L'IDEMPOTENCE EST DANS L'IDENTIFIANT** : `conf-<rdv>-<canal>` dans `envois`,
+posé en `upsert`. Le cron peut se réveiller cent fois, une cliente ne reçoit
+qu'une confirmation. Fenêtre de rattrapage de 2 h devant un cron de 10 min :
+une panne d'une heure ne fait perdre aucune confirmation.
+
+**NI LE PASSÉ NI L'ANNULÉ** : « votre rendez-vous est confirmé » sur un rituel
+d'hier ferait douter de tout le reste.
+
+**LE PUSH PART SANS AUCUNE CLÉ META** — toute cliente ayant installé Ma
+Couronne est confirmée dès le déploiement. Le WhatsApp exige `WA_TOKEN`,
+`WA_PHONE_ID` et un modèle `confirmation_rdv` **distinct** de `rappel_rdv`
+(Meta approuve par usage : confirmer n'est pas rappeler). Sans les clés, la
+fonction passe SANS BRUIT, comme `rappels-j1`.
+
 ## LE COMPTE D'UN FOYER NE VOYAIT QU'UNE TÊTE — 28 août, PUBLIÉ
 
 « Je ne vois nulle part que Merine doit 36 400 F pour le compte de sa fille

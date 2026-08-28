@@ -74,6 +74,56 @@ WA_TEMPLATE=rappel_rdv
 Au prochain réveil, les WhatsApp partent — et la tournée du matin montre
 « WhatsApp auto » sur chaque ligne servie.
 
+## Étape 3 bis — La confirmation à la prise du rendez-vous (28 août 2026)
+
+« Je peux avoir une confirmation WhatsApp automatique pour tous les nouveaux
+RDV ? » (Yéman). Oui : `supabase/functions/confirmation-rdv/index.ts`.
+
+**ELLE BALAIE, ELLE N'ÉCOUTE PAS.** Un rendez-vous peut naître de quatre
+endroits — le Calendrier, le bouton « + RDV », la modale d'appel reçu, et Ma
+Couronne. Brancher l'envoi sur chaque écran, c'est quatre occasions de
+l'oublier, et zéro confirmation le jour où une cliente ferme son téléphone
+avant que la page ait fini. Le cron passe toutes les dix minutes et confirme ce
+qui est neuf, d'où que ça vienne.
+
+**L'IDEMPOTENCE EST DANS L'IDENTIFIANT** : `conf-<rdv>-<canal>` dans `envois`.
+Le cron peut se réveiller cent fois, une cliente ne reçoit qu'une confirmation.
+
+**NI LE PASSÉ NI L'ANNULÉ** : « votre rendez-vous est confirmé » sur un rituel
+d'hier ferait douter de tout le reste.
+
+### Poser la fonction
+
+1. Supabase → Edge Functions → **New function** → `confirmation-rdv`, coller le
+   fichier entier, Deploy.
+2. Cron → **Name** `confirmation-rdv`, **Schedule** `*/10 * * * *` (toutes les
+   dix minutes), **Type** Edge Function → `confirmation-rdv`, méthode POST,
+   en-tête `Authorization: Bearer <clé service>`.
+
+### Le modèle Meta, à faire approuver
+
+Un modèle **à part** de celui du rappel : Meta approuve chaque modèle pour un
+usage, et confirmer n'est pas rappeler. Nom : `confirmation_rdv`, catégorie
+UTILITY, français.
+
+> Bonjour {{1}}, c'est confirmé : votre rendez-vous est retenu {{2}}.
+> Nous vous attendons. Merci de nous prévenir en cas d'empêchement.
+
+({{1}} = prénom, {{2}} = le moment en clair — « vendredi 28 août à 14:00 ».)
+
+Puis, dans les **Secrets** de la fonction :
+
+```
+WA_TOKEN=<le même jeton permanent>
+WA_PHONE_ID=<le même identifiant de numéro>
+WA_TEMPLATE_CONF=confirmation_rdv
+```
+
+**LE PUSH PART DÈS AUJOURD'HUI, SANS AUCUNE CLÉ META.** Toute cliente qui a
+installé Ma Couronne reçoit sa confirmation immédiatement, gratuitement. Le
+WhatsApp s'ajoutera le jour où la vérification Meta aboutira — sans qu'on
+retouche une ligne de code.
+
 ## Étape 4 — Allumer les SMS (fournisseur à choisir)
 
 Il faut un compte chez un fournisseur d'envoi SMS qui couvre le Bénin
