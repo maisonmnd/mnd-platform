@@ -54,6 +54,27 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## Le carré de la carte des prix — 28 août, PUBLIÉ
+
+« Dans QR code, crée-moi le QR code et le lien pour accéder à la page du
+catalogue » (Yéman). Nouvelle carte dans **QR Codes › Elle arrive**, en tête.
+
+L'écran du comptoir a une adresse ; elle méritait son carré. Ce n'est plus
+seulement une tablette posée face à la cliente : **le lien s'envoie à celle qui
+écrit « bonjour, c'est combien pour des locks ? »**, et elle lit la carte
+entière sur son téléphone plutôt que de recevoir trois prix recopiés à la main.
+
+**LES PRIX Y SONT TOUJOURS CEUX DU JOUR.** Un tarif recopié dans un message
+vieillit dès la prochaine hausse et revient au comptoir comme une promesse ; ce
+lien dit la vérité du moment.
+
+Quatre gestes : afficher au comptoir, ouvrir la carte, copier le lien, copier le
+message entier. L'adresse se construit sur l'origine COURANTE (`/trone/` en
+ligne, la racine en développement), jamais un domaine en dur.
+
+Elle compte dans la barre du haut : **sept codes**, et elle est toujours prête —
+elle n'attend aucun réglage.
+
 ## La Carte : le glissement et le wifi — 28 août, PUBLIÉ
 
 ### Le doigt pousse, il ne vise plus

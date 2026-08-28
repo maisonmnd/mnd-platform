@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Crown, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
+import { BookOpen, Clock, Crown, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { toast } from '../../../../ds/components';
@@ -400,6 +400,10 @@ export default function QrCodes() {
     || (adresseComplete ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresseComplete)}` : '');
   const planPrecis = !!branch.mapsUrl?.trim();
   const lienCouronne = lienMaCouronne();
+  /* LA CARTE DU COMPTOIR — construite sur l'origine COURANTE, jamais un
+     domaine en dur : elle vit sous /trone/ en ligne, à la racine en
+     développement. Changer de compte GitHub ne doit rien casser. */
+  const lienCarte = new URL(`${window.location.pathname.includes('/trone') ? '/trone/' : '/'}carte.html`, window.location.origin).href;
 
   const copier = (lien: string, quoi: string) => {
     navigator.clipboard.writeText(lien)
@@ -426,7 +430,10 @@ export default function QrCodes() {
      compte, pour qu'on ne découvre pas le manque le jour où on le tend. */
   const wifi1 = !!(autoRaw.wifiSsid?.trim() && autoRaw.wifiPass?.trim());
   const wifi2 = !!(autoRaw.wifi2Ssid?.trim() && autoRaw.wifi2Pass?.trim());
-  const etats = [!!lienPlan, wifi1 || wifi2, !!momoQr, !!lienAvis, !!lienCouronne, !!codeJour];
+  /* La carte des prix est TOUJOURS prête : elle n'attend aucun réglage, son
+     adresse se déduit de l'origine. Elle compte quand même dans le total,
+     sinon la barre dirait six là où l'écran en montre sept. */
+  const etats = [!!lienCarte, !!lienPlan, wifi1 || wifi2, !!momoQr, !!lienAvis, !!lienCouronne, !!codeJour];
   const prets = etats.filter(Boolean).length;
 
   return (
@@ -454,6 +461,35 @@ export default function QrCodes() {
         sous="Ce qu’on tend à celle qui cherche la porte, puis à celle qui vient de s’installer."
       >
         <div className="trq-grille">
+          {/* ── LA CARTE DES PRIX — 28 août 2026 ─────────────────────
+              L'écran du comptoir a une adresse ; elle mérite son carré. Ce
+              n'est plus seulement une tablette posée face à la cliente : le
+              lien s'envoie à celle qui écrit « bonjour, c'est combien pour
+              des locks ? », et elle lit la carte entière sur son téléphone
+              plutôt que de recevoir trois prix recopiés à la main.
+
+              LES PRIX Y SONT TOUJOURS CEUX DU JOUR. Un tarif recopié dans un
+              message vieillit dès la prochaine hausse et revient au comptoir
+              comme une promesse ; ce lien, lui, dit la vérité du moment. */}
+          <CarteCode
+            signe={BookOpen}
+            nom="La carte des prix."
+            qui="La cliente scanne · nos prix s’ouvrent"
+            dit={<>Nos rituels, nos formules et la gamme, à jour au franc près. Le lien s’envoie aussi par WhatsApp à celle qui demande un prix.</>}
+            valeur={lienCarte}
+            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCarte}</span> }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Notre carte.', phrase: 'Scannez, tous nos prix s’ouvrent sur votre téléphone.', valeur: lienCarte }) },
+              { texte: 'Ouvrir la carte', faire: () => window.open(lienCarte, '_blank', 'noopener') },
+              { texte: 'Copier le lien', faire: () => copier(lienCarte, 'de la carte') },
+              /* LE MESSAGE ENTIER, pas seulement le lien : celle qui demande
+                 un prix par écrit mérite une phrase, pas une adresse nue. */
+              { texte: 'Copier le message', faire: () => copier(
+                `Voici la carte de la ${maisonNom()}, avec tous nos rituels et nos formules : ${lienCarte}`,
+                'de la carte (message entier)',
+              ) },
+            ]}
+          />
           <CarteCode
             signe={MapPin}
             nom="Où nous trouver."
