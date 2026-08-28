@@ -7,7 +7,7 @@
    avantages, l'écart de remise qui pousse à monter d'un cran, et le seuil au
    delà duquel le paiement se découpe. */
 import { PLANS_MARKETING, PACKS_ANNUELS, FAMILLES_FORMULES } from '../src/apps/trone/routes/equipe/data';
-import { formuleLaPlusUtile, type Plan } from '../src/shared/abonnements';
+import { formuleLaPlusUtile, prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, type Plan } from '../src/shared/abonnements';
 import { SEUIL_ECHELONNEMENT_XOF, peutEtreEchelonne } from '../src/shared/echeancier';
 import { CARTE_DEFAUT, carteReglages, gardeSurLaCarte, directionDuGlisse, indexSuivant, SEUIL_GLISSE, wifiPayload } from '../src/shared/bridges';
 
@@ -308,6 +308,44 @@ dit('… et l’antislash lui-même',
   wifiPayload('MND', 'a' + String.fromCharCode(92) + 'b'));
 dit('le mot de passe est bien DANS le carré, cacher n’est pas retirer', true,
   wifiPayload('MND', 'RootsCare2026').includes('RootsCare2026'));
+
+/* ── ⑯ UN PAQUET NE SE MULTIPLIE PAS ───────────────────────────────
+   « L'Éclosion est un abonnement annuel, pourquoi c'est écrit prix mensuel ?
+   De même pour tous les autres abonnements à l'année » (Yéman, 28 août).
+
+   L'écran appliquait la règle des cycles — 5 mois payés sur 6, 10 sur 12 — à
+   TOUT, paquets compris. L'Éclosion, 225 000 F pour douze mois, s'affichait
+   « 225 000 F /mois » en vue mensuelle et se serait affichée 2 250 000 F en
+   vue annuelle. Le prix d'un paquet est son prix, entier, une fois. */
+const eclosion = par('pl-mkt-eclosion')!;
+dit('un paquet garde son prix en vue mensuelle', 225_000, prixDeLaFormule(eclosion, 'mensuel').montantXof);
+dit('… et en vue annuelle aussi', 225_000, prixDeLaFormule(eclosion, 'annuel').montantXof);
+dit('… et en vue semestrielle', 225_000, prixDeLaFormule(eclosion, 'semestriel').montantXof);
+dit('il dit sa durée, pas « par mois »', '· 12 mois', prixDeLaFormule(eclosion, 'mensuel').periode);
+dit('… et le formulaire dit le mot juste', 'Prix du paquet', prixDeLaFormule(eclosion, 'mensuel').libelle);
+dit('un paquet n’offre pas de mois : il n’a pas de cycle', '', prixDeLaFormule(eclosion, 'annuel').offert);
+
+/* UN ABONNEMENT, LUI, SUIT BIEN LA RÈGLE DES CYCLES. */
+const suite = par('pl-mkt-suite')!;
+dit('un abonnement mensuel vaut son prix', 35_000, prixDeLaFormule(suite, 'mensuel').montantXof);
+dit('… annuel, dix mois payés sur douze', 350_000, prixDeLaFormule(suite, 'annuel').montantXof);
+dit('… et il annonce ses deux mois offerts', '2 mois offerts', prixDeLaFormule(suite, 'annuel').offert);
+dit('… avec le mot juste au formulaire', 'Prix mensuel', prixDeLaFormule(suite, 'mensuel').libelle);
+
+/* LE MRR NE MENT PAS. Un paquet de 225 000 F sur douze mois pèse 18 750 F par
+   mois : le compter entier gonflerait le revenu récurrent du mois de la
+   signature, puis il disparaîtrait des mois suivants. */
+dit('un paquet pèse sa part mensuelle', 18_750, partMensuelleDeLaFormule(eclosion, 'mensuel'));
+dit('… quelle que soit la vue choisie', 18_750, partMensuelleDeLaFormule(eclosion, 'annuel'));
+dit('un abonnement annuel pèse dix mois sur douze', 29_167, partMensuelleDeLaFormule(suite, 'annuel'));
+dit('… et le mensuel, son prix', 35_000, partMensuelleDeLaFormule(suite, 'mensuel'));
+
+/* LA DURÉE SE LIT SUR LE PAQUET, jamais supposée à douze mois. */
+dit('les Années durent douze mois', 12, moisDuPack(eclosion));
+dit('un paquet sans durée retombe sur douze', 12,
+  moisDuPack({ ...suite, mode: 'pack', validityDays: undefined } as Plan));
+dit('un paquet de six mois le dit', 6,
+  moisDuPack({ ...suite, mode: 'pack', validityDays: 180 } as Plan));
 
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);

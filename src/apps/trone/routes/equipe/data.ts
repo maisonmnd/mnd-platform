@@ -410,9 +410,10 @@ export {
   FAMILLES_FORMULES, cycleDays, cycleLabel, annualPriceXof, semestrielPriceXof,
   subCycleAmountXof, subMonthlyXof, activeSubscriberOf, subPaid, addDaysFromISO,
   cycleWindow, subWindow, coversSub, subServiceUsage,
+  prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack,
 } from '../../../../shared/abonnements';
 export type {
-  Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage,
+  Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage, PrixAffiche,
 } from '../../../../shared/abonnements';
 /* Les seuls usages INTERNES à ce fichier : les semences et le marketing en
    ont besoin comme valeurs, pas seulement comme types. */

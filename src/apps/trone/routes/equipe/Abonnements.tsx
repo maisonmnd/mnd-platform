@@ -9,6 +9,7 @@ import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
+  prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, type PlanMode,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices } from '../../../../shared/catalog';
@@ -22,7 +23,7 @@ import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | '' };
+type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | ''; mode: PlanMode; moisValidite: string };
 type SubForm = { clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null; voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
@@ -41,7 +42,7 @@ export default function Abonnements() {
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '' });
+  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12' });
   const [services] = useServices();
   const [allAppts] = useAppointments();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
@@ -114,12 +115,13 @@ export default function Abonnements() {
 
   const openPlanNew = () => {
     setPlanEditId(null);
-    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '' });
+    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12' });
     setPlanModal(true);
   };
   const openPlanEdit = (p: Plan) => {
     setPlanEditId(p.id);
-    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular, famille: p.famille ?? '' });
+    setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular, famille: p.famille ?? '',
+      mode: p.mode ?? 'cycle', moisValidite: String(moisDuPack(p)) });
     setPlanModal(true);
   };
   const savePlan = () => {
@@ -128,17 +130,24 @@ export default function Abonnements() {
     const perks = planForm.perks.split('·').map((s) => s.trim()).filter(Boolean);
     const included = planForm.included.filter((i) => i.serviceId);
     const featured = planForm.popular;
+    /* LE MODE ET LA DURÉE DE VIE s'enregistrent explicitement : un paquet sans
+       `validityDays` ne s'épuiserait jamais, et la tête pourrait revenir cinq
+       ans plus tard réclamer son sixième resserrage. */
+    const mode: PlanMode = planForm.mode;
+    const validityDays = mode === 'pack'
+      ? Math.max(1, Math.min(60, Number(planForm.moisValidite) || 12)) * 30
+      : undefined;
     /* Une SEULE formule vedette à la fois : l'activer retire la mise en avant des
        autres (la carte indigo perd son sens s'il y en a plusieurs). */
     if (planEditId) {
       setPlans((prev) => prev.map((p) =>
         p.id === planEditId
-          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille: planForm.famille || undefined }
+          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille: planForm.famille || undefined, mode, validityDays }
           : (featured ? { ...p, popular: false } : p)));
     } else {
       setPlans((prev) => [
         ...(featured ? prev.map((p) => ({ ...p, popular: false })) : prev),
-        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille: planForm.famille || undefined },
+        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille: planForm.famille || undefined, mode, validityDays },
       ]);
     }
     setPlanModal(false);
@@ -271,7 +280,7 @@ export default function Abonnements() {
     const opt = chiffreLOption(plan, cycle);
     /* Le total À DÉCOUPER inclut l'option : elle se paie avec l'abonnement,
        pas à côté. La découper séparément ferait deux échéanciers à suivre. */
-    const totalXof = subCycleAmountXof(plan.priceXof, cycle) + (opt?.supplement ?? 0);
+    const totalXof = prixDeLaFormule(plan, cycle).montantXof + (opt?.supplement ?? 0);
     const nm: Subscriber = {
       id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
       cycle,
@@ -281,7 +290,7 @@ export default function Abonnements() {
       /* Le MRR porte l'option, ramenée au mois : un supplément annuel non
          normalisé gonflerait le revenu récurrent du mois de la signature,
          puis disparaîtrait des mois suivants. */
-      mrrXof: subMonthlyXof(plan.priceXof, cycle) + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
+      mrrXof: partMensuelleDeLaFormule(plan, cycle) + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
       ...(opt && opt.supplement > 0
         ? { couleur: { voie: subForm.voie as VoieCouleur, rythme: subForm.rythme, serviceId: opt.serviceId, supplementXof: opt.supplement } }
         : {}),
@@ -307,7 +316,7 @@ export default function Abonnements() {
       ? prochaineEcheance(etatDesEcheances(m.echeances, subPaid(m), todayISO()))
       : undefined;
     const due = suivante ? suivante.resteXof
-      : plan ? subCycleAmountXof(plan.priceXof, m.cycle ?? 'mensuel') : 0;
+      : plan ? prixDeLaFormule(plan, m.cycle ?? 'mensuel').montantXof : 0;
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
     setPayFor(m);
   };
@@ -530,9 +539,9 @@ export default function Abonnements() {
               <div className="tr-grid tr-grid--3" style={{ alignItems: 'start' }}>
                 {groupe.liste.map((p) => {
               const idx = plans.findIndex((x) => x.id === p.id);
-              const price = subCycleAmountXof(p.priceXof, cycle);
-              const period = cycle === 'annuel' ? '/an' : cycle === 'semestriel' ? '/6 mois' : '/mois';
-              const offered = cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '';
+              /* UN PAQUET NE SE MULTIPLIE PAS et n'a pas de cycle : le
+                 sélecteur du haut ne lui fait rien. Voir `prixDeLaFormule`. */
+              const aff = prixDeLaFormule(p, cycle);
               return (
                 <Card key={p.id} className={`tre-plan ${p.popular ? 'tre-plan--popular' : ''}`}>
                   <div className="tre-reorder" role="group" aria-label="Réordonner la formule">
@@ -545,11 +554,13 @@ export default function Abonnements() {
                   <div className="tre-plan__name" style={{ marginTop: p.popular ? 6 : 8 }}>{p.name}</div>
                   <div className="tre-plan__line">{p.line}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
-                    <span className="tre-plan__price">{fmtMoney(price, currency)}</span>
-                    <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{period}</span>
+                    <span className="tre-plan__price">{fmtMoney(aff.montantXof, currency)}</span>
+                    <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{aff.periode}</span>
                   </div>
                   <div style={{ fontSize: 11, minHeight: 16, color: p.popular ? 'var(--copper-300)' : 'var(--copper-700)' }}>
-                    {offered ? `soit ${fmtMoney(subMonthlyXof(p.priceXof, cycle), currency)}/mois · ${offered}` : ''}
+                    {p.mode === 'pack'
+                      ? `paquet de crédits · soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois`
+                      : aff.offert ? `soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois · ${aff.offert}` : ''}
                   </div>
                   <div className="tre-plan__divider" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -819,7 +830,42 @@ export default function Abonnements() {
                 <Input value={planForm.tag} placeholder="Ex. L’équilibre" onChange={(e) => setPlanForm({ ...planForm, tag: e.target.value })} />
               </Field>
             </div>
-            <Field label={`Prix mensuel · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
+            {/* LE MODE SE CHOISIT — il ne se devinait nulle part, et une
+                formule créée à l'écran était forcément un abonnement. Un
+                paquet vendu comme abonnement se recharge tous les mois : la
+                Maison offrirait ses crédits à vie sans s'en apercevoir. */}
+            <Field label="Comment elle se vend">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`tre-chip ${planForm.mode === 'cycle' ? 'is-on' : ''}`}
+                  onClick={() => setPlanForm({ ...planForm, mode: 'cycle' })}
+                >
+                  Abonnement · il se recharge
+                </button>
+                <button
+                  type="button"
+                  className={`tre-chip ${planForm.mode === 'pack' ? 'is-on' : ''}`}
+                  onClick={() => setPlanForm({ ...planForm, mode: 'pack' })}
+                >
+                  Paquet de crédits · il s’épuise
+                </button>
+                {planForm.mode === 'pack' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5 }}>
+                    <Input
+                      type="number" min={1} max={60}
+                      value={planForm.moisValidite}
+                      onChange={(e) => setPlanForm({ ...planForm, moisValidite: e.target.value })}
+                      style={{ width: 72, textAlign: 'right' }}
+                      aria-label="Durée de vie du paquet, en mois"
+                    />
+                    <span className="mnd-muted">mois de validité</span>
+                  </label>
+                )}
+              </div>
+            </Field>
+
+            <Field label={`${planForm.mode === 'pack' ? 'Prix du paquet' : 'Prix mensuel'} · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
               <Input inputMode="numeric" value={planForm.price} placeholder="45000" onChange={(e) => setPlanForm({ ...planForm, price: e.target.value.replace(/[^0-9]/g, '') })} />
             </Field>
             <Field label="La promesse">
@@ -973,7 +1019,12 @@ export default function Abonnements() {
             </Field>
             <Field label="Formule">
               <Select value={subForm.planId} onChange={(e) => setSubForm({ ...subForm, planId: e.target.value })}>
-                {plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {fmtMoney(p.priceXof, currency)}/mois</option>)}
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {fmtMoney(p.priceXof, currency)}
+                    {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' / mois'}
+                  </option>
+                ))}
               </Select>
             </Field>
             <Field label="Cycle de facturation">
@@ -989,13 +1040,20 @@ export default function Abonnements() {
                   </button>
                 ))}
               </div>
-              {planOf(subForm.planId) && (
-                <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
-                  {subForm.cycle === 'mensuel'
-                    ? `${fmtMoney(planOf(subForm.planId)!.priceXof, currency)} / mois`
-                    : `${fmtMoney(subCycleAmountXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / ${subForm.cycle === 'annuel' ? 'an' : '6 mois'}, soit ${fmtMoney(subMonthlyXof(planOf(subForm.planId)!.priceXof, subForm.cycle), currency)} / mois`}
-                </div>
-              )}
+              {/* LE MÊME JUGE QUE LA CARTE : un paquet dit son prix entier et
+                  sa durée, jamais un « par mois » qui n'existe pas. */}
+              {(() => {
+                const pl = planOf(subForm.planId);
+                if (!pl) return null;
+                const a = prixDeLaFormule(pl, subForm.cycle);
+                return (
+                  <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                    {fmtMoney(a.montantXof, currency)} {a.periode}
+                    {a.moisCouverts > 1 ? `, soit ${fmtMoney(partMensuelleDeLaFormule(pl, subForm.cycle), currency)} / mois` : ''}
+                    {a.offert ? ` · ${a.offert}` : ''}
+                  </div>
+                );
+              })()}
             </Field>
             <Field label="Son créneau réservé">
               <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
@@ -1113,7 +1171,7 @@ export default function Abonnements() {
             {(() => {
               const plan = planOf(subForm.planId);
               const supp = chiffreLOption(plan, subForm.cycle)?.supplement ?? 0;
-              const total = (plan ? subCycleAmountXof(plan.priceXof, subForm.cycle) : 0) + supp;
+              const total = (plan ? prixDeLaFormule(plan, subForm.cycle).montantXof : 0) + supp;
               if (!peutEtreEchelonne(total)) return null;
               const apercu = subForm.parts ? construitEcheancier(total, subForm.parts, todayISO()) : [];
               return (
@@ -1174,7 +1232,7 @@ export default function Abonnements() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
               {planOf(payFor.planId)?.name ?? '—'} · {cycleLabel(payFor.cycle ?? 'mensuel').split(' · ')[0].toLowerCase()}
-              {planOf(payFor.planId) ? ` · échéance ${fmtMoney(subCycleAmountXof(planOf(payFor.planId)!.priceXof, payFor.cycle ?? 'mensuel'), currency)}` : ''}
+              {planOf(payFor.planId) ? ` · ${fmtMoney(prixDeLaFormule(planOf(payFor.planId)!, payFor.cycle ?? 'mensuel').montantXof, currency)}` : ''}
             </div>
             {/* L'ÉCHÉANCIER, DÉRIVÉ DES RÈGLEMENTS. Les versements s'imputent
                 dans l'ordre, la plus vieille échéance d'abord : c'est la seule

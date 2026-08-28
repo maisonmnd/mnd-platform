@@ -4,7 +4,7 @@ import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import {
-  FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, subCycleAmountXof,
+  FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
 } from '../../shared/abonnements';
 import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
@@ -98,7 +98,7 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
     <>
       <div className="cma-carte">
         <div className="cma-carte__tag">
-          {plan?.mode === 'pack' ? `${total} séances · valable 12 mois` : cycleLabel(sub.cycle ?? 'mensuel')}
+          {plan?.mode === 'pack' ? `${total} séances · valable ${moisDuPack(plan)} mois` : cycleLabel(sub.cycle ?? 'mensuel')}
         </div>
         <div className="cma-carte__nom">{plan?.name ?? 'Votre formule'}</div>
         {plan?.line && <p className="cma-carte__ligne">{plan.line}</p>}
@@ -168,7 +168,7 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
           <div className="cma-ech__ligne">
             <span className="cma-pastille avenir" />
             <span className="cma-ech__date">Prochaine échéance · {frCourt(sub.nextIso)}</span>
-            <span className="cma-ech__mt">{fmtMoney(subCycleAmountXof(plan.priceXof, sub.cycle ?? 'mensuel'), currency)}</span>
+            <span className="cma-ech__mt">{fmtMoney(prixDeLaFormule(plan, sub.cycle ?? 'mensuel').montantXof, currency)}</span>
           </div>
         </div>
       )}
@@ -237,7 +237,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
               <div className="cma-offre__bas">
                 <span className="cma-offre__prix">
                   {fmtMoney(p.priceXof, currency)}
-                  <span>{p.mode === 'pack' ? ' · 12 mois' : ' /mois'}</span>
+                  <span>{p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}</span>
                 </span>
                 {p.discountPct ? <span className="cma-offre__gain">−{p.discountPct} % sur la carte</span> : null}
               </div>

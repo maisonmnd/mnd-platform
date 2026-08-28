@@ -54,6 +54,37 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## UN PAQUET NE SE MULTIPLIE PAS — 28 août, PUBLIÉ
+
+« L'Éclosion est un abonnement annuel, pourquoi c'est écrit prix mensuel ? De
+même pour tous les autres abonnements à l'année » (Yéman).
+
+Le défaut allait plus loin que le libellé : **le sélecteur de cycle appliquait
+la règle des cycles à TOUT**, paquets compris. L'Éclosion, 225 000 F pour douze
+mois, s'affichait « 225 000 F /mois » en vue mensuelle et se serait affichée
+**2 250 000 F** en vue annuelle. Le prix d'un paquet est son prix, entier, une
+fois — un paquet n'a pas de cycle, il a une durée de vie.
+
+`prixDeLaFormule(p, cycle)` dans `shared/abonnements.ts` rend le montant, la
+période (« · 12 mois » ou « / mois »), les mois offerts, les mois couverts et
+**le mot juste pour le formulaire** (« Prix du paquet » / « Prix mensuel »).
+Il gouverne la carte de formule, la modale d'inscription, le menu déroulant,
+l'échéancier, la modale de règlement, Ma Couronne et la Carte du comptoir.
+
+`partMensuelleDeLaFormule` corrige le **MRR** : un paquet de 225 000 F sur
+douze mois pèse 18 750 F par mois. Le compter entier gonflait le revenu
+récurrent du mois de la signature, puis il disparaissait.
+
+### Le mode devient éditable
+
+Il ne l'était nulle part : **toute formule créée à l'écran était forcément un
+abonnement**. Un paquet vendu comme abonnement se recharge tous les mois — la
+Maison offrirait ses crédits à vie sans s'en apercevoir. Le formulaire porte
+maintenant « Abonnement · il se recharge » / « Paquet de crédits · il s'épuise »
+et, pour un paquet, ses mois de validité.
+
+`verifie-formules` monte à **119 assertions**.
+
 ## UN SEUL JUGE DU DÛ — 28 août, PUBLIÉ
 
 « Pourquoi quand je vais sur le compte de Merine ce n'est pas marqué qu'elle

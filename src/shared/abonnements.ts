@@ -321,3 +321,62 @@ export function formuleLaPlusUtile(o: {
   }
   return meilleure;
 }
+
+/* ── CE QU'UNE FORMULE COÛTE, ET SUR QUELLE PÉRIODE — 28 août 2026 ────
+   « L'Éclosion est un abonnement annuel, pourquoi c'est écrit prix mensuel ?
+   De même pour tous les autres abonnements à l'année » (Yéman).
+
+   UN PAQUET NE SE MULTIPLIE PAS. `subCycleAmountXof` applique la règle des
+   cycles — 5 mois payés sur 6, 10 sur 12 — et l'écran l'appliquait à TOUT,
+   paquets compris. L'Éclosion, 225 000 F pour douze mois, s'affichait
+   « 225 000 F /mois » en vue mensuelle, et se serait affichée 2 250 000 F en
+   vue annuelle. Le prix d'un paquet est son prix, entier, une fois.
+
+   LA VUE PAR CYCLE NE LE CONCERNE PAS NON PLUS : un paquet n'a pas de cycle,
+   il a une durée de vie. Le sélecteur en haut de l'écran ne doit donc rien
+   lui faire — il ne parle qu'aux abonnements récurrents. */
+
+/** Les mois que couvre un paquet — sa durée de vie, jamais un cycle. */
+export const moisDuPack = (p: Plan): number =>
+  Math.max(1, Math.round((p.validityDays ?? 365) / 30));
+
+export type PrixAffiche = {
+  montantXof: number;
+  /** « / mois », « · 12 mois » — ce qui se lit après le chiffre. */
+  periode: string;
+  /** « 2 mois offerts » quand le cycle en offre ; vide sinon. */
+  offert: string;
+  /** Sur combien de mois ce montant s'étale — pour ramener au MRR. */
+  moisCouverts: number;
+  /** Le mot juste dans un formulaire : « Prix du paquet » ou « Prix mensuel ». */
+  libelle: string;
+};
+
+export function prixDeLaFormule(p: Plan, cycle: SubCycle): PrixAffiche {
+  if (p.mode === 'pack') {
+    const mois = moisDuPack(p);
+    return {
+      montantXof: p.priceXof,
+      periode: `· ${mois} mois`,
+      offert: '',
+      moisCouverts: mois,
+      libelle: 'Prix du paquet',
+    };
+  }
+  return {
+    montantXof: subCycleAmountXof(p.priceXof, cycle),
+    periode: cycle === 'annuel' ? '/ an' : cycle === 'semestriel' ? '/ 6 mois' : '/ mois',
+    offert: cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '',
+    moisCouverts: cycle === 'annuel' ? 12 : cycle === 'semestriel' ? 6 : 1,
+    libelle: 'Prix mensuel',
+  };
+}
+
+/** La part MENSUELLE d'une formule, paquet compris — ce qui nourrit le MRR.
+    Un paquet de 225 000 F sur douze mois pèse 18 750 F par mois, pas 225 000 :
+    le compter entier gonflerait le revenu récurrent du mois de la signature,
+    puis il disparaîtrait. */
+export const partMensuelleDeLaFormule = (p: Plan, cycle: SubCycle): number => {
+  const a = prixDeLaFormule(p, cycle);
+  return a.moisCouverts <= 0 ? 0 : Math.round(a.montantXof / a.moisCouverts);
+};
