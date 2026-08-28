@@ -60,6 +60,10 @@ const facturesLiees = (appts: readonly Appointment[]): Set<string> => {
 
 export type CompteArgs = {
   ids: readonly string[];              // les têtes du compte
+  /** LES PORTEURS D'AVOIR de ce compte — la famille quand il y en a une, la
+      tête sinon (règle de `holderOf`). OBLIGATOIRE : sans lui, les avoirs de
+      toute la Maison retombaient sur chaque fiche. */
+  porteurs: readonly { type: 'client' | 'family'; id: string }[];
   appts: readonly Appointment[];
   invoices: readonly Invoice[];
   credits: readonly CreditMovement[];
@@ -133,17 +137,44 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
   }
 
   /* ③ LES AVOIRS — un dépôt crédite, un usage crédite aussi (il solde une
-     prestation déjà portée au débit), un remboursement débite : l'argent sort. */
+     prestation déjà portée au débit), un remboursement débite : l'argent sort.
+
+     ILS SE FILTRENT PAR PORTEUR, et ce filtre manquait (corrigé le 28 août,
+     signalé par Yéman : « pourquoi la Maison doit à toutes ces clientes ?
+     pourquoi elles ont les mêmes mouvements ? »). Les rituels étaient filtrés
+     par tête, les factures aussi — les avoirs ne l'étaient PAS. Chaque compte
+     affichait donc les avoirs de la Maison ENTIÈRE : le même solde et les
+     mêmes lignes sur toutes les fiches, et une Maison qui semblait devoir
+     346 000 F à chacune.
+
+     C'est pourquoi `porteurs` est OBLIGATOIRE et non facultatif : un champ
+     qu'on peut oublier se réoublie. Un avoir appartient à UN porteur — la
+     famille quand il y en a une, la tête sinon (règle de `holderOf`). */
+  const porteurs = new Set(o.porteurs.map((h) => `${h.type}:${h.id}`));
   for (const m of o.credits) {
+    if (!porteurs.has(`${m.holderType}:${m.holderId}`)) continue;
     const signe = creditSignedXof(m);
     const libelle = m.kind === 'depot' ? 'Avoir déposé'
       : m.kind === 'usage' ? 'Réglé par avoir'
         : 'Avoir remboursé';
+    /* SEUL LE DÉPÔT CRÉDITE. L'usage et le remboursement SORTENT de l'avoir,
+       donc débitent — corrigé le 28 août avec le filtre des porteurs.
+
+       L'usage créditait, et c'était un second double comptage : quand un
+       rituel se règle par avoir, l'encaissement inscrit DÉJÀ la somme entière
+       dans les versements du rendez-vous (`settleTotal`, avoir compris). Le
+       mouvement d'usage la recomptait, et le solde enflait de la valeur de
+       l'avoir à chaque consommation.
+
+       Le compte juste se lit ainsi : le dépôt crédite (+40 000), le rituel
+       débite (−30 000), son versement crédite (+30 000), l'usage débite le
+       même montant (−30 000) parce que l'avoir a bien été dépensé. Reste
+       10 000, ce qui est vrai. */
     out.push({
       id: `a-${m.id}`, date: m.date, source: 'avoir', libelle,
       detail: m.kind === 'usage' ? 'le compte se consomme, aucun billet ne bouge' : m.method,
-      debitXof: m.kind === 'remboursement' ? Math.abs(signe) : 0,
-      creditXof: m.kind === 'remboursement' ? 0 : Math.abs(signe),
+      debitXof: signe < 0 ? Math.abs(signe) : 0,
+      creditXof: signe > 0 ? signe : 0,
     });
   }
 

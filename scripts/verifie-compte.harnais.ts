@@ -38,7 +38,7 @@ const a1 = rdv({ id: 'a1', date: '2026-08-01', netTest: 30_000, duTest: 0,
     { id: 'v1', amountXof: 20_000, date: '2026-08-01', method: 'Espèces' },
     { id: 'v2', amountXof: 10_000, date: '2026-08-05', method: 'Momopay' },
   ] } as never);
-const e1 = ecrituresDuCompte({ ids: ['c1'], appts: [a1], invoices: [], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
+const e1 = ecrituresDuCompte({ ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [a1], invoices: [], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
 dit('un rituel et ses deux versements font trois écritures', 3, e1.length);
 dit('… et le compte est soldé', 0, soldeDuCompte(e1));
 dit('… les versements gardent LEUR date', ['2026-08-01', '2026-08-01', '2026-08-05'], e1.map((e) => e.date));
@@ -49,14 +49,14 @@ dit('… les versements gardent LEUR date', ['2026-08-01', '2026-08-01', '2026-0
 const a2 = rdv({ id: 'a2', date: '2026-08-10', invoiceId: 'inv-9', netTest: 40_000, duTest: 40_000 } as never);
 const fLiee: Invoice = { id: 'inv-9', branchId: 'br', clientId: 'c1', kind: 'facture', number: 'F-9',
   date: '2026-08-10', globalDiscountPct: 0, lines: [{ id: 'l', label: 'Rituel', qty: 1, unitXof: 40_000, discountPct: 0 }], status: 'envoyée' } as Invoice;
-const e2 = ecrituresDuCompte({ ids: ['c1'], appts: [a2], invoices: [fLiee], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
+const e2 = ecrituresDuCompte({ ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [a2], invoices: [fLiee], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
 dit('la facture attachée au rituel ne redit PAS la dette', 40_000, e2.reduce((s, e) => s + e.debitXof, 0));
 dit('… le solde reste celui du seul rituel', -40_000, soldeDuCompte(e2));
 
 /* Une facture LIBRE (produits, caisse), elle, entre à son tour. */
 const fLibre: Invoice = { ...fLiee, id: 'inv-libre', number: 'F-10', date: '2026-08-12',
   lines: [{ id: 'l2', label: 'Gamme', qty: 1, unitXof: 5_000, discountPct: 0 }] } as Invoice;
-const e3 = ecrituresDuCompte({ ids: ['c1'], appts: [a2], invoices: [fLiee, fLibre], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
+const e3 = ecrituresDuCompte({ ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [a2], invoices: [fLiee, fLibre], credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ });
 dit('une facture libre entre au débit', 45_000, e3.reduce((s, e) => s + e.debitXof, 0));
 
 /* ── ②bis CE QUI RESTE DÛ, LIGNE PAR LIGNE ─────────────────────────
@@ -68,7 +68,7 @@ const aSolde = rdv({ id: 'as', date: '2026-08-18', netTest: 20_000, duTest: 0,
   payments: [{ id: 'vs', amountXof: 20_000, date: '2026-08-18', method: 'Espèces' }] } as never);
 const aRecent = rdv({ id: 'ar', date: '2026-08-02', netTest: 15_000, duTest: 15_000 } as never);
 const impayes = lignesImpayees(ecrituresDuCompte({
-  ids: ['c1'], appts: [aSolde, aRecent, aPartiel], invoices: [], credits: [],
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [aSolde, aRecent, aPartiel], invoices: [], credits: [],
   netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
 }));
 dit('seules les livraisons NON soldées entrent', ['ap', 'ar'], impayes.map((l) => l.refId));
@@ -90,7 +90,7 @@ dit('… et elle porte son reste', 40_000, e2.find((e) => e.source === 'rituel')
 const av = (o: Partial<CreditMovement> & { id: string; kind: CreditMovement['kind']; amountXof: number; date: string }): CreditMovement =>
   ({ branchId: 'br', holderType: 'client', holderId: 'c1', ...o } as CreditMovement);
 const e4 = ecrituresDuCompte({
-  ids: ['c1'], appts: [], invoices: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [], invoices: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
   credits: [av({ id: 'd1', kind: 'depot', amountXof: 20_000, date: '2026-08-02' }),
     av({ id: 'r1', kind: 'remboursement', amountXof: 5_000, date: '2026-08-03' })],
 });
@@ -153,6 +153,99 @@ const fam: Family[] = [{ id: 'fam', branchId: 'br', name: 'Foyer', payerClientId
 dit('une tête du foyer voit tout le foyer', ['mere', 'enfant'],
   tetesDuCompte(cl('enfant', 'fam'), [cl('mere', 'fam'), cl('enfant', 'fam'), cl('autre')], fam));
 dit('une tête sans famille ne voit qu’elle', ['seule'], tetesDuCompte(cl('seule'), [cl('seule'), cl('autre')], fam));
+
+/* ── ⑧ LES AVOIRS APPARTIENNENT À QUELQU'UN ────────────────────────
+   LE DÉFAUT LE PLUS GRAVE DE CET ÉCRAN, trouvé en production le 28 août par
+   Yéman : « pourquoi la Maison doit à toutes ces clientes ? pourquoi elles ont
+   les mêmes mouvements ? ». Les rituels étaient filtrés par tête, les factures
+   aussi — les avoirs ne l'étaient PAS. Chaque fiche affichait les avoirs de la
+   Maison entière : le même solde et les mêmes lignes sur toutes.
+
+   Rien ne plantait. L'écran répondait, avec assurance, la même chose à tout le
+   monde. C'est le genre de faute qu'aucune exception ne révèle et qu'aucun
+   typage ne rattrape — seule une vérification qui MÉLANGE plusieurs porteurs
+   peut la voir. D'où celle-ci. */
+const avoirDe = (id: string, holderType: 'client' | 'family', holderId: string, montant: number, date: string) =>
+  ({ id, branchId: 'br', holderType, holderId, kind: 'depot', amountXof: montant, date } as CreditMovement);
+
+const troisPorteurs = [
+  avoirDe('x1', 'client', 'c1', 10_000, '2026-08-01'),
+  avoirDe('x2', 'client', 'c2', 40_000, '2026-08-02'),
+  avoirDe('x3', 'client', 'c3', 90_000, '2026-08-03'),
+];
+const compteDe = (id: string) => ecrituresDuCompte({
+  ids: [id], porteurs: [{ type: 'client', id }],
+  appts: [], invoices: [], credits: troisPorteurs,
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+});
+dit('chaque tête ne voit QUE son avoir', [10_000, 40_000, 90_000],
+  ['c1', 'c2', 'c3'].map((id) => soldeDuCompte(compteDe(id))));
+dit('… et une seule ligne, pas trois', [1, 1, 1],
+  ['c1', 'c2', 'c3'].map((id) => compteDe(id).length));
+dit('une tête sans avoir n’en hérite d’aucun', 0, soldeDuCompte(compteDe('inconnue')));
+
+/* UN AVOIR DE FAMILLE va au compte du FOYER, jamais à la tête seule : c'est la
+   règle de `holderOf`, celle que suit déjà l'encaissement. */
+const avoirFoyer = [avoirDe('f1', 'family', 'fam', 25_000, '2026-08-04')];
+dit('un avoir de famille suit le porteur famille', 25_000, soldeDuCompte(ecrituresDuCompte({
+  ids: ['mere', 'enfant'], porteurs: [{ type: 'family', id: 'fam' }],
+  appts: [], invoices: [], credits: avoirFoyer,
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+})));
+dit('… et ne tombe pas sur une tête étrangère', 0, soldeDuCompte(ecrituresDuCompte({
+  ids: ['etrangere'], porteurs: [{ type: 'client', id: 'etrangere' }],
+  appts: [], invoices: [], credits: avoirFoyer,
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+})));
+
+/* Sans aucun porteur, aucun avoir n'entre — jamais « tous » par défaut. */
+dit('aucun porteur, aucun avoir', 0, soldeDuCompte(ecrituresDuCompte({
+  ids: ['c1'], porteurs: [],
+  appts: [], invoices: [], credits: troisPorteurs,
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+})));
+
+/* ── ⑨ L'AVOIR CONSOMMÉ NE SE COMPTE QU'UNE FOIS ───────────────────
+   SECOND DOUBLE COMPTAGE, trouvé le 28 août en cherchant le premier. Quand un
+   rituel se règle par avoir, l'encaissement inscrit DÉJÀ la somme entière dans
+   les versements du rendez-vous (`settleTotal`, avoir compris). Un mouvement
+   d'usage qui crédite à son tour recompte la même valeur, et le solde enfle à
+   chaque consommation.
+
+   La vérification ⑤ d'origine ne l'avait pas vu : elle n'éprouvait que le
+   dépôt et le remboursement, jamais l'usage. Un cas non écrit est un cas non
+   tenu.
+
+   LE COMPTE JUSTE, dans l'ordre où la vie l'écrit : elle dépose 40 000, prend
+   un rituel de 30 000 réglé par son avoir. Il doit rester 10 000. */
+const journeeAvecAvoir = ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], invoices: [],
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  appts: [rdv({ id: 'ra', date: '2026-08-10', netTest: 30_000, duTest: 0,
+    payments: [{ id: 'pa', amountXof: 30_000, date: '2026-08-10', method: 'Avoir' }] } as never)],
+  credits: [
+    av({ id: 'dep', kind: 'depot', amountXof: 40_000, date: '2026-08-01' }),
+    av({ id: 'use', kind: 'usage', amountXof: 30_000, date: '2026-08-10' }),
+  ],
+});
+dit('un rituel réglé par avoir laisse le juste reste', 10_000, soldeDuCompte(journeeAvecAvoir));
+dit('… l’usage DÉBITE, il ne crédite pas', 30_000,
+  journeeAvecAvoir.find((e) => e.id === 'a-use')?.debitXof);
+dit('… et ne crédite rien du tout', 0,
+  journeeAvecAvoir.find((e) => e.id === 'a-use')?.creditXof);
+dit('seul le dépôt crédite', 40_000,
+  journeeAvecAvoir.find((e) => e.id === 'a-dep')?.creditXof);
+
+/* Un avoir entièrement consommé ramène le compte à zéro, jamais au double. */
+dit('un avoir tout consommé rend zéro', 0, soldeDuCompte(ecrituresDuCompte({
+  ids: ['c1'], porteurs: [{ type: 'client', id: 'c1' }], appts: [], invoices: [],
+  netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
+  credits: [
+    av({ id: 'd2', kind: 'depot', amountXof: 25_000, date: '2026-08-01' }),
+    av({ id: 'u2', kind: 'usage', amountXof: 25_000, date: '2026-08-05' }),
+  ],
+})));
+
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

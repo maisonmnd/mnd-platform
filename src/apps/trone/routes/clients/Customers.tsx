@@ -1348,11 +1348,27 @@ function PanneauCompte({
   const aujourdhui = todayISO();
 
   const ids = useMemo(() => tetesDuCompte(client, clients, families), [client, clients, families]);
+  /* LES PORTEURS D'AVOIR DE CE COMPTE. Un avoir appartient à la FAMILLE quand
+     il y en a une, à la tête sinon — c'est la règle de `holderOf`, celle que
+     suit déjà l'encaissement. On garde les deux formes : une tête rattachée
+     depuis peu peut porter un avoir déposé avant son rattachement. */
+  const porteurs = useMemo(() => {
+    const vus = new Map<string, { type: 'client' | 'family'; id: string }>();
+    for (const id of ids) {
+      const t = clients.find((c) => c.id === id);
+      if (!t) continue;
+      const h = holderOf(t, families);
+      vus.set(`${h.type}:${h.id}`, h);
+      vus.set(`client:${t.id}`, { type: 'client', id: t.id });
+    }
+    return [...vus.values()];
+  }, [ids, clients, families]);
+
   const ecritures = useMemo(() => ecrituresDuCompte({
-    ids, appts, invoices, credits, aujourdhui,
+    ids, porteurs, appts, invoices, credits, aujourdhui,
     netDuRituel: (a) => apptNetXof(a, byId),
     dûDuRituel: (a) => apptDueXof(a, byId),
-  }), [ids, appts, invoices, credits, aujourdhui, byId]);
+  }), [ids, porteurs, appts, invoices, credits, aujourdhui, byId]);
 
   const solde = soldeDuCompte(ecritures);
   const impayes = useMemo(() => lignesImpayees(ecritures), [ecritures]);

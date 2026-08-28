@@ -54,6 +54,44 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## DEUX DÉFAUTS DE COMPTE, corrigés — 28 août, PUBLIÉ
+
+« Pourquoi la Maison doit à toutes ces clientes ? Pourquoi elles ont les mêmes
+mouvements sur leurs comptes ? » (Yéman, trois fiches montrant toutes
+« La Maison doit 346 000 F »).
+
+### ① Les avoirs n'étaient filtrés par personne
+
+Dans `ecrituresDuCompte`, les rituels étaient filtrés par tête
+(`ids.has(a.clientId)`), les factures aussi (`ids.has(pour)`) — **la boucle des
+avoirs n'avait aucun filtre**. Chaque fiche affichait les mouvements d'avoir de
+la Maison ENTIÈRE : le même solde et les mêmes lignes sur toutes.
+
+**Rien ne plantait.** L'écran répondait, avec assurance, la même chose à tout le
+monde. Aucune exception, aucun typage ne rattrape ça : seule une vérification
+qui MÉLANGE plusieurs porteurs pouvait le voir, et elle n'existait pas — le
+harnais n'éprouvait qu'un seul client à la fois.
+
+`CompteArgs.porteurs` est désormais **obligatoire**, pas facultatif : un champ
+qu'on peut oublier se réoublie. Le compilateur a trouvé l'unique appelant.
+
+### ② L'avoir consommé se comptait deux fois
+
+Trouvé en cherchant le premier. Quand un rituel se règle par avoir,
+l'encaissement inscrit **déjà** la somme entière dans les versements du
+rendez-vous (`settleTotal`, avoir compris, voir `actions.tsx`). Le mouvement
+`kind: 'usage'` la recréditait, et le solde enflait de la valeur de l'avoir à
+chaque consommation.
+
+**Seul le dépôt crédite.** L'usage et le remboursement SORTENT de l'avoir, donc
+débitent. Le compte juste : dépôt +40 000, rituel −30 000, son versement
++30 000, usage −30 000 → reste 10 000.
+
+La vérification d'origine sur les avoirs n'éprouvait que le dépôt et le
+remboursement, **jamais l'usage**. Un cas non écrit est un cas non tenu.
+
+`verifie-compte` passe de 35 à **46 assertions**.
+
 ## La Carte du comptoir — 28 août, PUBLIÉ
 
 « Un catalogue des prix affiché sur un comptoir que le client peut faire défiler
