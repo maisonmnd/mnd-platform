@@ -54,6 +54,45 @@ vert / cuivre / brique, bouton « Encaisser ce montant » sur la prochaine), et 
 montant proposé par défaut, qui est celui de la prochaine échéance et non du
 cycle entier.
 
+## Les Années — six packs annuels, 28 août, PUBLIÉ
+
+« Pour les clientes qui font confiance, qui veulent prendre un pack annuel avec
+leur lavage et resserrage, et un pour lavage resserrage et soin » (Yéman). Il a
+voulu **les trois rythmes**, chacun en Duo et en Trio.
+
+| Formule | Contenu | À la carte | Pack | Remise |
+| --- | --- | --- | --- | --- |
+| L'Année Sereine · Duo | 6 resserrages + 6 lavages | 270 000 | 215 000 | 20 % |
+| L'Année Sereine · Trio | + 6 soins | 390 000 | 305 000 | 22 % |
+| L'Année Fraîche · Duo | 6 resserrages + 12 lavages | 390 000 | 310 000 | 20 % |
+| L'Année Fraîche · Trio | + 6 soins | 510 000 | 395 000 | 22 % |
+| L'Année Nette · Duo | 8 resserrages + 8 lavages | 360 000 | 285 000 | 21 % |
+| L'Année Nette · Trio | + 8 soins | 520 000 | 405 000 | 22 % |
+
+**PAQUET DE CRÉDITS, PAS ABONNEMENT** (`mode: 'pack'`, `validityDays: 365`). Un
+abonnement annuel ferait perdre à la tête le mois où elle voyage, et sur une
+tête fidèle ça se retourne contre la Maison au moment de renouveler. Le crédit
+dort, il ne s'évapore pas.
+
+**LE TRIO GAGNE TOUJOURS PLUS QUE SON DUO** (22 % contre 20 %). Sans cet écart,
+rien ne pousse à monter d'un cran et le soin ne se vendrait jamais. Même règle
+que le Foyer à trois têtes. Mais **aucune remise ne dépasse 25 %** hors Foyer :
+au-delà, elle cesse d'être un remerciement et devient un prix, celui que la tête
+réclamera ensuite à la carte.
+
+**TOUTES DÉPASSENT 100 000 F**, donc toutes s'ouvrent au paiement en 2 ou 4
+fois. C'est ce qui les rend vendables : personne ne sort 405 000 F d'un coup.
+
+`scripts/verifie-formules.mjs` — 43 assertions sur les onze formules. **Une
+formule fausse ne plante pas, elle se vend** : elle part au comptoir, une tête
+la paie, et l'erreur ne se découvre qu'au moment de compter. Le harnais tient
+donc les prix à la carte ANNONCÉS dans les avantages (calculés sur resserrage
+25 000 / lavage 20 000 / soin 20 000 — si la Maison les change, il tombe, et
+c'est le but), l'écart Duo/Trio, le plafond de 25 %, la durée de vie des packs,
+la concordance quota/promesse, et le fait que chaque Année franchit le seuil de
+découpe : si un prix passait sous 100 000 F, l'offre de découpe disparaîtrait de
+l'écran SANS RIEN DIRE.
+
 ## Cinq formules marketing — 28 août, PUBLIÉ
 
 « Créer des abonnements marketing pour que mes clients les prennent massivement »

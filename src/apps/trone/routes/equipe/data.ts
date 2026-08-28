@@ -574,7 +574,118 @@ export const PLANS_MARKETING: Plan[] = [
     popular: false, mode: 'cycle', discountPct: 37,
     included: [{ serviceId: 'sv-resserrage', qty: 3 }, { serviceId: 'sv-bain-vapeur', qty: 3 }],
   },
+
+  /* ═══ LES ANNÉES — packs annuels pour les têtes qui font confiance ═══
+     « Pour les clientes qui font confiance, qui veulent prendre un pack annuel
+     avec leur lavage et resserrage, et un pour lavage resserrage et soin »
+     (Yéman, 28 août). Trois rythmes, chacun en Duo et en Trio.
+
+     PAQUET DE CRÉDITS, PAS ABONNEMENT. La caisse encaisse le jour de la
+     signature, et la tête vient quand elle veut sur douze mois. Un abonnement
+     annuel lui ferait perdre le mois où elle voyage, et sur une tête fidèle ça
+     se retourne contre la Maison au moment de renouveler.
+
+     LE TRIO GAGNE TOUJOURS PLUS QUE SON DUO (≈22 % contre ≈20 %). Sans cet
+     écart, rien ne pousse à monter d'un cran — même règle que le Foyer à trois
+     têtes. La remise reste sous les 25 % : au-delà, elle cesse d'être un
+     remerciement et devient un prix, celui que la tête réclamera ensuite à la
+     carte.
+
+     TOUTES DÉPASSENT 100 000 F, donc toutes s'ouvrent au paiement en 2 ou 4
+     fois (`shared/echeancier.ts`). C'est ce qui les rend vendables : personne
+     ne sort 405 000 F d'un coup. */
+
+  /* ① L'ANNÉE SEREINE — une venue tous les deux mois, tout dans la même
+     séance. Un seul rendez-vous à retenir, un seul créneau à garder. */
+  {
+    id: 'pl-mkt-annee-sereine-duo', name: 'L’Année Sereine · Duo', tag: 'Six séances', priceXof: 215000,
+    line: 'Toute l’année tenue, une venue tous les deux mois.',
+    perks: [
+      '6 SÍNSIN™ resserrage racines',
+      '6 FÍNFÍN™ lavage',
+      'Tout dans la même séance, un seul rendez-vous',
+      'Valable 12 mois, à votre rythme',
+      '270 000 F à la carte, vous gagnez 55 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 20,
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }],
+  },
+  {
+    id: 'pl-mkt-annee-sereine-trio', name: 'L’Année Sereine · Trio', tag: 'Six séances, soin compris', priceXof: 305000,
+    line: 'La même année, le soin en plus.',
+    perks: [
+      '6 SÍNSIN™ resserrage racines',
+      '6 FÍNFÍN™ lavage',
+      '6 WÈWÈ™ soin',
+      'Valable 12 mois, à votre rythme',
+      '390 000 F à la carte, vous gagnez 85 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 6 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
+  },
+
+  /* ② L'ANNÉE FRAÎCHE — le resserrage tous les deux mois, mais le lavage
+     CHAQUE mois. Dix-huit passages au lieu de six : plus de travail au
+     fauteuil, mais douze occasions de plus de vendre la gamme. */
+  {
+    id: 'pl-mkt-annee-fraiche-duo', name: 'L’Année Fraîche · Duo', tag: 'Le lavage chaque mois', priceXof: 310000,
+    line: 'Une couronne fraîche tous les mois, des racines nettes tous les deux.',
+    perks: [
+      '6 SÍNSIN™ resserrage racines',
+      '12 FÍNFÍN™ lavage, un par mois',
+      'Valable 12 mois, à votre rythme',
+      '390 000 F à la carte, vous gagnez 80 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 20,
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 12 }],
+  },
+  {
+    id: 'pl-mkt-annee-fraiche-trio', name: 'L’Année Fraîche · Trio', tag: 'Lavage mensuel, soin compris', priceXof: 395000,
+    line: 'Le lavage chaque mois, le soin à chaque resserrage.',
+    perks: [
+      '6 SÍNSIN™ resserrage racines',
+      '12 FÍNFÍN™ lavage, un par mois',
+      '6 WÈWÈ™ soin',
+      'Valable 12 mois, à votre rythme',
+      '510 000 F à la carte, vous gagnez 115 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    included: [{ serviceId: 'sv-resserrage', qty: 6 }, { serviceId: 'sv-bain-vapeur', qty: 12 }, { serviceId: 'zebpkpg6ar', qty: 6 }],
+  },
+
+  /* ③ L'ANNÉE NETTE — toutes les six semaines. Pour les couronnes qui
+     poussent vite et les têtes exigeantes sur la netteté des racines. */
+  {
+    id: 'pl-mkt-annee-nette-duo', name: 'L’Année Nette · Duo', tag: 'Toutes les six semaines', priceXof: 285000,
+    line: 'Des racines toujours nettes, huit fois dans l’année.',
+    perks: [
+      '8 SÍNSIN™ resserrage racines',
+      '8 FÍNFÍN™ lavage',
+      'Toutes les six semaines',
+      'Valable 12 mois, à votre rythme',
+      '360 000 F à la carte, vous gagnez 75 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 21,
+    included: [{ serviceId: 'sv-resserrage', qty: 8 }, { serviceId: 'sv-bain-vapeur', qty: 8 }],
+  },
+  {
+    id: 'pl-mkt-annee-nette-trio', name: 'L’Année Nette · Trio', tag: 'Six semaines, soin compris', priceXof: 405000,
+    line: 'Le rythme le plus serré, la couronne au plus haut.',
+    perks: [
+      '8 SÍNSIN™ resserrage racines',
+      '8 FÍNFÍN™ lavage',
+      '8 WÈWÈ™ soin',
+      'Toutes les six semaines',
+      'Valable 12 mois, à votre rythme',
+      '520 000 F à la carte, vous gagnez 115 000 F',
+    ],
+    popular: false, mode: 'pack', validityDays: 365, discountPct: 22,
+    included: [{ serviceId: 'sv-resserrage', qty: 8 }, { serviceId: 'sv-bain-vapeur', qty: 8 }, { serviceId: 'zebpkpg6ar', qty: 8 }],
+  },
 ];
+
+/** Les six « Années » — les packs annuels des têtes qui font confiance. */
+export const PACKS_ANNUELS = PLANS_MARKETING.filter((p) => p.id.startsWith('pl-mkt-annee-'));
 
 /** POSE LES FORMULES MARKETING QUI MANQUENT, et rien d'autre.
     Idempotent PAR IDENTIFIANT : une formule déjà posée n'est jamais réécrite,
