@@ -439,10 +439,17 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                     <button
                       type="button"
                       className="cma-btn cma-btn--sm"
+                      /* UNE DEMANDE NE VAUT QUE POUR LA FORMULE DEMANDÉE.
+                         Le bouton lisait « une demande est ouverte » et non
+                         « CETTE formule est demandée » : les treize cartes
+                         basculaient ensemble sur « Demande en cours », et la
+                         cliente croyait avoir tout demandé d'un clic. */
                       disabled={!!maDemande}
                       onClick={() => demanderFormule(pl)}
                     >
-                      {maDemande ? 'Demande en cours' : 'Je veux cette formule'}
+                      {maDemande?.planId === pl.id
+                        ? 'Demande en cours'
+                        : maDemande ? 'Une demande est ouverte' : 'Je veux cette formule'}
                     </button>
                   </div>
                 ))}
