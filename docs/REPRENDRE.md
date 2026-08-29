@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## SUPPRIMER UN ENCAISSEMENT — 29 août, PUBLIÉ
+
+« Me permettre de supprimer des encaissements test. »
+
+**Une ligne d'encaissement n'existe pas.** Elle est CALCULÉE à chaque affichage
+depuis sept sources : un versement dans une facture, le pourboire d'une facture,
+une transaction du registre en ligne, l'acompte posé sur un rendez-vous, un
+règlement de formation, un règlement d'abonnement, un dépôt d'avoir. La
+supprimer, c'est retirer le bon morceau de la bonne source, et rien d'autre.
+
+`cibleDeLEncaissement(receipt)` (`shared/receipts.ts`) dit lequel. **On ne
+découpe pas l'identifiant** : `r-inv-<facture>-<versement>` porte des tirets des
+deux côtés. On lit le PRÉFIXE, sans ambiguïté, et on prend le reste dans les
+champs que la ligne porte déjà.
+
+**Origine inconnue = on n'efface rien.** Mieux vaut une ligne de trop qu'une
+suppression au hasard dans les comptes de la Maison.
+
+### Ce qui part, et ce qui reste
+
+- **facture** — le versement s'en va, la pièce reste : ce qui était dû redevient dû ;
+- **pourboire** — le pourboire ET les parts d'équipe partent ensemble, sinon la
+  somme réapparaît au partage sans jamais avoir été reçue ;
+- **acompte** — l'acompte se dépose, le rendez-vous demeure ;
+- **abonnement / formation** — le règlement s'en va, l'abonnement ou
+  l'inscription reste ;
+- **avoir** — le dépôt s'en va, le solde du compte baisse d'autant.
+
+Avant, ce registre ne se corrigeait que par la « zone sensible » des Paramètres,
+qui annule TOUT : un essai y emportait les vrais encaissements avec lui.
+
+12 assertions sur `verifie-facturation`.
+
+---
+
 ## L'ARGENT D'UN ABONNEMENT ENTRE ENFIN DANS LA MAISON — 29 août, PUBLIÉ
 
 « Un règlement encaissé au comptoir ne devrait pas être QUE sur la fiche de

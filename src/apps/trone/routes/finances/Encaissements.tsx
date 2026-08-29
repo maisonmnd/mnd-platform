@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Input, Segs, toast } from '../../../../ds/components';
+import { Button, Input, Modal, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
@@ -15,7 +15,13 @@ import {
   partsPrisesParRevenu, etatDuRevenu, LIBELLE_ETAT, type EtatRevenu,
 } from '../../../../shared/finance';
 import { staffStore } from '../equipe/data';
-import { totalBy, receiptKindLabel, CAISSE_POURBOIRES, type Receipt, type ReceiptKind } from '../../../../shared/receipts';
+import {
+  totalBy, receiptKindLabel, CAISSE_POURBOIRES, cibleDeLEncaissement,
+  type Receipt, type ReceiptKind,
+} from '../../../../shared/receipts';
+import { invoicesStore, creditMovementsStore, paymentsStore } from '../../../../shared/finance';
+import { subscribersStore } from '../../../../shared/abonnements';
+import { apprenantsStore } from '../equipe/data';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
 import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
@@ -142,6 +148,64 @@ const rapprocher = (
 export default function Encaissements() {
   const { branch, currency } = useBranch();
   const navigate = useNavigate();
+
+  /* ── SUPPRIMER UN ENCAISSEMENT — 29 août 2026 ────────────────────
+     « Me permettre de supprimer des encaissements test » (Yéman).
+
+     UNE LIGNE D'ENCAISSEMENT N'EXISTE PAS : elle est CALCULÉE depuis sept
+     sources. La supprimer, c'est retirer le bon morceau de la bonne source, et
+     rien d'autre — `cibleDeLEncaissement` (shared/receipts.ts) dit lequel.
+
+     SI L'ORIGINE EST INCONNUE, ON N'EFFACE RIEN. Mieux vaut une ligne de trop
+     qu'une suppression au hasard dans les comptes de la Maison. */
+  const [aEffacer, setAEffacer] = useState<Receipt | null>(null);
+
+  const effacer = (r: Receipt) => {
+    const cible = cibleDeLEncaissement(r);
+    if (!cible) { toast('Origine de cette ligne introuvable, rien n’a été touché.'); return; }
+    switch (cible.source) {
+      case 'facture':
+        /* LE VERSEMENT S'EN VA, LA PIÈCE RESTE. Effacer la facture avec lui
+           effacerait aussi ce qui est encore dû, et la créance disparaîtrait. */
+        invoicesStore.set((prev) => prev.map((i) => (i.id === cible.invoiceId
+          ? { ...i, payments: (i.payments ?? []).filter((x) => x.id !== cible.paymentId) }
+          : i)));
+        break;
+      case 'pourboire':
+        /* Le pourboire ET ses parts d'équipe : les laisser derrière ferait
+           réapparaître la somme au partage sans jamais l'avoir reçue. */
+        invoicesStore.set((prev) => prev.map((i) => (i.id === cible.invoiceId
+          ? { ...i, tipXof: 0 } : i)));
+        tipsStore.set((prev) => prev.filter((t) => t.invoiceId !== cible.invoiceId));
+        break;
+      case 'enligne':
+        paymentsStore.set((prev) => prev.filter((x) => x.id !== cible.paymentId));
+        break;
+      case 'acompte':
+        /* L'acompte se DÉPOSE, le rendez-vous demeure. */
+        appointmentsStore.set((prev) => prev.map((a) => (a.id === cible.apptId
+          ? { ...a, depositXof: 0, depositConfirmed: false, depositConfirmedAt: undefined }
+          : a)));
+        break;
+      case 'formation':
+        apprenantsStore.set((prev) => prev.map((ap) => ({
+          ...ap, payments: (ap.payments ?? []).filter((x) => x.id !== cible.paymentId),
+        })));
+        break;
+      case 'abonnement':
+        subscribersStore.set((prev) => prev.map((sub) => ({
+          ...sub, payments: (sub.payments ?? []).filter((x) => x.id !== cible.paymentId),
+        })));
+        break;
+      case 'avoir':
+        creditMovementsStore.set((prev) => prev.filter((m) => m.id !== cible.movementId));
+        break;
+      default:
+        break;
+    }
+    setAEffacer(null);
+    toast(`Encaissement de ${fmtMoney(r.amountXof, currency)} supprimé.`);
+  };
   /* Ce que l'écran lit ENCORE en propre : les factures (pointage du relevé,
      reconstruction des parts) et les fiches (noms). Le reste de l'assemblage
      du registre est passé derrière `useRegistreEncaissements`. */
@@ -658,6 +722,17 @@ export default function Encaissements() {
                 >
                   {busy === r.id ? '…' : 'Reçu'}
                 </button>
+                {/* SUPPRIMER. Ce registre ne se corrigeait que par la « zone
+                    sensible » des Paramètres, qui annule TOUT : un essai y
+                    emportait les vrais encaissements avec lui. */}
+                <button
+                  type="button"
+                  className="trf-rowbtn"
+                  onClick={(e) => { e.stopPropagation(); setAEffacer(r); }}
+                  title="Supprimer cet encaissement"
+                >
+                  Supprimer
+                </button>
               </span>
             </div>
             <AServi revenu={r} />
@@ -665,6 +740,37 @@ export default function Encaissements() {
           ))
         )}
       </div>
+
+      {aEffacer && (
+        <Modal title="Supprimer cet encaissement ?" onClose={() => setAEffacer(null)} width={440}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+              <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(aEffacer.amountXof, currency)}</b>
+              {' · '}{receiptKindLabel(aEffacer.kind)}
+              {' · '}{aEffacer.clientName}
+              {aEffacer.cashbox ? ` · caisse « ${aEffacer.cashbox} »` : ''}
+              <div style={{ marginTop: 4 }}>{aEffacer.label}</div>
+            </div>
+
+            {/* CE QUI PART, ET CE QUI RESTE. La ligne est calculée : on retire
+                le versement de sa source, jamais la source elle-même. */}
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+              {aEffacer.kind === 'facture' && 'Le versement s’en va, la facture reste : ce qui était encore dû redevient dû.'}
+              {aEffacer.kind === 'pourboire' && 'Le pourboire et les parts déjà réparties à l’équipe s’en vont ensemble.'}
+              {aEffacer.kind === 'acompte' && 'L’acompte se dépose, le rendez-vous demeure et redevient à régler.'}
+              {aEffacer.kind === 'abonnement' && 'Le règlement s’en va, l’abonnement reste : son échéancier redevient dû.'}
+              {aEffacer.kind === 'formation' && 'Le règlement s’en va, l’inscription reste.'}
+              {aEffacer.kind === 'avoir' && 'Le dépôt s’en va, et le solde d’avoir de ce compte baisse d’autant.'}
+              <b style={{ color: 'var(--ink)' }}> Ce geste ne se défait pas.</b>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="ghost" style={{ flex: 1 }} onClick={() => setAEffacer(null)}>Le garder</Button>
+              <Button variant="copper" onClick={() => effacer(aEffacer)}>Supprimer</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <p className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.6 }}>
         Un acompte figure au jour où il est reçu ; la facture qui le solde n’encaisse alors que le reste.

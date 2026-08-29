@@ -6,6 +6,7 @@ import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
 import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
+import { cibleDeLEncaissement } from '../src/shared/receipts';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -101,6 +102,40 @@ pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('Huile Kòfí�
 alignerFacturesDuRituel(appt(['a']), byId, (s) => s.priceXof);
 dit('appel sans la Gamme : la pièce mixte reste intouchée',
   ['KƆKLƆ™ Essentiel', 'Huile Kòfí™ 100 ml'], piece().lines.map((l) => l.label));
+
+/* ── D'OÙ VIENT UNE LIGNE D'ENCAISSEMENT ───────────────────────────
+   « Me permettre de supprimer des encaissements test » (Yéman, 29 août). Une
+   ligne d'encaissement n'existe pas : elle est CALCULÉE depuis sept sources.
+   Se tromper de source, c'est effacer l'argent d'une autre cliente. */
+const cible = (r: Parameters<typeof cibleDeLEncaissement>[0]) => cibleDeLEncaissement(r);
+
+/* ON NE DÉCOUPE PAS L'IDENTIFIANT : `r-inv-<facture>-<versement>` porte des
+   tirets des deux côtés. La facture est connue, on la retranche. */
+dit('un versement de facture se retrouve', { source: 'facture', invoiceId: 'inv-a-1', paymentId: 'pay-b-2' },
+  cible({ id: 'r-inv-inv-a-1-pay-b-2', invoiceId: 'inv-a-1' }));
+dit('… même sans le champ, rien ne se devine', null,
+  cible({ id: 'r-inv-inv-a-1-pay-b-2' }));
+
+dit('un pourboire nomme sa facture', { source: 'pourboire', invoiceId: 'inv-9' },
+  cible({ id: 'r-tip-inv-9', invoiceId: 'inv-9' }));
+dit('une transaction en ligne', { source: 'enligne', paymentId: 'tx-77' },
+  cible({ id: 'r-pay-tx-77' }));
+dit('un acompte de rituel', { source: 'acompte', apptId: 'a-12' },
+  cible({ id: 'r-dep-a-12', apptId: 'a-12' }));
+dit('… et sans le champ, l’identifiant suffit', { source: 'acompte', apptId: 'a-12' },
+  cible({ id: 'r-dep-a-12' }));
+dit('un règlement de formation', { source: 'formation', paymentId: 'p-3' },
+  cible({ id: 'r-for-p-3' }));
+dit('un règlement d’abonnement', { source: 'abonnement', paymentId: 'pay-x' },
+  cible({ id: 'r-abo-pay-x' }));
+dit('un dépôt d’avoir', { source: 'avoir', movementId: 'cm-5' },
+  cible({ id: 'r-cre-cm-5' }));
+
+/* UNE ORIGINE INCONNUE N'EFFACE RIEN. Mieux vaut une ligne de trop qu'une
+   suppression au hasard dans les comptes de la Maison. */
+dit('un préfixe inconnu ne cible rien', null, cible({ id: 'r-zzz-1' }));
+dit('un identifiant vide non plus', null, cible({ id: '' }));
+dit('un préfixe sans suite non plus', null, cible({ id: 'r-pay-' }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

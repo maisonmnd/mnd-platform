@@ -64,6 +64,69 @@ const LABEL_KIND: Record<ReceiptKind, string> = {
 };
 export const receiptKindLabel = (k: ReceiptKind): string => LABEL_KIND[k];
 
+/* ── D'OÙ VIENT UNE LIGNE, ET DONC CE QU'IL FAUT EFFACER — 29 août 2026 ──
+   « Me permettre de supprimer des encaissements test » (Yéman).
+
+   UNE LIGNE D'ENCAISSEMENT N'EXISTE PAS. Elle est CALCULÉE à chaque affichage
+   depuis sept sources différentes : un versement dans une facture, le
+   pourboire d'une facture, une transaction du registre en ligne, l'acompte
+   posé sur un rendez-vous, un règlement de formation, un règlement
+   d'abonnement, un dépôt d'avoir. La supprimer, c'est donc retirer le bon
+   morceau de la bonne source, et rien d'autre.
+
+   ON NE DÉCOUPE PAS L'IDENTIFIANT. `r-inv-<facture>-<versement>` se laisserait
+   mal fendre : les deux moitiés portent elles-mêmes des tirets. On lit le
+   PRÉFIXE, qui est sans ambiguïté, et on prend le reste dans les champs que la
+   ligne porte déjà. */
+export type CibleEncaissement =
+  | { source: 'facture'; invoiceId: string; paymentId: string }
+  | { source: 'pourboire'; invoiceId: string }
+  | { source: 'enligne'; paymentId: string }
+  | { source: 'acompte'; apptId: string }
+  | { source: 'formation'; paymentId: string }
+  | { source: 'abonnement'; paymentId: string }
+  | { source: 'avoir'; movementId: string }
+  | null;
+
+/** Ce qu'il faut retirer pour effacer cette ligne. `null` = origine inconnue,
+    et alors on n'efface RIEN : mieux vaut une ligne de trop qu'une suppression
+    au hasard dans les comptes de la Maison. */
+export function cibleDeLEncaissement(r: Pick<Receipt, 'id' | 'invoiceId' | 'apptId' | 'ref'>): CibleEncaissement {
+  const id = r.id ?? '';
+  if (id.startsWith('r-inv-')) {
+    /* Le versement est ce qui suit la facture — connue, donc retranchée. */
+    if (!r.invoiceId) return null;
+    const tete = `r-inv-${r.invoiceId}-`;
+    if (!id.startsWith(tete)) return null;
+    const paymentId = id.slice(tete.length);
+    return paymentId ? { source: 'facture', invoiceId: r.invoiceId, paymentId } : null;
+  }
+  if (id.startsWith('r-tip-')) {
+    return r.invoiceId ? { source: 'pourboire', invoiceId: r.invoiceId } : null;
+  }
+  if (id.startsWith('r-pay-')) {
+    const paymentId = id.slice('r-pay-'.length);
+    return paymentId ? { source: 'enligne', paymentId } : null;
+  }
+  if (id.startsWith('r-dep-')) {
+    const apptId = r.apptId || id.slice('r-dep-'.length);
+    return apptId ? { source: 'acompte', apptId } : null;
+  }
+  if (id.startsWith('r-for-')) {
+    const paymentId = id.slice('r-for-'.length);
+    return paymentId ? { source: 'formation', paymentId } : null;
+  }
+  if (id.startsWith('r-abo-')) {
+    const paymentId = id.slice('r-abo-'.length);
+    return paymentId ? { source: 'abonnement', paymentId } : null;
+  }
+  if (id.startsWith('r-cre-')) {
+    const movementId = id.slice('r-cre-'.length);
+    return movementId ? { source: 'avoir', movementId } : null;
+  }
+  return null;
+}
+
 /** jj/mm/aaaa (saisies Académie) ou ISO → ISO. */
 const toISO = (d: string): string => {
   const fr = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
