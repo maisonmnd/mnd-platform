@@ -14,7 +14,7 @@
 import {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
-  subServiceUsage, prixDeLaFormule,
+  subServiceUsage, prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import { formulesVisiblesPour, formuleEnVitrine } from '../src/shared/bridges';
@@ -192,6 +192,50 @@ dit('une liste vide ne masque rien', true,
 dit('masquée, elle vaut toujours son prix pour l’abonnée', 190_000,
   prixVenduXof(merine, PACK, 'mensuel'));
 dit('… et ses quotas ne bougent pas', [6, 6], inclusVendus(abo({}), PACK).map((i) => i.qty));
+
+/* ── ⑧ CE QU'ELLE A BESOIN DE VOIR ─────────────────────────────────
+   « L'abonnement des foyers ne doit apparaître que sur les comptes des
+   personnes qui ont un foyer » (Yéman, 29 août). Une formule à deux ou trois
+   têtes proposée à une tête seule n'est pas une offre : c'est une question à
+   laquelle elle ne peut pas répondre. */
+const AVEC_FAMILLES = [
+  { id: 'a', famille: 'porte' as const },
+  { id: 'b', famille: 'foyer' as const },
+  { id: 'c', famille: 'annees' as const },
+  { id: 'd' },
+];
+const idsF = (l: readonly { id: string }[]) => l.map((x) => x.id);
+
+dit('sans foyer, les formules de foyer ne paraissent pas', ['a', 'c', 'd'],
+  idsF(formulesPourElle(AVEC_FAMILLES, false)));
+dit('avec un foyer, elle les voit', ['a', 'b', 'c', 'd'],
+  idsF(formulesPourElle(AVEC_FAMILLES, true)));
+/* LE RESTE NE BOUGE PAS. Un filtre qui emporterait les orphelines avec lui
+   effacerait les formules sans moment du parcours — le défaut qu'on vient
+   justement de corriger le 29 août. */
+dit('une formule sans famille reste, dans les deux cas', [true, true],
+  [idsF(formulesPourElle(AVEC_FAMILLES, false)).includes('d'),
+    idsF(formulesPourElle(AVEC_FAMILLES, true)).includes('d')]);
+dit('l’ordre ne bouge pas non plus', ['a', 'c', 'd'],
+  idsF(formulesPourElle(AVEC_FAMILLES, false)));
+
+/* ── ⑨ L'ÉTENDUE DES REMISES SE CALCULE ────────────────────────────
+   « Une phrase d'accroche entre 20 % et 50 % de remise » (Yéman). Les
+   formules de la Maison vont de 17 % à 37 % : écrire 20 et 50 en dur serait
+   un chiffre faux tendu à une cliente. La phrase lit donc les VRAIES remises
+   et se corrige d'elle-même le jour où un prix bouge. */
+dit('l’étendue se lit sur les formules montrées', { min: 17, max: 37 },
+  etendueDesRemises([{ discountPct: 22 }, { discountPct: 17 }, { discountPct: 37 }]));
+dit('une seule formule donne une étendue plate', { min: 25, max: 25 },
+  etendueDesRemises([{ discountPct: 25 }]));
+/* SANS REMISE, ON NE PROMET RIEN. Une accroche « de 0 % à 0 % » serait pire
+   que pas d'accroche du tout. */
+dit('aucune remise, aucune promesse', null, etendueDesRemises([{ discountPct: 0 }, {}]));
+dit('vitrine vide, aucune promesse', null, etendueDesRemises([]));
+/* Les formules sans remise ne tirent pas le minimum vers le bas : seules
+   celles qui en annoncent une comptent. */
+dit('celles sans remise ne comptent pas', { min: 20, max: 20 },
+  etendueDesRemises([{}, { discountPct: 20 }, { discountPct: 0 }]));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

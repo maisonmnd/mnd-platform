@@ -2,6 +2,37 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE FOYER NE SE MONTRE QU'À CELLES QUI EN ONT UN — 29 août, PUBLIÉ
+
+« L'abonnement des foyers ne doit apparaître que sur les comptes des personnes
+qui ont un foyer. Les autres n'en ont pas besoin. »
+
+`formulesPourElle(plans, aUnFoyer)` retire la famille `foyer` aux têtes seules.
+Une formule à deux ou trois têtes proposée à une tête seule n'est pas une offre,
+c'est une question à laquelle elle ne peut pas répondre. Appliquée dans les DEUX
+vitrines, après `formulesVisiblesPour` : le masque de la Maison reste au-dessus.
+
+`aUnFoyer` = `client.familyId` pointant vers une famille qui existe, la même
+règle que `holderOf`. **Conséquence à connaître** : celle qui voudrait amener sa
+sœur ne verra plus le Foyer et devra le demander au comptoir, où la Maison lui
+ouvre le foyer d'abord.
+
+### L'accroche annonce les VRAIES remises
+
+Demandé : « une phrase d'accroche entre 20 % et 50 % de remise ». Les formules
+de la Maison vont de **17 % à 37 %** — écrire 20 et 50 en dur aurait été un
+chiffre faux tendu à une cliente.
+
+`etendueDesRemises(plans)` calcule le minimum et le maximum sur les formules
+RÉELLEMENT montrées, et l'accroche se corrige d'elle-même le jour où un prix
+bouge. Sans aucune remise, elle ne promet rien plutôt que « de 0 % à 0 % ».
+
+Pour annoncer 50 %, il faut qu'une formule donne 50 %.
+
+10 assertions de plus sur `verifie-vente`.
+
+---
+
 ## DÉCOUPER APRÈS COUP, ET SUPPRIMER — 29 août, PUBLIÉ
 
 ### « Le paiement en plusieurs fois ne s'active plus quand ça vient de Ma Couronne »

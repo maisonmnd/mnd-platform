@@ -3,9 +3,11 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
+import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
   prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
+  formulesPourElle, etendueDesRemises,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
 } from '../../shared/abonnements';
 import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
@@ -406,9 +408,15 @@ export function MaFormuleTab({ toast, onReserver }: {
      que d'effacer. */
   const [cfgVitrine] = useStore(vitrineConfigStore);
   const moi = useClient();
+  /* SON FOYER, OU PAS — même règle que le composeur, même juge. */
+  const [famillesMc] = useFamilies();
+  const aUnFoyer = !!moi?.familyId && famillesMc.some((f) => f.id === moi.familyId);
   const enVitrine = useMemo(
-    () => formulesVisiblesPour({ cfg: cfgVitrine, masques: moi?.vitrineMasques, plans }),
-    [cfgVitrine, moi?.vitrineMasques, plans],
+    () => formulesPourElle(
+      formulesVisiblesPour({ cfg: cfgVitrine, masques: moi?.vitrineMasques, plans }),
+      aUnFoyer,
+    ),
+    [cfgVitrine, moi?.vitrineMasques, plans, aUnFoyer],
   );
   const [subs] = useSubscribers();
   const [demandes] = useDemandesFormule();

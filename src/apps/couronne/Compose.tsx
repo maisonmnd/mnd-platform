@@ -6,7 +6,9 @@ import {
   composeStore, vitrineConfigStore, surMesureDe, formulesVisiblesPour,
   demandesFormuleStore, useDemandesFormule, demandeOuverteDe, type ComposePayload,
 } from '../../shared/bridges';
-import { usePlans, moisDuPack, FAMILLES_FORMULES, type Plan } from '../../shared/abonnements';
+import {
+  usePlans, moisDuPack, FAMILLES_FORMULES, formulesPourElle, etendueDesRemises, type Plan,
+} from '../../shared/abonnements';
 import { useStore } from '../../shared/store';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
 import { pushNotifyStaff } from '../../shared/push';
@@ -172,10 +174,20 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [tousPlans] = usePlans();
   const [demandes] = useDemandesFormule();
   const maDemande = client ? demandeOuverteDe(demandes, client.id) : undefined;
+  /* SON FOYER, OU PAS. Une formule à deux ou trois têtes proposée à une tête
+     seule n'est pas une offre, c'est une question à laquelle elle ne peut pas
+     répondre. Celle qui voudrait amener sa sœur le dit au comptoir. */
+  const aUnFoyer = !!client?.familyId && familles.some((f) => f.id === client.familyId);
   const mesFormules = useMemo(
-    () => formulesVisiblesPour({ cfg: cfgV, masques: client?.vitrineMasques, plans: tousPlans }),
-    [cfgV, client?.vitrineMasques, tousPlans],
+    () => formulesPourElle(
+      formulesVisiblesPour({ cfg: cfgV, masques: client?.vitrineMasques, plans: tousPlans }),
+      aUnFoyer,
+    ),
+    [cfgV, client?.vitrineMasques, tousPlans, aUnFoyer],
   );
+  /* L'ÉTENDUE DES REMISES SE CALCULE, elle ne s'écrit pas : un chiffre posé en
+     dur ment le jour où un prix bouge, et il ment à une cliente. */
+  const remises = useMemo(() => etendueDesRemises(mesFormules), [mesFormules]);
   /* LE MÊME RANGEMENT QUE PARTOUT, orphelines comprises : une formule sans
      moment du parcours se range sous « Les autres », jamais dans le vide. */
   const momentsFormules = useMemo(() => {
@@ -406,8 +418,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
               </div>
             ) : (
               <div className="mc-packintro">
-                Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien
-                qu'à vous, et vous réglez en une fois ou en deux.
+                {remises
+                  ? (
+                    <>
+                      <b>De {remises.min} % à {remises.max} % de remise</b> sur les prix de la carte.
+                      Ceux que la Maison a écrits, prêts à être pris, chacun avec un créneau rien
+                      qu'à vous.
+                    </>
+                  )
+                  : 'Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien qu’à vous.'}
               </div>
             )}
             {momentsFormules.map((g) => (

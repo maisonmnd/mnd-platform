@@ -345,6 +345,34 @@ export const ecartDuPrixConvenu = (
   };
 };
 
+/* ── CE QU'ELLE A BESOIN DE VOIR — 29 août 2026 ──────────────────────
+   « L'abonnement des foyers ne doit apparaître que sur les comptes des
+   personnes qui ont un foyer. Les autres n'en ont pas besoin » (Yéman).
+
+   Une formule à deux ou trois têtes proposée à une tête seule n'est pas une
+   offre, c'est une question à laquelle elle ne peut pas répondre : elle
+   encombre la vitrine et fait douter du reste. Celle qui voudrait amener sa
+   sœur le dit au comptoir, et la Maison lui ouvre le foyer d'abord.
+
+   LE MASQUE DE LA VITRINE RESTE AU-DESSUS. Ceci retire ce qui ne la concerne
+   pas ; `formulesVisiblesPour` retire ce que la Maison a décidé de cacher. Les
+   deux se composent, dans cet ordre. */
+export const formulesPourElle = <T extends { famille?: FamilleFormule }>(
+  plans: readonly T[], aUnFoyer: boolean,
+): T[] => (aUnFoyer ? plans.slice() : plans.filter((p) => p.famille !== 'foyer'));
+
+/** L'ÉTENDUE DES REMISES ANNONCÉES — « de 17 % à 37 % ». Elle se CALCULE sur
+    les formules réellement montrées, jamais écrite à la main : un chiffre posé
+    en dur ment le jour où un prix bouge, et il ment à une cliente. Rend `null`
+    quand aucune formule n'annonce de remise — on ne promet alors rien. */
+export const etendueDesRemises = (
+  plans: readonly { discountPct?: number }[],
+): { min: number; max: number } | null => {
+  const pcts = plans.map((p) => p.discountPct ?? 0).filter((n) => n > 0);
+  if (pcts.length === 0) return null;
+  return { min: Math.min(...pcts), max: Math.max(...pcts) };
+};
+
 /* LE PONT AVEC SUPABASE, POSÉ ICI ET NULLE PART AILLEURS : les deux sœurs
    lisent la même table par le même magasin. */
 bindCollection(plansStore, 'plans');
