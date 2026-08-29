@@ -98,6 +98,56 @@ export default function Abonnements() {
   const churned = partis.length;
   const [voirPartis, setVoirPartis] = useState(false);
   const [aResilier, setAResilier] = useState<Subscriber | null>(null);
+  /* ── SUPPRIMER POUR DE BON — 29 août 2026 ────────────────────────
+     « Comment annuler ou supprimer ? » (Yéman). Résilier ne supprimait pas :
+     l'abonnement passait chez « Les partis » et y restait, ce qui est juste —
+     une cliente qui s'en va garde son histoire. Mais un essai, une erreur de
+     saisie, un abonnement pris deux fois n'ont AUCUNE histoire à garder, et
+     encombraient la liste pour toujours.
+
+     LA RÈGLE QUI REND CE BOUTON SÛR : on ne supprime QUE ce qui n'a jamais
+     reçu un franc. Dès qu'un règlement est inscrit, l'abonnement porte de
+     l'argent encaissé, et effacer de l'argent encaissé est la seule chose
+     qu'un ERP ne doit jamais permettre d'un clic. Ceux-là se résilient. */
+  const [aSupprimer, setASupprimer] = useState<Subscriber | null>(null);
+
+  /* ── DÉCOUPER APRÈS COUP — 29 août 2026 ──────────────────────────
+     « Le paiement en plusieurs fois ne s'active plus quand ça vient de Ma
+     Couronne » (Yéman). L'échéancier ne s'écrivait QU'À LA SIGNATURE, dans le
+     formulaire « Nouvel abonné ». Un abonnement pris par la cliente elle-même
+     ne passait pas par ce formulaire : il ne pouvait donc JAMAIS recevoir de
+     découpe, et rien à l'écran ne disait pourquoi.
+
+     C'EST ICI QUE VIVENT LES QUATRE FOIS. Ma Couronne n'offre que deux fois ;
+     la découpe en quatre est un accord qui se donne en face, et ce bouton est
+     l'endroit où la Maison le donne.
+
+     LA DÉCOUPE RESTE UNE PAROLE DONNÉE : écrite une fois, elle ne se
+     recalcule pas. On ne l'offre donc que sur un abonnement qui n'en a pas. */
+  const [aDecouper, setADecouper] = useState<Subscriber | null>(null);
+  const [partsDecoupe, setPartsDecoupe] = useState<Decoupe>(2);
+
+  /** Ce qu'il y a à découper : son prix à elle, option couleur comprise. */
+  const aRegler = (m: Subscriber): number =>
+    prixVenduXof(m, planOf(m.planId), m.cycle ?? 'mensuel') + (m.couleur?.supplementXof ?? 0);
+
+  const decoupe = (m: Subscriber) => {
+    const total = aRegler(m);
+    if (!peutEtreEchelonne(total)) { toast('Ce montant est en dessous du seuil de découpe.'); return; }
+    /* La première échéance tombe LE JOUR MÊME : on n'accorde pas un crédit qui
+       commence par un délai. Ce qu'elle a déjà versé s'impute dessus tout seul
+       (l'état se dérive des règlements, il ne se stocke pas). */
+    const suite = construitEcheancier(total, partsDecoupe, todayISO());
+    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, echeances: suite } : x)));
+    setADecouper(null);
+    toast(`Abonnement réglable en ${partsDecoupe} fois.`);
+  };
+
+  const supprimer = (m: Subscriber) => {
+    setSubs((prev) => prev.filter((x) => x.id !== m.id));
+    setASupprimer(null);
+    toast('Abonnement supprimé. Il ne portait aucun règlement.');
+  };
 
   const resilier = (m: Subscriber) => {
     setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'churn' as const } : x)));
@@ -918,6 +968,19 @@ export default function Abonnements() {
                           <button className="tre-link-btn" style={{ marginRight: 10 }} onClick={() => setSuiviFor(m)}>Suivi</button>
                         )}
                         <button className="tre-link-btn" onClick={() => openPay(m)}>Régler</button>
+                        {/* DÉCOUPER — n'apparaît que sur un abonnement qui n'a
+                            pas encore d'échéancier et dont le montant passe le
+                            seuil de la Maison. C'est ici, et nulle part
+                            ailleurs, que les quatre fois se donnent. */}
+                        {!m.echeances?.length && peutEtreEchelonne(aRegler(m)) && (
+                          <button
+                            className="tre-link-btn"
+                            style={{ marginLeft: 10 }}
+                            onClick={() => { setPartsDecoupe(2); setADecouper(m); }}
+                          >
+                            Découper
+                          </button>
+                        )}
                         <button
                           className="tre-link-btn tre-link-btn--danger"
                           style={{ marginLeft: 10 }}
@@ -970,6 +1033,19 @@ export default function Abonnements() {
                             <td data-label="MRR" className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="tre-link-btn" onClick={() => reprendre(m)}>Reprendre l’abonnement</button>
+                              {/* CELUI QUI N'A JAMAIS RIEN REÇU peut s'effacer :
+                                  c'est un essai ou une erreur, il n'a pas
+                                  d'histoire. Les autres portent de l'argent
+                                  encaissé et restent. */}
+                              {subPaid(m) === 0 && (
+                                <button
+                                  className="tre-link-btn tre-link-btn--danger"
+                                  style={{ marginLeft: 10 }}
+                                  onClick={() => setASupprimer(m)}
+                                >
+                                  Supprimer
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -981,6 +1057,83 @@ export default function Abonnements() {
             </div>
           )}
         </div>
+      )}
+
+      {aDecouper && (() => {
+        const total = aRegler(aDecouper);
+        const apercu = construitEcheancier(total, partsDecoupe, todayISO());
+        const deja = subPaid(aDecouper);
+        return (
+          <Modal title="Découper le règlement" onClose={() => setADecouper(null)} width={440}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+                <b style={{ color: 'var(--color-indigo)' }}>{aDecouper.name}</b>
+                {' · '}{planOf(aDecouper.planId)?.name ?? 'formule retirée'}
+                {' · '}<b style={{ color: 'var(--ink)' }}>{fmtMoney(total, currency)}</b> à encaisser.
+              </div>
+
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {DECOUPES.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`tre-chip ${partsDecoupe === n ? 'is-on' : ''}`}
+                    onClick={() => setPartsDecoupe(n)}
+                  >
+                    En {n} fois
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, overflow: 'hidden' }}>
+                {apercu.map((e) => (
+                  <div key={e.numero} style={{
+                    display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5,
+                    padding: '8px 12px', borderTop: e.numero === 1 ? 'none' : '1px solid var(--hairline)',
+                  }}>
+                    <span className="mnd-muted">
+                      {e.numero === 1 ? 'Aujourd’hui' : `${e.numero}ᵉ · ${shortDate(e.dueIso)}`}
+                    </span>
+                    <b style={{ fontWeight: 500 }}>{fmtMoney(e.amountXof, currency)}</b>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6 }}>
+                {deja > 0
+                  ? `Elle a déjà versé ${fmtMoney(deja, currency)} : cette somme s'impute d'elle-même sur les premières échéances.`
+                  : 'La première échéance tombe le jour même : on n’accorde pas un crédit qui commence par un délai.'}
+                {' '}Une fois écrite, la découpe ne se recalcule plus, seules ses DATES se déplacent.
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" onClick={() => setADecouper(null)}>Annuler</Button>
+                <Button variant="copper" style={{ flex: 1 }} onClick={() => decoupe(aDecouper)}>
+                  Découper en {partsDecoupe} fois
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* SUPPRIMER NE SE DÉFAIT PAS. Résilier se reprend, ceci non : on le dit
+          avant, et on nomme la tête pour qu'on ne se trompe pas de ligne. */}
+      {aSupprimer && (
+        <Modal title="Supprimer cet abonnement ?" onClose={() => setASupprimer(null)} width={420}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <p className="mnd-muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 13.5 }}>
+              L’abonnement de <b style={{ color: 'var(--color-indigo)' }}>{aSupprimer.name}</b>
+              {' '}({planOf(aSupprimer.planId)?.name ?? 'formule retirée'}) disparaîtra de la Maison.
+              Il n’a jamais reçu de règlement, il n’emporte donc aucune somme avec lui.
+              <b style={{ color: 'var(--ink)' }}> Ce geste ne se défait pas.</b>
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="ghost" onClick={() => setASupprimer(null)}>Le garder</Button>
+              <Button variant="copper" onClick={() => supprimer(aSupprimer)}>Supprimer</Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* LE GARDE-FOU. « Résilier » était un clic sec et sans retour : la ligne

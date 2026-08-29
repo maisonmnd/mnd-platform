@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DÉCOUPER APRÈS COUP, ET SUPPRIMER — 29 août, PUBLIÉ
+
+### « Le paiement en plusieurs fois ne s'active plus quand ça vient de Ma Couronne »
+
+L'échéancier ne s'écrivait QU'À LA SIGNATURE, dans le formulaire « Nouvel
+abonné » du Trône. Un abonnement pris par la cliente elle-même ne passe pas par
+ce formulaire : il ne pouvait donc **jamais** recevoir de découpe, et rien à
+l'écran ne disait pourquoi.
+
+Nouveau bouton **« Découper »** sur la ligne, à côté de « Régler ». Il ne paraît
+que sur un abonnement SANS échéancier dont le montant passe le seuil de la
+Maison (100 000 F, `peutEtreEchelonne`). **C'est ici, et nulle part ailleurs,
+que les quatre fois se donnent** — Ma Couronne n'offre que deux fois, et
+`souscrire_a_une_formule` refuse tout autre nombre.
+
+Ce qu'elle a déjà versé s'impute de lui-même : l'état des échéances se DÉRIVE
+des règlements, il ne se stocke pas. La découpe reste une parole donnée, écrite
+une fois ; seules ses DATES se déplacent ensuite.
+
+### « Comment annuler ou supprimer ? »
+
+Régler et Résilier existaient. Supprimer, non : un abonnement résilié restait
+chez « Les partis » pour toujours, ce qui est juste pour une cliente qui s'en
+va, mais absurde pour un essai ou une erreur de saisie.
+
+Bouton **« Supprimer »** chez Les partis, **uniquement quand `subPaid(m) === 0`**.
+Dès qu'un règlement est inscrit, l'abonnement porte de l'argent encaissé, et
+effacer de l'argent encaissé est la seule chose qu'un ERP ne doit jamais
+permettre d'un clic.
+
+### KkiaPay enfin visible
+
+`VITE_KKIAPAY_PUBLIC_KEY` manquait dans `.env.local` : `kkiapayEnabled()` était
+faux, et le bouton « Régler maintenant » ne se rendait pas du tout. Clé posée,
+`VITE_KKIAPAY_SANDBOX=true`. **La clé est lue À LA CONSTRUCTION** : la changer
+demande une nouvelle mise en ligne.
+
+### L'écran de règlement ne dit plus ce qui ne la regarde pas
+
+Deux cadres expliquaient à la cliente le seuil des deux fois et la règle des
+quatre fois. Politique de maison : elle n'a rien demandé, rien ne lui a été
+refusé, et lui dire qu'un découpage existe ailleurs ne fait que l'inviter à le
+réclamer.
+
+---
+
 ## LE QUOTA SUPABASE — 29 août, PUBLIÉ
 
 « Organization exceeded its quota in the previous billing cycle. Projects will
