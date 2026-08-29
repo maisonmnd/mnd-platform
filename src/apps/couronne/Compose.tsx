@@ -2,7 +2,11 @@ import { asset } from '../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { composeStore, vitrineConfigStore, surMesureDe, type ComposePayload } from '../../shared/bridges';
+import {
+  composeStore, vitrineConfigStore, surMesureDe, formulesVisiblesPour,
+  demandesFormuleStore, useDemandesFormule, demandeOuverteDe, type ComposePayload,
+} from '../../shared/bridges';
+import { usePlans, moisDuPack, FAMILLES_FORMULES, type Plan } from '../../shared/abonnements';
 import { useStore } from '../../shared/store';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
 import { pushNotifyStaff } from '../../shared/push';
@@ -77,7 +81,21 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [tousProduits] = useProducts();
   const prixDe = (s: Service): number => personalPriceXof(s, pricing, tousServices, tousProduits);
 
-  const [mode, setMode] = useState<'ponctuel' | 'abonnement' | 'forfaits'>('ponctuel');
+  /* ── LE PONCTUEL EST RETIRÉ — 29 août 2026 ──────────────────────
+     « Deux options disponibles qui disent presque la même chose. Je veux
+     enlever ponctuel et garder abonnement dès 3, jusqu'à 15 %, et je veux
+     avoir un autre côté où j'ai mes propres abonnements prêts pour l'achat »
+     (Yéman).
+
+     Le Ponctuel et l'Abonnement composaient DÉJÀ la même chose : même
+     catalogue, même geste, seuls le taux et le minimum les séparaient. Deux
+     portes vers une seule pièce font hésiter, elles ne font pas vendre.
+
+     À sa place, LES ABONNEMENTS DE LA MAISON — ceux qu'elle a écrits, prêts à
+     être pris. Ils vivaient dans l'onglet « Ma formule », que la cliente
+     n'atteignait qu'après avoir cherché. Ils s'ouvrent maintenant en premier,
+     là où elle vient déjà. */
+  const [mode, setMode] = useState<'formules' | 'abonnement' | 'forfaits'>('formules');
   const [qty, setQty] = useState<Record<string, number>>({});
   const [done, setDone] = useState<ComposePayload | null>(null);
   /* LE FORFAIT À PLUSIEURS SÉANCES OUVRE SON CYCLE (16 août) — il ne se
@@ -146,14 +164,53 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
     () => (sm.ponctuelCats.length ? sousArbreDe(sm.ponctuelCats) : null),
     [tousCats, sm.ponctuelCats],
   );
+  /* LES ABONNEMENTS DE LA MAISON, prêts à l'achat. Même source et même juge
+     que l'onglet « Ma formule » : deux vitrines qui filtreraient chacune de
+     leur côté finiraient par montrer deux offres différentes. */
+  const [tousPlans] = usePlans();
+  const [demandes] = useDemandesFormule();
+  const maDemande = client ? demandeOuverteDe(demandes, client.id) : undefined;
+  const mesFormules = useMemo(
+    () => formulesVisiblesPour({ cfg: cfgV, masques: client?.vitrineMasques, plans: tousPlans }),
+    [cfgV, client?.vitrineMasques, tousPlans],
+  );
+  /* LE MÊME RANGEMENT QUE PARTOUT, orphelines comprises : une formule sans
+     moment du parcours se range sous « Les autres », jamais dans le vide. */
+  const momentsFormules = useMemo(() => {
+    const groupes = FAMILLES_FORMULES
+      .map((f) => ({ k: f.k as string, titre: f.titre, quand: f.quand, liste: mesFormules.filter((x) => x.famille === f.k) }))
+      .filter((g) => g.liste.length > 0);
+    const orphelines = mesFormules.filter((x) => !x.famille || !FAMILLES_FORMULES.some((f) => f.k === x.famille));
+    return orphelines.length > 0
+      ? [...groupes, { k: 'autres', titre: 'Les autres formules', quand: 'à découvrir', liste: orphelines }]
+      : groupes;
+  }, [mesFormules]);
+
+  const demanderFormule = (pl: Plan) => {
+    if (!client) return;
+    /* UNE SEULE DEMANDE À LA FOIS. Deux demandes ouvertes pour la même tête,
+       c'est la Maison qui tranche deux fois et la cliente qui attend deux
+       réponses pour une seule envie. */
+    if (maDemande) { toast('Une demande est déjà en cours, la Maison vous répond très vite.'); return; }
+    demandesFormuleStore.set((prev) => [...prev, {
+      id: `df-${uid()}`,
+      clientId: client.id,
+      clientName: client.name,
+      planId: pl.id,
+      planName: pl.name,
+      demandeeLe: new Date().toISOString().slice(0, 10),
+    }]);
+    toast('Demande transmise. La Maison vous répond très vite.');
+  };
+
   const activeGroups = mode === 'abonnement'
     ? (aboSousArbre ? groups.filter((g) => aboSousArbre.has(g.cat.id)) : groups)
     : (ponctuelSousArbre ? groups.filter((g) => ponctuelSousArbre.has(g.cat.id)) : groups);
 
-  const switchMode = (m: 'ponctuel' | 'abonnement' | 'forfaits') => {
+  const switchMode = (m: 'formules' | 'abonnement' | 'forfaits') => {
     setMode(m);
-    /* L'onglet des forfaits ne compose rien : la composition l'attend intacte. */
-    if (m === 'forfaits') return;
+    /* Les deux VITRINES ne composent rien : la composition les attend intacte. */
+    if (m === 'forfaits' || m === 'formules') return;
     /* Chaque régime a SES ateliers — ce qui n'appartient pas au régime choisi
        quitte la composition, dans les deux sens. */
     const scope = m === 'abonnement' ? aboSousArbre : ponctuelSousArbre;
@@ -176,7 +233,8 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   );
   const count = lines.reduce((a, l) => a + l.q, 0);
   const subtotal = lines.reduce((a, l) => a + l.line, 0);
-  const discountPct = mode === 'abonnement' ? sm.aboPct : sm.ponctuelPct;
+  /* UN SEUL RÉGIME COMPOSE DÉSORMAIS : le taux ne se demande plus. */
+  const discountPct = sm.aboPct;
   const discount = Math.round((subtotal * discountPct) / 100);
   const total = subtotal - discount;
   const aboBlocked = mode === 'abonnement' && count < sm.aboMin;
@@ -192,7 +250,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
     });
 
   const compose = () => {
-    if (!canCompose || mode === 'forfaits') return;
+    if (!canCompose || mode !== 'abonnement') return;
     const payload: ComposePayload = {
       id: uid(),
       createdAt: new Date().toISOString(),
@@ -299,16 +357,23 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         </div>
         <h1 className="mc-flowhead__h1" style={{ marginTop: 6 }}>Votre rituel, votre signature.</h1>
 
-        {/* TROIS ONGLETS — deux pour composer, un pour la carte. Les sous-titres
-            tiennent en trois mots : la liste des ateliers d'abonnement, elle,
-            se lit dans les intertitres du dessous, où elle sert vraiment. */}
+        {/* TROIS ONGLETS, ET UN SEUL COMPOSE. Nos abonnements d'abord, ceux que
+            la Maison a écrits et qui n'attendent qu'un oui ; puis le composeur,
+            pour celle qui veut le sien ; puis la carte des forfaits.
+
+            LE PONCTUEL A ÉTÉ RETIRÉ (29 août) : il composait exactement la même
+            chose que l'Abonnement, même catalogue et même geste, seuls le taux
+            et le minimum les séparaient. Deux portes vers une seule pièce font
+            hésiter, elles ne font pas vendre. */}
         <div className="mc-modetoggle">
-          <button className={`mc-mode ${mode === 'ponctuel' ? 'is-ritual' : ''}`} onClick={() => switchMode('ponctuel')}>
-            <span className="mc-mode__name">Ponctuel</span>
-            <span className="mc-mode__sub">−{sm.ponctuelPct} % · une fois</span>
-          </button>
+          {mesFormules.length > 0 && (
+            <button className={`mc-mode ${mode === 'formules' ? 'is-abo' : ''}`} onClick={() => switchMode('formules')}>
+              <span className="mc-mode__name">Nos abonnements</span>
+              <span className="mc-mode__sub">tout prêts · {mesFormules.length}</span>
+            </button>
+          )}
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
-            <span className="mc-mode__name">Abonnement</span>
+            <span className="mc-mode__name">Composez le vôtre</span>
             <span className="mc-mode__sub">−{sm.aboPct} % · dès {sm.aboMin} soins</span>
           </button>
           {forfaits.length > 0 && (
@@ -321,6 +386,71 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody" style={{ paddingBottom: 8 }}>
+        {/* ---------- LES ABONNEMENTS DE LA MAISON ----------
+             « Je veux avoir un autre côté où j'ai mes propres abonnements
+             disponibles prêts pour l'achat » (Yéman, 29 août). Ils vivaient
+             dans l'onglet « Ma formule », que la cliente n'atteignait qu'après
+             avoir cherché. Ils s'ouvrent maintenant en premier, là où elle
+             vient déjà. Même source et même juge que « Ma formule » : deux
+             vitrines qui filtreraient chacune de leur côté finiraient par
+             montrer deux offres différentes. */}
+        {mode === 'formules' && (
+          <div className="mc-fade">
+            {maDemande ? (
+              <div className="mc-packintro">
+                Vous avez demandé « {maDemande.planName} ». La Maison vous répond très vite,
+                et vous réglerez au comptoir ou par MoMo.
+              </div>
+            ) : (
+              <div className="mc-packintro">
+                Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien
+                qu'à vous, et se règle au comptoir ou par MoMo, jamais en ligne.
+              </div>
+            )}
+            {momentsFormules.map((g) => (
+              <section key={g.k}>
+                <div className="cma-moment">
+                  <span className="cma-moment__titre">{g.titre}</span>
+                  <span className="cma-moment__quand">{g.quand}</span>
+                  <span className="cma-moment__rule" />
+                </div>
+                {g.liste.map((pl) => (
+                  <div key={pl.id} className="cma-offre">
+                    {pl.tag ? <div className="cma-offre__tag">{pl.tag}</div> : null}
+                    <div className="cma-offre__nom">{pl.name}</div>
+                    {pl.line ? <p className="cma-offre__ligne">{pl.line}</p> : null}
+                    {/* CE QU'ELLE CONTIENT, LÀ OÙ ELLE DÉCIDE. Les avantages
+                        étaient déjà écrits dans la formule et ne paraissaient
+                        nulle part : un nom et un prix ne font pas choisir. */}
+                    {pl.perks.length > 0 && (
+                      <ul className="cma-inclus">
+                        {pl.perks.slice(0, 4).map((av) => (
+                          <li key={av}><i>◆</i><span>{av}</span></li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="cma-offre__bas">
+                      <span className="cma-offre__prix">
+                        {fmtMoney(pl.priceXof, currency)}
+                        <span>{pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}</span>
+                      </span>
+                      {pl.discountPct ? <span className="cma-offre__gain">−{pl.discountPct} % sur la carte</span> : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="cma-btn cma-btn--sm"
+                      disabled={!!maDemande}
+                      onClick={() => demanderFormule(pl)}
+                    >
+                      {maDemande ? 'Demande en cours' : 'Je veux cette formule'}
+                    </button>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </div>
+        )}
+
         {/* ---------- LES FORFAITS DE LA CARTE ---------- */}
         {mode === 'forfaits' && (
           <div className="mc-fade">
@@ -375,7 +505,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
           </div>
         )}
 
-        {mode !== 'forfaits' && activeGroups.length === 0 && (
+        {mode === 'abonnement' && activeGroups.length === 0 && (
           <div className="mc-emptyzone">
             <div className="mc-emptyzone__glyph">✦</div>
             <div className="mc-emptyzone__t">Le sur-mesure se prépare.</div>
@@ -386,7 +516,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
             </div>
           </div>
         )}
-        {mode !== 'forfaits' && activeGroups.map((g) => (
+        {mode === 'abonnement' && activeGroups.map((g) => (
           <div key={g.cat.id} className="mc-cmgroup">
             <div className="mc-cmgroup__head">
               <span className="mc-cmgroup__fon">{g.cat.fon}</span>
@@ -432,7 +562,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       {/* -------- pied collant : totaux + verrou abonnement --------
           L'onglet des forfaits ne compose rien : chaque carte porte son geste,
           et un pied qui annoncerait « 0 prestation » ne dirait que du vide. */}
-      {mode !== 'forfaits' && (
+      {mode === 'abonnement' && (
       <div className="mc-cmfooter">
         {count > 0 && (
           <>

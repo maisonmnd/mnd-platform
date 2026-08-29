@@ -2,6 +2,39 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE COMPOSEUR : NOS ABONNEMENTS D'ABORD — 29 août, PUBLIÉ
+
+« Deux options disponibles qui disent presque la même chose. Je veux enlever
+ponctuel et garder abonnement dès 3, jusqu'à 15 %, et je veux avoir un autre côté
+où j'ai mes propres abonnements prêts pour l'achat. »
+
+**Le Ponctuel est retiré.** Il composait exactement la même chose que
+l'Abonnement, même catalogue et même geste, seuls le taux et le minimum les
+séparaient. Deux portes vers une seule pièce font hésiter, elles ne font pas
+vendre. Un seul régime compose désormais, `discountPct` ne se demande plus.
+
+**À sa place, « Nos abonnements ».** Les formules écrites par la Maison,
+`plansStore`, filtrées par le MÊME juge que l'onglet « Ma formule »
+(`formulesVisiblesPour`) — deux vitrines qui filtreraient chacune de leur côté
+finiraient par montrer deux offres différentes. Rangées par moment du parcours,
+orphelines comprises. « Je veux cette formule » pose une `DemandeFormule`, et une
+seule à la fois : deux demandes ouvertes pour la même tête, c'est la Maison qui
+tranche deux fois pour une seule envie.
+
+C'est l'onglet ouvert PAR DÉFAUT. Les formules vivaient dans « Ma formule », que
+la cliente n'atteignait qu'après avoir cherché ; elles s'ouvrent maintenant là où
+elle vient déjà.
+
+Les trois onglets : **Nos abonnements · Composez le vôtre · Les forfaits.**
+
+### Les cartes disent enfin ce qu'elles contiennent
+
+`.cma-inclus`, quatre avantages au plus, dans les DEUX vitrines. Ils étaient déjà
+écrits dans la formule et ne paraissaient nulle part : un nom et un prix ne font
+pas choisir.
+
+---
+
 ## DEUX ÉCRANS VIDES CHEZ LA CLIENTE — 29 août, PUBLIÉ
 
 Deux pages de Ma Couronne ne montraient RIEN, chacune sous une phrase d'attente

@@ -2593,6 +2593,33 @@
 .cma-offre__prix span { font-size: 10.5px; color: var(--ink-soft); font-family: var(--font-sans); }
 .cma-offre__gain { font-size: 10.5px; color: var(--color-vert, #2E6B4F); }
 
+/* CE QUE LA FORMULE CONTIENT, LÀ OÙ ELLE DÉCIDE — 29 août 2026.
+   Les cartes n'affichaient qu'un nom, une phrase et un prix. Les avantages
+   étaient déjà écrits dans la formule et ne paraissaient nulle part : un nom
+   et un prix ne font pas choisir. Quatre lignes au plus, sinon la carte cesse
+   d'être une carte et redevient un contrat. */
+.cma-inclus {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 9px 0 0;
+  border-top: 1px solid var(--hairline, #E3DCCE);
+}
+.cma-inclus li {
+  display: flex;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink, #2A2722);
+  margin-bottom: 3px;
+}
+.cma-inclus i {
+  font-style: normal;
+  flex: none;
+  font-size: 8px;
+  line-height: 2.1;
+  color: var(--copper-600, #B97A4A);
+}
+
 /* L'attente porte une date : elle engage la Maison. */
 .cma-attente {
   border: 1px dashed var(--copper-300); background: var(--copper-50);

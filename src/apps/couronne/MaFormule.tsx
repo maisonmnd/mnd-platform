@@ -265,6 +265,17 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
               <div className="cma-offre__tag">{p.tag}</div>
               <div className="cma-offre__nom">{p.name}</div>
               <p className="cma-offre__ligne">{p.line}</p>
+              {/* CE QU'ELLE CONTIENT, LÀ OÙ ELLE DÉCIDE (29 août). Les
+                  avantages étaient déjà écrits dans la formule et ne
+                  paraissaient nulle part : un nom et un prix ne font pas
+                  choisir. Même carte que celle du Composeur. */}
+              {p.perks.length > 0 && (
+                <ul className="cma-inclus">
+                  {p.perks.slice(0, 4).map((av) => (
+                    <li key={av}><i>◆</i><span>{av}</span></li>
+                  ))}
+                </ul>
+              )}
               <div className="cma-offre__bas">
                 <span className="cma-offre__prix">
                   {fmtMoney(p.priceXof, currency)}
