@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## ELLE PREND SA FORMULE ELLE-MÊME — 29 août, PUBLIÉ · **0077 À PASSER**
+## ELLE PREND SA FORMULE ELLE-MÊME — 29 août, PUBLIÉ · **0077 PASSÉE**
 
 « Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve
 immédiatement et passe au paiement et choisit en 2 fois. Seul moi-même peut
@@ -51,13 +51,15 @@ le pose lui-même et le change quand il veut, plutôt que de le figer dans le co
 mirroir en SQL, même règle — le reste sur la PREMIÈRE, trente jours entre, la
 première le jour même. **Si la règle TS change un jour, le SQL doit suivre.**
 
-### À faire côté Supabase
+### État côté Supabase
 
-1. `supabase/migrations/0077_elle_prend_sa_formule.sql`, une seule fois.
-2. Redéployer `kkiapay-verify` (il sait désormais régler un abonnement).
+- `0077` — **PASSÉE le 29 août**, contrôle rendu : `souscrire_a_une_formule`,
+  `security_definer = true`. **Ne jamais la relancer.**
+- `kkiapay-verify` — **reste à redéployer.** Sans lui, la voie « Je réglerai au
+  comptoir » fonctionne déjà ; seule la voie « Régler maintenant » attend.
 
-Sans ces deux gestes, le bouton dit honnêtement « la souscription n'est pas
-encore ouverte » au lieu d'échouer en silence.
+Le bouton dit honnêtement « la souscription n'est pas encore ouverte » plutôt
+que d'échouer en silence.
 
 ### Ce qui reste
 
