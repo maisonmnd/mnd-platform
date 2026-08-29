@@ -2,6 +2,49 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEUX ÉCRANS VIDES CHEZ LA CLIENTE — 29 août, PUBLIÉ
+
+Deux pages de Ma Couronne ne montraient RIEN, chacune sous une phrase d'attente
+qui avait l'air d'une promesse et n'était qu'une liste morte. Même racine dans
+les deux cas : une absence lue comme une décision.
+
+### ① « Ma formule » — une formule sans moment du parcours disparaissait
+
+La vitrine cliente ne gardait que les cinq familles connues et jetait le reste en
+silence. Une formule créée au comptoir sans choisir son moment n'existait POUR
+AUCUNE CLIENTE. Le contrat du champ dit pourtant l'inverse depuis toujours,
+« absent = elle se range sous Les autres formules, JAMAIS MASQUÉE », et Le Trône
+l'honorait déjà (`parFamille`, avec son groupe `autres`). Deux écrans, deux
+lectures du même champ : celui qui vend voyait la formule, celle qui achète ne
+l'a jamais vue. C'est très probablement la cause de l'écran vide du 29 août.
+
+### ② « Composer » — le régime Abonnement pointait dans le vide
+
+`surMesureDe` posait `aboCats: ['gbeji', 'finfin']` par défaut. Le catalogue v6 a
+renommé ses ateliers en `atl-ii-gbeji` et `atl-iv-finfin` : ces deux identifiants
+ne désignaient plus rien, et le régime Abonnement de la composition n'affichait
+aucun soin.
+
+Pire, les deux régimes lisaient la même absence à l'envers l'un de l'autre : le
+ponctuel traitait « liste vide = tout le catalogue », l'abonnement « liste vide =
+rien du tout ». Ils lisent pareil maintenant, et **une liste qui ne désigne plus
+aucune catégorie vaut une liste vide** — c'est ce qui aurait rattrapé le renommage.
+
+**Un défaut ne doit jamais nommer des identifiants.** Il finit par pointer dans le
+vide sans qu'un écran s'en aperçoive. Il ouvre tout, et la Maison retranche
+ensuite, à Vitrine → « Ouvert à l'ABONNEMENT ».
+
+### La règle commune
+
+Le masque de la vitrine (28 août) est le SEUL moyen de cacher une formule ou un
+atelier. Un champ oublié, un identifiant périmé, une liste vide ne valent jamais
+une décision.
+
+Maquette du nouveau dessin de « Ma formule » : `public/maquette-ma-formule.html`,
+en attente de validation.
+
+---
+
 ## LES FORMULES EN VITRINE — 28 août, PUBLIÉ
 
 « Je ne veux pas rendre visible tous les abonnements en ligne sur Ma Couronne. »

@@ -252,9 +252,9 @@ export type VitrineConfig = {
   /** LE SUR-MESURE SE RÈGLE AU TRÔNE (12 août) — les remises, le minimum et
       les ateliers étaient écrits dans le code. Absent = les valeurs
       historiques : ponctuel −10 % (tout le catalogue), abonnement −15 %,
-      3 prestations minimum, ateliers gbeji + finfin. LES DEUX RÉGIMES SONT
+      3 prestations minimum. LES DEUX RÉGIMES SONT
       SCINDÉS : chacun sa liste d'ateliers/familles (un nœud coché couvre son
-      sous-arbre). `ponctuelCats` VIDE = tout le catalogue visible. */
+      sous-arbre). les DEUX listes VIDES = tout le catalogue visible. */
   surMesure?: { ponctuelPct?: number; aboPct?: number; aboMin?: number; aboCats?: string[]; ponctuelCats?: string[] };
 };
 
@@ -263,7 +263,17 @@ export const surMesureDe = (cfg: VitrineConfig): { ponctuelPct: number; aboPct: 
   ponctuelPct: cfg.surMesure?.ponctuelPct ?? 10,
   aboPct: cfg.surMesure?.aboPct ?? 15,
   aboMin: cfg.surMesure?.aboMin ?? 3,
-  aboCats: cfg.surMesure?.aboCats ?? ['gbeji', 'finfin'],
+  /* VIDE = TOUT LE CATALOGUE, comme `ponctuelCats` (corrigé le 29 août).
+     Le défaut visait `gbeji` et `finfin` ; le catalogue v6 a renommé ses
+     ateliers en `atl-ii-gbeji` et `atl-iv-finfin`, et ces deux identifiants
+     n'ont plus rien désigné. Le régime « Abonnement » de la composition
+     n'affichait donc AUCUN soin, sous un « le sur-mesure se prépare » qui
+     avait l'air d'une promesse et n'était qu'une liste morte.
+
+     Un défaut ne doit jamais nommer des identifiants : il finit par pointer
+     dans le vide, sans qu'un seul écran s'en aperçoive. Il ouvre tout, et
+     c'est la Maison qui retranche. */
+  aboCats: cfg.surMesure?.aboCats ?? [],
   ponctuelCats: cfg.surMesure?.ponctuelCats ?? [],
 });
 

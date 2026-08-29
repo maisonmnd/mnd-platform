@@ -128,13 +128,26 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
     for (const id of liste) for (const x of sousArbreOf(tousCats, id)) ids.add(x);
     return ids;
   };
-  const aboSousArbre = useMemo(() => sousArbreDe(sm.aboCats), [tousCats, sm.aboCats]);
+  /* LES DEUX RÉGIMES SE LISENT PAREIL (corrigé le 29 août). Le ponctuel
+     traitait déjà « liste vide = tout le catalogue » ; l'abonnement, lui,
+     traitait « liste vide = rien du tout ». La même absence disait donc deux
+     choses opposées selon l'onglet.
+
+     ET UNE LISTE QUI NE DÉSIGNE PLUS RIEN VAUT UNE LISTE VIDE : les ateliers
+     du catalogue ont été renommés (`gbeji` → `atl-ii-gbeji`) et le réglage
+     pointait dans le vide. Plutôt que de fermer l'écran en silence, on rouvre
+     tout : la Maison retranche ensuite ce qu'elle veut, à la Vitrine. */
+  const aboSousArbre = useMemo(() => {
+    if (sm.aboCats.length === 0) return null;
+    const arbre = sousArbreDe(sm.aboCats);
+    return arbre.size > 0 ? arbre : null;
+  }, [tousCats, sm.aboCats]);
   const ponctuelSousArbre = useMemo(
     () => (sm.ponctuelCats.length ? sousArbreDe(sm.ponctuelCats) : null),
     [tousCats, sm.ponctuelCats],
   );
   const activeGroups = mode === 'abonnement'
-    ? groups.filter((g) => aboSousArbre.has(g.cat.id))
+    ? (aboSousArbre ? groups.filter((g) => aboSousArbre.has(g.cat.id)) : groups)
     : (ponctuelSousArbre ? groups.filter((g) => ponctuelSousArbre.has(g.cat.id)) : groups);
 
   const switchMode = (m: 'ponctuel' | 'abonnement' | 'forfaits') => {

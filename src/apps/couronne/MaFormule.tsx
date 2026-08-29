@@ -213,11 +213,29 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      aurait son propre ordre aurait divergé au premier ajout, et la cliente
      aurait vu autre chose que ce que la Maison croit montrer.
 
-     Les formules laissées « à part », sans moment du parcours, ne paraissent
-     pas : le champ devient la commande qui publie une formule ou la garde. */
-  const moments = useMemo(() => FAMILLES_FORMULES
-    .map((f) => ({ ...f, liste: plans.filter((p) => p.famille === f.k) }))
-    .filter((g) => g.liste.length > 0), [plans]);
+     UNE FORMULE SANS MOMENT DU PARCOURS DISPARAISSAIT (corrigé le 29 août).
+     Cette vitrine ne gardait que les cinq familles connues et jetait le reste
+     en silence : une formule créée au comptoir sans choisir son moment
+     n'existait POUR AUCUNE CLIENTE, et rien nulle part ne le disait. Le
+     contrat du champ dit pourtant l'inverse depuis toujours, « absent = elle
+     se range sous Les autres formules, JAMAIS MASQUÉE » — et Le Trône, lui,
+     l'honorait déjà. Deux écrans, deux lectures du même champ : celui qui
+     vend voyait la formule, celle qui achète ne l'a jamais vue.
+
+     Le masque de la vitrine (28 août) est le SEUL moyen de cacher une
+     formule. Un champ oublié ne doit jamais valoir une décision. */
+  const moments = useMemo(() => {
+    const groupes = FAMILLES_FORMULES
+      .map((f) => ({ ...f, liste: plans.filter((p) => p.famille === f.k) }))
+      .filter((g) => g.liste.length > 0);
+    const orphelines = plans.filter((p) => !p.famille || !FAMILLES_FORMULES.some((f) => f.k === p.famille));
+    return orphelines.length > 0
+      ? [...groupes, {
+        k: 'autres' as const, titre: 'Les autres formules', quand: 'à découvrir',
+        sous: '', liste: orphelines,
+      }]
+      : groupes;
+  }, [plans]);
 
   return (
     <>
