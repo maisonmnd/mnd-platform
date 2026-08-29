@@ -111,8 +111,13 @@ première le jour même. **Si la règle TS change un jour, le SQL doit suivre.**
 
 - `0077` — **PASSÉE le 29 août**, contrôle rendu : `souscrire_a_une_formule`,
   `security_definer = true`. **Ne jamais la relancer.**
-- `kkiapay-verify` — **reste à redéployer.** Sans lui, la voie « Je réglerai au
-  comptoir » fonctionne déjà ; seule la voie « Régler maintenant » attend.
+- `kkiapay-verify` — **REDÉPLOYÉE le 29 août.** Les deux voies fonctionnent.
+
+**Piège rencontré ce jour-là** : la fiche d'envoi d'un fichier (le JSON qui
+porte son chemin) a été collée dans l'éditeur à la place du contenu, deux fois,
+et une fois ENREGISTRÉE dans la fonction — les acomptes de rendez-vous sont
+tombés jusqu'au redéploiement. Pour un fichier à coller ailleurs, donner le
+CONTENU dans le message, pas la pièce jointe.
 
 Le bouton dit honnêtement « la souscription n'est pas encore ouverte » plutôt
 que d'échouer en silence.
