@@ -384,7 +384,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
           {mesFormules.length > 0 && (
             <button className={`mc-mode ${mode === 'formules' ? 'is-abo' : ''}`} onClick={() => switchMode('formules')}>
               <span className="mc-mode__name">Nos abonnements</span>
-              <span className="mc-mode__sub">tout prêts · {mesFormules.length}</span>
+              {/* LE SOUS-TITRE PORTE LA REMISE, pas le compte — 29 août 2026.
+                  « Tout prêts · 12 » disait un inventaire ; ce qui décide une
+                  cliente est ce qu'elle gagne. Les chiffres se CALCULENT sur
+                  les formules qu'elle voit et suivent tout changement de prix.
+                  Sans aucune remise annoncée, on retombe sur le compte, qui a
+                  au moins le mérite d'être vrai. */}
+              <span className="mc-mode__sub">
+                {remises ? `−${remises.min} % à ${remises.max} % de remise` : `tout prêts · ${mesFormules.length}`}
+              </span>
             </button>
           )}
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
@@ -418,15 +426,12 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
               </div>
             ) : (
               <div className="mc-packintro">
-                {remises
-                  ? (
-                    <>
-                      <b>De {remises.min} % à {remises.max} % de remise</b> sur les prix de la carte.
-                      Ceux que la Maison a écrits, prêts à être pris, chacun avec un créneau rien
-                      qu'à vous.
-                    </>
-                  )
-                  : 'Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien qu’à vous.'}
+                {/* L'ACCROCHE NE RÉPÈTE PLUS LA REMISE : elle est passée dans
+                    l'onglet, à trois centimètres au-dessus. Le même chiffre
+                    deux fois sur un écran de téléphone ne convainc pas
+                    davantage, il occupe la place de ce qui reste à dire. */}
+                Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien
+                qu’à vous, et vous réglez en une fois ou en deux.
               </div>
             )}
             {momentsFormules.map((g) => (
