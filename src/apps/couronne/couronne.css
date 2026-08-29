@@ -2488,6 +2488,81 @@
   border-radius: 4px; padding: 15px 16px; margin-top: 10px;
 }
 
+/* ══ LA VITRINE DES FORMULES — 29 août 2026 ═══════════════════════════
+   « Cette page doit avoir une jolie UI/UX. Elle paraît ne pas être
+   fonctionnelle, elle n'invite pas à découvrir les formules » (Yéman).
+
+   La page s'ouvrait sur un MANQUE — « vous n'avez pas encore de formule » —
+   puis s'arrêtait. Elle s'ouvre désormais sur LE CHIFFRE QUI EST LE SIEN,
+   calculé sur ses venues à elle. C'est le seul argument qu'une cliente ne
+   peut pas discuter, et il dormait en petits caractères gris sous le titre. */
+
+.cma-hero {
+  background: linear-gradient(162deg, var(--color-indigo-deep, #15173A), var(--color-indigo, #1E2150));
+  border-radius: 5px;
+  padding: 22px 20px 20px;
+  color: var(--color-ivoire, #FBF8F2);
+  margin-bottom: 18px;
+}
+.cma-hero__lab {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--copper-200, #E3C9AE); margin-bottom: 11px;
+}
+.cma-hero__gd {
+  font-family: var(--font-serif); font-weight: 300; font-size: 27px; line-height: 1.16;
+  color: #fff; margin: 0; text-wrap: balance;
+}
+/* LE CHIFFRE EN CUIVRE, ET LUI SEUL. Le cuivre est un accent : sur fond
+   indigo il désigne la somme, jamais la phrase entière. */
+.cma-hero__gd em { font-style: normal; color: var(--copper-200, #E3C9AE); }
+.cma-hero__ss {
+  font-size: 12.5px; color: var(--indigo-100, #C9CBE0); margin: 10px 0 0; line-height: 1.62;
+}
+.cma-hero__cta {
+  display: block; width: 100%; text-align: center; margin-top: 16px;
+  background: var(--copper-600, #B97A4A); color: #fff; border: none; border-radius: 3px;
+  padding: 11px; font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .15em;
+  text-transform: uppercase; cursor: pointer; transition: background .2s ease;
+}
+.cma-hero__cta:hover { background: var(--copper-700, #9C6339); }
+.cma-hero__cta:focus-visible { outline: 2px solid var(--copper-200, #E3C9AE); outline-offset: 2px; }
+
+/* LES TROIS QUESTIONS DU COMPTOIR, répondues avant d'être posées. */
+.cma-assur {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
+  background: var(--hairline, #E3DCCE); border: 1px solid var(--hairline, #E3DCCE);
+  border-radius: 4px; overflow: hidden; margin-bottom: 22px;
+}
+.cma-assur > div { background: var(--color-ivoire, #FBF8F2); padding: 11px 8px; text-align: center; }
+.cma-assur b {
+  display: block; font-family: var(--font-serif); font-size: 16px; font-weight: 400;
+  color: var(--color-indigo, #1E2150); line-height: 1.3;
+}
+.cma-assur span {
+  display: block; font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-soft, #746F65); margin-top: 3px;
+}
+
+/* LA PAGE SE FERME SUR CE QUI RASSURE. Sans cette phrase, elle pouvait
+   croire qu'il fallait sortir sa carte bancaire. */
+.cma-pied {
+  margin-top: 24px; padding: 16px 18px; background: var(--sable, #EFE7D8);
+  border-top: 1px solid var(--hairline, #E3DCCE); border-radius: 4px;
+}
+.cma-pied p { margin: 0; font-size: 12px; color: var(--ink-soft, #746F65); line-height: 1.7; text-align: center; }
+.cma-pied b { color: var(--ink, #2A2722); font-weight: 500; }
+.cma-pied a { color: var(--copper-700, #9C6339); text-decoration: underline; text-underline-offset: 2px; }
+
+/* L'ATTENTE CESSE D'ÊTRE UN CUL-DE-SAC. « La Maison n'a pas encore ouvert ses
+   formules » dans un cadre en pointillés ressemblait à une panne. */
+.cma-bientot {
+  border: 1px solid var(--hairline, #E3DCCE); border-radius: 4px;
+  background: var(--color-ivoire, #FBF8F2); padding: 26px 20px; text-align: center;
+}
+.cma-bientot__mono { font-family: var(--font-serif); font-size: 26px; color: var(--copper-200, #E3C9AE); line-height: 1; }
+.cma-bientot__t { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo, #1E2150); margin: 12px 0 7px; }
+.cma-bientot__s { font-size: 12.5px; color: var(--ink-soft, #746F65); margin: 0; line-height: 1.65; }
+
 /* La carte de la formule — la seule surface indigo de l'écran. */
 .cma-carte {
   background: var(--color-indigo); color: var(--color-ivoire);

@@ -5,7 +5,7 @@ import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
-  prixVenduXof, ecartDuPrixConvenu,
+  prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
 } from '../../shared/abonnements';
 import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
@@ -191,9 +191,31 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
 
 /* ── CE QU'ELLE POURRAIT PRENDRE ─────────────────────────────────────── */
 function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) => void }) {
-  const { currency } = useBranch();
+  const { branch, currency } = useBranch();
   const [appts] = useAppointments();
+  const [services] = useServices();
   const client = useClient();
+  const numero = (branch.phone ?? '').replace(/\D/g, '');
+
+  /* LE GAIN S'ÉCRIT EN FRANCS, PAS EN POURCENTAGE. « −20 % sur la carte »
+     demande un calcul debout devant un téléphone ; « vous gagnez 55 000 F »
+     ne demande rien. Le pourcentage reste en repli quand la formule ne porte
+     aucune prestation chiffrable — mieux vaut un chiffre vrai qu'un beau. */
+  const gainDe = (p: Plan): number | null => {
+    const v = valeurALaCarte(p.included, (id) => services.find((x) => x.id === id)?.priceXof);
+    if (v.totalXof <= 0) return null;
+    const g = remiseSurLaCarte(v.totalXof, p.priceXof).gainXof;
+    return g > 0 ? g : null;
+  };
+
+  /* Le héros mène à la formule qu'il nomme : sans ce geste, elle devrait la
+     retrouver elle-même dans une liste rangée par moment du parcours. */
+  const versLaFormule = (id: string) => {
+    const cible = document.getElementById(`formule-${id}`);
+    if (!cible) return;
+    const doux = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    cible.scrollIntoView({ behavior: doux ? 'smooth' : 'auto', block: 'center' });
+  };
 
   /* LA PHRASE QUI VEND, et elle est la sienne : calculée sur SES rendez-vous
      des trois derniers mois. C'est le seul argument qu'on ne peut pas
@@ -239,18 +261,61 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
 
   return (
     <>
-      <p className="cma-titre">Vous n’avez pas encore de formule.</p>
-      {suggestion ? (
-        <p className="cma-sous">
-          Vos {suggestion.rituels} derniers rituels vous auraient coûté{' '}
-          <b>{fmtMoney(suggestion.economieXof, currency)} de moins</b> avec {suggestion.plan.name}.
-        </p>
-      ) : (
-        <p className="cma-sous">Chacune réserve un créneau rien qu’à vous, et se règle sans paperasse.</p>
+      {/* ══ LE HÉROS ═══════════════════════════════════════════════
+          La page s'ouvrait sur un MANQUE, « vous n'avez pas encore de
+          formule », et s'arrêtait là. Elle s'ouvre maintenant sur LE CHIFFRE
+          QUI EST LE SIEN, calculé sur ses venues à elle : le seul argument
+          qu'une cliente ne peut pas discuter. Il dormait en petits caractères
+          gris sous le titre. */}
+      <div className="cma-hero">
+        {suggestion ? (
+          <>
+            <div className="cma-hero__lab">Votre calcul</div>
+            <p className="cma-hero__gd">
+              Vos {suggestion.rituels} derniers rituels vous auraient coûté{' '}
+              <em>{fmtMoney(suggestion.economieXof, currency)} de moins</em>.
+            </p>
+            <p className="cma-hero__ss">
+              Avec {suggestion.plan.name}, au rythme que vous tenez déjà. Ce chiffre est le vôtre,
+              il vient de vos venues, pas d’une moyenne.
+            </p>
+            <button type="button" className="cma-hero__cta" onClick={() => versLaFormule(suggestion.plan.id)}>
+              Voir cette formule
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="cma-hero__lab">Une formule, c’est</div>
+            <p className="cma-hero__gd">Votre place gardée, et un prix qui <em>ne bouge plus</em>.</p>
+            <p className="cma-hero__ss">
+              {moments.length > 0
+                ? 'Vous venez quand votre couronne le demande. La Maison sait déjà quand vous arrivez, et ce que vous avez déjà payé.'
+                : 'La Maison prépare les siennes. En attendant, votre suivi et vos rendez-vous continuent comme d’habitude.'}
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* LES TROIS QUESTIONS DU COMPTOIR, répondues avant d'être posées. */}
+      {moments.length > 0 && (
+        <div className="cma-assur">
+          <div><b>Votre</b><span>créneau</span></div>
+          <div><b>Un prix</b><span>qui tient</span></div>
+          <div><b>Sans</b><span>paperasse</span></div>
+        </div>
       )}
 
+      {/* L'ATTENTE CESSE D'ÊTRE UN CUL-DE-SAC : un cadre en pointillés qui dit
+          « revenez bientôt » ressemble à une panne. */}
       {moments.length === 0 && (
-        <div className="cma-vide">La Maison n’a pas encore ouvert ses formules. Revenez bientôt.</div>
+        <div className="cma-bientot">
+          <div className="cma-bientot__mono">◆</div>
+          <p className="cma-bientot__t">Bientôt ouvertes</p>
+          <p className="cma-bientot__s">
+            Les formules de la Maison arrivent. Nous vous préviendrons ici même, et par un mot
+            sur votre téléphone.
+          </p>
+        </div>
       )}
 
       {moments.map((m) => (
@@ -261,7 +326,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
             <span className="cma-moment__rule" />
           </div>
           {m.liste.map((p) => (
-            <div key={p.id} className={`cma-offre ${suggestion?.plan.id === p.id ? 'phare' : ''}`}>
+            <div key={p.id} id={`formule-${p.id}`} className={`cma-offre ${suggestion?.plan.id === p.id ? 'phare' : ''}`}>
               <div className="cma-offre__tag">{p.tag}</div>
               <div className="cma-offre__nom">{p.name}</div>
               <p className="cma-offre__ligne">{p.line}</p>
@@ -281,7 +346,11 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                   {fmtMoney(p.priceXof, currency)}
                   <span>{p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}</span>
                 </span>
-                {p.discountPct ? <span className="cma-offre__gain">−{p.discountPct} % sur la carte</span> : null}
+                {(() => {
+                  const g = gainDe(p);
+                  if (g !== null) return <span className="cma-offre__gain">Vous gagnez {fmtMoney(g, currency)}</span>;
+                  return p.discountPct ? <span className="cma-offre__gain">−{p.discountPct} % sur la carte</span> : null;
+                })()}
               </div>
               <button
                 type="button"
@@ -294,6 +363,21 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
           ))}
         </section>
       ))}
+
+      {/* SANS CETTE PHRASE, elle pouvait croire qu'il fallait sortir sa carte
+          bancaire pour prendre une formule. */}
+      <div className="cma-pied">
+        <p>
+          Vous réglez <b>au comptoir ou par MoMo</b>, jamais en ligne.
+          {numero ? (
+            <>
+              {' '}Un doute ?{' '}
+              <a href={`https://wa.me/${numero}`} target="_blank" rel="noreferrer">Écrivez à la Maison</a>,
+              on vous répond.
+            </>
+          ) : ' Un doute ? Écrivez à la Maison, on vous répond.'}
+        </p>
+      </div>
     </>
   );
 }

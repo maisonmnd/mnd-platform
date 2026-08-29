@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA VITRINE DES FORMULES, REDESSINÉE — 29 août, PUBLIÉ
+
+« Cette page doit avoir une jolie UI/UX. Elle paraît ne pas être fonctionnelle,
+elle n'invite pas à découvrir les formules. » Maquette validée
+(`public/maquette-ma-formule.html`), puis construite.
+
+**La page s'ouvrait sur un MANQUE** — « vous n'avez pas encore de formule » — et
+s'arrêtait là. Elle s'ouvre désormais sur LE CHIFFRE QUI EST LE SIEN : « vos
+trois derniers rituels vous auraient coûté 18 000 F de moins ». Ce calcul
+existait déjà (`formuleLaPlusUtile`) et dormait en petits caractères gris sous le
+titre. C'est le seul argument qu'une cliente ne peut pas discuter, puisqu'il est
+fait sur ses venues à elle. Le bouton du héros mène à la formule qu'il nomme.
+
+Sans historique, le héros devient une invitation : « votre place gardée, et un
+prix qui ne bouge plus ».
+
+**Ce qui change encore**
+
+- **Trois assurances** sous le héros : votre créneau, un prix qui tient, sans
+  paperasse. Les trois questions du comptoir, répondues avant d'être posées.
+- **Le gain s'écrit en francs** (`gainDe`, sur `valeurALaCarte`), pas en
+  pourcentage : « −20 % sur la carte » demande un calcul debout devant un
+  téléphone, « vous gagnez 55 000 F » ne demande rien. Le pourcentage reste en
+  repli quand la formule ne porte aucune prestation chiffrable.
+- **Les cartes disent ce qu'elles contiennent** (`.cma-inclus`, quatre avantages
+  au plus), dans les deux vitrines.
+- **Un pied qui rassure** : on règle au comptoir ou par MoMo, jamais en ligne, et
+  le lien WhatsApp de la Maison. Sans cette phrase, elle pouvait croire qu'il
+  fallait sortir sa carte bancaire.
+- **L'attente cesse d'être un cul-de-sac** : `.cma-bientot` remplace le cadre en
+  pointillés qui ressemblait à une panne.
+
+Le cuivre ne porte QUE la somme dans le héros, jamais la phrase entière.
+
+---
+
 ## 0076 — MA COURONNE VOIT ENFIN LES FORMULES — 29 août, **MIGRATION PASSÉE**
 
 **Ne jamais la relancer.** Contrôle rendu : 7 politiques, `plans` pub_read +
