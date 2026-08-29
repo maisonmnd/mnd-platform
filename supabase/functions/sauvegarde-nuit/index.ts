@@ -26,7 +26,29 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const TZ = 'Africa/Porto-Novo';
+
+/* ── LA GARDE, RETAILLÉE LE 29 AOÛT 2026 ──────────────────────────────
+   Soixante clichés de TOUTE la base, un par nuit : le coffre pesait soixante
+   fois la Maison. Sur le plan gratuit de Supabase, qui n'accorde qu'un
+   gigaoctet de fichiers, cela suffisait à faire dépasser le quota à lui seul
+   — et un projet restreint, c'est Le Trône et Ma Couronne éteints.
+
+   ON NE RACCOURCIT PAS LA MÉMOIRE, ON L'ÉCLAIRCIT. Le danger que ces clichés
+   couvrent est un silence : le 30 juillet, les formulaires de consultation ont
+   disparu et personne ne l'a su pendant TROIS SEMAINES. Ce qu'il faut donc
+   garder, ce n'est pas soixante nuits d'affilée, c'est de la profondeur.
+
+     · les QUATORZE dernières nuits, toutes — c'est là qu'on répare vite ;
+     · au-delà, une seule par semaine, jusqu'à SOIXANTE jours — même
+       profondeur qu'avant, trois fois le plus long silence connu.
+
+   Vingt clichés au lieu de soixante : deux tiers du coffre rendus, sans
+   perdre un seul jour de portée. */
 const JOURS_DE_GARDE = 60;
+/** Au-delà, on n'en garde qu'un par semaine. */
+const NUITS_ENTIERES = 14;
+/** Le jour de la semaine qu'on garde au loin (1 = lundi). */
+const JOUR_GARDE = 1;
 
 Deno.serve(async (req) => {
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -58,13 +80,31 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ erreur: `dépôt : ${errUp.message}` }), { status: 500 });
   }
 
-  /* ── ③ Le coffre se taille — les clichés trop vieux s'en vont ────── */
+  /* ── ③ Le coffre s'éclaircit ──────────────────────────────────────
+     Un cliché s'en va s'il est plus vieux que la garde, OU s'il est passé les
+     quatorze nuits pleines sans être le jour de semaine qu'on garde au loin.
+
+     LE CLICHÉ DE CETTE NUIT NE S'EFFACE JAMAIS, quel que soit le jour où l'on
+     est : la règle ne s'applique qu'au PASSÉ. Sans cette borne, un déploiement
+     un mardi effacerait la photographie qu'on vient tout juste de prendre. */
+  const jourDe = (n: string) => n.slice(7, 17);
   const limite = new Date(Date.now() - JOURS_DE_GARDE * 86_400_000)
     .toLocaleDateString('en-CA', { timeZone: TZ });
+  const seuilPlein = new Date(Date.now() - NUITS_ENTIERES * 86_400_000)
+    .toLocaleDateString('en-CA', { timeZone: TZ });
+
   const { data: fichiers } = await sb.storage.from('sauvegardes').list('', { limit: 1000 });
   const perimes = (fichiers ?? [])
     .map((f) => f.name)
-    .filter((n) => /^maison-\d{4}-\d{2}-\d{2}\.json$/.test(n) && n.slice(7, 17) < limite);
+    .filter((n) => /^maison-\d{4}-\d{2}-\d{2}\.json$/.test(n))
+    .filter((n) => {
+      const j = jourDe(n);
+      if (j === jour) return false;          // jamais celui de cette nuit
+      if (j < limite) return true;           // trop vieux, tout court
+      if (j >= seuilPlein) return false;     // dans les quatorze nuits pleines
+      /* Entre les deux : on ne garde que le jour de semaine choisi. */
+      return new Date(`${j}T12:00:00Z`).getUTCDay() !== JOUR_GARDE;
+    });
   if (perimes.length > 0) await sb.storage.from('sauvegardes').remove(perimes);
 
   return new Response(

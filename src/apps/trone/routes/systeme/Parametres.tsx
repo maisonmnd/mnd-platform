@@ -12,6 +12,7 @@ import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
 import { useSegments, renameSegment, clientsStore, useClients } from '../../../../shared/clients';
+import { bilanDesPhotos, enVignette, photoTropLourde, poidsLisible } from '../../../../shared/photo';
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
@@ -378,6 +379,92 @@ function CalibresCard() {
 /* ---------- Sauvegarde de la Maison — exporter tout d'un geste, restaurer sans risque ----------
    Née de l'incident du 24 juil. 2026 (RDV et factures effacés du serveur). L'export
    photographie toutes les clés `mnd_*` ; la restauration n'AJOUTE que ce qui manque. */
+/* ── LE POIDS DES PHOTOS — 29 août 2026 ──────────────────────────────
+   « Organization exceeded its quota. Projects will be restricted from
+   23 Sep, 2026. » Le relevé a désigné un seul coupable : les photos des fiches
+   pesaient 2 874 ko, soit 98,5 % de tout ce que l'application télécharge à
+   CHAQUE ouverture. Cinq gigaoctets de trafic mensuel tenaient 1 400
+   ouvertures ; le salon les épuisait.
+
+   LES NOUVELLES SONT DÉJÀ RÉGLÉES (`readImageDownscaled` fait des vignettes
+   depuis ce jour). Restent les anciennes, et elles ne se reprennent pas toutes
+   seules : recomprimer en silence au chargement, ce serait écrire dans la base
+   de la Maison sans qu'elle l'ait demandé. Elle le fait donc d'un geste, et
+   voit ce que ça rend avant de le faire.
+
+   AUCUNE PHOTO NE SE PERD. `enVignette` rend l'original plutôt que rien quand
+   l'image est illisible, et ne rend jamais plus lourd qu'elle n'a reçu. */
+function LePoidsDesPhotos({ toast }: { toast: (m: string) => void }) {
+  const [clients] = useClients();
+  const [enCours, setEnCours] = useState(false);
+  const [fait, setFait] = useState(0);
+  const bilan = useMemo(() => bilanDesPhotos(clients), [clients]);
+
+  if (bilan.avecPhoto === 0) return null;
+
+  const alleger = async () => {
+    setEnCours(true);
+    setFait(0);
+    let rendu = 0;
+    let touchees = 0;
+    for (const c of clients) {
+      if (!photoTropLourde(c.photo)) continue;
+      const avant = c.photo as string;
+      let apres = avant;
+      try { apres = await enVignette(avant); } catch { apres = avant; }
+      if (apres !== avant) {
+        rendu += (avant.length - apres.length) * 0.75;
+        touchees += 1;
+        /* Fiche par fiche, jamais en bloc : si le navigateur se ferme au
+           milieu, ce qui est fait est gardé et le reste se reprend. */
+        clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, photo: apres } : x)));
+      }
+      setFait((n) => n + 1);
+    }
+    setEnCours(false);
+    toast(touchees > 0
+      ? `${touchees} photo${touchees > 1 ? 's' : ''} allégée${touchees > 1 ? 's' : ''}, ${poidsLisible(Math.round(rendu))} rendus à chaque ouverture.`
+      : 'Toutes les photos sont déjà légères.');
+  };
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4, gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div className="sys-section__title">Le poids des photos</div>
+          <div className="sys-section__cap" style={{ maxWidth: 640 }}>
+            Les photos des fiches voyagent avec elles : elles redescendent à chaque ouverture de
+            l’application, sur chaque poste. Une vignette suffit pour un rond de 48 px, et pèse
+            sept fois moins. Les nouvelles photos sont déjà réduites ; ce bouton reprend les
+            anciennes, une par une. Aucune photo n’est perdue, aucune n’est rendue plus lourde.
+          </div>
+        </div>
+        <span className="sys-badge-count">
+          {bilan.avecPhoto} photo{bilan.avecPhoto > 1 ? 's' : ''} · {poidsLisible(bilan.totalOctets)}
+        </span>
+      </div>
+
+      {bilan.aAlleger > 0 ? (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+          <Button variant="copper" disabled={enCours} onClick={() => void alleger()}>
+            {enCours ? `En cours… ${fait}/${bilan.aAlleger}` : `Alléger ${bilan.aAlleger} photo${bilan.aAlleger > 1 ? 's' : ''}`}
+          </Button>
+          <span className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+            {poidsLisible(bilan.aAllegerOctets)} aujourd’hui, environ{' '}
+            {poidsLisible(Math.round(bilan.aAllegerOctets / 7))} après. Rendus à chaque ouverture,
+            sur chaque appareil.
+          </span>
+        </div>
+      ) : (
+        <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 12 }}>
+          Toutes les photos sont déjà des vignettes. Rien à faire.
+        </div>
+      )}
+    </Card>
+  );
+}
+
+
 function SauvegardeCard() {
   const [clients] = useStore(clientsStore);
   const [appts] = useStore(appointmentsStore);
@@ -453,6 +540,7 @@ function SauvegardeCard() {
   return (
     <>
     <CetAppareil />
+    <LePoidsDesPhotos toast={toast} />
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4, gap: 12, flexWrap: 'wrap' }}>
         <div>

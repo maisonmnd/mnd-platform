@@ -2,6 +2,62 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE QUOTA SUPABASE — 29 août, PUBLIÉ
+
+« Organization exceeded its quota in the previous billing cycle. Projects will
+be restricted from 23 Sep, 2026. »
+
+### Ce que le relevé a écarté
+
+- **La base** : 71 Mo sur 500 accordés. Ce n'est pas elle.
+- **Le stockage** : 2,7 Mo sur 1 Go, et le coffre `sauvegardes` est vide.
+- **`envois`** : 0 ligne — les crons de rappel et de confirmation n'ont encore
+  jamais rien envoyé.
+- **`sauvegardes_nuit`** : 37 Mo, la moitié de la base, mais elle s'élague déjà
+  seule à 14 jours et n'est PAS synchronisée. Du disque, pas du trafic. Les
+  37 Mo sont surtout des lignes mortes ; un `vacuum` les rendrait.
+
+### Ce qui dépassait : le TRAFIC SORTANT
+
+La synchronisation lit `select id, data` sur **53 tables entières, sans limite
+ni filtre, à chaque chargement de page**. Mesuré : **3,7 Mo par ouverture**,
+soit 1 400 ouvertures dans les 5 Go du mois. Un salon à plusieurs postes, plus
+les clientes, les épuise.
+
+**Et 98,5 % de ces 3,7 Mo étaient des PHOTOS DE FICHES** : 2 874 ko, 50 photos
+à 57 ko. Elles vivent en base64 DANS la fiche, donc elles redescendent toutes,
+à chaque ouverture, sur chaque appareil.
+
+### La correction
+
+`shared/photo.ts`. Elles étaient réduites à **512 px** et s'affichent dans un
+rond de **48**. Le défaut passe à `COTE_VIGNETTE` = 192 px, qualité 0,72 :
+**sept fois moins**, et rien ne change à l'écran.
+
+- Les NOUVELLES photos sont réglées d'office (`readImageDownscaled`).
+- Les ANCIENNES se reprennent d'un geste : Paramètres → **« Le poids des
+  photos »**, qui montre ce qu'elles pèsent et ce que ça rendra. Fiche par
+  fiche, jamais en bloc : une fermeture au milieu ne perd rien.
+- `enVignette` rend l'original plutôt que rien si l'image est illisible, et ne
+  rend JAMAIS plus lourd qu'elle n'a reçu.
+
+Attendu après le geste : de 3,7 Mo à moins d'1 Mo par ouverture, soit environ
+**5 500 ouvertures par mois** au lieu de 1 400.
+
+### Ce qui reste possible, si cela ne suffit pas
+
+1. **La synchronisation incrémentale** — ne redescendre que ce qui a changé
+   depuis la dernière lecture. C'est le vrai fond du problème ; les photos n'en
+   étaient que le symptôme le plus gros.
+2. **Les photos dans un compartiment de fichiers**, avec une URL dans la fiche.
+   Le bon dessin à terme.
+3. **107 canaux temps réel** par application ouverte (55 tables + 52 documents),
+   ouverts que l'écran les regarde ou non.
+4. Les sept tables `repli_*` (~1,2 Mo) et un `vacuum` sur `clients` et
+   `sauvegardes_nuit`.
+
+---
+
 ## ELLE PREND SA FORMULE ELLE-MÊME — 29 août, PUBLIÉ · **0077 PASSÉE**
 
 « Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve

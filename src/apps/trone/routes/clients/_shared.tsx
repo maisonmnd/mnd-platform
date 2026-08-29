@@ -4,6 +4,7 @@ import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { COTE_VIGNETTE, QUALITE_VIGNETTE } from '../../../../shared/photo';
 import { maisonNom, houseSignature } from '../../../../shared/identite';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
@@ -785,7 +786,16 @@ export function SourceBadge({ source }: { source?: Appointment['source'] }) {
     brute (3–5 Mo en base64) saturerait les deux. On la ramène à `max` px de côté,
     en JPEG : un avatar net pèse alors quelques dizaines de Ko. Repli sur le
     data-URL d'origine si le canvas n'est pas disponible. */
-export async function readImageDownscaled(file: File, max = 512): Promise<string> {
+/* LA VIGNETTE SUFFIT — 29 août 2026. Ce réducteur écrivait des images de
+   512 px dans la fiche cliente, en base64 ; elles s'affichent dans un rond de
+   48. Cinquante photos ainsi rangées faisaient 2 874 ko, soit 98,5 % de tout ce
+   que l'application télécharge à CHAQUE ouverture, et le trafic mensuel de la
+   Maison y passait entier. Le défaut descend donc à `COTE_VIGNETTE` (192 px),
+   et rien ne change à l'écran. Voir `shared/photo.ts`.
+
+   L'appel garde son nom et sa signature : un écran qui a besoin d'un plus
+   grand côté le passe explicitement et n'est pas touché. */
+export async function readImageDownscaled(file: File, max = COTE_VIGNETTE): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result as string);
@@ -808,7 +818,7 @@ export async function readImageDownscaled(file: File, max = 512): Promise<string
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrl;
     ctx.drawImage(img, 0, 0, w, h);
-    return canvas.toDataURL('image/jpeg', 0.82);
+    return canvas.toDataURL('image/jpeg', QUALITE_VIGNETTE);
   } catch {
     return dataUrl; // un GIF animé ou un format exotique : on garde l'original plutôt que rien
   }
