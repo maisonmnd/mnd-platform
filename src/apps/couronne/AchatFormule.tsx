@@ -4,7 +4,7 @@ import { fmtMoney } from '../../shared/currency';
 import { useStore } from '../../shared/store';
 import { supabase } from '../../shared/supabase';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { deuxFoisPossible, seuilCliente } from '../../shared/echeancier';
+import { deuxFoisPossible } from '../../shared/echeancier';
 import { moisDuPack, type Plan } from '../../shared/abonnements';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useClient } from './lib';
@@ -66,7 +66,6 @@ export default function AchatFormule({
   const [regleXof, setRegleXof] = useState(0);
 
   const total = plan.priceXof;
-  const seuil = seuilCliente(cfg.seuilDeuxFoisXof);
   const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
   /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
      d'écart, c'est le sien qui s'inscrit. */
@@ -239,19 +238,14 @@ export default function AchatFormule({
                   <span><span>Dans 30 jours</span><b>{fmtMoney(total - premiere, currency)}</b></span>
                 </span>
               </button>
-            ) : (
-              /* UN REFUS SE DIT. Sans cette phrase, elle chercherait le
-                 découpage qu'une autre lui a décrit. */
-              <div className="cma-verrou">
-                Le règlement en deux fois s’ouvre à partir de <b>{fmtMoney(seuil, currency)}</b>.
-                Celle-ci se règle en une fois.
-              </div>
-            )}
-
-            <div className="cma-verrou">
-              La Maison peut accorder <b>quatre fois</b> sur les grandes formules.
-              Cela se demande au comptoir, c’est un accord et non un bouton.
-            </div>
+            ) : null}
+            {/* CE QUI NE LA REGARDE PAS NE S'AFFICHE PAS — 29 août 2026.
+                Deux cadres expliquaient ici le SEUIL des deux fois et la
+                règle des quatre fois. C'est de la politique de maison : la
+                cliente n'a rien demandé, rien ne lui a été refusé, et lui
+                dire qu'un découpage existe ailleurs ne fait que l'inviter à
+                le réclamer. Elle voit ce qu'elle peut prendre, et rien de
+                plus. Le seuil reste réglé au Trône. */}
 
             {kkiapayEnabled() && (
               <button type="button" className="cma-btn cma-btn--indigo" disabled={!!occupe} onClick={() => void enLigne()}>
