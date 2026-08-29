@@ -419,19 +419,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
              montrer deux offres différentes. */}
         {mode === 'formules' && (
           <div className="mc-fade">
-            {maDemande ? (
+            {/* L'ONGLET DIT DÉJÀ TOUT — 29 août 2026. Une phrase d'accueil vantait
+                les formules juste au-dessus d'elles ; elle repoussait les cartes
+                d'un écran et ne disait rien que les cartes ne disent mieux.
+                Reste la seule phrase qui APPREND quelque chose : celle qui
+                rappelle une demande encore ouverte. */}
+            {maDemande && (
               <div className="mc-packintro">
                 Vous aviez demandé « {maDemande.planName} », la Maison vous répond très vite.
                 Vous pouvez aussi prendre une formule directement ci-dessous.
-              </div>
-            ) : (
-              <div className="mc-packintro">
-                {/* L'ACCROCHE NE RÉPÈTE PLUS LA REMISE : elle est passée dans
-                    l'onglet, à trois centimètres au-dessus. Le même chiffre
-                    deux fois sur un écran de téléphone ne convainc pas
-                    davantage, il occupe la place de ce qui reste à dire. */}
-                Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien
-                qu’à vous, et vous réglez en une fois ou en deux.
               </div>
             )}
             {momentsFormules.map((g) => (
