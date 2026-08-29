@@ -1,0 +1,317 @@
+import { useState } from 'react';
+import { useBranch } from '../../shared/branches';
+import { fmtMoney } from '../../shared/currency';
+import { useStore } from '../../shared/store';
+import { supabase } from '../../shared/supabase';
+import { vitrineConfigStore } from '../../shared/bridges';
+import { deuxFoisPossible, seuilCliente } from '../../shared/echeancier';
+import { moisDuPack, type Plan } from '../../shared/abonnements';
+import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
+import { useClient } from './lib';
+import './couronne.css';
+
+/* ── ACHETER SA FORMULE — 29 août 2026 ────────────────────────────────
+   « Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve
+   immédiatement et passe au paiement et choisit en 2 fois. Seul moi-même peut
+   activer un paiement en 4 fois » (Yéman). Maquette validée le 29 août.
+
+   TROIS TEMPS, ET LE TROISIÈME EST UNE PREUVE. Ce qu'elle prend, comment elle
+   règle, c'est ouvert. L'écran final ne dit pas « merci » : il dit ce qu'elle
+   a désormais, jusqu'à quand, et ce qu'il lui reste à régler.
+
+   RIEN NE S'ENGAGE AVANT LE GESTE. Tant qu'elle n'a pas choisi sa voie, aucun
+   abonnement n'existe. C'est ce qui rend le bouton sûr.
+
+   LE PRIX NE VIENT JAMAIS D'ICI. `souscrire_a_une_formule` (0077) relit le
+   prix DANS la formule, côté serveur, et ignore tout montant que cet écran
+   pourrait envoyer. Cet écran ne fait qu'AFFICHER ce que le serveur décidera :
+   si les deux chiffres divergeaient un jour, c'est le serveur qui aurait
+   raison, et c'est voulu.
+
+   DEUX FOIS, JAMAIS QUATRE. La découpe en quatre est un accord qui se donne en
+   face, au comptoir. Elle n'est proposée nulle part ici, et la fonction
+   serveur la refuse même si on la lui demandait. */
+
+type Temps = 'recap' | 'reglement' | 'fini';
+type Voie = 'ligne' | 'comptoir';
+
+/** Ce que le serveur a réellement créé — la seule vérité. */
+type Souscrit = { subId: string; totalXof: number; parts: number; premiereXof: number };
+
+const REFUS: Record<string, string> = {
+  aucune_fiche: 'Votre fiche n’est pas encore ouverte. Écrivez à la Maison, on vous ouvre.',
+  deja_abonnee: 'Vous avez déjà une formule en cours. Une seule à la fois, pour que vos crédits restent clairs.',
+  formule_inconnue: 'Cette formule n’est plus au catalogue.',
+  prix_absent: 'Cette formule n’a pas encore de prix. La Maison la prépare.',
+  decoupe_refusee: 'Ce découpage ne se donne qu’au comptoir.',
+  seuil_non_atteint: 'Cette formule se règle en une fois.',
+};
+
+export default function AchatFormule({
+  plan, onClose, onReserver, toast,
+}: {
+  plan: Plan;
+  onClose: () => void;
+  onReserver: () => void;
+  toast: (m: string) => void;
+}) {
+  const { branch, currency } = useBranch();
+  const client = useClient();
+  const [cfg] = useStore(vitrineConfigStore);
+
+  const [temps, setTemps] = useState<Temps>('recap');
+  const [parts, setParts] = useState<1 | 2>(1);
+  const [occupe, setOccupe] = useState<Voie | null>(null);
+  const [souscrit, setSouscrit] = useState<Souscrit | null>(null);
+  const [regleXof, setRegleXof] = useState(0);
+
+  const total = plan.priceXof;
+  const seuil = seuilCliente(cfg.seuilDeuxFoisXof);
+  const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
+  /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
+     d'écart, c'est le sien qui s'inscrit. */
+  const premiere = parts === 2 ? total - Math.floor(total / 2) : total;
+
+  /** Crée l'abonnement CÔTÉ SERVEUR. Rend `null` et parle si le serveur refuse. */
+  const souscrire = async (): Promise<Souscrit | null> => {
+    if (!supabase) { toast('La Maison est hors ligne, réessayez dans un instant.'); return null; }
+    const { data, error } = await supabase.rpc('souscrire_a_une_formule', {
+      p_plan_id: plan.id, p_parts: parts,
+    });
+    if (error) {
+      /* UN REFUS SE DIT, TOUJOURS. Le plus probable ici : la fonction 0077
+         n'est pas encore posée dans Supabase. */
+      toast('La souscription n’est pas encore ouverte, la Maison la prépare.');
+      return null;
+    }
+    const r = (data ?? {}) as { ok?: boolean; erreur?: string; subId?: string; totalXof?: number; parts?: number; premiereXof?: number };
+    if (r.erreur) { toast(REFUS[r.erreur] ?? 'La souscription n’a pas abouti.'); return null; }
+    if (!r.ok || !r.subId) { toast('La souscription n’a pas abouti.'); return null; }
+    return {
+      subId: r.subId,
+      totalXof: Number(r.totalXof ?? total),
+      parts: Number(r.parts ?? parts),
+      premiereXof: Number(r.premiereXof ?? premiere),
+    };
+  };
+
+  /* ── LA VOIE DU COMPTOIR ────────────────────────────────────────
+     Aucun argent ne circule : la formule est retenue à son nom, non réglée.
+     C'est la voie la plus sûre, et celle qui ne change rien à la voix de la
+     Maison — « au comptoir ou par MoMo, jamais en ligne ». */
+  const auComptoir = async () => {
+    setOccupe('comptoir');
+    const s = await souscrire();
+    setOccupe(null);
+    if (!s) return;
+    setSouscrit(s);
+    setRegleXof(0);
+    setTemps('fini');
+  };
+
+  /* ── LA VOIE EN LIGNE ───────────────────────────────────────────
+     L'abonnement naît D'ABORD, non réglé, puis le paiement s'y rattache après
+     vérification chez KkiaPay. Dans cet ordre, et jamais l'inverse : un
+     paiement dont l'abonnement n'existe pas encore serait un encaissement
+     orphelin, et c'est le pire des états. Si la vérification échoue, la
+     formule reste retenue à son nom, à régler au comptoir. */
+  const enLigne = async () => {
+    setOccupe('ligne');
+    const s = await souscrire();
+    if (!s) { setOccupe(null); return; }
+    setSouscrit(s);
+    try {
+      const { transactionId } = await payWithKkiapay({
+        amountXof: s.premiereXof,
+        partnerId: s.subId,
+        branchId: branch.id,
+        clientId: client?.id,
+        phone: client?.phone,
+        name: client?.name,
+        email: client?.email,
+      });
+      const v = await verifyDeposit({
+        transactionId,
+        apptId: '',
+        subId: s.subId,
+        expectedXof: s.premiereXof,
+        branchId: branch.id,
+        clientId: client?.id,
+      });
+      setRegleXof(v.ok ? v.amountXof : 0);
+      if (!v.ok) toast('Le paiement n’a pas été confirmé. Votre formule est retenue, réglez au comptoir.');
+    } catch (e) {
+      /* Elle a fermé le widget, ou la vérification a échoué. SA FORMULE EST
+         DÉJÀ RETENUE : on ne la perd pas, on le lui dit. */
+      setRegleXof(0);
+      toast(e instanceof Error && e.message ? e.message : 'Paiement interrompu. Votre formule reste retenue.');
+    }
+    setOccupe(null);
+    setTemps('fini');
+  };
+
+  const jetons = (plan.included ?? []).reduce((n, i) => n + (i.qty ?? 0), 0);
+
+  return (
+    <div className="mc-flow">
+      <div className="mc-flowhead">
+        <div className="mc-flowhead__row">
+          <span className="mc-micro-eyebrow">Votre formule</span>
+          <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+        </div>
+
+        {/* LE FIL DES TROIS TEMPS. Elle doit savoir où elle en est et combien
+            il en reste : un tunnel sans fil d'Ariane se referme au premier
+            doute. */}
+        <div className="cma-fil">
+          <b className={temps === 'recap' ? 'is-on' : ''}>Sa formule</b>
+          <span>›</span>
+          <b className={temps === 'reglement' ? 'is-on' : ''}>Règlement</b>
+          <span>›</span>
+          <b className={temps === 'fini' ? 'is-on' : ''}>C’est ouvert</b>
+        </div>
+      </div>
+
+      <div className="mc-scroll mc-flowbody">
+
+        {/* ── ① CE QU'ELLE PREND ──────────────────────────────────── */}
+        {temps === 'recap' && (
+          <div className="mc-fade">
+            <div className="cma-offre">
+              {plan.tag ? <div className="cma-offre__tag">{plan.tag}</div> : null}
+              <div className="cma-offre__nom">{plan.name}</div>
+              {plan.line ? <p className="cma-offre__ligne">{plan.line}</p> : null}
+              {plan.perks.length > 0 && (
+                <ul className="cma-inclus">
+                  {plan.perks.slice(0, 5).map((av) => (
+                    <li key={av}><i>◆</i><span>{av}</span></li>
+                  ))}
+                </ul>
+              )}
+              <div className="cma-somme">
+                <span>À régler</span>
+                <b>{fmtMoney(total, currency)}</b>
+              </div>
+              <div className="cma-somme__sous">
+                {plan.mode === 'pack' ? `Valable ${moisDuPack(plan)} mois` : 'Chaque mois, tant que vous la gardez'}
+              </div>
+            </div>
+
+            <div className="cma-verrou">
+              Votre créneau se pose ensuite avec la Maison, à la cadence de votre couronne.
+              <b> Rien ne s’engage tant que vous n’avez pas choisi.</b>
+            </div>
+
+            <button type="button" className="cma-btn" onClick={() => setTemps('reglement')}>
+              Passer au règlement
+            </button>
+          </div>
+        )}
+
+        {/* ── ② COMMENT ELLE RÈGLE ────────────────────────────────── */}
+        {temps === 'reglement' && (
+          <div className="mc-fade">
+            <button
+              type="button"
+              className={`cma-choix ${parts === 1 ? 'is-on' : ''}`}
+              onClick={() => setParts(1)}
+            >
+              <span className="cma-choix__t">
+                <span className="cma-choix__n">En une fois</span>
+                <span className="cma-choix__m">{fmtMoney(total, currency)}</span>
+              </span>
+              <span className="cma-choix__d">Vous réglez tout aujourd’hui, et il n’y a plus rien à y penser.</span>
+            </button>
+
+            {deuxFois ? (
+              <button
+                type="button"
+                className={`cma-choix ${parts === 2 ? 'is-on' : ''}`}
+                onClick={() => setParts(2)}
+              >
+                <span className="cma-choix__t">
+                  <span className="cma-choix__n">En deux fois</span>
+                  <span className="cma-choix__m">{fmtMoney(premiere, currency)}</span>
+                </span>
+                <span className="cma-choix__d">La première moitié aujourd’hui, la seconde dans trente jours.</span>
+                <span className="cma-ech2">
+                  <span><span>Aujourd’hui</span><b>{fmtMoney(premiere, currency)}</b></span>
+                  <span><span>Dans 30 jours</span><b>{fmtMoney(total - premiere, currency)}</b></span>
+                </span>
+              </button>
+            ) : (
+              /* UN REFUS SE DIT. Sans cette phrase, elle chercherait le
+                 découpage qu'une autre lui a décrit. */
+              <div className="cma-verrou">
+                Le règlement en deux fois s’ouvre à partir de <b>{fmtMoney(seuil, currency)}</b>.
+                Celle-ci se règle en une fois.
+              </div>
+            )}
+
+            <div className="cma-verrou">
+              La Maison peut accorder <b>quatre fois</b> sur les grandes formules.
+              Cela se demande au comptoir, c’est un accord et non un bouton.
+            </div>
+
+            {kkiapayEnabled() && (
+              <button type="button" className="cma-btn cma-btn--indigo" disabled={!!occupe} onClick={() => void enLigne()}>
+                {occupe === 'ligne' ? 'Un instant…' : `Régler ${fmtMoney(premiere, currency)} maintenant`}
+              </button>
+            )}
+            <button type="button" className="cma-btn ghost" disabled={!!occupe} onClick={() => void auComptoir()}>
+              {occupe === 'comptoir' ? 'Un instant…' : 'Je réglerai au comptoir'}
+            </button>
+            <button type="button" className="cma-lien" disabled={!!occupe} onClick={() => setTemps('recap')}>
+              Revenir à la formule
+            </button>
+          </div>
+        )}
+
+        {/* ── ③ C'EST OUVERT ──────────────────────────────────────── */}
+        {temps === 'fini' && souscrit && (
+          <div className="mc-fade">
+            <div className="cma-fini">
+              <div className="cma-fini__mono">◆</div>
+              <p className="cma-fini__t">Votre formule est ouverte.</p>
+              <p className="cma-fini__s">
+                {plan.name}
+                {plan.mode === 'pack' ? ` · valable ${moisDuPack(plan)} mois.` : '.'}
+                {regleXof > 0
+                  ? ` Vous avez réglé ${fmtMoney(regleXof, currency)}.`
+                  : ' Vous réglerez au comptoir ou par MoMo.'}
+                {souscrit.parts === 2
+                  ? ` Il restera ${fmtMoney(souscrit.totalXof - Math.max(regleXof, 0), currency)} à régler.`
+                  : ''}
+              </p>
+              {jetons > 0 && (
+                <div className="cma-jetons">
+                  {Array.from({ length: Math.min(jetons, 12) }, (_, i) => (
+                    <span key={i} className="cma-jeton">{i === 0 ? '›' : ''}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="cma-offre" style={{ marginTop: 14 }}>
+              <div className="cma-offre__tag">La suite</div>
+              <ul className="cma-inclus" style={{ borderTop: 'none', paddingTop: 0 }}>
+                <li><i>◆</i><span>Prenez votre première venue quand vous voulez</span></li>
+                <li><i>◆</i><span>Votre suivi paraît dans « Ma formule »</span></li>
+                {souscrit.parts === 2
+                  ? <li><i>◆</i><span>Un mot vous rappellera la seconde échéance</span></li>
+                  : <li><i>◆</i><span>La Maison vous écrit si quelque chose manque</span></li>}
+              </ul>
+            </div>
+
+            <button type="button" className="cma-btn" onClick={onReserver}>
+              Prendre mon premier rendez-vous
+            </button>
+            <button type="button" className="cma-btn ghost" onClick={onClose}>
+              Plus tard
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
@@ -13,6 +13,7 @@ import { libelleCouleur } from '../../shared/couleur';
 import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
 import { uid, useStore } from '../../shared/store';
 import { useClient } from './lib';
+import AchatFormule from './AchatFormule';
 import './couronne.css';
 
 /* ── MA FORMULE — l'abonnement vu par la cliente, 28 août 2026 ────────
@@ -383,7 +384,15 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
 }
 
 /* ── L'ONGLET ────────────────────────────────────────────────────────── */
-export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
+export function MaFormuleTab({ toast, onReserver }: {
+  toast: (m: string) => void;
+  onReserver: () => void;
+}) {
+  /* ── ELLE PREND SA FORMULE ELLE-MÊME — 29 août 2026 ──────────────
+     « Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve
+     immédiatement et passe au paiement » (Yéman). Le bouton n'écrit plus une
+     demande : il ouvre l'achat, en trois temps. */
+  const [achat, setAchat] = useState<Plan | null>(null);
   const { branch } = useBranch();
   const client = useClient();
   const [plans] = usePlans();
@@ -423,6 +432,17 @@ export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
 
   const numero = (branch.phone ?? '').replace(/\D/g, '');
 
+  if (achat) {
+    return (
+      <AchatFormule
+        plan={achat}
+        toast={toast}
+        onClose={() => setAchat(null)}
+        onReserver={() => { setAchat(null); onReserver(); }}
+      />
+    );
+  }
+
   return (
     <div className="cma-wrap">
       {sub ? (
@@ -450,7 +470,7 @@ export function MaFormuleTab({ toast }: { toast: (m: string) => void }) {
           )}
         </div>
       ) : (
-        <LaVitrine plans={enVitrine} onDemande={demander} />
+        <LaVitrine plans={enVitrine} onDemande={(p) => setAchat(p)} />
       )}
     </div>
   );

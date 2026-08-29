@@ -191,6 +191,15 @@ export type VitrineConfig = {
       réponse à « retirer de la vente sans effacer », que le bouton Retirer ne
       pouvait pas donner. */
   hiddenPlans?: string[];
+  /** LE SEUIL DES DEUX FOIS, DANS MA COURONNE — 29 août 2026. Au-delà de ce
+      montant, la cliente peut découper son règlement en deux. En dessous,
+      elle règle en une fois : deux encaissements de 7 500 F coûtent plus cher
+      à suivre qu'ils ne rapportent. Absent = le seuil du comptoir
+      (`SEUIL_ECHELONNEMENT_XOF`).
+
+      LA DÉCOUPE EN QUATRE N'EST JAMAIS ICI. Elle se demande au comptoir :
+      c'est un accord, pas une case à cocher. */
+  seuilDeuxFoisXof?: number;
   /** CE QUE LE QUIZ RECOMMANDE, prestation par envie.
 
       Le miroir proposait quatre rituels écrits en dur dans le code — « Le Soin

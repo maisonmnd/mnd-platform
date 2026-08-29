@@ -15,6 +15,7 @@ import { useAppointments, venuesHonorees } from '../../shared/agenda';
 import { useFamilies } from '../../shared/clients';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
 import Cycle, { semainesDuForfait } from './Cycle';
+import AchatFormule from './AchatFormule';
 import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
 
 /* RITUEL SUR-MESURE — mix & match.
@@ -96,6 +97,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
      n'atteignait qu'après avoir cherché. Ils s'ouvrent maintenant en premier,
      là où elle vient déjà. */
   const [mode, setMode] = useState<'formules' | 'abonnement' | 'forfaits'>('formules');
+  const [achat, setAchat] = useState<Plan | null>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [done, setDone] = useState<ComposePayload | null>(null);
   /* LE FORFAIT À PLUSIEURS SÉANCES OUVRE SON CYCLE (16 août) — il ne se
@@ -186,22 +188,10 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       : groupes;
   }, [mesFormules]);
 
-  const demanderFormule = (pl: Plan) => {
-    if (!client) return;
-    /* UNE SEULE DEMANDE À LA FOIS. Deux demandes ouvertes pour la même tête,
-       c'est la Maison qui tranche deux fois et la cliente qui attend deux
-       réponses pour une seule envie. */
-    if (maDemande) { toast('Une demande est déjà en cours, la Maison vous répond très vite.'); return; }
-    demandesFormuleStore.set((prev) => [...prev, {
-      id: `df-${uid()}`,
-      clientId: client.id,
-      clientName: client.name,
-      planId: pl.id,
-      planName: pl.name,
-      demandeeLe: new Date().toISOString().slice(0, 10),
-    }]);
-    toast('Demande transmise. La Maison vous répond très vite.');
-  };
+  /* `demanderFormule` a été RETIRÉ le 29 août : le parcours ne passe plus par
+     une demande au Trône, elle prend sa formule et règle (voir AchatFormule).
+     Les demandes déposées avant cette date restent lues, pour ne pas laisser
+     croire qu'elles se sont perdues. */
 
   const activeGroups = mode === 'abonnement'
     ? (aboSousArbre ? groups.filter((g) => aboSousArbre.has(g.cat.id)) : groups)
@@ -348,6 +338,19 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   }
 
   /* ================= COMPOSITION ================= */
+  /* L'ACHAT S'OUVRE PAR-DESSUS LE COMPOSEUR, jamais à côté : la composition
+     en cours retrouve son état intact si elle referme l'achat. */
+  if (achat) {
+    return (
+      <AchatFormule
+        plan={achat}
+        toast={toast}
+        onClose={() => setAchat(null)}
+        onReserver={() => { setAchat(null); onClose(); }}
+      />
+    );
+  }
+
   return (
     <div className="mc-overlayscreen mc-slide">
       <div className="mc-flowhead">
@@ -398,13 +401,13 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
           <div className="mc-fade">
             {maDemande ? (
               <div className="mc-packintro">
-                Vous avez demandé « {maDemande.planName} ». La Maison vous répond très vite,
-                et vous réglerez au comptoir ou par MoMo.
+                Vous aviez demandé « {maDemande.planName} », la Maison vous répond très vite.
+                Vous pouvez aussi prendre une formule directement ci-dessous.
               </div>
             ) : (
               <div className="mc-packintro">
                 Ceux que la Maison a écrits, prêts à être pris. Chacun réserve un créneau rien
-                qu'à vous, et se règle au comptoir ou par MoMo, jamais en ligne.
+                qu'à vous, et vous réglez en une fois ou en deux.
               </div>
             )}
             {momentsFormules.map((g) => (
@@ -436,20 +439,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                       </span>
                       {pl.discountPct ? <span className="cma-offre__gain">−{pl.discountPct} % sur la carte</span> : null}
                     </div>
+                    {/* ELLE PREND, ELLE NE DEMANDE PLUS. « Je ne veux pas
+                        qu'on envoie une demande au Trône » (29 août) : le
+                        bouton ouvre l'achat en trois temps. */}
                     <button
                       type="button"
                       className="cma-btn cma-btn--sm"
-                      /* UNE DEMANDE NE VAUT QUE POUR LA FORMULE DEMANDÉE.
-                         Le bouton lisait « une demande est ouverte » et non
-                         « CETTE formule est demandée » : les treize cartes
-                         basculaient ensemble sur « Demande en cours », et la
-                         cliente croyait avoir tout demandé d'un clic. */
-                      disabled={!!maDemande}
-                      onClick={() => demanderFormule(pl)}
+                      onClick={() => setAchat(pl)}
                     >
-                      {maDemande?.planId === pl.id
-                        ? 'Demande en cours'
-                        : maDemande ? 'Une demande est ouverte' : 'Je veux cette formule'}
+                      Je prends cette formule
                     </button>
                   </div>
                 ))}

@@ -183,7 +183,12 @@ export type VerifiedPayment = {
     inscrit la commission en dépense. Lève une erreur lisible. */
 export async function verifyDeposit(input: {
   transactionId: string;
+  /** Le rendez-vous réglé — vide quand c'est une formule. */
   apptId: string;
+  /** L'ABONNEMENT réglé (29 août). Le serveur relit alors le montant attendu
+      dans l'échéancier de CET abonnement, jamais dans ce corps de requête :
+      un appelant pourrait annoncer ce qu'il veut. */
+  subId?: string;
   expectedXof: number;
   branchId: string;
   clientId?: string;

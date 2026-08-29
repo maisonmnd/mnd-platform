@@ -2,6 +2,71 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## ELLE PREND SA FORMULE ELLE-MÊME — 29 août, PUBLIÉ · **0077 À PASSER**
+
+« Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve
+immédiatement et passe au paiement et choisit en 2 fois. Seul moi-même peut
+activer un paiement en 4 fois. » Maquette validée, puis construite.
+
+### Le parcours, en trois temps
+
+`AchatFormule.tsx` : ce qu'elle prend · comment elle règle · c'est ouvert. Le
+troisième écran n'est pas un remerciement, c'est une preuve : ce qu'elle a
+désormais, jusqu'à quand, ce qu'il lui reste à régler. Ouvert depuis les DEUX
+vitrines (« Ma formule » et « Nos abonnements » du composeur).
+
+**Deux voies, elle choisit** (décision du 29 août) : « Régler maintenant » par
+KkiaPay, ou « Je réglerai au comptoir ». La seconde ne fait circuler aucun
+argent et ne change rien à la voix de la Maison.
+
+### Le prix ne vient jamais du téléphone
+
+`souscrire_a_une_formule` (0077, SECURITY DEFINER) relit le prix DANS la
+formule et ignore tout montant venu de l'application. L'interdiction d'écrire
+dans `subscribers` (0076) NE BOUGE PAS — c'est elle qui empêche une cliente de
+s'offrir la formule de son choix au prix de son choix.
+
+La fonction crée l'abonnement **à zéro règlement**. Aucun argent ne s'inscrit
+là. Le règlement en ligne passe par `kkiapay-verify`, qui lit le montant attendu
+dans l'échéancier de CET abonnement et refuse tout écart — exactement comme les
+acomptes de rendez-vous depuis l'audit du 24 août.
+
+**L'ordre compte** : l'abonnement naît D'ABORD, non réglé, puis le paiement s'y
+rattache. Jamais l'inverse : un paiement dont l'abonnement n'existe pas encore
+serait un encaissement orphelin. Si la vérification échoue, la formule reste
+retenue à son nom, à régler au comptoir.
+
+**Deux fois, jamais quatre.** La fonction refuse tout autre nombre que 1 ou 2,
+même si l'écran le demandait : un écran se contourne, une fonction non.
+
+### Le seuil des deux fois est un réglage
+
+`VitrineConfig.seuilDeuxFoisXof`, posé au Trône (Vitrine → « Régler en deux fois
+· Ma Couronne »), défaut 100 000 F. Yéman voulait donner son propre chiffre : il
+le pose lui-même et le change quand il veut, plutôt que de le figer dans le code.
+
+### L'échéancier existe en DEUX endroits
+
+`construitEcheancier` (TS, `shared/echeancier.ts`) fait référence ; 0077 en
+mirroir en SQL, même règle — le reste sur la PREMIÈRE, trente jours entre, la
+première le jour même. **Si la règle TS change un jour, le SQL doit suivre.**
+
+### À faire côté Supabase
+
+1. `supabase/migrations/0077_elle_prend_sa_formule.sql`, une seule fois.
+2. Redéployer `kkiapay-verify` (il sait désormais régler un abonnement).
+
+Sans ces deux gestes, le bouton dit honnêtement « la souscription n'est pas
+encore ouverte » au lieu d'échouer en silence.
+
+### Ce qui reste
+
+« Composez le vôtre » mène toujours au Trône. Un rituel composé n'est pas une
+formule du catalogue : l'abonnement qui en naîtrait n'a pas de `planId`. C'est
+la pièce suivante.
+
+---
+
 ## LA VITRINE DES FORMULES, REDESSINÉE — 29 août, PUBLIÉ
 
 « Cette page doit avoir une jolie UI/UX. Elle paraît ne pas être fonctionnelle,

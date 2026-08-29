@@ -19,6 +19,7 @@ import { QrSvg, qrMatrice } from '../equipe/Comptoir';
 import { carteReglages, type CarteConfig } from '../../../../shared/bridges';
 import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
+import { seuilCliente } from '../../../../shared/echeancier';
 import './clients.css';
 
 /* Vitrine client — le miroir personnalisé auto-joué pendant le rituel, et la régie
@@ -610,6 +611,34 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             on={cfg.quizEnabled}
             onToggle={(v) => setFlag('quizEnabled', v)}
           />
+
+          {/* ══ LE RÈGLEMENT DEPUIS MA COURONNE — 29 août 2026 ═══════
+              « Je veux avoir un autre seuil, que je vous donne » (Yéman).
+              Plutôt que d'attendre son chiffre et de le figer dans le code, le
+              seuil se pose ici et se relit dans Ma Couronne.
+
+              DEUX FOIS SEULEMENT, JAMAIS QUATRE. La découpe en quatre est un
+              accord qui se donne en face, pas une case à cocher sur un
+              téléphone : elle reste au Trône, et cet écran ne l'offre pas. */}
+          <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Régler en deux fois · Ma Couronne</div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+              À partir de (F)
+              <input
+                className="mnd-input"
+                style={{ width: 130 }}
+                inputMode="numeric"
+                value={String(seuilCliente(cfg.seuilDeuxFoisXof))}
+                onChange={(e) => {
+                  const v = Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0);
+                  vitrineConfigStore.set((c) => ({ ...c, seuilDeuxFoisXof: v }));
+                }}
+              />
+            </label>
+            <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.6 }}>
+              En dessous, elle règle en une fois. La découpe en quatre reste la vôtre, au comptoir.
+            </div>
+          </div>
 
           {/* LE SUR-MESURE (12 août) — remises, minimum et ateliers
               d'abonnement se règlent ICI, plus dans le code. */}

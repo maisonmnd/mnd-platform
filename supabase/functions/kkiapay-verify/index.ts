@@ -81,6 +81,8 @@ export async function applyPayment(admin: any, opts: {
   partnerId: string;
   branchId: string;
   clientId?: string;
+  /** L'abonnement réglé, quand c'en est un (29 août). */
+  subId?: string;
 }): Promise<void> {
   const amount = Math.round(Number(opts.tx.amount ?? 0));
   const fees = Math.round(Number(opts.tx.fees ?? 0));
@@ -123,6 +125,35 @@ export async function applyPayment(admin: any, opts: {
     // le comptoir le rapprochera. On ne perd jamais un franc reçu.
   }
 
+  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 29 août 2026.
+     Il s'AJOUTE aux règlements existants, il ne les remplace pas : l'état de
+     chaque échéance se dérive des versements (shared/echeancier.ts), et
+     écraser la liste effacerait la première moitié le jour où elle paie la
+     seconde. L'identifiant du versement est celui de la transaction : deux
+     rejeux du webhook n'inscrivent qu'une ligne. */
+  if (opts.subId) {
+    const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
+    if (sub) {
+      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string };
+      const deja = Array.isArray(d.payments) ? d.payments : [];
+      if (!deja.some((x) => x?.id === opts.transactionId)) {
+        const next = {
+          ...d,
+          payments: [...deja, {
+            id: opts.transactionId,
+            amountXof: amount,
+            date: at.slice(0, 10),
+            method: opts.tx.source ?? 'KkiaPay',
+          }],
+          /* Elle a payé : l'abonnement cesse d'être « neuf en attente » et
+             devient actif. Le comptoir n'a rien à confirmer. */
+          status: d.status === 'churn' ? d.status : 'active',
+        };
+        await admin.from('subscribers').update({ data: next }).eq('id', opts.subId);
+      }
+    }
+  }
+
   /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
         4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
         demandé, entier. Les inscrire en dépense sortirait d'une caisse un
@@ -134,7 +165,7 @@ export async function applyPayment(admin: any, opts: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { transactionId, apptId, expectedXof, branchId, clientId } = await req.json();
+    const { transactionId, apptId, subId, expectedXof, branchId, clientId } = await req.json();
     if (!transactionId || !branchId) return json({ error: 'bad_request' }, 400);
 
     const tx = await fetchTransaction(String(transactionId));
@@ -157,6 +188,27 @@ Deno.serve(async (req) => {
         .from('appointments').select('data').eq('id', String(apptId)).maybeSingle();
       expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
     }
+    /* L'ABONNEMENT PRIS DEPUIS MA COURONNE — 29 août 2026. Même règle et même
+       raison que pour l'acompte d'un rendez-vous : le montant attendu se lit
+       DANS l'abonnement, jamais dans le corps de requête. Sans quoi une
+       cliente ouvrirait une Année à 405 000 F en réglant 100 F.
+
+       Ce qu'on attend d'elle est la PREMIÈRE ÉCHÉANCE quand elle a choisi de
+       payer en deux fois, et le prix entier sinon. `souscrire_a_une_formule`
+       (0077) a écrit l'un ou l'autre à la signature. */
+    let sub: { id: string; data: Record<string, unknown> } | null = null;
+    if (subId) {
+      const { data: row } = await admin
+        .from('subscribers').select('id, data').eq('id', String(subId)).maybeSingle();
+      sub = (row as typeof sub) ?? null;
+      if (sub) {
+        const d = sub.data as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+        const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
+          ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
+          : 0;
+        expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      }
+    }
     if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
 
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
@@ -169,9 +221,13 @@ Deno.serve(async (req) => {
     await applyPayment(admin, {
       transactionId: String(transactionId),
       tx,
-      partnerId: String(apptId ?? ''),
+      /* La référence porte l'abonnement quand il n'y a pas de rendez-vous :
+         c'est elle qui relie le paiement à ce qu'il règle, au registre comme
+         au comptoir. */
+      partnerId: String(apptId || subId || ''),
       branchId: String(branchId),
       clientId: clientId ? String(clientId) : undefined,
+      subId: subId ? String(subId) : undefined,
     });
 
     return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });

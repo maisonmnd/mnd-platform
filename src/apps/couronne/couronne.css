@@ -2649,6 +2649,92 @@
 .cma-btn.ghost { background: transparent; color: var(--copper-700); }
 .cma-btn--sm { padding: 8px 13px; font-size: 11.5px; width: auto; display: inline-block; margin-top: 9px; }
 
+/* ══ ACHETER SA FORMULE — 29 août 2026 ════════════════════════════════
+   Trois temps : ce qu'elle prend, comment elle règle, c'est ouvert. Le
+   troisième n'est pas un remerciement, c'est une preuve — ce qu'elle a
+   désormais, jusqu'à quand, et ce qu'il lui reste à régler. */
+
+/* LE FIL D'ARIANE. Un tunnel sans repère se referme au premier doute : elle
+   doit voir où elle en est et combien il en reste. */
+.cma-fil {
+  display: flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.cma-fil b { font-weight: 400; }
+.cma-fil b.is-on { color: var(--copper-700); }
+.cma-fil span { color: var(--hairline); }
+
+.cma-somme {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding-top: 12px; margin-top: 11px; border-top: 1px solid var(--hairline);
+}
+.cma-somme span { font-size: 12px; color: var(--ink-soft); }
+.cma-somme b {
+  font-family: var(--font-serif); font-weight: 400; font-size: 26px;
+  color: var(--color-indigo); font-variant-numeric: tabular-nums;
+}
+.cma-somme__sous { font-size: 11.5px; color: var(--ink-soft); text-align: right; margin-top: 2px; }
+
+/* CE QUI RASSURE, ET CE QUI SE REFUSE, dans le même cadre discret : une phrase
+   qui borne vaut mieux qu'un bouton absent sans explication. */
+.cma-verrou {
+  border: 1px dashed var(--hairline); border-radius: 3px; padding: 11px 13px;
+  font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; margin-top: 12px;
+}
+.cma-verrou b { color: var(--ink); font-weight: 500; }
+
+/* LE CHOIX DU RÈGLEMENT. Une carte entière est cliquable : sur un téléphone,
+   viser un petit rond coûte un geste de plus à chaque hésitation. */
+.cma-choix {
+  display: block; width: 100%; text-align: left; margin-top: 10px;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card, #FBF8F2);
+  padding: 14px 16px; cursor: pointer; font-family: var(--font-sans);
+  transition: border-color .2s ease, background .2s ease;
+}
+.cma-choix.is-on { border-color: var(--copper-600); background: var(--copper-50, #FAF1E9); }
+.cma-choix:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
+.cma-choix__t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.cma-choix__n { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.cma-choix__m {
+  font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+}
+.cma-choix__d { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 5px; line-height: 1.6; }
+.cma-ech2 { display: block; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--hairline); }
+.cma-ech2 > span {
+  display: flex; justify-content: space-between; gap: 10px; font-size: 12px;
+  color: var(--ink-soft); margin-bottom: 3px; font-variant-numeric: tabular-nums;
+}
+.cma-ech2 b { color: var(--ink); font-weight: 500; }
+
+.cma-btn--indigo { background: var(--color-indigo); color: var(--color-ivoire); }
+.cma-btn--indigo:hover { background: var(--color-indigo-deep, #15173A); }
+.cma-btn:disabled, .cma-choix:disabled { opacity: .55; cursor: default; }
+
+.cma-lien {
+  display: block; width: 100%; text-align: center; margin-top: 12px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* LA PREUVE. Indigo, comme la carte de sa formule : c'est le même objet, elle
+   vient de le faire naître. */
+.cma-fini {
+  background: linear-gradient(162deg, var(--color-indigo-deep, #15173A), var(--color-indigo, #1E2150));
+  border-radius: 5px; padding: 24px 20px; color: var(--color-ivoire); text-align: center;
+}
+.cma-fini__mono { font-family: var(--font-serif); font-size: 26px; color: var(--copper-200, #E3C9AE); line-height: 1; }
+.cma-fini__t {
+  font-family: var(--font-serif); font-weight: 300; font-size: 25px; color: #fff;
+  margin: 12px 0 8px; line-height: 1.2; text-wrap: balance;
+}
+.cma-fini__s { font-size: 12.5px; color: var(--indigo-100, #C9CBE0); margin: 0; line-height: 1.65; }
+.cma-fini .cma-jetons { justify-content: center; margin-top: 16px; }
+.cma-fini .cma-jeton { border-color: var(--copper-200, #E3C9AE); color: var(--copper-200, #E3C9AE); }
+
+
 /* La vitrine — le même rangement que Le Trône, lu de la même source. */
 .cma-moment { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 9px; }
 .cma-moment__titre { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); white-space: nowrap; }

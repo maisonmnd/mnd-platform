@@ -190,7 +190,7 @@ function Shell() {
           />
         ))}
         {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}
-        {tab === 'formule' && <MaFormuleTab toast={toast} />}
+        {tab === 'formule' && <MaFormuleTab toast={toast} onReserver={() => setBooking({})} />}
         {tab === 'gamme' && <GammeTab toast={toast} onOpenOrders={openOrders} />}
         {tab === 'cercle' && <CercleTab toast={toast} />}
         {tab === 'profil' && <ProfilTab toast={toast} />}

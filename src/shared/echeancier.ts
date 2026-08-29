@@ -48,9 +48,29 @@ export type Echeance = {
   amountXof: number;
 };
 
-/** Un abonnement peut-il être découpé ? */
+/** Un abonnement peut-il être découpé ? Au comptoir, c'est le seuil de la
+    Maison qui juge. */
 export const peutEtreEchelonne = (totalXof: number): boolean =>
   totalXof > SEUIL_ECHELONNEMENT_XOF;
+
+/* ── LE SEUIL QUE MA COURONNE APPLIQUE — 29 août 2026 ──────────────
+   « Je veux avoir un autre seuil, que je vous donne » (Yéman). Plutôt que
+   d'attendre son chiffre et de le figer dans le code, le seuil devient un
+   RÉGLAGE : il se pose au Trône, se relit dans Ma Couronne, et se change le
+   jour où la Maison change d'avis. Absent, c'est celui du comptoir.
+
+   DEUX FOIS SEULEMENT, JAMAIS QUATRE. La découpe en quatre est un accord qui
+   se donne en face, pas une case à cocher sur un téléphone : `DECOUPES` reste
+   entier au Trône, et cette fonction-ci ne connaît que deux. */
+export const DECOUPE_CLIENTE = 2 as const;
+
+/** Le seuil EFFECTIF pour l'application cliente. */
+export const seuilCliente = (seuilPose?: number): number =>
+  typeof seuilPose === 'number' && seuilPose >= 0 ? Math.round(seuilPose) : SEUIL_ECHELONNEMENT_XOF;
+
+/** Cette formule peut-elle se régler en deux fois DEPUIS MA COURONNE ? */
+export const deuxFoisPossible = (totalXof: number, seuilPose?: number): boolean =>
+  totalXof > seuilCliente(seuilPose);
 
 const addDays = (iso: string, days: number): string =>
   new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86_400_000).toISOString().slice(0, 10);
