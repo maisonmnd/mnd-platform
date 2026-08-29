@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## 0076 — MA COURONNE VOIT ENFIN LES FORMULES — 29 août, **MIGRATION PASSÉE**
+
+**Ne jamais la relancer.** Contrôle rendu : 7 politiques, `plans` pub_read +
+staff_write, `subscribers` abo_sel + abo_staff, `demandes_formule` df_sel +
+df_staff + df_submit.
+
+### La cause n'était dans aucun écran
+
+`plans` et `subscribers` étaient rangées depuis **0006** parmi les tables
+RÉSERVÉES AU PERSONNEL. Une cliente connectée à Ma Couronne ne pouvait lire ni
+les formules de la Maison ni son propre abonnement : la RLS lui rendait une
+liste vide, et l'application affichait honnêtement ce qu'elle recevait.
+
+**L'onglet « Ma formule » n'a jamais rien montré à personne**, depuis sa
+création. La carte du comptoir (`carte.html`), qui lit sans compte, était vide
+pour la même raison. Les corrections du 28 et du 29 août (les orphelines sans
+moment du parcours, le masque de la vitrine, le régime Abonnement du composeur)
+étaient de vrais défauts, mais aucun n'était celui-ci.
+
+**La leçon.** Une liste vide côté client ne se diagnostique pas dans le
+composant qui l'affiche. La première question est : cette table est-elle
+LISIBLE par ce compte-là ?
+
+### Les trois régimes, et pourquoi ils diffèrent
+
+- `plans` — l'offre publique, aucun nom de personne. Même régime que
+  `catalog_services` : tout le monde lit, seul le personnel écrit.
+- `subscribers` — l'argent et les têtes. Lecture réservée à `est_ma_tete`, et
+  **lecture seule** : une cliente qui pourrait écrire ici s'offrirait
+  l'abonnement de son choix, au prix de son choix.
+- `demandes_formule` — elle déposait sans pouvoir RELIRE. Elle cliquait, l'écran
+  ne changeait pas, elle recliquait.
+
+### `est_ma_tete` reconnaît enfin la fiche adoptée
+
+La fonction ne comparait qu'à l'identifiant de la fiche. Depuis 0045, une
+adoptée garde l'identifiant de son ANCIENNE fiche et son compte vit dans
+`authUserId` : elle n'était plus « sa propre tête » aux yeux de la base. Ses
+rendez-vous et ses pièces lui échappaient déjà en silence.
+
+### Deux choses désormais lisibles par la cliente
+
+Le masque de la vitrine (`hiddenPlans`) est un choix D'AFFICHAGE, pas un secret :
+une formule masquée reste lisible par l'API, comme l'est déjà une prestation
+masquée. Et le MOTIF d'un prix convenu se lit par la tête concernée, il doit
+s'écrire comme une phrase qu'elle peut lire.
+
+---
+
 ## LE COMPOSEUR : NOS ABONNEMENTS D'ABORD — 29 août, PUBLIÉ
 
 « Deux options disponibles qui disent presque la même chose. Je veux enlever
