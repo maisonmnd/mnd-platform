@@ -811,6 +811,53 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           </div>
         </div>
 
+        {/* ══ LES FORMULES EN VITRINE ══════════════════════════════
+            « Dans Le Trône, Vitrine, mes formules ne sont pas ajoutées »
+            (Yéman, 29 août). Elles y étaient, mais DEUX FOIS INTROUVABLES :
+            enterrées sous tout le catalogue des ateliers, et purement absentes
+            quand la liste était vide. Une section qui disparaît ne se cherche
+            pas, elle se croit manquante.
+
+            Elles remontent donc AVANT le catalogue, et la section reste là
+            même sans une seule formule, pour dire pourquoi. */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Les formules en vitrine</div>
+            <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+              {plansEnRegie.length === 0
+                ? 'Aucune formule au catalogue pour l’instant.'
+                : (() => {
+                  const n = plansEnRegie.filter((pl) => planVisible(pl.id)).length;
+                  return n === plansEnRegie.length
+                    ? 'Toutes en vitrine.'
+                    : `${n} sur ${plansEnRegie.length} en vitrine.`;
+                })()}
+              {plansEnRegie.length > 0 ? ' Masquer n’efface rien : celles qui la portent la gardent.' : ''}
+            </span>
+          </div>
+          {plansEnRegie.length === 0 ? (
+            <div className="mnd-muted" style={{ fontSize: 12.5, border: '1px dashed var(--hairline)', borderRadius: 3, padding: '14px 16px', lineHeight: 1.6 }}>
+              Vos abonnements se créent dans <b style={{ color: 'var(--color-indigo)' }}>Équipe &amp; croissance
+              → Abonnements</b>. Dès qu’une formule existe, elle paraît ici et vous choisissez
+              si Ma Couronne la montre.
+            </div>
+          ) : (
+            <div className="tr-grid tr-grid--2">
+              {plansEnRegie.map((pl) => (
+                <ToggleCard
+                  key={pl.id}
+                  name={pl.name}
+                  sub={portee === 'cliente' && masqueMaisonPlan(pl.id)
+                    ? 'Formule · masquée pour toute la Maison'
+                    : (pl.mode === 'pack' ? 'Paquet de crédits' : 'Abonnement')}
+                  on={planVisible(pl.id)}
+                  onToggle={() => togglePlan(pl.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* DEUX NIVEAUX, DEUX GESTES — dit une fois, en tête des sections.
             L'interrupteur de l'atelier éteint tout ce qu'il contient ; celui
             d'une prestation ne coupe QU'ELLE. La question de Yéman (15 août)
@@ -881,42 +928,6 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           );
           });
         })()}
-
-        {/* ══ LES FORMULES EN VITRINE ══════════════════════════════
-            Elles ne vivent pas dans le catalogue des prestations : elles ont
-            leur propre magasin, leur propre écran, et n'avaient donc aucun
-            interrupteur ici. Elles en ont un maintenant, avec exactement la
-            même règle que les prestations — le socle de la Maison, puis le
-            masque de la fiche qui s'y ajoute. */}
-        {plansEnRegie.length > 0 && (
-          <div style={{ marginTop: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-              <div className="trc-microlabel" style={{ margin: 0 }}>Les formules</div>
-              <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                {(() => {
-                  const n = plansEnRegie.filter((pl) => planVisible(pl.id)).length;
-                  return n === plansEnRegie.length
-                    ? 'Toutes en vitrine.'
-                    : `${n} sur ${plansEnRegie.length} en vitrine.`;
-                })()}
-                {' '}Masquer n’efface rien : celles qui la portent la gardent.
-              </span>
-            </div>
-            <div className="tr-grid tr-grid--2">
-              {plansEnRegie.map((pl) => (
-                <ToggleCard
-                  key={pl.id}
-                  name={pl.name}
-                  sub={portee === 'cliente' && masqueMaisonPlan(pl.id)
-                    ? 'Formule · masquée pour toute la Maison'
-                    : (pl.mode === 'pack' ? 'Paquet de crédits' : 'Abonnement')}
-                  on={planVisible(pl.id)}
-                  onToggle={() => togglePlan(pl.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Le tapis de cuivre */}
         <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
