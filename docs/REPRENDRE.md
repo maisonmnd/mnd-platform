@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'ARGENT D'UN ABONNEMENT ENTRE ENFIN DANS LA MAISON — 29 août, PUBLIÉ
+
+« Un règlement encaissé au comptoir ne devrait pas être QUE sur la fiche de
+l'abonnement. Il doit créer un mouvement de caisse et une facture. » (Yéman)
+
+**Il avait raison, et le trou était sérieux.** `savePay` inscrivait le versement
+dans `Subscriber.payments[]` et NULLE PART AILLEURS. Or le journal de caisse se
+DÉRIVE du champ `cashbox` des règlements de factures : cet argent n'entrait donc
+dans aucun tiroir, ne paraissait dans aucun chiffre d'affaires, et disparaissait
+tout entier si l'abonnement était supprimé.
+
+Désormais, encaisser un abonnement :
+
+1. **crée la pièce** si elle n'existe pas — `Subscriber.invoiceId`, une seule par
+   abonnement, portant le TOTAL de la formule et non le versement du jour (une
+   facture qui ne vaudrait que l'acompte laisserait la créance hors des comptes) ;
+2. **y inscrit le règlement** avec sa méthode et **sa caisse**, choisie dans la
+   modale (`caisseParDefaut` propose celle de la monnaie de la Maison) ;
+3. garde le versement sur l'abonnement, car c'est lui que lit l'échéancier.
+
+Les versements suivants s'ajoutent à la MÊME pièce : c'est exactement ce qu'est
+un abonnement échelonné, une facture réglée en deux fois.
+
+**Non rétroactif** : les règlements pris avant ce jour n'ont ni pièce ni caisse.
+Ils restent sur leur fiche.
+
+## SUPPRIMER SANS TRACE — 29 août, PUBLIÉ
+
+« Je ne veux pas juste résilier un abonnement mais plutôt supprimer
+définitivement et sans trace. »
+
+Le bouton **« Supprimer »** est désormais sur TOUTES les lignes, vivantes comme
+parties, et sans condition de règlement. La Maison appartient à Yéman ; lui
+refuser un geste qu'il demande explicitement, ce serait le pousser à le faire à
+la main dans la base, où rien ne le prévient.
+
+**Mais ce qui part se dit en francs.** La fenêtre nomme la tête, la formule, la
+somme encaissée, et distingue les deux cas :
+
+- l'abonnement a une pièce (`invoiceId`) → **facture et caisse restent**,
+  l'argent ne disparaît pas des comptes, il perd seulement ce qu'il réglait ;
+- pas de pièce (règlements d'avant le 29 août) → **c'est leur seule trace**, et
+  elle s'efface.
+
+---
+
 ## LE FOYER NE SE MONTRE QU'À CELLES QUI EN ONT UN — 29 août, PUBLIÉ
 
 « L'abonnement des foyers ne doit apparaître que sur les comptes des personnes

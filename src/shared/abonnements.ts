@@ -171,6 +171,20 @@ export type Subscriber = {
   /** LE CONTENU AJUSTÉ pour cette tête — quantités changées, prestation
       retirée, prestation ajoutée. Absent = le contenu de la formule. */
   inclusPropres?: PlanIncluded[];
+  /** LA PIÈCE DE CET ABONNEMENT — 29 août 2026.
+
+      « Un règlement encaissé au comptoir ne devrait pas être QUE sur la fiche
+      de l'abonnement. Il doit créer un mouvement de caisse et une facture »
+      (Yéman). Il avait raison, et le trou était sérieux : `savePay` inscrivait
+      le versement dans `payments[]` et NULLE PART AILLEURS. Ni pièce, ni
+      caisse — le journal de caisse se dérive des règlements de factures, donc
+      cet argent n'entrait dans aucun tiroir et ne paraissait dans aucun
+      chiffre d'affaires.
+
+      La pièce naît au PREMIER règlement et se garde : les versements suivants
+      s'y ajoutent, comme une facture réglée en deux fois. */
+  invoiceId?: string;
+
   /** La durée de vie ajustée d'un pack, en jours. Absente = celle de la
       formule. Sans effet sur un abonnement à cycle, qui ne s'épuise pas. */
   validiteJours?: number;

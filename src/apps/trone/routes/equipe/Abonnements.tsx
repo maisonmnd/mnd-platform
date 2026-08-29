@@ -4,7 +4,10 @@ import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, toast } f
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { usePaymentMethods } from '../../../../shared/finance';
+import {
+  usePaymentMethods, useCashboxes, caisseParDefaut, nouvelleFacture, ligneFacture,
+  invoicesStore, type Invoice, type InvoicePayment,
+} from '../../../../shared/finance';
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
@@ -69,6 +72,10 @@ export default function Abonnements() {
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
+  /* LA CAISSE CRÉDITÉE — sans elle, l'argent n'entre dans aucun tiroir. */
+  const [cashboxes] = useCashboxes();
+  const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+  const [caisse, setCaisse] = useState('');
 
   /* Pose les 6 formules signées de départ si la Maison n'en a aucune, puis dote
      ces formules de leurs prestations incluses (une fois, sans écraser les
@@ -98,17 +105,24 @@ export default function Abonnements() {
   const churned = partis.length;
   const [voirPartis, setVoirPartis] = useState(false);
   const [aResilier, setAResilier] = useState<Subscriber | null>(null);
-  /* ── SUPPRIMER POUR DE BON — 29 août 2026 ────────────────────────
-     « Comment annuler ou supprimer ? » (Yéman). Résilier ne supprimait pas :
-     l'abonnement passait chez « Les partis » et y restait, ce qui est juste —
-     une cliente qui s'en va garde son histoire. Mais un essai, une erreur de
-     saisie, un abonnement pris deux fois n'ont AUCUNE histoire à garder, et
-     encombraient la liste pour toujours.
+  /* SUPPRIMER POUR DE BON, ET SANS TRACE — 29 aout 2026.
 
-     LA RÈGLE QUI REND CE BOUTON SÛR : on ne supprime QUE ce qui n'a jamais
-     reçu un franc. Dès qu'un règlement est inscrit, l'abonnement porte de
-     l'argent encaissé, et effacer de l'argent encaissé est la seule chose
-     qu'un ERP ne doit jamais permettre d'un clic. Ceux-là se résilient. */
+     « Je ne veux pas juste resilier un abonnement mais plutot supprimer
+     definitivement et sans trace » (Yeman).
+
+     LA SUPPRESSION EST OUVERTE PARTOUT : sur les abonnements vivants comme
+     sur les partis, et meme sur ceux qui ont recu des reglements. La Maison
+     appartient a Yeman ; lui refuser un geste qu'il demande explicitement, ce
+     serait le pousser a le faire a la main dans la base, ou rien ne previent.
+
+     MAIS CE QUI PART SE DIT EN FRANCS. Un reglement encaisse au comptoir
+     n'existe QUE sur cette fiche : `savePay` l'inscrit dans `payments[]` et ne
+     cree ni mouvement de caisse ni facture. Supprimer l'abonnement efface donc
+     la seule trace de cet argent. Les reglements KkiaPay survivent, eux, au
+     registre `payments` — mais orphelins de ce qu'ils reglaient.
+
+     La fenetre nomme donc la tete, la formule, et la SOMME qui disparait. On
+     n'empeche pas, on ne laisse pas ignorer. */
   const [aSupprimer, setASupprimer] = useState<Subscriber | null>(null);
 
   /* ── DÉCOUPER APRÈS COUP — 29 août 2026 ──────────────────────────
@@ -146,7 +160,10 @@ export default function Abonnements() {
   const supprimer = (m: Subscriber) => {
     setSubs((prev) => prev.filter((x) => x.id !== m.id));
     setASupprimer(null);
-    toast('Abonnement supprimé. Il ne portait aucun règlement.');
+    const verse = subPaid(m);
+    toast(verse > 0
+      ? `Abonnement supprimé, avec ${fmtMoney(verse, currency)} de règlements inscrits dessus.`
+      : 'Abonnement supprimé. Il ne portait aucun règlement.');
   };
 
   const resilier = (m: Subscriber) => {
@@ -495,6 +512,7 @@ export default function Abonnements() {
        ferait au comptoir, la caisse ouverte. */
     const due = suivante ? suivante.resteXof : prixVenduXof(m, plan, m.cycle ?? 'mensuel');
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
+    setCaisse(caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '');
     setPayFor(m);
   };
 
@@ -529,10 +547,73 @@ export default function Abonnements() {
     const base = /^\d{4}-\d{2}-\d{2}$/.test(payFor.nextIso) ? payFor.nextIso : todayISO();
     let next = addDaysFromISO(base, days);
     if (next <= todayISO()) next = addDaysISO(days);
+
+    /* ── L'ARGENT ENTRE VRAIMENT DANS LA MAISON — 29 août 2026 ──────
+       « Un règlement encaissé au comptoir ne devrait pas être QUE sur la fiche
+       de l'abonnement. Il doit créer un mouvement de caisse et une facture »
+       (Yéman). Le trou était réel : ce versement ne créait NI pièce NI entrée
+       de caisse. Or le journal de caisse se DÉRIVE des règlements de factures
+       (`InvoicePayment.cashbox`) : cet argent n'entrait donc dans aucun tiroir,
+       ne paraissait dans aucun chiffre d'affaires, et disparaissait tout entier
+       si l'abonnement était supprimé.
+
+       LA PIÈCE NAÎT AU PREMIER RÈGLEMENT ET SE GARDE. Les versements suivants
+       s'y ajoutent, comme une facture réglée en deux fois — c'est exactement ce
+       qu'est un abonnement échelonné. */
+    const boite = caisse || caisseParDefaut(branchBoxes, branch.id, currency)?.name || '';
+    const versement: InvoicePayment = {
+      id: pmt.id,
+      date: pmt.date,
+      amountXof: amount,
+      method: pmt.method ?? (methods[0] ?? 'Espèces'),
+      ...(boite ? { cashbox: boite } : {}),
+      note: 'Abonnement',
+    };
+    const plan = planOf(payFor.planId);
+    const nomFormule = plan?.name ?? 'Abonnement';
+    const pieceExistante = payFor.invoiceId
+      ? invoicesStore.get().find((i) => i.id === payFor.invoiceId)
+      : undefined;
+
+    let pieceId = payFor.invoiceId;
+    if (pieceExistante) {
+      invoicesStore.set((prev) => prev.map((i) => (i.id === pieceExistante.id
+        ? { ...i, payments: [...(i.payments ?? []), versement] }
+        : i)));
+    } else {
+      /* LA PIÈCE PORTE LE TOTAL DE LA FORMULE, pas le versement du jour : une
+         facture qui ne vaudrait que l'acompte laisserait le reste hors des
+         comptes, et la créance disparaîtrait. */
+      const total = prixVenduXof(payFor, plan, cycle) + (payFor.couleur?.supplementXof ?? 0);
+      const piece = nouvelleFacture({
+        branchId: branch.id,
+        serie: 'MND',
+        status: 'envoyée',
+        date: payFor.sinceIso || pmt.date,
+        clientId: payFor.clientId,
+        clientName: payFor.name,
+        lines: [ligneFacture(nomFormule, total)],
+        theme: 'Aube',
+        note: `Abonnement · ${nomFormule}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
+      });
+      const avecVersement: Invoice = { ...piece, payments: [versement] };
+      pieceId = avecVersement.id;
+      invoicesStore.set((prev) => [avecVersement, ...prev]);
+    }
+
     setSubs((prev) => prev.map((s) => (s.id === payFor.id
-      ? { ...s, payments: [...(s.payments ?? []), pmt], status: s.status === 'churn' ? s.status : 'active', nextIso: next }
+      ? {
+        ...s,
+        payments: [...(s.payments ?? []), pmt],
+        status: s.status === 'churn' ? s.status : 'active',
+        nextIso: next,
+        ...(pieceId ? { invoiceId: pieceId } : {}),
+      }
       : s)));
     setPayFor(null);
+    toast(boite
+      ? `${fmtMoney(amount, currency)} encaissés dans « ${boite} », la pièce est écrite.`
+      : `${fmtMoney(amount, currency)} encaissés, la pièce est écrite.`);
   };
 
   const statusDot = (s: Subscriber['status']) =>
@@ -988,6 +1069,16 @@ export default function Abonnements() {
                         >
                           Résilier
                         </button>
+                        {/* SUPPRIMER SANS PASSER PAR LA RÉSILIATION. Elle
+                            gardait l'abonnement chez « Les partis » ; ce
+                            bouton-ci ne garde rien. */}
+                        <button
+                          className="tre-link-btn tre-link-btn--danger"
+                          style={{ marginLeft: 10 }}
+                          onClick={() => setASupprimer(m)}
+                        >
+                          Supprimer
+                        </button>
                       </td>
                     </tr>
                     );
@@ -1033,11 +1124,6 @@ export default function Abonnements() {
                             <td data-label="MRR" className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="tre-link-btn" onClick={() => reprendre(m)}>Reprendre l’abonnement</button>
-                              {/* CELUI QUI N'A JAMAIS RIEN REÇU peut s'effacer :
-                                  c'est un essai ou une erreur, il n'a pas
-                                  d'histoire. Les autres portent de l'argent
-                                  encaissé et restent. */}
-                              {subPaid(m) === 0 && (
                                 <button
                                   className="tre-link-btn tre-link-btn--danger"
                                   style={{ marginLeft: 10 }}
@@ -1045,7 +1131,6 @@ export default function Abonnements() {
                                 >
                                   Supprimer
                                 </button>
-                              )}
                             </td>
                           </tr>
                         ))}
@@ -1119,22 +1204,46 @@ export default function Abonnements() {
 
       {/* SUPPRIMER NE SE DÉFAIT PAS. Résilier se reprend, ceci non : on le dit
           avant, et on nomme la tête pour qu'on ne se trompe pas de ligne. */}
-      {aSupprimer && (
-        <Modal title="Supprimer cet abonnement ?" onClose={() => setASupprimer(null)} width={420}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <p className="mnd-muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 13.5 }}>
-              L’abonnement de <b style={{ color: 'var(--color-indigo)' }}>{aSupprimer.name}</b>
-              {' '}({planOf(aSupprimer.planId)?.name ?? 'formule retirée'}) disparaîtra de la Maison.
-              Il n’a jamais reçu de règlement, il n’emporte donc aucune somme avec lui.
-              <b style={{ color: 'var(--ink)' }}> Ce geste ne se défait pas.</b>
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="ghost" onClick={() => setASupprimer(null)}>Le garder</Button>
-              <Button variant="copper" onClick={() => supprimer(aSupprimer)}>Supprimer</Button>
+      {aSupprimer && (() => {
+        const verse = subPaid(aSupprimer);
+        return (
+          <Modal title="Supprimer définitivement ?" onClose={() => setASupprimer(null)} width={440}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p className="mnd-muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 13.5 }}>
+                L’abonnement de <b style={{ color: 'var(--color-indigo)' }}>{aSupprimer.name}</b>
+                {' '}({planOf(aSupprimer.planId)?.name ?? 'formule retirée'}) disparaîtra de la
+                Maison, sans passer par « Les partis » et sans laisser de trace.
+                <b style={{ color: 'var(--ink)' }}> Ce geste ne se défait pas.</b>
+              </p>
+
+              {/* CE QUI PART SE DIT EN FRANCS. Un règlement encaissé au comptoir
+                  n'existe QUE sur cette fiche : ni mouvement de caisse, ni
+                  facture. L'effacer efface la seule trace de cet argent. */}
+              {verse > 0 && (
+                <div style={{
+                  border: '1px solid var(--color-brique, #96412E)', borderRadius: 3,
+                  background: 'rgba(150,65,46,.07)', padding: '12px 14px',
+                  fontSize: 13, lineHeight: 1.7, color: 'var(--ink)',
+                }}>
+                  Cet abonnement porte <b>{fmtMoney(verse, currency)} déjà encaissés</b>.
+                  {aSupprimer.invoiceId
+                    ? ' Sa facture et son entrée de caisse RESTENT : l’argent ne disparaît pas des comptes, il perd seulement l’abonnement qu’il réglait.'
+                    : ' Ces règlements sont antérieurs à la facturation des abonnements : ils n’existent que sur cette fiche, et le supprimer efface leur seule trace.'}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setASupprimer(null)}>
+                  Le garder
+                </Button>
+                <Button variant="copper" onClick={() => supprimer(aSupprimer)}>
+                  Supprimer définitivement
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
 
       {/* LE GARDE-FOU. « Résilier » était un clic sec et sans retour : la ligne
           disparaissait, et rien dans l'écran ne disait où elle était allée. */}
@@ -1953,12 +2062,23 @@ export default function Abonnements() {
                 <Input type="date" value={payForm.date} onChange={(e) => setPayForm({ ...payForm, date: e.target.value })} />
               </Field>
             </div>
-            <Field label="Moyen de paiement">
-              <Select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}>
-                {methods.length === 0 && <option value="">—</option>}
-                {methods.map((mth) => <option key={mth} value={mth}>{mth}</option>)}
-              </Select>
-            </Field>
+            {/* LA CAISSE CRÉDITÉE — 29 août 2026. Sans elle, l'argent n'entre
+                dans aucun tiroir : le journal de caisse se dérive du champ
+                `cashbox` des règlements de factures, et rien d'autre. */}
+            <div className="tr-grid tr-grid--2">
+              <Field label="Caisse créditée">
+                <Select value={caisse} onChange={(e) => setCaisse(e.target.value)}>
+                  {branchBoxes.length === 0 && <option value="">Aucune caisse</option>}
+                  {branchBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Moyen de paiement">
+                <Select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}>
+                  {methods.length === 0 && <option value="">—</option>}
+                  {methods.map((mth) => <option key={mth} value={mth}>{mth}</option>)}
+                </Select>
+              </Field>
+            </div>
 
             {(payFor.payments ?? []).length > 0 && (
               <div>
