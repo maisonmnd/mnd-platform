@@ -94,6 +94,39 @@ async function applyPayment(admin: any, opts: {
       const next = { ...(appt.data ?? {}), depositXof: amount, depositConfirmed: true };
       await admin.from('appointments').update({ data: next }).eq('id', opts.partnerId);
     }
+
+    /* LE FILET COUVRE AUSSI LES ABONNEMENTS — 29 août 2026.
+       Ce webhook ne connaissait que les rendez-vous. Or `AchatFormule` règle
+       un ABONNEMENT et lui passe la même référence : quand le téléphone de la
+       cliente se ferme avant la confirmation, ou quand la vérification échoue,
+       ce filet était le dernier recours — et il laissait tomber l'abonnement.
+       L'argent restait au registre, orphelin de ce qu'il réglait.
+
+       LES DEUX N'ENTRENT JAMAIS EN CONCURRENCE : les identifiants sont de deux
+       familles (`a-…` pour un rituel, `ab-…` pour un abonnement), et le
+       versement ne s'inscrit que s'il n'y est pas déjà — la vérification
+       cliente et ce filet peuvent donc arriver dans n'importe quel ordre. */
+    if (!appt) {
+      const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.partnerId).maybeSingle();
+      if (sub) {
+        const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string };
+        const deja = Array.isArray(d.payments) ? d.payments : [];
+        if (!deja.some((x: { id?: string }) => x?.id === opts.transactionId)) {
+          await admin.from('subscribers').update({
+            data: {
+              ...d,
+              payments: [...deja, {
+                id: opts.transactionId,
+                amountXof: amount,
+                date: new Date().toISOString().slice(0, 10),
+                method: opts.tx.source ?? 'KkiaPay',
+              }],
+              status: d.status === 'churn' ? d.status : 'active',
+            },
+          }).eq('id', opts.partnerId);
+        }
+      }
+    }
   }
 
   /* Aucune dépense de commission : les frais KkiaPay sont à la charge de la
@@ -142,6 +175,10 @@ Deno.serve(async (req) => {
     // Branche inconnue (webhook plus ancien que l'app) : on la retrouve par le
     // rendez-vous, pour que le paiement tombe dans la bonne maison.
     if (!branchId && partnerId) {
+      const { data: subBr } = await admin.from('subscribers').select('branch_id').eq('id', partnerId).maybeSingle();
+      if (subBr?.branch_id) branchId = String(subBr.branch_id);
+    }
+    if (!branchId && partnerId) {
       const { data: appt } = await admin.from('appointments').select('branch_id').eq('id', partnerId).maybeSingle();
       branchId = String(appt?.branch_id ?? '');
     }
@@ -156,7 +193,19 @@ Deno.serve(async (req) => {
     if (partnerId) {
       const { data: apptDue } = await admin
         .from('appointments').select('data').eq('id', partnerId).maybeSingle();
-      const expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+      let expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+      /* L'ABONNEMENT ATTEND SA PREMIÈRE ÉCHÉANCE, ou son prix entier. Même
+         règle et même lecture que `kkiapay-verify` : le montant attendu se lit
+         DANS ce qui est réglé, jamais dans le corps de la requête. */
+      if (!apptDue) {
+        const { data: subDue } = await admin
+          .from('subscribers').select('data').eq('id', partnerId).maybeSingle();
+        const d = (subDue?.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+        const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
+          ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
+          : 0;
+        expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      }
       if (expected > 0 && paid + 1 < expected) {
         console.log(`kkiapay-webhook: ${transactionId} sous-payé (${paid} < ${expected}) — non confirmé`);
         return new Response('ok', { status: 200 });
