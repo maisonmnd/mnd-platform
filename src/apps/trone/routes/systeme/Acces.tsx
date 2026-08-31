@@ -4,7 +4,7 @@ import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff, vientDeMaCouronne, type CompteEnAttente } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
-import { NAV, ROUTES_MAITRE, domaineDe } from '../index';
+import { NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
 import './systeme.css';
@@ -68,6 +68,24 @@ export default function Acces() {
   const attenteCouronne = pending.filter((u) => vientDeMaCouronne(u, estCliente));
   const nomCliente = (userId: string) =>
     clients.find((c) => c.authUserId === userId || c.id === userId)?.name ?? 'Cliente Ma Couronne';
+  /* ── OUVERTS D'OFFICE, FERMABLES À LA MAIN — 31 août 2026 ────────
+     `/mon-mois`, `/fil` et `/tableau` ne se cochent pas comme les autres : ils
+     sont ouverts TANT QU'ON NE LES A PAS FERMÉS. Les traiter comme les autres
+     aurait tout retiré aux comptes déjà autorisés, dont la matrice ne porte
+     aucune case pour eux.
+
+     ILS NE DÉPENDENT PAS DU DOMAINE : ouvrir « Équipe & croissance » en entier
+     ne doit pas rouvrir un fil qu'on vient de fermer à quelqu'un. */
+  const estFermable = (path: string) => ROUTES_MAITRE_FERMABLES.includes(path);
+  const ecranOuvert = (userId: string, path: string, toutOuvert: boolean) =>
+    (estFermable(path) ? acces[userId]?.[path] !== false : (toutOuvert || acces[userId]?.[path] === true));
+  const basculeEcran = (userId: string, path: string, toutOuvert: boolean) => {
+    if (!estFermable(path)) { basculeDomaine(userId, path); return; }
+    const ouvert = acces[userId]?.[path] !== false;
+    setAcces((prev) => ({ ...prev, [userId]: { ...(prev[userId] ?? {}), [path]: !ouvert } }));
+    void toutOuvert;
+  };
+
   const basculeDomaine = (userId: string, d: string) =>
     setAcces((prev) => ({
       ...prev,
@@ -366,10 +384,12 @@ export default function Acces() {
                           {ecrans.map((it) => (
                             <button
                               key={it.path}
-                              className={`tre-chip ${toutOuvert || acces[m.user_id]?.[it.path] ? 'is-on' : ''}`}
+                              className={`tre-chip ${ecranOuvert(m.user_id, it.path, toutOuvert) ? 'is-on' : ''}`}
                               style={{ fontSize: 11.5 }}
-                              onClick={() => basculeDomaine(m.user_id, it.path)}
-                              title={toutOuvert ? 'Ouvert par le domaine entier' : undefined}
+                              onClick={() => basculeEcran(m.user_id, it.path, toutOuvert)}
+                              title={estFermable(it.path)
+                                ? 'Ouvert d’office ; cliquez pour le fermer à cette personne.'
+                                : (toutOuvert ? 'Ouvert par le domaine entier' : undefined)}
                             >
                               {it.label}
                             </button>

@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## MON MOIS, LE FIL, LE TABLEAU SE FERMENT — 31 août, PUBLIÉ
+
+« Je veux sélectionner si je veux Mon mois, Mon fil ou Mon tableau sur tous les
+comptes employés. »
+
+**Ces quatre écrans étaient ouverts d'office à TOUT le personnel, sans recours** :
+`ROUTES_MAITRE = ['/mon-mois', '/calendrier', '/fil', '/tableau']`, et la matrice
+les excluait même de ses cases (`filter((it) => !ROUTES_MAITRE.includes(...))`).
+Impossible de fermer Le Fil à une concierge qui n'a rien à y lire.
+
+- `/calendrier` **reste ouvert à tous** : c'est le minimum d'un poste, et un
+  compte sans un seul écran ouvrirait une application vide.
+- Les trois autres passent dans **`ROUTES_MAITRE_FERMABLES`** : **ouverts par
+  défaut, fermables à la main**.
+
+**L'ABSENCE VAUT « OUVERT ».** Les comptes déjà autorisés ne portent aucune case
+pour eux ; les rendre fermés d'un coup les aurait retirés à tout le monde le jour
+de la mise en ligne. Seul un `false` explicitement posé ferme.
+
+**Ils ne dépendent pas du domaine** : ouvrir « Équipe & croissance » en entier ne
+rouvre pas un fil qu'on vient de fermer à quelqu'un.
+
+### Ce qui n'était PAS un défaut
+
+« Je ne dois pas voir le fil des autres employés. » Les fils privés sont fermés
+**au serveur** depuis 0060 : `notes:` ne se lit que par son auteur, `dm:` que par
+ses deux participants. Ce que Kabirou voyait était **« Toute la Maison »**, le fil
+commun, et la liste sous « Pour moi seul » n'est qu'un carnet d'adresses pour
+ouvrir un tête-à-tête — pas le contenu des autres. Pour qu'il ne le voie plus, on
+lui ferme `/fil`, ce qui est désormais possible.
+
+13 assertions de plus sur `verifie-porte`.
+
+---
+
 ## LE TRÔNE RESTE AU TRÔNE — 31 août, PUBLIÉ
 
 « Tout est très confus. Le Trône reste au Trône, Ma Couronne sur Ma Couronne.

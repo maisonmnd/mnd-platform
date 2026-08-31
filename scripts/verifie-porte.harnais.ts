@@ -6,6 +6,7 @@
    et les fiches de toutes les autres. Aucun écran ne rattrape cette erreur
    après coup : elle se voit le jour où l'accès a déjà servi. */
 import { vientDeMaCouronne, origineDeLaSession, type CompteEnAttente } from '../src/shared/auth';
+import { peutVoir } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -74,6 +75,40 @@ dit('celle du Trône aussi', 'trone', origineDeLaSession(sess('trone')));
 dit('une porte inventée ne se lit pas', undefined, origineDeLaSession(sess('souverain')));
 dit('pas de session, pas de porte', undefined, origineDeLaSession(null));
 dit('session sans marque', undefined, origineDeLaSession(sess()));
+
+/* ── ⑥ CE QU'UN MAÎTRE VOIT, ÉCRAN PAR ÉCRAN ───────────────────────
+   « Je veux sélectionner si je veux Mon mois, Mon fil ou Mon tableau sur tous
+   les comptes employés » (Yéman, 31 août). Ces trois écrans étaient ouverts à
+   TOUT le personnel sans recours, et la matrice les excluait même de ses
+   cases. */
+dit('le calendrier reste ouvert à tous', true, peutVoir('maitre', '/calendrier', {}));
+
+/* OUVERTS SANS RIEN COCHER : les comptes déjà autorisés n'ont aucune case
+   pour eux ; les rendre fermés d'un coup les retirerait à tout le monde le
+   jour de la mise en ligne. */
+dit('Mon mois est ouvert sans rien cocher', true, peutVoir('maitre', '/mon-mois', {}));
+dit('Le Fil aussi', true, peutVoir('maitre', '/fil', {}));
+dit('Le Tableau aussi', true, peutVoir('maitre', '/tableau', {}));
+
+/* SEUL UN REFUS EXPLICITE FERME. */
+dit('un refus posé ferme Le Fil', false, peutVoir('maitre', '/fil', { '/fil': false }));
+dit('… et n’emporte pas les autres', [true, true],
+  [peutVoir('maitre', '/mon-mois', { '/fil': false }), peutVoir('maitre', '/tableau', { '/fil': false })]);
+
+/* LE DOMAINE NE ROUVRE PAS CE QU'ON A FERMÉ : ouvrir « Équipe & croissance »
+   en entier ne doit pas rendre à quelqu'un un fil qu'on vient de lui retirer. */
+dit('le domaine entier ne rouvre pas un fil fermé', false,
+  peutVoir('maitre', '/fil', { equipe: true, '/fil': false }));
+
+/* LES AUTRES ÉCRANS N'ONT PAS CHANGÉ : fermés tant qu'on n'ouvre rien. */
+dit('les dépenses restent fermées par défaut', false, peutVoir('maitre', '/depenses', {}));
+dit('… et s’ouvrent à la case', true, peutVoir('maitre', '/depenses', { '/depenses': true }));
+dit('… ou par leur domaine', true, peutVoir('maitre', '/depenses', { finances: true }));
+
+/* CE QUI EST RÉSERVÉ AU SOUVERAIN LE RESTE, quoi qu'on coche. */
+dit('le Journal reste au souverain', false, peutVoir('maitre', '/journal', { '/journal': true, systeme: true }));
+dit('… et s’ouvre pour lui', true, peutVoir('souverain', '/journal', {}));
+dit('un gérant voit tout le reste', true, peutVoir('gerant', '/depenses', {}));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

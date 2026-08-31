@@ -136,7 +136,28 @@ export const NAV: TroneGroup[] = [
    mais ils ont accès à leurs fils » (18 août). Ce que chacun y VOIT est réglé
    dedans (`messageVisible`, `demandesDuTableau`, `sansPrix`) — la porte peut
    donc être ouverte : elle ne donne que sur ce qui regarde la personne. */
-export const ROUTES_MAITRE = ['/mon-mois', '/calendrier', '/fil', '/tableau'];
+/* ── CE QUI EST OUVERT D'OFFICE, ET CE QUI SE FERME — 31 août 2026 ──
+   « Je veux sélectionner si je veux Mon mois, Mon fil ou Mon tableau sur tous
+   les comptes employés » (Yéman).
+
+   Ces quatre écrans étaient ouverts à TOUT le personnel, sans recours : la
+   matrice les excluait même de ses cases. Impossible de fermer Le Fil à une
+   concierge qui n'a rien à y lire, ni Mon mois à quelqu'un dont la production
+   ne le regarde pas.
+
+   `/calendrier` RESTE OUVERT À TOUS : c'est le minimum d'un poste de travail,
+   et un compte sans un seul écran ouvrirait une application vide, sans même
+   pouvoir dire pourquoi.
+
+   Les trois autres passent en OUVERTS PAR DÉFAUT, FERMABLES À LA MAIN. Le
+   défaut compte : la matrice des comptes déjà autorisés ne porte aucune case
+   pour eux, et les rendre fermés d'un coup les retirerait à tout le monde du
+   jour au lendemain. L'ABSENCE vaut donc « ouvert », et seul un `false`
+   explicitement posé ferme. */
+export const ROUTES_MAITRE = ['/calendrier'];
+
+/** Ouverts d'office, mais qu'un souverain peut refermer un par un. */
+export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/fil', '/tableau'];
 
 /* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
    Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
@@ -190,6 +211,9 @@ export const peutVoir = (
   if (ROUTES_SOUVERAIN.includes(path)) return role === 'souverain';
   if (role !== 'maitre') return true;
   if (ROUTES_MAITRE.includes(path)) return true;
+  /* OUVERT SAUF REFUS EXPLICITE. `undefined` vaut oui — sans quoi tous les
+     comptes déjà autorisés perdraient ces écrans le jour de la mise en ligne. */
+  if (ROUTES_MAITRE_FERMABLES.includes(path)) return acces[path] !== false;
   if (acces[path] === true) return true;
   const d = domaineDe(path);
   return !!d && acces[d] === true;
