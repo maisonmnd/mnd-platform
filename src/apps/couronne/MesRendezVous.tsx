@@ -7,7 +7,7 @@ import { tetesPortees } from '../../shared/accounts';
 import { useServices } from '../../shared/catalog';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
-import { useExceptionsHoraires } from '../../shared/settings';
+import { useExceptionsHoraires, useSettings } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
 import {
   DOW_LETTERS,
@@ -15,6 +15,7 @@ import {
   dayLabelIso,
   fmtDuration,
   freeSlots,
+  useCreneauxOccupes,
   pad2,
   todayIso,
   useClientId,
@@ -105,9 +106,12 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   const [monthIdx, setMonthIdx] = useState(0);
   const [selIso, setSelIso] = useState<string | null>(null);
 
+  /* TROIS FENÊTRES, DONC DEUX MOIS PLEINS DEVANT SOI — 31 août 2026. Le
+     dernier jour d'un mois, deux fenêtres n'en laissaient qu'une et un jour.
+     Même règle qu'à la réservation. */
   const months = useMemo(() => {
     const d0 = new Date();
-    return [0, 1].map((k) => {
+    return [0, 1, 2].map((k) => {
       const d = new Date(d0.getFullYear(), d0.getMonth() + k, 1);
       return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
     });
@@ -122,6 +126,29 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   const [blocages] = useBlocages();
   const [exceptions] = useExceptionsHoraires();
 
+  /* CE QUE LE SALON A DÉJÀ PRIS, vu du serveur — la RLS ne montre à une
+     cliente que ses propres rendez-vous (migration 0079).
+
+     ET SANS CELUI QU'ELLE DÉPLACE : son ancien créneau doit redevenir libre,
+     ici comme dans `others`. On le reconnaît à son jour, son heure et son
+     maître, les trois seules choses que le serveur consent à dire. */
+  const fenetreOccup = useMemo(() => {
+    const p0 = months[0];
+    const dn = months[months.length - 1];
+    return {
+      du: `${p0.y}-${pad2(p0.m + 1)}-01`,
+      au: `${dn.y}-${pad2(dn.m + 1)}-${pad2(new Date(dn.y, dn.m + 1, 0).getDate())}`,
+    };
+  }, [months]);
+  const occupesTous = useCreneauxOccupes(branch.id, fenetreOccup.du, fenetreOccup.au);
+  const occupes = useMemo(() => (editing
+    ? occupesTous.filter((c) => !(c.jour === editing.date && c.debut === editing.time && c.maitre === editing.master))
+    : occupesTous), [occupesTous, editing]);
+
+  /* Les heures d'ouverture arrivent APRÈS le premier rendu : sans elles dans
+     les dépendances, la grille garde sa réponse d'avant. Voir Booking. */
+  const [reglages] = useSettings();
+
   const calCells = useMemo(() => {
     if (!editing) return [];
     const dur = durationOf(editing);
@@ -131,15 +158,15 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     for (let i = 0; i < first.getDay(); i++) cells.push({ key: `b${i}`, day: null, free: false });
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
-      const free = iso >= today && freeSlots(iso, editing.master, dur, others, services, branch.id).length > 0;
+      const free = iso >= today && freeSlots(iso, editing.master, dur, others, services, branch.id, occupes).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, month, others, services, branch.id, today, blocages, exceptions]);
+  }, [editing, month, others, services, branch.id, today, blocages, exceptions, occupes, reglages]);
 
   const dayTimes =
-    editing && selIso ? freeSlots(selIso, editing.master, durationOf(editing), others, services, branch.id) : [];
+    editing && selIso ? freeSlots(selIso, editing.master, durationOf(editing), others, services, branch.id, occupes) : [];
 
   const openEdit = (a: Appointment) => {
     setEditing(a);

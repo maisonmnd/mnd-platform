@@ -28,6 +28,7 @@ import {
   firstName,
   fmtDuration,
   freeSlots,
+  useCreneauxOccupes,
   pad2,
   todayIso,
   useClient,
@@ -422,16 +423,52 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     setStep(3);
   };
 
-  /* ---- Calendrier : mois courant + suivant, disponibilité sur la durée TOTALE ---- */
+  /* ---- Calendrier : mois courant + DEUX suivants, disponibilité sur la durée TOTALE ----
+     « Les clients de Ma Couronne n'arrivent pas à prendre RDV au-delà du
+     30 septembre. Allow 2 months ahead » (Yéman, 31 août 2026).
+
+     LE 31 AOÛT, DEUX MOIS N'EN FONT QU'UN. Le calendrier ouvrait le mois
+     courant et le suivant : le dernier jour d'août, cela ne laissait qu'un
+     mois et un jour devant soi, et la cliente qui prépare sa reprise de
+     rentrée butait sur un mur. Trois fenêtres donnent au moins deux mois
+     pleins, quel que soit le jour où l'on regarde. */
   const months = useMemo(() => {
     const now = new Date();
-    return [0, 1].map((k) => {
+    return [0, 1, 2].map((k) => {
       const d = new Date(now.getFullYear(), now.getMonth() + k, 1);
       return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
     });
   }, []);
 
   const month = months[monthIdx];
+
+  /* ── CE QUE LE SALON A DÉJÀ PRIS — 31 août 2026 ────────────────────
+     La RLS ne laisse lire à une cliente que SES rendez-vous ; le calendrier
+     se dessinait donc contre un agenda vide. `creneaux_occupes` (0079) rend
+     la forme des murs sans dire qui les occupe. On demande la fenêtre
+     entière d'un coup : trois mois, une requête, et plus rien à faire quand
+     elle tourne les pages. */
+  const fenetre = useMemo(() => {
+    const p = months[0];
+    const d = months[months.length - 1];
+    return {
+      du: `${p.y}-${pad2(p.m + 1)}-01`,
+      au: `${d.y}-${pad2(d.m + 1)}-${pad2(new Date(d.y, d.m + 1, 0).getDate())}`,
+    };
+  }, [months]);
+  const occupes = useCreneauxOccupes(branch.id, fenetre.du, fenetre.au);
+
+  /* LES RÉGLAGES ENTRENT DANS LES DÉPENDANCES — 31 août 2026. « Le calendrier
+     est libre le lundi 31 août pourtant le salon est fermé. »
+
+     `freeSlots` lit les heures d'ouverture dans le magasin, MAIS ce calcul est
+     mémorisé : au premier rendu le document n'est pas encore descendu du
+     serveur, et le repli dit lundi ouvert de 9 h à 19 h. La vérité arrivait un
+     instant plus tard, le composant se redessinait — et la grille, elle,
+     gardait sa réponse d'avant, faute d'une dépendance qui ait changé. Un
+     abonnement sans dépendance ne rafraîchit rien. */
+  const [reglages] = useSettings();
+
   const calCells = useMemo(() => {
     if (!selected.length) return [];
     const first = new Date(month.y, month.m, 1);
@@ -442,14 +479,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
       const past = iso < today;
-      const free = !past && freeSlots(iso, master, totalDuration, appts, tousServices, branch.id).length > 0;
+      const free = !past && freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
-  }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions]);
+  }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions, occupes, reglages]);
 
   const dayTimes = selIso && selected.length
-    ? freeSlots(selIso, master, totalDuration, appts, tousServices, branch.id)
+    ? freeSlots(selIso, master, totalDuration, appts, tousServices, branch.id, occupes)
     : [];
 
   /* LE MOMENT EST POSÉ quand toutes les séances ont le leur — c'est lui qui

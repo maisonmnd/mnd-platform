@@ -9,7 +9,7 @@ import { pushNotifyStaff } from '../../shared/push';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, servesBand, bandForService } from '../../shared/pricing';
 import { useServices, useProducts, useCategories, type Service, type ServiceInclus } from '../../shared/catalog';
 import {
-  dateOfIso, dayLabelIso, ensureClient, fmtDuration, isoOf, todayIso, freeSlots, useClient, useClientId,
+  dateOfIso, dayLabelIso, ensureClient, fmtDuration, isoOf, todayIso, freeSlots, useCreneauxOccupes, useClient, useClientId,
 } from './lib';
 
 /* ═══ LE CYCLE — un forfait de plusieurs séances, scellé d'un geste ═══
@@ -88,6 +88,17 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
   const client = useClient();
   const clientId = useClientId();
   const [appts] = useAppointments();
+  /* CE QUE LE SALON A DÉJÀ PRIS — 31 août 2026. Même raison qu'à la
+     réservation : la RLS ne laisse lire à une cliente que SES rendez-vous, et
+     un cycle proposé contre un agenda vide tombe sur des heures occupées. La
+     fenêtre couvre six mois, un cycle se posant loin devant. Voir la migration
+     0079 et le commentaire de `freeSlots`. */
+  const fenetreCycle = useMemo(() => {
+    const d = new Date();
+    const fin = new Date(d.getFullYear(), d.getMonth() + 6, 0);
+    return { du: isoOf(d), au: isoOf(fin) };
+  }, []);
+  const occupes = useCreneauxOccupes(branch.id, fenetreCycle.du, fenetreCycle.au);
   /* LE CATALOGUE ENTIER : la composition d'un forfait ne dépend pas de ce
      qu'on montre à cette cliente-là (règle du 15–16 août). */
   const [tousServices] = useServices();
@@ -142,7 +153,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       let iso = vise < plancher ? plancher : vise;
       let pose = false;
       for (let k = 0; k < 120 && !pose; k += 1) {
-        const libres = freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id);
+        const libres = freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes);
         if (libres.length) {
           out.push({ iso, time: libres[0] });
           if (i === 0) depart = iso;
@@ -190,14 +201,14 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
     const out: string[] = [];
     let iso = plusJours(todayIso(), 1);
     for (let k = 0; k < 70 && out.length < 24; k += 1) {
-      if (freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id).length) out.push(iso);
+      if (freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes).length) out.push(iso);
       iso = plusJours(iso, 1);
     }
     return out;
   }, [retouche, seances, master, appts, tousServices, branch.id]);
 
   const heuresDuJour = retouche !== null && jourRetouche
-    ? freeSlots(jourRetouche, master, seances[retouche].dureeMin, appts, tousServices, branch.id)
+    ? freeSlots(jourRetouche, master, seances[retouche].dureeMin, appts, tousServices, branch.id, occupes)
     : [];
 
   const poser = (i: number, iso: string, time: string) => {

@@ -435,48 +435,128 @@ const toMin = (hhmm: string) => {
     exceptions d'une date — `openingForIso` les résout toutes), MOINS les
     créneaux bloqués à la main, et SEULEMENT si le plafond de rendez-vous du
     jour n'est pas atteint. Trois murs, trois réglages du Trône. */
+/** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
+    C'est tout ce que le serveur consent à donner à une cliente, et tout ce
+    qu'un calendrier honnête demande. */
+export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
+
+/** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
+
+    `freeSlots` lisait les réglages, les blocages et l'heure du jour dans des
+    variables globales : impossible à éprouver sans monter toute l'application.
+    Les murs entrent maintenant par la porte, et le harnais peut poser
+    n'importe quelle journée. */
+export function creneauxLibres(o: {
+  opening: { closed: boolean; openMin: number; closeMin: number };
+  durationMin: number;
+  /** Tout ce qui occupe la journée, tous maîtres confondus. */
+  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
+  /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
+  bloques?: readonly (readonly [number, number])[];
+  master: string;
+  capMaison?: number;
+  capMaitre?: number;
+  /** Minutes depuis minuit si la date est aujourd'hui ; sinon `null`. */
+  maintenantMin?: number | null;
+  /** Le pas de la grille. Une heure, comme au comptoir. */
+  pasMin?: number;
+}): string[] {
+  if (o.opening.closed) return [];
+
+  /* LE PLAFOND D'ABORD : au-delà, plus aucun créneau — même si des heures
+     restent. La maison choisit son souffle ; le comptoir, lui, n'est pas
+     bridé (poser un RDV à la main reste un geste du personnel). 0 = illimité. */
+  const capMaison = o.capMaison ?? 0;
+  const capMaitre = o.capMaitre ?? 0;
+  if (capMaison > 0 && o.occupes.length >= capMaison) return [];
+  const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
+  if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
+
+  const busy: Array<readonly [number, number]> = duMaitre
+    .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
+  if (o.bloques) busy.push(...o.bloques);
+
+  const pas = o.pasMin ?? 60;
+  const out: string[] = [];
+  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+    if (o.maintenantMin != null && m <= o.maintenantMin) continue;
+    const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
+    if (!overlaps) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
+  }
+  return out;
+}
+
 export function freeSlots(
   dateIso: string,
   master: string,
   durationMin: number,
   appts: Appointment[],
   services: Service[],
-  branchId: string
+  branchId: string,
+  /** ── L'AGENDA VU DU SERVEUR — 31 août 2026 ──────────────────────────
+      « Le salon est libre à 13h et 16h pourtant il y a déjà 2 RDV à ces
+      horaires » (Yéman).
+
+      LA CAUSE ÉTAIT DANS LA RLS, ET ELLE EST JUSTE : `appointments` est en
+      `owned_by_data`, une cliente ne lit QUE les siens. Ma Couronne calculait
+      donc ses créneaux contre un agenda vide et proposait des heures déjà
+      prises. Ouvrir la table aux clientes aurait donné à chacune les noms et
+      les prestations de toutes les autres ; la fonction `creneaux_occupes`
+      (migration 0079) ne rend que la forme du mur.
+
+      QUAND ELLE EST FOURNIE, ELLE FAIT SEULE AUTORITÉ : elle contient déjà
+      tout, y compris les rendez-vous de la cliente elle-même. Les mêler à
+      `appts` compterait deux fois les siens contre le plafond du jour. */
+  occupesDuJour?: readonly CreneauOccupe[],
 ): string[] {
   const opening = openingForIso(dateIso);
   if (opening.closed) return [];
 
-  const duJour = appts.filter((a) => a.branchId === branchId && a.date === dateIso && a.status !== 'annulé');
-
-  /* LE PLAFOND D'ABORD : au-delà, plus aucun créneau — même si des heures
-     restent. La maison choisit son souffle ; le comptoir, lui, n'est pas
-     bridé (poser un RDV à la main reste un geste du personnel). 0 = illimité. */
   const regl = settingsStore.get();
-  const capMaison = regl.maxRdvParJourMaison ?? 0;
-  const capMaitre = regl.maxRdvParJourMaitre ?? 0;
-  if (capMaison > 0 && duJour.length >= capMaison) return [];
-  const duMaitre = duJour.filter((a) => a.master === master);
-  if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
-
-  /* L'agenda du maître, PLUS les murs posés à la main (pause, absence) :
-     un blocage occupe le calendrier exactement comme un rendez-vous. */
-  const busy: Array<readonly [number, number]> = duMaitre.map((a) => {
-    const start = toMin(a.time);
-    return [start, start + apptDurationMin(a, services)] as const;
-  });
-  busy.push(...plagesBloquees(blocagesStore.get(), branchId, dateIso, master, hourToMin));
-
   const now = new Date();
-  const isToday = dateIso === isoOf(now);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
 
-  const out: string[] = [];
-  for (let m = opening.openMin; m + durationMin <= opening.closeMin; m += 60) {
-    if (isToday && m <= nowMin) continue;
-    const overlaps = busy.some(([s, e]) => m < e && m + durationMin > s);
-    if (!overlaps) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
-  }
-  return out;
+  const occupes = occupesDuJour
+    ? occupesDuJour
+      .filter((c) => c.jour === dateIso)
+      .map((c) => ({ maitre: c.maitre, debutMin: toMin(c.debut), dureeMin: c.duree }))
+    : appts
+      .filter((a) => a.branchId === branchId && a.date === dateIso && a.status !== 'annulé')
+      .map((a) => ({ maitre: a.master, debutMin: toMin(a.time), dureeMin: apptDurationMin(a, services) }));
+
+  return creneauxLibres({
+    opening,
+    durationMin,
+    occupes,
+    bloques: plagesBloquees(blocagesStore.get(), branchId, dateIso, master, hourToMin),
+    master,
+    capMaison: regl.maxRdvParJourMaison ?? 0,
+    capMaitre: regl.maxRdvParJourMaitre ?? 0,
+    maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
+  });
+}
+
+/** LES CRÉNEAUX OCCUPÉS D'UNE PÉRIODE, lus au serveur.
+
+    ELLE ÉCHOUE OUVERT, ET C'EST DÉLIBÉRÉ : si la fonction n'est pas encore
+    posée en base, ou si le réseau tombe, on rend une liste vide et le
+    calendrier retombe sur l'agenda local. Mieux vaut proposer une heure déjà
+    prise — que le Trône refusera à la confirmation — que de fermer le salon
+    tout entier parce qu'une requête n'a pas abouti. */
+export function useCreneauxOccupes(branchId: string, du: string, au: string): CreneauOccupe[] {
+  const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
+  useEffect(() => {
+    let vivant = true;
+    if (!supabase || !branchId || !du || !au) { setOccupes([]); return; }
+    void supabase
+      .rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au })
+      .then(({ data, error }) => {
+        if (!vivant) return;
+        if (error) { setOccupes([]); return; }
+        setOccupes((data ?? []) as CreneauOccupe[]);
+      });
+    return () => { vivant = false; };
+  }, [branchId, du, au]);
+  return occupes;
 }
 
 /* ---------- Paliers d'expérience ---------- */

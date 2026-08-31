@@ -42,6 +42,51 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LE CALENDRIER DE MA COURONNE · 31 août 2026
+
+Trois défauts d'un coup, trois causes différentes.
+
+### « Le lundi 31 août est libre pourtant le salon est fermé »
+
+`freeSlots` lit les heures dans `settingsStore`, mais `calCells` est un
+`useMemo` dont les dépendances ne contenaient PAS les réglages. Au premier
+rendu le document n'est pas descendu et le repli dit lundi ouvert 9 h à 19 h ;
+la vérité arrivait un instant plus tard, le composant se redessinait, et la
+grille gardait sa réponse d'avant.
+
+`useSettings()` était bien appelé : **un abonnement sans dépendance ne
+rafraîchit aucun mémo.** C'est le piège, et il est silencieux.
+
+### « Le salon est libre à 13h et 16h pourtant il y a 2 RDV »
+
+LA CAUSE ÉTAIT DANS LA RLS, ET ELLE EST JUSTE. `appointments` est en
+`owned_by_data` : une cliente ne lit QUE ses rendez-vous. Ma Couronne calculait
+donc ses créneaux contre un agenda vide.
+
+Ouvrir la table aux clientes aurait donné à chacune les noms, les prestations
+et les prix de toutes les autres. **Migration 0079** : `creneaux_occupes(branch,
+du, au)`, SECURITY DEFINER, qui rend `jour · maitre · debut · duree`. La forme
+du mur, jamais ce qu'il y a derrière. La durée est calculée en base pour ne pas
+avoir à dire quelles prestations composent le rendez-vous.
+
+`useCreneauxOccupes` ÉCHOUE OUVERT : fonction pas encore posée, réseau tombé →
+liste vide et repli sur l'agenda local. Mieux vaut proposer une heure prise,
+que le Trône refusera, que fermer le salon parce qu'une requête n'a pas abouti.
+
+### « Pas de RDV au-delà du 30 septembre »
+
+Le calendrier ouvrait `[0, 1]`, mois courant + suivant. **Le 31 août, cela ne
+fait qu'un mois et un jour.** Passé à `[0, 1, 2]` : trois fenêtres donnent au
+moins deux mois pleins quel que soit le jour où l'on regarde. Corrigé aussi
+dans `MesRendezVous` (le déplacement), qui avait les trois mêmes défauts.
+
+### Le moteur est devenu jugeable
+
+`creneauxLibres()` est extrait, pur, sans aucun magasin : ouverture, occupés,
+blocages, plafonds, heure du jour entrent par la porte. `freeSlots` n'est plus
+qu'une façade qui va chercher les murs dans les registres. 25 assertions sur
+`verifie-creneaux`.
+
 ## LA VALIDATION DES DÉPENSES · 31 août 2026
 
 « À chaque fois qu un employé émet une dépense il doit recevoir un bouton
