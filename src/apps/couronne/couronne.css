@@ -2797,3 +2797,30 @@
   margin: 8px 0 6px; line-height: 1.2;
 }
 .cma-attente__dit { font-size: 12.5px; color: var(--ink-soft); margin: 0; line-height: 1.6; }
+
+/* ═══ LA SORTIE DOIT SE VOIR ══════════════════════════════════════════════
+   « How do I leave this page and get back to normal sign in? » (Yéman,
+   1er septembre 2026).
+
+   LE BOUTON ÉTAIT LÀ, ET IL MARCHAIT. Il était simplement INDIGO SUR FOND
+   INDIGO : `.mc-cta--outline` est dessiné pour le papier ivoire, et
+   `.mc-closed` peint son fond en indigo. Sur les trois écrans qui raccompagnent
+   quelqu'un — la maison fermée, le compte du personnel, l'adresse déjà prise —
+   la seule porte de sortie était invisible.
+
+   UN ÉCRAN QUI RETIENT SANS LE VOULOIR EST PIRE QU'UN ÉCRAN QUI REFUSE : on ne
+   cherche pas une issue qu'on ne voit pas, on ferme l'application et on ne
+   revient plus. */
+.mc-closed .mc-cta--outline {
+  color: var(--color-ivoire);
+  border-color: rgba(246, 241, 231, 0.45);
+}
+.mc-closed .mc-cta--outline:hover {
+  background: rgba(246, 241, 231, 0.12);
+  border-color: var(--color-ivoire);
+}
+.mc-closed .mc-cta--quiet {
+  color: rgba(246, 241, 231, 0.78);
+  border-color: rgba(246, 241, 231, 0.28);
+}
+.mc-closed .mc-cta--quiet:hover { background: rgba(246, 241, 231, 0.1); }

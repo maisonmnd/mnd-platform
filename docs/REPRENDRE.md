@@ -75,6 +75,20 @@ Le serveur est le seul à voir les fiches des autres, donc le seul qui puisse
 conclure : `if (supabase) return false` avant le repli. Celui-ci ne vaut plus
 qu en développement, sans backend.
 
+### La sortie était indigo sur fond indigo
+
+« How do I leave this page and get back to normal sign in? » Le bouton de sortie
+ETAIT la, et il marchait : `.mc-cta--outline` est dessine pour le papier ivoire,
+et `.mc-closed` peint son fond en indigo. Sur les TROIS ecrans qui raccompagnent
+quelqu un — maison fermee, compte du personnel, adresse deja prise — la seule
+porte de sortie etait invisible.
+
+UN ECRAN QUI RETIENT SANS LE VOULOIR EST PIRE QU UN ECRAN QUI REFUSE : on ne
+cherche pas une issue qu on ne voit pas, on ferme l application et on ne revient
+plus. Regle portee sur `.mc-closed .mc-cta--outline` et `--quiet`, et le mot
+devient « Se deconnecter et entrer autrement » : « Entrer par e-mail » seul
+laissait croire qu on restait connecte.
+
 ### Migration 0080 — le passé et le dernier recours
 
 - `ecarter_du_personnel(uid)`, souverain uniquement, pose la marque côté

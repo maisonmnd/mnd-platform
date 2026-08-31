@@ -337,8 +337,11 @@ export default function App() {
             <button className="mc-cta" style={{ marginTop: 18 }} onClick={() => void signInWithGoogle()}>
               Continuer avec Google
             </button>
+            {/* LE MOT DIT LES DEUX CHOSES : ce bouton DÉCONNECTE, puis rouvre
+                la porte ordinaire. « Entrer par e-mail » seul laissait croire
+                qu'on restait connecté, et personne n'osait le toucher. */}
             <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={() => void signOut()}>
-              Entrer par e-mail et mot de passe
+              Se déconnecter et entrer autrement
             </button>
           </div>
         </div>
