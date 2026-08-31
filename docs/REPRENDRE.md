@@ -47,10 +47,22 @@ comptes employés. »
 les excluait même de ses cases (`filter((it) => !ROUTES_MAITRE.includes(...))`).
 Impossible de fermer Le Fil à une concierge qui n'a rien à y lire.
 
-- `/calendrier` **reste ouvert à tous** : c'est le minimum d'un poste, et un
-  compte sans un seul écran ouvrirait une application vide.
-- Les trois autres passent dans **`ROUTES_MAITRE_FERMABLES`** : **ouverts par
-  défaut, fermables à la main**.
+- Les quatre passent dans **`ROUTES_MAITRE_FERMABLES`** : **ouverts par défaut,
+  fermables à la main**. `/calendrier` les a rejoints le jour même — « Kabirou
+  n'est pas au fauteuil, il n'a pas besoin du calendrier ». Il était gardé comme
+  minimum d'un poste ; mais une porte laissée ouverte « au cas où » n'est pas un
+  minimum, c'est un oubli. **`ROUTES_MAITRE` est désormais vide.**
+
+### Le piège était une boucle
+
+Le Shell renvoyait vers `accueilDe(role)`, soit `/mon-mois` pour un maître. Le
+jour où l'on ferme cet écran, la redirection l'y renvoie, la garde le refuse,
+elle l'y renvoie encore : **l'application tourne sur elle-même et personne
+n'entre plus**. `premierEcranVisible(role, acces)` choisit désormais une
+destination QU'IL PEUT ATTEINDRE, ou `null`.
+
+Et quand un compte n'a **aucune** porte, le Shell le dit en toutes lettres au
+lieu d'ouvrir un menu sans ligne et une page blanche.
 
 **L'ABSENCE VAUT « OUVERT ».** Les comptes déjà autorisés ne portent aucune case
 pour eux ; les rendre fermés d'un coup les aurait retirés à tout le monde le jour
@@ -68,7 +80,7 @@ commun, et la liste sous « Pour moi seul » n'est qu'un carnet d'adresses pour
 ouvrir un tête-à-tête — pas le contenu des autres. Pour qu'il ne le voie plus, on
 lui ferme `/fil`, ce qui est désormais possible.
 
-13 assertions de plus sur `verifie-porte`.
+20 assertions de plus sur `verifie-porte`, dont la garde anti-boucle.
 
 ---
 

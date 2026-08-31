@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
-import { NAV, peutVoir, accueilDe, type TroneRoute } from '../routes/index';
+import { NAV, peutVoir, accueilDe, premierEcranVisible, type TroneRoute } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
@@ -147,7 +147,12 @@ export default function Shell() {
   useEffect(() => {
     if (!role) return;
     if (peutVoir(role, emplacement.pathname, mesDomaines)) return;
-    navigate(accueilDe(role), { replace: true });
+    /* ON NE RENVOIE QUE VERS UNE PORTE OUVERTE — 31 août 2026. Renvoyer vers
+       `accueilDe(role)` sans vérifier faisait tourner l'application sur
+       elle-même le jour où cet écran-là se fermait : la garde refuse, la
+       redirection y retourne, et personne n'entre plus. */
+    const ou = premierEcranVisible(role, mesDomaines);
+    if (ou && ou !== emplacement.pathname) navigate(ou, { replace: true });
   }, [role, emplacement.pathname, navigate, mesDomaines]);
 
   /* Remise à zéro PONCTUELLE des points Cercle (décision maison, juil. 2026) :
@@ -352,6 +357,39 @@ export default function Shell() {
       </button>
     </div>
   );
+
+  /* ── AUCUN ÉCRAN OUVERT — 31 août 2026 ────────────────────────────
+     Depuis que le calendrier lui-même se ferme, un compte peut n'avoir aucune
+     porte. L'application s'ouvrait alors sur du vide : un menu sans ligne, une
+     page blanche, et personne pour dire pourquoi. On le dit. */
+  if (role === 'maitre' && premierEcranVisible(role, mesDomaines) === null) {
+    return (
+      <div className="tr-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
+        <div style={{
+          maxWidth: 460, textAlign: 'center', background: 'var(--surface-card)',
+          border: '1px solid var(--hairline)', borderRadius: 4, padding: '30px 28px',
+        }}>
+          <Seal color="or" size={40} />
+          <div className="mnd-eyebrow" style={{ marginTop: 10 }}>Rien ne vous est ouvert</div>
+          <h1 className="mnd-serif" style={{ fontWeight: 300, fontSize: 27, color: 'var(--color-indigo)', margin: '8px 0 10px' }}>
+            Aucun écran ne vous attend.
+          </h1>
+          <p className="mnd-muted" style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
+            Votre compte est bien rattaché à la Maison, mais aucun écran ne vous a encore été
+            ouvert. Demandez-le à un souverain, il le fait d'un clic dans « Accès &amp; personnel ».
+          </p>
+          <button
+            type="button"
+            className="mnd-btn"
+            style={{ marginTop: 18 }}
+            onClick={() => void signOut()}
+          >
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${staff?.role === 'maitre' ? 'tr-shell--barre' : ''}`}>

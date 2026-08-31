@@ -154,10 +154,19 @@ export const NAV: TroneGroup[] = [
    pour eux, et les rendre fermés d'un coup les retirerait à tout le monde du
    jour au lendemain. L'ABSENCE vaut donc « ouvert », et seul un `false`
    explicitement posé ferme. */
-export const ROUTES_MAITRE = ['/calendrier'];
+/* LE CALENDRIER SE FERME AUSSI — 31 août 2026. « Kabirou est un employé qui
+   n'est pas au fauteuil, il n'a pas besoin du calendrier » (Yéman). Il était
+   gardé comme minimum d'un poste de travail ; mais un poste peut n'avoir rien
+   à faire du carnet de rendez-vous, et laisser une porte ouverte « au cas où »
+   n'est pas un minimum, c'est un oubli.
+
+   PLUS AUCUN ÉCRAN N'EST IMPOSÉ. Un compte peut donc n'en avoir aucun — le
+   Shell le dit alors en toutes lettres au lieu d'ouvrir une application vide
+   (voir `premierEcranVisible`). */
+export const ROUTES_MAITRE: string[] = [];
 
 /** Ouverts d'office, mais qu'un souverain peut refermer un par un. */
-export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/fil', '/tableau'];
+export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/tableau'];
 
 /* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
    Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
@@ -234,3 +243,24 @@ export const voitLesPrix = (role: string | undefined, acces: Record<string, bool
     atterrit sur son mois, pas sur une page blanche. */
 export const accueilDe = (role: string | undefined): string =>
   role === 'maitre' ? '/mon-mois' : '/';
+
+/** LE PREMIER ÉCRAN QU'IL PEUT VOIR, ou `null` s'il n'en a aucun.
+
+    LE PIÈGE ÉTAIT UNE BOUCLE : le Shell renvoyait vers `accueilDe(role)`, soit
+    `/mon-mois` pour un maître. Le jour où l'on ferme cet écran, la redirection
+    l'y renvoie, la garde le refuse, elle l'y renvoie encore — l'application
+    tourne sur elle-même et personne ne peut plus entrer. On choisit donc une
+    destination QU'IL PEUT ATTEINDRE, ou aucune. */
+export const premierEcranVisible = (
+  role: string | undefined,
+  acces: Record<string, boolean> = {},
+): string | null => {
+  const accueil = accueilDe(role);
+  if (peutVoir(role, accueil, acces)) return accueil;
+  for (const g of NAV) {
+    for (const it of g.items) {
+      if (!it.horsMenu && peutVoir(role, it.path, acces)) return it.path;
+    }
+  }
+  return null;
+};

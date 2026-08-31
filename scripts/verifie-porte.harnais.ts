@@ -6,7 +6,7 @@
    et les fiches de toutes les autres. Aucun écran ne rattrape cette erreur
    après coup : elle se voit le jour où l'accès a déjà servi. */
 import { vientDeMaCouronne, origineDeLaSession, type CompteEnAttente } from '../src/shared/auth';
-import { peutVoir } from '../src/apps/trone/routes/index';
+import { peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -81,7 +81,10 @@ dit('session sans marque', undefined, origineDeLaSession(sess()));
    les comptes employés » (Yéman, 31 août). Ces trois écrans étaient ouverts à
    TOUT le personnel sans recours, et la matrice les excluait même de ses
    cases. */
-dit('le calendrier reste ouvert à tous', true, peutVoir('maitre', '/calendrier', {}));
+dit('le calendrier est ouvert sans rien cocher', true, peutVoir('maitre', '/calendrier', {}));
+/* MAIS IL SE FERME AUSSI — « Kabirou n'est pas au fauteuil, il n'a pas besoin
+   du calendrier » (31 août). Plus aucun écran n'est imposé. */
+dit('… et se ferme comme les autres', false, peutVoir('maitre', '/calendrier', { '/calendrier': false }));
 
 /* OUVERTS SANS RIEN COCHER : les comptes déjà autorisés n'ont aucune case
    pour eux ; les rendre fermés d'un coup les retirerait à tout le monde le
@@ -109,6 +112,31 @@ dit('… ou par leur domaine', true, peutVoir('maitre', '/depenses', { finances:
 dit('le Journal reste au souverain', false, peutVoir('maitre', '/journal', { '/journal': true, systeme: true }));
 dit('… et s’ouvre pour lui', true, peutVoir('souverain', '/journal', {}));
 dit('un gérant voit tout le reste', true, peutVoir('gerant', '/depenses', {}));
+
+/* ── ⑦ ON NE RENVOIE QUE VERS UNE PORTE OUVERTE ────────────────────
+   LE PIÈGE ÉTAIT UNE BOUCLE : le Shell renvoyait vers l'accueil du rôle, soit
+   `/mon-mois` pour un maître. Le jour où l'on ferme cet écran, la redirection
+   l'y renvoie, la garde le refuse, elle l'y renvoie encore — l'application
+   tourne sur elle-même et personne n'entre plus. */
+dit('un maître ordinaire atterrit sur Mon mois', '/mon-mois', premierEcranVisible('maitre', {}));
+dit('… Mon mois fermé, il atterrit ailleurs, mais pas dessus', true,
+  premierEcranVisible('maitre', { '/mon-mois': false }) !== '/mon-mois');
+dit('… et cet ailleurs lui est bien ouvert', true, (() => {
+  const acces = { '/mon-mois': false };
+  const ou = premierEcranVisible('maitre', acces);
+  return !!ou && peutVoir('maitre', ou, acces);
+})());
+
+/* TOUT FERMÉ = AUCUNE DESTINATION. Le Shell le dit alors en toutes lettres au
+   lieu d'ouvrir une application vide. */
+dit('tout fermé, aucune destination', null,
+  premierEcranVisible('maitre', { '/mon-mois': false, '/calendrier': false, '/fil': false, '/tableau': false }));
+
+/* UN SOUVERAIN GARDE SA PORTE, quoi qu'on ait coché : les cases ne valent que
+   pour un maître. */
+dit('le souverain atterrit chez lui', '/', premierEcranVisible('souverain', {}));
+dit('… même avec des refus posés', '/',
+  premierEcranVisible('souverain', { '/mon-mois': false, '/calendrier': false }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
