@@ -4,7 +4,7 @@ import { maisonNom } from '../../../shared/identite';
 import { useClients } from '../../../shared/clients';
 import {
   useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff,
-  startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession } from '../../../shared/auth';
+  startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession, verifyInscription } from '../../../shared/auth';
 import './auth.css';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
@@ -114,7 +114,9 @@ function AuthSplash({ children }: { children: ReactNode }) {
    Les deux sont sur le même écran à dessein : vérifier le code ouvre déjà la
    session, donc le gate retirerait l'écran avant la saisie du mot de passe.
    Les deux appels s'enchaînent dans une seule soumission. */
-type Mode = 'connexion' | 'fondation' | 'oubli' | 'oubli-code';
+/* `inscription-code` : le gabarit Supabase envoie un CODE, pas un lien —
+   voir `verifyInscription`. La porte le prend là où il arrive. */
+type Mode = 'connexion' | 'fondation' | 'oubli' | 'oubli-code' | 'inscription-code';
 
 function Login() {
   const [mode, setMode] = useState<Mode>('connexion');
@@ -151,11 +153,24 @@ function Login() {
         await verifyPasswordReset(email, code.trim());
         await updatePassword(password);
         // La session est ouverte : le gate vérifie le rattachement et laisse entrer.
+      } else if (mode === 'inscription-code') {
+        if (code.trim().length < 6) {
+          setError('Saisissez le code à 6 chiffres reçu par e-mail.');
+          return;
+        }
+        await verifyInscription(email, code.trim());
+        /* La session s'ouvre : le gate vérifie le rattachement et dit la
+           suite — entrée pour le personnel, attente pour les autres. */
       } else if (mode === 'fondation') {
         const { needsConfirmation } = await signUpEmail(email, password, name);
         if (needsConfirmation) {
-          setNotice('Compte créé. Confirmez votre e-mail, puis connectez-vous.');
-          setMode('connexion');
+          /* ON NE RENVOIE PLUS VERS UNE PORTE CLOSE — 31 août 2026. L'écran
+             disait « confirmez votre e-mail, puis connectez-vous » et
+             ramenait à la connexion : or l'e-mail porte un CODE, qui n'avait
+             nulle part où être saisi. Le compte existait, le code arrivait,
+             et la porte restait fermée. */
+          setNotice('Compte créé. Saisissez le code à 6 chiffres reçu par e-mail.');
+          setMode('inscription-code');
         }
         // Sinon, la session s'ouvre et le gate laisse entrer.
       } else {
@@ -190,6 +205,8 @@ function Login() {
             ? 'Créez votre compte d’équipe. Le tout premier fonde la Maison ; les suivants attendent qu’un souverain les autorise. Vous êtes cliente ? C’est dans Ma Couronne.'
             : mode === 'oubli'
             ? 'Indiquez votre e-mail : la Maison vous envoie un code à 6 chiffres.'
+            : mode === 'inscription-code'
+            ? 'Votre compte est créé. Saisissez le code à 6 chiffres reçu par e-mail pour confirmer votre adresse.'
             : 'Saisissez le code reçu, puis choisissez votre nouveau mot de passe.'}
         </p>
 
@@ -199,13 +216,13 @@ function Login() {
           </Field>
         )}
 
-        {mode !== 'oubli-code' && (
+        {mode !== 'oubli-code' && mode !== 'inscription-code' && (
           <Field label="E-mail">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           </Field>
         )}
 
-        {mode === 'oubli-code' && (
+        {(mode === 'oubli-code' || mode === 'inscription-code') && (
           <Field label="Code reçu par e-mail">
             <Input
               type="text"
@@ -220,7 +237,9 @@ function Login() {
           </Field>
         )}
 
-        {mode !== 'oubli' && (
+        {/* À la confirmation, le mot de passe est DÉJÀ choisi : le redemander
+            ferait croire qu'on peut en changer, et l'écran mentirait. */}
+        {mode !== 'oubli' && mode !== 'inscription-code' && (
           <Field label={mode === 'oubli-code' ? 'Nouveau mot de passe' : 'Mot de passe'}>
             <Input
               type="password"
@@ -241,6 +260,7 @@ function Login() {
             : mode === 'connexion' ? 'Se connecter'
             : mode === 'fondation' ? 'Fonder la Maison'
             : mode === 'oubli' ? 'Envoyer le code'
+            : mode === 'inscription-code' ? 'Confirmer mon adresse'
             : 'Définir le mot de passe'}
         </Button>
 

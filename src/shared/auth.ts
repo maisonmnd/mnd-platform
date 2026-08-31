@@ -219,6 +219,29 @@ export async function startPasswordReset(email: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ── CONFIRMER UNE INSCRIPTION PAR CODE — 31 août 2026 ─────────────
+   « Au lieu de recevoir un mail à confirmer je reçois un code de connexion à
+   6 chiffres » (Yéman).
+
+   Le gabarit « Confirm signup » du tableau de bord expose `{{ .Token }}` —
+   comme celui de la réinitialisation, à qui il est indispensable. L'e-mail
+   porte donc un CODE, mais l'écran d'inscription disait « confirmez votre
+   e-mail, puis connectez-vous » et n'offrait nulle part où le saisir. Le
+   compte existait, le code arrivait, et la porte restait close.
+
+   On prend donc le code là où il arrive. `signup` d'abord — c'est le type que
+   Supabase émet à l'inscription ; `email` en repli, car les versions récentes
+   confondent les deux et l'une ou l'autre passe selon le projet. */
+export async function verifyInscription(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const mail = email.trim();
+  const code = token.trim();
+  const { error } = await supabase.auth.verifyOtp({ email: mail, token: code, type: 'signup' });
+  if (!error) return;
+  const repli = await supabase.auth.verifyOtp({ email: mail, token: code, type: 'email' });
+  if (repli.error) throw error;
+}
+
 /** Vérifie le code reçu et ouvre une session de récupération. */
 export async function verifyPasswordReset(email: string, token: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');
