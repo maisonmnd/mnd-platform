@@ -190,8 +190,27 @@ function baremeSuspendu(): boolean {
   try { return settingsStore.get().baremeSuspendu === true; } catch { return false; }
 }
 
-/** Arrondi commercial — au 500 F, un prix se dit sans virgule au comptoir. */
-export const roundPrice = (x: number): number => Math.round(x / 500) * 500;
+/** Arrondi commercial — au 500 F, un prix se dit sans virgule au comptoir.
+
+    L'ARRONDI NE FAIT JAMAIS DISPARAÎTRE UN PRIX — 1er septembre 2026.
+    « J'essaie de changer le prix de deux services à 150 francs et ça me met
+    0 franc systématiquement. Il prend les services à partir de 500 francs »
+    (Yéman).
+
+    Sous 250 F, l'arrondi au millier de billets rendait ZÉRO : une consultation
+    à 150 F s'affichait « 0 F » au tunnel, à la modale de rendez-vous et à la
+    caisse — donc OFFERTE, et encaissable telle quelle. La règle avait été
+    écrite quand tout se comptait en dizaines de milliers ; un petit prix la
+    prenait en défaut, et personne ne pouvait deviner que le coupable était un
+    arrondi, puisque la fiche, elle, portait bien 150.
+
+    SOUS LE PAS DE L'ARRONDI, LE PRIX EXACT FAIT FOI. On ne le pousse pas à 500
+    non plus : ce serait facturer trois fois ce que la Maison a écrit, en
+    silence. Un prix qui existe se dit tel qu'il est. */
+export const roundPrice = (x: number): number => {
+  const r = Math.round(x / 500) * 500;
+  return r === 0 && x > 0 ? Math.round(x) : r;
+};
 
 /** `lockCount` est porté ici — et pas seulement résumé par `band` — parce que les
     prestations au lock comptent le nombre EXACT de locks, là où la tranche ne

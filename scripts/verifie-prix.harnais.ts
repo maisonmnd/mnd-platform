@@ -3,7 +3,7 @@
 import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
   ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
-  unGesteDansLePanier, regimeTarifaire,
+  unGesteDansLePanier, regimeTarifaire, roundPrice,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -346,6 +346,42 @@ dit('un accord à zéro ne compte pas', false, aUnPrixConvenu({ prixFixes: { 'sv
 dit('un montant négatif non plus', false, aUnPrixConvenu({ prixFixes: { 'svc-a': -5_000 } }));
 dit('les zéros ne masquent pas un vrai accord', 1,
   comptePrixConvenus({ prixFixes: { 'svc-a': 0, 'svc-b': 20_000 } }));
+
+/* ── L'ARRONDI NE FAIT JAMAIS DISPARAÎTRE UN PRIX ───────────────────
+   « J'essaie de changer le prix de deux services à 150 francs et ça me met
+   0 franc systématiquement. Il prend les services à partir de 500 francs »
+   (Yéman, 1er septembre 2026).
+
+   L'ARRONDI COMMERCIAL AU 500 RENDAIT ZÉRO SOUS 250 F. Une consultation à
+   150 F s'affichait « 0 F » au tunnel de réservation, à la modale de
+   rendez-vous et à la caisse : donc OFFERTE, et encaissable telle quelle. La
+   fiche portait pourtant bien 150, et rien à l'écran ne pouvait mettre sur la
+   piste — c'est la pire espèce de défaut, celui dont la cause est ailleurs que
+   là où on la cherche.
+
+   DEUX FAUTES ÉTAIENT POSSIBLES, ET LA SECONDE AURAIT ÉTÉ PIRE : pousser 150
+   à 500 pour « rester rond » ferait payer trois fois ce que la Maison a écrit,
+   en silence. Sous le pas de l'arrondi, le prix exact fait foi. */
+dit('un prix rond ne bouge pas', 10_000, roundPrice(10_000));
+dit('l’arrondi commercial tient au-dessus du pas', 25_500, roundPrice(25_600));
+dit('… et vers le bas aussi', 25_500, roundPrice(25_400));
+dit('999 F se dit mille', 1_000, roundPrice(999));
+
+dit('150 F reste 150 F', 150, roundPrice(150));
+dit('… et 100 F reste 100 F', 100, roundPrice(100));
+dit('249 F ne tombe plus à zéro', 249, roundPrice(249));
+/* AU-DESSUS DU PAS, LA RÈGLE D'AVANT NE CHANGE PAS D'UN FRANC : 250 arrondit à
+   500 comme il l'a toujours fait. On répare un trou, on ne refait pas le tarif
+   de la Maison. */
+dit('250 F arrondit toujours à 500', 500, roundPrice(250));
+dit('400 F aussi', 500, roundPrice(400));
+
+/* ZÉRO RESTE ZÉRO : une prestation offerte l'est vraiment, et la garde ne doit
+   pas lui inventer un franc. */
+dit('zéro reste zéro', 0, roundPrice(0));
+/* UN MONTANT NÉGATIF N'EST PAS UN PRIX, mais il ne doit pas changer de signe
+   par accident : la garde ne se déclenche que sur du positif. */
+dit('un négatif garde son signe', -500, roundPrice(-500));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

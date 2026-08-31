@@ -62,8 +62,14 @@ export const RYTHMES: { k: RythmeCouleur; nom: string; dit: string }[] = [
 /** La remise consentie parce que c'est un abonnement, et non de la carte. */
 export const REMISE_OPTION_PCT = 15;
 
-/** Les prix de la Maison se disent en billets, pas en francs isolés. */
-const arrondi500 = (x: number) => Math.round(x / 500) * 500;
+/** Les prix de la Maison se disent en billets, pas en francs isolés — MAIS
+    l'arrondi ne fait jamais disparaître un supplément. Même règle, mot pour
+    mot, que `roundPrice` du moteur tarifaire (1er septembre 2026) : sous le
+    pas de l'arrondi, le montant exact fait foi. */
+const arrondi500 = (x: number) => {
+  const r = Math.round(x / 500) * 500;
+  return r === 0 && x > 0 ? Math.round(x) : r;
+};
 
 /** COMBIEN DE REPRISES la formule porte, selon le rythme choisi.
     En rythme léger, une venue sur deux — arrondi vers le HAUT : sur cinq

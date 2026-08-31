@@ -42,6 +42,30 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## L ARRONDI MANGEAIT LES PETITS PRIX · 1er septembre 2026
+
+« J essaie de changer le prix de deux services à 150 francs et ça me met
+0 franc systématiquement. Il prend les services à partir de 500 francs. »
+
+`roundPrice` arrondissait au 500 le plus proche : **150 → 0**, 249 → 0,
+250 → 500. Les deux seuils que Yéman a observés en tâtonnant (1 000 puis 500)
+sont exactement la signature de cet arrondi.
+
+UNE CONSULTATION À 150 F S AFFICHAIT DONC « 0 F » au tunnel de réservation, à
+la modale de rendez-vous et à la caisse : offerte, et encaissable telle quelle.
+La fiche portait pourtant bien 150. Rien à l écran ne pouvait mettre sur la
+piste — la cause était à trois modules de l endroit où on la cherchait.
+
+**Sous le pas de l arrondi, le prix exact fait foi.** L autre correction
+possible aurait été pire : pousser 150 à 500 pour rester rond ferait payer
+trois fois ce que la Maison a écrit, en silence. Au-dessus du pas, la règle ne
+change pas d un franc.
+
+`arrondi500` de `couleur.ts` portait la même faute sur le supplément couleur :
+corrigé du même geste, avec le même commentaire.
+
+11 assertions sur `verifie-prix`.
+
 ## LA PORTE DES COMPTES, DÉFINITIVEMENT · 31 août 2026
 
 « À chaque fois qu un nouveau compte se crée sur Ma Couronne ça vient au Trône
