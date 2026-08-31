@@ -35,7 +35,7 @@ import './finances.css';
    qui sort. Elle a donc son écran, et Dépenses comme Encaissements y
    renvoient. Les calculs, eux, restent à une seule source (`useCaisses`). */
 
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean; porteur: string };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean; porteur: string; equipe: boolean };
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Caisses() {
@@ -96,7 +96,7 @@ export default function Caisses() {
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '' });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false });
 
   /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
   /* CE QU'ON FERA UNE FOIS LA CAISSE OUVERTE — 22 août 2026. « Même quand les
@@ -124,7 +124,7 @@ export default function Caisses() {
 
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '' });
+    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
@@ -133,7 +133,7 @@ export default function Caisses() {
        garantit même si un autre appel apparaissait un jour. */
     if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'modifier'); return; }
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan, porteur: c.porteur ?? '' });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan, porteur: c.porteur ?? '', equipe: !!c.equipe });
     setBoxOpen(true);
   };
 
@@ -157,6 +157,7 @@ export default function Caisses() {
           currency: boxForm.currency || undefined,
           horsBilan: boxForm.horsBilan || undefined,
           porteur: boxForm.porteur.trim() || undefined,
+          equipe: boxForm.equipe || undefined,
           codeHash: boxForm.code.trim() ? codeHash : (boxForm.codeExistant ? b.codeHash : undefined),
         }
         : b)));
@@ -191,6 +192,7 @@ export default function Caisses() {
         openingXof: opening, currency: boxForm.currency || undefined,
         horsBilan: boxForm.horsBilan || undefined,
         porteur: boxForm.porteur.trim() || undefined,
+        equipe: boxForm.equipe || undefined,
         codeHash,
       }]);
       /* Elle s'ouvre pour la séance où on vient de la créer : sinon on
@@ -751,6 +753,37 @@ export default function Caisses() {
                 dépense payée depuis ce tiroir sera portée à son nom, et son solde dira ce qui
                 lui reste en main.
               </span>
+            </div>
+
+            {/* ── OUVERTE À L'ÉQUIPE — 31 août 2026 ─────────────────────
+                « Pour les employés une seule caisse est disponible pour eux. La
+                caisse indépendante. Toutes les autres ne sont pas visibles »
+                (Yéman). Le nom des tiroirs dit déjà beaucoup : les montrer à
+                qui n'a que ses propres dépenses à saisir, c'est lui dire où
+                dort l'argent de la Maison.
+
+                LA RÈGLE ÉCHOUE OUVERT : tant qu'aucune caisse n'est cochée,
+                elles restent toutes visibles. Sans cela, personne n'aurait plus
+                eu de tiroir où imputer une dépense, et l'on aurait cherché la
+                panne au lieu du réglage. */}
+            <div className="mnd-field">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={boxForm.equipe}
+                  onChange={(e) => setBoxForm((f) => ({ ...f, equipe: e.target.checked }))}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <b style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500 }}>Ouverte à l’équipe</b>
+                  <span className="mnd-muted" style={{ fontSize: 10.5, display: 'block', marginTop: 3, lineHeight: 1.55 }}>
+                    Les comptes qui ne voient que <b>leurs</b> dépenses pourront imputer ici, et ne
+                    verront aucun autre tiroir. Tant qu’aucune caisse n’est cochée, elles leur
+                    restent <b>toutes</b> visibles, pour que personne ne se retrouve sans caisse
+                    où saisir.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="mnd-field">

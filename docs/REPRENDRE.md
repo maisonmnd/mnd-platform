@@ -42,6 +42,22 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### L'interrupteur était dans la mauvaise fenêtre
+
+« Je ne trouve pas ouverte à l'équipe. » Il avait raison : je l'avais posé dans
+la modale de caisse de **Dépenses.tsx**, qui est du CODE MORT. Ses `openNewBox`
+et `openEditBox` n'ont aucun appelant, et l'écran n'a pas d'onglet Caisses. La
+vraie fenêtre est celle de **Caisses.tsx**, ouverte par le bouton « Modifier »
+de chaque tiroir.
+
+LEÇON : avant d'ajouter un champ à une modale, chercher qui l'ouvre. Deux
+fenêtres portant le même titre existaient dans deux fichiers ; `tsc` et les
+harnais passent tous les deux au vert sur la morte.
+
+Le drapeau vit à présent dans la fiche de la caisse, à côté de « Hors bilan »,
+avec la même case à cocher que ses voisines. La modale morte de Dépenses est
+laissée en l'état, hors sujet de ce lot.
+
 ### Une seule caisse pour l'équipe
 
 « Pour les employés une seule caisse est disponible. La caisse indépendante.
