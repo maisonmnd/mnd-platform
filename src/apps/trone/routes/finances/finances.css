@@ -1938,3 +1938,16 @@
   margin-top: 3px;
   max-width: 22ch;
 }
+
+/* Ce qui est tranché ne porte plus de gestes, mais dit qui a tranché et quand.
+   Un bouton mort se reclique ; une phrase se lit une fois. */
+.trf-exprow__scelle {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: right;
+  line-height: 1.5;
+  max-width: 22ch;
+  flex: none;
+}
+.trf-exprow__scelle span { display: block; font-size: 10px; margin-top: 2px; opacity: .8; }

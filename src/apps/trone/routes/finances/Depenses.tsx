@@ -15,7 +15,7 @@ import { expenseOccurrences,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods, caissesPourLEquipe,
   depensesComptees, aValider, estEnAttente, estRefusee, enRetard, heuresRestantes,
   heuresDattente, peutValider, doitEtreValidee, soumission, validee, refusee,
-  totalEnAttenteXof, DELAI_VALIDATION_H,
+  totalEnAttenteXof, DELAI_VALIDATION_H, figeePour,
   type ValidationDepense } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useStaff } from '../../../../shared/auth';
@@ -782,6 +782,14 @@ export default function Depenses() {
     const sources = form.sources.filter((s) => s.xof > 0);
     const dits = sources.length ? sources : undefined;
     if (editingId) {
+      /* LA CEINTURE : quel que soit le chemin qui mène ici, une ligne déjà
+         tranchée ne se réécrit pas de ses mains. L'écran a retiré le bouton ;
+         ceci le garantit même si un autre appel apparaissait un jour. */
+      const ancienne = toutesLesDepenses.find((x) => x.id === editingId);
+      if (ancienne && figeePour(monProfil?.role, ancienne)) {
+        setSaveErr('Cette dépense a été tranchée par la Maison, elle ne se modifie plus.');
+        return;
+      }
       setExpenses((prev) => prev.map((e) => (e.id === editingId ? {
         ...e, label: form.label.trim(), amountXof, date: form.date || e.date, cashbox: form.cashbox,
         fx: hasItems ? undefined : montantsDep.fx,
@@ -848,6 +856,13 @@ export default function Depenses() {
   };
 
   const removeExpense = (e: Expense) => {
+    /* MÊME CEINTURE POUR L'EFFACEMENT, et elle importe davantage : une dépense
+       validée qu'on efface disparaît des comptes sans laisser de trace, et le
+       tiroir cesse de correspondre aux livres. */
+    if (figeePour(monProfil?.role, e)) {
+      window.alert('Cette dépense a été tranchée. Elle ne se supprime plus : seul un souverain peut y revenir.');
+      return;
+    }
     if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;
     setExpenses((prev) => prev.filter((x) => x.id !== e.id));
   };
@@ -1557,6 +1572,21 @@ export default function Depenses() {
                     </div>
                   </div>
                   <span className="trf-exprow__amt">{fmtMoney(expenseTotal(e), currency)}</span>
+                  {/* ── PLUS RIEN À FAIRE SUR UNE LIGNE TRANCHÉE — 31 août
+                      2026. « Une fois que j'ai validé un montant pour Kabirou
+                      il ne peut plus modifier. Ni supprimer. »
+
+                      ON RETIRE LES BOUTONS, ON NE LES GRISE PAS, et on dit
+                      pourquoi : un bouton mort se reclique, et l'on croit à une
+                      panne au lieu de comprendre la règle. */}
+                  {figeePour(monProfil?.role, e) ? (
+                    <div className="trf-exprow__scelle">
+                      {e.validation?.etat === 'validee' ? 'Validée' : 'Refusée'}
+                      {e.validation?.decidePar ? ` par ${e.validation.decidePar}` : ''}
+                      {e.validation?.decideLe ? ` le ${fmtDay(e.validation.decideLe.slice(0, 10))}` : ''}
+                      <span>Elle ne se modifie plus. Seul un souverain peut y revenir.</span>
+                    </div>
+                  ) : (
                   <div className="trf-exprow__gestes">
                     <button className="trf-geste trf-geste--premier" onClick={() => openEdit(e)}>Modifier</button>
                     {/* « SIGNALER » A ÉTÉ RETIRÉ — 22 août 2026. Le signal ne
@@ -1585,6 +1615,7 @@ export default function Depenses() {
                     ) : null}
                     <button className="trf-geste trf-geste--oter" onClick={() => removeExpense(e)}>Supprimer</button>
                   </div>
+                  )}
                 </div>
                 {e.items && e.items.length && expanded.has(e.id) ? (
                   <div className="trf-itembreak">

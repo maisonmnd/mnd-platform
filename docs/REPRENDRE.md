@@ -67,6 +67,30 @@ sont passés par la première.
 **Le champ absent veut dire acquise** : sans cette convention, la mise en ligne
 aurait suspendu d un coup l histoire entière des dépenses de la Maison.
 
+**Une fois tranchée, elle ne bouge plus** · « Une fois que j ai validé un
+montant pour Kabirou il ne peut plus modifier. Ni supprimer. La modification se
+fait avant la validation, pas après. Ce n est que le souverain qui peut toucher
+une dépense déjà effectuée. »
+
+Sans cette règle le contrôle ne contrôlait rien : soumettre 5 000 F, attendre le
+oui, rouvrir la ligne et écrire 50 000 F. La signature aurait couvert une somme
+jamais vue. Effacer était pire : la dépense validée disparaissait des comptes
+sans trace, et le tiroir cessait de correspondre aux livres.
+
+`figeePour(role, e)` : tranchée (validée OU refusée) et rôle autre que
+souverain. Le **gérant valide mais ne rouvre pas** ce qui est tranché, dire oui
+et réécrire après coup ne sont pas le même pouvoir. Le refus fige aussi, sinon
+on le retouche pour revenir par la porte de derrière ; s il conteste, il saisit
+une nouvelle dépense.
+
+Les boutons sont RETIRÉS, pas grisés, et remplacés par « Validée par Yéman le
+30 août · Elle ne se modifie plus ». Un bouton mort se reclique. Deux ceintures
+au fond de `save()` et `removeExpense()` tiennent la règle même si un autre
+chemin apparaissait.
+
+**Ce qui n a jamais rien demandé reste libre** : tout l historique d avant la
+règle, et ce qu un souverain ou un gérant saisit lui-même.
+
 **Ce qui a demandé de l attention**
 
 - Modifier une dépense en attente **ne relance pas le compteur**, sinon il

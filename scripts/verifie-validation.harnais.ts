@@ -11,7 +11,7 @@
 import {
   DELAI_VALIDATION_H, estEnAttente, estRefusee, compteDansLesChiffres, depensesComptees,
   heuresDattente, enRetard, heuresRestantes, aValider, peutValider, doitEtreValidee,
-  soumission, validee, refusee, totalEnAttenteXof, enAttenteSurLaCaisse,
+  soumission, validee, refusee, totalEnAttenteXof, enAttenteSurLaCaisse, figeePour,
   type Expense, type ValidationDepense,
 } from '../src/shared/finance';
 
@@ -119,6 +119,32 @@ dit('un valideur sans nom ne se reconnaît pas', true, peutValider('souverain', 
 dit('un employé soumet', true, doitEtreValidee('maitre'));
 dit('un gérant enregistre directement', false, doitEtreValidee('gerant'));
 dit('un souverain aussi', false, doitEtreValidee('souverain'));
+
+/* ── ⑥ CE QUI EST TRANCHÉ NE BOUGE PLUS DE SES MAINS ────────────────
+   « Une fois que j'ai validé un montant pour Kabirou il ne peut plus modifier.
+   Ni supprimer. La modification se fait avant la validation, pas après »
+   (Yéman, 31 août).
+
+   SANS CETTE RÈGLE LE CONTRÔLE NE CONTRÔLAIT RIEN : soumettre 5 000 F,
+   attendre le oui, rouvrir la ligne et écrire 50 000 F. La signature du
+   souverain aurait couvert une somme qu'il n'a jamais vue. */
+const tranchee = dep({ validation: validee(soumission('Kabirou', '2026-08-30T08:00:00Z'), 'Yéman', '2026-08-31T09:00:00Z') });
+const rejetee = dep({ validation: refusee(soumission('Kabirou', '2026-08-30T08:00:00Z'), 'Yéman', '2026-08-31T09:00:00Z', 'personnelle') });
+
+dit('en attente, il corrige encore', false, figeePour('maitre', soumise()));
+dit('validée, elle est scellée', true, figeePour('maitre', tranchee));
+dit('refusée aussi, pas de retour par la porte de derrière', true, figeePour('maitre', rejetee));
+/* LE SOUVERAIN SEUL Y TOUCHE ENSUITE. Le gérant VALIDE, mais il ne rouvre pas
+   ce qui est tranché : dire oui et réécrire après coup ne sont pas le même
+   pouvoir, et les réunir dans une seule main referait le trou. */
+dit('le souverain garde la main sur tout', [false, false],
+  [figeePour('souverain', tranchee), figeePour('souverain', rejetee)]);
+dit('le gérant ne rouvre pas ce qu’il a validé', true, figeePour('gerant', tranchee));
+dit('… ni ce qu’il a refusé', true, figeePour('gerant', rejetee));
+dit('mais il corrige encore ce qui attend', false, figeePour('gerant', soumise()));
+/* UNE DÉPENSE QUI N'A JAMAIS RIEN DEMANDÉ RESTE LIBRE — tout l'historique
+   d'avant la règle, et ce qu'un souverain saisit lui-même. */
+dit('une dépense sans validation reste libre', false, figeePour('maitre', dep({})));
 
 /* ── ⑥ LES TRANSITIONS GARDENT LA MÉMOIRE ───────────────────────────
    Qui a soumis, quand, qui a tranché, quand, et pourquoi. Une décision sans

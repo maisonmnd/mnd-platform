@@ -333,6 +333,36 @@ export const peutValider = (
 /** UNE DÉPENSE DOIT-ELLE ÊTRE SOUMISE ? Le rôle tranche, pas l'écran. */
 export const doitEtreValidee = (role: string | undefined): boolean => role === 'maitre';
 
+/** UNE FOIS TRANCHÉE, ELLE NE BOUGE PLUS DE SES MAINS — 31 août 2026.
+
+    « Une fois que j'ai validé un montant pour Kabirou il ne peut plus modifier.
+    Ni supprimer » (Yéman).
+
+    SANS CELA LE CONTRÔLE NE CONTRÔLAIT RIEN : on soumettait 5 000 F, on
+    attendait le oui, puis on rouvrait la ligne et on écrivait 50 000 F. La
+    validation aurait porté sur un montant qui n'existe plus, et la signature du
+    souverain aurait couvert une somme qu'il n'a jamais vue. Effacer était pire
+    encore : la dépense validée disparaissait des comptes sans laisser de trace,
+    et le tiroir cessait de correspondre aux livres.
+
+    LE REFUS FIGE AUSSI. Une ligne refusée ne se retouche pas pour revenir par
+    la porte de derrière ; s'il conteste, il en saisit une nouvelle, et le refus
+    reste à sa date pour que la conversation ait une trace.
+
+    LE SOUVERAIN SEUL Y TOUCHE ENSUITE — « ce n'est que le souverain qui peut
+    toucher une dépense déjà effectuée » (Yéman, 31 août). Un gérant VALIDE,
+    mais il ne rouvre pas ce qui est tranché : le pouvoir de dire oui et celui
+    de réécrire après coup ne sont pas le même pouvoir, et les réunir dans une
+    seule main referait le trou qu'on vient de boucher.
+
+    CE QUI N'A JAMAIS RIEN DEMANDÉ RESTE LIBRE : tout l'historique d'avant la
+    règle, et ce qu'un souverain ou un gérant saisit lui-même. Le champ absent
+    veut dire acquise, et une dépense acquise se corrige comme avant. */
+export const figeePour = (
+  role: string | undefined,
+  e: Pick<Expense, 'validation'>,
+): boolean => role !== 'souverain' && !!e.validation && e.validation.etat !== 'attente';
+
 export const soumission = (nom: string, quandISO: string): ValidationDepense =>
   ({ etat: 'attente', soumisLe: quandISO, soumisPar: nom });
 
