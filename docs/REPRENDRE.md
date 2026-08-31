@@ -64,8 +64,8 @@ LA CAUSE ÉTAIT DANS LA RLS, ET ELLE EST JUSTE. `appointments` est en
 donc ses créneaux contre un agenda vide.
 
 Ouvrir la table aux clientes aurait donné à chacune les noms, les prestations
-et les prix de toutes les autres. **Migration 0079** : `creneaux_occupes(branch,
-du, au)`, SECURITY DEFINER, qui rend `jour · maitre · debut · duree`. La forme
+et les prix de toutes les autres. **Migration 0079, PASSÉE le 31 août** (contrôle : `fonction_posee = 1`,
+`droits = 2`) : `creneaux_occupes(branch, du, au)`, SECURITY DEFINER, qui rend `jour · maitre · debut · duree`. La forme
 du mur, jamais ce qu'il y a derrière. La durée est calculée en base pour ne pas
 avoir à dire quelles prestations composent le rendez-vous.
 
