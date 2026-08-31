@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LES AVANCES DE L'ÉQUIPE — 31 août, PUBLIÉ · **0078 À PASSER**
+## LES AVANCES DE L'ÉQUIPE — 31 août, PUBLIÉ · **0078 PASSÉE**
 
 « J'ai un staff qui préfinance des dépenses pour moi et je le règle à la fin du
 mois. Il enregistre sur des bouts de papier et parfois il oublie les dates et
@@ -53,10 +53,10 @@ ne coche que `/depenses`. **Mais elle organise l'interface, elle ne cloisonne pa
 les données** — côté serveur seule la paie est réservée au souverain. N'autoriser
 que des personnes de confiance.
 
-### À faire côté Supabase
+### Côté Supabase
 
-`supabase/migrations/0078_les_avances_de_l_equipe.sql`, une seule fois. Sans
-elle, les remboursements ne se synchronisent pas entre les postes.
+`0078` — **PASSÉE le 31 août**, contrôle rendu : table_creee 1, regles_posees 1.
+**Ne jamais la relancer.**
 
 20e harnais, `scripts/verifie-avances.mjs`, 26 assertions.
 
