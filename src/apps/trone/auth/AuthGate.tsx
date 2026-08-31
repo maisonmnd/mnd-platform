@@ -60,7 +60,7 @@ function StaffGate({ children }: { children: ReactNode }) {
     return (
       <div className="tra-shell">
         <div className="tra-card">
-          <Seal color="or" size={40} />
+          <Seal color="copper" size={40} />
           <div className="mnd-eyebrow" style={{ marginTop: 8 }}>Ce n'est pas votre porte</div>
           <h1 className="mnd-serif tra-title">Votre espace est Ma Couronne.</h1>
           <p className="tra-lede mnd-muted">
@@ -82,7 +82,7 @@ function StaffGate({ children }: { children: ReactNode }) {
     return (
       <div className="tra-shell">
         <div className="tra-card">
-          <Seal color="or" size={40} />
+          <Seal color="copper" size={40} />
           <div className="mnd-eyebrow" style={{ marginTop: 8 }}>Accès en attente</div>
           <h1 className="mnd-serif tra-title">Compte non rattaché.</h1>
           <p className="tra-lede mnd-muted">
@@ -103,7 +103,7 @@ function AuthSplash({ children }: { children: ReactNode }) {
   return (
     <div className="tra-shell">
       <div className="tra-card">
-        <Seal color="or" size={44} />
+        <Seal color="copper" size={44} />
         <p className="tra-splash mnd-serif">{children}</p>
       </div>
     </div>
@@ -187,7 +187,7 @@ function Login() {
     <div className="tra-shell">
       <form className="tra-card" onSubmit={submit}>
         <div className="tra-head">
-          <Seal color="or" size={40} />
+          <Seal color="copper" size={40} />
           <div>
             <div className="mnd-eyebrow">Le Trône</div>
             <h1 className="mnd-serif tra-title">{maisonNom()}</h1>

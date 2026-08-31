@@ -112,6 +112,32 @@ reprendre.
 
 39 assertions sur `verifie-validation`, 3 de plus sur `verifie-avances`.
 
+### La passe responsive, et ce qu elle a trouvé
+
+« Make the entire app responsive. » L audit a d abord dit ce qui TENAIT déjà :
+63 media queries dans le Trône, `tr-cols` qui s écrase sous 900 px, la modale
+en feuille basse, les graphiques SVG en `viewBox` + largeur fluide, les tables
+sous `overflow-x`. Les vraies failles étaient ailleurs :
+
+- **`100vh` coupait le bas d écran au téléphone** : la barre d adresse du
+  navigateur compte dedans. Chaque `vh` de coquille a reçu son repli `dvh`
+  (Trône, auth, Couronne, Consultation, LOKAA, Certificat, modale du DS). La
+  ligne `vh` reste au-dessus pour les vieux navigateurs.
+- **La Consultation n avait AUCUN point de rupture** : deux colonnes gardées
+  sur un pouce. Règle du pli posée : page à deux colonnes → une colonne
+  (`lc-seuil`, `lc-fin`, `lc-cols2`, `lc-momo`), puces à deux
+  (`lc-grid3/4`), portes empilées, rembourrages descendus.
+- **LOKAA** : `lk-onb`, `lk-split`, `lk-plans` (les prix s empilent pour se
+  comparer de haut en bas), tuiles à une colonne sous 560.
+- **Le sceau est CUIVRE, plus jamais or** : « the same color of le trone. Not
+  in gold. » Les 7 `color=or` (auth, attente, aucun-écran) sont passés à
+  `copper`. L or venait du handoff ; la marque dit que le cuivre ponctue.
+
+Bilan et Carte n ont pas bougé : le premier est un document en millimètres, la
+seconde avait déjà ses plis. Si la porte de connexion paraît encore géante sur
+le téléphone : c est le zoom par pincement mémorisé par le navigateur pour ce
+site, pas la page — un dézoom la remet.
+
 ### La page d attente, habillée
 
 Le sceau n était pas centré : `Seal` rend une image en `display:block`, et

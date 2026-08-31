@@ -171,6 +171,7 @@
   box-shadow: var(--shadow-xl);
   width: min(640px, 100%);
   max-height: 86vh;
+  max-height: 86dvh;
   overflow: auto;
   animation: mnd-rise var(--dur-base) var(--ease-soft);
 }

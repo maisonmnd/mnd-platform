@@ -8,6 +8,7 @@
 
 .ct-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--paper-2);
   padding: 28px 24px 56px;
   display: flex;

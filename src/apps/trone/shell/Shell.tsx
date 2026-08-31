@@ -391,7 +391,7 @@ export default function Shell() {
     return (
       <div className="tr-attente">
         <div className="tr-attente__bloc">
-          <Seal color="or" size={40} />
+          <Seal color="copper" size={40} />
           <div className="tr-attente__nom">Le Trône</div>
           <p className="tr-attente__mot">Un instant, la Maison vous reconnaît.</p>
           <div className="tr-attente__filet"><i /></div>
@@ -411,7 +411,7 @@ export default function Shell() {
           maxWidth: 460, textAlign: 'center', background: 'var(--surface-card)',
           border: '1px solid var(--hairline)', borderRadius: 4, padding: '30px 28px',
         }}>
-          <Seal color="or" size={40} />
+          <Seal color="copper" size={40} />
           <div className="mnd-eyebrow" style={{ marginTop: 10 }}>Rien ne vous est ouvert</div>
           <h1 className="mnd-serif" style={{ fontWeight: 300, fontSize: 27, color: 'var(--color-indigo)', margin: '8px 0 10px' }}>
             Aucun écran ne vous attend.
@@ -442,7 +442,7 @@ export default function Shell() {
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
         <div className="tr-side__brand">
-          <Seal color="or" size={34} />
+          <Seal color="copper" size={34} />
           <div>
             <h1 className="mnd-serif">{identite.nom.trim() || 'Maison MND'}</h1>
             <div className="tr-side__powered">Propulsé par LOKAA</div>

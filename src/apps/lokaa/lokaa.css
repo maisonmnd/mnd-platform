@@ -14,6 +14,7 @@
 
 .lk-app {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--paper);
@@ -645,6 +646,7 @@
   flex: 1;
   display: flex;
   min-height: calc(100vh - 44px);
+  min-height: calc(100dvh - 44px);
   background: var(--paper-2);
 }
 
@@ -1150,3 +1152,20 @@
 }
 .lk-facturation__detail { flex: 1; font-size: 12px; color: var(--ink-soft); }
 .lk-facturation__somme { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+
+/* ═══ AU TÉLÉPHONE — 31 août 2026 ═════════════════════════════════════════
+   Les tuiles et l'onboarding se pliaient déjà ; les pages à deux colonnes et
+   les trois cartes de prix, non. Même règle du pli que partout : une page à
+   colonnes devient une colonne, et les prix s'empilent pour se comparer de
+   haut en bas plutôt que de se serrer à trois sur un pouce. */
+@media (max-width: 900px) {
+  .lk-onb { grid-template-columns: 1fr; }
+  .lk-split { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .lk-plans { grid-template-columns: 1fr; }
+  .lk-onb__plans { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .lk-tiles, .lk-kpis { grid-template-columns: 1fr; }
+}
