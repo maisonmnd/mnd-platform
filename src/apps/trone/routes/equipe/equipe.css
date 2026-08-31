@@ -194,19 +194,13 @@
 .tre-offer__meta-value { font-size: 13px; color: var(--color-indigo); margin-top: 3px; }
 
 /* ---------- Chips (jours, audiences, rôles) ---------- */
-.tre-chip {
-  cursor: pointer;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--hairline);
-  background: var(--surface-card);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 11.5px;
-  padding: 7px 13px;
-  transition: var(--transition-base);
-}
-.tre-chip:hover { border-color: var(--color-indigo); }
-.tre-chip.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+/* LA PASTILLE `tre-chip` A DÉMÉNAGÉ DANS `trone.css` — 31 août 2026.
+   Six écrans hors de l'Équipe s'en servent (Vitrine, Clientes, Comptes,
+   Objectifs, Branches, Accès) et ne chargent pas cette feuille : Vite découpe
+   le CSS par morceau, et leurs pastilles tombaient sur le bouton nu du
+   navigateur, sans le moindre état actif. Deux écrans importaient déjà
+   `equipe.css` en entier rien que pour elle. Une règle partagée par toute
+   l'application appartient à la feuille de l'application. */
 
 /* ---------- Registre des soldes — une liste, plus un mur ----------
    Une carte par tête, deux par ligne : cinq membres et cent cinquante-deux têtes

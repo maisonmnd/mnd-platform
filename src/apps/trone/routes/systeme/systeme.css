@@ -464,3 +464,61 @@
 @media (max-width: 720px) {
   .sys-appareil__lab { width: 100%; }
 }
+
+/* ═══ LES PASTILLES D'ACCÈS ═══════════════════════════════════════════════
+   « Je veux voir clairement quand je sélectionne un bouton actif. Aucune
+   couleur n'apparaît » (Yéman, 31 août 2026).
+
+   ELLES N'ÉTAIENT PAS STYLÉES DU TOUT. Elles portaient `tre-chip`, dont la
+   règle vit dans `equipe/equipe.css` — un fichier que cet écran n'importe
+   jamais. Vite découpe le CSS par morceau : la feuille de l'Équipe n'arrive
+   qu'en ouvrant un écran de l'Équipe. Les pastilles tombaient donc sur le
+   bouton nu du navigateur, et `is-on` ne peignait rien.
+
+   ON NE TIRE PAS `equipe.css` ICI pour autant : ce serait charger toute une
+   feuille étrangère pour trois règles, et inviter ses cascades sur cet écran.
+   Elles ont leur classe, chez elles.
+
+   TROIS ÉTATS, TROIS ALLURES — l'écran en dit trois choses différentes :
+   fermé, ouvert d'un clic, ouvert PARCE QUE le domaine entier l'est. Le
+   troisième se distingue du deuxième : autrement, refermer le domaine
+   éteindrait douze pastilles qu'on croyait avoir posées une par une. */
+.sys-acces__chip {
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.2;
+  padding: 6px 13px;
+  transition: var(--transition-base);
+}
+.sys-acces__chip:hover { border-color: var(--indigo-300); color: var(--ink); }
+
+/* OUVERT D'UN CLIC : indigo plein. C'est l'état qu'on vient chercher. */
+.sys-acces__chip.is-on {
+  background: var(--color-indigo);
+  border-color: var(--color-indigo);
+  color: var(--color-ivoire);
+  font-weight: 500;
+}
+.sys-acces__chip.is-on:hover { background: var(--indigo-500); border-color: var(--indigo-500); color: var(--color-ivoire); }
+
+/* OUVERT PAR LE DOMAINE : la couleur est là, le plein ne l'est pas. */
+.sys-acces__chip.is-herite {
+  background: var(--indigo-50);
+  border-color: var(--indigo-200);
+  color: var(--indigo-600);
+}
+.sys-acces__chip.is-herite:hover { border-color: var(--indigo-400); }
+
+/* FERMÉ EXPRÈS : ces écrans-là sont ouverts d'office, les barrer dit qu'on
+   les a retirés à quelqu'un, et non qu'ils ne lui ont jamais été donnés. */
+.sys-acces__chip.is-barre {
+  text-decoration: line-through;
+  text-decoration-color: var(--copper-600);
+  color: var(--ink-soft);
+  border-style: dashed;
+}

@@ -375,28 +375,63 @@ export default function Acces() {
                           {/* LE DOMAINE ENTIER RESTE POSSIBLE, mais ce n'est plus
                               le seul geste : il eclaire alors tous ses ecrans. */}
                           <button
-                            className={`tre-chip ${toutOuvert ? 'is-on' : ''}`}
+                            className={`sys-acces__chip ${toutOuvert ? 'is-on' : ''}`}
                             style={{ fontSize: 11 }}
+                            aria-pressed={toutOuvert}
                             onClick={() => dom && basculeDomaine(m.user_id, dom)}
                           >
                             tout
                           </button>
-                          {ecrans.map((it) => (
-                            <button
-                              key={it.path}
-                              className={`tre-chip ${ecranOuvert(m.user_id, it.path, toutOuvert) ? 'is-on' : ''}`}
-                              style={{ fontSize: 11.5 }}
-                              onClick={() => basculeEcran(m.user_id, it.path, toutOuvert)}
-                              title={estFermable(it.path)
-                                ? 'Ouvert d’office ; cliquez pour le fermer à cette personne.'
-                                : (toutOuvert ? 'Ouvert par le domaine entier' : undefined)}
-                            >
-                              {it.label}
-                            </button>
-                          ))}
+                          {ecrans.map((it) => {
+                            /* TROIS ÉTATS, ET ON LES DIT — 31 août 2026. Ouvert
+                               d'un clic, ouvert PARCE QUE le domaine entier
+                               l'est, ou fermé. Le deuxième s'éteindra en même
+                               temps que « tout » : le confondre avec le premier
+                               ferait croire à douze réglages posés à la main. */
+                            const ouvert = ecranOuvert(m.user_id, it.path, toutOuvert);
+                            const propre = acces[m.user_id]?.[it.path] === true;
+                            const herite = ouvert && toutOuvert && !propre && !estFermable(it.path);
+                            const barre = estFermable(it.path) && !ouvert;
+                            return (
+                              <button
+                                key={it.path}
+                                className={[
+                                  'sys-acces__chip',
+                                  herite ? 'is-herite' : (ouvert ? 'is-on' : ''),
+                                  barre ? 'is-barre' : '',
+                                ].filter(Boolean).join(' ')}
+                                style={{ fontSize: 11.5 }}
+                                aria-pressed={ouvert}
+                                onClick={() => basculeEcran(m.user_id, it.path, toutOuvert)}
+                                title={estFermable(it.path)
+                                  ? (ouvert
+                                    ? 'Ouvert d’office ; cliquez pour le fermer à cette personne.'
+                                    : 'Fermé à cette personne ; cliquez pour le rouvrir.')
+                                  : (herite ? 'Ouvert par le domaine entier' : undefined)}
+                              >
+                                {it.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       );
                     })}
+                    {/* CE QUE CHAQUE ALLURE VEUT DIRE — sans quoi il faut le
+                        deviner, et une teinte devinée ne se fait pas confiance. */}
+                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <i className="sys-acces__chip is-on" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> ouvert
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <i className="sys-acces__chip is-herite" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> ouvert par le domaine
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <i className="sys-acces__chip" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> fermé
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <i className="sys-acces__chip is-barre" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> retiré alors qu’il est ouvert d’office
+                      </span>
+                    </div>
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
                       Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la
                       <strong style={{ fontWeight: 500 }}> Caisse</strong>, les

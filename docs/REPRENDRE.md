@@ -42,6 +42,39 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### Les pastilles d'accès n'étaient pas peintes du tout
+
+« Je veux voir clairement quand je sélectionne un bouton actif. Aucune couleur
+n'apparaît. » Ce n'était pas une teinte trop pâle : la règle `.tre-chip` vit
+dans `equipe/equipe.css`, et l'écran des Accès n'importe que `systeme.css`.
+Vite découpe le CSS par morceau ; la feuille de l'Équipe n'arrive qu'en ouvrant
+un écran de l'Équipe. Les pastilles tombaient sur le bouton nu du navigateur et
+`is-on` ne peignait rien.
+
+LE DÉFAUT SE RÉPARAIT TOUT SEUL QUAND ON ALLAIT LE MONTRER : en passant par
+Paramètres ou par l'Équipe d'abord, la feuille était là et la couleur revenait.
+C'est la pire espèce de bogue.
+
+**Six écrans avaient la même blessure** : Vitrine, Clientes, Comptes, Objectifs,
+Branches, Accès. Deux autres, `clients/actions.tsx` et `Parametres.tsx`,
+importaient `equipe.css` EN ENTIER rien que pour cette règle. Elle est donc
+sortie de la feuille de l'Équipe pour rejoindre `trone.css`, que toute
+l'application charge. Une règle partagée appartient à la feuille commune.
+
+### Trois états, trois allures, sur les accès
+
+`.sys-acces__chip`, chez elle dans `systeme.css` :
+
+- **indigo plein** : ouvert d'un clic ;
+- **indigo pâle** : ouvert PARCE QUE le domaine entier l'est, et qui s'éteindra
+  avec lui, ce qu'il fallait distinguer du premier ;
+- **contour seul** : fermé ;
+- **barré cuivre** : Mon mois, Calendrier, Le Fil, Le Tableau, ouverts d'office
+  et retirés à cette personne-là, ce qui ne se lit pas comme jamais donné.
+
+Une légende sous les rangées dit les quatre. Une teinte devinée ne se fait pas
+confiance.
+
 ### La modale de dépense était la page la plus bavarde de l'écran
 
 On avait fermé la page, pas la fenêtre qui s'ouvre par-dessus. Sur un compte

@@ -698,3 +698,31 @@ body[data-surface='trone'] {
 }
 .tr-nav__range__fleche:hover:not(:disabled) { border-color: var(--color-copper); background: rgba(185,122,74,.2); }
 .tr-nav__range__fleche:disabled { opacity: .25; cursor: default; }
+
+/* ═══ LA PASTILLE PARTAGÉE ════════════════════════════════════════════════
+   « Je veux voir clairement quand je sélectionne un bouton actif. Aucune
+   couleur n'apparaît » (Yéman, 31 août 2026).
+
+   ELLE VIVAIT DANS `equipe/equipe.css`, et six écrans hors de l'Équipe s'en
+   servent sans jamais charger cette feuille : Vitrine, Clientes, Comptes,
+   Objectifs, Branches, Accès. Vite découpe le CSS par morceau, celui de
+   l'Équipe n'arrive qu'en ouvrant un écran de l'Équipe — leurs pastilles
+   tombaient donc sur le bouton nu du navigateur, et `is-on` ne peignait rien.
+   Selon l'écran visité JUSTE AVANT, la couleur apparaissait ou non : le pire
+   des défauts, celui qui se répare tout seul quand on va le montrer.
+
+   Elle est ici, dans la feuille que toute l'application charge. */
+.tre-chip {
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  padding: 7px 13px;
+  transition: var(--transition-base);
+}
+.tre-chip:hover { border-color: var(--color-indigo); }
+.tre-chip.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); font-weight: 500; }
+.tre-chip:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
