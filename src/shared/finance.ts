@@ -61,6 +61,20 @@ export type InvoiceLine = {
       ne relit. Elle s'applique APRÈS le pourcentage, comme au rendez-vous.
       Absente sur toutes les pièces d'avant — donc zéro, donc rien ne change. */
   discountXof?: number;
+  /** LE PRODUIT DE LA GAMME QUE CETTE LIGNE VEND — 31 août 2026.
+
+      Une ligne de facture ne portait qu'un libellé : rien ne distinguait
+      « L'Huile de Nuit » d'une prestation, ni ne disait quelle fiche de stock
+      décrémenter. Deux conséquences, l'une visible et l'autre pas :
+
+      · la Gamme ne pouvait pas entrer dans l'encaissement d'un rituel, faute
+        de savoir quoi sortir de la réserve ;
+      · la commission produit sautait TOUTE facture liée à un rendez-vous, car
+        elle ne savait pas isoler les produits du reste. Un shampooing vendu
+        avec le rituel ne rapportait donc rien, le même vendu au comptoir si.
+
+      Absent = ligne de prestation, comme toutes celles d'avant. */
+  produitId?: string;
 };
 
 export type Invoice = {
@@ -726,6 +740,16 @@ const jourLocal = (): string => {
 /** Une ligne de pièce — le même identifiant d'un circuit à l'autre. */
 export const ligneFacture = (label: string, unitXof: number, qty = 1, discountPct = 0): InvoiceLine =>
   ({ id: `il-${uid()}`, label, qty, unitXof, discountPct });
+
+/** Une ligne qui vend un PRODUIT de la Gamme. Elle porte sa fiche, pour que le
+    stock sache quoi sortir et la commission sache la reconnaître. */
+export const ligneProduit = (
+  produitId: string, label: string, unitXof: number, qty = 1, discountPct = 0,
+): InvoiceLine => ({ ...ligneFacture(label, unitXof, qty, discountPct), produitId });
+
+/** Le total des seules lignes de PRODUIT d'une pièce, remises comprises. */
+export const totalProduitsXof = (i: Pick<Invoice, 'lines'>): number =>
+  (i.lines ?? []).reduce((n, l) => (l.produitId ? n + ligneNetXof(l) : n), 0);
 
 export function nouvelleFacture(f: FactureNeuve): Invoice {
   /* LE NUMÉRO SE TIRE DU MAGASIN, jamais d'une liste de rendu : la valeur

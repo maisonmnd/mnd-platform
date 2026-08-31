@@ -2,6 +2,55 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA GAMME AU COMPTOIR — 31 août, PUBLIÉ
+
+« Sur un RDV un client achète un produit. » Maquette validée, option « complète »
+choisie : la Gamme entre dans la modale d'encaissement, le stock suit.
+
+Il fallait quitter la modale et refaire tout le ticket à la Caisse : deux
+écrans, deux chances d'oublier, et la tentation de ne pas encaisser le produit.
+
+### Ce qui a été posé
+
+- **`InvoiceLine.produitId`** — une ligne de facture peut nommer son produit.
+  Sans lui, rien ne distinguait « L'Huile de Nuit » d'une prestation, ni ne
+  disait quelle fiche de stock sortir.
+- **`ligneProduit()`** et **`totalProduitsXof()`** dans `finance.ts`.
+- **Le bloc « La Gamme · ce qu'elle emporte »** dans la modale, replié par
+  défaut : neuf encaissements sur dix ne portent aucun produit.
+- **Le stock suit par le JOURNAL** (`venteGamme`), un mouvement de sortie
+  référencé au numéro de pièce, comme la Caisse. Jamais un compteur décrémenté.
+
+### Les trois pièges, et comment ils sont tenus
+
+**La remise fantôme.** `detailRemise` se mesure contre le net du RITUEL. Ajouter
+les produits aux lignes AVANT ce calcul aurait fabriqué une remise globale du
+montant exact de la Gamme. Les lignes de produit s'ajoutent donc APRÈS.
+
+**Le rituel surpayé.** La Gamme a SON versement dans le journal. Fondue dans le
+comptant du rituel, elle aurait gonflé `settleTotal`, donc `appt.paidXof`, qui ne
+compte que le rituel.
+
+**La pièce déjà remise.** Si le rituel porte déjà une facture, le bloc ne
+paraît pas : une pièce donnée à une cliente ne se retouche plus.
+
+### La commission produit, corrigée
+
+Décision de Yéman : « le même shampooing rapporte la même chose, qu'il soit
+vendu pendant le rituel ou séparément ».
+
+La règle sautait TOUTE facture liée à un rendez-vous, pour ne pas repayer ce que
+la boucle des rituels a déjà compté — et elle emportait les produits avec elle.
+Elle ne saute plus la pièce : sur une facture liée elle compte les seules LIGNES
+DE PRODUIT, sur une vente libre la pièce entière comme avant.
+
+**Aucun effet rétroactif** : les pièces d'avant n'ont pas de `produitId`, donc une
+facture liée rend zéro, exactement ce qu'elle rendait hier.
+
+Maquette : artifact du 31 août. 6 assertions de plus sur `verifie-facturation`.
+
+---
+
 ## SUPPRIMER UN ENCAISSEMENT — 29 août, PUBLIÉ
 
 « Me permettre de supprimer des encaissements test. »

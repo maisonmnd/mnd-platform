@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
@@ -6,17 +6,18 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
-import { useCategories, fondeLaCouronne, type Service } from '../../../../shared/catalog';
+import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
-  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
+  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
+import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
-import { sameName } from '../../../../shared/text';
+import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
 import { signeLeMessage } from '../../../../shared/identite';
@@ -500,6 +501,45 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const depositJustConfirmed = depositReceived && !appt.depositConfirmed;
   const due = Math.max(0, net - alreadyPaid - (depositReceived ? deposit : 0));
 
+  /* ── LA GAMME AU COMPTOIR — 31 août 2026 (maquette validée) ──────
+     « Sur un RDV un client achète un produit » (Yéman). Il fallait quitter
+     cette modale et refaire tout le ticket à la Caisse : deux écrans, deux
+     chances d'oublier, et la tentation de ne pas encaisser le produit du tout.
+
+     LE PANIER EST VIDE NEUF FOIS SUR DIX. Le bloc reste donc replié tant qu'on
+     n'y touche pas : cette modale est déjà dense, et ce qu'on ouvre rarement
+     ne doit pas coûter de la place à ce qu'on lit toujours. */
+  const [gammeOuverte, setGammeOuverte] = useState(false);
+  const [chercheProduit, setChercheProduit] = useState('');
+  const [panier, setPanier] = useState<Record<string, number>>({});
+
+  const [produitsCatalogue] = useProducts();
+  const [mouvementsStock] = useMouvementsStock();
+  /* Rangés comme au catalogue : la Maison a mis de l'ordre, on ne le rebat pas. */
+  const produitsBranche = useMemo(
+    () => [...produitsCatalogue].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name)),
+    [produitsCatalogue],
+  );
+  /* CE QU'IL EN RESTE, DIT AVANT LA VENTE. La réserve se lit au journal des
+     mouvements, comme partout : un compteur posé à côté finirait par ne plus
+     lui correspondre, et personne ne saurait lequel croire. */
+  const resteEnReserve = (id: string): number | null => {
+    const fiche = fichePourGamme(id, branch.id);
+    return fiche ? stockDe(fiche.id, mouvementsStock) : null;
+  };
+  const prixProduit = (id: string) => produitsBranche.find((pr) => pr.id === id)?.priceXof ?? 0;
+  const nomProduit = (id: string) => produitsBranche.find((pr) => pr.id === id)?.name ?? 'Produit';
+  const totalGamme = useMemo(
+    () => Object.entries(panier).reduce((n, [id, q]) => n + prixProduit(id) * Math.max(0, q), 0),
+    [panier, produitsBranche],
+  );
+  const auPanier = (id: string, delta: number) => setPanier((prev) => {
+    const q = Math.max(0, (prev[id] ?? 0) + delta);
+    const next = { ...prev };
+    if (q === 0) delete next[id]; else next[id] = q;
+    return next;
+  });
+
   const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
   /* LA MONNAIE DE LA MAISON PASSE D’ABORD — 24 août 2026. Voir
      `caisseParDefaut` : un tiroir en euros ne se propose pas pour encaisser
@@ -745,6 +785,19 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       const netDesLignes = lines.reduce((s, l) => s + ligneNetXof(l), 0);
       const detailRemise = services.length > 0 && netDesLignes > net ? netDesLignes - net : 0;
 
+      /* ── LA GAMME REJOINT LA PIÈCE ────────────────────────────────
+         APRÈS le calcul de la remise globale, et c'est tout le piège : cette
+         remise se mesure contre le net du RITUEL. Ajouter les produits avant
+         aurait fabriqué une remise fantôme du montant exact de la Gamme.
+
+         Chaque ligne porte son `produitId` : c'est par lui que le stock saura
+         quoi sortir, et que la commission produit saura la reconnaître même
+         sur une facture liée à un rendez-vous. */
+      const lignesGamme: InvoiceLine[] = Object.entries(panier)
+        .filter(([, q]) => q > 0)
+        .map(([id, q]) => ligneProduit(id, nomProduit(id), prixProduit(id), q));
+      const lignesPiece = lignesGamme.length > 0 ? [...lines, ...lignesGamme] : lines;
+
       /* LES VERSEMENTS DE CE PASSAGE. Un par NATURE d'argent, car ils ne
          voyagent pas ensemble : le comptant entre en caisse, l'avoir est un
          crédit consommé, l'acompte est entré un autre jour dans une autre
@@ -776,6 +829,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           method: 'Avoir', note: 'Réglé par avoir, crédit du compte',
         });
       }
+      /* LA GAMME SUR SON PROPRE VERSEMENT. Fondue dans le comptant du rituel,
+         elle aurait fait croire à un rituel surpayé ; et `paidXof` du
+         rendez-vous, qui ne compte QUE le rituel, aurait menti. Elle se règle
+         toujours comptant : on n'emporte pas un flacon à crédit. */
+      if (totalGamme > 0) {
+        versements.push({
+          id: `ip-${uid()}`, date: payDate, amountXof: totalGamme,
+          method: pay, cashbox: activeBox, note: 'Gamme, produits emportés',
+        });
+      }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
          en mention (forClientId). */
       const avoirNote = avoirApplied > 0 ? `Réglé par avoir : ${fmtMoney(avoirApplied, currency)}${amount > 0 ? ` · comptant ${fmtMoney(amount, currency)}` : ''}` : '';
@@ -804,7 +867,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         serie: 'F',
         clientId: payerId,
         date: invDate,
-        lines,
+        lines: lignesPiece,
         /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé —
            NOMMÉE quand c'est l'avantage du compte famille. */
         globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
@@ -845,7 +908,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           ...pieceDuRituel,
           /* Les lignes se reconforment au rituel d'aujourd'hui — c'est la même
              pièce qui grandit, pas une pièce neuve. */
-          lines,
+          lines: lignesPiece,
           globalDiscountPct: 0,
           globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
           discountLabel: detailRemise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
@@ -871,6 +934,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         invoicesStore.set((prev) => [fige, ...prev]);
       }
       idPieceEncaissee = inv.id;
+
+      /* LE STOCK SUIT LA VENTE — par le JOURNAL, jamais par un compteur qu'on
+         décrémente : un mouvement de sortie référencé au numéro de la pièce,
+         exactement ce que fait la Caisse. La vitrine de Ma Couronne suit toute
+         seule, et l'on peut relire d'où vient chaque sortie.
+
+         ON NE BORNE PAS À ZÉRO : un stock négatif dit qu'on a vendu plus que ce
+         qui était compté, et cette information vaut mieux qu'un zéro
+         rassurant. */
+      for (const l of lignesGamme) {
+        if (l.produitId) venteGamme(l.produitId, l.qty, inv.number, invDate, branch.id);
+      }
       /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
       if (avoirApplied > 0) {
         creditMovementsStore.set((prev) => [...prev, {
@@ -1103,8 +1178,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--ink-invert-soft, #C9C3DB)' }}>
               Reste à encaisser
             </span>
+            {/* LE BANDEAU COMPTE LES PRODUITS. C'est le seul nombre qu'on
+                cherche en ouvrant cette modale : il doit monter à chaque
+                flacon ajouté, sans qu'on ait à faire l'addition de tête. */}
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, color: 'var(--copper-200)', lineHeight: 1, whiteSpace: 'nowrap' }}>
-              {fmtMoney(due, currency)}
+              {fmtMoney(due + totalGamme, currency)}
             </span>
           </div>
           {/* LE LIEN DE PAIEMENT EN UN CLIC — la page payer.html au montant du
@@ -1338,6 +1416,110 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             ne disait si le compte tombait juste. Le moyen de paiement et la
             caisse ne concernent QUE l'argent qui entre vraiment : ils se
             rangent dans le tiroir du comptant. */}
+        {/* ══ LA GAMME AU COMPTOIR — 31 août 2026 (maquette validée) ══
+            « Sur un RDV un client achète un produit » (Yéman). Il fallait
+            quitter cette modale et refaire tout le ticket à la Caisse.
+
+            REPLIÉ TANT QU'ON N'Y TOUCHE PAS : neuf encaissements sur dix ne
+            portent aucun produit, et ce qu'on ouvre rarement ne doit pas coûter
+            de la place à ce qu'on lit toujours.
+
+            CE QUI EST DÉJÀ FACTURÉ NE SE RETOUCHE PLUS : une pièce remise à une
+            cliente ne change pas. Le bloc se ferme alors, et dit où aller. */}
+        {produitsBranche.length > 0 && (
+          pieceDuRituelOuverte ? null : (
+            <div style={{ marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => setGammeOuverte((v) => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                  cursor: 'pointer', background: 'none', border: 'none', padding: '6px 0', font: 'inherit',
+                }}
+              >
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                  La Gamme · ce qu’elle emporte
+                </span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                  {totalGamme > 0 ? fmtMoney(totalGamme, currency) : (gammeOuverte ? 'Fermer' : 'Ajouter')}
+                </span>
+              </button>
+
+              {gammeOuverte && (
+                <div style={{ border: '1px solid var(--copper-300)', background: 'var(--copper-50)', borderRadius: 4, padding: 12, marginTop: 4 }}>
+                  <Input
+                    value={chercheProduit}
+                    placeholder="Chercher un produit…"
+                    onChange={(e) => setChercheProduit(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, maxHeight: 210, overflowY: 'auto' }}>
+                    {produitsBranche
+                      .filter((pr) => (panier[pr.id] ?? 0) > 0
+                        || normName(pr.name).includes(normName(chercheProduit)))
+                      .slice(0, 40)
+                      .map((pr) => {
+                        const q = panier[pr.id] ?? 0;
+                        const reste = resteEnReserve(pr.id);
+                        const bas = reste !== null && reste <= 3;
+                        return (
+                          <div key={pr.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-card)',
+                            border: '1px solid var(--hairline)', borderRadius: 3, padding: '8px 10px',
+                          }}>
+                            <span style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ display: 'block', fontSize: 13, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {pr.name}
+                              </span>
+                              {/* LA RÉSERVE SE DIT AVANT LA VENTE, pas après :
+                                  en dessous de trois, c'est le moment où l'on
+                                  recommande, pas quand le rayon est vide. */}
+                              <span style={{ display: 'block', fontSize: 11, marginTop: 1, color: bas ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
+                                {reste === null
+                                  ? 'Pas encore à l’inventaire'
+                                  : bas
+                                    ? `${reste} en réserve, pensez à recommander`
+                                    : `${reste} en réserve`}
+                              </span>
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--hairline)', borderRadius: 3, overflow: 'hidden', flex: 'none' }}>
+                              <button type="button" onClick={() => auPanier(pr.id, -1)} style={{ cursor: 'pointer', border: 'none', background: 'var(--copper-50)', padding: '3px 9px', font: 'inherit', color: 'var(--ink-soft)' }}>−</button>
+                              <b style={{ fontWeight: 400, padding: '3px 11px', fontVariantNumeric: 'tabular-nums', background: 'var(--surface-card)' }}>{q}</b>
+                              <button type="button" onClick={() => auPanier(pr.id, 1)} style={{ cursor: 'pointer', border: 'none', background: 'var(--copper-50)', padding: '3px 9px', font: 'inherit', color: 'var(--ink-soft)' }}>+</button>
+                            </span>
+                            <span style={{
+                              fontFamily: 'var(--font-serif)', fontSize: 16, flex: 'none', minWidth: 78, textAlign: 'right',
+                              fontVariantNumeric: 'tabular-nums', color: q > 0 ? 'var(--color-indigo)' : 'var(--ink-soft)',
+                            }}>
+                              {fmtMoney(pr.priceXof * Math.max(1, q), currency)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* LE TOTAL SE DÉCOUPE EN DEUX LIGNES. « C'était combien le
+                  soin ? » a sa réponse sans qu'on rouvre la facture. */}
+              {totalGamme > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '3px 0' }}>
+                    <span className="mnd-muted">Rituel</span>
+                    <b style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(due, currency)}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '3px 0' }}>
+                    <span className="mnd-muted">
+                      Gamme · {Object.values(panier).reduce((n, q) => n + q, 0)} produit
+                      {Object.values(panier).reduce((n, q) => n + q, 0) > 1 ? 's' : ''}
+                    </span>
+                    <b style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(totalGamme, currency)}</b>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        )}
+
         <PalierEnc n={2} titre="Comment elle règle" aide={avoirBal > 0 ? 'deux tiroirs, un seul total' : undefined} />
 
         {avoirBal > 0 && (

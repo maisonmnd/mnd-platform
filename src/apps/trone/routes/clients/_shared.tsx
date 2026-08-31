@@ -26,7 +26,7 @@ import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, inclusV
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import type { CommRates } from '../equipe/payroll';
-import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox } from '../../../../shared/finance';
+import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 
@@ -215,9 +215,28 @@ export function commissionDetaillee(
   }
   for (const i of invoices) {
     if (i.branchId !== branchId || i.kind !== 'facture' || i.status !== 'payée' || i.master !== m.name) continue;
-    if (i.date.slice(0, 7) !== month || linkedInv.has(i.id)) continue;
+    if (i.date.slice(0, 7) !== month) continue;
     if (i.lines.some((l) => l.label.startsWith('Règlement ·'))) continue;
-    produit += Math.round(invoiceTotal(i) * (rates.produits / 100));
+    /* ── LE PRODUIT PAIE SA COMMISSION, MÊME AVEC UN RITUEL — 31 août 2026 ──
+       « Le même shampooing rapporte la même chose, qu'il soit vendu pendant le
+       rituel ou séparément » (Yéman).
+
+       La règle sautait TOUTE facture liée à un rendez-vous, pour ne pas payer
+       deux fois ce que la boucle des rituels a déjà compté. Elle emportait les
+       produits avec elle : un shampooing vendu sur le ticket du rituel ne
+       rapportait rien, le même vendu au comptoir si.
+
+       On ne saute plus la pièce, on n'en compte que ce qui n'a pas déjà été
+       payé : sur une facture liée, les seules LIGNES DE PRODUIT
+       (`InvoiceLine.produitId`) ; sur une vente libre, la pièce entière comme
+       avant — ses prestations n'ont aucun rendez-vous pour les compter.
+
+       Les pièces d'AVANT ce jour n'ont pas de `produitId` : une facture liée
+       en rend donc zéro, exactement ce qu'elle rendait hier. Rien ne bouge
+       rétroactivement dans une paie déjà versée. */
+    const assiette = linkedInv.has(i.id) ? totalProduitsXof(i) : invoiceTotal(i);
+    if (assiette <= 0) continue;
+    produit += Math.round(assiette * (rates.produits / 100));
   }
   return { presta, produit };
 }

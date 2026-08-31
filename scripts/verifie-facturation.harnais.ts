@@ -3,7 +3,7 @@
 import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee } from '../src/apps/trone/routes/clients/_shared';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
 import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
-import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox } from '../src/shared/finance';
+import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
 import { cibleDeLEncaissement } from '../src/shared/receipts';
@@ -136,6 +136,38 @@ dit('un dépôt d’avoir', { source: 'avoir', movementId: 'cm-5' },
 dit('un préfixe inconnu ne cible rien', null, cible({ id: 'r-zzz-1' }));
 dit('un identifiant vide non plus', null, cible({ id: '' }));
 dit('un préfixe sans suite non plus', null, cible({ id: 'r-pay-' }));
+
+/* ── LA GAMME SUR LA PIÈCE D'UN RITUEL — 31 août 2026 ──────────────
+   « Sur un RDV un client achète un produit » (Yéman). Les produits vendus au
+   comptoir rejoignent la facture du rituel. Deux choses en dépendent, et une
+   erreur sur l'une ne se voit qu'au moment de payer quelqu'un :
+
+     · le STOCK sait quoi sortir, par `produitId` ;
+     · la COMMISSION PRODUIT sait isoler les produits d'une pièce liée à un
+       rendez-vous, là où elle sautait la pièce entière. */
+const pieceMixte = {
+  lines: [
+    ligneFacture('SÍNSIN™ Élaborée', 25_000),
+    ligneFacture('KLƆKLƆ™ Essentiel', 8_000),
+    ligneProduit('pr-huile', 'L’Huile de Nuit', 10_000, 2),
+    ligneProduit('pr-spray', 'Le Spray', 6_000),
+  ],
+};
+dit('les produits se comptent seuls', 26_000, totalProduitsXof(pieceMixte));
+dit('… et une pièce sans produit ne rend rien', 0,
+  totalProduitsXof({ lines: [ligneFacture('Un rituel', 40_000)] }));
+dit('une pièce vide non plus', 0, totalProduitsXof({ lines: [] }));
+
+/* LA REMISE DE LIGNE SUIT LE PRODUIT : elle est déjà écrite sur lui, on ne la
+   recompte pas ailleurs. */
+const avecRemise = { lines: [ligneProduit('pr-x', 'Un produit', 10_000, 1, 20)] };
+dit('la remise de ligne s’applique au produit', 8_000, totalProduitsXof(avecRemise));
+
+/* LES PIÈCES D'AVANT N'ONT PAS DE `produitId` : elles rendent zéro, donc une
+   facture liée continue de rendre exactement ce qu'elle rendait hier. Aucune
+   paie déjà versée ne bouge rétroactivement. */
+dit('une pièce d’avant ne porte aucun produit', 0,
+  totalProduitsXof({ lines: [ligneFacture('Shampooing vendu en 2025', 6_000)] }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
