@@ -192,6 +192,17 @@ export type Expense = {
      Sandrine · courses au marché » : le marché reçoit, Sandrine porte. Les
      mêler donnerait un « à qui je paie le plus » qui répond à côté. */
   porteur?: string;
+  /** IL A AVANCÉ DE SA POCHE — 31 août 2026.
+
+      `porteur` seul suppose que la Maison lui avait DÉJÀ remis l'argent : la
+      caisse se vide, personne ne doit rien. Ce drapeau dit l'inverse — il a
+      payé de sa poche, et c'est la Maison qui lui doit.
+
+      LA CHARGE EST LA MÊME, LA TRÉSORERIE NON : la dépense compte au résultat
+      du mois (la Maison a bien consommé), mais AUCUN TIROIR NE BOUGE le jour
+      de l'achat. Il bougera au remboursement, qui est un geste à part.
+      Voir `shared/avances.ts`. */
+  avancee?: boolean;
   /** LA PREUVE : reçu, bordereau, capture. Voir `PieceJointe`. */
   fichier?: PieceJointe;
   /** LES REVENUS QUI PAIENT CETTE DÉPENSE — voir `DepenseSource`. Absent sur

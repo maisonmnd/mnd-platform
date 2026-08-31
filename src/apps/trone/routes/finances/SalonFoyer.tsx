@@ -9,8 +9,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
   useInvoices, usePayments, useCredits, useExpenses, useCoffre, coffreBalance,
-  expenseOccurrences, expenseTotal, type CoffreMovement,
-} from '../../../../shared/finance';
+  expenseOccurrences, expenseTotal, type CoffreMovement, usePorteurs, ajouteUnPorteur } from '../../../../shared/finance';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { buildReceipts } from '../../../../shared/receipts';
 import { apptLabel, useServicesById } from '../clients/_shared';
@@ -162,6 +161,7 @@ export default function SalonFoyer() {
   const [clients] = useClients();
   const byId = useServicesById();
   const [expenses] = useExpenses();
+  const [porteurs] = usePorteurs();
 
   const [tab, setTab] = useState<Tab>('mois');
   const [month, setMonth] = useState(monthKey(todayISO()));
@@ -291,6 +291,11 @@ export default function SalonFoyer() {
   const [fMvt, setFMvt] = useState({
     date: todayISO(), sens: 'entree' as 'entree' | 'sortie', label: '', montant: '', taux: '655',
     motif: '', sousMotif: '', postes: [] as PosteFoyer[],
+    /* QUI A SORTI CET ARGENT, ET L'A-T-IL AVANCÉ ? — 31 août 2026.
+       « Construis la même chose dans le salon/foyer » (Yéman). Même règle et
+       même moteur que les dépenses du salon : la charge est la même, la
+       trésorerie non. Voir `shared/avances.ts`. */
+    porteur: '', avancee: false,
   });
   const postesCaisse = fMvt.postes.filter((p) => p.label.trim() && p.amountXof > 0);
   const ajoutePosteCaisse = () => setFMvt((f) => ({ ...f, postes: [...f.postes, { id: uid(), label: '', amountXof: 0 }] }));
@@ -591,8 +596,13 @@ export default function SalonFoyer() {
       ...(fMvt.motif ? { motif: fMvt.motif } : {}),
       ...(fMvt.sousMotif ? { sousMotif: fMvt.sousMotif } : {}),
       ...(postesCaisse.length ? { items: postesCaisse } : {}),
+      /* L'AVANCE NE VAUT QUE SUR UNE SORTIE : on n'avance pas une entrée
+         d'argent, on la reçoit. Et sans porteur, il n'y a personne à qui
+         rendre — on ne retient donc pas le drapeau. */
+      ...(fMvt.porteur.trim() ? { porteur: fMvt.porteur.trim() } : {}),
+      ...(fMvt.sens === 'sortie' && fMvt.avancee && fMvt.porteur.trim() ? { avancee: true } : {}),
     }]);
-    setFMvt((f) => ({ ...f, label: '', montant: '', postes: [] }));
+    setFMvt((f) => ({ ...f, label: '', montant: '', postes: [], porteur: '', avancee: false }));
     setCaisseMvtOuvert(false);
   };
 
@@ -1671,6 +1681,81 @@ export default function SalonFoyer() {
                 placeholder="Report de solde, frais notaire, virement reçu…"
               />
             </Field>
+
+            {/* ══ QUI A SORTI CET ARGENT — 31 août 2026 ══════════════════
+                Seulement sur une SORTIE : une entrée ne s'avance pas, on la
+                reçoit. Le nom rejoint la même liste que les dépenses du salon,
+                pour que la Maison ne doive qu'une fois à la même personne. */}
+            {fMvt.sens === 'sortie' && (
+              <div>
+                <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qui a fait cette sortie ?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  <button
+                    type="button"
+                    className={`trf-chip ${!fMvt.porteur ? 'is-active' : ''}`}
+                    onClick={() => setFMvt((f) => ({ ...f, porteur: '', avancee: false }))}
+                  >
+                    Le foyer lui-même
+                  </button>
+                  {porteurs.map((nom) => (
+                    <button
+                      key={nom}
+                      type="button"
+                      className={`trf-chip ${fMvt.porteur === nom ? 'is-active' : ''}`}
+                      onClick={() => setFMvt((f) => ({ ...f, porteur: nom }))}
+                    >
+                      {nom}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="trf-chip"
+                    style={{ borderStyle: 'dashed' }}
+                    onClick={() => {
+                      const nom = window.prompt('Qui a fait cette sortie ? Son nom rejoindra la liste, sur tous les appareils.');
+                      if (!nom?.trim()) return;
+                      ajouteUnPorteur(nom);
+                      setFMvt((f) => ({ ...f, porteur: nom.trim() }));
+                    }}
+                  >
+                    + Quelqu’un
+                  </button>
+                </div>
+
+                {!!fMvt.porteur && (
+                  <button
+                    type="button"
+                    onClick={() => setFMvt((f) => ({ ...f, avancee: !f.avancee }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                      marginTop: 10, padding: '10px 12px', cursor: 'pointer', font: 'inherit',
+                      border: `1px solid ${fMvt.avancee ? 'var(--copper-600)' : 'var(--hairline)'}`,
+                      background: fMvt.avancee ? 'var(--copper-50)' : 'transparent',
+                      borderRadius: 3,
+                    }}
+                  >
+                    <span style={{
+                      width: 34, height: 19, borderRadius: 10, flex: 'none', position: 'relative',
+                      background: fMvt.avancee ? 'var(--copper-600)' : 'var(--hairline)',
+                      transition: 'background .2s ease',
+                    }}>
+                      <span style={{
+                        position: 'absolute', top: 2, width: 15, height: 15, borderRadius: '50%',
+                        background: '#fff', left: fMvt.avancee ? 17 : 2, transition: 'left .2s ease',
+                      }} />
+                    </span>
+                    <span style={{ fontSize: 13 }}>
+                      {fMvt.porteur} a avancé de sa poche
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+                        {fMvt.avancee
+                          ? 'Le foyer le lui doit. Cette caisse ne bouge pas.'
+                          : 'Cette caisse se videra, comme d’habitude.'}
+                      </span>
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
 
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 9 }}>

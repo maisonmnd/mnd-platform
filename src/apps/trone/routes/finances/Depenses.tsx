@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { Eyebrow, Modal } from '../../../../ds/components';
+import { Eyebrow, Modal, Button, Field, Input, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
@@ -12,8 +12,7 @@ import { expenseOccurrences,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut, caisseDiscrete,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe,
-} from '../../../../shared/finance';
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { usePrets } from '../../../../shared/foyer';
 import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
@@ -21,6 +20,13 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { fmtDay, todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements, ChampPieceJointe } from './_shared';
+import {
+  lignesAvancees, soldesDesPorteurs, totalDuXof, lignesDunPorteur,
+  remboursementsDunPorteur, rembourse, useRemboursements,
+} from '../../../../shared/avances';
+import { useMouvementsCaisse } from '../../../../shared/foyer';
+import { summaryPdf } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import {
   useCaisses, ReleveCaisse, ContrepartieMaison, montantsDuTiroir, libelleDuMontant,
   nettoieLeMontant, nomEtSolde, useCaissesOuvertes,
@@ -45,7 +51,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
 
@@ -122,7 +128,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: '' });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: '', avancee: false });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -203,6 +209,96 @@ export default function Depenses() {
      et son solde s’en trouvait faux. Le champ ci-dessous dit ce qui sort
      vraiment du tiroir ; sans lui, la ligne ne pèse rien et le relevé le dit. */
   const [porteurs] = usePorteurs();
+
+  /* ── CE QUE LA MAISON DOIT — 31 août 2026 ────────────────────────
+     Le solde SE CALCULE, il ne se stocke pas : un total posé à côté des lignes
+     finit toujours par ne plus leur correspondre, et personne ne sait alors
+     lequel croire. Les deux origines comptent — les dépenses du salon et les
+     sorties des caisses indépendantes du foyer. */
+  const [moyens] = usePaymentMethods();
+  const [remboursements] = useRemboursements();
+  const [mvtsFoyer] = useMouvementsCaisse();
+  const avances = useMemo(
+    () => lignesAvancees({ expenses, mouvements: mvtsFoyer, branchId: branch.id }),
+    [expenses, mvtsFoyer, branch.id],
+  );
+  const soldes = useMemo(
+    () => soldesDesPorteurs(avances, remboursements, branch.id),
+    [avances, remboursements, branch.id],
+  );
+  const [aRembourser, setARembourser] = useState<string | null>(null);
+  const [rbMontant, setRbMontant] = useState('');
+  const [rbCaisse, setRbCaisse] = useState('');
+  const [rbMoyen, setRbMoyen] = useState('');
+  const [rbDate, setRbDate] = useState(todayISO());
+
+  const ouvrirRemboursement = (nom: string, reste: number) => {
+    setARembourser(nom);
+    setRbMontant(String(Math.max(0, reste)));
+    setRbCaisse(caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '');
+    setRbMoyen(moyens[0] ?? '');
+    setRbDate(todayISO());
+  };
+
+  const validerRemboursement = () => {
+    if (!aRembourser) return;
+    const montant = parseInt(rbMontant.replace(/[^0-9]/g, ''), 10) || 0;
+    /* UN REFUS SE DIT, TOUJOURS. */
+    if (montant <= 0) { toast('Saisissez le montant rendu.'); return; }
+    const r = rembourse({
+      branchId: branch.id, porteur: aRembourser, date: rbDate || todayISO(),
+      amountXof: montant, cashbox: rbCaisse || undefined, method: rbMoyen || undefined,
+    });
+    if (!r) { toast('Ce remboursement n’a pas pu s’inscrire.'); return; }
+    setARembourser(null);
+    toast(rbCaisse
+      ? `${fmtMoney(montant, currency)} rendus à ${aRembourser}, sortis de « ${rbCaisse} ».`
+      : `${fmtMoney(montant, currency)} rendus à ${aRembourser}.`);
+  };
+
+  /* LE RELEVÉ D'UNE PERSONNE. Il SÉPARE ce qu'elle a avancé de ce qu'on lui a
+     rendu : un total unique ferait payer deux fois le jour où on le relit. */
+  const releveCsv = (nom: string) => {
+    const l = lignesDunPorteur(avances, nom);
+    const r = remboursementsDunPorteur(remboursements, nom, branch.id);
+    downloadCsv(`releve-${nom.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.csv`, [
+      ['Nature', 'Date', 'Libellé', 'Catégorie', 'Origine', 'Montant'],
+      ...l.map((x) => ['Avancé', x.date, x.label, x.categorie ?? '', x.source === 'foyer' ? 'Foyer' : 'Salon', String(x.amountXof)]),
+      ...r.map((x) => ['Remboursé', x.date, x.note ?? 'Remboursement', '', x.cashbox ?? '', String(-x.amountXof)]),
+    ]);
+  };
+
+  const relevePdf = async (nom: string) => {
+    const l = lignesDunPorteur(avances, nom);
+    const r = remboursementsDunPorteur(remboursements, nom, branch.id);
+    const s0 = soldes.find((x) => x.porteur.toLowerCase() === nom.toLowerCase());
+    await summaryPdf({
+      eyebrow: 'Relevé des avances',
+      title: nom,
+      houseName: maisonNom(),
+      meta: [`Établi le ${fmtDay(todayISO())}`, branch.name ?? ''],
+      sections: [
+        {
+          heading: 'Ce qui a été avancé',
+          rows: l.length > 0
+            ? l.map((x) => ({ label: `${fmtDay(x.date)} · ${x.label}`, value: fmtMoney(x.amountXof, currency) }))
+            : [{ label: 'Aucune avance sur la période' }],
+        },
+        {
+          heading: 'Ce que la Maison a rendu',
+          rows: r.length > 0
+            ? r.map((x) => ({ label: `${fmtDay(x.date)}${x.cashbox ? ` · ${x.cashbox}` : ''}`, value: fmtMoney(x.amountXof, currency) }))
+            : [{ label: 'Rien rendu à ce jour' }],
+        },
+        {
+          heading: 'Reste dû',
+          rows: [{ label: 'Ce que la Maison doit encore', value: fmtMoney(Math.max(0, s0?.resteXof ?? 0), currency) }],
+        },
+      ],
+      footer: 'Relevé arrêté au jour de son édition. Signé pour accord.',
+      filename: `releve-${nom.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.pdf`,
+    });
+  };
   const caisseDeLaDepense = branchBoxes.find((c) => c.name === form.cashbox);
   /* LES DEUX NOMBRES D’UNE DÉPENSE — 23 août 2026. Le champ principal se dit
      dans la monnaie du tiroir ; le franc suit, au taux indicatif, corrigeable.
@@ -435,7 +531,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: '' });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: '', avancee: false });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -446,6 +542,7 @@ export default function Depenses() {
       cashbox: e.cashbox, enDevise: e.fx ? String(e.amountXof) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
       fichier: e.fichier,
       porteur: e.porteur ?? '',
+      avancee: !!e.avancee,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -589,6 +686,10 @@ export default function Depenses() {
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
         porteur: form.porteur.trim() || undefined,
+        /* IL A AVANCÉ DE SA POCHE : la charge compte, la caisse ne
+           bouge pas. Sans porteur, l'avance n'a personne à qui
+           rendre — on ne la retient donc pas. */
+        avancee: form.avancee && !!form.porteur.trim() ? true : undefined,
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
@@ -600,6 +701,10 @@ export default function Depenses() {
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
         porteur: form.porteur.trim() || undefined,
+        /* IL A AVANCÉ DE SA POCHE : la charge compte, la caisse ne
+           bouge pas. Sans porteur, l'avance n'a personne à qui
+           rendre — on ne la retient donc pas. */
+        avancee: form.avancee && !!form.porteur.trim() ? true : undefined,
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
       };
@@ -1273,6 +1378,84 @@ export default function Depenses() {
               « à qui je paie le plus » qui répond à côté — le marché reçoit,
               Sandrine porte. Même horizon de douze mois, même clic qui ouvre
               toutes ses lignes. */}
+          {/* ══ CE QUE LA MAISON DOIT — 31 août 2026 ═══════════════════
+              « Il enregistre les dépenses sur des bouts de papier et parfois
+              il oublie les dates et invente des choses » (Yéman). Le papier
+              devient une ligne datée, et la dette se lit à l'instant près.
+
+              LE VOLET NE PARAÎT QUE S'IL Y A QUELQUE CHOSE À DIRE : une Maison
+              qui n'avance rien n'a pas à porter un tableau vide. */}
+          {soldes.length > 0 && (
+            <div className="trf-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <div className="trf-panel__title" style={{ marginBottom: 0 }}>Les avances de l’équipe</div>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-brique, #96412E)' }}>
+                  {fmtMoney(totalDuXof(soldes), currency)} dus
+                </span>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.6 }}>
+                Ce que chacun a sorti de sa poche pour la Maison. La charge a déjà compté au
+                résultat ; la caisse ne bouge qu’au remboursement.
+              </div>
+              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                <table className="tre-table" style={{ minWidth: 520 }}>
+                  <thead>
+                    <tr>
+                      <th>Qui</th>
+                      <th style={{ textAlign: 'right' }}>Avancé</th>
+                      <th style={{ textAlign: 'right' }}>Remboursé</th>
+                      <th style={{ textAlign: 'right' }}>Reste dû</th>
+                      <th>Dernier achat</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soldes.map((so) => (
+                      <tr key={so.porteur}>
+                        <td>
+                          {so.porteur}
+                          <span className="mnd-muted" style={{ fontSize: 10.5, marginLeft: 6 }}>
+                            {so.n} ligne{so.n > 1 ? 's' : ''}
+                          </span>
+                        </td>
+                        <td className="num" style={{ textAlign: 'right' }}>{fmtMoney(so.avanceXof, currency)}</td>
+                        <td className="num" style={{ textAlign: 'right' }}>{fmtMoney(so.rembourseXof, currency)}</td>
+                        <td className="num" style={{ textAlign: 'right' }}>
+                          {so.resteXof > 0 ? (
+                            <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: 'var(--color-brique, #96412E)' }}>
+                              {fmtMoney(so.resteXof, currency)}
+                            </b>
+                          ) : so.resteXof < 0 ? (
+                            /* TROP RENDU : on ne l'efface pas, on le dit. */
+                            <span style={{ color: 'var(--color-brique, #96412E)', fontSize: 12 }}>
+                              {fmtMoney(-so.resteXof, currency)} de trop
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-vert, #4A6B52)', fontSize: 12 }}>à jour</span>
+                          )}
+                        </td>
+                        <td className="mnd-muted" style={{ fontSize: 12.5 }}>{so.dernier ? fmtDay(so.dernier) : '—'}</td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {so.resteXof > 0 && (
+                            <button className="tre-link-btn" onClick={() => ouvrirRemboursement(so.porteur, so.resteXof)}>
+                              Rembourser
+                            </button>
+                          )}
+                          <button className="tre-link-btn" style={{ marginLeft: 10 }} onClick={() => void relevePdf(so.porteur)}>
+                            Relevé
+                          </button>
+                          <button className="tre-link-btn" style={{ marginLeft: 10 }} onClick={() => releveCsv(so.porteur)}>
+                            CSV
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {achatsParPorteur(depensesDeLAnnee).length > 0 && (
             <div className="trf-panel">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -1678,6 +1861,50 @@ export default function Depenses() {
                 Celui à qui vous confiez de l’argent pour acheter, pas celui qui l’encaisse.
                 Vous retrouverez tout ce qu’il a acheté dans « Où va l’argent ».
               </div>
+
+              {/* ══ IL A AVANCÉ DE SA POCHE — 31 août 2026 ═══════════════
+                  « J'ai un staff qui préfinance des dépenses pour moi et je le
+                  règle à la fin du mois » (Yéman).
+
+                  UN SEUL INTERRUPTEUR DÉCIDE DE LA TRÉSORERIE. Fermé, la caisse
+                  choisie se vide comme toujours. Ouvert, AUCUN TIROIR NE BOUGE :
+                  l'argent n'est pas sorti de la Maison, il est sorti de sa poche.
+                  La charge, elle, compte au résultat dans les deux cas.
+
+                  Il n'a de sens qu'avec un porteur : sans nom, on ne pourrait
+                  rendre l'argent à personne. */}
+              {!!form.porteur && (
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, avancee: !f.avancee }))}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                    marginTop: 10, padding: '10px 12px', cursor: 'pointer', font: 'inherit',
+                    border: `1px solid ${form.avancee ? 'var(--copper-600)' : 'var(--hairline)'}`,
+                    background: form.avancee ? 'var(--copper-50)' : 'transparent',
+                    borderRadius: 3,
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 19, borderRadius: 10, flex: 'none', position: 'relative',
+                    background: form.avancee ? 'var(--copper-600)' : 'var(--hairline)',
+                    transition: 'background .2s ease',
+                  }}>
+                    <span style={{
+                      position: 'absolute', top: 2, width: 15, height: 15, borderRadius: '50%',
+                      background: '#fff', left: form.avancee ? 17 : 2, transition: 'left .2s ease',
+                    }} />
+                  </span>
+                  <span style={{ fontSize: 13 }}>
+                    {form.porteur} a avancé de sa poche
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+                      {form.avancee
+                        ? 'La Maison le lui doit. Aucune caisse ne bouge aujourd’hui.'
+                        : 'La caisse choisie se videra, comme d’habitude.'}
+                    </span>
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* LE DÉTAIL SE REPLIE — un achat simple n'a rien à détailler, et
@@ -2189,6 +2416,79 @@ export default function Depenses() {
       {rapportDe && (
         <RapportDeCaisse nom={rapportDe} month={month} onClose={() => setRapportDe(null)} />
       )}
+
+      {/* ══ RENDRE L'ARGENT — 31 août 2026 ═══════════════════════════
+          C'est CE JOUR-LÀ que le tiroir se vide, et pas avant : la dépense
+          avancée n'avait rien retiré de la caisse. On demande donc la caisse
+          et le moyen, exactement comme un encaissement — sans eux, rendre
+          200 000 F ne les retirerait d'aucun tiroir, et les mêmes francs
+          vivraient à deux endroits. */}
+      {aRembourser && (() => {
+        const so = soldes.find((x) => x.porteur === aRembourser);
+        const reste = Math.max(0, so?.resteXof ?? 0);
+        const montant = parseInt(rbMontant.replace(/[^0-9]/g, ''), 10) || 0;
+        return (
+          <Modal title={`Rembourser ${aRembourser}`} onClose={() => setARembourser(null)} width={460}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+                La Maison lui doit <b style={{ color: 'var(--color-brique, #96412E)' }}>{fmtMoney(reste, currency)}</b>
+                {so ? `, sur ${so.n} ligne${so.n > 1 ? 's' : ''} avancée${so.n > 1 ? 's' : ''}.` : '.'}
+              </div>
+
+              <div className="tr-grid tr-grid--2">
+                <Field label={`Montant rendu (${currency})`}>
+                  <Input
+                    inputMode="numeric"
+                    value={rbMontant}
+                    onChange={(e) => setRbMontant(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="0"
+                  />
+                </Field>
+                <Field label="Date">
+                  <Input type="date" value={rbDate} onChange={(e) => setRbDate(e.target.value)} />
+                </Field>
+              </div>
+
+              <div className="tr-grid tr-grid--2">
+                <Field label="Caisse qui se vide">
+                  <Select value={rbCaisse} onChange={(e) => setRbCaisse(e.target.value)}>
+                    {branchBoxes.length === 0 && <option value="">Aucune caisse</option>}
+                    {branchBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Moyen">
+                  <Select value={rbMoyen} onChange={(e) => setRbMoyen(e.target.value)}>
+                    {moyens.length === 0 && <option value="">—</option>}
+                    {moyens.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </Select>
+                </Field>
+              </div>
+
+              {/* ON PEUT RENDRE UNE PARTIE. Le reste demeure dû, le solde suit
+                  tout seul — il se calcule, il ne se stocke pas. */}
+              {montant > 0 && montant < reste && (
+                <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                  Il restera <b>{fmtMoney(reste - montant, currency)}</b> dus après ce versement.
+                </div>
+              )}
+              {montant > reste && reste > 0 && (
+                <div style={{
+                  border: '1px solid var(--color-brique, #96412E)', borderRadius: 3,
+                  background: 'rgba(150,65,46,.07)', padding: '10px 12px', fontSize: 12.5, lineHeight: 1.6,
+                }}>
+                  Vous rendez <b>{fmtMoney(montant - reste, currency)}</b> de plus que ce qu’elle a avancé.
+                  Cela s’inscrira, et se lira « de trop » dans le tableau.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setARembourser(null)}>Annuler</Button>
+                <Button variant="copper" onClick={validerRemboursement}>Rembourser</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {boxDrill && (
         <ReleveCaisse

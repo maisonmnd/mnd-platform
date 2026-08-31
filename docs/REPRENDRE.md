@@ -2,6 +2,66 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES AVANCES DE L'ÉQUIPE — 31 août, PUBLIÉ · **0078 À PASSER**
+
+« J'ai un staff qui préfinance des dépenses pour moi et je le règle à la fin du
+mois. Il enregistre sur des bouts de papier et parfois il oublie les dates et
+invente des choses. » Maquette validée.
+
+### La direction de l'argent est tout le sujet
+
+`Expense.porteur` existait, mais il suppose que la Maison a **déjà remis
+l'argent** : la caisse se vide, personne ne doit rien. Ici c'est l'inverse. D'où
+un drapeau **`avancee`**, sur la dépense ET sur le mouvement d'une caisse
+indépendante du foyer (« construis la même chose dans le salon/foyer »).
+
+- **La charge est la même** : la dépense compte au résultat du mois.
+- **La trésorerie, non** : `boxExpenses` (tiroirs.tsx) exclut désormais les
+  avancées. Aucun tiroir ne bouge le jour de l'achat.
+- **Le tiroir bouge au remboursement**, qui est un geste à part et qui demande
+  sa caisse.
+
+Une avance **sans porteur n'en est pas une** : on ne pourrait rendre l'argent à
+personne. Une **entrée ne s'avance pas**, on la reçoit.
+
+### Le moteur — `shared/avances.ts`
+
+`lignesAvancees` (les deux origines), `soldesDesPorteurs`, `totalDuXof`,
+`lignesDunPorteur`, `rembourse`. **Le solde se calcule, il ne se stocke pas.**
+
+Deux règles qui comptent : le nom se reconnaît malgré la casse et les espaces
+(sinon la Maison devrait trois fois à la même personne), et **les soldes
+négatifs ne compensent pas** dans le total — deux dettes de sens contraires ne
+s'annulent pas dans la vraie vie.
+
+Une caisse en devise se convertit **au taux saisi ce jour-là**, jamais à celui du
+jour où l'on relit : la dette est née à ce taux.
+
+### Les écrans
+
+- **Dépenses** : l'interrupteur « a avancé de sa poche » sous le choix du
+  porteur, et le volet **« Les avances de l'équipe »** — qui, avancé,
+  remboursé, reste dû, dernier achat, avec « Rembourser », « Relevé » (PDF) et
+  « CSV ».
+- **Salon & Foyer** : le même porteur et le même interrupteur sur une SORTIE de
+  caisse indépendante. Même liste de porteurs, pour ne devoir qu'une fois.
+
+### Son accès — rien à construire
+
+La matrice de « Accès & personnel » ouvre **un écran seul** : rôle Maître, et on
+ne coche que `/depenses`. **Mais elle organise l'interface, elle ne cloisonne pas
+les données** — côté serveur seule la paie est réservée au souverain. N'autoriser
+que des personnes de confiance.
+
+### À faire côté Supabase
+
+`supabase/migrations/0078_les_avances_de_l_equipe.sql`, une seule fois. Sans
+elle, les remboursements ne se synchronisent pas entre les postes.
+
+20e harnais, `scripts/verifie-avances.mjs`, 26 assertions.
+
+---
+
 ## LA GAMME AU COMPTOIR — 31 août, PUBLIÉ
 
 « Sur un RDV un client achète un produit. » Maquette validée, option « complète »

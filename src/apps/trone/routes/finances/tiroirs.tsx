@@ -24,6 +24,7 @@ import {
   type Cashbox,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
+import { useRemboursements } from '../../../../shared/avances';
 import { usePrets } from '../../../../shared/foyer';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
@@ -244,8 +245,22 @@ export function useCaisses(month: string) {
   const boxInvoices = (name: string) =>
     invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture'
       && invoiceReglements(i).some((p) => p.cashbox === name && p.method !== 'Avoir' && p.method !== 'Acompte'));
+  /* UNE DÉPENSE AVANCÉE NE VIDE AUCUN TIROIR — 31 août 2026. L'argent n'est
+     pas sorti de la Maison, il est sorti de la poche de celui qui a payé. Le
+     tiroir bougera le jour du remboursement, qui s'inscrit à part.
+     La CHARGE, elle, compte toujours au résultat : voir `shared/avances.ts`. */
+  /* LES REMBOURSEMENTS D'AVANCES VIDENT LE TIROIR — 31 août 2026. C'est CE
+     JOUR-LÀ que l'argent sort de la Maison ; la dépense avancée, elle, n'avait
+     rien retiré. Les oublier ici ferait un tiroir qui se croit plus plein
+     qu'il ne l'est. */
+  const [remboursements] = useRemboursements();
+  const boxRemboursements = (name: string, keep: (mk: string) => boolean) =>
+    remboursements
+      .filter((r) => r.branchId === branch.id && r.cashbox === name && keep(monthKey(r.date)))
+      .reduce((s, r) => s + r.amountXof, 0);
+
   const boxExpenses = (name: string) =>
-    expenses.filter((e) => e.branchId === branch.id && !e.stopped && e.cashbox === name);
+    expenses.filter((e) => e.branchId === branch.id && !e.stopped && !e.avancee && e.cashbox === name);
 
   /** Solde cumulé d'une caisse — ouverture + tous les flux dont le mois passe `keep`. */
   const boxBalanceWhere = (name: string, keep: (mk: string) => boolean) => {
@@ -259,7 +274,7 @@ export function useCaisses(month: string) {
        s’en trouvait faux. */
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date)))
       .reduce((s, e) => s + surLeTiroir({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency), 0);
-    return (box?.openingXof ?? 0) + inn - out - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep);
+    return (box?.openingXof ?? 0) + inn - out - boxRemboursements(name, keep) - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);

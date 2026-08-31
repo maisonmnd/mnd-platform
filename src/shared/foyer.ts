@@ -553,6 +553,12 @@ export type MouvementCaisseIndep = {
   /** Montant DANS LA DEVISE DE LA CAISSE, toujours positif (décimales
       permises) ; le SENS porte le signe. */
   montant: number;
+  /** QUI A FAIT CETTE SORTIE, et l'a-t-il avancée de sa poche ? — 31 août 2026.
+      Même règle et même moteur que les dépenses du salon (`shared/avances.ts`) :
+      la charge est la même, la trésorerie non. Une ENTRÉE ne s'avance pas, on
+      la reçoit : le drapeau n'a de sens que sur une sortie. */
+  porteur?: string;
+  avancee?: boolean;
   /** 1 unité de la devise en monnaie de la maison, au taux saisi CE JOUR-LÀ.
       La contre-valeur est INDICATIVE : elle n'entre dans aucun total MND et
       ne se recalcule jamais à un taux du jour. Absent quand la caisse tient
