@@ -30,6 +30,35 @@ qu'il ne reverrait jamais.
 **On ne cache pas sans le dire** : un bandeau annonce « vous voyez vos dépenses ».
 Un écran qui montre moins sans un mot se lit comme un écran cassé.
 
+### Le revenu, les budgets, les caisses — la fuite passait à côté
+
+Restreindre les dépenses ne suffisait pas. Trois portes voisines montraient
+encore ce qu'on venait de cacher :
+
+- **« Revenu vs dépenses »** affichait le chiffre d'affaires de la Maison et son
+  résultat net, en grand. Panneau fermé.
+- **« 38 % du revenu »** sous le total du mois : une division suffit à retrouver
+  le revenu. Remplacé par « ce que vous avez porté ».
+- **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
+  de vie. Retiré de la barre.
+
+### Une seule caisse pour l'équipe
+
+« Pour les employés une seule caisse est disponible. La caisse indépendante.
+Toutes les autres ne sont pas visibles. » Le nom des tiroirs dit déjà beaucoup :
+Wells Fargo, Scotiabank, un tiroir en euros. Les montrer, c'est dire où dort
+l'argent.
+
+`Cashbox.equipe` + `caissesPourLEquipe(boxes, voitTout)`, avec un interrupteur
+« Ouverte à l'équipe » dans la fiche de la caisse. Le filtre porte sur
+`branchBoxes` : les pastilles du flux, le choix du formulaire et la caisse d'un
+remboursement le suivent tous.
+
+**LA RÈGLE ÉCHOUE OUVERT** : tant qu'aucune caisse ne porte le drapeau, elles
+restent toutes visibles. Sans cela, la mise en ligne aurait retiré à tout le
+monde la possibilité de saisir une dépense, faute d'un tiroir où l'imputer — et
+l'on aurait cherché la panne au lieu du réglage.
+
 ⚠ **Ceci est l'interface, pas la base.** La RLS laisse tout compte du personnel
 lire `expenses`. La confidentialité est ici tenue par l'écran ; la tenir vraiment
 demanderait une politique par porteur, qui casserait la lecture des totaux pour

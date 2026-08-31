@@ -11,6 +11,7 @@ import {
   lignesAvancees, soldesDesPorteurs, totalDuXof, lignesDunPorteur,
   type Remboursement,
 } from '../src/shared/avances';
+import { caissesPourLEquipe } from '../src/shared/finance';
 import type { Expense } from '../src/shared/finance';
 import type { MouvementCaisseIndep } from '../src/shared/foyer';
 
@@ -131,6 +132,36 @@ dit('son relevé ne porte que ses lignes', ['e2', 'e1'],
   lignesDunPorteur(lignes, 'Sandrine').map((l) => l.id));
 dit('… le plus récent d’abord', '2026-08-31', lignesDunPorteur(lignes, 'Sandrine')[0].date);
 dit('un inconnu n’a pas de relevé', 0, lignesDunPorteur(lignes, 'Personne').length);
+
+/* ── ⑦ LES CAISSES OUVERTES À L'ÉQUIPE ─────────────────────────────
+   « Pour les employés une seule caisse est disponible pour eux. La caisse
+   indépendante. Toutes les autres ne sont pas visibles » (Yéman, 31 août).
+   Le nom des tiroirs dit déjà beaucoup : les montrer, c'est dire où dort
+   l'argent. */
+const tiroirs = [
+  { id: 'a', name: 'Caisse Principale' },
+  { id: 'b', name: 'Wells Fargo' },
+  { id: 'c', name: 'Caisse Indépendantes', equipe: true },
+];
+const noms = (l: readonly { name: string }[]) => l.map((x) => x.name);
+
+dit('la Maison voit tous ses tiroirs', 3, caissesPourLEquipe(tiroirs, true).length);
+dit('un compte restreint n’en voit qu’un', ['Caisse Indépendantes'],
+  noms(caissesPourLEquipe(tiroirs, false)));
+
+/* LA RÈGLE ÉCHOUE OUVERT, ET C'EST VOULU : tant qu'aucune caisse n'est
+   désignée, elles restent toutes visibles. Un employé sans aucun tiroir ne
+   pourrait plus rien saisir, et il chercherait la panne au lieu de comprendre
+   le réglage. */
+const aucuneDesignee = [{ id: 'a', name: 'Principale' }, { id: 'b', name: 'Wells Fargo' }];
+dit('aucune caisse désignée, on les laisse toutes', 2,
+  caissesPourLEquipe(aucuneDesignee, false).length);
+dit('… et une liste vide reste vide', 0, caissesPourLEquipe([], false).length);
+
+/* PLUSIEURS CAISSES D'ÉQUIPE SONT PERMISES : le jour où le foyer et l'atelier
+   en veulent chacun une, rien ne s'y oppose. */
+dit('deux caisses ouvertes se voient toutes deux', 2,
+  caissesPourLEquipe([...tiroirs, { id: 'd', name: 'Menue monnaie', equipe: true }], false).length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

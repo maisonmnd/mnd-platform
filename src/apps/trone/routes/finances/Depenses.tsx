@@ -12,7 +12,7 @@ import { expenseOccurrences,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut, caisseDiscrete,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods } from '../../../../shared/finance';
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods, caissesPourLEquipe } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
@@ -56,7 +56,7 @@ const FLOW_FILLS = [
 
 type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean };
 /** `currency` vide = la caisse tient la devise de la maison. */
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; equipe: boolean };
 
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
@@ -168,7 +168,7 @@ export default function Depenses() {
   const [catOpen, setCatOpen] = useState(false);
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '' });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', equipe: false });
   /** Nom de la caisse dont on lit les mouvements (null = fermé). */
   const [boxDrill, setBoxDrill] = useState<string | null>(null);
   const [rapportDe, setRapportDe] = useState<string | null>(null);
@@ -237,7 +237,20 @@ export default function Depenses() {
     ? monthName
     : `${annee}${annee === moisCourant.slice(0, 4) ? ' · à ce jour' : ''}`;
   const isCurrent = month === thisMonth;
-  const branchBoxes = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+  /* ── UNE SEULE CAISSE POUR L'ÉQUIPE — 31 août 2026 ───────────────
+     « Pour les employés une seule caisse est disponible pour eux. La caisse
+     indépendante. Toutes les autres ne sont pas visibles » (Yéman).
+
+     Le nom des tiroirs dit déjà beaucoup : Wells Fargo, Scotiabank, un tiroir
+     en euros. Les montrer à qui n'a que ses propres dépenses à saisir, c'est
+     lui dire où dort l'argent. Le filtre porte ici, à la source : les
+     pastilles du flux, le choix du formulaire et la caisse d'un remboursement
+     le suivent tous sans qu'on ait à y penser. */
+  const toutesLesCaisses = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+  const branchBoxes = useMemo(
+    () => caissesPourLEquipe(toutesLesCaisses, voitToutesLesDepenses),
+    [toutesLesCaisses, voitToutesLesDepenses],
+  );
   /* CET ÉCRAN N’A JAMAIS FILTRÉ LES CAISSES EN DEVISE — 22 août 2026. Une
      dépense en francs imputée à un tiroir en dollars lui retirait des francs,
      et son solde s’en trouvait faux. Le champ ci-dessous dit ce qui sort
@@ -854,12 +867,12 @@ export default function Depenses() {
   // — Caisses : ajouter / modifier / supprimer, avec réétiquetage dépenses + encaissements —
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: 'Caisse manuelle', glyph: '◈', opening: '', currency: '' });
+    setBoxForm({ name: '', sub: 'Caisse manuelle', glyph: '◈', opening: '', currency: '', equipe: false });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph || '◈', opening: String(c.openingXof), currency: c.currency ?? '' });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph || '◈', opening: String(c.openingXof), currency: c.currency ?? '', equipe: !!c.equipe });
     setBoxOpen(true);
   };
   const saveBox = () => {
@@ -871,7 +884,7 @@ export default function Depenses() {
     if (boxEditingId) {
       const prevBox = cashboxes.find((b) => b.id === boxEditingId);
       const oldName = prevBox?.name;
-      setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined } : b)));
+      setCashboxes((prev) => prev.map((b) => (b.id === boxEditingId ? { ...b, name, sub, glyph, openingXof: opening, currency: boxForm.currency || undefined, equipe: boxForm.equipe || undefined } : b)));
       if (oldName && oldName !== name) {
         /* RENOMMER NE DOIT ORPHELINER PERSONNE — 21 août 2026. Le nom de la
            caisse EST la clé : il n'y a pas d'identifiant partagé entre une
@@ -1021,6 +1034,10 @@ export default function Depenses() {
       ? `${fmtMoney(allocated, currency)} alloués`
       : 'aucune enveloppe'],
   ];
+  /* LES ENVELOPPES SONT CELLES DE LA MAISON : ce qu'elle s'autorise par poste
+     dit son train de vie. Un compte restreint ne les voit pas — ni l'onglet,
+     ni son total en regard. */
+  const ongletsVisibles = voitToutesLesDepenses ? TABS : TABS.filter(([t]) => t !== 'budgets');
 
   return (
     <div className="mnd-rise">
@@ -1074,7 +1091,7 @@ export default function Depenses() {
       </div>
 
       <div className="trf-tabs">
-        {TABS.map(([k, label, sum]) => (
+        {ongletsVisibles.map(([k, label, sum]) => (
           <button key={k} className={`trf-tab ${tab === k ? 'is-active' : ''}`} onClick={() => setTab(k)}>
             {label}
             <span className="trf-tab__sum">{sum}</span>
@@ -1109,6 +1126,9 @@ export default function Depenses() {
               n: kpiCard(
                 `Dépenses · ${nomDeLaPortee}`, fmtMoney(engaged, currency),
                 'var(--color-indigo)', 'var(--color-indigo)',
+                /* MÊME RAISON : « 38 % du revenu » laisse déduire le revenu
+                   en une division. On dit alors ce qu'on montre, et rien de plus. */
+                !voitToutesLesDepenses ? 'ce que vous avez porté' :
                 revenue > 0 ? `${expRatio} % du revenu · cible < 35 %` : (portee === 'mois' ? 'aucun revenu ce mois-ci' : 'aucun revenu cette année'), '',
                 () => openExp(
                   `Dépenses · ${nomDeLaPortee}`,
@@ -1229,6 +1249,14 @@ export default function Depenses() {
             </div>
           </div>
 
+          {/* ══ LE REVENU NE REGARDE PAS UN EMPLOYÉ — 31 août 2026 ══════
+              « Les revenus ne concernent pas mes employés » (Yéman).
+
+              Restreindre les dépenses ne suffisait pas : ce panneau affichait
+              encore le chiffre d'affaires de la Maison et son résultat net,
+              en grand, à quelqu'un à qui l'on venait justement de cacher les
+              dépenses. La fuite passait par la porte d'à côté. */}
+          {voitToutesLesDepenses && (
           <div className="trf-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Revenu vs dépenses · {nomDeLaPortee}</div>
@@ -1252,7 +1280,7 @@ export default function Depenses() {
               </button>
             </div>
           </div>
-
+          )}
           <div className="trf-panel" style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {nomDeLaPortee}</div>
@@ -2247,6 +2275,45 @@ export default function Depenses() {
                 ))}
               </div>
             </div>
+            {/* ── OUVERTE À L'ÉQUIPE — 31 août 2026 ─────────────────────
+                « Pour les employés une seule caisse est disponible pour eux »
+                (Yéman). Le nom des tiroirs dit déjà beaucoup : Wells Fargo,
+                Scotiabank, un tiroir en euros. Les montrer à qui n'a que ses
+                propres dépenses à saisir, c'est lui dire où dort l'argent.
+
+                TANT QU'AUCUNE N'EST COCHÉE, ELLES RESTENT TOUTES VISIBLES : un
+                employé sans aucun tiroir ne pourrait plus rien saisir, et il
+                chercherait la panne au lieu de comprendre le réglage. */}
+            <button
+              type="button"
+              onClick={() => setBoxForm((f) => ({ ...f, equipe: !f.equipe }))}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                padding: '11px 13px', cursor: 'pointer', font: 'inherit', borderRadius: 3,
+                border: `1px solid ${boxForm.equipe ? 'var(--copper-600)' : 'var(--hairline)'}`,
+                background: boxForm.equipe ? 'var(--copper-50)' : 'transparent',
+              }}
+            >
+              <span style={{
+                width: 34, height: 19, borderRadius: 10, flex: 'none', position: 'relative',
+                background: boxForm.equipe ? 'var(--copper-600)' : 'var(--hairline)',
+                transition: 'background .2s ease',
+              }}>
+                <span style={{
+                  position: 'absolute', top: 2, width: 15, height: 15, borderRadius: '50%',
+                  background: '#fff', left: boxForm.equipe ? 17 : 2, transition: 'left .2s ease',
+                }} />
+              </span>
+              <span style={{ fontSize: 13 }}>
+                Ouverte à l’équipe
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+                  {boxForm.equipe
+                    ? 'Les comptes qui ne voient que leurs dépenses pourront imputer ici.'
+                    : 'Réservée à la Maison. Tant qu’aucune caisse n’est ouverte, elles restent toutes visibles.'}
+                </span>
+              </span>
+            </button>
+
             {/* Une caisse en devise garde des billets étrangers : elle ne reçoit
                 que les règlements dans SA devise, et son solde se compte dedans. */}
             <label className="mnd-field">

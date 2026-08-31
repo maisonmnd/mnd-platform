@@ -386,6 +386,20 @@ export type Cashbox = {
       règlements dans SA devise, et son solde se compte dans cette devise —
       jamais reconverti, sinon le compte ne tomberait plus juste avec le tiroir. */
   currency?: string;
+  /** ── OUVERTE À L'ÉQUIPE — 31 août 2026 ────────────────────────
+      « Pour les employés une seule caisse est disponible pour eux. La caisse
+      indépendante. Toutes les autres ne sont pas visibles » (Yéman).
+
+      Le nom des tiroirs de la Maison dit déjà beaucoup : Wells Fargo,
+      Scotiabank, Real Money, un tiroir en euros. Les montrer à qui n'a que ses
+      propres dépenses à saisir, c'est lui dire où dort l'argent.
+
+      ABSENT = FERMÉ AUX MAÎTRES, MAIS SEULEMENT SI UNE AUTRE EST OUVERTE. Tant
+      qu'aucune caisse ne porte ce drapeau, elles restent toutes visibles :
+      sinon la mise en ligne aurait retiré à tout le monde la possibilité de
+      saisir une dépense, faute d'un tiroir où l'imputer. */
+  equipe?: boolean;
+
   /** ── UNE CAISSE DISCRÈTE — 22 août 2026 ────────────────────────
       « Je veux masquer son solde et le démasquer avec un mot de passe. »
 
@@ -489,6 +503,20 @@ export const caisseParDefaut = (
 ): Cashbox | undefined => {
   const siennes = boxes.filter((c) => c.branchId === branchId);
   return siennes.find((c) => cashboxCurrency(c) === maison) ?? siennes[0];
+};
+
+/** LES CAISSES QU'UN COMPTE RESTREINT PEUT VOIR — 31 août 2026.
+
+    LA RÈGLE ÉCHOUE OUVERT, ET C'EST VOULU : tant que la Maison n'a désigné
+    AUCUNE caisse d'équipe, elles restent toutes visibles. Un employé sans
+    aucun tiroir ne pourrait plus rien saisir, et il chercherait la panne au
+    lieu de comprendre le réglage. */
+export const caissesPourLEquipe = <T extends { equipe?: boolean }>(
+  boxes: readonly T[], voitTout: boolean,
+): T[] => {
+  if (voitTout) return boxes.slice();
+  const ouvertes = boxes.filter((c) => c.equipe === true);
+  return ouvertes.length > 0 ? ouvertes : boxes.slice();
 };
 
 export const caisseDuPorteur = (
