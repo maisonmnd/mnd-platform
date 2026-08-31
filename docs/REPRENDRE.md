@@ -42,6 +42,28 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### La modale de dépense était la page la plus bavarde de l'écran
+
+On avait fermé la page, pas la fenêtre qui s'ouvre par-dessus. Sur un compte
+restreint, « + Ajouter une dépense » montrait encore :
+
+- **Payer depuis quelle caisse** : les quinze tiroirs de la Maison AVEC leur
+  solde, Caisse Principale 1 171 490 F, Wells Fargo $2 000, un tiroir en euros.
+- **Payée par quel revenu** : les clientes nommées une à une, la date, le mode
+  de règlement, et ce qui reste sur chacune.
+
+Le second bloc se ferme entièrement, le premier garde les noms et perd les
+montants (`libelleDeLaCaisse`). Le solde d'un tiroir n'est pas une information
+de saisie : on choisit OÙ l'on paie, pas ce qu'il y a dedans.
+
+Fermer les revenus ne coûte presque rien : la dépense s'enregistre sans source
+désignée, comme lorsqu'aucun revenu n'est disponible, et la Maison la rattache
+depuis son propre écran.
+
+LEÇON, LA MÊME QUE LA VEILLE : une restriction se vérifie écran par écran ET
+fenêtre par fenêtre. Un panneau fermé sur la page ne ferme rien dans la modale
+qui la recouvre.
+
 ### L'interrupteur était dans la mauvaise fenêtre
 
 « Je ne trouve pas ouverte à l'équipe. » Il avait raison : je l'avais posé dans

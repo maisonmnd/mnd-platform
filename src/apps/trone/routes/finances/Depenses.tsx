@@ -347,6 +347,17 @@ export default function Depenses() {
     });
   };
   const caisseDeLaDepense = branchBoxes.find((c) => c.name === form.cashbox);
+
+  /* ── UNE PASTILLE DE CAISSE NE DIT PAS CE QU'ELLE CONTIENT — 31 août 2026.
+     « Ni les différentes caisses avec les montants » (Yéman).
+
+     Le solde d'un tiroir n'est pas une information de saisie : on choisit OÙ
+     l'on paie, on n'a pas besoin de savoir ce qui dort dedans. Et « Caisse
+     Principale · 1 171 490 F » en dit plus sur la Maison que toute la page
+     qu'on venait de fermer. */
+  const libelleDeLaCaisse = (c: Cashbox) => (voitToutesLesDepenses
+    ? nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)
+    : c.name);
   /* LES DEUX NOMBRES D’UNE DÉPENSE — 23 août 2026. Le champ principal se dit
      dans la monnaie du tiroir ; le franc suit, au taux indicatif, corrigeable.
      LES ARTICLES RESTENT EN FRANCS : ils totalisent la charge de la Maison, et
@@ -2079,7 +2090,7 @@ export default function Depenses() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
                   <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
-                    {nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}
+                    {libelleDeLaCaisse(c)}
                   </button>
                 ))}
                 {/* La caisse est FACULTATIVE : sans elle, la dépense se range
@@ -2111,8 +2122,19 @@ export default function Depenses() {
 
             {/* ── PAYÉE PAR QUEL REVENU — 21 août 2026 ──────────────────
                 Le sélecteur ne paraît qu'avec une caisse : hors caisse, il n'y
-                a pas de tiroir où puiser, donc rien à nommer. */}
-            {!!form.cashbox && (
+                a pas de tiroir où puiser, donc rien à nommer.
+
+                ET JAMAIS DEVANT UN COMPTE RESTREINT — 31 août 2026. Ce bloc
+                nomme les clientes une à une, avec la date, le mode de règlement
+                et ce qui reste sur chacune : c'était l'endroit le plus bavard
+                de tout l'écran, juste sous une bannière qui promettait de ne
+                montrer que ses propres dépenses.
+
+                CE QU'ON PERD EN LE FERMANT est mince : la dépense s'enregistre
+                sans source désignée, exactement comme lorsqu'aucun revenu n'est
+                disponible. Sa part reste sans nom, et la Maison la rattachera
+                depuis son propre écran. */}
+            {voitToutesLesDepenses && !!form.cashbox && (
               <div>
                 <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payée par quel revenu</div>
                 {/* SANS MONTANT, RIEN À NOMMER — un clic ne pourrait prendre
@@ -2475,7 +2497,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.de} onChange={(e) => setFTr((f) => ({ ...f, de: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.map((c) => (
-                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}</option>
+                    <option key={c.id} value={c.name}>{libelleDeLaCaisse(c)}</option>
                   ))}
                 </select>
               </label>
@@ -2484,7 +2506,7 @@ export default function Depenses() {
                 <select className="mnd-input" value={fTr.vers} onChange={(e) => setFTr((f) => ({ ...f, vers: e.target.value }))}>
                   <option value="">Choisir…</option>
                   {branchBoxes.filter((c) => c.name !== fTr.de).map((c) => (
-                    <option key={c.id} value={c.name}>{nomEtSolde(c, boxBalance(c.name), caissesOuvertes, true)}</option>
+                    <option key={c.id} value={c.name}>{libelleDeLaCaisse(c)}</option>
                   ))}
                 </select>
               </label>
