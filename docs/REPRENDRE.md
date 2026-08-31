@@ -112,6 +112,27 @@ reprendre.
 
 39 assertions sur `verifie-validation`, 3 de plus sur `verifie-avances`.
 
+### La page d attente, habillée
+
+Le sceau n était pas centré : `Seal` rend une image en `display:block`, et
+`text-align:center` ne centre que le contenu EN LIGNE. Il restait collé à
+gauche pendant que le texte se centrait. Une colonne flex règle les deux d un
+coup, et pour toujours.
+
+`.tr-attente` : sceau qui respire (2,6 s, opacité seule, rien ne tourne),
+« LE TRÔNE » en cuivre, la phrase en Cormorant 19 px, et un filet de 92 px où
+passe un segment cuivre. UN FILET QUI PASSE, PAS UN POURCENTAGE : on ne sait pas
+combien de temps la réponse mettra, et une jauge qui prétend le savoir ment deux
+fois sur trois.
+
+**ELLE NE PARAÎT QU AU BOUT DE 400 ms.** Sur un appareil déjà venu la réponse
+arrive avant : montrer puis retirer un écran d attente en deux dixièmes de
+seconde fait un battement de paupière, et l on croit à un défaut d affichage. Ce
+qui va vite ne montre rien du tout.
+
+`prefers-reduced-motion` obtient le calme entier : le bloc paraît d emblée et
+le filet devient un trait de repos.
+
 ### Trois secondes suffisent à lire un total
 
 « Quand je me connecte sur le compte d'un employé je vois d'abord tout le

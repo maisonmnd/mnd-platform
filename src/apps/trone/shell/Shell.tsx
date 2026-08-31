@@ -389,11 +389,12 @@ export default function Shell() {
      fois de suite grâce au cache de `useMaTete`. */
   if (!teteSue || !matriceSue) {
     return (
-      <div className="tr-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
-        <div style={{ textAlign: 'center', opacity: .75 }}>
-          <Seal color="or" size={38} />
-          <div className="mnd-eyebrow" style={{ marginTop: 12 }}>Le Trône</div>
-          <p className="mnd-muted" style={{ fontSize: 13, marginTop: 6 }}>Un instant, la Maison vous reconnaît.</p>
+      <div className="tr-attente">
+        <div className="tr-attente__bloc">
+          <Seal color="or" size={40} />
+          <div className="tr-attente__nom">Le Trône</div>
+          <p className="tr-attente__mot">Un instant, la Maison vous reconnaît.</p>
+          <div className="tr-attente__filet"><i /></div>
         </div>
       </div>
     );
