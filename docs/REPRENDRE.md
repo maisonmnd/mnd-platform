@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE TRÔNE RESTE AU TRÔNE — 31 août, PUBLIÉ
+
+« Tout est très confus. Le Trône reste au Trône, Ma Couronne sur Ma Couronne.
+Que les comptes ne se mélangent pas. »
+
+### La porte reconnaît une cliente
+
+Une cliente arrivée sur Le Trône lisait « votre compte n'est pas encore rattaché
+au personnel, un souverain doit vous autoriser ». **C'est faux et c'est
+dangereux** : elle n'a rien à faire rattacher, et cette phrase invitait à lui
+ouvrir l'ERP entier depuis « Comptes en attente ».
+
+`StaffGate` la reconnaît maintenant (la marque `origine` ou sa fiche cliente,
+les deux mêmes preuves qu'à l'écran des accès) et la raccompagne : « Votre
+espace est Ma Couronne », avec le lien.
+
+Ma Couronne refusait déjà un compte de la maison depuis 0045 (`statut: 'staff'`).
+Les deux portes se ferment donc dans les deux sens.
+
+### Le bouton d'inscription mentait aux suivants
+
+« Première fois ? Fonder la Maison » et « ce premier compte devient souverain ».
+Or `signUpEmail` sert à TOUS les comptes d'équipe — `provision_first_staff` est
+sans effet si le personnel existe déjà. Une collègue croyait devenir souveraine,
+une cliente croyait devoir passer par là.
+
+Devenu « Vous êtes de l'équipe ? Créer un compte », avec la vérité dessous : le
+tout premier fonde la Maison, les suivants attendent une autorisation, et une
+cliente va dans Ma Couronne.
+
+### Ce qui reste hors du code
+
+Les e-mails de confirmation viennent des **gabarits Supabase**
+(Authentication → Email Templates), partagés par les deux applications. Les
+distinguer se fait là, pas ici.
+
+---
+
 ## LE RITUEL ENTRE AU TICKET, ET SE SOLDE — 31 août, PUBLIÉ
 
 « Pour Jean-Luc K. je dois avoir son soin du 18/06 à 20 000 F et le produit à
