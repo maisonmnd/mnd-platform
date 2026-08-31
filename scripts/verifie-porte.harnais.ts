@@ -6,7 +6,7 @@
    et les fiches de toutes les autres. Aucun écran ne rattrape cette erreur
    après coup : elle se voit le jour où l'accès a déjà servi. */
 import { vientDeMaCouronne, origineDeLaSession, type CompteEnAttente } from '../src/shared/auth';
-import { peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
+import { gestesRapides, peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -137,6 +137,31 @@ dit('tout fermé, aucune destination', null,
 dit('le souverain atterrit chez lui', '/', premierEcranVisible('souverain', {}));
 dit('… même avec des refus posés', '/',
   premierEcranVisible('souverain', { '/mon-mois': false, '/calendrier': false }));
+
+/* ── LA BARRE DU BAS NE TEND QUE DES PORTES OUVERTES ────────────────
+   « Je ne veux pas mon mois, calendrier et pointer en bas de page si l'employé
+   n'est pas concerné » (Yéman, 31 août). Un bouton qui ne fait rien vaut moins
+   qu'un bouton absent : on le reclique. */
+dit('sans rien de posé, les trois gestes sont là', { monMois: true, calendrier: true, caisse: false, aucun: false },
+  gestesRapides('maitre', {}));
+dit('Mon mois fermé emporte Pointer avec lui', { monMois: false, calendrier: true, caisse: false, aucun: false },
+  gestesRapides('maitre', { '/mon-mois': false }));
+dit('le calendrier se ferme seul', { monMois: true, calendrier: false, caisse: false, aucun: false },
+  gestesRapides('maitre', { '/calendrier': false }));
+/* LA CAISSE VIENT DU DOMAINE VENTE, pas d'un interrupteur d'écran. */
+dit('ouvrir la Vente tend la Caisse', true, gestesRapides('maitre', { vente: true }).caisse);
+
+/* TOUT FERMÉ : PLUS DE BARRE. Le Shell lit le même `aucun` pour ne plus
+   réserver les 78 px du bas, sinon une bande morte reste sous la page. */
+dit('les deux fermés, il ne reste rien à tendre', true,
+  gestesRapides('maitre', { '/mon-mois': false, '/calendrier': false }).aucun);
+dit('… mais la Caisse ouverte suffit à la garder', false,
+  gestesRapides('maitre', { '/mon-mois': false, '/calendrier': false, vente: true }).aucun);
+
+/* ELLE N'EST PAS POUR LES AUTRES RÔLES : un souverain garde sa barre
+   latérale, même au téléphone. */
+dit('un souverain n’a pas de barre du bas', true, gestesRapides('souverain', {}).aucun);
+dit('un compte sans rôle non plus', true, gestesRapides(undefined, {}).aucun);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

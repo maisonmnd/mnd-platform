@@ -244,6 +244,22 @@ export const voitLesPrix = (role: string | undefined, acces: Record<string, bool
 export const accueilDe = (role: string | undefined): string =>
   role === 'maitre' ? '/mon-mois' : '/';
 
+/** LES GESTES QU'ON PEUT ENCORE TENDRE À QUELQU'UN — 31 août 2026.
+
+    LE SHELL ET LA BARRE DOIVENT RÉPONDRE LA MÊME CHOSE : c'est lui qui réserve
+    les 78 px du bas (`tr-shell--barre`), elle qui les remplit. Deux règles
+    écrites séparément auraient fini par diverger, et une bande vide serait
+    restée sous la dernière ligne des écrans. */
+export const gestesRapides = (
+  role: string | undefined,
+  acces: Record<string, boolean>,
+): { monMois: boolean; calendrier: boolean; caisse: boolean; aucun: boolean } => {
+  const monMois = role === 'maitre' && peutVoir('maitre', '/mon-mois', acces);
+  const calendrier = role === 'maitre' && peutVoir('maitre', '/calendrier', acces);
+  const caisse = role === 'maitre' && peutVoir('maitre', '/caisse', acces);
+  return { monMois, calendrier, caisse, aucun: !monMois && !calendrier && !caisse };
+};
+
 /** LE PREMIER ÉCRAN QU'IL PEUT VOIR, ou `null` s'il n'en a aucun.
 
     LE PIÈGE ÉTAIT UNE BOUCLE : le Shell renvoyait vers `accueilDe(role)`, soit

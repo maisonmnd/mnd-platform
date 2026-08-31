@@ -42,6 +42,26 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### La barre du téléphone tendait des portes fermées
+
+« Je ne veux pas mon mois, calendrier et pointer en bas de page si l'employé
+n'est pas concerné. » Les trois étaient écrits en dur dans `BarreEquipe`. Depuis
+que Mon mois et le Calendrier se referment un par un (30 août), elle continuait
+de les proposer à qui n'y avait plus droit : le clic aboutissait à la garde, qui
+renvoyait ailleurs. Un bouton qui ne fait rien vaut moins qu'un bouton absent,
+car on le reclique.
+
+**Pointer suit Mon mois**, jamais son propre sort : il y mène (`?pointer=1` fait
+défiler la carte Aujourd'hui en vue).
+
+**Une seule règle, `gestesRapides`, dans `routes/index.tsx`** — l'autorité des
+accès, pas la barre. Le Shell réserve les 78 px du bas (`tr-shell--barre`) et la
+barre les remplit : deux règles écrites séparément auraient divergé, et une
+bande morte serait restée sous la dernière ligne des écrans. Il lit maintenant
+le même `aucun`.
+
+8 assertions sur `verifie-porte`.
+
 ### Les pastilles d'accès n'étaient pas peintes du tout
 
 « Je veux voir clairement quand je sélectionne un bouton actif. Aucune couleur

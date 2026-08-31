@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
-import { NAV, peutVoir, accueilDe, premierEcranVisible, type TroneRoute } from '../routes/index';
+import { NAV, peutVoir, accueilDe, premierEcranVisible, gestesRapides, type TroneRoute } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
@@ -392,7 +392,11 @@ export default function Shell() {
   }
 
   return (
-    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${staff?.role === 'maitre' ? 'tr-shell--barre' : ''}`}>
+    /* LA PLACE DU BAS NE SE RÉSERVE QUE SI LA BARRE VIENT — 31 août 2026.
+       Elle ne paraît plus dès qu'on est maître, mais seulement si un de ses
+       trois gestes reste ouvert ; garder les 78 px sans elle laissait une
+       bande morte sous la dernière ligne de chaque écran. */
+    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}`}>
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
         <div className="tr-side__brand">
