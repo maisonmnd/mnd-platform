@@ -1327,16 +1327,33 @@ export default function Depenses() {
                     <div className="trf-exprow__vendor">{e.label}</div>
                     <div className="trf-exprow__meta">
                       {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''}{e.recurring ? ` · ${e.recurring}` : ''}
+                      {/* LE NOM DE LA CAISSE N'EST PLUS UNE PORTE POUR TOUT LE
+                          MONDE — 31 août 2026. « Don't allow employees to click
+                          the details of a caisse » (Yéman).
+
+                          Il restait un chemin, et c'était le plus large de tous :
+                          sur SA propre dépense, le nom du tiroir ouvrait le
+                          relevé complet de la Caisse Principale — solde
+                          1 171 490 F, entrées et sorties depuis toujours, six
+                          mois d'histogramme et toutes les lignes de la Maison,
+                          fournisseurs nommés. On avait fermé les soldes, les
+                          revenus et les autres tiroirs, et cette petite ligne
+                          grise les rendait tous d'un clic.
+
+                          LE NOM RESTE, il situe sa propre dépense ; c'est le
+                          lien qui s'en va. */}
                       {e.cashbox ? (
                         <>
                           {' · '}
-                          <button
-                            className="trf-exprow__caisse"
-                            title="Voir les mouvements de cette caisse"
-                            onClick={() => setBoxDrill(e.cashbox)}
-                          >
-                            {e.cashbox}
-                          </button>
+                          {voitToutesLesDepenses ? (
+                            <button
+                              className="trf-exprow__caisse"
+                              title="Voir les mouvements de cette caisse"
+                              onClick={() => setBoxDrill(e.cashbox)}
+                            >
+                              {e.cashbox}
+                            </button>
+                          ) : e.cashbox}
                         </>
                       ) : null}
                       {e.porteur ? <>{' · acheté par '}<b style={{ fontWeight: 500 }}>{e.porteur}</b></> : null}
@@ -2561,7 +2578,9 @@ export default function Depenses() {
 
       {/* Le relevé mène au rapport ici aussi : la Souveraine ouvre un tiroir
           depuis la pastille d'une dépense aussi souvent que depuis sa carte. */}
-      {rapportDe && (
+      {/* MÊME CEINTURE POUR LE RAPPORT DE CAISSE : il ne s'ouvre aujourd'hui
+          que depuis le relevé, mais un chemin fermé doit l'être à sa porte. */}
+      {rapportDe && voitToutesLesDepenses && (
         <RapportDeCaisse nom={rapportDe} month={month} onClose={() => setRapportDe(null)} />
       )}
 
@@ -2638,7 +2657,9 @@ export default function Depenses() {
         );
       })()}
 
-      {boxDrill && (
+      {/* LA CEINTURE : même si un autre chemin apparaissait un jour, le relevé
+          d'un tiroir ne s'ouvre pas pour qui ne voit que ses dépenses. */}
+      {boxDrill && voitToutesLesDepenses && (
         <ReleveCaisse
           nom={boxDrill}
           month={month}

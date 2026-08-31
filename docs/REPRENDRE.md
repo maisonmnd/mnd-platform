@@ -42,6 +42,27 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### Le nom du tiroir était la porte la plus large
+
+« Don't allow employees to click the details of a caisse. » Sur SA propre
+dépense, la ligne grise « Local · Caisse Principale · acheté par Kabirou »
+faisait du nom de la caisse un bouton. Il ouvrait le relevé complet : solde
+1 171 490 F, entrées et sorties depuis toujours, six mois d'histogramme, et
+toutes les lignes de la Maison avec ses fournisseurs nommés.
+
+On avait fermé le revenu, les budgets, les autres tiroirs, les soldes dans la
+modale de saisie et le bloc des revenus. Cette petite ligne les rendait tous
+d'un clic.
+
+Le nom reste, il situe sa propre dépense ; c'est le lien qui s'en va. Et deux
+ceintures : `ReleveCaisse` comme `RapportDeCaisse` ne s'affichent plus si le
+compte ne voit que ses dépenses, quel que soit le chemin qui les demande.
+
+CE QUE CETTE SÉRIE ENSEIGNE : une restriction ne se pose pas, elle se
+POURSUIT. Écran, puis panneaux, puis modales, puis chaque lien à l'intérieur
+des modales. Cinq passes ont été nécessaires, et chacune paraissait la
+dernière.
+
 ### La barre du téléphone tendait des portes fermées
 
 « Je ne veux pas mon mois, calendrier et pointer en bas de page si l'employé
