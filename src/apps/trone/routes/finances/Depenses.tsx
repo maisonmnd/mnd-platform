@@ -14,10 +14,13 @@ import { expenseOccurrences,
   usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut, caisseDiscrete,
   type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
+import { useStaff } from '../../../../shared/auth';
+import { staffAccessStore } from '../equipe/data';
+import { useStore } from '../../../../shared/store';
 import { usePrets } from '../../../../shared/foyer';
 import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
 import { useClients, useFamilies } from '../../../../shared/clients';
-import { normName } from '../../../../shared/text';
+import { normName, sameName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { fmtDay, todayISO, monthKey, monthLabel, monthShort, lastMonths, paceForecast, MonthNav, downloadCsv, useRegistreEncaissements, ChampPieceJointe } from './_shared';
 import {
@@ -66,7 +69,38 @@ const payMonthKeyLocal = (d: string): string => {
 
 export default function Depenses() {
   const { branch, currency } = useBranch();
-  const [expenses, setExpenses] = useExpenses();
+  /* ══ CHACUN NE VOIT QUE SES DÉPENSES — 31 août 2026 ═══════════════
+     « L'employé Kabirou ne doit voir que ces dépenses, pas les dépenses de
+     tous. Les chiffres sont confidentiels et tout le monde ne doit pas savoir
+     ce qui se fait » (Yéman).
+
+     LA RÈGLE SE LIT DANS LA MATRICE, sans champ de plus : ouvrir le DOMAINE
+     « Finances » donne la maison entière ; n'ouvrir que l'ÉCRAN « Dépenses »
+     donne les siennes seulement. C'est exactement la distinction qu'il
+     fallait, et elle se pose déjà d'un clic dans Accès & personnel.
+
+     FILTRER LA LISTE NE SUFFIRAIT PAS. Les totaux du haut, la part des
+     salaires, les budgets, « Où va l'argent » : tout se calcule depuis ce
+     tableau. On restreint donc À LA SOURCE, et chaque chiffre de l'écran suit
+     sans qu'on ait à y penser — c'est la seule façon de ne rien oublier.
+
+     LE LIEN EST LE NOM DU PORTEUR, comparé comme partout ailleurs
+     (`sameName`, celui des mains et des commissions). Sans porteur, une
+     dépense n'est à personne : elle reste à la Maison, donc invisible pour un
+     compte restreint. */
+  const monProfil = useStaff();
+  const accesTous = useStore(staffAccessStore)[0];
+  const mesDomaines = accesTous[monProfil?.user_id ?? ''] ?? {};
+  const voitToutesLesDepenses = monProfil?.role !== 'maitre' || mesDomaines.finances === true;
+  const monNom = (monProfil?.name ?? '').trim();
+
+  const [toutesLesDepenses, setExpenses] = useExpenses();
+  const expenses = useMemo(
+    () => (voitToutesLesDepenses
+      ? toutesLesDepenses
+      : toutesLesDepenses.filter((e) => !!e.porteur && sameName(e.porteur, monNom))),
+    [toutesLesDepenses, voitToutesLesDepenses, monNom],
+  );
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
   /* Le coffre : ses dépôts SORTENT d'une caisse depuis le 17 août. Les deux
@@ -128,7 +162,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: '', avancee: false });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -531,7 +565,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: '', avancee: false });
+    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -990,6 +1024,14 @@ export default function Depenses() {
 
   return (
     <div className="mnd-rise">
+      {/* ON NE CACHE PAS SANS LE DIRE. Un écran qui montre moins sans un mot se
+          lit comme un écran cassé, et l'on cherche ce qui manque. */}
+      {!voitToutesLesDepenses && (
+        <div className="mnd-bande" style={{ marginBottom: 14, padding: '11px 14px', fontSize: 12.5, lineHeight: 1.6 }}>
+          Vous voyez <b>vos dépenses</b>, celles que vous portez. Les chiffres de la Maison
+          restent à la Maison.
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · maîtrise des dépenses</Eyebrow>
@@ -1828,6 +1870,22 @@ export default function Depenses() {
                 AVEC LE BÉNÉFICIAIRE : le marché reçoit, Sandrine porte. */}
             <div>
               <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qui a fait cet achat ?</div>
+              {/* UN COMPTE RESTREINT NE SIGNE QUE DE SON NOM — 31 août 2026.
+                  Le laisser choisir un autre porteur lui permettrait d'écrire
+                  au nom d'un collègue ; le laisser n'en choisir aucun ferait
+                  une dépense qu'il ne reverrait jamais, puisqu'il ne voit que
+                  les siennes. Son nom est donc posé, et il ne bouge pas. */}
+              {!voitToutesLesDepenses ? (
+                <div style={{
+                  border: '1px solid var(--hairline)', borderRadius: 3, padding: '9px 12px',
+                  background: 'var(--surface-card)', fontSize: 13, color: 'var(--color-indigo)',
+                }}>
+                  {monNom || 'Vous'}
+                  <span className="mnd-muted" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                    Vos dépenses sont signées de votre nom.
+                  </span>
+                </div>
+              ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 <button
                   className={`trf-chip ${!form.porteur ? 'is-active' : ''}`}
@@ -1857,6 +1915,7 @@ export default function Depenses() {
                   + Quelqu’un
                 </button>
               </div>
+              )}
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
                 Celui à qui vous confiez de l’argent pour acheter, pas celui qui l’encaisse.
                 Vous retrouverez tout ce qu’il a acheté dans « Où va l’argent ».

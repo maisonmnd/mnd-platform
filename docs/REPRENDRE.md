@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## CHACUN NE VOIT QUE SES DÉPENSES — 31 août, PUBLIÉ
+
+« L'employé Kabirou ne doit voir que ces dépenses, pas les dépenses de tous. Les
+chiffres sont confidentiels et tout le monde ne doit pas savoir ce qui se fait. »
+
+**La règle se lit dans la matrice, sans champ de plus.** Ouvrir le DOMAINE
+« Finances » donne la maison entière ; n'ouvrir que l'ÉCRAN « Dépenses » donne
+les siennes seulement. La distinction se pose déjà d'un clic dans Accès &
+personnel.
+
+**Filtrer la liste n'aurait pas suffi.** Les totaux du haut, la part des
+salaires, les budgets, « Où va l'argent » : tout se calcule depuis le même
+tableau. On restreint donc **à la source** (`expenses` filtré juste après
+`useExpenses`), et chaque chiffre de l'écran suit sans qu'on ait à y penser.
+C'est la seule façon de ne rien oublier.
+
+Le lien est le **nom du porteur**, comparé par `sameName` comme les mains et les
+commissions. **Sans porteur, une dépense n'est à personne** : elle reste à la
+Maison, donc invisible pour un compte restreint.
+
+**Un compte restreint ne signe que de son nom** : les pastilles de porteur sont
+remplacées par son nom, fixe. Le laisser choisir un collègue lui permettrait
+d'écrire au nom d'un autre ; le laisser n'en choisir aucun ferait une dépense
+qu'il ne reverrait jamais.
+
+**On ne cache pas sans le dire** : un bandeau annonce « vous voyez vos dépenses ».
+Un écran qui montre moins sans un mot se lit comme un écran cassé.
+
+⚠ **Ceci est l'interface, pas la base.** La RLS laisse tout compte du personnel
+lire `expenses`. La confidentialité est ici tenue par l'écran ; la tenir vraiment
+demanderait une politique par porteur, qui casserait la lecture des totaux pour
+tous les autres écrans. À décider si le besoin devient réel.
+
+---
+
 ## MON MOIS, LE FIL, LE TABLEAU SE FERMENT — 31 août, PUBLIÉ
 
 « Je veux sélectionner si je veux Mon mois, Mon fil ou Mon tableau sur tous les
