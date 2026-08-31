@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE RITUEL ENTRE AU TICKET, ET SE SOLDE — 31 août, PUBLIÉ
+
+« Pour Jean-Luc K. je dois avoir son soin du 18/06 à 20 000 F et le produit à
+25 000 F. Le total doit comptabiliser 45 000 F mais je ne vois que le produit.
+Le paiement doit solder le RDV également. »
+
+**Deux défauts, et le second était le plus grave.**
+
+### ① Le sélecteur liait sans rien apporter
+
+Choisir un rituel dans la Caisse ne posait que le lien facture ↔ rendez-vous :
+aucune ligne n'entrait au ticket. Il fallait retrouver les prestations à la main
+dans le catalogue, et rien ne le disait — la phrase sous le sélecteur laissait
+même croire que le rituel était déjà compté.
+
+`choisirRituel` pose désormais ses prestations, **au prix de CE rituel-là**
+(`svcPriceForAppt` : barème de la tête, longueur d'alors, remise de ligne), pas
+au catalogue du jour. Un soin de juillet se reprend à son tarif de juillet.
+
+Pour cela, `unitXof` posé sur une ligne du panier l'emporte désormais toujours ;
+il ne servait qu'aux sur-devis. Changer de rituel retire **exactement** ce que le
+précédent avait posé, sans emporter ce que la main a ajouté à côté.
+
+### ② Le paiement ne soldait pas le rendez-vous
+
+Le ticket n'écrivait que `invoiceId`. Le rituel restait « à régler » au Carnet,
+et la Maison courait après un argent déjà reçu.
+
+Il écrit maintenant `paidXof` et le versement au journal du rendez-vous.
+**On ne solde que ce qui le concerne** : `paidXof` ne compte que les lignes de
+PRESTATION du ticket — les produits vendus au même moment ne sont pas son rituel,
+et les y verser ferait un rendez-vous surpayé.
+
+---
+
 ## LES AVANCES DE L'ÉQUIPE — 31 août, PUBLIÉ · **0078 PASSÉE**
 
 « J'ai un staff qui préfinance des dépenses pour moi et je le règle à la fin du

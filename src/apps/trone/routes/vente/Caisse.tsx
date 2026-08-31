@@ -14,7 +14,7 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, useServicesById } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt } from '../clients/_shared';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -118,10 +118,58 @@ export default function Caisse() {
   const carnet = useBranchAppointments();
   const svcById = useServicesById();
   const [apptToSettle, setApptToSettle] = useState('');
+  /* ── LE RITUEL CHOISI ENTRE AU TICKET — 31 août 2026 ─────────────
+     « Je dois avoir son soin du 18/06 à 20 000 F et le produit à 25 000 F. Le
+     total doit comptabiliser 45 000 F mais je ne vois que le produit » (Yéman).
+
+     Le sélecteur ne faisait que LIER la facture au rendez-vous : il n'y
+     apportait aucune ligne. Il fallait retrouver les prestations à la main dans
+     le catalogue, et rien ne le disait — la phrase sous le sélecteur laissait
+     même croire que le rituel était déjà compté.
+
+     LE PRIX EST CELUI DU RITUEL, PAS DU CATALOGUE DU JOUR. Un soin de juillet
+     se reprend à son tarif de juillet, remises de ligne comprises. */
   const rituelsDuJour = useMemo(
     () => carnet.filter((a) => a.clientId && a.clientId === clientId && !a.invoiceId && a.status !== 'annulé'),
     [carnet, clientId],
   );
+
+  /* Les clés que le rituel a posées au ticket — pour les retirer toutes si
+     l'on change d'avis, sans emporter ce que la main a ajouté à côté. */
+  const posesParRituel = useRef<string[]>([]);
+
+  const choisirRituel = (id: string) => {
+    /* On retire d'abord ce que le rituel précédent avait posé. */
+    if (posesParRituel.current.length > 0) {
+      const aRetirer = new Set(posesParRituel.current);
+      setCart((c) => Object.fromEntries(Object.entries(c).filter(([k]) => !aRetirer.has(k))));
+      posesParRituel.current = [];
+    }
+    setApptToSettle(id);
+    if (!id) return;
+    const a = carnet.find((x) => x.id === id);
+    if (!a) return;
+    const poses: string[] = [];
+    setCart((c) => {
+      const next = { ...c };
+      a.serviceIds.forEach((sid, i) => {
+        const cle = `s:${sid}`;
+        if (!flat[cle]) return; // prestation quittée du catalogue : rien à poser
+        const sv = svcById.get(sid);
+        /* LE PRIX DE CE RITUEL-LÀ. `svcPriceForAppt` porte le barème de la
+           tête, sa longueur d'alors et la remise posée sur cette ligne. */
+        const prix = sv ? svcPriceForAppt(a, sv) : 0;
+        const dedans = next[cle];
+        next[cle] = dedans
+          ? { ...dedans, qty: dedans.qty + 1 }
+          : { qty: 1, disc: 0, unitXof: prix };
+        if (!dedans) poses.push(cle);
+        void i;
+      });
+      return next;
+    });
+    posesParRituel.current = poses;
+  };
 
   const [avoirStr, setAvoirStr] = useState('0');
   /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
@@ -302,7 +350,13 @@ export default function Caisse() {
       const it = flat[k];
       /* Prix effectif de la ligne : le montant SAISI pour un sur-devis (0 tant
          qu'il n'est pas renseigné), le prix catalogue sinon. */
-      const unit = it.mode === 'devis' ? (v.unitXof ?? 0) : it.priceXof;
+      /* UN PRIX POSÉ SUR LA LIGNE L'EMPORTE — 31 août 2026. Il ne servait
+         qu'aux sur-devis ; il sert désormais aussi aux prestations d'un rituel
+         repris au ticket, qui portent LE PRIX DE CE RITUEL-LÀ (remise de
+         ligne, forfait, longueur d'alors) et non celui du catalogue du jour.
+         Sans cela, encaisser un rituel de juillet le repriserait au tarif
+         d'aujourd'hui. */
+      const unit = v.unitXof !== undefined ? v.unitXof : (it.mode === 'devis' ? 0 : it.priceXof);
       const netXof = unit * v.qty * (1 - v.disc / 100);
       return { key: k, ...it, ...v, unit, netXof };
     });
@@ -375,7 +429,38 @@ export default function Caisse() {
        d'affaires le compteront par elle, et cesseront de le compter aussi par
        le carnet le jour ou il passera « honore ». */
     if (apptToSettle) {
-      appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle ? { ...a, invoiceId: inv.id } : a)));
+      /* ── LE PAIEMENT SOLDE LE RENDEZ-VOUS — 31 août 2026 ─────────
+         « Le paiement doit solder le RDV également » (Yéman). Le ticket ne
+         posait que `invoiceId` : le rituel restait « à régler » au Carnet, et
+         la Maison lui courait après un argent déjà reçu.
+
+         ON NE SOLDE QUE CE QUI LE CONCERNE : les produits du même ticket ne
+         sont pas son rituel. `paidXof` ne compte donc que les lignes de
+         PRESTATION, et le versement inscrit au carnet dit la même somme. */
+      const partRituel = lines
+        .filter((l) => l.kind === 'service')
+        .reduce((n, l) => n + l.netXof, 0);
+      const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof);
+      appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle
+        ? {
+          ...a,
+          invoiceId: inv.id,
+          paidXof: (a.paidXof ?? 0) + partNette,
+          ...(partNette > 0 ? {
+            payments: [
+              ...(a.payments ?? []),
+              {
+                id: `pay-${uid()}`,
+                amountXof: partNette,
+                date: todayIso(),
+                method: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
+                cashbox: activeCashbox || undefined,
+                invoiceId: inv.id,
+              },
+            ],
+          } : {}),
+        }
+        : a)));
     }
 
     /* LE STOCK SUIT LA VENTE — par le JOURNAL. La vente écrit un mouvement de
@@ -659,7 +744,7 @@ export default function Caisse() {
                     <select
                       className="ds-select"
                       value={apptToSettle}
-                      onChange={(e) => setApptToSettle(e.target.value)}
+                      onChange={(e) => choisirRituel(e.target.value)}
                     >
                       <option value="">Vente libre, ne solde aucun rendez-vous</option>
                       {rituelsDuJour.map((a) => (
@@ -667,7 +752,8 @@ export default function Caisse() {
                       ))}
                     </select>
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.5 }}>
-                      Sans cela, le rituel serait compté une deuxième fois le jour où il passe « honoré ».
+                      Ses prestations rejoignent le ticket, à leur prix de ce jour-là. Sans cela, le
+                      rituel serait compté une deuxième fois le jour où il passe « honoré ».
                     </div>
                   </div>
                 </div>
