@@ -128,6 +128,33 @@ export default function Acces() {
     await load();
   };
 
+  /* ── ÉCARTER UN COMPTE DE LA FILE — 31 août 2026 ──────────────────
+     « Il faut régler de façon définitive » (Yéman).
+
+     L'application marque désormais chaque compte à sa porte, et les comptes
+     du passé se rangent à leur prochaine ouverture. Restent ceux qui
+     n'ouvriront plus jamais Ma Couronne : ils resteraient dans la file pour
+     toujours. Ce bouton les en sort, côté serveur, une fois pour toutes.
+
+     ÉCARTER N'EST PAS SUPPRIMER, et le mot le dit. Le compte existe encore,
+     sa cliente entre sur Ma Couronne quand elle veut. Détruire un compte
+     d'authentification depuis un écran de gestion est un geste qui ne se
+     rattrape pas ; celui-ci se défait d'un clic sur « Autoriser ». */
+  const ecarter = async (u: Pending) => {
+    if (!supabase) return;
+    if (!window.confirm(
+      `Écarter ${u.email ?? 'ce compte'} de la file ?\n\n`
+      + "Il n'apparaîtra plus comme demande d'accès au Trône. Son compte reste "
+      + 'intact et il peut continuer à ouvrir Ma Couronne.',
+    )) return;
+    setBusy(u.user_id); setMsg(null);
+    const { error } = await supabase.rpc('ecarter_du_personnel', { target: u.user_id });
+    setBusy(null);
+    if (error) { setMsg({ kind: 'err', text: error.message }); return; }
+    setMsg({ kind: 'ok', text: `${u.email ?? 'Ce compte'} a été écarté de la file.` });
+    await load();
+  };
+
   const startEdit = (m: StaffFull) => {
     setEditId(m.user_id);
     setEditName(m.name ?? '');
@@ -239,6 +266,15 @@ export default function Acces() {
                 </Select>
                 <Button variant="copper" size="sm" disabled={busy === u.user_id} onClick={() => void authorize(u)}>
                   {busy === u.user_id ? '…' : 'Autoriser'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy === u.user_id}
+                  title="Ce n'est pas une candidature. Le retirer de la file, sans toucher à son compte."
+                  onClick={() => void ecarter(u)}
+                >
+                  Écarter
                 </Button>
               </div>
             ))}

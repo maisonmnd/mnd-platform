@@ -138,6 +138,25 @@ dit('le souverain atterrit chez lui', '/', premierEcranVisible('souverain', {}))
 dit('… même avec des refus posés', '/',
   premierEcranVisible('souverain', { '/mon-mois': false, '/calendrier': false }));
 
+/* ── UN COMPTE ÉCARTÉ NE REVIENT PLUS ───────────────────────────────
+   « À chaque fois qu'un nouveau compte se crée sur Ma Couronne ça vient au
+   Trône comme demande de permission. Il faut régler de façon définitive »
+   (Yéman, 31 août).
+
+   LA MARQUE SUFFIT, ET ELLE SUFFIT SEULE. `ecarter_du_personnel` (0080) ne
+   fait rien d'autre que la poser côté serveur : le juge d'écran n'a donc
+   aucune règle de plus à connaître, et il ne peut pas diverger de la file. */
+dit('un compte marqué couronne sort de la file', true,
+  vientDeMaCouronne(compte({ origine: 'couronne' }), () => false));
+dit('… même sans fiche cliente', true,
+  vientDeMaCouronne(compte({ origine: 'couronne', a_fiche: false }), () => false));
+/* CELUI QU'ON A ÉCARTÉ PAR ERREUR SE RATTRAPE : « Autoriser » lui donne un
+   rôle, et un membre du personnel ne se lit plus dans cette file du tout. */
+dit('une fiche cliente suffit aussi', true,
+  vientDeMaCouronne(compte({ a_fiche: true }), () => false));
+dit('un inconnu reste une candidature', false,
+  vientDeMaCouronne(compte({}), () => false));
+
 /* ── LA BARRE DU BAS NE TEND QUE DES PORTES OUVERTES ────────────────
    « Je ne veux pas mon mois, calendrier et pointer en bas de page si l'employé
    n'est pas concerné » (Yéman, 31 août). Un bouton qui ne fait rien vaut moins

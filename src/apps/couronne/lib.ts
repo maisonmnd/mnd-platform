@@ -191,15 +191,29 @@ export function useEnsureClient(): string {
     void (async () => {
       if (uid && supabase) {
         const statut = await adopterMaFiche(uid);
-        /* La maison n'ouvre pas d'espace cliente ; une adresse au compte d'un
-           autre non plus — les écrans d'App.tsx disent chacun leur mot. */
-        if (statut === 'staff' || statut === 'occupee') return;
-        /* ELLE VIENT DE MA COURONNE, ET LE TRÔNE DOIT LE SAVOIR. La marque se
-           repose à chaque session : les comptes nés avant cette règle se
-           rangent d'eux-mêmes à leur prochaine ouverture, sans migration ni
-           geste au comptoir. Après le verdict, jamais avant — un compte de la
-           maison ne doit pas se marquer « cliente ». */
+        /* LA MAISON N'OUVRE PAS D'ESPACE CLIENTE : le Trône est sa porte, et
+           un compte du personnel ne doit jamais se marquer « cliente ». */
+        if (statut === 'staff') return;
+
+        /* ══ LA MARQUE SE POSE MÊME QUAND LA PORTE SE REFUSE — 31 août 2026 ══
+           « À chaque fois qu'un nouveau compte se crée sur Ma Couronne ça vient
+           au Trône comme demande de permission » (Yéman).
+
+           VOICI LA RACINE, ET ELLE EXPLIQUE LES DEUX ÉCRANS D'UN COUP. La
+           marque se posait APRÈS le verdict, et l'on sortait avant d'y arriver
+           dès que le verdict était `occupee`. Un compte arrêté par l'écran bleu
+           n'était donc jamais marqué « couronne », n'obtenait jamais de fiche —
+           et remontait au Trône comme candidature, indéfiniment. Chaque essai
+           en ajoutait une.
+
+           QUELQU'UN QU'ON REFUSE RESTE QUELQU'UN QUI VENAIT DE MA COURONNE.
+           C'est vrai de tous les verdicts sauf `staff`, et c'est justement dans
+           les refus que la marque compte le plus : ce sont les seuls comptes
+           qui ne reviendront pas la poser eux-mêmes. */
         void marqueOrigine('couronne');
+        /* Une adresse portée par le compte d'un autre s'arrête ici — mais
+           marquée. L'écran d'App.tsx lui dit son mot. */
+        if (statut === 'occupee') return;
         /* « reprise » (0075) : mon adresse était portée par la fiche d'un
            AUTRE compte, et ma boîte aux lettres l'a prouvée mienne. Le
            serveur me l'a rendue au lieu de me barrer le passage. Même geste
@@ -238,6 +252,23 @@ export function useCompteEnDouble(): boolean {
   const mail = (session?.user?.email ?? '').trim().toLowerCase();
   if (!uid) return false;
   if (verdict?.uid === uid && verdict.statut === 'occupee') return true;
+
+  /* ══ QUAND LE SERVEUR PARLE, LA LECTURE LOCALE SE TAIT — 31 août 2026 ══
+     Le repli qui suit lisait le magasin `clients` pour deviner un doublon.
+     Il valait quelque chose en développement, sans backend ; EN PRODUCTION IL
+     MENTAIT.
+
+     LES DEUX APPLICATIONS PARTAGENT UNE ORIGINE, DONC UN `localStorage`. Sur
+     le navigateur de la Maison, le Trône y dépose le carnet ENTIER des
+     clientes ; Ma Couronne, ouverte dans le même navigateur, le relisait comme
+     s'il était le sien. Toute adresse déjà connue du salon déclenchait alors
+     l'écran bleu, alors que le serveur, lui, avait répondu « ok », « adoptee »
+     ou « reprise ».
+
+     LE SERVEUR EST LE SEUL À VOIR LES FICHES DES AUTRES ; c'est donc le seul
+     qui puisse conclure. Dès qu'il est là, on ne devine plus. */
+  if (supabase) return false;
+
   if (!mail) return false;
   /* Sa fiche à elle existe (née de son compte ou adoptée) : pas un doublon. */
   if (clients.some((c) => c.authUserId === uid || c.id === uid)) return false;

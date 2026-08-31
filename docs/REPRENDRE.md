@@ -42,6 +42,49 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA PORTE DES COMPTES, DÉFINITIVEMENT · 31 août 2026
+
+« À chaque fois qu un nouveau compte se crée sur Ma Couronne ça vient au Trône
+comme demande de permission. Il faut régler de façon définitive. Un écran bleu
+pour tous les comptes. »
+
+**LES DEUX ÉCRANS SONT LA MÊME FAUTE, VUE DES DEUX CÔTÉS.**
+
+### La marque se posait après le verdict
+
+`useClientId` marquait « couronne » APRÈS `adopter_ma_fiche`, et sortait avant
+d y arriver dès que le verdict était `staff` **OU `occupee`**. Un compte arrêté
+par l écran bleu n était donc jamais marqué, n obtenait jamais de fiche, et
+remontait au Trône comme candidature. Chaque essai en ajoutait une.
+
+QUELQU UN QU ON REFUSE RESTE QUELQU UN QUI VENAIT DE MA COURONNE. La marque se
+pose maintenant pour tous les verdicts sauf `staff` — et c est dans les refus
+qu elle compte le plus, ce sont les seuls comptes qui ne reviendront pas la
+poser eux-mêmes.
+
+### L écran bleu venait du localStorage du Trône
+
+`useCompteEnDouble` gardait un repli qui lisait le magasin `clients` local.
+**Les deux applications partagent une origine, donc un `localStorage`** : sur
+le navigateur de la Maison, le Trône y dépose le carnet ENTIER, et Ma Couronne
+le relisait comme s il était le sien. Toute adresse déjà connue du salon
+déclenchait l écran bleu, alors que le serveur avait répondu `ok`, `adoptee` ou
+`reprise`.
+
+Le serveur est le seul à voir les fiches des autres, donc le seul qui puisse
+conclure : `if (supabase) return false` avant le repli. Celui-ci ne vaut plus
+qu en développement, sans backend.
+
+### Migration 0080 — le passé et le dernier recours
+
+- `ecarter_du_personnel(uid)`, souverain uniquement, pose la marque côté
+  serveur. Bouton **« Écarter »** à côté d « Autoriser ». ÉCARTER N EST PAS
+  SUPPRIMER : le compte reste intact, sa cliente entre sur Ma Couronne quand
+  elle veut, et un clic sur « Autoriser » défait le geste.
+- Refuse d écarter un membre du personnel : ce serait une porte ouverte que
+  plus aucun écran ne montre.
+- Rattrapage : tout compte portant déjà une fiche cliente est marqué d office.
+
 ## LE CALENDRIER DE MA COURONNE · 31 août 2026
 
 Trois défauts d'un coup, trois causes différentes.
