@@ -258,7 +258,10 @@ function Login() {
         <Button type="submit" disabled={busy} size="lg" className="tra-submit">
           {busy ? 'Un instant…'
             : mode === 'connexion' ? 'Se connecter'
-            : mode === 'fondation' ? 'Fonder la Maison'
+            /* LE BOUTON DISAIT ENCORE « FONDER LA MAISON » — 31 août 2026.
+               Le texte au-dessus avait été corrigé, pas lui : une collègue qui
+               crée son compte croyait encore fonder quelque chose. */
+            : mode === 'fondation' ? 'Créer mon compte'
             : mode === 'oubli' ? 'Envoyer le code'
             : mode === 'inscription-code' ? 'Confirmer mon adresse'
             : 'Définir le mot de passe'}
