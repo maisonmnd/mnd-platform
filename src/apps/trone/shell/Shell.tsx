@@ -63,7 +63,8 @@ import { usePassageVivant } from './usePassageVivant';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, toast } from '../../../ds/components';
-import { useAuth, useStaff, signOut } from '../../../shared/auth';
+import { useAuth, useMaTete, signOut } from '../../../shared/auth';
+import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
 import { useClients, clientsStore } from '../../../shared/clients';
@@ -126,8 +127,21 @@ export default function Shell() {
   /* L'identité signe la barre latérale et règle l'horloge (Paramètres). */
   const [identite] = useHouseIdentity();
   const { session } = useAuth();
-  const staff = useStaff();
+  const { tete: staff, pret: teteSue } = useMaTete();
   const role = staff?.role;
+
+  /* LA MATRICE DOIT ÊTRE DESCENDUE, ELLE AUSSI — 31 août 2026. Savoir QUI
+     regarde ne suffit pas : tant que ses accès ne sont pas arrivés, la matrice
+     vide se lit « aucun refus posé », et le menu s'ouvre plus large qu'il ne
+     devrait avant de se refermer. Sur un appareil déjà venu, elle est en cache
+     et cette attente ne se voit pas. */
+  const [matriceSue, setMatriceSue] = useState(() => documentDescendu('mnd_staff_access'));
+  useEffect(() => {
+    if (matriceSue) return;
+    let vivant = true;
+    void quandDocumentDescendu('mnd_staff_access').then(() => { if (vivant) setMatriceSue(true); });
+    return () => { vivant = false; };
+  }, [matriceSue]);
   /* Les domaines ouverts EN PLUS a cette personne. Clef : son identifiant de
      compte — le seul qui ne change pas quand un nom se corrige. */
   const acces = useStore(staffAccessStore)[0];
@@ -357,6 +371,33 @@ export default function Shell() {
       </button>
     </div>
   );
+
+  /* ── ON N'OUVRE RIEN AVANT DE SAVOIR QUI REGARDE — 31 août 2026 ───
+     « Je vois d'abord tout le montant des dépenses de la Maison pendant 3
+     secondes, ensuite ça disparaît. Même chose pour la barre de navigation »
+     (Yéman).
+
+     Le Trône se dessinait pendant que la question « qui es-tu ? » voyageait
+     jusqu'au serveur. Faute de réponse, les gardes ouvraient tout : un employé
+     lisait le chiffre du mois, les cent cinq bénéficiaires et le menu entier,
+     puis l'écran se refermait derrière lui. Trois secondes suffisent à lire un
+     total, et à le retenir.
+
+     UN ÉCRAN FERMÉ APRÈS COUP N'A JAMAIS ÉTÉ FERMÉ. On attend donc, et
+     l'attente se dit : ce n'est pas une page blanche, c'est le sceau de la
+     Maison et un mot. Elle ne dure que le temps d'une requête, et jamais deux
+     fois de suite grâce au cache de `useMaTete`. */
+  if (!teteSue || !matriceSue) {
+    return (
+      <div className="tr-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
+        <div style={{ textAlign: 'center', opacity: .75 }}>
+          <Seal color="or" size={38} />
+          <div className="mnd-eyebrow" style={{ marginTop: 12 }}>Le Trône</div>
+          <p className="mnd-muted" style={{ fontSize: 13, marginTop: 6 }}>Un instant, la Maison vous reconnaît.</p>
+        </div>
+      </div>
+    );
+  }
 
   /* ── AUCUN ÉCRAN OUVERT — 31 août 2026 ────────────────────────────
      Depuis que le calendrier lui-même se ferme, un compte peut n'avoir aucune

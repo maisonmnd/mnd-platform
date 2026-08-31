@@ -762,8 +762,50 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
 }
 
 /** Lie un magasin singleton (une valeur) à une ligne de `documents` (clé stable). */
+/* ── SAVOIR QUAND UN DOCUMENT EST DESCENDU — 31 août 2026 ───────────
+   « Je vois d'abord tout le montant des dépenses de la Maison pendant 3
+   secondes, ensuite ça disparaît » (Yéman).
+
+   Un magasin vide se lit exactement comme un magasin dont rien n'a encore été
+   dit. La matrice des accès n'y échappait pas : `{}` en attendant le serveur,
+   et `{}` veut dire « aucun refus posé », donc tout ouvert. L'écran s'ouvrait
+   large, puis se refermait. Un écran fermé après coup n'a jamais été fermé.
+
+   ON PROMET DONC LA DESCENTE, et le Trône attend cette promesse avant de se
+   dessiner. Elle se tient DANS TOUS LES CAS, y compris ceux où rien ne
+   descendra jamais : pas de serveur configuré, pas de session, lecture
+   refusée par la RLS, panne de réseau. Une garde qui peut ne jamais rendre la
+   main n'est pas une garde, c'est un écran figé. */
+const descentes = new Map<string, { faite: boolean; promesse: Promise<void>; tenir: () => void }>();
+const registre = (key: string) => {
+  let d = descentes.get(key);
+  if (!d) {
+    let tenir: () => void = () => {};
+    const promesse = new Promise<void>((res) => { tenir = () => { const e = descentes.get(key); if (e) e.faite = true; res(); }; });
+    d = { faite: false, promesse, tenir };
+    descentes.set(key, d);
+  }
+  return d;
+};
+
+/** Vrai si ce document est déjà descendu (ou si l'on sait qu'il ne descendra pas). */
+export const documentDescendu = (key: string): boolean => registre(key).faite;
+
+/** La promesse de sa descente. Elle se tient toujours, au pire au bout de 5 s. */
+export const quandDocumentDescendu = (key: string): Promise<void> => {
+  const d = registre(key);
+  if (!d.faite) {
+    /* LA CEINTURE DES 5 SECONDES : réseau lent, serveur muet, onglet réveillé
+       d'une mise en veille. On rend la main, et les gardes reprennent leur
+       défaut, qui est de fermer ce qui touche à l'argent. */
+    setTimeout(d.tenir, 5000);
+  }
+  return d.promesse;
+};
+
 export function bindDocument<T>(store: Store<T>, key: string): void {
-  if (!supabase) return;
+  /* Sans Supabase, rien ne descendra jamais : on le dit tout de suite. */
+  if (!supabase) { registre(key).tenir(); return; }
   const sb = supabase;
 
   let applyingRemote = false;
@@ -774,6 +816,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   // 1. Hydratation (ou amorçage). `seed` n'est vrai qu'au premier appel :
   //    les ré-hydratations sur changement de session ne font que lire.
   const hydrate = async (seed: boolean) => {
+    /* QUOI QU'IL ARRIVE CI-DESSOUS, la promesse est tenue en sortant : refus de
+       droit, erreur réseau, document absent. Sinon un seul cas oublié figerait
+       l'application sur son voile d'attente. */
+    try {
     const { data, error } = await sb.from('documents').select('data').eq('key', key).maybeSingle();
     if (error) {
       if (estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
@@ -791,6 +837,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       const { error: upErr } = await upsert(local);
       if (upErr) console.warn(`[mnd-sync] doc ${key} seed:`, upErr.message);
     }
+    } finally { registre(key).tenir(); }
   };
   /* MÊME RÈGLE QU'AUX COLLECTIONS : sans session, une lecture vide ne prouve
      rien, et amorcer le serveur avec le cache local serait une faute. On
@@ -798,7 +845,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   let amorce = false;
   void (async () => {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    /* PAS DE SESSION, RIEN NE DESCENDRA : la porte de connexion n'a pas à
+       attendre un document qu'elle ne lira jamais. */
+    if (!session) { registre(key).tenir(); return; }
     amorce = true;
     await hydrate(true);
   })();

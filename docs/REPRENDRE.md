@@ -42,6 +42,34 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+### Trois secondes suffisent à lire un total
+
+« Quand je me connecte sur le compte d'un employé je vois d'abord tout le
+montant des dépenses de la Maison pendant 3 secondes, ensuite ça disparaît.
+Même chose pour la barre de navigation. »
+
+DEUX RÉPONSES ÉTAIENT CONFONDUES EN UNE. `useStaff` rendait `null` pendant le
+chargement, et `null` ressemblait trait pour trait à « ce compte n'est pas un
+maître ». Or toutes les gardes sont écrites `role !== 'maitre'` → ouvre tout. Le
+temps d'un aller-retour au serveur, un employé était traité en souverain :
+839 085 F, cent cinq bénéficiaires, les budgets, le menu entier.
+
+`useMaTete()` distingue « je ne sais pas encore » de « je sais ». `useStaff()`
+en dérive, et **la tête sue reste sue** : chaque appel lançait sa propre requête
+et repartait de `null`, donc fermer le Shell n'aurait rien réglé, chaque écran
+rouvrait le trou pour son compte. Le cache est gardé par l'identifiant de
+session.
+
+MÊME AVEUGLEMENT POUR LA MATRICE : un magasin vide se lit comme un magasin dont
+rien n'a encore été dit, et `{}` veut dire « aucun refus posé ». `bindDocument`
+promet désormais sa descente (`quandDocumentDescendu`), et cette promesse se
+tient DANS TOUS LES CAS : pas de Supabase, pas de session, refus RLS, erreur
+réseau, plus une ceinture de 5 secondes. Une garde qui peut ne jamais rendre la
+main n'est pas une garde, c'est un écran figé.
+
+Le Trône attend les deux avant de se dessiner, derrière le sceau et un mot. Sur
+un appareil déjà venu, tout est en cache et l'attente ne se voit pas.
+
 ### Le nom du tiroir était la porte la plus large
 
 « Don't allow employees to click the details of a caisse. » Sur SA propre

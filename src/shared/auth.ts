@@ -304,21 +304,57 @@ export async function loadStaff(): Promise<Staff | null> {
   return (data as Staff) ?? null;
 }
 
-export function useStaff(): Staff | null {
+/* ── CE QU'ON SAIT, ON NE LE ROUBLIE PAS — 31 août 2026 ──────────────
+   « Quand je me connecte sur le compte d'un employé je vois d'abord tout le
+   montant des dépenses de la Maison pendant 3 secondes, et ensuite ça
+   disparaît. Même chose pour la barre de navigation » (Yéman).
+
+   LE TROU ÉTAIT ICI. `useStaff` répondait `null` PENDANT LE CHARGEMENT, et
+   `null` pendant le chargement ressemblait trait pour trait à « ce compte n'est
+   pas un maître ». Or toutes les gardes de la maison sont écrites ainsi :
+   `role !== 'maitre'` ouvre tout. Le temps d'un aller-retour au serveur, un
+   employé était donc traité en souverain : 839 085 F de dépenses, cent cinq
+   bénéficiaires, les budgets, le menu entier. Puis la vérité arrivait et
+   l'écran se refermait, trois secondes trop tard.
+
+   DEUX RÉPONSES ÉTAIENT CONFONDUES EN UNE : « je ne sais pas encore » et « je
+   sais, et ce n'est pas un maître ». Elles se distinguent désormais, et c'est
+   la seule façon de fermer un écran AVANT de l'avoir montré.
+
+   LA TÊTE SUE RESTE SUE : chaque appel à `useStaff` lançait sa propre requête
+   et repartait de `null`. Fermer le Shell ne suffisait donc pas, chaque écran
+   rouvrait le trou pour son propre compte. Le cache est gardé par l'identifiant
+   de session, il tombe de lui-même quand on change de compte. */
+let teteSue: { uid: string | undefined; tete: Staff | null } | null = null;
+
+export type MaTete = { tete: Staff | null; pret: boolean };
+
+export function useMaTete(): MaTete {
   const { session } = useAuth();
-  const [staff, setStaff] = useState<Staff | null>(null);
+  const uid = session?.user?.id;
+  const deja = teteSue && teteSue.uid === uid ? teteSue : null;
+  /* SANS SESSION, LA RÉPONSE EST CONNUE : personne. C'est `AuthGate` qui tient
+     la porte, pas nous, et prétendre « je cherche encore » figerait l'écran de
+     connexion derrière un voile d'attente. */
+  const [etat, setEtat] = useState<MaTete>(() => (deja
+    ? { tete: deja.tete, pret: true }
+    : { tete: null, pret: !uid }));
+
   useEffect(() => {
-    let alive = true;
-    if (!session) {
-      setStaff(null);
-      return;
-    }
+    let vivant = true;
+    if (!uid) { teteSue = null; setEtat({ tete: null, pret: true }); return; }
+    if (teteSue && teteSue.uid === uid) { setEtat({ tete: teteSue.tete, pret: true }); return; }
+    setEtat({ tete: null, pret: false });
     void loadStaff().then((s) => {
-      if (alive) setStaff(s);
+      teteSue = { uid, tete: s };
+      if (vivant) setEtat({ tete: s, pret: true });
     });
-    return () => {
-      alive = false;
-    };
-  }, [session?.user?.id]);
-  return staff;
+    return () => { vivant = false; };
+  }, [uid]);
+
+  return etat;
+}
+
+export function useStaff(): Staff | null {
+  return useMaTete().tete;
 }
