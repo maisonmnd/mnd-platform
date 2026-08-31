@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { depensesDuMois, useInvoices, useExpenses, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
+import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -43,7 +43,9 @@ const MIX_FILLS = [
 export default function Synthese() {
   const { branch, currency } = useBranch();
   const [invoices] = useInvoices();
-  const [expenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const expenses = useDepensesComptees();
   const [appts] = useAppointments();
   const [clients] = useClients();
   const [categories] = useCategories();

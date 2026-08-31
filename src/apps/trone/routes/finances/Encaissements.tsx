@@ -11,7 +11,7 @@ import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import {
-  useInvoices, useExpenses, invoiceReglements, sourcesDe,
+  useInvoices, useDepensesComptees, invoiceReglements, sourcesDe,
   partsPrisesParRevenu, etatDuRevenu, LIBELLE_ETAT, type EtatRevenu,
 } from '../../../../shared/finance';
 import { staffStore } from '../equipe/data';
@@ -213,7 +213,9 @@ export default function Encaissements() {
   const [appointments] = useAppointments();
   const [clients] = useClients();
   /* Les dépenses disent quels revenus ont déjà servi — voir `etatDe`. */
-  const [expenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const expenses = useDepensesComptees();
 
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');

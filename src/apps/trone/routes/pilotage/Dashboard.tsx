@@ -8,7 +8,7 @@ import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../sh
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
 import { useCategories } from '../../../../shared/catalog';
-import { useInvoices, useExpenses, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
+import { useInvoices, useDepensesComptees, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
@@ -73,7 +73,9 @@ export default function Dashboard() {
   const jalonsAVeiller = objectifsASurveiller(
     lesObjectifs, lesMoves.filter((m) => m.branchId === branch.id), branch.id, todayISO(),
   );
-  const [expenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const expenses = useDepensesComptees();
   const [categories] = useCategories();
   /* Index des catégories — c'est leur `maison` qui range le chiffre côté
      Atelier ou côté Studio. */

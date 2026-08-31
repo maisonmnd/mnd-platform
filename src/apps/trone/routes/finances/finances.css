@@ -1848,3 +1848,93 @@
 .trf-chip.is-active .trf-chip__n { color: inherit; }
 .trf-chip.is-vide { opacity: .55; }
 .trf-chip.is-vide .trf-chip__n { color: var(--ink-soft); }
+
+/* ═══ LA VALIDATION DES DÉPENSES ══════════════════════════════════════════
+   « À chaque fois qu'un employé émet une dépense il doit recevoir un bouton
+   valider d'un souverain. Sinon tout le monde marquerait ce qu'il a envie de
+   marquer » (Yéman, 31 août 2026).
+
+   L'AMBRE POUR CE QUI ATTEND, LA BRIQUE POUR CE QUI TARDE. Ni l'un ni l'autre
+   n'est le cuivre de la Maison : le cuivre dit l'accent, pas l'alerte, et les
+   confondre ferait lire un retard comme une décoration. */
+.trf-valider { border-color: var(--copper-300, #E3C9AE); }
+.trf-valider__bandeau {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 13px 15px;
+  margin-bottom: 14px;
+  border: 1px solid var(--copper-200, #EED8C2);
+  background: var(--copper-50, #FAF1E9);
+  border-radius: 3px;
+}
+.trf-valider__titre { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); }
+.trf-valider__dit { font-size: 12.5px; color: var(--ink-soft); flex: 1; min-width: 220px; line-height: 1.6; }
+
+.trf-vcarte {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  padding: 14px 15px;
+}
+.trf-vcarte + .trf-vcarte { margin-top: 10px; }
+.trf-vcarte.is-tard { border-color: var(--trf-error, #96412E); background: #FBF0ED; }
+.trf-vcarte.is-refuse { background: transparent; }
+.trf-vcarte.is-refuse .trf-vcarte__nom {
+  text-decoration: line-through;
+  text-decoration-color: var(--trf-error, #96412E);
+  color: var(--ink-soft);
+}
+.trf-vcarte__tete { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin-bottom: 7px; }
+.trf-vcarte__nom { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
+.trf-vcarte__xof {
+  margin-left: auto;
+  font-family: var(--font-serif);
+  font-size: 21px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* CE QUI N'EXISTE PAS ENCORE NE S'ÉCRIT PAS COMME CE QUI EXISTE. */
+.trf-vcarte__xof.is-pale { color: var(--ink-soft); }
+.trf-vcarte__xof.is-barre { text-decoration: line-through; }
+.trf-vcarte__meta { font-size: 12px; color: var(--ink-soft); line-height: 1.7; }
+.trf-vcarte__motif { font-size: 12px; color: var(--trf-error, #96412E); line-height: 1.6; margin-top: 4px; }
+.trf-vcarte__gestes { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+
+.trf-past {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 2px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.trf-past--attente { background: #FCF5E6; color: #9A6B1F; border-color: #E2CDA1; }
+.trf-past--tard { background: #FBF0ED; color: var(--trf-error, #96412E); border-color: #E4BDB2; }
+.trf-past--refuse { background: var(--surface-sunk, #F1EEE8); color: var(--ink-soft); border-color: var(--hairline); }
+
+/* LA JAUGE SE REMPLIT AVEC LE TEMPS, elle ne compte pas à rebours dans le
+   vide : on lit d'un coup d'œil ce qui vient d'arriver et ce qui traîne. */
+.trf-vjauge { height: 4px; border-radius: 3px; background: var(--color-sable); overflow: hidden; margin-top: 9px; }
+.trf-vjauge i { display: block; height: 100%; background: #C79A45; transition: width .4s ease; }
+.trf-vjauge.is-tard i { background: var(--trf-error, #96412E); }
+
+.trf-act--oui { background: #4A6B52; color: #fff; border-color: #4A6B52; }
+.trf-act--oui:hover { background: #3E5A45; border-color: #3E5A45; }
+.trf-act--non { color: var(--trf-error, #96412E); border-color: #E4BDB2; }
+
+/* Le trou annoncé sous le solde d'un tiroir — voir `enAttenteSurLaCaisse`. */
+.trf-releve-stats__attente {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: #9A6B1F;
+  line-height: 1.5;
+  margin-top: 3px;
+  max-width: 22ch;
+}

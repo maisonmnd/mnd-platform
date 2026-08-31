@@ -18,7 +18,7 @@ import { createStore, useStore } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtIn, rateToXof } from '../../../../shared/currency';
 import {
-  useCashboxes, useExpenses, useInvoices, useCoffre, useCredits, useTransferts,
+  useCashboxes, useExpenses, useDepensesComptees, enAttenteSurLaCaisse, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
   caisseDiscrete, empreinteDuCode, caissesHorsBilan, surLeTiroir, montantMuet,
   type Cashbox,
@@ -135,7 +135,9 @@ export const coffreOuvert = (codeCoffreHash: string | undefined, ouvertes: Reado
 export function useCaisses(month: string) {
   const { branch, currency } = useBranch();
   const [cashboxes] = useCashboxes();
-  const [expenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const expenses = useDepensesComptees();
   const [invoices] = useInvoices();
   const [coffre] = useCoffre();
   const [creditMvts] = useCredits();
@@ -551,7 +553,7 @@ export function ReleveCaisse({
   onTransfert?: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  const { currency, boxMoves, branchBoxes, ouvertes } = useCaisses(month);
+  const { currency, boxMoves, branchBoxes, ouvertes, branch } = useCaisses(month);
   const monthName = monthLabel(month);
   /* UNE CAISSE DISCRÈTE NE S'OUVRE PAS SANS SON CODE — et le relevé est
      précisément ce qu'elle cache : ses mouvements disent son solde ligne à
@@ -586,6 +588,15 @@ export function ReleveCaisse({
     ? avecSolde.filter((m) => `${m.label} ${m.sub} ${m.date}`.toLowerCase().includes(q))
     : avecSolde
   ).slice().reverse();
+
+  /* CE QUI EST SORTI DU TIROIR SANS ÊTRE ENCORE VALIDÉ. On interroge le
+     registre BRUT, pas les dépenses comptées : c'est justement ce qu'elles
+     excluent qu'on veut annoncer sous le solde. */
+  const [registreBrut] = useExpenses();
+  const attenteSurCeTiroir = useMemo(
+    () => enAttenteSurLaCaisse(registreBrut, branch.id, nom),
+    [registreBrut, branch.id, nom],
+  );
 
   const entrees = moves.filter((m) => m.delta > 0).reduce((s, m) => s + m.delta, 0);
   const sorties = moves.filter((m) => m.delta < 0).reduce((s, m) => s - m.delta, 0);
@@ -630,6 +641,20 @@ export function ReleveCaisse({
         <div>
           <div className="trf-releve-stats__l">Solde · à ce jour</div>
           <div className="trf-releve-stats__v">{fmtIn(balance, boxCur)}</div>
+          {/* ── LE TROU SE DIT, IL NE SE DÉCOUVRE PAS AU COMPTAGE ──────────
+              31 août 2026. Une dépense en attente n'existe dans aucun chiffre,
+              c'est la règle voulue par la Maison ; mais l'argent, lui, est déjà
+              sorti du tiroir. Le solde affiché est donc plus haut que ce qu'on
+              trouverait en comptant les billets, et ce n'est pas une erreur.
+
+              ON L'ANNONCE ICI plutôt que de laisser l'écart se découvrir un
+              soir de comptage, où il se lirait comme un vol. La ligne ne paraît
+              que s'il y a quelque chose en attente. */}
+          {attenteSurCeTiroir > 0 && (
+            <div className="trf-releve-stats__attente">
+              dont {fmtIn(attenteSurCeTiroir, boxCur)} sortis, pas encore validés
+            </div>
+          )}
         </div>
         <div>
           <div className="trf-releve-stats__l">Entrées {portee === 'tout' ? '· depuis toujours' : `· ${monthName}`}</div>

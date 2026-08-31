@@ -42,6 +42,52 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA VALIDATION DES DÉPENSES · 31 août 2026
+
+« À chaque fois qu un employé émet une dépense il doit recevoir un bouton
+valider d un souverain pour valider toute la transaction. Sinon tout le monde
+marquerait ce qu il a envie de marquer. Délai pour validation 72 heures. »
+
+Maquette validée : `public/maquette-la-validation-des-depenses.html`.
+
+**Les trois choix de la Maison**, posés au sélecteur avant de construire :
+
+1. Passé 72 h, **rien ne se décide tout seul**. La dépense passe « en retard »,
+   remonte en tête, et attend. Le silence n accorde rien et ne refuse rien.
+2. **En attente veut dire absente.** Total du mois, budgets, solde de caisse,
+   bénéficiaires, ratio du revenu, avances dues, export : rien ne bouge.
+3. **Souverain ou gérant** valide, jamais ses propres dépenses.
+
+**Où vit la règle** : `shared/finance.ts`, en fonctions pures, et nulle part
+ailleurs. `compteDansLesChiffres` est la seule question que posent les chiffres.
+`useDepensesComptees()` est la porte normale des écrans ; `useExpenses()` reste
+le registre brut, pour écrire et pour montrer la file. Les sept consommateurs
+sont passés par la première.
+
+**Le champ absent veut dire acquise** : sans cette convention, la mise en ligne
+aurait suspendu d un coup l histoire entière des dépenses de la Maison.
+
+**Ce qui a demandé de l attention**
+
+- Modifier une dépense en attente **ne relance pas le compteur**, sinon il
+  suffirait de la retoucher chaque matin pour n être jamais en retard.
+- Une horloge déréglée ne crée pas d heures négatives ; une date illisible ne
+  fait pas tomber l écran.
+- Une **avance de poche** en attente ne creuse aucun tiroir (l argent est celui
+  de la personne) mais compte dans ce qui attend.
+- Le compte restreint voit ce qu il a soumis par son nom de porteur **ou** par
+  sa signature de soumission : ce qu il a demandé ne doit jamais lui échapper.
+- Sous le solde d un tiroir : « dont X sortis, pas encore validés ». Le trou se
+  dit, il ne se découvre pas un soir de comptage où il se lirait comme un vol.
+
+**Le foyer n a rien reçu, et c est voulu** : `/salon-foyer` est dans
+`ROUTES_SOUVERAIN`. Un employé ne peut pas y saisir un mouvement, donc il n y a
+rien à soumettre. Poser le mécanisme là serait du code que personne ne peut
+déclencher. Le jour où cet écran s ouvre à quelqu un d autre, la règle est à
+reprendre.
+
+39 assertions sur `verifie-validation`, 3 de plus sur `verifie-avances`.
+
 ### Trois secondes suffisent à lire un total
 
 « Quand je me connecte sur le compte d'un employé je vois d'abord tout le

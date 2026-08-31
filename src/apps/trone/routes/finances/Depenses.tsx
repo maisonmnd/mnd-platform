@@ -12,7 +12,11 @@ import { expenseOccurrences,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
   usePorteurs, ajouteUnPorteur, achatsParPorteur, caisseDuPorteur, caisseParDefaut, caisseDiscrete,
-  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods, caissesPourLEquipe } from '../../../../shared/finance';
+  type Expense, type ExpenseItem, type Cashbox, type ExpenseCategory, type Invoice, type Budget, type PieceJointe, usePaymentMethods, caissesPourLEquipe,
+  depensesComptees, aValider, estEnAttente, estRefusee, enRetard, heuresRestantes,
+  heuresDattente, peutValider, doitEtreValidee, soumission, validee, refusee,
+  totalEnAttenteXof, DELAI_VALIDATION_H,
+  type ValidationDepense } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
@@ -95,11 +99,50 @@ export default function Depenses() {
   const monNom = (monProfil?.name ?? '').trim();
 
   const [toutesLesDepenses, setExpenses] = useExpenses();
-  const expenses = useMemo(
+  /* Ce que ce compte a le DROIT de voir, en attente comprise. */
+  const siennes = useMemo(
     () => (voitToutesLesDepenses
       ? toutesLesDepenses
-      : toutesLesDepenses.filter((e) => !!e.porteur && sameName(e.porteur, monNom))),
+      /* SON NOM DE PORTEUR, OU SA SIGNATURE DE SOUMISSION — 31 août 2026.
+         Les deux, car ce qu'il a soumis ne doit jamais lui échapper : une
+         dépense saisie sans porteur, ou dont le porteur a été corrigé, se
+         serait effacée de son écran alors qu'elle attend encore sa réponse. */
+      : toutesLesDepenses.filter((e) => (!!e.porteur && sameName(e.porteur, monNom))
+        || (!!e.validation && sameName(e.validation.soumisPar, monNom)))),
     [toutesLesDepenses, voitToutesLesDepenses, monNom],
+  );
+
+  /* ══ CE QUI ATTEND UN OUI N'EST PAS UNE DÉPENSE — 31 août 2026 ═════
+     « À chaque fois qu'un employé émet une dépense il doit recevoir un bouton
+     valider d'un souverain. Sinon tout le monde marquerait ce qu'il a envie de
+     marquer » (Yéman).
+
+     DEUX LISTES, ET UNE SEULE COMPTE. `expenses` porte ce qui existe : totaux,
+     budgets, bénéficiaires, ratio du revenu, prévision, export. `enAttente`
+     porte ce qui demande une décision, et ne sert qu'à l'affichage.
+
+     ON SÉPARE ICI, PAS PLUS BAS. Tous les chiffres de l'écran se dérivent de
+     `expenses` ; un seul dérivé oublié aurait fait entrer dans les comptes ce
+     que personne n'a regardé. */
+  const expenses = useMemo(() => depensesComptees(siennes), [siennes]);
+  const enAttente = useMemo(() => aValider(siennes, branch.id), [siennes, branch.id]);
+  const refusees = useMemo(() => siennes.filter(estRefusee), [siennes]);
+
+  /* L'HEURE SE PREND UNE FOIS PAR MINUTE, pas à chaque rendu : la jauge des 72
+     heures doit avancer sans que l'écran se redessine cinquante fois par
+     seconde, et sans qu'un compteur figé mente jusqu'au prochain clic. */
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setMaintenant(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  /* QUI TRANCHE : un souverain ou un gérant, jamais ses propres dépenses.
+     La règle vit dans `finance.ts`, l'écran ne fait que la lire. */
+  const jeSoumets = doitEtreValidee(monProfil?.role);
+  const aValiderPourMoi = useMemo(
+    () => (voitToutesLesDepenses ? aValider(toutesLesDepenses, branch.id) : []),
+    [voitToutesLesDepenses, toutesLesDepenses, branch.id],
   );
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
@@ -751,6 +794,12 @@ export default function Depenses() {
         category: form.category || 'Divers', subcategory: form.subcategory || undefined,
         recurring: form.recurring || null, flagged: form.flagged || undefined,
         items: hasItems ? items : undefined, sources: dits,
+        /* MODIFIER UNE DÉPENSE EN ATTENTE NE REMET PAS LE COMPTEUR À ZÉRO :
+           sinon il suffirait de la retoucher chaque matin pour qu'elle ne soit
+           jamais en retard. Une dépense DÉJÀ TRANCHÉE ne se remet pas non plus
+           en attente par une simple correction de libellé ; pour la défaire,
+           on la supprime, et la suppression est un acte tracé. */
+        validation: e.validation,
       } : e)));
     } else {
       const e: Expense = {
@@ -765,11 +814,39 @@ export default function Depenses() {
         avancee: form.avancee && !!form.porteur.trim() ? true : undefined,
         subcategory: form.subcategory || undefined, recurring: form.recurring || null,
         flagged: form.flagged || undefined, items: hasItems ? items : undefined, sources: dits,
+        /* ELLE PART À LA MAISON — 31 août 2026. Le rôle tranche, pas l'écran :
+           un souverain ou un gérant enregistre, un employé soumet. Le champ
+           reste ABSENT dans le second cas, et absent veut dire acquise. */
+        validation: jeSoumets ? soumission(monNom || 'Sans nom', new Date().toISOString()) : undefined,
       };
       setExpenses((prev) => [e, ...prev]);
     }
     setOpen(false);
   };
+  /* ══ DIRE OUI, DIRE NON — 31 août 2026 ═════════════════════════════
+     La décision garde son auteur et son heure. Elle passe par le magasin
+     COMPLET, jamais par la liste filtrée de l'écran : celle-ci ne porte que ce
+     qu'on a le droit de voir, et écrire depuis une vue partielle effacerait
+     tout le reste. */
+  const trancher = (e: Expense, fait: (v: ValidationDepense) => ValidationDepense) => {
+    if (!e.validation) return;
+    setExpenses((prev) => prev.map((x) => (x.id === e.id && x.validation
+      ? { ...x, validation: fait(x.validation) }
+      : x)));
+  };
+  const dirOui = (e: Expense) => trancher(e, (v) => validee(v, monNom || 'La Maison', new Date().toISOString()));
+  const [aRefuser, setARefuser] = useState<Expense | null>(null);
+  const [motifRefus, setMotifRefus] = useState('');
+  const confirmerLeRefus = () => {
+    const e = aRefuser;
+    /* UN NON SANS RAISON SE REJOUE LE LENDEMAIN À L'IDENTIQUE. Le motif est
+       donc exigé, pas seulement suggéré. */
+    if (!e || !motifRefus.trim()) return;
+    trancher(e, (v) => refusee(v, monNom || 'La Maison', new Date().toISOString(), motifRefus));
+    setARefuser(null);
+    setMotifRefus('');
+  };
+
   const removeExpense = (e: Expense) => {
     if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;
     setExpenses((prev) => prev.filter((x) => x.id !== e.id));
@@ -1060,6 +1137,117 @@ export default function Depenses() {
           restent à la Maison.
         </div>
       )}
+      {/* ══ CE QUI ATTEND PASSE DEVANT — 31 août 2026 ═══════════════════
+          Avant les totaux, avant le flux : ce qui demande une décision. Le
+          panneau disparaît quand la file est vide, il ne devient jamais un
+          meuble qu'on cesse de voir. */}
+      {voitToutesLesDepenses && aValiderPourMoi.length > 0 && (() => {
+        const enRetardIci = aValiderPourMoi.filter((e) => enRetard(e, maintenant));
+        const total = aValiderPourMoi.reduce((n, e) => n + expenseTotal(e), 0);
+        return (
+          <div className="trf-panel trf-valider" style={{ marginBottom: 18 }}>
+            <div className="trf-valider__bandeau">
+              <span className="trf-valider__titre">
+                {aValiderPourMoi.length} dépense{aValiderPourMoi.length > 1 ? 's attendent' : ' attend'} votre oui
+              </span>
+              <span className="trf-valider__dit">
+                {fmtMoney(total, currency)} au total
+                {enRetardIci.length > 0 && (
+                  <>, dont <b style={{ color: 'var(--trf-error)' }}>{enRetardIci.length} en retard</b></>
+                )}. Rien de tout cela n’est encore dans vos chiffres.
+              </span>
+            </div>
+            {aValiderPourMoi.map((e) => {
+              const tard = enRetard(e, maintenant);
+              const heures = heuresDattente(e, maintenant) ?? 0;
+              const part = Math.min(100, Math.round((heures / DELAI_VALIDATION_H) * 100));
+              const mienne = !peutValider(monProfil?.role, monNom, e);
+              return (
+                <div key={e.id} className={`trf-vcarte ${tard ? 'is-tard' : ''}`}>
+                  <div className="trf-vcarte__tete">
+                    <span className="trf-vcarte__nom">{e.label}</span>
+                    <span className={`trf-past ${tard ? 'trf-past--tard' : 'trf-past--attente'}`}>
+                      {tard ? `En retard · ${Math.floor(heures)} h` : `${heuresRestantes(e, maintenant)} h restantes`}
+                    </span>
+                    <span className="trf-vcarte__xof">{fmtMoney(expenseTotal(e), currency)}</span>
+                  </div>
+                  <div className="trf-vcarte__meta">
+                    Saisie par <b>{e.validation?.soumisPar}</b> le {fmtDay(e.date)} · {e.category}
+                    {e.cashbox ? ` · ${e.cashbox}` : ''}
+                    {e.fichier ? ' · pièce jointe' : ' · aucune pièce jointe'}
+                    {e.avancee && (
+                      <><br /><b>Il a avancé de sa poche</b>, la Maison lui devra cette somme une fois validée.</>
+                    )}
+                  </div>
+                  <div className={`trf-vjauge ${tard ? 'is-tard' : ''}`}><i style={{ width: `${tard ? 100 : Math.max(2, part)}%` }} /></div>
+                  {/* ON NE VALIDE PAS SES PROPRES DÉPENSES. Le bouton ne se grise
+                      pas en silence : on dit pourquoi, sinon on le reclique en
+                      croyant à une panne. */}
+                  {mienne ? (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>
+                      Vous l’avez saisie vous-même. Un autre souverain, ou un gérant, doit la valider.
+                    </div>
+                  ) : (
+                    <div className="trf-vcarte__gestes">
+                      <button className="trf-act trf-act--oui" onClick={() => dirOui(e)}>Valider</button>
+                      <button className="trf-act trf-act--non" onClick={() => { setARefuser(e); setMotifRefus(''); }}>Refuser</button>
+                      <button className="trf-act" onClick={() => openEdit(e)}>Voir le détail</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* CHEZ CELUI QUI A SAISI : la même file, sans les boutons. Il doit
+          pouvoir suivre ce qu'il a demandé, sinon il le resaisit. */}
+      {((!voitToutesLesDepenses && enAttente.length > 0) || refusees.length > 0) && (
+        <div className="trf-panel trf-valider" style={{ marginBottom: 18 }}>
+          <div className="trf-panel__title">
+            {voitToutesLesDepenses ? 'Refusées' : 'Ce que vous avez soumis'}
+          </div>
+          {/* LE SOUVERAIN VOIT SES REFUS, LUI AUSSI. Ils ne comptent nulle part,
+              mais une décision qu'on ne peut plus relire ne se discute pas le
+              mois suivant, et l'on refuse deux fois la même chose. */}
+          {!voitToutesLesDepenses && enAttente.map((e) => (
+            <div key={e.id} className={`trf-vcarte ${enRetard(e, maintenant) ? 'is-tard' : ''}`}>
+              <div className="trf-vcarte__tete">
+                <span className="trf-vcarte__nom">{e.label}</span>
+                <span className={`trf-past ${enRetard(e, maintenant) ? 'trf-past--tard' : 'trf-past--attente'}`}>
+                  {enRetard(e, maintenant) ? 'En attente, la Maison est relancée' : `En attente · ${heuresRestantes(e, maintenant)} h`}
+                </span>
+                <span className="trf-vcarte__xof is-pale">{fmtMoney(expenseTotal(e), currency)}</span>
+              </div>
+              <div className="trf-vcarte__meta">{fmtDay(e.date)} · {e.category}{e.cashbox ? ` · ${e.cashbox}` : ''}</div>
+              {/* IL PEUT RETIRER CE QU'IL A SOUMIS, tant que personne n'a
+                  tranché : une erreur de saisie n'a pas à occuper la file de
+                  la Maison, ni à forcer un refus pour disparaître. */}
+              <div className="trf-vcarte__gestes">
+                <button className="trf-act" onClick={() => openEdit(e)}>Corriger</button>
+                <button className="trf-act trf-act--non" onClick={() => removeExpense(e)}>Retirer</button>
+              </div>
+            </div>
+          ))}
+          {refusees.map((e) => (
+            <div key={e.id} className="trf-vcarte is-refuse">
+              <div className="trf-vcarte__tete">
+                <span className="trf-vcarte__nom">{e.label}</span>
+                <span className="trf-past trf-past--refuse">
+                  Refusée{e.validation?.decideLe ? ` le ${fmtDay(e.validation.decideLe.slice(0, 10))}` : ''}
+                </span>
+                <span className="trf-vcarte__xof is-pale is-barre">{fmtMoney(expenseTotal(e), currency)}</span>
+              </div>
+              {e.validation?.motif && <div className="trf-vcarte__motif">« {e.validation.motif} »</div>}
+            </div>
+          ))}
+          <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 10 }}>
+            Ces montants ne sont pas comptés dans votre total tant que la Maison n’a pas répondu.
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · maîtrise des dépenses</Eyebrow>
@@ -1139,7 +1327,12 @@ export default function Depenses() {
                 'var(--color-indigo)', 'var(--color-indigo)',
                 /* MÊME RAISON : « 38 % du revenu » laisse déduire le revenu
                    en une division. On dit alors ce qu'on montre, et rien de plus. */
-                !voitToutesLesDepenses ? 'ce que vous avez porté' :
+                /* DEUX CHIFFRES SÉPARÉS, JAMAIS A$ITIONNÉS : le jour où l'un
+                   devient l'autre, c'est qu'une décision a été prise. */
+                !voitToutesLesDepenses
+                  ? (enAttente.length > 0
+                    ? `ce que vous avez porté · ${fmtMoney(enAttente.reduce((n, e) => n + expenseTotal(e), 0), currency)} en attente`
+                    : 'ce que vous avez porté') :
                 revenue > 0 ? `${expRatio} % du revenu · cible < 35 %` : (portee === 'mois' ? 'aucun revenu ce mois-ci' : 'aucun revenu cette année'), '',
                 () => openExp(
                   `Dépenses · ${nomDeLaPortee}`,
@@ -2256,8 +2449,20 @@ export default function Depenses() {
                 </span>
               )}
               <button className="mnd-btn mnd-btn--ghost" onClick={() => setOpen(false)}>Annuler</button>
-              <button className="mnd-btn" onClick={save}>{editingId ? 'Enregistrer les modifications' : 'Enregistrer la dépense'}</button>
+              {/* LE BOUTON CHANGE DE MOT, ET LE MOT CHANGE LE GESTE — 31 août
+                  2026. On ne ment pas sur ce qui vient de se passer : rien n'est
+                  entré dans les comptes, une demande est partie. */}
+              <button className="mnd-btn" onClick={save}>
+                {editingId ? 'Enregistrer les modifications'
+                  : jeSoumets ? 'Soumettre pour validation' : 'Enregistrer la dépense'}
+              </button>
             </div>
+            {jeSoumets && !editingId && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 10, textAlign: 'right' }}>
+                Cette dépense partira à la Maison. Elle n’entrera dans les comptes qu’une fois
+                validée, et vous verrez la réponse ici même.
+              </div>
+            )}
           </div>
         </Modal>
       )}
@@ -2656,6 +2861,42 @@ export default function Depenses() {
           </Modal>
         );
       })()}
+
+      {/* ══ LE REFUS SE MOTIVE, TOUJOURS — 31 août 2026 ═══════════════════
+          Un non sans raison se rejoue le lendemain à l'identique. Le motif
+          part chez celui qui a saisi, alors on le lui écrit comme on le lui
+          dirait. */}
+      {aRefuser && (
+        <Modal title="Refuser cette dépense" onClose={() => setARefuser(null)} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+              <b style={{ color: 'var(--ink)', fontWeight: 500 }}>{aRefuser.label}</b>
+              {' · '}{fmtMoney(expenseTotal(aRefuser), currency)}
+              {' · '}saisie par {aRefuser.validation?.soumisPar}
+            </div>
+            <label className="mnd-field">
+              <span className="mnd-field__label">Pourquoi</span>
+              <textarea
+                className="mnd-input"
+                rows={3}
+                value={motifRefus}
+                placeholder="Ex. Ce n’est pas pour la Maison, c’est une course personnelle."
+                onChange={(e) => setMotifRefus(e.target.value)}
+              />
+              <span className="mnd-muted" style={{ fontSize: 11, marginTop: 6, display: 'block', lineHeight: 1.55 }}>
+                {aRefuser.validation?.soumisPar} lira ce mot. La ligne restera visible chez lui,
+                barrée, avec votre raison : ce qui a été demandé et refusé doit pouvoir se relire.
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="ghost" style={{ flex: 1 }} onClick={() => setARefuser(null)}>Annuler</Button>
+              <Button variant="copper" disabled={!motifRefus.trim()} onClick={confirmerLeRefus}>
+                Confirmer le refus
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* LA CEINTURE : même si un autre chemin apparaissait un jour, le relevé
           d'un tiroir ne s'ouvre pas pour qui ne voit que ses dépenses. */}

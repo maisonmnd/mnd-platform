@@ -5,7 +5,7 @@ import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/compon
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { expensesStore, expenseCategoriesStore, useExpenses, useInvoices } from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useDepensesComptees, useInvoices } from '../../../../shared/finance';
 import { useStaff } from './data';
 import { usePrets, etatsDesEmprunteurs, type Pret } from '../../../../shared/foyer';
 import { useBranchAppointments, useServicesById, apptNetXof, commissionDetaillee } from '../clients/_shared';
@@ -247,7 +247,9 @@ function NewRunModal({ onClose, onCreate, defaultAtelier }: { onClose: () => voi
 function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orphanMasters?: string[]; onClose: () => void }) {
   const { branch, currency } = useBranch();
   const [params] = usePayrollParameters();
-  const [allExpenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const allExpenses = useDepensesComptees();
   /* La dette de l’équipe est lue ET écrite ici : la retenue d’un bulletin
      réglé devient un remboursement de prêt (voir inscrireLesRetenues). */
   const [lesPrets, setLesPrets] = usePrets();

@@ -8,7 +8,7 @@ import { useStaff } from '../../../../shared/auth';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
-  useInvoices, usePayments, useCredits, useExpenses, useCoffre, coffreBalance,
+  useInvoices, usePayments, useCredits, useDepensesComptees, useCoffre, coffreBalance,
   expenseOccurrences, expenseTotal, type CoffreMovement, usePorteurs, ajouteUnPorteur } from '../../../../shared/finance';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { buildReceipts } from '../../../../shared/receipts';
@@ -160,7 +160,9 @@ export default function SalonFoyer() {
   const [subscribers] = useSubscribers();
   const [clients] = useClients();
   const byId = useServicesById();
-  const [expenses] = useExpenses();
+  /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
+     Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
+  const expenses = useDepensesComptees();
   const [porteurs] = usePorteurs();
 
   const [tab, setTab] = useState<Tab>('mois');

@@ -11,7 +11,7 @@ import {
   lignesAvancees, soldesDesPorteurs, totalDuXof, lignesDunPorteur,
   type Remboursement,
 } from '../src/shared/avances';
-import { caissesPourLEquipe } from '../src/shared/finance';
+import { caissesPourLEquipe, soumission } from '../src/shared/finance';
 import type { Expense } from '../src/shared/finance';
 import type { MouvementCaisseIndep } from '../src/shared/foyer';
 
@@ -132,6 +132,17 @@ dit('son relevé ne porte que ses lignes', ['e2', 'e1'],
   lignesDunPorteur(lignes, 'Sandrine').map((l) => l.id));
 dit('… le plus récent d’abord', '2026-08-31', lignesDunPorteur(lignes, 'Sandrine')[0].date);
 dit('un inconnu n’a pas de relevé', 0, lignesDunPorteur(lignes, 'Personne').length);
+
+/* ── CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DETTE ────────────────
+   « Une dépense en attente n'existe qu'une fois validée » (Yéman, 31 août).
+   Rembourser une avance non validée reviendrait à payer ce qu'on n'a pas
+   accepté, et un refus laisserait ensuite une dette sans achat en face. */
+dit('une avance soumise ne se doit pas encore', 0,
+  lignesAvancees({ expenses: [dep({ avancee: true, porteur: 'Sandrine', validation: soumission('Sandrine', '2026-08-30T08:00:00Z') })], branchId: 'b1' }).length);
+dit('… et une fois validée, si', 1,
+  lignesAvancees({ expenses: [dep({ avancee: true, porteur: 'Sandrine', validation: { etat: 'validee', soumisLe: '2026-08-30T08:00:00Z', soumisPar: 'Sandrine', decidePar: 'Yéman', decideLe: '2026-08-31T09:00:00Z' } })], branchId: 'b1' }).length);
+dit('une avance refusée ne revient jamais', 0,
+  lignesAvancees({ expenses: [dep({ avancee: true, porteur: 'Sandrine', validation: { etat: 'refusee', soumisLe: '2026-08-30T08:00:00Z', soumisPar: 'Sandrine', motif: 'personnelle' } })], branchId: 'b1' }).length);
 
 /* ── ⑦ LES CAISSES OUVERTES À L'ÉQUIPE ─────────────────────────────
    « Pour les employés une seule caisse est disponible pour eux. La caisse

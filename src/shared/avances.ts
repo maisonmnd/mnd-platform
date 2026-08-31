@@ -25,7 +25,7 @@
 import { createStore, useStore, uid } from './store';
 import { bindCollection } from './sync';
 import type { Expense } from './finance';
-import { expenseTotal } from './finance';
+import { compteDansLesChiffres, expenseTotal } from './finance';
 import type { MouvementCaisseIndep } from './foyer';
 
 /** Ce que la Maison rend à quelqu'un qui a avancé. C'est CE JOUR-LÀ que le
@@ -76,6 +76,11 @@ export function lignesAvancees(o: {
   const out: LigneAvance[] = [];
   for (const e of o.expenses) {
     if (e.branchId !== o.branchId || e.stopped) continue;
+    /* TANT QU'ELLE ATTEND UN OUI, LA MAISON NE DOIT RIEN — 31 août 2026.
+       Une avance de poche soumise et pas encore validée est une dépense qui
+       n'existe pas : la porter au dû ferait rembourser ce qu'on n'a pas
+       accepté, et le refus laisserait ensuite une dette sans achat. */
+    if (!compteDansLesChiffres(e)) continue;
     if (!e.avancee || !nom(e.porteur)) continue;
     out.push({
       id: e.id,

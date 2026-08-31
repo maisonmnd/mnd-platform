@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { createStore, useStore, uid } from './store';
+import { sameName } from './text';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -224,7 +226,133 @@ export type Expense = {
       automatique de Personnel : un run marqué payé ne se fait plus réécrire
       sans geste ; seul un clic explicite reprend la main. */
   source?: 'run' | 'confirm';
+  /** ── ELLE ATTEND UN OUI — 31 août 2026 ──────────────────────────
+      « À chaque fois qu'un employé émet une dépense il doit recevoir un bouton
+      valider d'un souverain pour valider toute la transaction. Sinon tout le
+      monde marquerait ce qu'il a envie de marquer » (Yéman).
+
+      ABSENT VEUT DIRE ACQUISE. Tout ce qui a été saisi avant cette règle, et
+      tout ce qu'un souverain ou un gérant saisit lui-même, n'a pas de
+      validation à attendre : le champ ne paraît que sur ce qui en demande une.
+      Sans cette convention, la mise en ligne aurait suspendu d'un coup
+      l'histoire entière des dépenses de la Maison. */
+  validation?: ValidationDepense;
 };
+
+/** L'ÉTAT D'UNE DÉPENSE SOUMISE, et la trace de la décision.
+
+    ON N'EFFACE PAS UN REFUS : la ligne reste, barrée, avec le motif, chez
+    celui qui l'a saisie. Ce qui a été demandé et refusé doit pouvoir se
+    relire, sinon la même dépense revient le lendemain à l'identique. */
+export type ValidationDepense = {
+  etat: 'attente' | 'validee' | 'refusee';
+  /** Horodatage de la soumission — c'est de lui que courent les 72 heures. */
+  soumisLe: string;
+  /** Le nom de qui a saisi, tel qu'il s'écrit sur sa fiche. */
+  soumisPar: string;
+  decidePar?: string;
+  decideLe?: string;
+  /** Obligatoire au refus. Un non sans raison se rejoue le lendemain. */
+  motif?: string;
+};
+
+/* ══ LA VALIDATION DES DÉPENSES ═══════════════════════════════════════════
+   Les règles tiennent ici, en fonctions pures, et nulle part ailleurs. Chaque
+   écran qui compte de l'argent les interroge ; aucun ne rejuge pour son compte.
+
+   LE DÉLAI NE DÉCIDE RIEN, IL CHANGE LE TON. Passé 72 heures la dépense n'est
+   ni acquise ni perdue : elle remonte en tête et se dit « en retard ». Le
+   silence n'accorde rien, et ne refuse rien non plus. C'est le choix de la
+   Maison (31 août), et il a une vertu technique : le compteur se lit sur
+   l'heure de soumission, sans tâche de nuit, donc rien ne peut tomber en panne
+   pendant que personne ne regarde. */
+export const DELAI_VALIDATION_H = 72;
+
+export const estEnAttente = (e: Pick<Expense, 'validation'>): boolean =>
+  e.validation?.etat === 'attente';
+export const estRefusee = (e: Pick<Expense, 'validation'>): boolean =>
+  e.validation?.etat === 'refusee';
+
+/** LA SEULE QUESTION QUE POSENT LES CHIFFRES : est-ce que ça existe ?
+
+    « Non, elle n'existe qu'une fois validée » (Yéman). Total du mois, budgets,
+    solde de caisse, bénéficiaires, ratio du revenu, avances dues, export :
+    tout passe par ici. Filtrer à la source est la seule façon de n'oublier
+    aucun écran, car les chiffres se dérivent les uns des autres. */
+export const compteDansLesChiffres = (e: Pick<Expense, 'validation'>): boolean =>
+  !e.validation || e.validation.etat === 'validee';
+
+export const depensesComptees = <T extends Pick<Expense, 'validation'>>(l: readonly T[]): T[] =>
+  l.filter(compteDansLesChiffres);
+
+const HEURE = 3_600_000;
+
+/** Heures écoulées depuis la soumission. `null` si la dépense n'attend rien. */
+export const heuresDattente = (e: Pick<Expense, 'validation'>, maintenant: number): number | null => {
+  if (!estEnAttente(e)) return null;
+  const t = Date.parse(e.validation!.soumisLe);
+  if (Number.isNaN(t)) return null;
+  /* UNE DATE DANS LE FUTUR NE CRÉE PAS D'HEURES NÉGATIVES : horloge de
+     téléphone déréglée, fuseau mal posé. On la lit comme « à l'instant ». */
+  return Math.max(0, (maintenant - t) / HEURE);
+};
+
+export const enRetard = (e: Pick<Expense, 'validation'>, maintenant: number): boolean => {
+  const h = heuresDattente(e, maintenant);
+  return h !== null && h >= DELAI_VALIDATION_H;
+};
+
+/** Ce qu'il reste avant le retard, en heures pleines. 0 quand le délai est passé. */
+export const heuresRestantes = (e: Pick<Expense, 'validation'>, maintenant: number): number => {
+  const h = heuresDattente(e, maintenant);
+  return h === null ? 0 : Math.max(0, Math.ceil(DELAI_VALIDATION_H - h));
+};
+
+/** LA FILE, LA PLUS ANCIENNE D'ABORD — donc les retards en tête, d'eux-mêmes. */
+export const aValider = <T extends Pick<Expense, 'validation' | 'branchId'>>(
+  l: readonly T[], branchId: string,
+): T[] => l
+  .filter((e) => e.branchId === branchId && estEnAttente(e))
+  .sort((a, b) => (a.validation!.soumisLe < b.validation!.soumisLe ? -1 : 1));
+
+/** QUI PEUT DIRE OUI — « souverain ou gérant » (Yéman, 31 août).
+
+    JAMAIS SES PROPRES DÉPENSES, quel que soit le rôle. Un gérant qui saisit
+    attend le oui d'un autre ; sans cette règle le contrôle serait une
+    formalité qu'on se donne à soi-même, et il ne contrôlerait rien. */
+export const peutValider = (
+  role: string | undefined,
+  monNom: string | undefined,
+  e: Pick<Expense, 'validation'>,
+): boolean => {
+  if (role !== 'souverain' && role !== 'gerant') return false;
+  if (!estEnAttente(e)) return false;
+  return !sameName(e.validation!.soumisPar, monNom);
+};
+
+/** UNE DÉPENSE DOIT-ELLE ÊTRE SOUMISE ? Le rôle tranche, pas l'écran. */
+export const doitEtreValidee = (role: string | undefined): boolean => role === 'maitre';
+
+export const soumission = (nom: string, quandISO: string): ValidationDepense =>
+  ({ etat: 'attente', soumisLe: quandISO, soumisPar: nom });
+
+export const validee = (v: ValidationDepense, parQui: string, quandISO: string): ValidationDepense =>
+  ({ ...v, etat: 'validee', decidePar: parQui, decideLe: quandISO, motif: undefined });
+
+export const refusee = (v: ValidationDepense, parQui: string, quandISO: string, motif: string): ValidationDepense =>
+  ({ ...v, etat: 'refusee', decidePar: parQui, decideLe: quandISO, motif: motif.trim() });
+
+/** Ce que la Maison n'a pas encore tranché, en francs. */
+export const totalEnAttenteXof = (l: readonly Expense[], branchId: string): number =>
+  aValider(l, branchId).reduce((n, e) => n + expenseTotal(e), 0);
+
+/** Ce qui attend SUR UN TIROIR : l'argent en est sorti, le solde ne le dit pas
+    encore. On l'annonce sous le solde plutôt que de laisser le trou se
+    découvrir tout seul au comptage. */
+export const enAttenteSurLaCaisse = (l: readonly Expense[], branchId: string, caisse: string): number =>
+  aValider(l, branchId)
+    .filter((e) => e.cashbox === caisse && !e.avancee)
+    .reduce((n, e) => n + expenseTotal(e), 0);
 
 /** Total d'une dépense — somme des lignes si présentes, sinon le montant simple. */
 /** COMBIEN DE FOIS une dépense pèse sur le mois `mk` (« aaaa-mm »).
@@ -865,6 +993,18 @@ export const paymentMethodsStore = createStore<string[]>('mnd_payment_methods', 
 
 export const useInvoices = () => useStore(invoicesStore);
 export const useExpenses = () => useStore(expensesStore);
+/** LES DÉPENSES QUI COMPTENT — la porte normale des écrans qui font des
+    chiffres. `useExpenses` donne le registre BRUT, en attente comprise : il ne
+    sert qu'à écrire, et à l'écran des Dépenses qui doit montrer la file.
+
+    ON FILTRE À LA SOURCE, jamais au moment d'afficher : les totaux, les
+    budgets, les soldes et les exports se dérivent les uns des autres, et un
+    seul dérivé oublié ferait entrer dans les comptes ce que personne n'a
+    encore regardé. */
+export const useDepensesComptees = (): Expense[] => {
+  const [toutes] = useStore(expensesStore);
+  return useMemo(() => depensesComptees(toutes), [toutes]);
+};
 export const useBudgets = () => useStore(budgetsStore);
 export const useCashboxes = () => useStore(cashboxesStore);
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
