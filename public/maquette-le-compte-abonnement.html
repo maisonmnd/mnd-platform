@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le compte d&rsquo;abonnement &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  /* ── L'écran ── */
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px 22px; }
+
+  /* Le bandeau d'un compte */
+  .compte { border:1px solid var(--filet); border-radius:4px; background:#fff; margin-bottom:16px; overflow:hidden; }
+  .compte__tete { display:flex; align-items:flex-start; gap:16px; padding:15px 18px 14px;
+                  border-bottom:1px solid #EFE8DA; flex-wrap:wrap; }
+  .compte__qui { flex:1 1 220px; min-width:0; }
+  .compte__qui b { display:block; font-family:var(--serif); font-weight:400; font-size:25px;
+                   color:var(--indigo); line-height:1.1; }
+  .compte__qui span { font-size:11.5px; color:var(--encre-d); }
+  .compte__chiffres { display:flex; gap:26px; flex-wrap:wrap; }
+  .kpi__l { font-size:9px; letter-spacing:.17em; text-transform:uppercase; color:var(--encre-d); }
+  .kpi__v { font-family:var(--serif); font-size:21px; color:var(--indigo);
+            font-variant-numeric:tabular-nums; line-height:1.2; }
+  .kpi__v.brique { color:var(--brique); }
+  .compte__corps { padding:15px 18px 17px; }
+
+  /* Un contrat */
+  .contrat { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire);
+             padding:13px 15px; margin-bottom:9px; }
+  .contrat.is-vif { border-color:var(--cuivre-p); border-left:3px solid var(--cuivre); background:var(--cuivre-f); }
+  .contrat.is-mort { opacity:.72; background:transparent; }
+  .contrat__h { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .contrat__nom { font-family:var(--serif); font-size:19px; color:var(--indigo); }
+  .contrat__ref { font-size:11px; letter-spacing:.06em; color:var(--encre-d); font-variant-numeric:tabular-nums; }
+  .contrat__quand { flex:1 1 auto; text-align:right; font-size:11.5px; color:var(--encre-d);
+                    font-variant-numeric:tabular-nums; }
+  .contrat__bas { display:flex; align-items:center; gap:14px; margin-top:9px; flex-wrap:wrap; }
+  .contrat__jauge { flex:1 1 180px; height:6px; border-radius:99px; background:#EFE8DA; overflow:hidden; display:flex; }
+  .contrat__jauge i { display:block; height:100%; }
+  .j-plein { background:var(--cuivre); } .j-tenu { background:repeating-linear-gradient(135deg,var(--cuivre-p) 0 4px,#F2E2D2 4px 8px); }
+  .j-gris { background:#BDB4A5; }
+  .contrat__n { font-size:11.5px; color:var(--encre-d); font-variant-numeric:tabular-nums; flex:none; }
+  .contrat__n b { color:var(--encre); font-weight:500; }
+  .contrat__act { display:flex; gap:7px; flex:none; }
+  .mini { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d);
+          border:1px solid var(--filet); border-radius:2px; padding:5px 9px; background:#fff; }
+  .mini--cuivre { color:#fff; border-color:var(--cuivre); background:var(--cuivre); }
+
+  /* Les états */
+  .etat { font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; padding:3px 9px;
+          border-radius:99px; border:1px solid; flex:none; }
+  .etat--cours { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .etat--epuise { color:var(--cuivre); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .etat--termine { color:var(--encre-d); border-color:var(--filet); background:#F2EDE3; }
+  .etat--resilie { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+  .etat--retard { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+
+  /* Le trou entre deux contrats */
+  .trou { display:flex; align-items:center; gap:12px; padding:4px 0 10px 4px; }
+  .trou i { display:block; width:2px; height:26px; background:repeating-linear-gradient(180deg,var(--filet) 0 3px,transparent 3px 6px); flex:none; }
+  .trou span { font-size:11.5px; color:var(--encre-d); font-style:italic; font-family:var(--serif); }
+
+  .filtres { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .filtre { font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; padding:7px 13px;
+            border:1px solid var(--filet); border-radius:99px; background:#fff; color:var(--encre-d); }
+  .filtre.is-on { border-color:var(--indigo); background:var(--indigo); color:#fff; }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:78ch; margin-top:18px; }
+  .note b { font-weight:500; }
+
+  /* Le tableau des états */
+  .etats { width:100%; border-collapse:collapse; margin-top:22px; }
+  .etats th { text-align:left; font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
+              color:var(--encre-d); font-weight:400; padding:0 14px 9px 0; border-bottom:1px solid var(--filet); }
+  .etats td { padding:13px 14px 12px 0; border-bottom:1px solid var(--filet); vertical-align:top; font-size:14px; }
+  .etats td.q { color:var(--encre-d); }
+  .etats b { color:var(--encre); font-weight:500; }
+  @media (max-width:760px){
+    .etats, .etats tbody, .etats tr, .etats td { display:block; width:100%; }
+    .etats thead { display:none; }
+    .etats tr { border-bottom:1px solid var(--filet); padding:12px 0; }
+    .etats td { border:none; padding:2px 0; }
+  }
+
+  .aval { border-radius:4px; background:var(--indigo); color:#EFEAE0; padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin:0 0 10px; font-family:var(--serif); font-weight:400; font-size:20px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:72ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Abonnements &middot; Les comptes</p>
+  <h1>Le compte d&rsquo;abonnement</h1>
+  <p class="chapeau">L&rsquo;&eacute;cran actuel liste des <b>contrats</b>, pas des <b>t&ecirc;tes</b>.
+  Myl&egrave;ne y para&icirc;t deux fois, &agrave; cinq lignes d&rsquo;&eacute;cart, et rien ne dit que
+  c&rsquo;est la m&ecirc;me personne ni que l&rsquo;un a succ&eacute;d&eacute; &agrave; l&rsquo;autre.</p>
+
+  <section>
+    <p class="cite">Cr&eacute;er des comptes abonnements pour chaque client distinctif. Quand il entame un
+    nouveau. Facile &agrave; suivre. Quand c&rsquo;est actif, quand un abonnement devient inactif. Bien
+    faire la part des choses.
+    <span>Y&eacute;man &middot; 2 septembre 2026</span></p>
+
+    <p class="eyebrow"><span class="num">I</span> &nbsp; Le compte</p>
+    <h2>Une t&ecirc;te, une ligne de vie</h2>
+    <p class="intro">Le contrat en cours en haut, en cuivre. Dessous, tout ce qui l&rsquo;a
+    pr&eacute;c&eacute;d&eacute;, du plus r&eacute;cent au plus ancien, et <b>les silences entre
+    les deux</b>, qui sont la seule chose que personne ne mesure aujourd&rsquo;hui.</p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Les comptes</h4>
+        <span>7 t&ecirc;tes &middot; 9 contrats &middot; 4 en cours</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="filtres">
+          <span class="filtre is-on">Toutes</span>
+          <span class="filtre">En cours</span>
+          <span class="filtre">&Agrave; relancer</span>
+          <span class="filtre">En retard de paiement</span>
+          <span class="filtre">Parties</span>
+        </div>
+
+        <!-- Mylène : deux contrats successifs -->
+        <div class="compte">
+          <div class="compte__tete">
+            <div class="compte__qui">
+              <b>Myl&egrave;ne Grimaud</b>
+              <span>Micro &middot; 351 locks &middot; abonn&eacute;e depuis le 10 oct. 2025</span>
+            </div>
+            <div class="compte__chiffres">
+              <div><div class="kpi__l">Contrats</div><div class="kpi__v">2</div></div>
+              <div><div class="kpi__l">Vers&eacute; en tout</div><div class="kpi__v">268 000 F</div></div>
+              <div><div class="kpi__l">Reste d&ucirc;</div><div class="kpi__v brique">68 000 F</div></div>
+              <div><div class="kpi__l">S&eacute;ances re&ccedil;ues</div><div class="kpi__v">13</div></div>
+            </div>
+          </div>
+          <div class="compte__corps">
+
+            <div class="contrat is-vif">
+              <div class="contrat__h">
+                <span class="contrat__nom">La Juste Cadence</span>
+                <span class="contrat__ref">ABO-2026-014</span>
+                <span class="etat etat--retard">1 &eacute;ch&eacute;ance en retard</span>
+                <span class="contrat__quand">du 1 sept. 2026 au 29 mai 2027</span>
+              </div>
+              <div class="contrat__bas">
+                <span class="contrat__jauge"><i class="j-plein" style="width:8.3%"></i><i class="j-tenu" style="width:41.7%"></i></span>
+                <span class="contrat__n"><b>1</b> honor&eacute;e &middot; <b>5</b> retenues &middot; 6 libres sur 12</span>
+                <span class="contrat__act"><span class="mini mini--cuivre">Suivi</span><span class="mini">R&eacute;gler</span></span>
+              </div>
+            </div>
+
+            <div class="trou"><i></i><span>63 jours sans abonnement</span></div>
+
+            <div class="contrat is-mort">
+              <div class="contrat__h">
+                <span class="contrat__nom">La Juste Cadence</span>
+                <span class="contrat__ref">du 10 oct. 2025</span>
+                <span class="etat etat--termine">Termin&eacute;</span>
+                <span class="contrat__quand">du 10 oct. 2025 au 30 juin 2026</span>
+              </div>
+              <div class="contrat__bas">
+                <span class="contrat__jauge"><i class="j-gris" style="width:100%"></i></span>
+                <span class="contrat__n"><b>12</b> s&eacute;ances sur 12 &middot; sold&eacute; 168 000 F</span>
+                <span class="contrat__act"><span class="mini">Suivi</span></span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Diane : épuisé mais encore valable, le moment de revendre -->
+        <div class="compte">
+          <div class="compte__tete">
+            <div class="compte__qui">
+              <b>Diane Djossinou</b>
+              <span>Nano &middot; 412 locks &middot; abonn&eacute;e depuis le 19 juin 2025</span>
+            </div>
+            <div class="compte__chiffres">
+              <div><div class="kpi__l">Contrats</div><div class="kpi__v">1</div></div>
+              <div><div class="kpi__l">Vers&eacute; en tout</div><div class="kpi__v">150 000 F</div></div>
+              <div><div class="kpi__l">Reste d&ucirc;</div><div class="kpi__v">0 F</div></div>
+              <div><div class="kpi__l">S&eacute;ances re&ccedil;ues</div><div class="kpi__v">6</div></div>
+            </div>
+          </div>
+          <div class="compte__corps">
+            <div class="contrat is-vif">
+              <div class="contrat__h">
+                <span class="contrat__nom">Pack personnalis&eacute;</span>
+                <span class="contrat__ref">du 19 juin 2025</span>
+                <span class="etat etat--epuise">&Eacute;puis&eacute;</span>
+                <span class="contrat__quand">du 19 juin 2025 au 19 juin 2026</span>
+              </div>
+              <div class="contrat__bas">
+                <span class="contrat__jauge"><i class="j-plein" style="width:100%"></i></span>
+                <span class="contrat__n"><b>6</b> s&eacute;ances sur 6 &middot; derni&egrave;re le 2 juin 2026</span>
+                <span class="contrat__act"><span class="mini mini--cuivre">Lui reproposer</span><span class="mini">Suivi</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Komakan : tout neuf -->
+        <div class="compte">
+          <div class="compte__tete">
+            <div class="compte__qui">
+              <b>Komakan Ahouansou</b>
+              <span>Pico &middot; 168 locks &middot; abonn&eacute; depuis le 1 sept. 2026</span>
+            </div>
+            <div class="compte__chiffres">
+              <div><div class="kpi__l">Contrats</div><div class="kpi__v">1</div></div>
+              <div><div class="kpi__l">Vers&eacute; en tout</div><div class="kpi__v">150 F</div></div>
+              <div><div class="kpi__l">Reste d&ucirc;</div><div class="kpi__v">0 F</div></div>
+              <div><div class="kpi__l">S&eacute;ances re&ccedil;ues</div><div class="kpi__v">0</div></div>
+            </div>
+          </div>
+          <div class="compte__corps">
+            <div class="contrat is-vif">
+              <div class="contrat__h">
+                <span class="contrat__nom">Le Lavage du Mois</span>
+                <span class="contrat__ref">ABO-2026-015</span>
+                <span class="etat etat--cours">En cours</span>
+                <span class="contrat__quand">mensuel &middot; prochaine &eacute;ch&eacute;ance le 1 oct. 2026</span>
+              </div>
+              <div class="contrat__bas">
+                <span class="contrat__jauge"><i class="j-plein" style="width:0%"></i></span>
+                <span class="contrat__n">cr&eacute;neau &agrave; r&eacute;server &middot; aucune s&eacute;ance encore</span>
+                <span class="contrat__act"><span class="mini mini--cuivre">Poser ses RDV</span><span class="mini">Suivi</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="legende">Un compte se replie sur son contrat en cours ; l&rsquo;histoire ne
+        s&rsquo;ouvre qu&rsquo;au clic. Une t&ecirc;te &agrave; un seul contrat tient donc sur trois lignes,
+        et celles qui en ont eu cinq ne noient pas l&rsquo;&eacute;cran.</p>
+
+        <div class="note">
+          <b>Le silence entre deux contrats est une donn&eacute;e.</b> Soixante-trois jours sans
+          abonnement, c&rsquo;est deux mois o&ugrave; la t&ecirc;te est revenue au plein tarif, ou n&rsquo;est
+          pas revenue du tout. Aucun &eacute;cran ne le mesure aujourd&rsquo;hui, et c&rsquo;est pourtant
+          le seul chiffre qui dise si la Maison <b>retient</b> ses abonn&eacute;es.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; La part des choses</p>
+    <h2>Cinq &eacute;tats, et ils se calculent</h2>
+    <p class="intro">Aujourd&rsquo;hui l&rsquo;&eacute;tat est un champ <b>&eacute;crit &agrave; la
+    vente</b> et presque jamais remis &agrave; jour : quatre abonn&eacute;es sur neuf sont dites
+    &laquo; actives &raquo;, cinq ne sont dans aucune case. Un &eacute;tat qui se stocke vieillit mal.
+    Ceux-ci se <b>lisent</b> sur les dates et les cr&eacute;dits, donc ils sont vrais &agrave; la
+    seconde o&ugrave; on les regarde.</p>
+
+    <table class="etats">
+      <thead>
+        <tr><th style="width:150px">&Eacute;tat</th><th style="width:44%">Comment il se lit</th><th>Ce qu&rsquo;il commande</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="etat etat--cours">En cours</span></td>
+          <td class="q">La date du jour est dans sa fen&ecirc;tre, et il reste des cr&eacute;dits, ou la formule se recharge.</td>
+          <td>Rien. Il travaille.</td>
+        </tr>
+        <tr>
+          <td><span class="etat etat--epuise">&Eacute;puis&eacute;</span></td>
+          <td class="q">Tous les cr&eacute;dits consomm&eacute;s, la fen&ecirc;tre court encore.</td>
+          <td><b>Le moment de revendre.</b> La t&ecirc;te est l&agrave;, elle vient, et elle repasse au plein tarif &agrave; sa prochaine venue.</td>
+        </tr>
+        <tr>
+          <td><span class="etat etat--termine">Termin&eacute;</span></td>
+          <td class="q">La date de fin est pass&eacute;e, cr&eacute;dits consomm&eacute;s ou non.</td>
+          <td>Il entre &agrave; l&rsquo;histoire. Les cr&eacute;dits perdus se comptent : ils disent si la formule &eacute;tait trop grande pour elle.</td>
+        </tr>
+        <tr>
+          <td><span class="etat etat--resilie">R&eacute;sili&eacute;</span></td>
+          <td class="q">Arr&ecirc;t&eacute; &agrave; la main avant son terme.</td>
+          <td>Le seul d&eacute;part v&eacute;ritable. C&rsquo;est celui-l&agrave; qu&rsquo;une r&eacute;tention doit compter, pas un paquet arriv&eacute; au bout.</td>
+        </tr>
+        <tr>
+          <td><span class="etat etat--retard">En retard</span></td>
+          <td class="q">Une &eacute;ch&eacute;ance de son &eacute;ch&eacute;ancier a d&eacute;pass&eacute; sa date.</td>
+          <td>Se superpose aux autres : un contrat <b>en cours</b> peut &ecirc;tre en retard, et c&rsquo;est le cas le plus urgent.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <b>&laquo; Termin&eacute; &raquo; et &laquo; r&eacute;sili&eacute; &raquo; ne se confondent plus.</b>
+      Aujourd&rsquo;hui la r&eacute;tention affiche 100 % parce qu&rsquo;elle compte les seuls
+      r&eacute;sili&eacute;s &agrave; la main, et ignore les paquets arriv&eacute;s au bout sans qu&rsquo;on
+      en revende un. Or ces derniers <b>sont</b> les d&eacute;parts, simplement plus polis.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; O&ugrave; il vit</p>
+    <h2>Un onglet, et la fiche de la cliente</h2>
+    <p class="intro">Le compte prend place en <b>quatri&egrave;me onglet</b>, &agrave; c&ocirc;t&eacute; du
+    Moteur, des Formules et des Abonn&eacute;s. L&rsquo;onglet Abonn&eacute;s garde sa table de contrats,
+    utile pour encaisser vite ; les comptes servent &agrave; <b>comprendre une t&ecirc;te</b>.
+    Le m&ecirc;me bloc se pose sur la fiche de la cliente, l&agrave; o&ugrave; on la regarde en lui
+    parlant.</p>
+    <p class="legende">Rien de ce qui existe ne dispara&icirc;t : Suivi, R&eacute;gler, R&eacute;silier
+    et Poser ses rendez-vous se retrouvent tous, mais rang&eacute;s <b>sous la t&ecirc;te qui les
+    porte</b> plut&ocirc;t qu&rsquo;&eacute;parpill&eacute;s sur une liste de contrats.</p>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Trois points &agrave; trancher</h3>
+      <p>Le reste suit de ce qui est &eacute;crit ci-dessus.</p>
+      <ul>
+        <li><b>L&rsquo;&eacute;tat stock&eacute;.</b> Le remplacer par l&rsquo;&eacute;tat calcul&eacute;
+        partout, y compris dans la table des abonn&eacute;s et la carte R&eacute;tention ; ou le garder
+        en parall&egrave;le le temps de v&eacute;rifier que rien ne d&eacute;tonne.</li>
+        <li><b>La r&eacute;tention.</b> Compter comme d&eacute;part un paquet arriv&eacute; au bout sans
+        reprise, ou continuer &agrave; ne compter que les r&eacute;siliations &agrave; la main.</li>
+        <li><b>Le tri par d&eacute;faut.</b> Les t&ecirc;tes qui demandent un geste d&rsquo;abord
+        (retard, puis &eacute;puis&eacute;), ou l&rsquo;ordre alphab&eacute;tique.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
