@@ -14,7 +14,8 @@
 import {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
-  subServiceUsage, prixDeLaFormule, formulesPourElle, etendueDesRemises,
+  subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
+  prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import { formulesVisiblesPour, formuleEnVitrine } from '../src/shared/bridges';
@@ -236,6 +237,60 @@ dit('vitrine vide, aucune promesse', null, etendueDesRemises([]));
    celles qui en annoncent une comptent. */
 dit('celles sans remise ne comptent pas', { min: 20, max: 20 },
   etendueDesRemises([{}, { discountPct: 20 }, { discountPct: 0 }]));
+
+/* ── ⑩ LE COMPTEUR PORTE SES PIÈCES ────────────────────────────────
+   « Je veux ouvrir le suivi des packs et les RDV associés » (Yéman, 1er
+   septembre 2026).
+
+   UN NOMBRE SEUL NE SE VÉRIFIE PAS. « 6 / 6 utilisées » ne dit pas quelles
+   séances ont mangé les jetons : ni le décompte contesté, ni le rendez-vous
+   coché par erreur, ni celui qui manque ne se retrouvent. */
+const troisVenues = [
+  rdv('r1', '2026-03-01', 'sv-lavage'),
+  rdv('r2', '2026-04-01', 'sv-lavage'),
+  rdv('r3', '2026-02-01', 'sv-resserrage'),
+];
+const paquet = abo({ startIso: '2026-01-01', expiresIso: '2026-12-31' });
+const detail = usageDetaille(paquet, PACK, troisVenues);
+dit('chaque ligne porte ses rendez-vous', [['r3'], ['r2', 'r1']],
+  detail.map((u) => u.rdv.map((a) => a.id)));
+/* LE NOMBRE EST LA LONGUEUR DE LA LISTE, jamais un second comptage : deux
+   façons de compter la même chose finissent par diverger d'un jeton. */
+dit('le nombre affiché est celui de la liste', true,
+  detail.every((u) => u.used === u.rdv.length));
+dit('… et le compteur simple en découle', detail.map((u) => u.used),
+  subServiceUsage(paquet, PACK, troisVenues).map((u) => u.used));
+
+/* DU PLUS RÉCENT AU PLUS ANCIEN : la dernière séance est celle qu'on cherche
+   quand on ouvre le suivi, pas celle de l'an dernier. */
+dit('les venues se lisent à l’envers du temps', ['r2', 'r1', 'r3'],
+  rdvCouvertsDe(paquet, PACK, troisVenues).map((a) => a.id));
+
+/* UN RITUEL PORTANT DEUX PRESTATIONS INCLUSES paraît sur les deux lignes, et
+   décompte les deux : c'est bien deux jetons qu'il consomme. */
+const double = { ...rdv('r4', '2026-05-01', 'sv-lavage'), serviceIds: ['sv-lavage', 'sv-resserrage'] };
+const avecDouble = usageDetaille(paquet, PACK, [double]);
+dit('un rituel à deux prestations décompte des deux côtés', [1, 1],
+  avecDouble.map((u) => u.used));
+
+/* UN RENDEZ-VOUS COUVERT QUI NE DÉCOMPTE RIEN ne se voyait nulle part : il se
+   règle comme s'il était offert, sans jeton en face. C'est l'anomalie la plus
+   coûteuse, et la seule que le suivi ne savait pas montrer. */
+const horsFormule = { ...rdv('r5', '2026-06-01', 'sv-lavage'), serviceIds: ['sv-couleur'] };
+dit('le couvert hors formule se signale', ['r5'],
+  rdvCouvertsHorsFormule(paquet, PACK, [...troisVenues, horsFormule]).map((a) => a.id));
+dit('… et rien ne se signale quand tout décompte', 0,
+  rdvCouvertsHorsFormule(paquet, PACK, troisVenues).length);
+/* UN RITUEL PAYÉ N'EST PAS UNE ANOMALIE : sans `coveredBySub`, il ne prétend
+   rien à l'abonnement et n'a pas à paraître dans l'avertissement. */
+const paye = { ...rdv('r6', '2026-06-02', 'sv-couleur'), coveredBySub: false };
+dit('un rituel payé n’est pas une anomalie', 0,
+  rdvCouvertsHorsFormule(paquet, PACK, [paye]).length);
+/* UN RITUEL ANNULÉ REND SES JETONS : il ne compte ni dans la liste, ni dans
+   l'avertissement. */
+const annule = { ...rdv('r7', '2026-06-03', 'sv-lavage'), status: 'annulé' as const };
+dit('un rituel annulé ne décompte rien', 0,
+  rdvCouvertsDe(paquet, PACK, [annule]).length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

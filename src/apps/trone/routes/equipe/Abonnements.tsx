@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OptionsPrestations, PageHead, WaLien } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -11,7 +12,7 @@ import {
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
+  subServiceUsage, usageDetaille, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, abonnementsVivantsDe,
@@ -22,7 +23,7 @@ import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
   calibreDeLaTete,
 } from '../../../../shared/pricing';
-import { useAppointments } from '../../../../shared/agenda';
+import { useAppointments, type Appointment } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
@@ -106,6 +107,7 @@ export default function Abonnements() {
   const calibres = useMemo(() => sortedBands(calibresAbo), [calibresAbo]);
   const [services] = useServices();
   const [allAppts] = useAppointments();
+  const navigate = useNavigate();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
@@ -1706,13 +1708,60 @@ export default function Abonnements() {
 
       {suiviFor && (() => {
         const plan = planOf(suiviFor.planId);
-        const usage = subServiceUsage(suiviFor, plan, allAppts);
-        const { start, end } = cycleWindow(suiviFor);
+        /* ══ LE COMPTEUR PORTE SES PIÈCES — 1er septembre 2026 ══════════════
+           « Je veux ouvrir le suivi des packs et les RDV associés » (Yéman).
+
+           « 6 / 6 UTILISÉES » NE SE VÉRIFIE PAS. On ne pouvait ni contrôler un
+           décompte que la cliente conteste, ni retrouver le rendez-vous coché
+           par erreur, ni voir qu'il en manquait un. Chaque ligne porte
+           désormais les séances qui l'ont consommée, et le nombre affiché EST
+           la longueur de cette liste. */
+        const usage = usageDetaille(suiviFor, plan, allAppts);
+        const horsFormule = rdvCouvertsHorsFormule(suiviFor, plan, allAppts);
+        /* LA FENÊTRE ANNONCÉE DOIT ÊTRE CELLE QUI COMPTE. L'écran lisait
+           `cycleWindow` quand le moteur, lui, compte sur `subWindow` : un pack
+           s'annonçait « cycle en cours du 1er sept. au 1er oct., le compteur
+           repart à l'échéance » alors que ses crédits couvrent toute sa vie et
+           NE SE RECHARGENT JAMAIS. La légende démentait le chiffre juste
+           au-dessus. */
+        const paquet = plan?.mode === 'pack';
+        const { start, end } = subWindow(suiviFor, plan);
+        const sansFin = paquet && !suiviFor.expiresIso;
+        const jour = todayISO();
+        const etatDuRdv = (a: Appointment) =>
+          a.status === 'honoré' ? 'honoré' : a.date >= jour ? 'à venir' : a.status;
+        const ouvrirLaFiche = () => { setSuiviFor(null); navigate(`/customers?id=${suiviFor.clientId}`); };
+        const lignesRdv = (rdv: Appointment[]) => (
+          <div style={{ marginTop: 9 }}>
+            {rdv.map((a) => (
+              <button
+                type="button" key={a.id} onClick={ouvrirLaFiche} title="Ouvrir sa fiche"
+                style={{
+                  display: 'flex', width: '100%', gap: 10, alignItems: 'baseline',
+                  justifyContent: 'space-between', textAlign: 'left', font: 'inherit',
+                  background: 'transparent', border: 0, borderTop: '1px solid var(--hairline)',
+                  padding: '7px 0 6px', cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>
+                  {shortDate(a.date)} · {a.time}
+                  {a.master ? <span className="mnd-muted"> · {a.master}</span> : null}
+                </span>
+                <span className="mnd-muted" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{etatDuRdv(a)}</span>
+              </button>
+            ))}
+          </div>
+        );
         return (
-          <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={520}>
+          <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={560}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-                {plan?.name ?? '—'} · cycle en cours du {shortDate(start)} au {shortDate(end)}, le compteur repart à l’échéance.
+                {plan?.name ?? '—'} ·{' '}
+                {paquet
+                  ? sansFin
+                    ? `crédits ouverts depuis le ${shortDate(start)}, sans échéance posée. Ils ne se rechargent pas.`
+                    : `crédits valables du ${shortDate(start)} au ${shortDate(end)}. Ils ne se rechargent pas.`
+                  : `cycle en cours du ${shortDate(start)} au ${shortDate(end)}, le compteur repart à l’échéance.`}
               </div>
               {usage.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12.5 }}>Cette formule n’inclut aucune prestation à suivre.</div>
@@ -1735,15 +1784,42 @@ export default function Abonnements() {
                           <div style={{ width: `${pct}%`, height: '100%', background: exhausted ? '#8f3b30' : 'var(--color-copper)' }} />
                         </div>
                         <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-                          {exhausted ? 'Allocation épuisée pour ce cycle' : `Reste ${u.remaining} sur ce cycle`}
+                          {exhausted
+                            ? paquet ? 'Crédits épuisés' : 'Allocation épuisée pour ce cycle'
+                            : `Reste ${u.remaining}${paquet ? '' : ' sur ce cycle'}`}
                         </div>
                       </>
                     )}
+                    {/* UN COMPTEUR À ZÉRO SE DIT AUSSI : sans cette ligne, on ne
+                        sait pas si la séance manque ou si la case « couvert par
+                        l'abonnement » a été oubliée au comptoir. */}
+                    {u.rdv.length === 0
+                      ? <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 8 }}>
+                          Aucun rendez-vous décompté{paquet ? '' : ' sur ce cycle'}.
+                        </div>
+                      : lignesRdv(u.rdv)}
                   </div>
                 );
               })}
-              <div style={{ display: 'flex', marginTop: 4 }}>
+
+              {/* UN RENDEZ-VOUS COUVERT QUI NE DÉCOMPTE RIEN ne se voyait nulle
+                  part : il se règle comme s'il était offert, sans jeton en face.
+                  C'est l'anomalie la plus coûteuse, et la seule que le suivi ne
+                  savait pas montrer. */}
+              {horsFormule.length > 0 && (
+                <div className="tre-inline-note">
+                  <span className="mark">!</span>
+                  <span>
+                    <b>{horsFormule.length} rendez-vous</b> {horsFormule.length > 1 ? 'sont marqués couverts' : 'est marqué couvert'} par
+                    l’abonnement sans qu’aucune prestation de la formule n’y figure, {horsFormule.length > 1 ? 'ils ne décomptent' : 'il ne décompte'} donc
+                    aucun jeton : {horsFormule.map((a) => shortDate(a.date)).join(', ')}.
+                  </span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <Button variant="ghost" style={{ flex: 1 }} onClick={() => setSuiviFor(null)}>Fermer</Button>
+                <Button style={{ flex: 1 }} onClick={ouvrirLaFiche}>Ouvrir sa fiche</Button>
               </div>
             </div>
           </Modal>

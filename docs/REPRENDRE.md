@@ -42,6 +42,41 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LE COMPTEUR PORTE SES PIÈCES · 1er septembre 2026
+
+« Je veux ouvrir le suivi des packs et les RDV associés. »
+
+**« 6 / 6 UTILISÉES » NE SE VÉRIFIE PAS.** Le suivi donnait un nombre et une
+barre, jamais les séances derrière. On ne pouvait donc ni contrôler un décompte
+que la cliente conteste, ni retrouver le rendez-vous coché par erreur, ni voir
+qu'il en manquait un. Chaque ligne porte maintenant ses rendez-vous — date,
+heure, maître, état — et un clic ouvre sa fiche.
+
+**LE NOMBRE EST LA LONGUEUR DE LA LISTE.** `usageDetaille()` compte une fois ;
+`subServiceUsage()` en DÉRIVE pour les écrans qui n'affichent qu'un chiffre. Deux
+façons de compter la même chose finissent toujours par diverger d'un jeton, un
+jour, sur une fiche.
+
+**UN COMPTEUR À ZÉRO SE DIT AUSSI** : sans la ligne « aucun rendez-vous
+décompté », on ne sait pas si la séance manque ou si la case « couvert par
+l'abonnement » a été oubliée au comptoir.
+
+**LA LÉGENDE DÉMENTAIT LE CHIFFRE.** L'écran lisait `cycleWindow` quand le moteur
+compte sur `subWindow` : un **pack** s'annonçait « cycle en cours du 1er sept. au
+1er oct., le compteur repart à l'échéance » alors que ses crédits couvrent toute
+sa vie et **ne se rechargent jamais**. Un pack dit désormais « crédits valables
+du … au …, ils ne se rechargent pas », et « Crédits épuisés » au lieu de
+« Allocation épuisée pour ce cycle ».
+
+**L'ANOMALIE QUE LE SUIVI NE SAVAIT PAS MONTRER** : un rendez-vous coché
+« couvert par l'abonnement » dont AUCUNE prestation n'est dans la formule ne
+bouge aucun compteur. Il se règle comme s'il était offert, sans jeton en face, et
+ne paraissait nulle part. `rdvCouvertsHorsFormule` le remonte en note.
+
+Un rituel portant deux prestations incluses paraît sur les deux lignes et
+décompte les deux — c'est bien deux jetons qu'il consomme. Un rituel annulé rend
+les siens. Un rituel payé (sans `coveredBySub`) ne prétend rien.
+
 ## SON PRIX DÈS LE DÉPART, ET SON GAIN À ELLE · 1er septembre 2026
 
 « Ça affiche 140 000 F avant de prendre la formule, ensuite le prix se réajuste

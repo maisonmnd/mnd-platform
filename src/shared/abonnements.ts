@@ -370,18 +370,66 @@ export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefine
     les 7 abonnements repris de l'ancien ERP — 18 lignes de crédit sur 18
     retrouvées à l'unité près, sans qu'aucun compteur ait été importé. */
 export type IncludedUsage = { serviceId: string; qty: number | null; used: number; remaining: number | null };
-export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] => {
+
+/** LES RENDEZ-VOUS QUI DÉCOMPTENT CET ABONNEMENT, du plus récent au plus ancien.
+
+    Même juge que le compteur (`coversSub`), même fenêtre : c'est la condition
+    pour que la liste et le nombre ne se contredisent jamais. */
+export const rdvCouvertsDe = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): Appointment[] =>
+  appts
+    .filter((a) => coversSub(a, sub, plan))
+    .sort((a, b) => (a.date === b.date ? (a.time < b.time ? 1 : -1) : (a.date < b.date ? 1 : -1)));
+
+/** LE COMPTEUR AVEC SES RENDEZ-VOUS — 1er septembre 2026.
+
+    « Je veux ouvrir le suivi des packs et les RDV associés » (Yéman).
+
+    UN COMPTEUR SANS SES PIÈCES NE SE VÉRIFIE PAS. « 6 / 6 utilisées » ne dit
+    pas QUELLES séances ont mangé les jetons : on ne peut ni contrôler un
+    décompte que la cliente conteste, ni retrouver le rendez-vous coché par
+    erreur, ni voir qu'il en manque un. Chaque ligne porte donc les rendez-vous
+    qui la consomment, et `used` N'EST PLUS COMPTÉ À PART : c'est la longueur de
+    la liste. Deux façons de compter la même chose finissent par diverger.
+
+    UN RENDEZ-VOUS PORTANT DEUX PRESTATIONS INCLUSES paraît sur les deux lignes,
+    et décompte les deux : c'est bien deux jetons qu'il consomme. */
+export type IncludedUsageDetail = IncludedUsage & { rdv: Appointment[] };
+export const usageDetaille = (
+  sub: Subscriber, plan: Plan | undefined, appts: Appointment[],
+): IncludedUsageDetail[] => {
   /* SES QUOTAS À ELLE. Lire ceux de la formule quand on lui en a promis
      d'autres afficherait six jetons à qui on en a vendu huit — la plus sûre
      façon de perdre sa confiance. */
   const inc = inclusVendus(sub, plan);
   if (inc.length === 0) return [];
-  const mine = appts.filter((a) => coversSub(a, sub, plan));
+  const mine = rdvCouvertsDe(sub, plan, appts);
   return inc.map((i) => {
-    const used = mine.filter((a) => a.serviceIds.includes(i.serviceId)).length;
-    return { serviceId: i.serviceId, qty: i.qty, used, remaining: i.qty === null ? null : Math.max(0, i.qty - used) };
+    const rdv = mine.filter((a) => a.serviceIds.includes(i.serviceId));
+    return {
+      serviceId: i.serviceId, qty: i.qty, used: rdv.length,
+      remaining: i.qty === null ? null : Math.max(0, i.qty - rdv.length), rdv,
+    };
   });
 };
+
+/** LES RENDEZ-VOUS COUVERTS QUI NE DÉCOMPTENT RIEN.
+
+    Un rendez-vous coché « couvert par l'abonnement » dont aucune prestation
+    n'est dans la formule ne bouge aucun compteur, et ne se voit donc NULLE
+    PART : il se règle comme s'il était offert, sans jeton en face. C'est la
+    seule anomalie que le suivi ne pouvait pas montrer, et la plus coûteuse. */
+export const rdvCouvertsHorsFormule = (
+  sub: Subscriber, plan: Plan | undefined, appts: Appointment[],
+): Appointment[] => {
+  const inclus = new Set(inclusVendus(sub, plan).map((i) => i.serviceId));
+  return rdvCouvertsDe(sub, plan, appts).filter((a) => !a.serviceIds.some((id) => inclus.has(id)));
+};
+
+/** Le compteur seul, sans les pièces — pour les écrans qui n'affichent qu'un nombre.
+    DÉRIVÉ de `usageDetaille`, jamais recompté : deux façons de compter la même
+    chose finissent toujours par diverger d'un jeton, un jour, sur une fiche. */
+export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] =>
+  usageDetaille(sub, plan, appts).map(({ serviceId, qty, used, remaining }) => ({ serviceId, qty, used, remaining }));
 
 /* ── CE QUI A ÉTÉ RÉELLEMENT VENDU — 28 août 2026 ────────────────────
    Un prix négocié qui ne descendrait que dans l'écran de vente serait pire que
