@@ -115,6 +115,24 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## LES ABONNEMENTS PORTENT LEUR ANNÉE · 2 septembre 2026
+
+« Ajoute la date, le mois et l'année. »
+
+**UN ABONNEMENT COURT SUR DES ANNÉES.** « 30 juin » sans millésime ne dit pas si
+la séance est celle du paquet de 2025 ou de la formule de 2026, et **toute la
+confusion de ces deux jours est née de là** : un contrat, deux contrats, quel
+rendez-vous appartient à qui. `dateComplete()` dans `equipe/data.ts`, à côté
+de `shortDate` qui reste pour les écrans du jour.
+
+Posée partout où un contrat se lit : la fenêtre de validité, chaque séance du
+Suivi, la date de départ sous le nom, la prochaine échéance, l'échéancier, les
+règlements reçus, la liste des partis, et l'annonce de la cadence posée.
+
+**MIDI LOCAL, JAMAIS MINUIT** : minuit UTC bascule d'un jour sur les fuseaux
+négatifs, et une date décalée d'un jour sur un contrat est exactement le genre
+d'erreur qui vient de coûter 45 000 F.
+
 ## LE DERNIER JOUR EN FAIT PARTIE · 2 septembre 2026
 
 « Il me reste une séance pour clôturer la Juste Cadence de 2025 au 30 juin 2026

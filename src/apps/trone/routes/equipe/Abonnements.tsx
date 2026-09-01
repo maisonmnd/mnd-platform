@@ -10,7 +10,7 @@ import {
   invoicesStore, type Invoice, type InvoicePayment,
 } from '../../../../shared/finance';
 import {
-  shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
+  shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
@@ -960,7 +960,7 @@ export default function Abonnements() {
     } as Appointment));
     appointmentsStore.set((prev) => [...prev, ...neufs]);
     setCadenceForm(null);
-    toast(`${neufs.length} rendez-vous posés, du ${shortDate(neufs[0].date)} au ${shortDate(neufs[neufs.length - 1].date)}.`);
+    toast(`${neufs.length} rendez-vous posés, du ${dateComplete(neufs[0].date)} au ${dateComplete(neufs[neufs.length - 1].date)}.`);
   };
 
   const statusDot = (s: Subscriber['status']) =>
@@ -1318,7 +1318,7 @@ export default function Abonnements() {
                                   départ, qui les séparait déjà. */}
                               {m.reference
                                 ? <span style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '.04em' }}>{m.reference}</span>
-                                : m.sinceIso ? <span>du {shortDate(m.sinceIso)}</span> : null}
+                                : m.sinceIso ? <span>du {dateComplete(m.sinceIso)}</span> : null}
                               {(() => {
                                 const cli = clients.find((c) => c.id === m.clientId);
                                 return cli?.phone
@@ -1375,7 +1375,7 @@ export default function Abonnements() {
                       </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
                       <td data-label="Prochaine échéance">
-                        <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{shortDate(m.nextIso)}</span>
+                        <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{dateComplete(m.nextIso)}</span>
                         <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 2 }}>réglé {fmtMoney(paid, currency)}</div>
                         {/* L'ÉTAT DE L'ÉCHÉANCIER SE LIT DANS LE TABLEAU, pas
                             seulement dans la modale : un retard qu'il faut
@@ -1476,7 +1476,7 @@ export default function Abonnements() {
                           <tr key={m.id}>
                             <td data-label="Tête couronnée">{m.name}</td>
                             <td data-label="Formule" className="mnd-muted">{planOf(m.planId)?.name ?? 'Formule retirée'}</td>
-                            <td data-label="Depuis" className="mnd-muted">{m.sinceIso ? shortDate(m.sinceIso) : m.since}</td>
+                            <td data-label="Depuis" className="mnd-muted">{m.sinceIso ? dateComplete(m.sinceIso) : m.since}</td>
                             <td data-label="MRR" className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="tre-link-btn" onClick={() => reprendre(m)}>Reprendre l’abonnement</button>
@@ -1533,7 +1533,7 @@ export default function Abonnements() {
                     padding: '8px 12px', borderTop: e.numero === 1 ? 'none' : '1px solid var(--hairline)',
                   }}>
                     <span className="mnd-muted">
-                      {e.numero === 1 ? 'Aujourd’hui' : `${e.numero}ᵉ · ${shortDate(e.dueIso)}`}
+                      {e.numero === 1 ? 'Aujourd’hui' : `${e.numero}ᵉ · ${dateComplete(e.dueIso)}`}
                     </span>
                     <b style={{ fontWeight: 500 }}>{fmtMoney(e.amountXof, currency)}</b>
                   </div>
@@ -1963,7 +1963,7 @@ export default function Abonnements() {
                 }}
               >
                 <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>
-                  {shortDate(a.date)} · {a.time}
+                  {dateComplete(a.date)} · {a.time}
                   {a.master ? <span className="mnd-muted"> · {a.master}</span> : null}
                 </span>
                 <span className="mnd-muted" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{etatDuRdv(a)}</span>
@@ -1979,9 +1979,9 @@ export default function Abonnements() {
                 {suiviFor.reference ? <> · <b style={{ letterSpacing: '.04em' }}>{suiviFor.reference}</b></> : null} ·{' '}
                 {paquet
                   ? sansFin
-                    ? `crédits ouverts depuis le ${shortDate(start)}, sans échéance posée. Ils ne se rechargent pas.`
-                    : `crédits valables du ${shortDate(start)} au ${shortDate(end)}. Ils ne se rechargent pas.`
-                  : `cycle en cours du ${shortDate(start)} au ${shortDate(end)}, le compteur repart à l’échéance.`}
+                    ? `crédits ouverts depuis le ${dateComplete(start)}, sans échéance posée. Ils ne se rechargent pas.`
+                    : `crédits valables du ${dateComplete(start)} au ${dateComplete(end)}. Ils ne se rechargent pas.`
+                  : `cycle en cours du ${dateComplete(start)} au ${dateComplete(end)}, le compteur repart à l’échéance.`}
                 {' '}
                 <button type="button" className="tre-link-btn" onClick={() => setDatesEdit({ debut: suiviFor.startIso ?? suiviFor.sinceIso ?? todayISO(), fin: (paquet ? suiviFor.expiresIso : suiviFor.nextIso) ?? '' })}>
                   Changer les dates
@@ -2081,7 +2081,7 @@ export default function Abonnements() {
                   <span>
                     <b>{horsFormule.length} rendez-vous</b> {horsFormule.length > 1 ? 'sont marqués couverts' : 'est marqué couvert'} par
                     l’abonnement sans qu’aucune prestation de la formule n’y figure, {horsFormule.length > 1 ? 'ils ne décomptent' : 'il ne décompte'} donc
-                    aucun jeton : {horsFormule.map((a) => shortDate(a.date)).join(', ')}.
+                    aucun jeton : {horsFormule.map((a) => dateComplete(a.date)).join(', ')}.
                   </span>
                 </div>
               )}
@@ -2957,7 +2957,7 @@ export default function Abonnements() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 170, overflowY: 'auto' }}>
                   {[...(payFor.payments ?? [])].sort((a, b) => b.date.localeCompare(a.date)).map((p) => (
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, borderBottom: '1px solid var(--hairline)', paddingBottom: 5 }}>
-                      <span className="mnd-muted">{shortDate(p.date)}{p.method ? ` · ${p.method}` : ''}</span>
+                      <span className="mnd-muted">{dateComplete(p.date)}{p.method ? ` · ${p.method}` : ''}</span>
                       <span>{fmtMoney(p.amountXof, currency)}</span>
                     </div>
                   ))}

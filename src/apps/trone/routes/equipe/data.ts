@@ -24,6 +24,23 @@ export const shortDate = (iso: string) => {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 };
 
+/** LE JOUR, LE MOIS ET L'ANNÉE — 2 septembre 2026.
+
+    « Ajoute la date, le mois et l'année » (Yéman). Un abonnement court sur des
+    ANNÉES : « 30 juin » sans millésime ne dit pas si la séance est celle du
+    paquet de 2025 ou de la formule de 2026, et toute la confusion de ces deux
+    jours est née de là — un contrat, deux contrats, quel rendez-vous appartient
+    à qui. Partout où une date d'abonnement se lit, elle se lit entière.
+
+    Midi local, jamais minuit : minuit UTC bascule d'un jour sur les fuseaux
+    négatifs, et une date décalée d'un jour sur un contrat est exactement le
+    genre d'erreur qui a coûté 45 000 F. */
+export const dateComplete = (iso: string) => {
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 /** Ancienneté lisible depuis une date ISO — « 8 ans », « 14 mois », « 3 mois ». */
 export function anciennete(sinceIso: string): string {
   const since = new Date(sinceIso).getTime();
