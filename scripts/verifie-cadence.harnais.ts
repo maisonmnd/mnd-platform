@@ -4,7 +4,7 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit, tauxDeRealisation } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
@@ -200,6 +200,80 @@ const bord = mouvementsDePassage(
 );
 dit('deux venues suffisent à lever la marque', ['pile'], [...bord.promues]);
 dit('… et deux venues ne la reposent pas', 0, bord.rendues.size);
+
+/* ── POSER LA SUITE D'UN ABONNEMENT ────────────────────────────────
+   « Poser les RDV à venir de chaque abonnement vendu en respectant le rythme de
+   4, 6 ou 8 semaines, et donner la liberté de modifier ses dates au besoin »
+   (Yéman, 1er septembre 2026).
+
+   La Maison ferme le lundi et le dimanche — réglages posés en tête de ce
+   harnais. Le 1er septembre 2026 est un MARDI. */
+const suite = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 6 }, { serviceId: 'sv-lavage', reste: 6 }],
+  departIso: '2026-09-01', pasJours: 42,
+});
+dit('six crédits font six séances, pas douze', 6, suite.length);
+dit('… espacées de six semaines', ['2026-09-01', '2026-10-13', '2026-11-24', '2027-01-05', '2027-02-16', '2027-03-30'],
+  suite.map((x) => x.dateIso));
+dit('… et chacune porte les deux prestations', ['sv-reprise', 'sv-lavage'], suite[0].serviceIds);
+
+/* LES CRÉDITS SE POSENT DANS L'ORDRE. Six Reprises et trois soins : les trois
+   premières séances portent les deux, les trois suivantes la Reprise seule. */
+const inegal = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 6 }, { serviceId: 'sv-soin', reste: 3 }],
+  departIso: '2026-09-01', pasJours: 28,
+});
+dit('le plus grand quota commande le nombre', 6, inegal.length);
+dit('… les premières portent les deux', 2, inegal[2].serviceIds.length);
+dit('… les suivantes la seule qui reste', ['sv-reprise'], inegal[3].serviceIds);
+
+/* ON NE POSE JAMAIS UN FAUTEUIL PORTE CLOSE. Le 7 septembre 2026 est un lundi ;
+   la séance glisse au mardi et l'écran DIT qu'elle a bougé. */
+const ferme = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 2 }], departIso: '2026-09-07', pasJours: 28,
+});
+dit('la porte close repousse au jour ouvert', '2026-09-08', ferme[0].dateIso);
+dit('… et le déplacement se dit', true, ferme[0].glissee);
+
+/* SON JOUR À ELLE PASSE AVANT LE RYTHME. Une tête qui ne vient que le samedi
+   garde ses samedis : un pas de quarante jours glisserait d'un jour à chaque
+   fois, et on lui proposerait un mercredi au troisième rendez-vous. */
+const samedis = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 3 }],
+  departIso: '2026-09-01', pasJours: 40, jourPrefere: 6,
+});
+dit('elle garde ses samedis', [6, 6, 6],
+  samedis.map((x) => new Date(`${x.dateIso}T12:00:00`).getDay()));
+
+/* ON NE POSE RIEN APRÈS L'ÉCHÉANCE DU PAQUET : un crédit posé au-delà de la
+   date de fin serait un rendez-vous que la formule ne couvre plus. */
+const borne = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 6 }],
+  departIso: '2026-09-01', pasJours: 42, finIso: '2026-12-31',
+});
+dit('la suite s’arrête à l’échéance', ['2026-09-01', '2026-10-13', '2026-11-24'],
+  borne.map((x) => x.dateIso));
+
+/* UNE PRESTATION À VOLONTÉ NE COMMANDE AUCUNE SÉANCE — elle s'ajoute à chacune.
+   Seule, elle ne pose rien : sinon on poserait l'infini. */
+dit('l’illimité seul ne pose rien', 0,
+  proposeLaCadence({ restes: [{ serviceId: 'sv-lavage', reste: null }], departIso: '2026-09-01', pasJours: 28 }).length);
+const avecIllimite = proposeLaCadence({
+  restes: [{ serviceId: 'sv-reprise', reste: 2 }, { serviceId: 'sv-lavage', reste: null }],
+  departIso: '2026-09-01', pasJours: 28,
+});
+dit('l’illimité s’ajoute à chaque séance', [2, 2], avecIllimite.map((x) => x.serviceIds.length));
+
+/* RIEN À POSER QUAND TOUT EST CONSOMMÉ. */
+dit('un paquet épuisé ne propose rien', 0,
+  proposeLaCadence({ restes: [{ serviceId: 'sv-reprise', reste: 0 }], departIso: '2026-09-01', pasJours: 28 }).length);
+
+/* DÉCALER TOUTE LA SUITE garde le rythme et repousse les portes closes. Sept
+   jours après un mardi font un mardi : le 8 septembre reste ouvert. */
+dit('la suite se décale en bloc', ['2026-09-08', '2026-10-20'],
+  decaleLaSuite(proposeLaCadence({
+    restes: [{ serviceId: 'sv-reprise', reste: 2 }], departIso: '2026-09-01', pasJours: 42,
+  }), 7).map((x) => x.dateIso));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -1329,6 +1329,28 @@ export function RdvModal({
         .filter((sv) => inclusVendus(membership, membershipPlan).some((i) => i.serviceId === sv.id))
         .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, branchAppts, appt?.id) }))
     : [];
+  /* ══ CE QUE LA FORMULE NE PORTE PAS — 1er septembre 2026 ═══════════
+     « J'ai pris les 2 services lavage et reprise sur la réservation du
+     28/08/26, mais il ne compte que lavage » (Yéman).
+
+     LE MOTEUR AVAIT RAISON, ET C'ÉTAIT LE PROBLÈME. Le rituel portait
+     « SÍNSIN Essentielle · La Reprise » quand la formule inclut « SÍNSIN
+     Élaborée · La Reprise Longue Durée » : deux prestations différentes au
+     catalogue, un seul mot qui les sépare à l'œil. Un seul jeton se
+     décomptait, et c'était juste.
+
+     MAIS COCHER « COUVERT » MET TOUT LE RITUEL À ZÉRO. La prestation non
+     incluse partait donc OFFERTE, sans remise, sans trace, sans que rien ne le
+     dise : 30 000 F donnés en croyant les avoir facturés. L'avertissement
+     d'à côté ne paraissait pas non plus, puisqu'il attend qu'AUCUNE prestation
+     ne soit couverte.
+
+     ON NOMME CE QUI SORT, ET CE QU'IL EN COÛTE. C'est le seul moment où la
+     Maison peut encore décider : ajouter la bonne prestation, ou assumer le
+     geste. */
+  const horsFormule = (membership && membershipPlan)
+    ? chosen.filter((sv) => !inclusVendus(membership, membershipPlan).some((i) => i.serviceId === sv.id))
+    : [];
   const canCover = coverageRows.length > 0 && (coverageRows.some((r) => r.remaining === null || (r.remaining ?? 0) > 0) || !!appt?.coveredBySub);
   const effCovered = covered && canCover;
   /* LE PRIX D'ORIGINE FAIT FOI. Un rituel au prix figé (facturé à CE prix-là —
@@ -2581,6 +2603,18 @@ export function RdvModal({
                 {!canCover && (
                   <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
                     Plus d’allocation sur le cycle en cours, le rituel sera facturé normalement.
+                  </span>
+                )}
+                {/* LE PRIX DE CE QUI SORT DE LA FORMULE, ANNONCÉ. Cocher la case
+                    met le rituel ENTIER à zéro : sans cette ligne, la prestation
+                    non incluse part offerte, sans remise et sans trace. */}
+                {horsFormule.length > 0 && (
+                  <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 5, lineHeight: 1.5 }}>
+                    <b>{horsFormule.map((sv) => sv.name).join(', ')}</b>{' '}
+                    {horsFormule.length > 1 ? 'ne sont pas dans sa formule' : 'n’est pas dans sa formule'}.
+                    {effCovered
+                      ? <> En cochant, {horsFormule.length > 1 ? 'elles partent offertes' : 'elle part offerte'} : le rituel entier passe à 0 F.</>
+                      : <> {horsFormule.length > 1 ? 'Elles se règlent' : 'Elle se règle'} au comptoir.</>}
                   </span>
                 )}
               </span>

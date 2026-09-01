@@ -115,6 +115,80 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## LA CADENCE POSÉE, ET LA VALIDITÉ CORRIGÉE · 1er septembre 2026
+
+« Changer la date de validité du contrat. Poser automatiquement les RDV à venir. »
+
+**LA VALIDITÉ SE CORRIGE OÙ ELLE SE LIT.** La fenêtre s'annonçait dans le Suivi
+et ne se touchait nulle part : une échéance saisie de travers à la vente restait
+fausse pour la vie du paquet, et c'est elle qui décide de ce qui se décompte. Un
+PAQUET porte ses deux bornes (`startIso` / `expiresIso`, fin vide = jamais
+périmé) ; un abonnement à CYCLE n'a qu'une échéance, et c'est elle qu'on déplace.
+**On dit ce que la correction change au décompte** : rétrécir la fenêtre fait
+sortir des séances déjà comptées, et le taire laisserait croire à un compteur
+cassé.
+
+**LA SUITE SE POSE DEPUIS LE SUIVI**, là où les crédits et leurs séances se
+lisent déjà. Un deuxième écran pour poser des dates, séparé de celui qui compte
+les jetons, garantirait qu'un jour les deux ne disent plus la même chose.
+
+**LE CALCUL EST PUR** (`proposeLaCadence()` dans `cadence.ts`, treize
+contrôles). Il ne crée aucun rendez-vous, il propose des dates que l'écran laisse
+corriger une à une : poser six séances d'un geste sans pouvoir en bouger une
+seule ferait plus de dégâts que de bien.
+
+Les règles qu'il tient :
+
+- **Le nombre de séances est le PLUS GRAND des restes, pas leur somme.** Six
+  resserrages et six lavages se font dans la même visite ; poser douze
+  rendez-vous doublerait son agenda et viderait ses crédits deux fois plus vite.
+- **Les crédits se posent dans l'ordre.** Six Reprises et trois soins : les trois
+  premières séances portent les deux, les trois suivantes la Reprise seule.
+- **Une prestation à volonté ne commande aucune séance**, elle s'ajoute à
+  chacune. Seule, elle ne pose rien, sinon on poserait l'infini.
+- **On ne pose jamais un fauteuil porte close** : la date glisse au premier jour
+  ouvert et l'écran DIT qu'elle a bougé. Même règle que la relance et que le
+  calendrier de Ma Couronne.
+- **Son jour à elle passe avant le rythme.** Une tête qui ne vient que le samedi
+  garde ses samedis : un pas de quarante jours glisserait d'un jour à chaque fois.
+- **Rien après l'échéance du paquet** : un crédit posé au-delà de la date de fin
+  serait un rendez-vous que la formule ne couvre plus.
+- **Deux séances ne tombent jamais le même jour.**
+
+**LE RYTHME SE LIT SUR SES VENUES PASSÉES** avant de se proposer : la médiane de
+ses écarts, arrondie au plus proche de 4, 6 ou 8 semaines. Une moyenne exacte de
+41 jours ne se propose pas, six semaines si. Son heure et son maître par défaut
+suivent la même logique. Le champ libre reste ouvert à côté.
+
+**LES SÉANCES POSÉES SONT CONFIRMÉES**, donc le fauteuil est TENU : une séance
+« en attente » ne réserve rien, et tout l'intérêt de poser sa cadence est qu'une
+autre tête ne prenne pas la place. Elles sont couvertes et **liées au contrat**
+(`subId`) : sans le lien, elles se décompteraient aussi sur un paquet voisin.
+
+## CE QUE LA FORMULE NE PORTE PAS · 1er septembre 2026
+
+« J'ai pris les 2 services lavage et reprise sur la réservation du 28/08/26, mais
+il ne compte que lavage. »
+
+**LE MOTEUR AVAIT RAISON, ET C'ÉTAIT LE PROBLÈME.** Le rituel portait « SÍNSIN
+Essentielle · La Reprise » quand La Juste Cadence inclut « SÍNSIN Élaborée · La
+Reprise Longue Durée » : deux prestations différentes au catalogue, un seul mot
+qui les sépare à l'œil. Un seul jeton se décomptait, et c'était juste.
+
+**MAIS COCHER « COUVERT » MET TOUT LE RITUEL À ZÉRO.** La prestation non incluse
+partait donc offerte, sans remise, sans trace : 30 000 F donnés en croyant les
+avoir facturés. Et l'avertissement voisin ne paraissait pas, puisqu'il attend
+qu'AUCUNE prestation ne soit couverte.
+
+La modale nomme désormais ce qui sort de la formule, et ce qu'il en coûte : « X
+n'est pas dans sa formule. En cochant, elle part offerte : le rituel entier passe
+à 0 F. » C'est le seul moment où la Maison peut encore décider, ajouter la bonne
+prestation ou assumer le geste.
+
+**RESTE OUVERT** : la couverture est tout-ou-rien pour le rituel entier. Couvrir
+LIGNE À LIGNE demanderait un prix par prestation sur le rendez-vous couvert, ce
+qui touche la caisse, la facture et les commissions. À décider.
+
 ## LE RITUEL DIT QUEL CONTRAT IL DÉCOMPTE · 1er septembre 2026
 
 « Le pack personnalisé est fini, pourquoi je continue de faire des réservations

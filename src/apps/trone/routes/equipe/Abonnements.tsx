@@ -12,7 +12,7 @@ import {
 import {
   shortDate, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  subServiceUsage, usageDetaille, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
+  subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
@@ -24,7 +24,9 @@ import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
   calibreDeLaTete,
 } from '../../../../shared/pricing';
-import { useAppointments, type Appointment } from '../../../../shared/agenda';
+import { useAppointments, appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { proposeLaCadence, decaleLaSuite, RYTHMES_ABO, type SeanceProposee } from '../../../../shared/cadence';
+import { maitreParDefaut } from '../../../../shared/branches';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
@@ -110,6 +112,19 @@ export default function Abonnements() {
   const [allAppts] = useAppointments();
   const navigate = useNavigate();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
+  /* ══ LA VALIDITÉ SE CORRIGE OÙ ELLE SE LIT — 1er septembre 2026 ═════
+     « Changer la date de validité du contrat » (Yéman). La fenêtre s'annonçait
+     dans le Suivi et ne se touchait nulle part : une échéance saisie de
+     travers à la vente restait fausse pour la vie du paquet, et c'est elle qui
+     décide de ce qui se décompte. */
+  const [datesEdit, setDatesEdit] = useState<{ debut: string; fin: string } | null>(null);
+  /* ══ LA CADENCE POSÉE — 1er septembre 2026 ═════════════════════════
+     « Poser automatiquement les RDV à venir. » L'écran PROPOSE, il n'écrit
+     rien tant qu'on n'a pas dit oui : chaque date se corrige, se retire, et
+     toute la suite se décale d'un geste. */
+  const [cadenceForm, setCadenceForm] = useState<
+    { pas: number; depart: string; heure: string; maitre: string; suite: SeanceProposee[] } | null
+  >(null);
   /* ══ LE RITUEL S'OUVRE, PAS LA FICHE — 1er septembre 2026 ═══════════
      « Quand je clique le RDV ça ouvre le profil du client. Je veux que ça
      ouvre le RDV plutôt » (Yéman).
@@ -780,6 +795,129 @@ export default function Abonnements() {
     toast(boite
       ? `${fmtMoney(amount, currency)} encaissés dans « ${boite} », la pièce est écrite.`
       : `${fmtMoney(amount, currency)} encaissés, la pièce est écrite.`);
+  };
+
+  /* ── SES DATES À ELLE, RECORRIGÉES ────────────────────────────────
+     Un PAQUET porte ses bornes (`startIso`/`expiresIso`) ; un abonnement à
+     CYCLE n'a qu'une échéance, et c'est elle qu'on déplace. Écrire les deux au
+     même endroit ferait un paquet sans fin ou un cycle à deux dates. */
+  const enregistreLesDates = () => {
+    if (!suiviFor || !datesEdit) return;
+    const plan = planOf(suiviFor.planId);
+    const paquet = plan?.mode === 'pack';
+    const { debut, fin } = datesEdit;
+    if (paquet && fin && debut && fin <= debut) {
+      toast('La fin doit tomber après le début, sinon le paquet ne vaut rien.');
+      return;
+    }
+    if (!paquet && !fin) { toast('Un abonnement à cycle a besoin de sa prochaine échéance.'); return; }
+    const suite: Subscriber = paquet
+      ? { ...suiviFor, startIso: debut || suiviFor.startIso, expiresIso: fin || null }
+      : { ...suiviFor, nextIso: fin };
+    setSubs((prev) => prev.map((x) => (x.id === suite.id ? suite : x)));
+    setSuiviFor(suite);
+    setDatesEdit(null);
+    /* ON DIT CE QUE LA CORRECTION A CHANGÉ AU DÉCOMPTE. Rétrécir la fenêtre
+       fait sortir des séances déjà comptées ; le taire laisserait croire à un
+       compteur cassé. */
+    const avant = rdvCouvertsDe(suiviFor, plan, allAppts).length;
+    const apres = rdvCouvertsDe(suite, plan, allAppts).length;
+    toast(avant === apres
+      ? 'Dates corrigées.'
+      : `Dates corrigées, ${Math.abs(avant - apres)} séance${Math.abs(avant - apres) > 1 ? 's' : ''} ${apres < avant ? 'sortent' : 'entrent'} du décompte.`);
+  };
+
+  /* ── LA SUITE PROPOSÉE ────────────────────────────────────────────
+     Le rythme se LIT sur ses venues passées avant de se proposer : celles qui
+     viennent tous les deux mois ne se relancent pas comme celles qui viennent
+     toutes les quatre semaines. Son heure et son jour aussi. */
+  const ouvrirLaCadence = (m: Subscriber) => {
+    const plan = planOf(m.planId);
+    const restes = usageDetaille(m, plan, allAppts).map((u) => ({ serviceId: u.serviceId, reste: u.remaining }));
+    const siennes = allAppts
+      .filter((a) => a.clientId === m.clientId && a.status !== 'annulé')
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    const ecarts: number[] = [];
+    for (let i = 1; i < Math.min(siennes.length, 6); i += 1) {
+      const d = Math.round((new Date(`${siennes[i - 1].date}T12:00:00`).getTime()
+        - new Date(`${siennes[i].date}T12:00:00`).getTime()) / 86400000);
+      if (d > 0) ecarts.push(d);
+    }
+    /* LE RYTHME PROPOSÉ EST LE PLUS PROCHE DES SIENS parmi ceux de la Maison :
+       une moyenne exacte de 41 jours ne se propose pas, six semaines si. */
+    const median = ecarts.length
+      ? [...ecarts].sort((a, b) => a - b)[Math.floor(ecarts.length / 2)]
+      : 42;
+    const pas = RYTHMES_ABO
+      .map((sem) => sem * 7)
+      .reduce((meilleur, j) => (Math.abs(j - median) < Math.abs(meilleur - median) ? j : meilleur), 42);
+    const derniere = siennes[0]?.date;
+    const depart0 = derniere ? addDaysFromISO(derniere, pas) : addDaysISO(pas);
+    const depart = depart0 < todayISO() ? addDaysISO(7) : depart0;
+    const cli = clients.find((c) => c.id === m.clientId);
+    const form = {
+      pas,
+      depart,
+      heure: siennes[0]?.time || '10:00',
+      maitre: maitreParDefaut(branch) || branch.masters[0] || '',
+      suite: [] as SeanceProposee[],
+    };
+    form.suite = proposeLaCadence({
+      restes, departIso: depart, pasJours: pas, jourPrefere: cli?.jourPrefere,
+      finIso: plan?.mode === 'pack' ? m.expiresIso ?? null : null,
+    });
+    setCadenceForm(form);
+  };
+
+  const recalculeLaCadence = (patch: Partial<{ pas: number; depart: string }>) => {
+    if (!suiviFor || !cadenceForm) return;
+    const plan = planOf(suiviFor.planId);
+    const restes = usageDetaille(suiviFor, plan, allAppts).map((u) => ({ serviceId: u.serviceId, reste: u.remaining }));
+    const cli = clients.find((c) => c.id === suiviFor.clientId);
+    const pas = patch.pas ?? cadenceForm.pas;
+    const depart = patch.depart ?? cadenceForm.depart;
+    setCadenceForm({
+      ...cadenceForm, pas, depart,
+      suite: proposeLaCadence({
+        restes, departIso: depart, pasJours: pas, jourPrefere: cli?.jourPrefere,
+        finIso: plan?.mode === 'pack' ? suiviFor.expiresIso ?? null : null,
+      }),
+    });
+  };
+
+  /* ── ON POSE, ET CE SONT DE VRAIS RENDEZ-VOUS ─────────────────────
+     Confirmés, donc le fauteuil est TENU : une séance « en attente » ne
+     réserve rien, et tout l'intérêt de poser sa cadence est qu'une autre tête
+     ne prenne pas la place. Couverts et LIÉS au contrat (`subId`) : sans le
+     lien, ils se décompteraient aussi sur un paquet voisin. */
+  /* Fermer le suivi referme ce qu'on y avait ouvert : rouvrir une autre
+     abonnée sur un formulaire à moitié rempli poserait ses dates à elle. */
+  const fermerLeSuivi = () => { setSuiviFor(null); setDatesEdit(null); setCadenceForm(null); };
+
+  const poserLaCadence = () => {
+    if (!suiviFor || !cadenceForm || cadenceForm.suite.length === 0) return;
+    const neufs: Appointment[] = cadenceForm.suite.map((x) => ({
+      id: `ap-${uid()}`,
+      branchId: branch.id,
+      clientId: suiviFor.clientId,
+      clientName: suiviFor.name,
+      serviceIds: x.serviceIds,
+      date: x.dateIso,
+      time: cadenceForm.heure,
+      master: cadenceForm.maitre,
+      status: 'confirmé',
+      source: 'trone',
+      note: `Cadence de l’abonnement${suiviFor.reference ? ` · ${suiviFor.reference}` : ''}`,
+      coveredBySub: true,
+      coverKind: 'abonnement',
+      subId: suiviFor.id,
+      priceXof: 0,
+      depositServiceIds: [],
+      depositXof: 0,
+    } as Appointment));
+    appointmentsStore.set((prev) => [...prev, ...neufs]);
+    setCadenceForm(null);
+    toast(`${neufs.length} rendez-vous posés, du ${shortDate(neufs[0].date)} au ${shortDate(neufs[neufs.length - 1].date)}.`);
   };
 
   const statusDot = (s: Subscriber['status']) =>
@@ -1767,7 +1905,7 @@ export default function Abonnements() {
         const jour = todayISO();
         const etatDuRdv = (a: Appointment) =>
           a.status === 'honoré' ? 'honoré' : a.date >= jour ? 'à venir' : a.status;
-        const ouvrirLaFiche = () => { setSuiviFor(null); navigate(`/customers?id=${suiviFor.clientId}`); };
+        const ouvrirLaFiche = () => { fermerLeSuivi(); navigate(`/customers?id=${suiviFor.clientId}`); };
         const ouvrirLeRituel = (a: Appointment) => { setRdvOuvert({ appt: a, retourA: suiviFor }); setSuiviFor(null); };
         const lignesRdv = (rdv: Appointment[]) => (
           <div style={{ marginTop: 9 }}>
@@ -1791,7 +1929,7 @@ export default function Abonnements() {
           </div>
         );
         return (
-          <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={560}>
+          <Modal title={`Suivi · ${suiviFor.name}`} onClose={fermerLeSuivi} width={620}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>
                 {plan?.name ?? '—'}
@@ -1801,7 +1939,40 @@ export default function Abonnements() {
                     ? `crédits ouverts depuis le ${shortDate(start)}, sans échéance posée. Ils ne se rechargent pas.`
                     : `crédits valables du ${shortDate(start)} au ${shortDate(end)}. Ils ne se rechargent pas.`
                   : `cycle en cours du ${shortDate(start)} au ${shortDate(end)}, le compteur repart à l’échéance.`}
+                {' '}
+                <button type="button" className="tre-link-btn" onClick={() => setDatesEdit({ debut: suiviFor.startIso ?? suiviFor.sinceIso ?? todayISO(), fin: (paquet ? suiviFor.expiresIso : suiviFor.nextIso) ?? '' })}>
+                  Changer les dates
+                </button>
               </div>
+
+              {/* ══ LA VALIDITÉ SE CORRIGE OÙ ELLE SE LIT ═══════════════════
+                  Une échéance saisie de travers à la vente restait fausse pour
+                  la vie du paquet, et c'est elle qui décide de ce qui se
+                  décompte. Un PAQUET porte ses deux bornes ; un abonnement à
+                  cycle n'a qu'une échéance, et c'est elle qu'on déplace. */}
+              {datesEdit && (
+                <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '13px 15px', background: 'var(--surface-card)' }}>
+                  <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+                    {paquet && (
+                      <Field label="Début des crédits">
+                        <Input type="date" value={datesEdit.debut} onChange={(e) => setDatesEdit({ ...datesEdit, debut: e.target.value })} />
+                      </Field>
+                    )}
+                    <Field label={paquet ? 'Fin des crédits' : 'Prochaine échéance'}>
+                      <Input type="date" value={datesEdit.fin} onChange={(e) => setDatesEdit({ ...datesEdit, fin: e.target.value })} />
+                    </Field>
+                  </div>
+                  {paquet && (
+                    <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                      Laisser la fin vide, c’est un paquet sans échéance : ses crédits ne périment jamais.
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
+                    <Button variant="ghost" style={{ flex: 1 }} onClick={() => setDatesEdit(null)}>Annuler</Button>
+                    <Button style={{ flex: 1 }} onClick={enregistreLesDates}>Enregistrer les dates</Button>
+                  </div>
+                </div>
+              )}
               {usage.length === 0 && (
                 <div className="mnd-muted" style={{ fontSize: 12.5 }}>Cette formule n’inclut aucune prestation à suivre.</div>
               )}
@@ -1868,8 +2039,122 @@ export default function Abonnements() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setSuiviFor(null)}>Fermer</Button>
+              {/* ══ LA CADENCE POSÉE ═══════════════════════════════════════
+                  Un abonnement vendu est une PROMESSE DE RYTHME. La Maison
+                  encaissait la promesse et laissait le rythme se débrouiller :
+                  six resserrages achetés, aucun fauteuil retenu, et la tête qui
+                  rappelle en novembre trouve l'agenda plein.
+
+                  L'ÉCRAN PROPOSE, IL N'ÉCRIT RIEN sans un oui : poser six
+                  séances d'un geste sans pouvoir en bouger une seule ferait
+                  plus de dégâts que de bien. */}
+              {cadenceForm && (
+                <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '14px 16px', background: 'var(--copper-50)' }}>
+                  <Eyebrow>Poser ses rendez-vous</Eyebrow>
+
+                  <div style={{ marginTop: 12 }}>
+                    <div className="mnd-eyebrow" style={{ fontSize: 9.5, marginBottom: 6 }}>Son rythme</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {RYTHMES_ABO.map((sem) => (
+                        <button
+                          key={sem} type="button"
+                          onClick={() => recalculeLaCadence({ pas: sem * 7 })}
+                          style={{
+                            border: `1px solid ${cadenceForm.pas === sem * 7 ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                            background: cadenceForm.pas === sem * 7 ? 'var(--copper-100, #F3E2D2)' : 'var(--surface-card)',
+                            borderRadius: 3, padding: '7px 14px', cursor: 'pointer', font: 'inherit',
+                            color: 'var(--color-indigo)', minWidth: 74,
+                          }}
+                        >
+                          <b style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 400 }}>{sem}</b>
+                          <span className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>semaines</span>
+                        </button>
+                      ))}
+                      <Input
+                        type="number" min={1} value={String(Math.round(cadenceForm.pas / 7))}
+                        onChange={(e) => recalculeLaCadence({ pas: Math.max(1, parseInt(e.target.value, 10) || 1) * 7 })}
+                        style={{ width: 92 }}
+                      />
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
+                      Proposé d’après ses venues passées. La Maison ne devine pas, elle relit.
+                    </div>
+                  </div>
+
+                  <div className="tr-grid tr-grid--3" style={{ gap: 11, marginTop: 13 }}>
+                    <Field label="Première séance">
+                      <Input type="date" value={cadenceForm.depart} onChange={(e) => recalculeLaCadence({ depart: e.target.value })} />
+                    </Field>
+                    <Field label="Heure">
+                      <Input type="time" value={cadenceForm.heure} onChange={(e) => setCadenceForm({ ...cadenceForm, heure: e.target.value })} />
+                    </Field>
+                    <Field label="Maître">
+                      <Select value={cadenceForm.maitre} onChange={(e) => setCadenceForm({ ...cadenceForm, maitre: e.target.value })}>
+                        {branch.masters.map((mm) => <option key={mm} value={mm}>{mm}</option>)}
+                      </Select>
+                    </Field>
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    {cadenceForm.suite.length === 0 && (
+                      <div className="mnd-muted" style={{ fontSize: 12 }}>
+                        Rien à poser : ses crédits sont consommés, ou la fenêtre du paquet se referme avant la première séance.
+                      </div>
+                    )}
+                    {cadenceForm.suite.map((x, i) => (
+                      <div key={x.rang} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                        <span style={{
+                          width: 22, height: 22, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center',
+                          border: '1px solid var(--copper-300)', background: 'var(--surface-card)', fontSize: 11, color: 'var(--copper-700)',
+                        }}>{x.rang}</span>
+                        <Input
+                          type="date" value={x.dateIso} style={{ width: 156, flex: 'none' }}
+                          onChange={(e) => setCadenceForm({
+                            ...cadenceForm,
+                            suite: cadenceForm.suite.map((y, k) => (k === i ? { ...y, dateIso: e.target.value, glissee: false } : y)),
+                          })}
+                        />
+                        <span style={{ flex: '1 1 160px', minWidth: 0, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                          {x.serviceIds.map((id) => serviceName(id)).join(' + ')}
+                          {x.glissee && (
+                            <span style={{ display: 'block', fontSize: 10.5, color: 'var(--copper-700)' }}>
+                              date portée au premier jour ouvert
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button" className="tre-link-btn" style={{ flex: 'none' }}
+                          onClick={() => setCadenceForm({ ...cadenceForm, suite: cadenceForm.suite.filter((_, k) => k !== i) })}
+                        >Retirer</button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {cadenceForm.suite.length > 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 10 }}>
+                      Ces séances tiennent le fauteuil et décomptent ses crédits dès qu’elles sont posées.
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 9, marginTop: 13, flexWrap: 'wrap' }}>
+                    <Button variant="ghost" onClick={() => setCadenceForm(null)}>Annuler</Button>
+                    {cadenceForm.suite.length > 0 && (
+                      <Button variant="ghost" onClick={() => setCadenceForm({ ...cadenceForm, suite: decaleLaSuite(cadenceForm.suite, 7, clients.find((c) => c.id === suiviFor.clientId)?.jourPrefere) })}>
+                        Décaler d’une semaine
+                      </Button>
+                    )}
+                    <Button style={{ flex: 1 }} onClick={poserLaCadence} disabled={cadenceForm.suite.length === 0}>
+                      Poser {cadenceForm.suite.length} rendez-vous
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={fermerLeSuivi}>Fermer</Button>
+                {!cadenceForm && usage.some((u) => u.remaining === null || (u.remaining ?? 0) > 0) && (
+                  <Button variant="ghost" style={{ flex: 1 }} onClick={() => ouvrirLaCadence(suiviFor)}>Poser ses rendez-vous</Button>
+                )}
                 <Button style={{ flex: 1 }} onClick={ouvrirLaFiche}>Ouvrir sa fiche</Button>
               </div>
             </div>

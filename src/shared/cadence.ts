@@ -161,6 +161,88 @@ export function tauxDeRealisation(venues: { clientId: string; date: string }[]):
   };
 }
 
+/* ══ POSER LA SUITE D'UN ABONNEMENT — 1er septembre 2026 ═════════════
+   « J'aimerais poser les RDV à venir de chaque abonnement vendu en respectant
+   le rythme de 4, 6 ou 8 semaines pour chaque client, et donner la liberté de
+   modifier ses dates au besoin » (Yéman).
+
+   UN ABONNEMENT VENDU EST UNE PROMESSE DE RYTHME. La Maison encaissait la
+   promesse et laissait le rythme se débrouiller : six resserrages achetés,
+   aucun fauteuil retenu, et la tête qui rappelle en novembre trouve l'agenda
+   plein.
+
+   LE CALCUL EST PUR, ET C'EST VOULU : il ne crée aucun rendez-vous, il PROPOSE
+   des dates que l'écran laisse corriger une à une. Poser six séances d'un geste
+   sans pouvoir en bouger une seule ferait plus de dégâts que de bien. */
+
+/** Les rythmes que la Maison propose, en semaines. Le champ libre reste ouvert
+    à côté : quatre, six ou huit couvrent presque tout, jamais tout. */
+export const RYTHMES_ABO = [4, 6, 8] as const;
+
+export type SeanceProposee = {
+  rang: number;
+  dateIso: string;
+  serviceIds: string[];
+  /** La date a bougé : porte close, son jour à elle, ou la séance d'avant. */
+  glissee: boolean;
+};
+
+export function proposeLaCadence(o: {
+  /** Ce qu'il lui reste, prestation par prestation. `reste === null` = illimité. */
+  restes: readonly { serviceId: string; reste: number | null }[];
+  departIso: string;
+  pasJours: number;
+  jourPrefere?: number;
+  /** L'échéance du paquet : on ne pose rien au-delà. */
+  finIso?: string | null;
+  plafond?: number;
+}): SeanceProposee[] {
+  const pas = Math.max(1, Math.round(o.pasJours));
+  /* COMBIEN DE SÉANCES, PAS COMBIEN DE JETONS. Six resserrages et six lavages
+     se font dans la MÊME visite : poser douze rendez-vous doublerait son agenda
+     et viderait ses crédits deux fois plus vite. Le nombre de séances est donc
+     le PLUS GRAND des restes. */
+  const finis = o.restes.filter((r) => r.reste !== null).map((r) => r.reste as number);
+  const combien = Math.min(o.plafond ?? 24, Math.max(0, ...finis));
+  /* UNE PRESTATION À VOLONTÉ NE SE POSE PAS TOUTE SEULE : elle s'ajoute à
+     chaque séance et n'en commande aucune. Sans crédit fini, rien à poser. */
+  if (combien === 0) return [];
+
+  const suite: SeanceProposee[] = [];
+  let precedente: string | null = null;
+  for (let rang = 1; rang <= combien; rang += 1) {
+    const brut = rang === 1 ? o.departIso : addDaysISO(o.departIso, pas * (rang - 1));
+    let iso = poseLaDate(brut, o.jourPrefere);
+    /* DEUX SÉANCES NE TOMBENT JAMAIS LE MÊME JOUR. Un jour préféré très proche
+       d'une porte close peut ramener deux dates au même endroit ; la seconde
+       repart du lendemain de la première. */
+    if (precedente !== null && iso <= precedente) iso = poseLaDate(addDaysISO(precedente, 1), o.jourPrefere);
+    /* ON NE POSE RIEN APRÈS L'ÉCHÉANCE DU PAQUET : un crédit posé au-delà de la
+       date de fin serait un rendez-vous que la formule ne couvre plus. */
+    if (o.finIso && iso > o.finIso) break;
+    /* LES CRÉDITS SE POSENT DANS L'ORDRE : si les quotas ne sont pas égaux, six
+       Reprises et trois soins, les trois premières séances portent les deux et
+       les trois suivantes la Reprise seule. */
+    const serviceIds = o.restes
+      .filter((r) => r.reste === null || r.reste >= rang)
+      .map((r) => r.serviceId);
+    suite.push({ rang, dateIso: iso, serviceIds, glissee: iso !== brut });
+    precedente = iso;
+  }
+  return suite;
+}
+
+/** DÉCALER TOUTE LA SUITE d'un même nombre de jours, portes closes comprises.
+    Une séance repoussée seule casse le rythme ; c'est le rythme qu'on déplace. */
+export const decaleLaSuite = (
+  suite: readonly SeanceProposee[], jours: number, jourPrefere?: number,
+): SeanceProposee[] =>
+  suite.map((x) => {
+    const brut = addDaysISO(x.dateIso, jours);
+    const iso = poseLaDate(brut, jourPrefere);
+    return { ...x, dateIso: iso, glissee: iso !== brut };
+  });
+
 export function predictNextVisit(appts: Appointment[], clients: Client[], clientId: string, today: string): Cadence {
   const none: Cadence = { iso: null, predicted: false, avgDays: null, confidence: null, overdueDays: 0, sample: 0, template: null };
   const mine = appts.filter((a) => a.clientId === clientId);
