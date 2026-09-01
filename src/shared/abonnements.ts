@@ -388,6 +388,11 @@ export const cycleWindow = (sub: Subscriber): { start: string; end: string } => 
     jusqu'à « aujourd'hui » — sinon un rendez-vous PRIS D'AVANCE, déjà couvert
     et déjà décompté au comptoir, sortirait de la fenêtre et rendrait ses
     crédits comme s'il n'avait pas eu lieu. */
+/** LE JOUR OÙ CE CONTRAT A COMMENCÉ D'EXISTER. Ni la fenêtre du cycle en cours,
+    ni l'échéance : la signature. Rien de plus ancien ne le concerne. */
+export const debutDuContrat = (sub: Subscriber): string =>
+  (sub.startIso && isoRe.test(sub.startIso) ? sub.startIso : sub.sinceIso) ?? '0000-01-01';
+
 export const subWindow = (sub: Subscriber, plan: Plan | undefined): { start: string; end: string } => {
   if (plan?.mode !== 'pack') return cycleWindow(sub);
   const start = sub.startIso && isoRe.test(sub.startIso) ? sub.startIso : (sub.sinceIso ?? '0000-01-01');
@@ -408,11 +413,61 @@ export const subWindow = (sub: Subscriber, plan: Plan | undefined): { start: str
       compter deux cycles pour un abonnement récurrent. */
 export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefined): boolean => {
   if (!a.coveredBySub || a.status === 'annulé') return false;
+  /* ══ RIEN AVANT LE DÉBUT DU CONTRAT — 1er septembre 2026 ══════════════
+     « Ne pas mettre les RDV du passé sur le nouvel abonnement. Arrêter de
+     faire augmenter un abonnement fini. Interdire carrément » (Yéman).
+
+     LE LIEN EXPLICITE PASSAIT OUTRE TOUT, y compris l'existence du contrat.
+     Rouvrir un rituel d'octobre 2025 pour l'enregistrer lui posait le lien vers
+     le contrat EN COURS, celui de septembre 2026 : une séance rendue onze mois
+     avant la signature gonflait un contrat qui n'existait pas encore, jusqu'à
+     8 / 6 sur une formule neuve.
+
+     CETTE BORNE-CI NE SE DISCUTE PAS. Un rendez-vous antérieur à la signature
+     n'est porté par ce contrat sous AUCUN prétexte : c'est un fait de
+     calendrier, pas un réglage. Un paquet enregistré après coup pour couvrir
+     des séances anciennes se règle en corrigeant SA date de début, qui se
+     touche depuis le Suivi. */
+  if (a.date < debutDuContrat(sub)) return false;
+  const { start, end } = subWindow(sub, plan);
+  /* UN PAQUET FINI EST FINI, LIEN OU PAS. Sa fenetre est toute sa vie ; une
+     seance posee au-dela de l'echeance serait un rendez-vous que la formule ne
+     couvre plus, et le lien explicite ne doit pas servir a rouvrir un paquet
+     clos. Un abonnement a CYCLE, lui, se recharge : son lien passe outre la
+     fenetre du cycle en cours, qui n'est qu'une tranche de sa vie. */
+  if (plan?.mode === 'pack' && a.date >= end) return false;
   if (a.subId) return a.subId === sub.id;
   if (a.clientId !== sub.clientId) return false;
-  const { start, end } = subWindow(sub, plan);
   return a.date >= start && a.date < end;
 };
+
+/** LE CONTRAT EN VIGUEUR À CETTE DATE, celui qui doit porter le rituel.
+
+    « Tous les RDV que je passe doivent aller sur l'abonnement qui couvre la
+    période de l'abonnement » (Yéman, 1er septembre 2026).
+
+    LA MODALE RETENAIT « SON ABONNEMENT ACTUEL », c'est-à-dire le plus récent,
+    quelle que soit la date du rituel. Deux contrats successifs suffisaient donc
+    à faire porter le passé par le présent.
+
+    LE PLUS RÉCENT DONT LA SIGNATURE EST DÉJÀ PASSÉE. Un paquet meurt à son
+    échéance et ne se rattrape pas ; un abonnement à cycle, lui, se recharge, et
+    un rendez-vous pris pour dans trois mois lui revient bien — c'est la
+    différence entre une réserve de crédits et un engagement qui court. */
+export const contratPourLaDate = (
+  subs: readonly Subscriber[], clientId: string, dateIso: string, plans: readonly Plan[],
+): Subscriber | undefined =>
+  subs
+    .filter((s) => s.clientId === clientId && s.status !== 'churn')
+    .filter((s) => {
+      if (dateIso < debutDuContrat(s)) return false;
+      const plan = plans.find((p) => p.id === s.planId);
+      /* UN PAQUET FINI EST FINI. Sa fenêtre est toute sa vie ; au-delà, ses
+         crédits ne valent plus rien et rien ne doit s'y ajouter. */
+      if (plan?.mode === 'pack') return dateIso < subWindow(s, plan).end;
+      return !s.expiresIso || dateIso < s.expiresIso;
+    })
+    .sort((a, b) => (debutDuContrat(a) < debutDuContrat(b) ? 1 : -1))[0];
 
 /** Consommation d'une prestation incluse : une ligne par prestation de la formule.
     « Utilisée » = RDV COUVERT (coveredBySub), non annulé, daté dans la FENÊTRE de

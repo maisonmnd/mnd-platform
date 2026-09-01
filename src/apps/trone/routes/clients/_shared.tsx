@@ -22,7 +22,7 @@ import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, cats
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
-import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import type { CommRates } from '../equipe/payroll';
@@ -1203,7 +1203,19 @@ export function RdvModal({
   /* Tout le carnet — pour compter les venues honorées de la tête choisie. */
   const [tousLesRdv] = useAppointments();
   /* Abonnement actif de la cliente — pour la distinguer à la prise de rendez-vous. */
-  const membership = clientId ? activeSubscriberOf(subs, clientId) : undefined;
+  /* ══ LE CONTRAT DE CETTE DATE, PAS LE CONTRAT DU JOUR ═════════════
+     « Tous les RDV que je passe doivent aller sur l'abonnement qui couvre la
+     période de l'abonnement. Ne pas mettre les RDV du passé sur le nouvel
+     abonnement » (Yéman, 1er septembre 2026).
+
+     ON RETENAIT « SON ABONNEMENT ACTUEL », le plus récent, quelle que soit la
+     date du rituel. Rouvrir une séance d'octobre 2025 pour l'enregistrer la
+     rattachait donc au contrat de septembre 2026, qui n'existait pas encore.
+
+     LE CONTRAT SUIT LA DATE, et il change quand on change la date : c'est le
+     même juge qui nomme la formule en haut de l'écran, qui calcule ce qui reste
+     et qui pose le lien à l'enregistrement. */
+  const membership = clientId ? contratPourLaDate(subs, clientId, date, plans) : undefined;
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
   /* Couverture par l'abonnement : rituel « inclus » (prix 0, décompté du quota). */
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);

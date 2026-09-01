@@ -115,6 +115,48 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## LE CONTRAT DE LA DATE, PAS LE CONTRAT DU JOUR · 1er septembre 2026
+
+« Mylène a 2 abonnements Juste Cadence, 1 qui est épuisé et 1 qui est ouvert.
+Tous les RDV que je passe doivent aller sur l'abonnement qui couvre la période de
+l'abonnement. Ne pas mettre les RDV du passé sur le nouvel abonnement. Arrêter de
+faire augmenter un abonnement fini. Interdire carrément. »
+
+**LA MODALE RETENAIT « SON ABONNEMENT ACTUEL »**, c'est-à-dire le plus récent,
+quelle que soit la date du rituel. Rouvrir une séance d'octobre 2025 pour
+l'enregistrer lui posait donc le lien vers le contrat de septembre 2026, qui
+n'existait pas encore : la Juste Cadence neuve affichait **8 / 6** sur ses deux
+lignes, gonflée par des séances rendues onze mois avant sa signature. C'est mon
+conseil de la veille (« rouvrez le rendez-vous, enregistrez, le lien se pose »)
+qui a produit ces liens.
+
+`contratPourLaDate()` : **le plus récent dont la signature est déjà passée**.
+Le juge suit la date et change quand on change la date, et c'est le même qui
+nomme la formule en haut de l'écran, calcule ce qui reste et pose le lien à
+l'enregistrement.
+
+**LES DEUX BORNES NE SE DISCUTENT PAS**, dans `coversSub`, lien explicite ou
+pas :
+
+- **rien avant** `debutDuContrat` (`startIso`, à défaut `sinceIso`) : un
+  rendez-vous antérieur à la signature n'est porté par ce contrat sous aucun
+  prétexte, c'est un fait de calendrier et non un réglage ;
+- **rien après l'échéance d'un PAQUET** : sa fenêtre est toute sa vie, et le lien
+  explicite ne doit pas servir à rouvrir un paquet clos.
+
+Le lien garde son emploi : **départager deux contrats dont les fenêtres se
+chevauchent**, et couvrir les cycles antérieurs d'un abonnement qui se recharge.
+Un abonnement à CYCLE prend bien un rendez-vous pris pour dans trois mois, c'est
+la différence entre une réserve de crédits et un engagement qui court.
+
+**UN PAQUET ENREGISTRÉ APRÈS COUP** pour couvrir des séances anciennes se règle
+en corrigeant SA date de début, qui se touche depuis le Suivi. La borne remplace
+l'ancienne note de `coversSub`, qui autorisait le lien à franchir la fenêtre
+dans les deux sens.
+
+**LES LIENS DÉJÀ POSÉS DE TRAVERS N'ONT PAS BESOIN D'ÊTRE DÉFAITS** : la borne
+les ignore, les compteurs se relisent seuls.
+
 ## UN CONTRAT SIGNÉ SE REPREND · 1er septembre 2026
 
 « Est-ce possible de modifier l'abonnement Pack personnalisé de Mylène Grimaud

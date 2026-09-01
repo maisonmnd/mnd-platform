@@ -15,7 +15,7 @@ import {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
-  libellesInclus, prochaineReferenceAbo, nomDuContrat,
+  libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, coversSub,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -367,11 +367,61 @@ const avecLien = { ...sansLien, subId: 'ab-neuf' };
 dit('avec le lien, un seul contrat la porte', [0, 1],
   [usageDetaille(paquetFini, PACK, [avecLien])[1].used,
    usageDetaille(cadenceNeuve, PACK, [avecLien])[1].used]);
-/* LE LIEN SE PASSE DE LA FENETRE : un contrat saisi apres coup couvre des
-   seances anterieures a son enregistrement. */
-const vieilleSeance = { ...rdv('r-vieux', '2024-01-01', 'sv-lavage'), subId: 'ab-neuf' };
-dit('le lien passe outre la fenetre', 1,
-  usageDetaille(cadenceNeuve, PACK, [vieilleSeance])[1].used);
+/* MAIS LE LIEN NE RESSUSCITE RIEN. « Ne pas mettre les RDV du passe sur le
+   nouvel abonnement. Arreter de faire augmenter un abonnement fini. Interdire
+   carrement » (Yeman, 1er septembre 2026). Le lien sert a departager deux
+   contrats dont les fenetres se chevauchent, pas a franchir les bornes de la
+   vie d'un paquet. */
+const avantLaSignature = { ...rdv('r-vieux', '2024-01-01', 'sv-lavage'), subId: 'ab-neuf' };
+dit('rien avant la signature, meme lie', 0,
+  usageDetaille(cadenceNeuve, PACK, [avantLaSignature])[1].used);
+const apresLEcheance = { ...rdv('r-tard', '2027-10-01', 'sv-lavage'), subId: 'ab-neuf' };
+dit('rien apres l’echeance d’un paquet, meme lie', 0,
+  usageDetaille(cadenceNeuve, PACK, [apresLEcheance])[1].used);
+
+/* -- 14. LE CONTRAT DE LA DATE, PAS LE CONTRAT DU JOUR -------------
+   « Tous les RDV que je passe doivent aller sur l'abonnement qui couvre la
+   periode de l'abonnement. Ne pas mettre les RDV du passe sur le nouvel
+   abonnement. Arreter de faire augmenter un abonnement fini. Interdire
+   carrement » (Yeman, 1er septembre 2026).
+
+   La modale retenait « son abonnement actuel », le plus recent, quelle que soit
+   la date du rituel : rouvrir une seance d'octobre 2025 pour l'enregistrer la
+   rattachait au contrat de septembre 2026, qui n'existait pas encore. */
+const ancien = { ...abo({ id: 'ab-2025', startIso: '2025-10-10', expiresIso: '2026-06-30' }), clientId: 'c-1', sinceIso: '2025-10-10' };
+const recent = { ...abo({ id: 'ab-2026', startIso: '2026-09-01', expiresIso: '2027-05-29' }), clientId: 'c-1', sinceIso: '2026-09-01' };
+const deux = [ancien, recent];
+
+dit('une seance de novembre 2025 revient au contrat de 2025', 'ab-2025',
+  contratPourLaDate(deux, 'c-1', '2025-11-19', [PACK])?.id);
+dit('une seance d’octobre 2026 revient au contrat de 2026', 'ab-2026',
+  contratPourLaDate(deux, 'c-1', '2026-10-23', [PACK])?.id);
+/* UN PAQUET FINI EST FINI : sa fenetre est toute sa vie, et rien ne s'y
+   ajoute au-dela. Sans cette borne, le contrat de 2025 reprendrait la main
+   des que le plus recent ne serait plus candidat. */
+dit('le paquet fini ne reprend rien', undefined,
+  contratPourLaDate([ancien], 'c-1', '2026-10-23', [PACK])?.id);
+/* AVANT TOUT CONTRAT, AUCUN CONTRAT. */
+dit('avant la premiere signature, rien', undefined,
+  contratPourLaDate(deux, 'c-1', '2025-01-01', [PACK])?.id);
+/* UN ABONNEMENT A CYCLE SE RECHARGE : un rendez-vous pris pour dans trois mois
+   lui revient bien. C'est la difference entre une reserve de credits et un
+   engagement qui court. */
+const cycleVivant = { ...abo({ id: 'ab-cycle' }), clientId: 'c-2', sinceIso: '2026-09-01', startIso: undefined, expiresIso: undefined };
+dit('un cycle prend les dates a venir', 'ab-cycle',
+  contratPourLaDate([cycleVivant], 'c-2', '2026-12-01', [CYCLE])?.id);
+/* UN RESILIE NE PREND RIEN. */
+dit('un resilie ne prend rien', undefined,
+  contratPourLaDate([{ ...recent, status: 'churn' as const }], 'c-1', '2026-10-23', [PACK])?.id);
+
+/* LE LIEN EXPLICITE NE PASSE PAS OUTRE L'EXISTENCE DU CONTRAT. C'est ainsi que
+   la Juste Cadence neuve affichait 8 / 6 : des seances d'octobre et novembre
+   2025, rouvertes et enregistrees, s'etaient liees a elle. */
+const seanceDe2025 = { ...rdv('r-2025', '2025-11-19', 'sv-lavage'), subId: 'ab-2026' };
+dit('un rituel anterieur a la signature ne compte pas, meme lie', false,
+  coversSub(seanceDe2025, recent, PACK));
+dit('… et il revient au contrat qui existait', true,
+  coversSub({ ...seanceDe2025, subId: 'ab-2025' }, ancien, PACK));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
