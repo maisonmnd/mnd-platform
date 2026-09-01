@@ -1,7 +1,12 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { normName, sameName } from '../../../../shared/text';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { pushNotifyStaff } from '../../../../shared/push';
+import { todayISO } from '../clients/_shared';
+import { downloadCsv } from '../finances/_shared';
+import { summaryPdf } from '../../../../shared/pdf';
+import { maisonNom } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -15,6 +20,7 @@ import {
   parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
+  ligneEstPayee, resteAVerserXof, dejaVerseXof, avancementDuRun, runEntierementVerse,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
 } from './payroll';
@@ -254,12 +260,84 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
      réglé devient un remboursement de prêt (voir inscrireLesRetenues). */
   const [lesPrets, setLesPrets] = usePrets();
   const [editLine, setEditLine] = useState<number | null>(null);
+  const [bordereau, setBordereau] = useState(false);
+  /* Le répertoire du personnel : c'est lui qui porte le NUMÉRO. La ligne de
+     paie, elle, ne garde que le mode (Mobile Money, banque). */
+  const [lePersonnel] = useStaff();
   const editable = run.status === 'brouillon';
   const lines = asArray<PayrollLine>(run.lines);
   const t = runTotals(run);
   const p = parametersFor(run.period, params);
 
   const setRun = (patch: Partial<PayrollRun>) => payrollRunsStore.set((prev) => prev.map((r) => (r.id === run.id ? { ...r, ...patch } : r)));
+
+  /* ══ LE POINTAGE — 1er septembre 2026 ═══════════════════════════════
+     On coche au fur et à mesure des virements. LA DATE ET LE MOYEN S'ÉCRIVENT
+     AVEC : une case seule ne dit pas quand, et six mois plus tard on ne sait
+     plus si le versement de mars est parti le 31 ou le 12.
+
+     UN RUN CLÔTURÉ NE SE DÉPOINTE PLUS : ce qui est clos est clos, et corriger
+     un mois fermé passe par une écriture, jamais en effaçant l'histoire. */
+  const pointable = run.status === 'valide' || run.status === 'paye';
+  const pointe = (i: number, verse: boolean, moyen?: string) => {
+    if (!pointable) return;
+    setRun({
+      lines: lines.map((l, j) => (j === i
+        ? (verse
+          ? { ...l, payeLe: todayISO(), payeMoyen: moyen ?? l.paiement ?? undefined, payeNote: undefined }
+          : { ...l, payeLe: undefined, payeMoyen: undefined })
+        : l)),
+    });
+  };
+  const numeroDe = (l: PayrollLine): string =>
+    (lePersonnel.find((m) => m.id === l.employeeId)?.phone ?? '').trim();
+
+  const frDate = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  /* LE BORDEREAU SORT SUR PAPIER ET EN TABLEUR — pour l'avoir sous les yeux
+     pendant les virements, ou pour le téléverser le jour où la banque
+     l'acceptera. Il ne porte QUE le net, le nom et le numéro : ni brut, ni
+     cotisations, ni retenues. Un bordereau qui traîne au comptoir ne doit pas
+     raconter la paie de tout le monde. */
+  const bordereauPdf = async () => {
+    await summaryPdf({
+      eyebrow: 'Bordereau de versement',
+      title: frPeriod(run.period),
+      houseName: maisonNom(),
+      meta: [`Établi le ${frDate(todayISO())}`, run.atelier ?? branch.city,
+        `${avancementDuRun(run).payees} versé(s) sur ${avancementDuRun(run).total}`],
+      sections: [
+        {
+          heading: 'À verser',
+          rows: lines.filter((l) => !ligneEstPayee(l)).map((l) => ({
+            label: `${l.name}${numeroDe(l) ? ` · ${numeroDe(l)}` : ' · numéro manquant'}`,
+            value: fmtMoney(l.result?.net ?? 0, currency),
+          })),
+        },
+        {
+          heading: 'Déjà versé',
+          rows: lines.filter(ligneEstPayee).map((l) => ({
+            label: `${l.name} · ${frDate(l.payeLe!)}${l.payeMoyen ? ` · ${l.payeMoyen}` : ''}`,
+            value: fmtMoney(l.result?.net ?? 0, currency),
+          })),
+        },
+        {
+          heading: 'Le compte',
+          rows: [
+            { label: 'Reste à verser', value: fmtMoney(resteAVerserXof(run), currency) },
+            { label: 'Déjà versé', value: fmtMoney(dejaVerseXof(run), currency) },
+          ],
+        },
+      ],
+      filename: `bordereau-${run.period}.pdf`,
+    });
+  };
+
+  const bordereauCsv = () => downloadCsv(`bordereau-${run.period}.csv`, [
+    ['Nom', 'Numéro', 'Moyen', 'Net', 'Versé le'],
+    ...lines.map((l) => [l.name, numeroDe(l), l.paiement ?? '', String(l.result?.net ?? 0), l.payeLe ?? '']),
+  ]);
   const saveLine = (i: number, gains: PayGains, deductions: PayDeductions) => {
     const line = recomputeLine({ ...lines[i], gains, deductions }, p);
     setRun({ lines: lines.map((l, j) => (j === i ? line : l)) });
@@ -355,6 +433,21 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
 
   /* Cycle de vie — un run clôturé est immuable (les chiffres sont figés). */
   const advance = (next: RunStatus) => {
+    /* ══ « PAYÉ » DEVIENT UN CONSTAT — 1er septembre 2026 ═════════════
+       « Comment je gère les paiements de masse » (Yéman). C'était un clic qui
+       AFFIRMAIT sans vérifier : le run entier basculait d'un geste, et rien ne
+       disait qui avait réellement reçu son argent.
+
+       ON REFUSE, ET ON DIT COMBIEN IL RESTE. Un refus muet se reclique ; un
+       refus qui nomme ce qui manque envoie au bordereau. */
+    if (next === 'paye' && !runEntierementVerse(run)) {
+      const av = avancementDuRun(run);
+      toast(av.total === 0
+        ? 'Ce run n’a aucune ligne à verser.'
+        : `${av.payees} versé${av.payees > 1 ? 's' : ''} sur ${av.total}. Il reste ${fmtMoney(resteAVerserXof(run), currency)} à pointer au bordereau.`);
+      setBordereau(true);
+      return;
+    }
     if (next === 'paye' && !window.confirm(
       `Marquer ce run payé ?\n\nLa masse salariale nette (${fmtMoney(t.net, currency)}) s'inscrira dans les Dépenses, en catégorie Salaires, c'est ce qui la fait compter dans le résultat du salon et dans le Partage.`,
     )) return;
@@ -362,6 +455,16 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     const stamp = next === 'valide' ? { validatedAt: nowStamp() } : next === 'paye' ? { paidAt: nowStamp() } : next === 'cloture' ? { closedAt: nowStamp() } : {};
     setRun({ status: next, ...stamp });
     if (next === 'paye') inscrireCharges();
+    /* LA NOTIFICATION PART À LA VALIDATION, pas au paiement : c'est le seul
+       moment où une décision est attendue. Elle ne va qu'au personnel, jamais
+       à une cliente, et elle dit un total, jamais un salaire nominatif. */
+    if (next === 'valide') {
+      void pushNotifyStaff(
+        `La paie de ${frPeriod(run.period)} attend votre oui`,
+        `${lines.length} salaire${lines.length > 1 ? 's' : ''} · ${fmtMoney(t.net, currency)} net à verser.`,
+        '/personnel',
+      );
+    }
   };
   const nextStatus: Record<RunStatus, RunStatus | null> = { brouillon: 'valide', valide: 'paye', paye: 'cloture', cloture: null };
   const next = nextStatus[run.status];
@@ -402,6 +505,14 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
           <Pill tone={runTone(run.status)}>{RUN_STATUS_LABEL[run.status]}</Pill>
           <span className="mnd-muted" style={{ fontSize: 12 }}>{run.atelier ?? branch.city} · {lines.length} employé{lines.length > 1 ? 's' : ''}</span>
           {next && <Button size="sm" variant={next === 'cloture' ? 'ghost' : 'copper'} onClick={() => advance(next)}>{next === 'valide' ? 'Valider' : next === 'paye' ? 'Marquer payé' : 'Clôturer'}</Button>}
+          {/* LE BORDEREAU S'OUVRE DÈS QUE LE RUN EST VALIDÉ : c'est à partir de
+              là qu'on verse. Sur un brouillon, il n'y a rien à payer. */}
+          {run.status !== 'brouillon' && (
+            <Button size="sm" variant="ghost" onClick={() => setBordereau(true)}>
+              Bordereau
+              {resteAVerserXof(run) > 0 && ` · ${fmtMoney(resteAVerserXof(run), currency)} à verser`}
+            </Button>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="tre-livret-score__val">{fmtMoney(t.brut, currency)}<span style={{ fontSize: 12 }}> masse salariale</span></div>
@@ -412,6 +523,111 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
           </div>
         </div>
       </div>
+
+      {/* ══ LE BORDEREAU ═══════════════════════════════════════════════
+          « Je paie mes sept salaires à la main, un par un. » Le Trône ne peut
+          pas envoyer l'argent, mais il donne la liste dans l'ordre, le numéro
+          sous les yeux, et retient qui est payé.
+
+          LE NUMÉRO SE COPIE D'UN TAP : c'est là que le temps se perd et que
+          les fautes naissent, on lit un chiffre sur un écran et on le tape
+          dans un autre. Un chiffre recopié de travers envoie un salaire chez
+          un inconnu, et il ne revient pas. */}
+      {bordereau && (
+        <Modal title={`Bordereau · ${frPeriod(run.period)}`} onClose={() => setBordereau(false)} width={620}>
+          <div className="tre-bord__somme">
+            <span>
+              <span className="tre-bord__l">Reste à verser</span>
+              <b>{fmtMoney(resteAVerserXof(run), currency)}</b>
+            </span>
+            <span>
+              <span className="tre-bord__l">Déjà versé</span>
+              <b>{fmtMoney(dejaVerseXof(run), currency)}</b>
+            </span>
+            <span>
+              <span className="tre-bord__l">Avancement</span>
+              <b>{avancementDuRun(run).payees} / {avancementDuRun(run).total}</b>
+            </span>
+          </div>
+
+          {!pointable && (
+            <div className="tre-inline-note" style={{ marginBottom: 12 }}>
+              <span className="mark">!</span>
+              <span>Run clôturé, le pointage est figé. Toute correction passe par un run de régularisation.</span>
+            </div>
+          )}
+
+          {lines.map((l, i) => {
+            const num = numeroDe(l);
+            const verse = ligneEstPayee(l);
+            return (
+              <div key={l.employeeId + String(i)} className={`tre-bord ${verse ? 'is-verse' : ''} ${!num && !verse ? 'is-manque' : ''}`}>
+                <button
+                  type="button"
+                  className={`tre-bord__coche ${verse ? 'is-on' : ''}`}
+                  disabled={!pointable}
+                  title={verse ? 'Décocher' : 'Marquer versé'}
+                  onClick={() => pointe(i, !verse)}
+                >
+                  {verse ? '✓' : ''}
+                </button>
+                <span className="tre-bord__nom">{l.name}</span>
+                {num ? (
+                  <span className="tre-bord__num">
+                    {l.paiement ? `${l.paiement} · ` : ''}<b>{num}</b>
+                    {/* LE PRESSE-PAPIERS PEUT REFUSER (navigateur ancien, page non
+                        sécurisée) : on le dit plutôt que de laisser croire que
+                        c'est copié. */}
+                    <button
+                      type="button"
+                      className="tre-link-btn"
+                      style={{ marginLeft: 7 }}
+                      onClick={() => {
+                        navigator.clipboard?.writeText(num.replace(/\s/g, ''))
+                          .then(() => toast(`${num} copié.`))
+                          .catch(() => toast('Le presse-papiers a refusé, notez le numéro à la main.'));
+                      }}
+                    >
+                      copier
+                    </button>
+                  </span>
+                ) : (
+                  <span className="tre-bord__num" style={{ color: 'var(--trf-error)' }}>aucun numéro sur sa fiche</span>
+                )}
+                <span className="tre-bord__xof">{fmtMoney(l.result?.net ?? 0, currency)}</span>
+                {verse && (
+                  <span className="tre-bord__dit">
+                    Versé le {frDate(l.payeLe!)}{l.payeMoyen ? ` · ${l.payeMoyen}` : ''}
+                  </span>
+                )}
+                {!verse && !num && (
+                  <span className="tre-bord__dit" style={{ color: 'var(--trf-error)' }}>
+                    Sans numéro, ce salaire ne peut pas partir par Mobile Money. Ajoutez-le sur sa fiche, onglet Équipe.
+                  </span>
+                )}
+              </div>
+            );
+          })}
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+            <Button variant="ghost" size="sm" onClick={() => void bordereauPdf()}>Bordereau PDF</Button>
+            <Button variant="ghost" size="sm" onClick={bordereauCsv}>CSV</Button>
+            <span style={{ flex: 1 }} />
+            {pointable && resteAVerserXof(run) > 0 && (
+              <Button
+                variant="copper"
+                size="sm"
+                onClick={() => {
+                  if (!window.confirm('Marquer TOUTES les lignes versées ? À n’utiliser que si les virements sont réellement partis.')) return;
+                  setRun({ lines: lines.map((l) => (ligneEstPayee(l) ? l : { ...l, payeLe: todayISO(), payeMoyen: l.paiement ?? undefined })) });
+                }}
+              >
+                Tout marquer versé
+              </Button>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {!editable && (
         <div className="tre-inline-note" style={{ marginTop: 12 }}><span className="mark">!</span><span>Run {RUN_STATUS_LABEL[run.status].toLowerCase()}, les lignes sont figées. {run.status === 'cloture' ? 'Toute correction passe par un run de régularisation.' : ''}</span></div>

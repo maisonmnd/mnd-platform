@@ -67,6 +67,51 @@ Absent = le premier de la liste, comme avant.
 
 5 assertions sur `verifie-creneaux`.
 
+## LE BORDEREAU DE PAIE · 1er septembre 2026
+
+Maquette validée : `public/maquette-le-bordereau-de-paie.html`.
+
+« Comment je gère les paiements automatiques des salaires en paiements de masse
+et je reçois juste des push à valider ? » Il paie ses sept salaires **à la
+main, un par un** (sa réponse au sélecteur).
+
+L automatisme complet demande un contrat de DÉCAISSEMENT qu il n a pas :
+KkiaPay est une passerelle d encaissement. Mais les trois choses qu il cherche
+vraiment n en demandent aucun : ne plus recopier, ne rien oublier, valider
+depuis son téléphone.
+
+### « Payé » devient un constat
+
+C était un clic qui AFFIRMAIT sans vérifier : le run entier basculait d un
+geste. `PayrollLine.payeLe / payeMoyen / payeNote` portent le pointage ligne
+par ligne, et `advance('paye')` REFUSE tant que tout n est pas versé, en disant
+combien il reste et en ouvrant le bordereau.
+
+**La date fait foi, pas un booléen** : les deux finiraient par se contredire le
+jour où l un est écrit sans l autre. Un run vide n est jamais « payé » (sinon
+un brouillon se clôturerait tout seul).
+
+### Le bordereau
+
+Le numéro vient du répertoire du personnel, **copiable d un tap** : c est là que
+les fautes naissent, on lit un chiffre sur un écran et on le tape dans un autre.
+Un numéro absent se voit AVANT de commencer, en brique, avec ce qu il faut
+faire ; on ne masque pas ce qui bloque, on le met sur le chemin.
+
+PDF et CSV ne portent QUE nom, numéro, net : ni brut, ni cotisations. Un
+bordereau qui traîne au comptoir ne doit pas raconter la paie de tout le monde.
+
+### La notification
+
+`pushNotifyStaff` à la VALIDATION, pas au paiement : c est le seul moment où une
+décision est attendue. Elle dit un total, jamais un salaire nominatif.
+
+**La seconde notification de la maquette (le rappel si un run traîne) n est PAS
+construite** : elle demande le cron, qui vit hors de l application et
+demanderait un redéploiement d Edge function. À faire si Yéman la veut.
+
+18 assertions sur `verifie-bordereau`, le 25e harnais.
+
 ## LE COMPTE FOURNISSEUR · 1er septembre 2026
 
 ### « Je n arrive pas à ouvrir les pièces »

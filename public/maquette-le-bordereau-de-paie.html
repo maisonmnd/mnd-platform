@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le bordereau de paie &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:900px){ .duo { grid-template-columns:1fr; } }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:18px 20px; }
+
+  /* Une ligne à payer */
+  .pay { display:flex; align-items:center; gap:13px; padding:11px 0;
+         border-bottom:1px solid #EDE5D6; flex-wrap:wrap; }
+  .pay:last-child { border-bottom:none; }
+  .pay__coche { width:22px; height:22px; border:1px solid var(--filet); border-radius:3px;
+                background:#fff; flex:none; display:grid; place-items:center; font-size:13px; color:var(--vert); }
+  .pay__coche.is-on { background:var(--vert-f); border-color:var(--vert-p); }
+  .pay__nom { font-family:var(--serif); font-size:18px; color:var(--indigo); flex:1 1 150px; line-height:1.2; }
+  .pay__num { font-size:13px; color:var(--encre-d); font-variant-numeric:tabular-nums; }
+  .pay__num b { color:var(--encre); font-weight:500; }
+  .pay__xof { font-family:var(--serif); font-size:19px; color:var(--indigo);
+              font-variant-numeric:tabular-nums; min-width:104px; text-align:right; }
+  .pay.is-paye { opacity:.62; }
+  .pay.is-paye .pay__nom { text-decoration:line-through; text-decoration-color:var(--vert); }
+  .pay.is-manque { background:linear-gradient(90deg, var(--brique-f), transparent 62%); }
+  .pay__alerte { flex:1 1 100%; font-size:11.5px; color:var(--brique); }
+
+  .btn { display:inline-block; font-family:var(--sans); font-size:11px; letter-spacing:.14em;
+         text-transform:uppercase; padding:8px 14px; border-radius:2px; border:1px solid transparent; }
+  .btn--indigo { background:var(--indigo); color:#fff; }
+  .btn--ghost { background:transparent; color:var(--encre-d); border-color:var(--filet); }
+  .btn--vert { background:var(--vert); color:#fff; }
+
+  .somme { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+           border-top:1px solid var(--filet); margin-top:12px; padding-top:12px; flex-wrap:wrap; }
+  .somme__l { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .somme__v { font-family:var(--serif); font-size:26px; color:var(--indigo); font-variant-numeric:tabular-nums; }
+
+  /* Le push */
+  .push { max-width:390px; border:1px solid var(--filet); border-radius:12px; background:#fff;
+          padding:13px 15px; box-shadow:0 6px 20px rgba(42,39,34,.10); }
+  .push__t { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--encre-d); }
+  .push__t i { font-style:normal; width:16px; height:16px; border-radius:3px; background:var(--indigo); display:inline-block; }
+  .push__h { font-family:var(--sans); font-size:14.5px; font-weight:500; color:var(--encre); margin-top:7px; }
+  .push__b { font-size:13px; color:var(--encre-d); margin-top:2px; line-height:1.45; }
+
+  .rangs { counter-reset:r; margin:0; padding:0; list-style:none; }
+  .rangs li { counter-increment:r; position:relative; padding:14px 0 14px 46px; border-top:1px solid var(--filet); }
+  .rangs li:first-child { border-top:none; }
+  .rangs li::before { content:counter(r); position:absolute; left:0; top:12px;
+    font-family:var(--serif); font-size:19px; color:var(--cuivre); width:30px; text-align:center; }
+  .rangs b { font-weight:500; }
+  .rangs span { display:block; font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+
+  .garde { border:1px solid var(--indigo); border-radius:3px; background:var(--indigo-pale); padding:18px; }
+  .garde h3 { margin-top:0; }
+  .garde ul { margin:0; padding-left:18px; }
+  .garde li { margin-bottom:9px; font-size:14px; }
+
+  .refus { border:1px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:16px 18px; }
+  .refus h3 { color:var(--brique); margin-top:0; }
+
+  .fin { margin-top:70px; border-top:1px solid var(--filet); padding-top:24px;
+         font-size:13px; color:var(--encre-d); max-width:70ch; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Le Trône &middot; Maquette à valider</p>
+  <h1>Le bordereau de paie</h1>
+  <p class="chapeau">
+    Vous payez vos sept salaires à la main, un par un. Le Trône ne peut pas envoyer l'argent
+    à votre place, <b>mais il peut faire tout le reste</b> : vous prévenir, vous donner la
+    liste dans l'ordre, et retenir qui est payé pour qu'aucun ne passe à travers.
+  </p>
+
+  <section>
+    <p class="cite">
+      « Comment je gère les paiements automatiques des salaires de mon personnel en paiements
+      de masse et je reçois juste des push à valider ? »
+      <span>Yéman, 1er septembre 2026</span>
+    </p>
+    <p class="intro">
+      L'automatisme complet demande un contrat de décaissement chez KkiaPay ou chez
+      l'opérateur, et vous n'en avez pas. <b>Ce n'est pas un obstacle à ce que vous cherchez
+      vraiment</b> : ne plus recopier, ne rien oublier, et valider d'un geste depuis votre
+      téléphone. Ces trois-là ne demandent aucun contrat.
+    </p>
+  </section>
+
+  <!-- ═══ ① LE PUSH ══════════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Ce qui vous arrive</p>
+    <h2>Deux notifications, pas une de plus</h2>
+
+    <div class="duo">
+      <div>
+        <div class="push">
+          <div class="push__t"><i></i> Le Trône &middot; maintenant</div>
+          <div class="push__h">La paie d'août attend votre oui</div>
+          <div class="push__b">7 salaires &middot; 1 240 000 F net. Préparée par Judith.</div>
+        </div>
+        <p class="legende">
+          <b>Quand un run passe en « prêt ».</b> Quelqu'un prépare, vous validez. C'est le
+          seul moment où votre décision compte vraiment : après, ce ne sont que des gestes.
+        </p>
+      </div>
+
+      <div>
+        <div class="push">
+          <div class="push__t"><i></i> Le Trône &middot; il y a 3 jours</div>
+          <div class="push__h">3 salaires d'août ne sont toujours pas payés</div>
+          <div class="push__b">412 000 F restants &middot; Kabirou, Raoul, Sandrine.</div>
+        </div>
+        <p class="legende">
+          <b>Le rappel, si un run validé traîne.</b> Il ne part qu'une fois, et seulement s'il
+          reste quelque chose à payer. Une notification qui revient chaque jour cesse d'être lue.
+        </p>
+      </div>
+    </div>
+
+    <p class="legende" style="margin-top:22px;">
+      <b>Elles vont aux souverains, pas à tout le monde.</b> Une notification qui annonce la
+      masse salariale à sept personnes dit à chacune ce que gagnent les six autres.
+    </p>
+  </section>
+
+  <!-- ═══ ② LE BORDEREAU ═════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;L'écran</p>
+    <h2>La liste, dans l'ordre, avec le numéro sous les yeux</h2>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Bordereau &middot; août 2026</h4><span>validé &middot; 4 payés sur 7</span></div>
+      <div class="ecran__corps">
+
+        <div class="pay is-paye">
+          <span class="pay__coche is-on">✓</span>
+          <span class="pay__nom">Judith Aïtchédji</span>
+          <span class="pay__num">MTN &middot; <b>97 12 34 56</b></span>
+          <span class="pay__xof">245 000 F</span>
+          <span class="pay__alerte" style="color:var(--vert)">Payée le 31 août, Mobile Money</span>
+        </div>
+
+        <div class="pay">
+          <span class="pay__coche"></span>
+          <span class="pay__nom">Kabirou</span>
+          <span class="pay__num">MTN &middot; <b>96 88 21 07</b> <span class="btn btn--ghost" style="padding:3px 8px; margin-left:6px;">copier</span></span>
+          <span class="pay__xof">142 000 F</span>
+        </div>
+
+        <div class="pay">
+          <span class="pay__coche"></span>
+          <span class="pay__nom">Raoul</span>
+          <span class="pay__num">Moov &middot; <b>95 04 77 12</b> <span class="btn btn--ghost" style="padding:3px 8px; margin-left:6px;">copier</span></span>
+          <span class="pay__xof">128 000 F</span>
+        </div>
+
+        <div class="pay is-manque">
+          <span class="pay__coche"></span>
+          <span class="pay__nom">Sandrine</span>
+          <span class="pay__num" style="color:var(--brique)">aucun numéro sur sa fiche</span>
+          <span class="pay__xof">142 000 F</span>
+          <span class="pay__alerte">
+            Sans numéro, elle ne peut pas être payée par Mobile Money.
+            <span class="btn btn--ghost" style="padding:3px 8px; margin-left:4px;">Ouvrir sa fiche</span>
+          </span>
+        </div>
+
+        <div class="somme">
+          <span>
+            <span class="somme__l">Reste à payer</span>
+            <span class="somme__v" style="display:block;">412 000 F</span>
+          </span>
+          <span>
+            <span class="somme__l">Déjà versé</span>
+            <span class="somme__v" style="display:block;">828 000 F</span>
+          </span>
+          <span style="display:flex; gap:8px; align-items:center;">
+            <span class="btn btn--ghost">Bordereau PDF</span>
+            <span class="btn btn--ghost">CSV</span>
+            <span class="btn btn--vert">Tout marquer payé</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Le numéro se copie d'un tap.</b> C'est là que le temps se perd et que les fautes
+      naissent : on lit un chiffre sur un écran, on le tape dans un autre. Un chiffre recopié
+      de travers envoie un salaire chez un inconnu, et il ne revient pas.
+    </p>
+    <p class="legende">
+      <b>Un numéro absent se voit avant de commencer</b>, pas au sixième virement. La ligne
+      reste dans la liste, en brique, avec le lien vers sa fiche : on ne masque pas ce qui
+      bloque, on le met sur le chemin.
+    </p>
+  </section>
+
+  <!-- ═══ ③ LE POINTAGE ══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;La mémoire</p>
+    <h2>Qui est payé, quand, et par quoi</h2>
+    <ol class="rangs">
+      <li><b>On coche au fur et à mesure.</b>
+        <span>La ligne porte alors la date et le moyen. Le total « reste à payer » descend
+        sous vos yeux : c'est lui qui vous dit où vous en êtes si le téléphone sonne au
+        milieu.</span></li>
+      <li><b>Le run ne passe « payé » que quand tout est coché.</b>
+        <span>Aujourd'hui, « payé » est un clic qui affirme sans vérifier. Demain, c'est un
+        constat : sept sur sept.</span></li>
+      <li><b>Ce qui a échoué reste visible.</b>
+        <span>Un virement refusé se décoche, avec un mot. Il ne disparaît pas dans un total
+        qui aurait l'air juste.</span></li>
+    </ol>
+    <p class="legende">
+      <b>Le pointage vit sur la ligne du run</b>, à côté du net calculé, comme le prix et la
+      durée d'un rendez-vous vivent sur le rendez-vous. Un run clôturé garde donc son histoire
+      de paiement, même si un numéro change l'année suivante.
+    </p>
+  </section>
+
+  <!-- ═══ ④ CE QUE JE N'AI PAS FAIT ══════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Le refus</p>
+    <h2>Ce que je n'ai pas construit, et pourquoi</h2>
+
+    <div class="refus">
+      <h3>L'envoi automatique</h3>
+      <p style="margin:0 0 12px; font-size:14px;">
+        Il demande un contrat de décaissement, et vous n'en avez pas. Mais même le jour où
+        vous en aurez un, <b>je vous demanderai de réfléchir avant de l'armer</b> : un bouton
+        qui fait partir toute la masse salariale est le plus dangereux d'un ERP. Quelqu'un qui
+        entre dans votre compte vide le vôtre en un geste, et l'argent parti sur Mobile Money
+        ne se rappelle pas.
+      </p>
+      <p style="margin:0; font-size:14px;">
+        Le jour venu, il faudra <b>un plafond par run</b>, <b>une validation depuis un autre
+        appareil que celui qui a préparé</b>, et un délai. Rien de tout cela n'est du confort.
+      </p>
+    </div>
+
+    <p class="legende">
+      En attendant, ce bordereau vous fait gagner l'essentiel : vous ne recopiez plus rien,
+      vous ne cherchez plus qui a été payé, et vous validez depuis votre téléphone.
+    </p>
+  </section>
+
+  <!-- ═══ ⑤ LES GARDES ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce qui ne doit pas bouger</p>
+    <h2>Les gardes</h2>
+    <div class="garde">
+      <ul>
+        <li><b>Aucun calcul de paie ne change.</b> Le net, les cotisations, l'ITS, les
+          bulletins : rien n'est touché. On ajoute une couche de PAIEMENT au-dessus d'un
+          calcul qui reste ce qu'il est.</li>
+        <li><b>Un run clôturé ne se dépointe plus.</b> Ce qui est clos est clos ; corriger un
+          mois fermé se fait par une écriture, pas en effaçant l'histoire.</li>
+        <li><b>Le bordereau ne s'ouvre qu'au souverain</b>, comme la paie elle-même. Il porte
+          ce que gagne chacun.</li>
+        <li><b>Les notifications ne partent qu'aux souverains</b>, et jamais deux fois pour la
+          même chose.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fin">
+    Maquette à valider avant construction, selon la règle de la Maison. Dites-moi ce qui doit
+    changer, ou dites « construis ».
+  </p>
+
+</div>
+</body>
+</html>

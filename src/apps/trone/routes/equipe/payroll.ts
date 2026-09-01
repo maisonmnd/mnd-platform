@@ -555,6 +555,25 @@ export type PayrollLine = {
   gains: PayGains;
   deductions: PayDeductions;
   result: PayResult;
+
+  /* ══ LE POINTAGE DU VERSEMENT — 1er septembre 2026 ═══════════════════
+     « Comment je gère les paiements de masse et je reçois juste des push à
+     valider » (Yéman). Il paie ses sept salaires à la main, un par un.
+
+     « PAYÉ » ÉTAIT UN CLIC QUI AFFIRMAIT SANS VÉRIFIER. Le run entier basculait
+     d'un geste, et rien ne disait qui avait réellement reçu son argent : au
+     sixième virement, on ne savait plus si le cinquième était parti. Le
+     pointage se fait donc LIGNE PAR LIGNE, et « payé » devient un constat,
+     sept sur sept.
+
+     IL VIT SUR LA LIGNE DU RUN, à côté du net figé, comme le prix et la durée
+     vivent sur un rendez-vous : un run clôturé garde son histoire de paiement
+     même si un numéro change l'année suivante. */
+  payeLe?: string;      // AAAA-MM-JJ
+  payeMoyen?: string;   // MTN, Moov, espèces, virement…
+  /** Ce qui a échoué se décoche AVEC un mot : un virement refusé qui
+      disparaîtrait dans un total ferait un total qui a l'air juste. */
+  payeNote?: string;
 };
 export type PayrollRun = {
   id: string;
@@ -591,6 +610,45 @@ export function healPayrollStores(): void {
 /** Recalcule une ligne (brouillon uniquement) : rejoue computePay sur ses entrées. */
 export const recomputeLine = (line: PayrollLine, p: PayrollParameters): PayrollLine =>
   ({ ...line, result: computePay(line.gains, line.deductions, p) });
+
+/* ══ LE BORDEREAU — CE QUI RESTE À VERSER ═══════════════════════════════
+   Ces fonctions sont le SEUL juge de ce qui est payé : l'écran, la
+   notification et le passage du run à « payé » les interrogent toutes les
+   trois. Deux comptes du même reste finiraient par diverger, et c'est celui
+   qu'on ne regarde pas qui aurait tort. */
+
+/** Une ligne est-elle versée ? La DATE fait foi, pas une case à part : un
+    booléen et une date se contredisent le jour où l'un est écrit sans l'autre. */
+export const ligneEstPayee = (l: Pick<PayrollLine, 'payeLe'>): boolean =>
+  !!(l.payeLe ?? '').trim();
+
+/** Ce qui reste à verser sur un run, en francs. */
+export const resteAVerserXof = (run: PayrollRun): number =>
+  asArray<PayrollLine>(run.lines)
+    .filter((l) => !ligneEstPayee(l))
+    .reduce((n, l) => n + (l.result?.net ?? 0), 0);
+
+/** Ce qui a déjà été versé. */
+export const dejaVerseXof = (run: PayrollRun): number =>
+  asArray<PayrollLine>(run.lines)
+    .filter(ligneEstPayee)
+    .reduce((n, l) => n + (l.result?.net ?? 0), 0);
+
+/** Combien de lignes sont versées, sur combien. */
+export const avancementDuRun = (run: PayrollRun): { payees: number; total: number } => {
+  const l = asArray<PayrollLine>(run.lines);
+  return { payees: l.filter(ligneEstPayee).length, total: l.length };
+};
+
+/** TOUT EST VERSÉ ? C'est ce qui autorise le passage à « payé ».
+
+    UN RUN SANS LIGNE N'EST PAS UN RUN PAYÉ : sans cette garde, un brouillon
+    vide se serait clôturé tout seul, et la Maison aurait cru avoir réglé un
+    mois qu'elle n'a jamais préparé. */
+export const runEntierementVerse = (run: PayrollRun): boolean => {
+  const l = asArray<PayrollLine>(run.lines);
+  return l.length > 0 && l.every(ligneEstPayee);
+};
 
 /** Totaux d'un run — masse salariale (brut), net, cotisations, coût employeur. */
 export type RunTotals = { brut: number; net: number; cnssSalariale: number; cnssPatronale: number; its: number; cout: number };

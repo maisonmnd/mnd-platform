@@ -1484,3 +1484,83 @@
   .tre-parcours { flex-wrap: wrap; }
   .tre-parcours__titre { font-size: 21px; }
 }
+
+/* ═══ LE BORDEREAU DE VERSEMENT ═══════════════════════════════════════════
+   « Comment je gère les paiements de masse et je reçois juste des push à
+   valider » (Yéman, 1er septembre 2026). Il paie sept salaires à la main, un
+   par un : ce qu'il lui faut, c'est la liste dans l'ordre, le numéro sous les
+   yeux, et la mémoire de qui est payé. */
+.tre-bord__somme {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--copper-200, #EED8C2);
+  background: var(--copper-50, #FAF1E9);
+  border-radius: 3px;
+}
+.tre-bord__somme b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.tre-bord__l { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+
+.tre-bord {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--hairline);
+  flex-wrap: wrap;
+}
+.tre-bord:last-of-type { border-bottom: none; }
+/* CE QUI EST VERSÉ S'EFFACE SANS DISPARAÎTRE : on doit pouvoir le relire, et
+   le décocher si le virement a été refusé après coup. */
+.tre-bord.is-verse { opacity: .62; }
+.tre-bord.is-verse .tre-bord__nom { text-decoration: line-through; text-decoration-color: #4A6B52; }
+/* CE QUI BLOQUE SE MET SUR LE CHEMIN, il ne se masque pas : un numéro absent
+   se voit avant de commencer, pas au sixième virement. */
+.tre-bord.is-manque { background: linear-gradient(90deg, #FBF0ED, transparent 62%); }
+
+.tre-bord__coche {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  cursor: pointer;
+  font-size: 13px;
+  color: #4A6B52;
+  transition: var(--transition-base);
+}
+.tre-bord__coche.is-on { background: #EFF3EF; border-color: #CBDACE; }
+.tre-bord__coche:disabled { cursor: not-allowed; opacity: .5; }
+.tre-bord__coche:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
+
+.tre-bord__nom { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); flex: 1 1 140px; line-height: 1.2; }
+.tre-bord__num { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tre-bord__num b { color: var(--ink); font-weight: 500; }
+.tre-bord__xof {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+  min-width: 104px;
+  text-align: right;
+  flex: none;
+}
+.tre-bord__dit { flex: 1 1 100%; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+
+@media (max-width: 620px) {
+  .tre-bord__nom { flex: 1 1 100%; }
+  .tre-bord__xof { min-width: 0; margin-left: auto; }
+}
