@@ -125,6 +125,18 @@ export default function Abonnements() {
   const [cadenceForm, setCadenceForm] = useState<
     { pas: number; depart: string; heure: string; maitre: string; suite: SeanceProposee[] } | null
   >(null);
+  /* ══ UN CONTRAT SIGNÉ NE SE TOUCHAIT PLUS — 1er septembre 2026 ═════
+     « Est-ce possible de modifier l'abonnement Pack personnalisé de Mylène
+     Grimaud d'octobre 2025 à juin 2026, et de lui mettre plutôt un abonnement
+     Juste Cadence qui couvre ses différents rendez-vous, avec la modification
+     du contenu » (Yéman).
+
+     LES QUATRE GESTES ÉTAIENT : suivre, régler, résilier, supprimer. Une vente
+     mal saisie n'avait donc que deux issues, la garder fausse ou la détruire —
+     et la détruire emporte ses règlements, sa pièce et son histoire. */
+  const [contratEdit, setContratEdit] = useState<
+    { sub: Subscriber; planId: string; inclus: PlanIncluded[] } | null
+  >(null);
   /* ══ LE RITUEL S'OUVRE, PAS LA FICHE — 1er septembre 2026 ═══════════
      « Quand je clique le RDV ça ouvre le profil du client. Je veux que ça
      ouvre le RDV plutôt » (Yéman).
@@ -890,6 +902,37 @@ export default function Abonnements() {
      réserve rien, et tout l'intérêt de poser sa cadence est qu'une autre tête
      ne prenne pas la place. Couverts et LIÉS au contrat (`subId`) : sans le
      lien, ils se décompteraient aussi sur un paquet voisin. */
+  /* ── CHANGER LA FORMULE, ET SON CONTENU ───────────────────────────
+     CE QUI A ÉTÉ PAYÉ NE SE RECHANGE PAS. Basculer un paquet de 168 000 F sur
+     une formule à 140 000 F réécrirait le montant, et la pièce, l'échéancier
+     et le suivi diraient alors trois chiffres différents. Le prix convenu est
+     donc FIGÉ avant la bascule, à ce qu'il valait à l'instant d'avant.
+
+     LE CONTENU DEVIENT LE SIEN (`inclusPropres`), jamais celui de la nouvelle
+     formule : c'est ce contrat-là qu'on répare, pas la formule du catalogue,
+     et retoucher la formule changerait le contenu de toutes les autres. */
+  const enregistreLeContrat = () => {
+    if (!contratEdit) return;
+    const { sub, planId, inclus } = contratEdit;
+    if (!planId) { toast('Choisissez une formule.'); return; }
+    const ancien = planOf(sub.planId);
+    const prixFige = sub.prixConvenuXof ?? prixVenduXof(sub, ancien, sub.cycle ?? 'mensuel');
+    const suite: Subscriber = {
+      ...sub, planId,
+      inclusPropres: inclus.map((i) => ({ ...i })),
+      ...(prixFige > 0 ? { prixConvenuXof: prixFige } : {}),
+    };
+    setSubs((prev) => prev.map((x) => (x.id === suite.id ? suite : x)));
+    if (suiviFor?.id === suite.id) setSuiviFor(suite);
+    setContratEdit(null);
+    toast(`Contrat repris sur « ${planOf(planId)?.name ?? 'la formule'} », le prix convenu ne bouge pas.`);
+  };
+
+  const qteContrat = (serviceId: string, qty: number | null) => {
+    if (!contratEdit) return;
+    setContratEdit({ ...contratEdit, inclus: contratEdit.inclus.map((i) => (i.serviceId === serviceId ? { ...i, qty } : i)) });
+  };
+
   /* Fermer le suivi referme ce qu'on y avait ouvert : rouvrir une autre
      abonnée sur un formulaire à moitié rempli poserait ses dates à elle. */
   const fermerLeSuivi = () => { setSuiviFor(null); setDatesEdit(null); setCadenceForm(null); };
@@ -1943,6 +1986,10 @@ export default function Abonnements() {
                 <button type="button" className="tre-link-btn" onClick={() => setDatesEdit({ debut: suiviFor.startIso ?? suiviFor.sinceIso ?? todayISO(), fin: (paquet ? suiviFor.expiresIso : suiviFor.nextIso) ?? '' })}>
                   Changer les dates
                 </button>
+                {' · '}
+                <button type="button" className="tre-link-btn" onClick={() => setContratEdit({ sub: suiviFor, planId: suiviFor.planId, inclus: inclusVendus(suiviFor, plan).map((i) => ({ ...i })) })}>
+                  Modifier le contrat
+                </button>
               </div>
 
               {/* ══ LA VALIDITÉ SE CORRIGE OÙ ELLE SE LIT ═══════════════════
@@ -2171,6 +2218,109 @@ export default function Abonnements() {
           onClose={() => { const retour = rdvOuvert.retourA; setRdvOuvert(null); setSuiviFor(retour); }}
         />
       )}
+
+      {/* ══ REPRENDRE UN CONTRAT SIGNÉ ═══════════════════════════════════
+          On répare CE contrat, pas la formule du catalogue : le contenu devient
+          le sien, et la formule d'où il vient ne bouge pas d'un cheveu pour les
+          autres têtes qui la portent. */}
+      {contratEdit && (() => {
+        const sub = contratEdit.sub;
+        const nouveauPlan = planOf(contratEdit.planId);
+        const apres: Subscriber = { ...sub, planId: contratEdit.planId, inclusPropres: contratEdit.inclus };
+        const comptees = (m: Subscriber, pl: Plan | undefined) =>
+          usageDetaille(m, pl, allAppts).reduce((n, u) => n + u.used, 0);
+        const avant = comptees(sub, planOf(sub.planId));
+        const maintenant = comptees(apres, nouveauPlan);
+        const prixFige = sub.prixConvenuXof ?? prixVenduXof(sub, planOf(sub.planId), sub.cycle ?? 'mensuel');
+        return (
+          <Modal title={`Modifier · ${sub.name}`} onClose={() => setContratEdit(null)} width={560}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <Field label="La formule de ce contrat">
+                <Select
+                  value={contratEdit.planId}
+                  onChange={(e) => {
+                    /* CHANGER DE FORMULE PROPOSE SON CONTENU, sans l'imposer :
+                       on vient justement réparer un contrat dont le contenu ne
+                       correspond à aucune formule du catalogue. */
+                    const pl = planOf(e.target.value);
+                    setContratEdit({ ...contratEdit, planId: e.target.value, inclus: (pl?.included ?? []).map((i) => ({ ...i })) });
+                  }}
+                >
+                  {plans.map((pl) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
+                </Select>
+              </Field>
+
+              <Field label="Le contenu de ce contrat, à elle">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {contratEdit.inclus.length === 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+                      Ce contrat ne porte aucune prestation : rien ne s’y décompte.
+                    </div>
+                  )}
+                  {contratEdit.inclus.map((i) => {
+                    const illimite = i.qty === null;
+                    return (
+                      <div key={i.serviceId} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 10px', background: 'var(--surface-card)' }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {serviceName(i.serviceId)}
+                        </span>
+                        <Input
+                          inputMode="numeric"
+                          value={illimite ? '' : String(i.qty)}
+                          placeholder="∞"
+                          disabled={illimite}
+                          onChange={(e) => qteContrat(i.serviceId, Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1))}
+                          style={{ width: 64, textAlign: 'center', flex: 'none' }}
+                        />
+                        <button type="button" className={`tre-chip ${illimite ? 'is-on' : ''}`} title="Illimité" style={{ flex: 'none' }}
+                          onClick={() => qteContrat(i.serviceId, illimite ? 1 : null)}>∞</button>
+                        <button type="button" aria-label="Retirer" style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13, flex: 'none' }}
+                          onClick={() => setContratEdit({ ...contratEdit, inclus: contratEdit.inclus.filter((x) => x.serviceId !== i.serviceId) })}>✕</button>
+                      </div>
+                    );
+                  })}
+                  <Select
+                    value=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      setContratEdit({ ...contratEdit, inclus: [...contratEdit.inclus, { serviceId: e.target.value, qty: 1 }] });
+                      e.currentTarget.value = '';
+                    }}
+                    style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
+                  >
+                    <option value="" disabled>+ Ajouter une prestation à ce contrat...</option>
+                    <OptionsPrestations services={services} exclure={(sv) => contratEdit.inclus.some((i) => i.serviceId === sv.id)} />
+                  </Select>
+                </div>
+              </Field>
+
+              {/* CE QUE LE CHANGEMENT FAIT AUX SÉANCES DÉJÀ TENUES. Un contenu
+                  qui ne correspond plus aux rituels rendus les fait sortir du
+                  décompte : douze séances honorées redeviendraient dues. */}
+              {maintenant !== avant && (
+                <div className="tre-inline-note">
+                  <span className="mark">!</span>
+                  <span>
+                    {maintenant < avant
+                      ? <><b>{avant - maintenant} séance{avant - maintenant > 1 ? 's' : ''} déjà tenue{avant - maintenant > 1 ? 's' : ''}</b> ne se décompteront plus sur ce contrat : les prestations rendues ne sont pas celles de ce contenu.</>
+                      : <><b>{maintenant - avant} séance{maintenant - avant > 1 ? 's' : ''}</b> entrent au décompte de ce contrat.</>}
+                  </span>
+                </div>
+              )}
+
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Le prix convenu reste figé à <b>{fmtMoney(prixFige, currency)}</b> : la pièce, l’échéancier
+                et le suivi doivent dire le même chiffre. Les dates se corrigent depuis le Suivi.
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setContratEdit(null)}>Annuler</Button>
+                <Button style={{ flex: 1 }} onClick={enregistreLeContrat}>Enregistrer le contrat</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {subModal && (
         <Modal title="Nouvel abonné." onClose={() => setSubModal(false)} width={520}>

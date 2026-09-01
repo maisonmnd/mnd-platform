@@ -115,6 +115,33 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## UN CONTRAT SIGNÉ SE REPREND · 1er septembre 2026
+
+« Est-ce possible de modifier l'abonnement Pack personnalisé de Mylène Grimaud
+d'octobre 2025 à juin 2026, et de lui mettre plutôt un abonnement Juste Cadence
+qui couvre ses différents rendez-vous, avec la modification du contenu ? »
+
+**LES QUATRE GESTES ÉTAIENT : suivre, régler, résilier, supprimer.** Aucun ne
+touchait la formule ni le contenu. Une vente mal saisie n'avait donc que deux
+issues : la garder fausse, ou la détruire, et la détruire emporte ses règlements,
+sa pièce et son histoire.
+
+« Modifier le contrat », dans le Suivi à côté de « Changer les dates ».
+
+**CE QUI A ÉTÉ PAYÉ NE SE RECHANGE PAS.** Basculer un paquet de 168 000 F sur une
+formule à 140 000 F réécrirait le montant, et la pièce, l'échéancier et le suivi
+diraient alors trois chiffres différents. Le prix convenu est **figé avant la
+bascule**, à ce qu'il valait à l'instant d'avant.
+
+**LE CONTENU DEVIENT LE SIEN** (`inclusPropres`), jamais celui de la nouvelle
+formule : c'est ce contrat-là qu'on répare, pas la formule du catalogue.
+Retoucher la formule changerait le contenu de toutes les têtes qui la portent.
+
+**ON DIT CE QUE LE CHANGEMENT FAIT AUX SÉANCES DÉJÀ TENUES.** Un contenu qui ne
+correspond plus aux rituels rendus les fait sortir du décompte : douze séances
+honorées redeviendraient dues, sans un mot. La modale compte avant et après, et
+prévient.
+
 ## LA CADENCE POSÉE, ET LA VALIDITÉ CORRIGÉE · 1er septembre 2026
 
 « Changer la date de validité du contrat. Poser automatiquement les RDV à venir. »
