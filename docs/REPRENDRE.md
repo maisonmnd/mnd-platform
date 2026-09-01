@@ -76,7 +76,10 @@ c est la vitrine qui mentirait. **Le prix SANS calibre en fait partie** : une
 tête non comptée paie la référence, et ce montant doit tenir dans la
 fourchette annoncée.
 
-### Migration 0081 — le serveur décide, donc il doit savoir
+### Migration 0081, PASSÉE le 1er septembre — le serveur décide, donc il doit savoir
+
+Contrôle rendu : `fonctions_du_nom = 1` (l ancienne signature est bien tombée),
+`arrondi_pose = 1`, `petit_prix_intact = 150`, `pico_calcule = 112500`.
 
 `souscrire_a_une_formule` gagne `p_band_id` et `p_longueur` (défaut null : les
 appels d avant retombent sur le prix unique). Elle refait la règle en SQL, avec
