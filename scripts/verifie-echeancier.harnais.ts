@@ -195,5 +195,53 @@ dit('un négatif non plus', 84_000,
 dit('en une fois, le total entier', 168_000,
   construitEcheancier(168_000, 1, '2026-09-01', 30, 50_000)[0].amountXof);
 
+/* ── LES DATES SE POSENT, SANS CASSER L'ORDRE ───────────────────────
+   « Modifier les dates des paiements des abonnements » (Yéman, 1er septembre
+   2026). TRENTE JOURS EST UNE COMMODITÉ, PAS UN ACCORD : une cliente payée le
+   5 ne peut pas honorer une échéance au 1er, et l'imposer fabrique un retard
+   qu'on lui reprochera ensuite.
+
+   LA MÊME RÈGLE SERT À LA SIGNATURE ET APRÈS COUP. La fiche d'un nouvel
+   abonné applique `deplaceEcheance` sur l'aperçu, exactement comme la modale
+   « Régler » le fait sur un échéancier déjà signé : une seconde règle aurait
+   fini par contredire la première. */
+const troisFois = construitEcheancier(150_000, 4, '2026-09-01');
+dit('le rythme ordinaire', ['2026-09-01', '2026-10-01', '2026-10-31', '2026-11-30'],
+  troisFois.map((e) => e.dueIso));
+
+/* ON REPOSE LA DEUXIÈME AU 5 : les suivantes ne bougent PAS, elles sont déjà
+   plus tardives. Pousser tout le monde par principe déplacerait des dates que
+   la cliente a acceptées. */
+dit('reposer une date ne pousse que ce qu’il faut',
+  ['2026-09-01', '2026-10-05', '2026-10-31', '2026-11-30'],
+  deplaceEcheance(troisFois, 2, '2026-10-05').map((e) => e.dueIso));
+
+/* MAIS UNE DATE QUI DÉPASSE LA SUIVANTE LA POUSSE, juste ce qu'il faut : deux
+   échéances ne peuvent pas se croiser, sinon la troisième serait due avant la
+   deuxième et « en retard » ne voudrait plus rien dire. */
+dit('… et pousse celles qu’elle dépasse',
+  ['2026-09-01', '2026-12-01', '2026-12-01', '2026-12-01'],
+  deplaceEcheance(troisFois, 2, '2026-12-01').map((e) => e.dueIso));
+
+/* UNE ÉCHÉANCE NE REMONTE JAMAIS AVANT CELLE QUI PRÉCÈDE. On borne plutôt que
+   de refuser : le geste aboutit toujours à quelque chose de cohérent, et
+   l'écran montre le résultat au lieu d'un message d'erreur. */
+dit('elle ne remonte pas avant la précédente', '2026-09-01',
+  deplaceEcheance(troisFois, 2, '2026-01-01')[1].dueIso);
+dit('… et la première peut remonter librement', '2026-08-01',
+  deplaceEcheance(troisFois, 1, '2026-08-01')[0].dueIso);
+
+/* UNE DATE ILLISIBLE NE CASSE RIEN : la liste revient telle quelle, plutôt que
+   de poser « undefined » dans un échéancier signé. */
+dit('une date illisible ne change rien', troisFois.map((e) => e.dueIso),
+  deplaceEcheance(troisFois, 2, 'demain').map((e) => e.dueIso));
+dit('un numéro inconnu non plus', troisFois.map((e) => e.dueIso),
+  deplaceEcheance(troisFois, 9, '2026-10-05').map((e) => e.dueIso));
+
+/* LES MONTANTS NE BOUGENT JAMAIS EN DÉPLAÇANT UNE DATE : reposer une échéance
+   est un geste de calendrier, pas d'argent. */
+dit('les montants restent intacts', troisFois.map((e) => e.amountXof),
+  deplaceEcheance(troisFois, 2, '2026-12-01').map((e) => e.amountXof));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

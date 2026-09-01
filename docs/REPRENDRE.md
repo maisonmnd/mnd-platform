@@ -67,6 +67,33 @@ Absent = le premier de la liste, comme avant.
 
 5 assertions sur `verifie-creneaux`.
 
+## LES DATES SE POSENT À LA SIGNATURE · 1er septembre 2026
+
+« Modifier les dates des paiements des abonnements. »
+
+**Elles se changeaient déjà APRÈS COUP** (modale « Régler », `reposerLaDate` +
+`deplaceEcheance`). Ce qui manquait, c est de les poser AU MOMENT de la vente,
+là où la Maison et la cliente conviennent du rythme.
+
+TRENTE JOURS EST UNE COMMODITÉ, PAS UN ACCORD : une cliente payée le 5 ne peut
+pas honorer une échéance au 1er, et l imposer fabrique un retard qu on lui
+reprochera ensuite.
+
+`SubForm.dates` ne garde QUE les dates touchées, jamais l échéancier entier :
+les MONTANTS restent dérivés du total et de la première tranche, donc changer
+le prix ne laisse pas derrière lui un échéancier périmé.
+
+**`echeancierDeLaVente()` est le juge unique**, lu par l aperçu ET par
+l écriture. Il applique `deplaceEcheance` dans l ordre plutôt que de reposer la
+règle : c est lui qui garantit qu une échéance ne remonte jamais avant celle
+qui précède, et que les suivantes sont poussées JUSTE ce qu il faut (pousser
+tout le monde par principe déplacerait des dates déjà acceptées).
+
+Un lien « revenir au rythme de trente jours » défait tout d un geste.
+
+10 assertions de plus sur `verifie-echeancier`, dont « les montants restent
+intacts » : reposer une échéance est un geste de calendrier, pas d argent.
+
 ## LA PREMIÈRE TRANCHE SE CHOISIT · 1er septembre 2026
 
 « Je voudrais changer le montant de la première tranche de paiement. »

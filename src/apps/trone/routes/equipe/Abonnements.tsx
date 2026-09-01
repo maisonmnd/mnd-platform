@@ -23,7 +23,7 @@ import {
   calibreDeLaTete,
 } from '../../../../shared/pricing';
 import { useAppointments } from '../../../../shared/agenda';
- import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
+ import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
 import { ClientPicker, useBranchClients } from '../clients/_shared';
@@ -49,6 +49,17 @@ type SubForm = {
   clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null;
   /** La première tranche, en toutes lettres. Vide = le partage égal. */
   premiere: string;
+  /** ── LES DATES POSÉES À LA SIGNATURE — 1er septembre 2026 ────────
+      « Modifier les dates des paiements des abonnements » (Yéman).
+
+      TRENTE JOURS EST UNE COMMODITÉ, PAS UN ACCORD. Une cliente payée le 5 de
+      chaque mois ne peut pas honorer une échéance au 1er ; l'imposer, c'est
+      fabriquer un retard qu'on lui reprochera ensuite.
+
+      ON NE GARDE QUE LES DATES TOUCHÉES, jamais l'échéancier entier : les
+      MONTANTS restent dérivés du total et de la première tranche, et changer
+      le prix ne laisse donc pas derrière lui un échéancier périmé. */
+  dates: Record<string, string>;
   voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string;
   /* ── CE QUI SE CONVIENT AU COMPTOIR — 28 août 2026 ──────────────
      Tous vides par défaut : sans eux, la vente se fait au prix et au contenu
@@ -98,7 +109,7 @@ export default function Abonnements() {
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -360,7 +371,7 @@ export default function Abonnements() {
      elle l'a dit elle-même. */
   const ouvrirDepuisDemande = (d: DemandeFormule) => {
     setSubForm({
-      clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel', premiere: '',
+      clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel', premiere: '', dates: {},
       parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '',
       prixConvenu: '', motif: '', inclus: null, validiteMois: '',
     });
@@ -490,6 +501,26 @@ export default function Abonnements() {
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
+  /** L'ÉCHÉANCIER DE CETTE VENTE, montants dérivés et dates posées.
+
+      UN SEUL JUGE POUR L'APERÇU ET POUR L'ÉCRITURE : deux constructions du même
+      échéancier finiraient par diverger, et la fiche ne porterait pas ce que
+      l'écran a promis.
+
+      LES DATES S'APPLIQUENT PAR `deplaceEcheance`, dans l'ordre : c'est lui qui
+      garantit qu'une échéance ne remonte jamais avant celle qui la précède, et
+      que les suivantes sont poussées juste ce qu'il faut. Reposer cette règle
+      ici en aurait fait une seconde, qui aurait fini par contredire l'autre. */
+  const echeancierDeLaVente = (totalXof: number): Echeance[] => {
+    if (!subForm.parts) return [];
+    let liste = construitEcheancier(totalXof, subForm.parts, todayISO(), 30, premiereVoulue());
+    for (const e of liste) {
+      const voulue = subForm.dates[String(e.numero)];
+      if (voulue) liste = deplaceEcheance(liste, e.numero, voulue);
+    }
+    return liste;
+  };
+
   /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
   const prixDeLaVente = (): number => {
     const plan = planOf(subForm.planId);
@@ -580,12 +611,12 @@ export default function Abonnements() {
          a pu choisir de payer en 2 ou 4 fois : la découpe est figée à la
          signature, comme une parole donnée. Elle ne se recalcule jamais. */
       ...(subForm.parts && peutEtreEchelonne(totalXof)
-        ? { echeances: construitEcheancier(totalXof, subForm.parts, todayISO(), 30, premiereVoulue()) }
+        ? { echeances: echeancierDeLaVente(totalXof) }
         : {}),
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
     if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
@@ -1002,7 +1033,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
@@ -2102,9 +2133,7 @@ export default function Abonnements() {
                  sur un montant qu'on n'accorde pas. */
               const total = prixDeLaVente() + supp;
               if (!peutEtreEchelonne(total)) return null;
-              const apercu = subForm.parts
-                ? construitEcheancier(total, subForm.parts, todayISO(), 30, premiereVoulue())
-                : [];
+              const apercu = echeancierDeLaVente(total);
               return (
                 <Field label={`Règlement · ${fmtMoney(total, currency)} à encaisser`}>
                   <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -2161,8 +2190,22 @@ export default function Abonnements() {
                           display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5,
                           padding: '8px 12px', borderTop: e.numero === 1 ? 'none' : '1px solid var(--hairline)',
                         }}>
-                          <span className="mnd-muted">
-                            {e.numero === 1 ? 'Aujourd’hui, à la signature' : `${e.numero}ᵉ · ${shortDate(e.dueIso)}`}
+                          <span className="mnd-muted" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {e.numero === 1 ? 'À la signature' : `${e.numero}ᵉ versement`}
+                            {/* CHAQUE DATE SE POSE ICI. Trente jours est une
+                                commodité, pas un accord : une cliente payée le
+                                5 ne peut pas honorer une échéance au 1er, et
+                                l'imposer fabrique un retard qu'on lui
+                                reprochera. */}
+                            <Input
+                              type="date"
+                              style={{ maxWidth: 150, fontSize: 12 }}
+                              value={e.dueIso}
+                              onChange={(ev) => setSubForm({
+                                ...subForm,
+                                dates: { ...subForm.dates, [String(e.numero)]: ev.target.value },
+                              })}
+                            />
                           </span>
                           <b style={{ fontWeight: 500 }}>{fmtMoney(e.amountXof, currency)}</b>
                         </div>
@@ -2178,6 +2221,15 @@ export default function Abonnements() {
                       Ramenée à {fmtMoney(apercu[0].amountXof, currency)} : chaque échéance suivante
                       garde au moins un franc.
                     </div>
+                  )}
+                  {apercu.length > 0 && Object.keys(subForm.dates).length > 0 && (
+                    <button
+                      className="tre-link-btn"
+                      style={{ marginTop: 7 }}
+                      onClick={() => setSubForm({ ...subForm, dates: {} })}
+                    >
+                      revenir au rythme de trente jours
+                    </button>
                   )}
                   {apercu.length === 0 && (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.6 }}>
