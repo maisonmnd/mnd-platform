@@ -218,6 +218,9 @@ export const roundPrice = (x: number): number => {
     dizaines d'appels existants à `personalPriceXof`. */
 export type PersonalPricing = {
   band?: ModelBand;
+  /** La Maison lui accorde-t-elle la marge de calibre ? Portée jusqu'ici pour
+      que les barèmes PROPRES à un atelier la respectent aussi. */
+  margeCalibre?: boolean;
   clientCoef: number;
   lockCount?: number;
   /** SES PRIX FERMES, prestation par prestation (voir `Client.prixFixes`).
@@ -248,7 +251,7 @@ export const prixDeBase = (sv: Pick<Service, 'priceXof' | 'prixParLongueur'>, p:
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
 export const pricingOf = (
-  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur'> | undefined,
+  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'margeCalibre'> | undefined,
   bands: ModelBand[],
   sets?: Record<string, ModelBand[]>,
   /* L'arbre des categories : sans lui, une prestation rangee sous une famille
@@ -256,7 +259,11 @@ export const pricingOf = (
      comporte comme avant la mise en place des familles. */
   cats?: Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[],
 ): PersonalPricing => ({
-  band: bandOf(client?.lockCount, bands),
+  /* LA MARGE ENTRE ICI, à la source : `pricingOf` est l'entonnoir de tous les
+     prix personnels du Trône et de la Caisse. La poser plus bas obligerait
+     chaque écran à y penser, et l'un d'eux l'oublierait. */
+  band: calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre),
+  margeCalibre: client?.margeCalibre,
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
   lockCount: client?.lockCount,
   prixFixes: client?.prixFixes,
@@ -285,13 +292,69 @@ export const coefJustePrix = (sv: Pick<Service, 'categoryId'>, p: PersonalPricin
   return mondeDeCat(cat, p.cats) === 'atelier' ? p.clientCoef : 1;
 };
 
+/** ── LA MARGE DE CALIBRE — 1er septembre 2026 ─────────────────────────
+    « Crée-moi une marge de 10 locks que je peux appliquer ou non sur la fiche
+    des clientes pour qu'elles ne paient pas le prix supérieur. Exemple :
+    351 locks l'emmène dans les tarifs Nano, pourtant la cliente peut rester en
+    Micro » (Yéman).
+
+    UNE BORNE EST UN MUR, ET UN MUR NE SAIT PAS COMPTER. À 350 locks elle est
+    Micro, à 351 elle est Nano et paie un cran plus cher pour UN lock. Le
+    comptage lui-même n'a pas cette précision : deux personnes qui comptent la
+    même tête ne tombent pas au lock près. Facturer un saut de calibre sur cet
+    écart-là, c'est facturer une imprécision de mesure.
+
+    LA MARGE NE S'APPLIQUE JAMAIS TOUTE SEULE. C'est un geste de la Maison,
+    tête par tête (`Client.margeCalibre`) : une faveur qui se donne se voit et
+    se retire, une règle automatique se serait appliquée aux 550 comme aux 351
+    sans que personne ne l'ait décidé. */
+export const MARGE_CALIBRE_LOCKS = 10;
+
+/** Le calibre d'une tête, marge comprise si la Maison l'a accordée.
+
+    ELLE NE RECULE QUE D'UN CRAN, jamais deux. Deux calibres serrés à moins de
+    dix locks l'un de l'autre feraient descendre une tête de deux paliers pour
+    une marge de dix : la faveur se retournerait en trou. */
+export const calibreDeLaTete = (
+  lockCount: number | undefined,
+  bands: ModelBand[],
+  margeAccordee?: boolean,
+): ModelBand | undefined => {
+  const brut = bandOf(lockCount, bands);
+  if (!margeAccordee || !brut || !lockCount) return brut;
+  const tri = sortedBands(bands);
+  const i = tri.findIndex((b) => b.id === brut.id);
+  /* Le premier calibre n'a rien en dessous : on ne descend pas sous le barème. */
+  if (i <= 0) return brut;
+  const dessous = tri[i - 1];
+  /* Une tranche sans plafond ne peut pas être « dépassée de peu ». */
+  if (dessous.maxLocks == null) return brut;
+  return lockCount - dessous.maxLocks <= MARGE_CALIBRE_LOCKS ? dessous : brut;
+};
+
+/** La marge a-t-elle CHANGÉ QUELQUE CHOSE pour cette tête ? L'écran doit le
+    dire : une faveur muette ne se relit pas, et personne ne saurait pourquoi
+    deux têtes de 351 locks ne paient pas le même prix. */
+export const margeAJoue = (
+  lockCount: number | undefined,
+  bands: ModelBand[],
+  margeAccordee?: boolean,
+): boolean => margeAccordee === true
+  && calibreDeLaTete(lockCount, bands, true)?.id !== bandOf(lockCount, bands)?.id;
+
 /** LE CALIBRE SE COMPTE, IL NE SE CHOISIT PAS (13 août, décision de Yéman —
     le champ « style de couronne » est retiré du système). Le calibre affiché
     sur la fiche 360 et dans Ma Couronne SE DÉDUIT du comptage par le barème :
     une seule vérité pour la taille d'une tête. Sans comptage → undefined,
     et l'écran dit « à compter ». */
-export const calibreDe = (lockCount: number | undefined, bands: ModelBand[]): string | undefined => {
-  const b = bandOf(lockCount, bands);
+export const calibreDe = (
+  lockCount: number | undefined,
+  bands: ModelBand[],
+  /* La marge suit le calibre PARTOUT où il se lit : l'afficher sans elle
+     dirait « Nano » à une tête que la Maison facture en Micro. */
+  margeAccordee?: boolean,
+): string | undefined => {
+  const b = calibreDeLaTete(lockCount, bands, margeAccordee);
   return b?.name?.trim() || undefined;
 };
 
@@ -311,7 +374,9 @@ export const bandForService = (sv: Pick<Service, 'categoryId'>, p: PersonalPrici
   let id: string | undefined = sv.categoryId;
   for (let i = 0; id && i < 8; i += 1) {
     const propre = p.sets?.[id];
-    if (propre?.length) return bandOf(p.lockCount, propre);
+    /* Un atelier qui porte SON barème doit accorder la même marge : sans
+       cela, la faveur vaudrait sur la couronne et pas sur la couleur. */
+    if (propre?.length) return calibreDeLaTete(p.lockCount, propre, p.margeCalibre);
     id = p.cats?.find((c) => c.id === id)?.parentId;
   }
   return p.band;

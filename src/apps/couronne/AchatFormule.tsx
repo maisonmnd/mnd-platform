@@ -8,7 +8,7 @@ import { deuxFoisPossible } from '../../shared/echeancier';
 import {
   moisDuPack, prixDeLaFormule, etendueDeLaFormule, type Plan, type TeteConnue,
 } from '../../shared/abonnements';
-import { useModelBands, sortedBands, bandOf, bandLabel } from '../../shared/pricing';
+import { useModelBands, sortedBands, bandLabel, calibreDeLaTete } from '../../shared/pricing';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useClient } from './lib';
 import './couronne.css';
@@ -82,7 +82,9 @@ export default function AchatFormule({
      comme pour tout prix depuis la 0077. */
   const [bands] = useModelBands();
   const calibres = useMemo(() => sortedBands(bands), [bands]);
-  const calibreSu = bandOf(client?.lockCount ?? client?.lockCountDeclare, bands)?.id;
+  /* LA MARGE SUIT LA FORMULE AUSSI : la faveur posée sur sa fiche vaudrait
+     sur ses rituels et pas sur son abonnement, ce qui ne s'expliquerait pas. */
+  const calibreSu = calibreDeLaTete(client?.lockCount ?? client?.lockCountDeclare, bands, client?.margeCalibre)?.id;
   const [calibreDit, setCalibreDit] = useState<string | null>(null);
   const bandId = calibreSu ?? calibreDit ?? undefined;
   const maTete: TeteConnue = { bandId, longueur: client?.longueur };

@@ -4,6 +4,7 @@ import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
   ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
   unGesteDansLePanier, regimeTarifaire, roundPrice,
+  calibreDeLaTete, margeAJoue, MARGE_CALIBRE_LOCKS,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -382,6 +383,75 @@ dit('zéro reste zéro', 0, roundPrice(0));
 /* UN MONTANT NÉGATIF N'EST PAS UN PRIX, mais il ne doit pas changer de signe
    par accident : la garde ne se déclenche que sur du positif. */
 dit('un négatif garde son signe', -500, roundPrice(-500));
+
+/* ── LA MARGE DE CALIBRE ────────────────────────────────────────────
+   « Crée-moi une marge de 10 locks que je peux appliquer ou non sur la fiche
+   des clientes pour qu'elles ne paient pas le prix supérieur. Exemple :
+   351 locks l'emmène dans les tarifs Nano, pourtant la cliente peut rester en
+   Micro » (Yéman, 1er septembre 2026).
+
+   UNE BORNE EST UN MUR, ET UN MUR NE SAIT PAS COMPTER : à 350 elle est Micro,
+   à 351 elle paie un cran plus cher pour UN lock. Le comptage n'a pas cette
+   précision, et facturer un saut de calibre sur cet écart-là revient à
+   facturer une imprécision de mesure. */
+const CAL: ModelBand[] = [
+  { id: 'cal-jumbo', name: 'Jumbo', maxLocks: 80, coef: 0.8, durCoef: 0.7 },
+  { id: 'cal-medium', name: 'Medium', maxLocks: 150, coef: 1, durCoef: 1 },
+  { id: 'cal-micro', name: 'Micro', maxLocks: 350, coef: 1.8, durCoef: 1.9 },
+  { id: 'cal-nano', name: 'Nano', maxLocks: 450, coef: 2.2, durCoef: 2.4 },
+  { id: 'cal-galaxy', name: 'Galaxy', maxLocks: null, coef: 2.8, durCoef: 3 },
+];
+const cal = (n: number | undefined, marge?: boolean) => calibreDeLaTete(n, CAL, marge)?.name;
+
+dit('la marge vaut dix locks', 10, MARGE_CALIBRE_LOCKS);
+
+/* SANS LA MARGE, RIEN NE CHANGE : c'est la garde qui protège toutes les têtes
+   dont la Maison n'a rien décidé. */
+dit('350 locks : Micro', 'Micro', cal(350));
+dit('351 locks sans marge : Nano', 'Nano', cal(351));
+dit('351 locks AVEC la marge : Micro', 'Micro', cal(351, true));
+dit('le cas exact de Yéman', 'Micro', cal(351, true));
+
+/* LA MARGE S'ARRÊTE OÙ ON L'A DITE. Dix locks, pas onze : sans borne nette,
+   une faveur devient un second barème que personne n'a écrit. */
+dit('360 locks, tout juste dans la marge', 'Micro', cal(360, true));
+dit('361 locks, la marge est passée', 'Nano', cal(361, true));
+
+/* ELLE NE RECULE QUE D'UN CRAN, JAMAIS DEUX. Deux calibres serrés à moins de
+   dix locks l'un de l'autre feraient descendre une tête de deux paliers pour
+   une marge de dix, et la faveur se retournerait en trou. */
+const SERRES: ModelBand[] = [
+  { id: 'a', name: 'A', maxLocks: 100, coef: 1, durCoef: 1 },
+  { id: 'b', name: 'B', maxLocks: 105, coef: 1.5, durCoef: 1.5 },
+  { id: 'c', name: 'C', maxLocks: 200, coef: 2, durCoef: 2 },
+];
+dit('un seul cran en arrière, même sur un barème serré', 'B',
+  calibreDeLaTete(106, SERRES, true)?.name);
+
+/* LE PREMIER CALIBRE N'A RIEN EN DESSOUS : on ne descend pas sous le barème,
+   et une petite tête ne devient pas gratuite. */
+dit('sous le premier calibre, rien à reculer', 'Jumbo', cal(75, true));
+dit('… et juste au-dessus non plus', 'Jumbo', cal(80, true));
+dit('81 locks avec la marge redescend en Jumbo', 'Jumbo', cal(81, true));
+
+/* UNE TÊTE PAS ENCORE COMPTÉE N'A PAS DE CALIBRE, marge ou pas : la marge ne
+   fabrique jamais une information qui manque. */
+dit('sans comptage, aucun calibre', undefined, cal(undefined, true));
+dit('zéro lock non plus', undefined, cal(0, true));
+
+/* LA DERNIÈRE TRANCHE N'A PAS DE PLAFOND : on ne peut pas l'avoir « dépassée
+   de peu », et une tête de 700 locks ne redescend pas. */
+dit('700 locks reste Galaxy', 'Galaxy', cal(700, true));
+/* Mais une tête juste au-dessus de l'avant-dernière, si. */
+dit('455 locks redescend en Nano', 'Nano', cal(455, true));
+
+/* L'ÉCRAN DOIT DIRE QUAND LA FAVEUR A JOUÉ : une faveur muette ne se relit
+   pas, et personne ne saurait pourquoi deux têtes de 351 locks ne paient pas
+   le même prix. */
+dit('la marge a joué sur 351', true, margeAJoue(351, CAL, true));
+dit('… mais pas sur 300', false, margeAJoue(300, CAL, true));
+dit('… ni quand elle n’est pas accordée', false, margeAJoue(351, CAL, false));
+dit('… ni sans comptage', false, margeAJoue(undefined, CAL, true));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

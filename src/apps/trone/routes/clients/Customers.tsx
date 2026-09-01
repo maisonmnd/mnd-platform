@@ -13,7 +13,10 @@ import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/ac
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
-import { bandOf, bandRange, sortedBands, useModelBands } from '../../../../shared/pricing';
+import {
+  bandOf, bandRange, sortedBands, useModelBands,
+  calibreDeLaTete as calibreDeLaTeteAvecMarge, margeAJoue, MARGE_CALIBRE_LOCKS,
+} from '../../../../shared/pricing';
 import { envieLabel } from '../../../../shared/quiz';
 import {
   enAttente, nomPropose, refuserEnfant, useEnfantsDeclares, validerEnfant, type EnfantDeclare,
@@ -549,7 +552,10 @@ export default function Customers() {
     sortedBands(bandsCrm).forEach((b, i) => m.set(b.id, i));
     return m;
   }, [bandsCrm]);
-  const calibreDeLaTete = (c: Client) => bandOf(c.lockCount, bandsCrm);
+  /* LE REGROUPEMENT SUIT LA MARGE : sans elle, une cliente rangée « Nano »
+     dans la liste serait facturée en Micro au comptoir, et les deux écrans se
+     contrediraient sur la même tête. */
+  const calibreDeLaTete = (c: Client) => calibreDeLaTeteAvecMarge(c.lockCount, bandsCrm, c.margeCalibre);
   const groupeDeLaTete = (c: Client): string => {
     const b = calibreDeLaTete(c);
     return b ? (b.name?.trim() || bandRange(b, bandsCrm)) : 'Modèle non compté';
@@ -2701,14 +2707,53 @@ function Customer360({
                 locks produit : elle se dit ici, sinon remplir le champ semble
                 ne rien faire. */}
             {client.lockCount ? (
+              <>
               <div className="trc-crown__meta">
                 {(() => {
-                  const b = bandOf(client.lockCount, bands);
+                  const b = calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre);
                   return b?.name
                     ? `Calibre ${b.name} · ${client.lockCount} locks, c'est lui qui choisit ses créations et son barème.`
                     : `${client.lockCount} locks, comptage inscrit, il pilote son prix personnalisé.`;
                 })()}
               </div>
+
+              {/* ══ LA MARGE DE CALIBRE — 1er septembre 2026 ═══════════════
+                  « Une marge de 10 locks que je peux appliquer ou non sur la
+                  fiche des clientes pour qu'elles ne paient pas le prix
+                  supérieur. Exemple : 351 locks l'emmène dans les tarifs Nano,
+                  pourtant la cliente peut rester en Micro » (Yéman).
+
+                  L'INTERRUPTEUR NE PARAÎT QU'UNE FOIS LA TÊTE COMPTÉE : sans
+                  comptage il n'y a pas de calibre, donc rien à adoucir, et le
+                  proposer ferait croire à un réglage qui n'agit pas.
+
+                  ON DIT CE QUE LA MARGE FAIT, AVANT ET APRÈS. Une faveur muette
+                  ne se relit pas : dans six mois, personne ne saurait pourquoi
+                  deux têtes de 351 locks ne paient pas le même prix. */}
+              <button
+                type="button"
+                className={`tre-chip ${client.margeCalibre ? 'is-on' : ''}`}
+                style={{ marginTop: 9, fontSize: 11.5 }}
+                onClick={() => patch({ margeCalibre: !client.margeCalibre || undefined })}
+              >
+                Marge de {MARGE_CALIBRE_LOCKS} locks
+              </button>
+              <div className="trc-crown__meta" style={{ marginTop: 6 }}>
+                {(() => {
+                  const brut = bandOf(client.lockCount, bands);
+                  const avec = calibreDeLaTeteAvecMarge(client.lockCount, bands, true);
+                  const joue = margeAJoue(client.lockCount, bands, true);
+                  if (!joue) {
+                    return client.margeCalibre
+                      ? `Accordée, mais sans effet ici : ${client.lockCount} locks tombent en plein dans ${brut?.name ?? 'sa tranche'}.`
+                      : `${client.lockCount} locks tombent en plein dans ${brut?.name ?? 'sa tranche'}, la marge n'y changerait rien.`;
+                  }
+                  return client.margeCalibre
+                    ? `Elle dépasse ${avec?.name} de peu : la Maison lui laisse le tarif ${avec?.name} au lieu de ${brut?.name}.`
+                    : `Elle ne dépasse ${avec?.name} que de ${(client.lockCount ?? 0) - (bands.find((x) => x.id === avec?.id)?.maxLocks ?? 0)} locks. La marge lui garderait le tarif ${avec?.name}.`;
+                })()}
+              </div>
+              </>
             ) : client.lockCountDeclare ? (
               /* ELLE A DÉCLARÉ AU TUNNEL — la réservation en tient la durée,
                  mais le prix attend le comptage : la ligne le rappelle pour que

@@ -128,6 +128,17 @@ export type Client = {
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.
       Le comptage de la Maison, quand il arrive, l'emporte sans discussion. */
   lockCountDeclare?: number;
+  /** ── LA MARGE DE CALIBRE — 1er septembre 2026 ──────────────────
+      « Une marge de 10 locks que je peux appliquer ou non sur la fiche des
+      clientes pour qu'elles ne paient pas le prix supérieur » (Yéman).
+
+      À 350 locks elle est Micro, à 351 elle est Nano et paie un cran plus
+      cher pour UN lock. Le comptage n'a pas cette précision : deux personnes
+      qui comptent la même tête ne tombent pas au lock près.
+
+      ABSENT = PAS DE MARGE. C'est un geste qui se donne tête par tête, il ne
+      s'applique jamais tout seul. Voir `calibreDeLaTete`. */
+  margeCalibre?: boolean;
   crownSince?: string; // ISO — naissance de la couronne (≠ since, date d'entrée au CRM)
   /** LE JOUR OÙ ELLE PEUT VENIR — 16 août 2026, demande de Yéman : « il y a
       des clientes qui ne veulent venir que le samedi ». Un chiffre de la

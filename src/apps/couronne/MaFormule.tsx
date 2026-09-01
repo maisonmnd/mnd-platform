@@ -3,7 +3,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
-import { useModelBands, bandOf } from '../../shared/pricing';
+import { useModelBands, calibreDeLaTete } from '../../shared/pricing';
 import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
@@ -208,7 +208,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      calibre, et la vitrine annonce l'étendue au lieu d'un prix. */
   const [bands] = useModelBands();
   const maTete: TeteConnue = useMemo(() => ({
-    bandId: bandOf(client?.lockCount ?? client?.lockCountDeclare, bands)?.id,
+    bandId: calibreDeLaTete(client?.lockCount ?? client?.lockCountDeclare, bands, client?.margeCalibre)?.id,
     longueur: client?.longueur,
   }), [client?.lockCount, client?.lockCountDeclare, client?.longueur, bands]);
 

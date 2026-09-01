@@ -42,6 +42,41 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA MARGE DE CALIBRE · 1er septembre 2026
+
+« Crée-moi une marge de 10 locks que je peux appliquer ou non sur la fiche des
+clientes pour qu elles ne paient pas le prix supérieur. Exemple : 351 locks
+l emmène dans les tarifs Nano, pourtant la cliente peut rester en Micro. »
+
+UNE BORNE EST UN MUR, ET UN MUR NE SAIT PAS COMPTER. À 350 elle est Micro, à
+351 elle paie un cran plus cher pour UN lock. Le comptage lui-même n a pas
+cette précision : deux personnes qui comptent la même tête ne tombent pas au
+lock près. Facturer un saut de calibre sur cet écart, c est facturer une
+imprécision de mesure.
+
+`MARGE_CALIBRE_LOCKS = 10` et `calibreDeLaTete(lockCount, bands, margeAccordee)`
+dans `pricing.ts`. `Client.margeCalibre` porte le geste, tête par tête :
+**elle ne s applique jamais toute seule**, une faveur qui se donne se voit et
+se retire, une règle automatique se serait appliquée aux 550 comme aux 351.
+
+**ELLE NE RECULE QUE D UN CRAN**, jamais deux : deux calibres serrés à moins de
+dix locks feraient descendre une tête de deux paliers pour une marge de dix, et
+la faveur se retournerait en trou. Le premier calibre n a rien en dessous ; la
+dernière tranche, sans plafond, ne peut pas être « dépassée de peu ».
+
+**Elle entre dans `pricingOf`**, l entonnoir de tous les prix personnels du
+Trône, de la Caisse et de Ma Couronne : la poser plus bas obligerait chaque
+écran à y penser, et l un d eux l oublierait. `bandForService` la porte aussi,
+sinon la faveur vaudrait sur la couronne et pas sur la couleur. Les deux écrans
+de formule la lisent également : elle vaudrait sur ses rituels et pas sur son
+abonnement, ce qui ne s expliquerait pas.
+
+**L écran dit ce qu elle fait, avant et après.** Une faveur muette ne se relit
+pas : dans six mois, personne ne saurait pourquoi deux têtes de 351 locks ne
+paient pas le même prix. `margeAJoue` sert exactement à cela.
+
+20 assertions sur `verifie-prix`.
+
 ## LA FORMULE AU CALIBRE · 1er septembre 2026
 
 Maquette validée : `public/maquette-la-formule-au-calibre.html`.
