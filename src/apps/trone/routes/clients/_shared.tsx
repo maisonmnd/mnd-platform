@@ -2478,6 +2478,37 @@ export function RdvModal({
           </div>
         )}
 
+        {/* ══ ELLE EST ABONNÉE, ET RIEN NE LE DIT — 1er septembre 2026 ═════
+            « Comment j'utilise un rituel en abonnement ? J'ai pris un RDV qui
+            n'a pas montré que les services sortent d'un abonnement » (Yéman).
+
+            LA COUVERTURE MARCHAIT, MAIS ELLE SE TAISAIT. Le bloc cuivre ne
+            paraît que si l'une des prestations choisies est DANS sa formule.
+            Quand aucune ne l'est, l'écran ne disait rien du tout : on voyait
+            « ★ Abonnée » en haut, un prix plein en bas, et rien entre les deux
+            pour expliquer pourquoi.
+
+            ON DIT CE QUE PORTE SA FORMULE. C'est la seule information qui
+            permette de comprendre en un regard : soit on s'est trompé de
+            prestation, soit celle-ci n'a jamais été incluse, et dans les deux
+            cas on sait quoi faire. */}
+        {membership && membershipPlan && coverageRows.length === 0 && chosen.length > 0 && (() => {
+          const inclus = inclusVendus(membership, membershipPlan)
+            .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)
+            .filter(Boolean) as string[];
+          return (
+            <div className="tre-inline-note">
+              <span className="mark">!</span>
+              <span>
+                {membershipPlan.name} <b>ne couvre pas</b> {chosen.length > 1 ? 'ces prestations' : 'cette prestation'}.
+                {inclus.length > 0
+                  ? <> Sa formule porte : <b>{inclus.join(', ')}</b>.</>
+                  : <> Sa formule ne porte aucune prestation, elle se règle donc toujours au comptoir.</>}
+              </span>
+            </div>
+          );
+        })()}
+
         {coverageRows.length > 0 && (
           <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: canCover ? 'pointer' : 'default' }}>

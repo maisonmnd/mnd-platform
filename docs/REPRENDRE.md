@@ -67,6 +67,23 @@ Absent = le premier de la liste, comme avant.
 
 5 assertions sur `verifie-creneaux`.
 
+## « RIEN NE MONTRE QUE LES SERVICES SORTENT D UN ABONNEMENT » · 1er sept. 2026
+
+La couverture MARCHAIT, mais elle SE TAISAIT. Le bloc cuivre « Inclus dans
+l abonnement, ne rien facturer » ne paraît que si l une des prestations
+choisies est dans `inclusVendus(membership, plan)`. Quand aucune ne l est,
+l écran ne disait RIEN : on voyait « ★ Abonnée » en haut, un prix plein en bas,
+et rien entre les deux pour expliquer pourquoi.
+
+Une note paraît désormais dans ce cas : « X ne couvre pas cette prestation. Sa
+formule porte : A, B. » **C est la seule information qui permette de comprendre
+en un regard** : soit on s est trompé de prestation, soit elle n a jamais été
+incluse, et dans les deux cas on sait quoi faire.
+
+Rappel du fonctionnement, pour la mémoire : la couverture est AUTOMATIQUEMENT
+proposée (case cochée à la main), elle décompte l allocation du cycle
+(`coveredRemaining`), et l allocation épuisée le dit au lieu de disparaître.
+
 ## LES DATES SE POSENT À LA SIGNATURE · 1er septembre 2026
 
 « Modifier les dates des paiements des abonnements. »
