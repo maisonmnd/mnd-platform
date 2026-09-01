@@ -8,6 +8,7 @@
    pas une ardoise. La règle et les calculs vivent dans `shared/fournisseurs`,
    cet écran ne fait que les montrer. */
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, Button, Field, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -36,6 +37,7 @@ const joursDepuis = (iso: string) =>
 type Form = { id: string | null; nom: string; famille: string; telephone: string; note: string; alias: string };
 
 export default function Fournisseurs() {
+  const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const [expenses] = useExpenses();
   const [fournisseurs] = useFournisseurs();
@@ -346,7 +348,18 @@ export default function Fournisseurs() {
                             Voir la pièce
                           </button>
                         ) : (
-                          <span style={{ color: 'var(--trf-error)' }}>manquante</span>
+                          /* LE MOT MÈNE À L'ÉCRITURE. « Manquante » écrit en
+                             rouge sans rien à faire derrière ne sert qu'à
+                             culpabiliser ; ici il ouvre l'achat, là où la
+                             facture se joint. */
+                          <button
+                            type="button"
+                            className="trf-piece__acte trf-piece__acte--oter"
+                            title="Ouvrir cet achat pour y joindre la facture"
+                            onClick={() => navigate(`/depenses?depense=${e.id}`)}
+                          >
+                            à joindre
+                          </button>
                         )}
                       </td>
                     </tr>

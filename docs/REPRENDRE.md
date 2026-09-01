@@ -69,6 +69,22 @@ Absent = le premier de la liste, comme avant.
 
 ## LE COMPTE FOURNISSEUR · 1er septembre 2026
 
+### « Je n arrive pas à ouvrir les pièces »
+
+Il n y en avait aucune : « 0 / 4 passages avec une pièce jointe » le disait
+déjà. Le mot « manquante » était écrit en rouge et ne menait nulle part, ce qui
+ne sert qu à culpabiliser.
+
+Il devient **« à joindre »** et ouvre l achat lui-même :
+`/depenses?depense=<id>`, que l écran des Dépenses lit au chargement pour
+ouvrir la bonne modale, **puis efface le paramètre** (sans quoi un rechargement
+rouvrirait la même écriture indéfiniment, et l on ne pourrait plus en sortir).
+
+La fiche du fournisseur devient ainsi l endroit où l on REMARQUE une facture
+absente ET où l on va la joindre. Quand la pièce est là, « Voir la pièce »
+l ouvre par une adresse signée d une heure.
+
+
 Maquette validée : `public/maquette-le-compte-fournisseur.html`. **Aucune
 migration** : `bindDocument` sur `mnd_fournisseurs`, la table `documents`
 existe et est déjà réservée au personnel.

@@ -643,6 +643,26 @@ export default function Depenses() {
     setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false });
     setOpen(true);
   };
+  /* ══ ON ARRIVE ICI POUR UNE ÉCRITURE PRÉCISE — 1er septembre 2026 ══
+     « Je n'arrive pas à ouvrir les pièces » (Yéman). Il n'y en avait aucune :
+     la fiche du fournisseur disait « manquante », et le mot ne menait nulle
+     part. Il mène désormais ici, sur l'achat lui-même, où la pièce se joint.
+
+     LE PARAMÈTRE S'EFFACE APRÈS COUP : sans cela, un rechargement de la page
+     rouvrirait la même modale indéfiniment, et l'on ne pourrait plus quitter
+     l'écriture. */
+  const [ouvertPar, setOuvertPar] = useState<string | null>(null);
+  useEffect(() => {
+    const vise = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('depense');
+    if (!vise || vise === ouvertPar) return;
+    const cible = toutesLesDepenses.find((e) => e.id === vise);
+    if (!cible) return;
+    setOuvertPar(vise);
+    openEdit(cible);
+    navigate('/depenses', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toutesLesDepenses]);
+
   const openEdit = (e: Expense) => {
     setSaveErr(null);
     setEditingId(e.id);
