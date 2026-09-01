@@ -372,6 +372,35 @@ sait tracer ne passe jamais par ce repli. « café » reste « café », « ² �
 « ² ». Le repli est écrit une fois (`dernierRepli`) et sert les deux gardes,
 `pdfSafe` et `pdfSafeGardeFon`.
 
+## MAQUETTE EN ATTENTE · LE COMPTE D'ABONNEMENT
+
+« Créer des comptes abonnements pour chaque client distinctif. Quand il entame un
+nouveau. Facile à suivre. Quand c'est actif, quand un abonnement devient inactif.
+Bien faire la part des choses. » (2 septembre 2026)
+
+`public/maquette-le-compte-abonnement.html`, à valider. L'écran liste des
+CONTRATS, pas des TÊTES : une cliente y paraît deux fois à cinq lignes d'écart,
+et rien ne dit que c'est la même personne ni que l'un a succédé à l'autre.
+
+Un compte par tête : le contrat en cours en cuivre, l'histoire dessous du plus
+récent au plus ancien, et **le silence entre deux contrats** (« 63 jours sans
+abonnement »), la seule chose que personne ne mesure et le seul chiffre qui dise
+si la Maison retient ses abonnées.
+
+**CINQ ÉTATS QUI SE CALCULENT** au lieu de se stocker : en cours, épuisé,
+terminé, résilié, en retard (qui se superpose aux autres). Le champ `status`
+est écrit à la vente et presque jamais remis à jour, d'où quatre « actives » sur
+neuf et cinq dans aucune case.
+
+**« TERMINÉ » ET « RÉSILIÉ » CESSENT DE SE CONFONDRE.** La rétention affiche
+100 % parce qu'elle ne compte que les résiliations à la main et ignore les
+paquets arrivés au bout sans reprise, qui sont pourtant des départs, simplement
+plus polis.
+
+Trois points à trancher : remplacer l'état stocké partout ou le garder en
+parallèle ; compter comme départ un paquet arrivé au bout sans reprise ; le tri
+par défaut (les gestes à faire d'abord, ou l'alphabet).
+
 ## MAQUETTE EN ATTENTE · LE MOTEUR, EN ARGENT RÉEL
 
 « Le calcul de revenu récurrent à 18 817 ne me convient pas. C'est un chiffre qui
