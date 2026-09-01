@@ -403,7 +403,7 @@ const CAL: ModelBand[] = [
 ];
 const cal = (n: number | undefined, marge?: boolean) => calibreDeLaTete(n, CAL, marge)?.name;
 
-dit('la marge vaut dix locks', 10, MARGE_CALIBRE_LOCKS);
+dit('la marge vaut quinze locks', 15, MARGE_CALIBRE_LOCKS);
 
 /* SANS LA MARGE, RIEN NE CHANGE : c'est la garde qui protège toutes les têtes
    dont la Maison n'a rien décidé. */
@@ -412,14 +412,15 @@ dit('351 locks sans marge : Nano', 'Nano', cal(351));
 dit('351 locks AVEC la marge : Micro', 'Micro', cal(351, true));
 dit('le cas exact de Yéman', 'Micro', cal(351, true));
 
-/* LA MARGE S'ARRÊTE OÙ ON L'A DITE. Dix locks, pas onze : sans borne nette,
-   une faveur devient un second barème que personne n'a écrit. */
-dit('360 locks, tout juste dans la marge', 'Micro', cal(360, true));
-dit('361 locks, la marge est passée', 'Nano', cal(361, true));
+/* LA MARGE S'ARRÊTE OÙ ON L'A DITE. Quinze locks, pas seize : sans borne
+   nette, une faveur devient un second barème que personne n'a écrit. */
+dit('360 locks, dans la marge', 'Micro', cal(360, true));
+dit('365 locks, tout juste dedans', 'Micro', cal(365, true));
+dit('366 locks, la marge est passée', 'Nano', cal(366, true));
 
-/* ELLE NE RECULE QUE D'UN CRAN, JAMAIS DEUX. Deux calibres serrés à moins de
-   dix locks l'un de l'autre feraient descendre une tête de deux paliers pour
-   une marge de dix, et la faveur se retournerait en trou. */
+/* ELLE NE RECULE QUE D'UN CRAN, JAMAIS DEUX. Deux calibres serrés à moins
+   d'une marge l'un de l'autre feraient descendre une tête de deux paliers, et
+   la faveur se retournerait en trou. */
 const SERRES: ModelBand[] = [
   { id: 'a', name: 'A', maxLocks: 100, coef: 1, durCoef: 1 },
   { id: 'b', name: 'B', maxLocks: 105, coef: 1.5, durCoef: 1.5 },

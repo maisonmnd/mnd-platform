@@ -94,14 +94,15 @@ cette précision : deux personnes qui comptent la même tête ne tombent pas au
 lock près. Facturer un saut de calibre sur cet écart, c est facturer une
 imprécision de mesure.
 
-`MARGE_CALIBRE_LOCKS = 10` et `calibreDeLaTete(lockCount, bands, margeAccordee)`
+`MARGE_CALIBRE_LOCKS` (**portée à 15 le 1er septembre**, elle valait 10 à la
+demande initiale) et `calibreDeLaTete(lockCount, bands, margeAccordee)`
 dans `pricing.ts`. `Client.margeCalibre` porte le geste, tête par tête :
 **elle ne s applique jamais toute seule**, une faveur qui se donne se voit et
 se retire, une règle automatique se serait appliquée aux 550 comme aux 351.
 
 **ELLE NE RECULE QUE D UN CRAN**, jamais deux : deux calibres serrés à moins de
-dix locks feraient descendre une tête de deux paliers pour une marge de dix, et
-la faveur se retournerait en trou. Le premier calibre n a rien en dessous ; la
+une marge l un de l autre feraient descendre une tête de deux paliers, et la
+faveur se retournerait en trou. Le premier calibre n a rien en dessous ; la
 dernière tranche, sans plafond, ne peut pas être « dépassée de peu ».
 
 **Elle entre dans `pricingOf`**, l entonnoir de tous les prix personnels du

@@ -132,6 +132,9 @@ export type Client = {
       « Une marge de 10 locks que je peux appliquer ou non sur la fiche des
       clientes pour qu'elles ne paient pas le prix supérieur » (Yéman).
 
+      Portée à QUINZE locks le 1er septembre. Le chiffre vit dans
+      `MARGE_CALIBRE_LOCKS`, jamais recopié ici.
+
       À 350 locks elle est Micro, à 351 elle est Nano et paie un cran plus
       cher pour UN lock. Le comptage n'a pas cette précision : deux personnes
       qui comptent la même tête ne tombent pas au lock près.

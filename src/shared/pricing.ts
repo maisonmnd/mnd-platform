@@ -308,13 +308,16 @@ export const coefJustePrix = (sv: Pick<Service, 'categoryId'>, p: PersonalPricin
     tête par tête (`Client.margeCalibre`) : une faveur qui se donne se voit et
     se retire, une règle automatique se serait appliquée aux 550 comme aux 351
     sans que personne ne l'ait décidé. */
-export const MARGE_CALIBRE_LOCKS = 10;
+/* PORTÉE À QUINZE LE 1er septembre 2026, sur décision de Yéman. Le chiffre
+   vit ICI et nulle part ailleurs : l'écran, la phrase d'explication et le
+   harnais le lisent tous, et le jour où il bouge encore, ils suivent. */
+export const MARGE_CALIBRE_LOCKS = 15;
 
 /** Le calibre d'une tête, marge comprise si la Maison l'a accordée.
 
-    ELLE NE RECULE QUE D'UN CRAN, jamais deux. Deux calibres serrés à moins de
-    dix locks l'un de l'autre feraient descendre une tête de deux paliers pour
-    une marge de dix : la faveur se retournerait en trou. */
+    ELLE NE RECULE QUE D'UN CRAN, jamais deux. Deux calibres serrés à moins
+    d'une marge l'un de l'autre feraient descendre une tête de deux paliers :
+    la faveur se retournerait en trou. */
 export const calibreDeLaTete = (
   lockCount: number | undefined,
   bands: ModelBand[],
