@@ -115,6 +115,31 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## LE DERNIER JOUR EN FAIT PARTIE · 2 septembre 2026
+
+« Il me reste une séance pour clôturer la Juste Cadence de 2025 au 30 juin 2026
+et il ne prend pas le RDV du 30/06/26. Il me le facture. La cliente a droit à
+6 séances et en a utilisé 5, il reste 1. »
+
+**LA FIN ÉTAIT EXCLUE.** La fenêtre se testait `date < fin` des deux côtés,
+cycle et paquet confondus. Un paquet « valable du 10 octobre au **30 juin** »
+perdait donc le 30 juin, c'est-à-dire **le jour où l'on vient solder son dernier
+crédit**, puisque c'est la date écrite sur le contrat. La cliente lisait « au
+30 juin », l'écran lui facturait 45 000 F.
+
+**LES DEUX RÉGIMES NE SE TESTENT PAS PAREIL**, et c'est la source de l'erreur :
+
+- un **PAQUET** porte une date de FIN, le dernier jour où ses crédits valent.
+  Elle est **incluse**, exactement comme elle est annoncée.
+- un **CYCLE** porte une ÉCHÉANCE, qui est la frontière entre deux cycles. Elle
+  reste **exclue**, sinon un rituel tombant ce jour-là compterait deux fois.
+
+`dansLaVieDuContrat(sub, plan, date)` tient les deux bornes en un seul endroit,
+et `coversSub` comme `contratPourLaDate` s'y appuient. `coversSub` ne teste
+plus la fenêtre d'un paquet une seconde fois : sa vie EST sa fenêtre, elle vient
+d'être vérifiée ; seul le cycle garde le test du cycle en cours, la seule chose
+qui l'empêche de compter deux cycles à la fois.
+
 ## LE CONTRAT DE LA DATE, PAS LE CONTRAT DU JOUR · 1er septembre 2026
 
 « Mylène a 2 abonnements Juste Cadence, 1 qui est épuisé et 1 qui est ouvert.

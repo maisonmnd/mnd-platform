@@ -411,6 +411,34 @@ export const subWindow = (sub: Subscriber, plan: Plan | undefined): { start: str
     · `clientId` + fenêtre — le repli, pour les rendez-vous d'avant ce champ.
       La fenêtre reste indispensable là : elle est la seule chose qui empêche de
       compter deux cycles pour un abonnement récurrent. */
+/** CE JOUR-LÀ, LE CONTRAT EST-IL EN VIE ?
+
+    « Il me reste une séance pour clôturer la Juste Cadence de 2025 au 30 juin
+    2026 et il ne prend pas le RDV du 30/06/26, il me le facture » (Yéman,
+    2 septembre 2026).
+
+    LE DERNIER JOUR EN FAISAIT PARTIE, ET IL ÉTAIT EXCLU. La fenêtre se testait
+    `date < fin` des deux côtés, cycle et paquet confondus. Un paquet « valable
+    du 10 octobre au 30 juin » perdait donc le 30 juin, c'est-à-dire le jour où
+    l'on vient justement solder son dernier crédit, puisque c'est la date écrite
+    sur le contrat. La cliente lisait « au 30 juin », l'écran lui facturait
+    45 000 F.
+
+    LES DEUX RÉGIMES NE SE TESTENT PAS PAREIL, et c'est la source de l'erreur :
+    · un PAQUET porte une date de FIN, le dernier jour où ses crédits valent.
+      Elle est INCLUSE, exactement comme elle est annoncée.
+    · un CYCLE porte une ÉCHÉANCE, qui est la frontière entre deux cycles. Elle
+      est EXCLUE, sinon un rituel tombant ce jour-là compterait deux fois. */
+export const dansLaVieDuContrat = (
+  sub: Subscriber, plan: Plan | undefined, dateIso: string,
+): boolean => {
+  /* RIEN AVANT LA SIGNATURE, sous aucun prétexte : un fait de calendrier, pas
+     un réglage. Un paquet enregistré après coup pour couvrir des séances
+     anciennes se règle en corrigeant SA date de début, depuis le Suivi. */
+  if (dateIso < debutDuContrat(sub)) return false;
+  return !sub.expiresIso || dateIso <= sub.expiresIso;
+};
+
 export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefined): boolean => {
   if (!a.coveredBySub || a.status === 'annulé') return false;
   /* ══ RIEN AVANT LE DÉBUT DU CONTRAT — 1er septembre 2026 ══════════════
@@ -428,16 +456,17 @@ export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefine
      calendrier, pas un réglage. Un paquet enregistré après coup pour couvrir
      des séances anciennes se règle en corrigeant SA date de début, qui se
      touche depuis le Suivi. */
-  if (a.date < debutDuContrat(sub)) return false;
-  const { start, end } = subWindow(sub, plan);
-  /* UN PAQUET FINI EST FINI, LIEN OU PAS. Sa fenetre est toute sa vie ; une
-     seance posee au-dela de l'echeance serait un rendez-vous que la formule ne
-     couvre plus, et le lien explicite ne doit pas servir a rouvrir un paquet
-     clos. Un abonnement a CYCLE, lui, se recharge : son lien passe outre la
-     fenetre du cycle en cours, qui n'est qu'une tranche de sa vie. */
-  if (plan?.mode === 'pack' && a.date >= end) return false;
+  /* LES DEUX BORNES DE SA VIE, LIEN EXPLICITE OU PAS. Le lien sert à départager
+     deux contrats dont les fenêtres se chevauchent, pas à ressusciter un paquet
+     clos ni à faire porter au présent un rituel du passé. */
+  if (!dansLaVieDuContrat(sub, plan, a.date)) return false;
   if (a.subId) return a.subId === sub.id;
   if (a.clientId !== sub.clientId) return false;
+  /* LA VIE DU PAQUET EST SA FENÊTRE, et elle vient d'être vérifiée, dernier jour
+     compris. Un abonnement à CYCLE, lui, ne compte que le cycle EN COURS :
+     c'est la seule chose qui l'empêche de compter deux cycles à la fois. */
+  if (plan?.mode === 'pack') return true;
+  const { start, end } = cycleWindow(sub);
   return a.date >= start && a.date < end;
 };
 
@@ -459,14 +488,10 @@ export const contratPourLaDate = (
 ): Subscriber | undefined =>
   subs
     .filter((s) => s.clientId === clientId && s.status !== 'churn')
-    .filter((s) => {
-      if (dateIso < debutDuContrat(s)) return false;
-      const plan = plans.find((p) => p.id === s.planId);
-      /* UN PAQUET FINI EST FINI. Sa fenêtre est toute sa vie ; au-delà, ses
-         crédits ne valent plus rien et rien ne doit s'y ajouter. */
-      if (plan?.mode === 'pack') return dateIso < subWindow(s, plan).end;
-      return !s.expiresIso || dateIso < s.expiresIso;
-    })
+    /* UN PAQUET FINI EST FINI : au-delà de sa date de fin, ses crédits ne valent
+       plus rien et rien ne doit s'y ajouter. Mais LE DERNIER JOUR EN FAIT
+       PARTIE, c'est celui-là qu'on vient solder. */
+    .filter((s) => dansLaVieDuContrat(s, plans.find((p) => p.id === s.planId), dateIso))
     .sort((a, b) => (debutDuContrat(a) < debutDuContrat(b) ? 1 : -1))[0];
 
 /** Consommation d'une prestation incluse : une ligne par prestation de la formule.

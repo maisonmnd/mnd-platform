@@ -404,6 +404,25 @@ dit('le paquet fini ne reprend rien', undefined,
 /* AVANT TOUT CONTRAT, AUCUN CONTRAT. */
 dit('avant la premiere signature, rien', undefined,
   contratPourLaDate(deux, 'c-1', '2025-01-01', [PACK])?.id);
+/* LE DERNIER JOUR EST DEDANS. « Il me reste une seance pour cloturer la Juste
+   Cadence de 2025 au 30 juin 2026 et il ne prend pas le RDV du 30/06/26, il me
+   le facture » (Yeman, 2 septembre 2026). Un paquet « valable du 10 octobre au
+   30 juin » perdait le 30 juin, c'est-a-dire le jour ou l'on vient solder son
+   dernier credit puisque c'est la date ecrite sur le contrat. */
+dit('le dernier jour du paquet est dedans', 'ab-2025',
+  contratPourLaDate([ancien], 'c-1', '2026-06-30', [PACK])?.id);
+dit('… et le lendemain est dehors', undefined,
+  contratPourLaDate([ancien], 'c-1', '2026-07-01', [PACK])?.id);
+dit('le rituel du dernier jour se decompte', 1,
+  usageDetaille(ancien, PACK, [{ ...rdv('r-fin', '2026-06-30', 'sv-lavage'), subId: 'ab-2025' }])[1].used);
+dit('… celui du lendemain, non', 0,
+  usageDetaille(ancien, PACK, [{ ...rdv('r-apres', '2026-07-01', 'sv-lavage'), subId: 'ab-2025' }])[1].used);
+/* L'ECHEANCE D'UN CYCLE, ELLE, RESTE UNE FRONTIERE : un rituel tombant ce
+   jour-la appartient au cycle qui s'ouvre, pas a celui qui se ferme, sinon il
+   compterait deux fois. */
+const cycleAuBord = { ...abo({ id: 'ab-b' }), clientId: 'c-3', sinceIso: '2026-08-01', nextIso: '2026-09-01', startIso: undefined, expiresIso: undefined };
+dit('le jour de l’echeance ouvre le cycle suivant', 0,
+  usageDetaille(cycleAuBord, CYCLE, [{ ...rdv('r-b', '2026-09-01', 'sv-lavage'), subId: undefined, clientId: 'c-3' }])[1]?.used ?? 0);
 /* UN ABONNEMENT A CYCLE SE RECHARGE : un rendez-vous pris pour dans trois mois
    lui revient bien. C'est la difference entre une reserve de credits et un
    engagement qui court. */
