@@ -32,6 +32,7 @@ import {
   remboursementsDunPorteur, rembourse, useRemboursements,
 } from '../../../../shared/avances';
 import { useMouvementsCaisse } from '../../../../shared/foyer';
+import { useFournisseurs } from '../../../../shared/fournisseurs';
 import { summaryPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
 import {
@@ -97,6 +98,13 @@ export default function Depenses() {
   const mesDomaines = accesTous[monProfil?.user_id ?? ''] ?? {};
   const voitToutesLesDepenses = monProfil?.role !== 'maitre' || mesDomaines.finances === true;
   const monNom = (monProfil?.name ?? '').trim();
+
+  /* Les maisons déjà nommées, pour l'auto-complétion du libellé. */
+  const [fournisseursTous] = useFournisseurs();
+  const fournisseursDeLaBranche = useMemo(
+    () => fournisseursTous.filter((f) => f.branchId === branch.id && !f.archived),
+    [fournisseursTous, branch.id],
+  );
 
   const [toutesLesDepenses, setExpenses] = useExpenses();
   /* Ce que ce compte a le DROIT de voir, en attente comprise. */
@@ -2141,7 +2149,24 @@ export default function Depenses() {
 
             <label className="mnd-field">
               <span className="mnd-field__label">Bénéficiaire · qui reçoit l’argent</span>
-              <input className="mnd-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ex. Fournisseur · Karité Bénin" />
+              {/* ── LE NOM SE COMPLÈTE TOUT SEUL — 1er septembre 2026 ─────
+                  Les maisons déjà nommées se proposent pendant la frappe. Ce
+                  n'est pas un confort : c'est ce qui garde « Super U » écrit
+                  d'une seule façon, et donc une seule fiche plutôt que trois.
+
+                  AUCUN CHAMP DE PLUS À REMPLIR. Le libellé EST le nom de la
+                  maison ; ajouter un sélecteur à côté aurait demandé de dire
+                  deux fois la même chose. */}
+              <input
+                className="mnd-input"
+                list="mnd-fournisseurs"
+                value={form.label}
+                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                placeholder="Ex. Fournisseur · Karité Bénin"
+              />
+              <datalist id="mnd-fournisseurs">
+                {fournisseursDeLaBranche.map((f) => <option key={f.id} value={f.nom} />)}
+              </datalist>
             </label>
 
             {/* ── QUI A FAIT CET ACHAT — 23 août 2026 ──────────────────

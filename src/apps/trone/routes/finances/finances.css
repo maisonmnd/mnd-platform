@@ -1991,3 +1991,74 @@
   .trf-jp-ligne__nom { flex: 1 1 100%; order: -1; }
   .trf-jp-ligne__vu { min-width: 0; }
 }
+
+/* ═══ LES MAISONS CHEZ QUI L'ON ACHÈTE ════════════════════════════════════
+   Une ligne par maison : son nom, sa famille, son rythme, ce qu'elle pèse, et
+   une barre qui la situe parmi les autres. Le rythme est le chiffre le plus
+   sous-estimé du lot : « tous les douze jours, dernier il y a trois jours »
+   dit à la fois qu'un achat s'annonce et si quelqu'un y va trop souvent. */
+.trf-four {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  padding: 11px 0;
+  flex-wrap: wrap;
+  transition: var(--transition-base);
+}
+.trf-four:last-child { border-bottom: none; }
+.trf-four:hover { background: var(--surface-sunk, rgba(30, 33, 80, .03)); }
+.trf-four:focus-visible { outline: 2px solid var(--copper-600); outline-offset: -2px; }
+.trf-four__nom {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--color-indigo);
+  flex: 1 1 190px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.trf-four__tag {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 2px 8px;
+  flex: none;
+}
+.trf-four__n { font-size: 12px; color: var(--ink-soft); flex: none; }
+.trf-four__xof {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--color-indigo);
+  font-variant-numeric: tabular-nums;
+  min-width: 110px;
+  text-align: right;
+  flex: none;
+}
+.trf-four__barre { flex: 1 1 100%; height: 4px; background: var(--color-sable); border-radius: 3px; overflow: hidden; }
+.trf-four__barre i { display: block; height: 100%; background: var(--color-copper); }
+
+/* ON PROPOSE, ON NE RATTACHE JAMAIS D'OFFICE : le pointillé dit que ce n'est
+   pas encore acquis, et qu'il faut un geste. */
+.trf-four__prop {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  cursor: pointer;
+  border: 1px dashed var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #FAF1E9);
+  color: var(--copper-700);
+  border-radius: 2px;
+  padding: 5px 10px;
+  margin: 0 6px 6px 0;
+}
+.trf-four__prop:hover { border-style: solid; }

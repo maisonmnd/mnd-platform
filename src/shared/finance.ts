@@ -236,6 +236,12 @@ export type Expense = {
       validation à attendre : le champ ne paraît que sur ce qui en demande une.
       Sans cette convention, la mise en ligne aurait suspendu d'un coup
       l'histoire entière des dépenses de la Maison. */
+  /** ── LA MAISON CHEZ QUI L'ON A ACHETÉ — 1er septembre 2026 ─────
+      Posé quand le libellé saisi correspond exactement à un fournisseur connu.
+      ABSENT N'EST PAS UN PROBLÈME : le répertoire retrouve la maison par le
+      libellé, et c'est ce qui lui donne tout l'historique d'avant cette règle.
+      Voir `fournisseurDeLaDepense`. */
+  fournisseurId?: string;
   validation?: ValidationDepense;
 };
 

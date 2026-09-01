@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le compte fournisseur &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1140px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:14px 18px;
+                 display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px 22px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:900px){ .duo { grid-template-columns:1fr; } }
+
+  /* Répertoire */
+  .four { display:flex; align-items:baseline; gap:14px; padding:12px 0; border-bottom:1px solid #EDE5D6; flex-wrap:wrap; }
+  .four:last-child { border-bottom:none; }
+  .four__nom { font-family:var(--serif); font-size:19px; color:var(--indigo); flex:1 1 190px; }
+  .four__tag { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d);
+               border:1px solid var(--filet); border-radius:2px; padding:2px 8px; background:#fff; }
+  .four__n { font-size:12px; color:var(--encre-d); min-width:88px; }
+  .four__xof { font-family:var(--serif); font-size:20px; color:var(--indigo);
+               font-variant-numeric:tabular-nums; min-width:110px; text-align:right; }
+  .four__barre { flex:1 1 100%; height:4px; background:var(--sable); border-radius:3px; overflow:hidden; }
+  .four__barre i { display:block; height:100%; background:var(--cuivre); }
+
+  /* Chiffres de tête */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+           background:var(--filet); border:1px solid var(--filet); border-radius:3px; overflow:hidden; margin-bottom:18px; }
+  .stats > div { background:#fff; padding:13px 15px; }
+  .stats__l { font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .stats__v { font-family:var(--serif); font-size:24px; color:var(--indigo); font-variant-numeric:tabular-nums; line-height:1.15; margin-top:3px; }
+  .stats__d { font-size:11px; color:var(--encre-d); margin-top:2px; }
+
+  .tableau { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:540px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--encre-d); padding:0 9px 9px 0; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 9px 9px 0; border-bottom:1px solid #EDE5D6; vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td b { font-weight:500; }
+  .hausse { color:var(--brique); }
+  .baisse { color:var(--vert); }
+
+  .chip { display:inline-block; font-size:11px; letter-spacing:.08em;
+          border:1px solid var(--filet); border-radius:2px; padding:3px 9px; background:#fff; margin:0 6px 6px 0; }
+  .chip.is-on { background:var(--indigo); border-color:var(--indigo); color:#fff; }
+  .chip--prop { border-style:dashed; color:var(--cuivre); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+
+  .rangs { counter-reset:r; margin:0; padding:0; list-style:none; }
+  .rangs li { counter-increment:r; position:relative; padding:14px 0 14px 46px; border-top:1px solid var(--filet); }
+  .rangs li:first-child { border-top:none; }
+  .rangs li::before { content:counter(r); position:absolute; left:0; top:12px;
+    font-family:var(--serif); font-size:19px; color:var(--cuivre); width:30px; text-align:center; }
+  .rangs b { font-weight:500; }
+  .rangs span { display:block; font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+
+  .garde { border:1px solid var(--indigo); border-radius:3px; background:var(--indigo-pale); padding:18px; }
+  .garde h3 { margin-top:0; }
+  .garde ul { margin:0; padding-left:18px; }
+  .garde li { margin-bottom:9px; font-size:14px; }
+
+  .refus { border:1px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:16px 18px; }
+  .refus h3 { color:var(--brique); margin-top:0; }
+
+  .fin { margin-top:70px; border-top:1px solid var(--filet); padding-top:24px;
+         font-size:13px; color:var(--encre-d); max-width:70ch; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Le Trône &middot; Maquette à valider</p>
+  <h1>Le compte fournisseur</h1>
+  <p class="chapeau">
+    Vous achetez chez les mêmes maisons depuis des mois. <b>Cette histoire est déjà écrite dans
+    vos dépenses</b>, personne ne l'a jamais nommée. On lui donne un nom, une fiche, et de quoi
+    l'interroger d'une question.
+  </p>
+
+  <section>
+    <p class="cite">
+      « J'achète dans certains supermarchés de manière très répétitive au fil d'une année.
+      Aussi j'ai des fournisseurs chez qui nous achetons très souvent. J'aimerais qu'ils aient
+      un suivi de manière très précise et un compte que j'interroge facilement. »
+      <span>Yéman, 1er septembre 2026</span>
+    </p>
+    <p class="intro">
+      Aujourd'hui, un fournisseur n'existe que comme <b>un mot tapé à la main</b> dans le
+      libellé d'une dépense. « Où va l'argent » les regroupe déjà et les classe du plus payé au
+      moins payé, mais s'arrête là : pas de fiche, pas de rythme, pas de contact, et
+      <b>« Super U » écrit une fois « SuperU » fait deux maisons différentes</b>.
+    </p>
+    <p class="intro">
+      <b>Pas de solde, et c'est votre réponse.</b> Vous payez à chaque passage : un compte
+      fournisseur ici n'est donc pas une ardoise, c'est une mémoire. Ce qu'on vous doit de
+      montrer, ce n'est pas ce que vous devez, c'est <b>ce que vous dépensez et à quel rythme</b>.
+    </p>
+  </section>
+
+  <!-- ═══ ① LE RÉPERTOIRE ════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;La page</p>
+    <h2>Le répertoire, classé par ce qu'ils pèsent</h2>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Fournisseurs</h4><span>douze mois glissants</span></div>
+      <div class="ecran__corps">
+        <div style="margin-bottom:14px;">
+          <span class="chip is-on">Tous &middot; 23</span>
+          <span class="chip">Supermarchés &middot; 4</span>
+          <span class="chip">Matières &middot; 7</span>
+          <span class="chip">Local &middot; 5</span>
+          <span class="chip">Non rangés &middot; 7</span>
+        </div>
+
+        <div class="four">
+          <span class="four__nom">Super U</span>
+          <span class="four__tag">Supermarché</span>
+          <span class="four__n">31 passages</span>
+          <span class="four__xof">1 240 500 F</span>
+          <span class="four__barre"><i style="width:100%"></i></span>
+        </div>
+        <div class="four">
+          <span class="four__nom">Grossiste Dantokpa &middot; mèches</span>
+          <span class="four__tag">Matières</span>
+          <span class="four__n">18 passages</span>
+          <span class="four__xof">890 000 F</span>
+          <span class="four__barre"><i style="width:72%"></i></span>
+        </div>
+        <div class="four">
+          <span class="four__nom">Électricien Iréné</span>
+          <span class="four__tag">Local</span>
+          <span class="four__n">6 passages</span>
+          <span class="four__xof">142 000 F</span>
+          <span class="four__barre"><i style="width:11%"></i></span>
+        </div>
+        <div class="four">
+          <span class="four__nom">Tchintchinga party</span>
+          <span class="four__tag" style="border-style:dashed; color:var(--cuivre);">à ranger</span>
+          <span class="four__n">1 passage</span>
+          <span class="four__xof">15 280 F</span>
+          <span class="four__barre"><i style="width:2%"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Le répertoire naît plein, pas vide.</b> Il se construit tout seul à partir des libellés
+      de vos dépenses, exactement comme « Où va l'argent » le fait déjà. Vous n'avez rien à
+      saisir pour qu'il serve dès le premier jour : vous n'avez qu'à <b>nommer</b> ceux qui
+      comptent, et laisser les autres dans « à ranger ».
+    </p>
+  </section>
+
+  <!-- ═══ ② LA FICHE ═════════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;Le compte</p>
+    <h2>La fiche d'une maison</h2>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Super U</h4><span>supermarché &middot; 31 passages</span></div>
+      <div class="ecran__corps">
+
+        <div class="stats">
+          <div>
+            <div class="stats__l">Douze mois</div>
+            <div class="stats__v">1 240 500 F</div>
+            <div class="stats__d">8,4 % de vos dépenses</div>
+          </div>
+          <div>
+            <div class="stats__l">Le rythme</div>
+            <div class="stats__v">tous les 12 j</div>
+            <div class="stats__d">31 passages, dernier il y a 3 j</div>
+          </div>
+          <div>
+            <div class="stats__l">Par passage</div>
+            <div class="stats__v">40 000 F</div>
+            <div class="stats__d">du plus petit 8 500 au plus gros 96 000</div>
+          </div>
+          <div>
+            <div class="stats__l">Ce mois</div>
+            <div class="stats__v">112 000 F</div>
+            <div class="stats__d">3 passages &middot; 2 pièces jointes sur 3</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:22px;">Les passages</h3>
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr><th>Quand</th><th>Catégorie</th><th>Qui</th><th>Caisse</th><th class="n">Montant</th><th>Pièce</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>30 août</td><td>Local</td><td>Kabirou</td><td>Caisse Indépendantes</td><td class="n">17 500</td><td>oui</td></tr>
+              <tr><td>21 août</td><td>Fournitures</td><td>Sandrine</td><td>Caisse Principale</td><td class="n">54 000</td><td>oui</td></tr>
+              <tr><td>9 août</td><td>Local</td><td>Kabirou</td><td>Caisse Principale</td><td class="n">40 500</td><td style="color:var(--brique)">manquante</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:24px;">Ce qu'on y achète, et à quel prix</h3>
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr><th>Article</th><th class="n">Fois</th><th class="n">Dernier prix</th><th class="n">Il y a un an</th><th>Écart</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Huile de coco &middot; 1 L</b></td><td class="n">14</td><td class="n">1 450</td><td class="n">1 200</td><td class="hausse">+ 20,8 %</td></tr>
+              <tr><td><b>Gants jetables &middot; boîte</b></td><td class="n">11</td><td class="n">3 500</td><td class="n">3 500</td><td>stable</td></tr>
+              <tr><td><b>Sacs poubelle &middot; 50 L</b></td><td class="n">9</td><td class="n">2 100</td><td class="n">2 400</td><td class="baisse">− 12,5 %</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="legende">
+          <b>Cette section n'apparaît que si vous détaillez.</b> C'est votre choix : l'achat est
+          toujours suivi, l'article ne l'est que quand vous l'avez saisi. Rien ne vous oblige à
+          détailler pour que la fiche serve, et une fiche sans articles ne montre pas un tableau
+          vide, elle n'en montre aucun.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ COMMENT UNE DÉPENSE TROUVE SA MAISON ═════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Le lien</p>
+    <h2>Comment une dépense trouve son fournisseur</h2>
+    <ol class="rangs">
+      <li><b>Le fournisseur choisi sur la dépense</b>, s'il y en a un.
+        <span>Une liste au moment de la saisie, avec le nom qui se complète tout seul.</span></li>
+      <li><b>Sinon, son nom retrouvé dans le libellé</b>, casse et accents ignorés.
+        <span>C'est ce qui donne l'historique complet dès le premier jour, sans rien ressaisir.</span></li>
+      <li><b>Sinon, un de ses autres noms.</b>
+        <span>« SuperU », « super u cotonou », « SUPER-U » : la fiche les rassemble.</span></li>
+    </ol>
+
+    <div class="duo" style="margin-top:24px;">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Ses autres noms</h4><span>sur la fiche Super U</span></div>
+        <div class="ecran__corps">
+          <div style="margin-bottom:10px;">
+            <span class="chip is-on">Super U</span>
+            <span class="chip">SuperU</span>
+            <span class="chip">super u cotonou</span>
+          </div>
+          <div style="font-size:12.5px; color:var(--encre-d); margin-bottom:8px;">
+            Ces libellés vous ressemblent, la Maison les a repérés :
+          </div>
+          <div>
+            <span class="chip chip--prop">+ SUPER-U &middot; 4 dépenses</span>
+            <span class="chip chip--prop">+ Super U Godomey &middot; 2 dépenses</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="refus">
+        <h3>Ce que la Maison ne fera pas toute seule</h3>
+        <p style="margin:0 0 12px; font-size:14px;">
+          <b>Elle propose, elle ne rattache jamais d'office.</b> « Super U Godomey » est
+          peut-être une autre boutique, avec d'autres prix, que vous voulez suivre à part.
+          Deviner reviendrait à mélanger deux comptes, et l'erreur ne se verrait qu'au moment
+          où vous compareriez des chiffres devenus faux.
+        </p>
+        <p style="margin:0; font-size:14px;">
+          Un rattachement se défait d'un clic, et <b>la dépense elle-même n'est jamais
+          modifiée</b> : c'est la fiche qui apprend un nom de plus, pas l'écriture qui change.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ④ L'INTERROGER ═════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;« Que j'interroge facilement »</p>
+    <h2>Trois questions, trois réponses</h2>
+    <p class="intro">
+      C'est la moitié de votre demande, et elle mérite mieux qu'un tableau à faire défiler.
+      Chaque fiche répond à ces trois-là sans qu'on ait à chercher.
+    </p>
+    <ol class="rangs">
+      <li><b>Combien je leur donne, et est-ce que ça monte ?</b>
+        <span>Le total des douze mois, sa part dans vos dépenses, et le mois qui vient
+        comparé au même mois l'an dernier.</span></li>
+      <li><b>À quel rythme, et quand suis-je passé la dernière fois ?</b>
+        <span>Un passage tous les douze jours, dernier il y a trois jours. C'est ce qui vous
+        dit si un achat s'annonce, et si quelqu'un y va trop souvent.</span></li>
+      <li><b>Qu'est-ce qui augmente chez eux ?</b>
+        <span>Quand les articles sont saisis. L'huile a pris 20,8 % en un an ; c'est le genre
+        de chose qu'on ne voit jamais ligne à ligne.</span></li>
+    </ol>
+    <p class="legende">
+      Et le relevé se télécharge, <b>PDF ou CSV</b>, comme celui des avances de l'équipe :
+      pour discuter avec eux, papier en main.
+    </p>
+  </section>
+
+  <!-- ═══ ⑤ LES GARDES ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce qui ne doit pas bouger</p>
+    <h2>Les gardes</h2>
+    <div class="garde">
+      <ul>
+        <li><b>Aucune dépense n'est modifiée.</b> Le répertoire LIT vos dépenses, il ne les
+          réécrit pas. Le rattachement vit sur la fiche du fournisseur, jamais sur l'écriture.</li>
+        <li><b>Aucun chiffre de vos finances ne change.</b> Les totaux, les budgets, les soldes
+          de caisse et « Où va l'argent » restent exactement ce qu'ils sont : cette page ne
+          fait que les relire autrement.</li>
+        <li><b>Pas de solde, pas de dette.</b> Vous payez à chaque passage ; afficher un
+          « reste dû » toujours à zéro ferait douter du chiffre le jour où il ne le serait pas.</li>
+        <li><b>Les prestataires restent où ils sont.</b> Ceux qui font un TRAVAIL pour la Maison
+          ont déjà leur écran, avec leurs missions et leurs reçus. Ici, ce sont ceux à qui l'on
+          achète des CHOSES.</li>
+        <li><b>Un compte restreint n'y accède pas.</b> Le répertoire dit ce que la Maison
+          dépense et chez qui : il suit la même règle que les Dépenses.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fin">
+    Maquette à valider avant construction, selon la règle de la Maison. Dites-moi ce qui doit
+    changer, ou dites « construis ».
+  </p>
+
+</div>
+</body>
+</html>

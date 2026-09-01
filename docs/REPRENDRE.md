@@ -42,6 +42,56 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LE COMPTE FOURNISSEUR · 1er septembre 2026
+
+Maquette validée : `public/maquette-le-compte-fournisseur.html`. **Aucune
+migration** : `bindDocument` sur `mnd_fournisseurs`, la table `documents`
+existe et est déjà réservée au personnel.
+
+« J achète dans certains supermarchés de manière très répétitive au fil d une
+année. J aimerais qu ils aient un suivi de manière très précise et un compte
+que j interroge facilement. »
+
+**PAS DE SOLDE**, et c est sa réponse : la Maison paie à chaque passage. Un
+compte fournisseur est une MÉMOIRE, pas une ardoise. Afficher un « reste dû »
+toujours à zéro ferait douter du chiffre le jour où il ne le serait pas.
+
+### Le répertoire naît plein
+
+`maisonsARanger` sort les bénéficiaires des libellés déjà écrits, exactement
+comme « Où va l argent ». Rien à ressaisir : au premier jour, Super U porte
+déjà son année. La Maison n a qu à NOMMER ceux qui comptent.
+
+`fournisseurDeLaDepense` : ① l identifiant posé sur la dépense, ② son nom dans
+le libellé, ③ un de ses autres noms. Le deuxième est celui qui donne
+l historique. Un identifiant mort retombe sur le libellé plutôt que d orpheliner
+la dépense.
+
+### Ce que le harnais a corrigé
+
+**Le trait d union cassait la ressemblance** : « SUPER-U » et « Super U » ne se
+rapprochaient pas. On compare le NOYAU (lettres et chiffres seuls). Et j avais
+écarté les noyaux identiques comme « déjà siens » : c était justement la
+variante à proposer. La seule garde utile est celle du dessus, ce qui est DÉJÀ
+porté par une fiche ne se propose pas.
+
+### Les décisions
+
+- **On propose, on ne rattache jamais d office.** « Super U Godomey » est
+  peut-être une autre boutique ; mélanger deux comptes ne se verrait qu au
+  moment de comparer des chiffres devenus faux.
+- **Adopter un libellé, c est apprendre un nom de plus** : `alias` sur la
+  fiche. AUCUNE DÉPENSE N EST MODIFIÉE.
+- **Le prix suivi est celui de l UNITÉ** : deux litres à 2 900 F comptent pour
+  1 450 F le litre, sinon une commande double se lit comme une flambée.
+- **Le rythme se compte sur l étendue**, pas sur la moyenne des écarts. Un seul
+  passage n a pas de rythme : « tous les 0 jour » mentirait.
+- Les articles ne paraissent QUE si l on détaille (choix de Yéman).
+- Le libellé d une dépense se complète depuis les maisons nommées : pas de
+  champ de plus, le libellé EST le nom.
+
+37 assertions sur `verifie-fournisseurs`, le 24e harnais.
+
 ## LA DURÉE SUIT LA TÊTE, ET SE FIGE À LA POSE · 1er septembre 2026
 
 Maquette validée : `public/maquette-la-duree-suit-la-tete.html`.

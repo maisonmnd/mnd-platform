@@ -1,7 +1,7 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming,
-  Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, UsersRound,
+  Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, Store, UsersRound,
   Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, Handshake as PoigneeDeMain, type LucideIcon,
 } from 'lucide-react';
 
@@ -79,6 +79,10 @@ export const NAV: TroneGroup[] = [
       { path: '/prets', label: 'Les prêts', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },
+      /* LES MAISONS CHEZ QUI L'ON ACHÈTE — 1er septembre 2026. Juste après les
+         Dépenses, dont il n'est que l'autre lecture : mêmes écritures, rangées
+         par maison plutôt que par mois. */
+      { path: '/fournisseurs', label: 'Fournisseurs', icon: Store, Component: lazy(() => import('./finances/Fournisseurs')) },
       { path: '/salon-foyer', label: 'Salon & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
     ],
   },
