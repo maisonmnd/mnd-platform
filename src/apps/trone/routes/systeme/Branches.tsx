@@ -37,6 +37,7 @@ type BranchForm = {
   logo: SealColor;
   pictogram: string;
   masters: string[];
+  masterParDefaut: string;
   seats: number;
   status: Branch['status'];
   curTouched: boolean;
@@ -44,7 +45,7 @@ type BranchForm = {
 
 const emptyForm = (): BranchForm => ({
   name: '', city: '', address: '', mapsUrl: '', country: 'Bénin', dial: '+229', phone: '+229 ', currency: 'XOF',
-  logo: 'copper', pictogram: '◈', masters: [], seats: 4, status: 'paused', curTouched: false,
+  logo: 'copper', pictogram: '◈', masters: [], masterParDefaut: '', seats: 4, status: 'paused', curTouched: false,
 });
 
 export default function Branches() {
@@ -98,7 +99,7 @@ export default function Branches() {
     setForm({
       name: b.name, city: b.city, address: b.address, mapsUrl: b.mapsUrl ?? '', country: b.country, dial: b.dial,
       phone: b.phone ?? `${b.dial} `, currency: b.currency, logo: asSeal(b.logo),
-      pictogram: b.pictogram ?? '◈', masters: [...b.masters], seats: b.seats,
+      pictogram: b.pictogram ?? '◈', masters: [...b.masters], masterParDefaut: b.masterParDefaut ?? '', seats: b.seats,
       status: b.status, curTouched: true,
     });
     setOpen(true);
@@ -141,6 +142,11 @@ export default function Branches() {
         mapsUrl: form.mapsUrl.trim() || undefined, country: form.country,
         dial: form.dial, phone: form.phone.trim(), currency: form.currency, logo: form.logo,
         pictogram: form.pictogram, seats: form.seats, masters: cleanMasters,
+        /* IL DOIT ÊTRE ENCORE AU TABLEAU : un maître renommé ou retiré
+           laisserait sinon un nom fantôme, et la modale ouvrirait un rendez-vous
+           sans fauteuil. Absent = le premier de la liste, comme avant. */
+        masterParDefaut: cleanMasters.includes(form.masterParDefaut.trim())
+          ? form.masterParDefaut.trim() : undefined,
         status: form.status,
       } : b)));
     } else {
@@ -347,6 +353,34 @@ export default function Branches() {
                 </div>
               </div>
             </Field>
+
+            {/* ══ CELUI QUI SE PROPOSE D'ABORD — 1er septembre 2026 ═════════
+                « Quand un client prend RDV au Trône, afficher automatiquement
+                le calendrier de Team. Pas celui d'Expert » (Yéman).
+
+                LA MODALE PRENAIT LE PREMIER DE LA LISTE, et cet ordre n'est
+                qu'un accident de saisie : celui qu'on a écrit en premier le
+                jour de la création. Le changer aurait demandé de détruire et
+                recréer un maître, ce qui aurait détaché ses rendez-vous. */}
+            {form.masters.filter((m) => m.trim()).length > 1 && (
+              <Field label="Le maître qui se propose d’abord">
+                <select
+                  className="sys-select"
+                  value={form.masterParDefaut}
+                  onChange={(e) => patch({ masterParDefaut: e.target.value })}
+                >
+                  <option value="">Le premier de la liste</option>
+                  {form.masters.filter((m) => m.trim()).map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.55 }}>
+                  Il s’ouvre par défaut sur un nouveau rendez-vous, et sa colonne
+                  passe en tête du calendrier. <b>Rien n’est imposé</b> : le
+                  fauteuil se change d’un clic à la pose.
+                </span>
+              </Field>
+            )}
 
             <Field label="Fauteuils">
               <div className="sys-stepper">

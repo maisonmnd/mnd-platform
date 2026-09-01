@@ -9,6 +9,7 @@
    close un jour de fermeture. Les deux se paient en confiance, pas en francs,
    et se découvrent devant la porte. */
 import { creneauxLibres } from '../src/apps/couronne/lib';
+import { maitreParDefaut } from '../src/shared/branches';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -134,6 +135,30 @@ dit('une prestation plus longue que la journée ne rend rien', [],
    après « 10:00 » et se lirait mal dans une liste. */
 dit('les heures gardent leurs deux chiffres', '09:00',
   creneauxLibres({ opening: OUVERT, durationMin: 60, occupes: [], master: 'Team' })[0]);
+
+/* ── ⑧ LE MAÎTRE QUI SE PROPOSE D'ABORD ─────────────────────────────
+   « Quand un client prend RDV au Trône, afficher automatiquement le calendrier
+   de Team. Pas celui d'Expert » (Yéman, 1er septembre 2026).
+
+   LA MODALE PRENAIT LE PREMIER DE LA LISTE, et cet ordre n'est qu'un accident
+   de saisie : celui qu'on a écrit en premier le jour de la création de la
+   branche. Le changer aurait demandé de détruire et recréer un maître, donc de
+   détacher ses rendez-vous. */
+dit('sans choix, le premier de la liste', 'Expert',
+  maitreParDefaut({ masters: ['Expert', 'Team'] }));
+dit('le maître désigné passe devant', 'Team',
+  maitreParDefaut({ masters: ['Expert', 'Team'], masterParDefaut: 'Team' }));
+
+/* UN MAÎTRE RETIRÉ OU RENOMMÉ NE LAISSE PAS UN NOM FANTÔME : sans cette
+   vérification, la modale s'ouvrirait sur quelqu'un qui n'est plus au tableau,
+   et le rendez-vous partirait sans fauteuil. */
+dit('un maître disparu retombe sur le premier', 'Expert',
+  maitreParDefaut({ masters: ['Expert', 'Team'], masterParDefaut: 'Séraphin' }));
+dit('un choix vide aussi', 'Expert',
+  maitreParDefaut({ masters: ['Expert', 'Team'], masterParDefaut: '   ' }));
+/* UNE BRANCHE SANS AUCUN MAÎTRE NE PLANTE PAS : elle rend le vide, et la
+   modale laisse choisir. */
+dit('aucun maître, aucune proposition', '', maitreParDefaut({ masters: [] }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -42,6 +42,31 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LE MAÎTRE QUI SE PROPOSE D ABORD · 1er septembre 2026
+
+« Quand un client prend RDV au Trône, afficher automatiquement le calendrier de
+Team. Pas celui d Expert. »
+
+La modale prenait `branch.masters[0]`, et cet ordre n est qu un ACCIDENT DE
+SAISIE : celui qu on a écrit en premier le jour de la création de la branche.
+Aucun écran ne permettait de le changer sans détruire et recréer un maître, ce
+qui aurait détaché ses rendez-vous.
+
+`Branch.masterParDefaut` + `maitreParDefaut(branch)`. Il commande deux choses :
+la modale de rendez-vous s ouvre sur lui, et **sa colonne passe en tête du
+calendrier** (l ordre de `branch.masters` n est pas réécrit, il est lu
+autrement).
+
+**IL DOIT ÊTRE ENCORE AU TABLEAU** : un maître renommé ou retiré laisserait un
+nom fantôme, et la modale ouvrirait un rendez-vous sans fauteuil. La garde vit
+dans le juge ET à l enregistrement.
+
+Se règle dans Système → Branches, et le sélecteur ne paraît qu à partir de deux
+maîtres : proposer un choix quand il n y en a qu un serait du bruit.
+Absent = le premier de la liste, comme avant.
+
+5 assertions sur `verifie-creneaux`.
+
 ## LE COMPTE FOURNISSEUR · 1er septembre 2026
 
 Maquette validée : `public/maquette-le-compte-fournisseur.html`. **Aucune

@@ -22,11 +22,35 @@ export type Branch = {
   mapsUrl?: string;
   seats: number;
   masters: string[];
+  /** ── LE MAÎTRE PAR DÉFAUT — 1er septembre 2026 ──────────────────
+      « Quand un client prend RDV au Trône, afficher automatiquement le
+      calendrier de Team. Pas celui d'Expert » (Yéman).
+
+      LA MODALE PRENAIT LE PREMIER DE LA LISTE, et l'ordre de cette liste n'est
+      qu'un accident de saisie : celui qu'on a écrit en premier le jour de la
+      création de la branche. Rien ne permettait de le changer sans détruire et
+      recréer un maître, ce qui aurait détaché ses rendez-vous.
+
+      ABSENT = LE PREMIER DE LA LISTE, comme avant. Aucune branche ne change de
+      comportement tant que la Maison n'a pas choisi. */
+  masterParDefaut?: string;
   status: 'active' | 'paused';
   logo?: string | null;
   pictogram?: string | null;
   phone?: string;
   flagship?: boolean;
+};
+
+/** LE MAÎTRE QUI SE PROPOSE D'ABORD sur un nouveau rendez-vous.
+
+    Celui que la Maison a désigné, s'il est toujours au tableau ; sinon le
+    premier de la liste. LA VÉRIFICATION D'APPARTENANCE COMPTE : un maître
+    renommé ou retiré laisserait sinon la modale sur un nom qui n'existe plus,
+    et le rendez-vous partirait sans fauteuil. */
+export const maitreParDefaut = (b: Pick<Branch, 'masters' | 'masterParDefaut'>): string => {
+  const voulu = (b.masterParDefaut ?? '').trim();
+  if (voulu && b.masters.includes(voulu)) return voulu;
+  return b.masters[0] ?? '';
 };
 
 /* Maison neuve — une seule branche neutre à configurer (Système → Branches).

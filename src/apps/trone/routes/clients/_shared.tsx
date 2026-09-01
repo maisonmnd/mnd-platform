@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
-import { useBranch } from '../../../../shared/branches';
+import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { COTE_VIGNETTE, QUALITE_VIGNETTE } from '../../../../shared/photo';
 import { maisonNom, houseSignature } from '../../../../shared/identite';
@@ -1158,7 +1158,10 @@ export function RdvModal({
   });
   const [date, setDate] = useState(appt?.date ?? initial?.date ?? todayISO());
   const [time, setTime] = useState(appt?.time ?? initial?.time ?? '09:00');
-  const [master, setMaster] = useState(appt?.master ?? initial?.master ?? branch.masters[0] ?? '');
+  /* LE MAÎTRE QUE LA MAISON A DÉSIGNÉ — 1er septembre 2026. Le premier de la
+     liste n'était qu'un accident de saisie ; voir `maitreParDefaut`. Un
+     rendez-vous qu'on relit garde évidemment le sien. */
+  const [master, setMaster] = useState(appt?.master ?? initial?.master ?? maitreParDefaut(branch));
   const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);

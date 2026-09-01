@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
-import { useBranch } from '../../../../shared/branches';
+import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
@@ -283,7 +283,15 @@ export default function Calendrier() {
       .filter((a) => a.date === anchor && a.status !== 'annulé')
       .sort((a, b) => timeToMin(a.time) - timeToMin(b.time));
     const known = new Set(branch.masters);
-    const cols = branch.masters.map((m) => ({ name: m, appts: dayAppts.filter((a) => a.master === m) }));
+    /* LA COLONNE DU MAÎTRE PAR DÉFAUT PASSE EN TÊTE — 1er septembre 2026.
+       C'est là que le regard tombe, et c'est là que la Maison pose le plus de
+       rendez-vous. L'ordre de `branch.masters` reste celui de la saisie ; on ne
+       le réécrit pas, on le lit autrement. */
+    const dabord = maitreParDefaut(branch);
+    const ordonnes = dabord
+      ? [dabord, ...branch.masters.filter((m) => m !== dabord)]
+      : branch.masters;
+    const cols = ordonnes.map((m) => ({ name: m, appts: dayAppts.filter((a) => a.master === m) }));
     for (const m of [...new Set(dayAppts.filter((a) => !known.has(a.master)).map((a) => a.master))]) {
       cols.push({ name: m || 'Non assigné', appts: dayAppts.filter((a) => a.master === m) });
     }
