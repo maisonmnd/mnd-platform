@@ -67,6 +67,34 @@ Absent = le premier de la liste, comme avant.
 
 5 assertions sur `verifie-creneaux`.
 
+## LA PREMIÈRE TRANCHE SE CHOISIT · 1er septembre 2026
+
+« Je voudrais changer le montant de la première tranche de paiement. »
+
+LE PARTAGE ÉGAL EST UNE COMMODITÉ, PAS UNE LOI. Une cliente arrive avec
+100 000 F en main sur un abonnement de 168 000 : lui imposer 84 000 aujourd hui
+et 84 000 dans trente jours, c est refuser l argent qu elle tend et allonger ce
+qu elle devra.
+
+`construitEcheancier(..., premiereXof?)`. Absent = le partage égal, exactement
+comme avant.
+
+- **Le rab va sur la DERNIÈRE**, jamais sur la première : celle-ci porte le
+  montant annoncé à la cliente, au franc près. Un écran qui dit 100 000 et
+  enregistre 100 001 se paie en confiance.
+- **Chaque échéance garde au moins un franc.** Une tranche à zéro se lirait
+  comme soldée d avance. On borne, et l écran DIT qu il a borné : une valeur
+  ramenée sans un mot passe pour une faute de saisie.
+- **Zéro ou moins ne veut rien dire** et retombe sur le partage égal (attrapé
+  par le harnais : je bornais à 1 F, ce qui avait l air d une décision).
+- Un seul juge, `premiereVoulue()`, lu par l aperçu ET par l écriture : deux
+  lectures du même montant finiraient par diverger.
+
+Le champ reste **vide par défaut** dans la fiche d abonné, et vide veut dire
+partage égal : on ne demande rien à qui n a rien à négocier.
+
+13 assertions sur `verifie-echeancier`.
+
 ## LE BORDEREAU DE PAIE · 1er septembre 2026
 
 Maquette validée : `public/maquette-le-bordereau-de-paie.html`.

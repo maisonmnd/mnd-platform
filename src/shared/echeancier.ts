@@ -80,9 +80,44 @@ const addDays = (iso: string, days: number): string =>
     commence par un délai, la tête repart déjà avec quelque chose de réglé. */
 export function construitEcheancier(
   totalXof: number, parts: Decoupe, departIso: string, joursEntre = 30,
+  /** ── LA PREMIÈRE TRANCHE SE CHOISIT — 1er septembre 2026 ─────────
+      « Je voudrais changer le montant de la première tranche de paiement »
+      (Yéman).
+
+      LE PARTAGE ÉGAL EST UNE COMMODITÉ, PAS UNE LOI. Une cliente arrive avec
+      100 000 F en main sur un abonnement de 168 000 : lui imposer 84 000
+      aujourd'hui et 84 000 dans trente jours, c'est refuser l'argent qu'elle
+      tend et allonger ce qu'elle devra.
+
+      ABSENT = LE PARTAGE ÉGAL, exactement comme avant. */
+  premiereXof?: number,
 ): Echeance[] {
   const total = Math.max(0, Math.round(totalXof));
   if (total === 0) return [];
+
+  /* ZÉRO OU MOINS NE VEUT RIEN DIRE : « elle règle 0 aujourd'hui » n'est pas
+     une négociation, c'est un crédit qui commence par un délai, et la Maison
+     n'en accorde pas. On retombe alors sur le partage égal plutôt que de
+     borner à un franc, qui aurait l'air d'une décision. */
+  if (typeof premiereXof === 'number' && premiereXof > 0 && parts > 1) {
+    /* CHAQUE ÉCHÉANCE GARDE AU MOINS UN FRANC. Une tranche à zéro n'est pas
+       une tranche : elle se lirait comme soldée d'avance, et la cliente
+       croirait devoir moins. On borne donc la première plutôt que de la
+       refuser en silence. */
+    const premiere = Math.min(Math.max(1, Math.round(premiereXof)), total - (parts - 1));
+    const restant = total - premiere;
+    const base = Math.floor(restant / (parts - 1));
+    const rab = restant - base * (parts - 1);
+    return Array.from({ length: parts }, (_, i) => ({
+      numero: i + 1,
+      dueIso: i === 0 ? departIso : addDays(departIso, joursEntre * i),
+      /* LE RAB VA SUR LA DERNIÈRE, jamais sur la première : celle-ci porte le
+         montant que la Maison a annoncé à la cliente, au franc près. Un écran
+         qui dit 100 000 et enregistre 100 001 se paie en confiance. */
+      amountXof: i === 0 ? premiere : (i === parts - 1 ? base + rab : base),
+    }));
+  }
+
   const base = Math.floor(total / parts);
   const reste = total - base * parts;
   return Array.from({ length: parts }, (_, i) => ({

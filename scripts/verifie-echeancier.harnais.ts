@@ -147,5 +147,53 @@ dit('… et une phrase, jamais un code', true, ferme.dit.includes('34 jours'));
    qui dure. */
 dit('régler ce qui est échu rouvre la porte', true, peutReserver(base4, 60_000, '2026-10-01').ouvert);
 
+/* ── LA PREMIÈRE TRANCHE SE CHOISIT ─────────────────────────────────
+   « Je voudrais changer le montant de la première tranche de paiement »
+   (Yéman, 1er septembre 2026).
+
+   LE PARTAGE ÉGAL EST UNE COMMODITÉ, PAS UNE LOI. Une cliente arrive avec
+   100 000 F en main sur un abonnement de 168 000 : lui imposer 84 000
+   aujourd'hui, c'est refuser l'argent qu'elle tend et allonger ce qu'elle
+   devra. */
+const deux = construitEcheancier(168_000, 2, '2026-09-01', 30, 100_000);
+dit('la première porte le montant voulu', 100_000, deux[0].amountXof);
+dit('… et la seconde le reste', 68_000, deux[1].amountXof);
+dit('la somme fait toujours le total', 168_000, deux.reduce((n, e) => n + e.amountXof, 0));
+dit('les dates ne bougent pas', ['2026-09-01', '2026-10-01'], deux.map((e) => e.dueIso));
+
+/* SANS MONTANT VOULU, RIEN NE CHANGE : c'est la garde qui protège toutes les
+   ventes ordinaires, et tout ce qui a été signé avant cette règle. */
+dit('sans montant voulu, le partage égal', [84_000, 84_000],
+  construitEcheancier(168_000, 2, '2026-09-01').map((e) => e.amountXof));
+
+/* LE RAB VA SUR LA DERNIÈRE, jamais sur la première : celle-ci porte le
+   montant annoncé à la cliente, au franc près. Un écran qui dit 100 000 et
+   enregistre 100 001 se paie en confiance. */
+const quatre = construitEcheancier(100_001, 4, '2026-09-01', 30, 50_000);
+dit('la première est exacte au franc', 50_000, quatre[0].amountXof);
+dit('… le rab tombe sur la dernière', [16_667, 16_667, 16_667], [quatre[1].amountXof, quatre[2].amountXof, quatre[3].amountXof]);
+dit('… et le total tient', 100_001, quatre.reduce((n, e) => n + e.amountXof, 0));
+
+/* CHAQUE ÉCHÉANCE GARDE AU MOINS UN FRANC. Une tranche à zéro se lirait comme
+   soldée d'avance, et la cliente croirait devoir moins. On borne plutôt que de
+   refuser en silence. */
+dit('une première trop grande est ramenée', 167_999,
+  construitEcheancier(168_000, 2, '2026-09-01', 30, 999_999)[0].amountXof);
+dit('… et la suivante garde son franc', 1,
+  construitEcheancier(168_000, 2, '2026-09-01', 30, 999_999)[1].amountXof);
+dit('en quatre fois, trois francs restent', 167_997,
+  construitEcheancier(168_000, 4, '2026-09-01', 30, 999_999)[0].amountXof);
+/* UNE PREMIÈRE À ZÉRO N'EST PAS UNE PREMIÈRE : on n'accorde pas un crédit qui
+   commence par un délai, c'est la règle de la Maison depuis l'origine. */
+dit('zéro n’est pas un montant voulu', 84_000,
+  construitEcheancier(168_000, 2, '2026-09-01', 30, 0)[0].amountXof);
+dit('un négatif non plus', 84_000,
+  construitEcheancier(168_000, 2, '2026-09-01', 30, -5_000)[0].amountXof);
+
+/* EN UNE FOIS, LE MONTANT VOULU N'A AUCUN SENS : il n'y a rien à découper, et
+   l'appliquer ferait payer moins que le total. */
+dit('en une fois, le total entier', 168_000,
+  construitEcheancier(168_000, 1, '2026-09-01', 30, 50_000)[0].amountXof);
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

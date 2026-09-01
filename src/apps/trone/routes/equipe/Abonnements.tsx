@@ -47,6 +47,8 @@ type PlanForm = {
 };
 type SubForm = {
   clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null;
+  /** La première tranche, en toutes lettres. Vide = le partage égal. */
+  premiere: string;
   voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string;
   /* ── CE QUI SE CONVIENT AU COMPTOIR — 28 août 2026 ──────────────
      Tous vides par défaut : sans eux, la vente se fait au prix et au contenu
@@ -96,7 +98,7 @@ export default function Abonnements() {
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -358,7 +360,7 @@ export default function Abonnements() {
      elle l'a dit elle-même. */
   const ouvrirDepuisDemande = (d: DemandeFormule) => {
     setSubForm({
-      clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel',
+      clientId: d.clientId, planId: d.planId, slot: '', cycle: 'mensuel', premiere: '',
       parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '',
       prixConvenu: '', motif: '', inclus: null, validiteMois: '',
     });
@@ -478,6 +480,16 @@ export default function Abonnements() {
   /** Le contenu tel qu'il sera vendu — le sien s'il a été touché, sinon celui
       de la formule. */
   const inclusDeLaVente = (): PlanIncluded[] => subForm.inclus ?? planOf(subForm.planId)?.included ?? [];
+  /** LA PREMIÈRE TRANCHE VOULUE, ou `undefined` pour le partage égal.
+
+      UN SEUL JUGE POUR L'APERÇU ET POUR L'ÉCRITURE — 1er septembre 2026. Deux
+      lectures du même montant finiraient par diverger, et l'écran annoncerait
+      une somme que la fiche ne porterait pas. */
+  const premiereVoulue = (): number | undefined => {
+    const n = parseInt((subForm.premiere || '').replace(/[^0-9]/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
   /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
   const prixDeLaVente = (): number => {
     const plan = planOf(subForm.planId);
@@ -568,12 +580,12 @@ export default function Abonnements() {
          a pu choisir de payer en 2 ou 4 fois : la découpe est figée à la
          signature, comme une parole donnée. Elle ne se recalcule jamais. */
       ...(subForm.parts && peutEtreEchelonne(totalXof)
-        ? { echeances: construitEcheancier(totalXof, subForm.parts, todayISO()) }
+        ? { echeances: construitEcheancier(totalXof, subForm.parts, todayISO(), 30, premiereVoulue()) }
         : {}),
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
     if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
@@ -990,7 +1002,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
@@ -2090,7 +2102,9 @@ export default function Abonnements() {
                  sur un montant qu'on n'accorde pas. */
               const total = prixDeLaVente() + supp;
               if (!peutEtreEchelonne(total)) return null;
-              const apercu = subForm.parts ? construitEcheancier(total, subForm.parts, todayISO()) : [];
+              const apercu = subForm.parts
+                ? construitEcheancier(total, subForm.parts, todayISO(), 30, premiereVoulue())
+                : [];
               return (
                 <Field label={`Règlement · ${fmtMoney(total, currency)} à encaisser`}>
                   <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -2112,6 +2126,34 @@ export default function Abonnements() {
                       </button>
                     ))}
                   </div>
+                  {/* ══ LA PREMIÈRE TRANCHE SE CHOISIT — 1er septembre 2026 ═══
+                      « Je voudrais changer le montant de la première tranche de
+                      paiement » (Yéman).
+
+                      LE PARTAGE ÉGAL EST UNE COMMODITÉ, PAS UNE LOI. Une
+                      cliente arrive avec 100 000 F en main sur un abonnement de
+                      168 000 : lui imposer 84 000 aujourd'hui, c'est refuser
+                      l'argent qu'elle tend et allonger ce qu'elle devra.
+
+                      LE CHAMP RESTE VIDE PAR DÉFAUT, et vide veut dire « partage
+                      égal ». On ne demande rien à qui n'a rien à négocier. */}
+                  {subForm.parts && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10, flexWrap: 'wrap' }}>
+                      <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aujourd’hui, elle règle</span>
+                      <Input
+                        inputMode="numeric"
+                        style={{ maxWidth: 130, textAlign: 'right' }}
+                        placeholder={String(apercu[0]?.amountXof ?? '')}
+                        value={subForm.premiere}
+                        onChange={(e) => setSubForm({ ...subForm, premiere: e.target.value.replace(/[^0-9]/g, '') })}
+                      />
+                      {subForm.premiere && (
+                        <button className="tre-link-btn" onClick={() => setSubForm({ ...subForm, premiere: '' })}>
+                          revenir au partage égal
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {apercu.length > 0 ? (
                     <div style={{ marginTop: 10, border: '1px solid var(--hairline)', borderRadius: 3, overflow: 'hidden' }}>
                       {apercu.map((e) => (
@@ -2126,7 +2168,18 @@ export default function Abonnements() {
                         </div>
                       ))}
                     </div>
-                  ) : (
+                  ) : null}
+                  {/* ON DIT QUAND LE MONTANT A ÉTÉ RAMENÉ : chaque échéance garde
+                      au moins un franc, et une tranche bornée sans un mot passe
+                      pour une faute de saisie. */}
+                  {apercu.length > 0 && premiereVoulue() !== undefined
+                    && apercu[0].amountXof !== premiereVoulue() && (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, color: 'var(--copper-700)' }}>
+                      Ramenée à {fmtMoney(apercu[0].amountXof, currency)} : chaque échéance suivante
+                      garde au moins un franc.
+                    </div>
+                  )}
+                  {apercu.length === 0 && (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.6 }}>
                       Au-delà de {fmtMoney(SEUIL_ECHELONNEMENT_XOF, currency)}, la Maison peut découper.
                       La première échéance tombe le jour même : on n’accorde pas un crédit qui commence par un délai.
