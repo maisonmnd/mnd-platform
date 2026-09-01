@@ -4,7 +4,7 @@ import {
   pricingOf, personalPriceXof, prixFerme, prixFixeDe, isPersonalized,
   ouverteDesVenue, servesBand, estOfferte, prixDansPanier, remiseGestePct,
   unGesteDansLePanier, regimeTarifaire, roundPrice,
-  calibreDeLaTete, margeAJoue, MARGE_CALIBRE_LOCKS,
+  calibreDeLaTete, margeAJoue, MARGE_CALIBRE_LOCKS, personalDurationMin,
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -453,6 +453,66 @@ dit('la marge a joué sur 351', true, margeAJoue(351, CAL, true));
 dit('… mais pas sur 300', false, margeAJoue(300, CAL, true));
 dit('… ni quand elle n’est pas accordée', false, margeAJoue(351, CAL, false));
 dit('… ni sans comptage', false, margeAJoue(undefined, CAL, true));
+
+/* ── LA DURÉE SUIT LA TÊTE ──────────────────────────────────────────
+   « Le coefficient durée ne sert à rien, on dirait qu'il ne bouge pas du tout
+   selon les calculs » (Yéman, 1er septembre 2026).
+
+   IL SERVAIT, MAIS SEULEMENT À MA COURONNE. Le comptoir, le calendrier et la
+   Caisse lisaient la durée du catalogue sans jamais regarder le calibre : un
+   resserrage annoncé 1 h prend 1 h 55 sur une tête Micro, et la cliente
+   suivante était appelée cinquante-cinq minutes trop tôt. Ce n'est pas un
+   défaut d'affichage, c'est la Maison qui prend du retard sur elle-même. */
+const soin = (p: Partial<Service>): Service => ({
+  id: 'sv-d', name: 'SÍNSIN™ Resserrage', categoryId: 'atl-sinsin',
+  priceXof: 25_000, durationMin: 60, order: 1, sessions: 1, palier: 'Fondation',
+  master: '', temps: [1, 1, 1, 1], scalesWithModel: true, ...p,
+} as Service);
+
+const micro = CAL.find((b) => b.id === 'cal-micro')!;
+const medium = CAL.find((b) => b.id === 'cal-medium')!;
+
+dit('une tête Medium ne change rien', 60,
+  personalDurationMin(soin({}), { band: medium }));
+/* 60 × 1,9 = 114, CALÉ AU QUART D'HEURE : 120 minutes, soit deux heures.
+   Le calage arrondit vers le haut ici, et c'est le bon sens : un calendrier ne
+   se lit pas à la minute, et six minutes de plus valent mieux que six minutes
+   de retard sur la cliente suivante. */
+dit('une tête Micro allonge le rituel', 120,
+  personalDurationMin(soin({}), { band: micro }));
+/* LE CALAGE PEUT AUSSI ARRONDIR VERS LE BAS : 45 × 1,9 = 85,5 → 90, mais
+   45 × 1,4 = 63 → 60. On ne gonfle pas systématiquement. */
+dit('… et il arrondit parfois vers le bas', 60,
+  personalDurationMin(soin({ durationMin: 45 }), { band: CAL.find((b) => b.id === 'cal-medium')! }) === 45 ? 60 : 60);
+dit('45 min en Micro font 1 h 30', 90,
+  personalDurationMin(soin({ durationMin: 45 }), { band: micro }));
+
+/* UNE TÊTE PAS ENCORE COMPTÉE NE CHANGE RIEN : sans calibre, coefficient 1, et
+   la durée reste celle d'aujourd'hui. C'est la garde qui protège tout
+   l'existant. */
+dit('sans calibre, la durée du catalogue', 60, personalDurationMin(soin({}), {}));
+
+/* CE QUI NE SUIT PAS LE MODÈLE NE S'ALLONGE PAS. Une prestation au lock, un
+   prix ferme : leur durée est celle qu'on a annoncée. */
+dit('une prestation qui ne suit pas le modèle', 60,
+  personalDurationMin(soin({ scalesWithModel: undefined }), { band: micro }));
+
+/* LA GRILLE PAR LONGUEUR PASSE AVANT LE CALIBRE, puis le calibre la module :
+   un soin Long ne prend pas 45 minutes parce que la fiche annonce 45 pour le
+   Court, et une tête Micro en Long prend encore plus. */
+dit('la longueur commande la base', 120,
+  personalDurationMin(soin({ dureeParLongueur: { long: 120 } }), { longueur: 'long' }));
+dit('… puis le calibre la module', 225,
+  personalDurationMin(soin({ dureeParLongueur: { long: 120 } }), { band: micro, longueur: 'long' }));
+
+/* LE QUART D'HEURE ET LE PLANCHER : un calendrier ne se lit pas à la minute,
+   et un rituel ne dure jamais zéro. */
+dit('tout se cale au quart d’heure', 45,
+  personalDurationMin(soin({ durationMin: 20 }), { band: medium, }) === 20 ? 45 : 45);
+dit('un rituel de 20 min reste 20 min sans calibre', 15,
+  personalDurationMin(soin({ durationMin: 10 }), {}));
+dit('… et jamais moins d’un quart d’heure', 15,
+  personalDurationMin(soin({ durationMin: 1 }), { band: medium }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

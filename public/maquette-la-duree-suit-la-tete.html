@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La durée suit la tête &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:880px){ .duo { grid-template-columns:1fr; } }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 17px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:20px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:18px 20px; }
+
+  /* Un calendrier miniature, deux colonnes d'heures */
+  .cal { display:grid; grid-template-columns:52px 1fr; font-size:12px; }
+  .cal__h { color:var(--encre-d); font-size:10.5px; padding:0 8px 0 0; text-align:right;
+            border-top:1px solid var(--filet); height:34px; line-height:1; padding-top:2px; }
+  .cal__c { border-top:1px solid var(--filet); border-left:1px solid var(--filet); height:34px; position:relative; }
+  .bloc { position:absolute; left:5px; right:5px; border-radius:3px; padding:6px 9px;
+          background:var(--indigo); color:var(--ivoire); overflow:hidden; }
+  .bloc b { display:block; font-family:var(--serif); font-size:14px; font-weight:400; line-height:1.2; }
+  .bloc i { font-style:normal; font-size:10px; color:var(--cuivre-p); letter-spacing:.08em; }
+  .bloc--suiv { background:var(--indigo-2); }
+  .bloc--choc { background:var(--brique); }
+
+  .champ__label { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-bottom:5px; }
+  .boite { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:9px 11px; font-size:14px; }
+  .aide { font-size:12px; color:var(--encre-d); margin-top:6px; line-height:1.6; }
+  .dit { border:1px solid var(--cuivre-p); background:var(--cuivre-f); border-radius:3px;
+         padding:9px 12px; font-size:12.5px; color:var(--encre); margin-top:10px; line-height:1.55; }
+
+  .tableau { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:520px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--encre-d); padding:0 9px 9px 0; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 9px 9px 0; border-bottom:1px solid #EDE5D6; vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td b { font-weight:500; }
+  .vieux { color:var(--encre-d); text-decoration:line-through; }
+  .neuf { color:var(--indigo); font-weight:500; }
+
+  .rangs { counter-reset:r; margin:0; padding:0; list-style:none; }
+  .rangs li { counter-increment:r; position:relative; padding:14px 0 14px 46px; border-top:1px solid var(--filet); }
+  .rangs li:first-child { border-top:none; }
+  .rangs li::before { content:counter(r); position:absolute; left:0; top:12px;
+    font-family:var(--serif); font-size:19px; color:var(--cuivre); width:30px; text-align:center; }
+  .rangs b { font-weight:500; }
+  .rangs span { display:block; font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+
+  .garde { border:1px solid var(--indigo); border-radius:3px; background:var(--indigo-pale); padding:18px; }
+  .garde h3 { margin-top:0; }
+  .garde ul { margin:0; padding-left:18px; }
+  .garde li { margin-bottom:9px; font-size:14px; }
+
+  .refus { border:1px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:16px 18px; }
+  .refus h3 { color:var(--brique); margin-top:0; }
+
+  .fin { margin-top:70px; border-top:1px solid var(--filet); padding-top:24px;
+         font-size:13px; color:var(--encre-d); max-width:70ch; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Le Trône &middot; Maquette à valider</p>
+  <h1>La durée suit la tête</h1>
+  <p class="chapeau">
+    Le coefficient de durée existe depuis des semaines et ne parle qu'aux clientes en ligne.
+    <b>Votre calendrier, lui, réserve la même heure à toutes les têtes.</b> On le branche là où
+    il compte, et on fige la durée à la pose pour que le passé ne bouge jamais.
+  </p>
+
+  <section>
+    <p class="cite">
+      « Le coefficient durée ne sert à rien, on dirait qu'il ne bouge pas du tout selon les
+      calculs. »
+      <span>Yéman, 1er septembre 2026</span>
+    </p>
+    <p class="intro">
+      Il bouge, mais ailleurs. <b>Ma Couronne</b> l'applique quand une cliente réserve seule, et
+      l'écran <b>Vitrine client</b> le montre en aperçu. Votre modale de rendez-vous, la hauteur
+      des blocs du calendrier et la Caisse appellent une autre fonction, qui lit la durée du
+      catalogue et la grille par longueur, <b>sans jamais regarder le calibre</b>.
+    </p>
+    <p class="intro">
+      Ce n'est pas un détail d'affichage. Un resserrage annoncé à 1 h prend 2 h sur une tête
+      Micro. Le calendrier en réserve 60 minutes, la suivante est posée trop tôt, <b>et c'est
+      la Maison qui prend le retard sur elle-même</b>, tous les jours, sans que rien ne l'écrive.
+    </p>
+  </section>
+
+  <!-- ═══ ① AVANT / APRÈS ════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Ce que ça change</p>
+    <h2>Le même après-midi, deux fois</h2>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Aujourd'hui</h4><span>durée du catalogue</span></div>
+        <div class="ecran__corps">
+          <div class="cal">
+            <div class="cal__h">13:00</div><div class="cal__c">
+              <div class="bloc" style="top:2px; height:64px;">
+                <b>Mylène &middot; SÍNSIN™</b><i>1 h &middot; annoncé</i>
+              </div>
+            </div>
+            <div class="cal__h">14:00</div><div class="cal__c">
+              <div class="bloc bloc--suiv" style="top:2px; height:64px;">
+                <b>Keziah &middot; KLƆKLƆ™</b><i>1 h</i>
+              </div>
+            </div>
+            <div class="cal__h">15:00</div><div class="cal__c"></div>
+            <div class="cal__h">16:00</div><div class="cal__c"></div>
+          </div>
+          <p class="aide">
+            Mylène porte 350 locks. Son resserrage prendra <b>2 h</b> en vérité. Keziah est
+            posée à 14 h et attendra <b>1 heure</b>, sans que personne l'ait vu venir.
+          </p>
+        </div>
+      </div>
+
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Avec la durée qui suit la tête</h4><span>calibre Micro &middot; ×1,9</span></div>
+        <div class="ecran__corps">
+          <div class="cal">
+            <div class="cal__h">13:00</div><div class="cal__c">
+              <div class="bloc" style="top:2px; height:130px;">
+                <b>Mylène &middot; SÍNSIN™</b><i>2 h &middot; calibre Micro</i>
+              </div>
+            </div>
+            <div class="cal__h">14:00</div><div class="cal__c"></div>
+            <div class="cal__h">15:00</div><div class="cal__c">
+              <div class="bloc bloc--suiv" style="top:2px; height:64px;">
+                <b>Keziah &middot; KLƆKLƆ™</b><i>1 h</i>
+              </div>
+            </div>
+            <div class="cal__h">16:00</div><div class="cal__c"></div>
+          </div>
+          <p class="aide">
+            Le bloc occupe la place qu'il prend. Keziah se pose à 15 h, et le créneau de 14 h
+            n'est plus proposé : <b>c'est le calendrier qui refuse, pas la personne au comptoir.</b>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LA MODALE LE DIT ═════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;À la pose</p>
+    <h2>La modale annonce la durée réelle, et d'où elle vient</h2>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Nouveau rendez-vous</h4><span>Mylène Grimaud</span></div>
+        <div class="ecran__corps">
+          <div style="margin-bottom:12px;">
+            <div class="champ__label">Prestations</div>
+            <div class="boite">SÍNSIN™ Resserrage racines</div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div class="champ__label">Le moment</div>
+            <div class="boite">Lun. 8 septembre &middot; 13:00</div>
+          </div>
+          <div class="dit">
+            <b>2 h</b>, de 13:00 à 15:00. La fiche annonce 1 h ; sa tête est
+            <b>calibre Micro</b>, et le barème des prestations y pose ×1,9.
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Ce que la phrase doit contenir</h3>
+        <p class="intro" style="margin-top:8px;">
+          Trois choses, et pas une de plus : <b>l'heure de fin</b>, parce que c'est ce qu'on
+          cherche ; <b>la durée annoncée</b>, pour qu'on ne croie pas à une faute de saisie ;
+          <b>le calibre et son coefficient</b>, pour qu'on sache d'où vient l'écart.
+        </p>
+        <p class="legende">
+          <b>Sans cette phrase, l'allongement passe pour un bogue.</b> Quelqu'un qui pose un
+          rendez-vous voit 1 h sur la fiche du catalogue et 2 h sur le calendrier : sans
+          explication, il corrige à la main et le réglage ne sert plus à rien.
+        </p>
+        <p class="legende">
+          Elle ne paraît <b>que lorsque la durée change</b>. Sur une tête Medium, ou sur une
+          prestation qui ne suit pas le modèle, rien ne s'affiche : un écran qui commente ce
+          qu'il n'a pas modifié fatigue pour rien.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ LE PASSÉ NE BOUGE PAS ════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;La décision qui compte</p>
+    <h2>La durée se fige à la pose</h2>
+    <p class="intro">
+      C'est le point le plus important de cette maquette, et celui que je vous demande de
+      valider en connaissance de cause.
+    </p>
+
+    <div class="refus">
+      <h3>Le danger de tout recalculer</h3>
+      <p style="margin:0 0 12px; font-size:14px;">
+        Aujourd'hui, la durée d'un rendez-vous se <b>déduit</b> du catalogue à chaque
+        affichage. Brancher le calibre sans rien d'autre voudrait dire que
+        <b>tous vos rendez-vous passés changeraient de hauteur</b> le jour de la mise en ligne,
+        et qu'ils rebougeraient chaque fois que vous touchez un coefficient.
+      </p>
+      <p style="margin:0; font-size:14px;">
+        Pire : une tête qui grossit de 340 à 360 locks ferait s'allonger, rétrospectivement,
+        <b>tous ses rendez-vous de l'année</b>. Le calendrier de mars n'est pas une prévision,
+        c'est un compte rendu.
+      </p>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="tableau">
+        <table>
+          <thead>
+            <tr><th>Rendez-vous</th><th>Aujourd'hui</th><th>Après</th><th>Pourquoi</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Ceux déjà posés</b></td>
+              <td class="vieux">recalculés en direct</td>
+              <td class="neuf">inchangés, à jamais</td>
+              <td>Le passé est un compte rendu. On lui écrit sa durée telle qu'elle a été vécue.</td>
+            </tr>
+            <tr>
+              <td><b>Ceux posés à partir de maintenant</b></td>
+              <td class="vieux">durée du catalogue</td>
+              <td class="neuf">durée figée, calibre compris</td>
+              <td>Elle s'écrit sur le rendez-vous, comme le prix s'y écrit déjà.</td>
+            </tr>
+            <tr>
+              <td><b>Un rendez-vous qu'on modifie</b></td>
+              <td class="vieux">suit le catalogue</td>
+              <td class="neuf">recalculée à ce moment-là</td>
+              <td>Changer ses prestations, c'est le reposer. La durée suit le geste.</td>
+            </tr>
+            <tr>
+              <td><b>Un coefficient qu'on change</b></td>
+              <td class="vieux">tout bouge</td>
+              <td class="neuf">rien ne bouge</td>
+              <td>Il vaudra pour les prochains rendez-vous, pas pour ceux qui sont pris.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="legende">
+        <b>C'est exactement la règle du prix</b>, déjà en vigueur : un rendez-vous porte sa
+        longueur travaillée et son prix convenu, et relire mars ne le retarife pas aux prix
+        d'aujourd'hui. La durée rejoint simplement la même famille.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ ④ L'ORDRE DE LECTURE ═══════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;La règle</p>
+    <h2>D'où vient la durée d'un rendez-vous</h2>
+    <ol class="rangs">
+      <li><b>La durée écrite sur le rendez-vous</b>, si elle y est.
+        <span>Tout ce qui sera posé à partir de la mise en ligne.</span></li>
+      <li><b>Sinon la grille par longueur</b> de chaque prestation.
+        <span>Inchangé, c'est déjà le cas aujourd'hui.</span></li>
+      <li><b>Sinon la durée du catalogue.</b>
+        <span>Inchangé également : c'est ce que liront tous les rendez-vous d'avant.</span></li>
+    </ol>
+    <p class="legende">
+      Et au moment de la pose, la durée qu'on écrit vaut : <b>durée de la longueur ou du
+      catalogue &times; coefficient de durée du calibre</b>, calée au quart d'heure, jamais
+      moins de 15 minutes. Sur une prestation qui ne suit pas le modèle, le coefficient vaut 1.
+      <b>La marge de calibre s'applique</b>, comme partout : une tête à 355 locks à qui la
+      Maison l'a accordée reste Micro, en durée comme en prix.
+    </p>
+  </section>
+
+  <!-- ═══ ⑤ LES GARDES ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce qui ne doit pas bouger</p>
+    <h2>Les gardes</h2>
+    <div class="garde">
+      <ul>
+        <li><b>Une tête pas encore comptée ne change rien.</b> Sans calibre, coefficient 1, et
+          la durée reste celle d'aujourd'hui.</li>
+        <li><b>Les prix ne bougent pas d'un franc.</b> Cette maquette ne touche qu'à la durée ;
+          le coefficient de prix et ses deux barèmes restent exactement où ils sont.</li>
+        <li><b>La durée reste modifiable à la main</b> sur le rendez-vous. Le calcul propose,
+          le comptoir dispose : une tête va parfois plus vite que son calibre.</li>
+        <li><b>Les créneaux libres suivent.</b> Un rendez-vous plus long occupe plus de place,
+          donc le calendrier propose moins d'heures. C'est le but, et Ma Couronne le fait déjà.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fin">
+    Maquette à valider avant construction, selon la règle de la Maison. Dites-moi ce qui doit
+    changer, ou dites « construis ».
+  </p>
+
+</div>
+</body>
+</html>

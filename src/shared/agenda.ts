@@ -69,6 +69,26 @@ export type Appointment = {
       ici, chaque rituel garde la longueur qu'il a réellement travaillée, et
       relire un rendez-vous de mars ne le retarife pas à la longueur d'aujourd'hui. */
   longueur?: LongueurId;
+  /** ── LA DURÉE SE FIGE À LA POSE — 1er septembre 2026 ────────────
+      « Le coefficient durée ne sert à rien, on dirait qu'il ne bouge pas du
+      tout » (Yéman). Il ne parlait qu'à Ma Couronne : le comptoir, le
+      calendrier et la Caisse lisaient la durée du catalogue, sans jamais
+      regarder le calibre. Un resserrage annoncé 1 h prend 1 h 55 sur une tête
+      Micro, et la suivante était posée cinquante-cinq minutes trop tôt.
+
+      POURQUOI L'ÉCRIRE PLUTÔT QUE LA DÉDUIRE. La durée se déduisait du
+      catalogue à chaque affichage. Y brancher le calibre aurait fait changer
+      de hauteur TOUS les rendez-vous passés le jour de la mise en ligne, et
+      les aurait fait rebouger à chaque coefficient touché. Pire : une tête qui
+      grossit de 340 à 360 locks aurait allongé, rétrospectivement, tous ses
+      rendez-vous de l'année. LE CALENDRIER DE MARS N'EST PAS UNE PRÉVISION,
+      C'EST UN COMPTE RENDU.
+
+      C'est déjà la règle du prix et de la longueur travaillée, qui se figent à
+      la pose pour la même raison. La durée rejoint la même famille.
+
+      ABSENT = LES RENDEZ-VOUS D'AVANT, qui gardent leur calcul d'origine. */
+  dureeMin?: number;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   master: string;

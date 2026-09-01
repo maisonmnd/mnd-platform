@@ -42,6 +42,51 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA DURÉE SUIT LA TÊTE, ET SE FIGE À LA POSE · 1er septembre 2026
+
+Maquette validée : `public/maquette-la-duree-suit-la-tete.html`.
+
+« Le coefficient durée ne sert à rien, on dirait qu il ne bouge pas du tout. »
+
+IL SERVAIT, MAIS SEULEMENT À MA COURONNE. `personalDurationMin` n était appelé
+que par le tunnel de réservation, le cycle et l aperçu Vitrine. Le comptoir, le
+calendrier et la Caisse passaient par `apptDurationMin`, qui lit la durée du
+catalogue et la grille par longueur **sans jamais regarder le calibre**. Un
+resserrage annoncé 1 h prend 2 h sur une tête Micro : la suivante était appelée
+une heure trop tôt, tous les jours, et c est la Maison qui prenait le retard.
+
+### La décision validée : elle se fige à la pose
+
+La durée se DÉDUISAIT du catalogue à chaque affichage. Y brancher le calibre
+aurait fait changer de hauteur **tous les rendez-vous passés** le jour de la
+mise en ligne, et les aurait fait rebouger à chaque coefficient touché. Pire :
+une tête qui grossit de 340 à 360 locks aurait allongé rétrospectivement tous
+ses rendez-vous de l année. **Le calendrier de mars n est pas une prévision,
+c est un compte rendu.**
+
+`Appointment.dureeMin` s écrit à la pose, comme le prix et la longueur
+travaillée s y écrivent déjà. `apptDurationMin` la lit en premier, puis retombe
+sur le calcul d avant, mot pour mot, pour tous les rendez-vous d avant.
+Modifier un rendez-vous la recalcule (c est le reposer) ; toucher un
+coefficient ne rattrape jamais ce qui est pris.
+
+### La phrase, et la main
+
+La modale annonce « 2 h, de 13:00 à 15:00 » puis, seulement si la durée change,
+« la fiche annonce 1 h ; sa tête est calibre Micro, et le barème y pose ×1,9 ».
+SANS ELLE L ALLONGEMENT PASSE POUR UN BOGUE : on corrige à la main et le
+réglage ne sert plus à rien. Un champ « à la main » reste ouvert, avec un
+retour au calcul : une tête va parfois plus vite que son calibre.
+
+### Ce que j avais écrit de faux dans la maquette
+
+60 × 1,9 = 114, **calé au quart d heure : 120 minutes, pas 115**. J avais
+annoncé 1 h 55, la maquette est corrigée. Le calage arrondit vers le haut ici,
+et parfois vers le bas (45 × 1,4 = 63 → 60) : on ne gonfle pas
+systématiquement.
+
+10 assertions sur `verifie-prix`.
+
 ## LE JUSTE PRIX, CLAIR · 1er septembre 2026
 
 Maquette validée : `public/maquette-le-juste-prix-clair.html`.

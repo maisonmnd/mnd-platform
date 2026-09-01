@@ -23,7 +23,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { useSubscribers, usePlans, activeSubscriberOf, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
@@ -107,7 +107,14 @@ export const svcPriceForAppt = (a: Appointment, s: Service): number =>
   (a.longueur ? s.prixParLongueur?.[a.longueur] : undefined) ?? s.priceXof;
 
 export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
-  apptServices(a, byId).reduce(
+  /* ① CE QUI EST ÉCRIT SUR LE RENDEZ-VOUS fait foi — 1er septembre 2026. Il
+     porte la durée qu'on lui a donnée à la pose, calibre compris. Voir
+     `Appointment.dureeMin` : le passé ne se recalcule pas.
+     ② ③ Sinon la grille par longueur, sinon le catalogue : c'est le calcul
+     d'avant, mot pour mot, et c'est lui que lisent tous les rendez-vous
+     posés avant cette règle. */
+  a.dureeMin
+  || apptServices(a, byId).reduce(
     (sum, s) => sum + ((a.longueur ? s.dureeParLongueur?.[a.longueur] : undefined) ?? s.durationMin),
     0,
   ) || 60;
@@ -1381,6 +1388,29 @@ export function RdvModal({
      d'un soin dont la séance ne se facture pas ferait croire à un dû. */
   const argent = (n: number): string => (sansPrix || estSuite ? '—' : fmtMoney(n, currency));
   const pricing = { ...pricingOf(rdvClient, bands, sets, cats), longueur };
+
+  /* ══ LA DURÉE SUIT LA TÊTE — 1er septembre 2026 ════════════════════
+     « Le coefficient durée ne sert à rien, on dirait qu'il ne bouge pas du
+     tout » (Yéman). Il ne parlait qu'à Ma Couronne. Ici, le comptoir posait la
+     durée du catalogue, et la cliente suivante était appelée trop tôt.
+
+     `personalDurationMin` est le MÊME juge que Ma Couronne : durée de la
+     longueur ou du catalogue, multipliée par le coefficient de durée du
+     calibre, calée au quart d'heure. La marge de calibre y entre d'elle-même,
+     puisqu'elle vit dans `pricingOf`. */
+  const dureeCalculee = useMemo(
+    () => chosen.reduce((n, sv) => n + personalDurationMin(sv, pricing), 0),
+    [chosen, pricing],
+  );
+  const dureeCatalogue = useMemo(
+    () => chosen.reduce((n, sv) => n + ((longueur ? sv.dureeParLongueur?.[longueur] : undefined) ?? sv.durationMin), 0),
+    [chosen, longueur],
+  );
+  /* LA MAIN PASSE DEVANT LE CALCUL : une tête va parfois plus vite que son
+     calibre. Vide = on suit le calcul. */
+  const [dureeMain, setDureeMain] = useState<string>('');
+  const dureeRetenue = Math.max(15, parseInt(dureeMain.replace(/[^0-9]/g, ''), 10) || dureeCalculee || 60);
+  const finDuRdv = timeToMin(time) + dureeRetenue;
   /* Le prix de référence suit déjà la longueur : sans cela, une cliente sans
      modèle ni Juste Prix — donc « non personnalisée » — se serait vu facturer
      le prix du Court quelle que soit sa longueur. */
@@ -1707,6 +1737,13 @@ export function RdvModal({
                    la poser partout salirait tous les rituels d'une donnee qui
                    ne commande rien chez eux. */
                 longueur: longueurPertinente ? longueur : undefined,
+                /* ══ LA DURÉE SE FIGE ICI — 1er septembre 2026 ═══════════
+                   Elle s'écrit sur le rendez-vous, comme le prix et la
+                   longueur travaillée. MODIFIER UN RENDEZ-VOUS LA RECALCULE :
+                   changer ses prestations, c'est le reposer, et la durée suit
+                   le geste. Un coefficient touché plus tard, lui, ne le
+                   rattrape jamais. */
+                dureeMin: dureeRetenue,
                 /* Aucune main nulle part : on n'ecrit rien plutot qu'un tableau
                    de listes vides — le rendez-vous retombe alors sur son maitre. */
                 mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
@@ -1766,6 +1803,8 @@ export function RdvModal({
         clientId,
         serviceIds,
         longueur: longueurPertinente ? longueur : undefined,
+        /* La durée figée, comme sur la branche de modification ci-dessus. */
+        dureeMin: dureeRetenue,
         mains: mains.some((m) => m?.length) ? serviceIds.map((_, k) => mains[k] ?? []) : undefined,
         remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
           ? serviceIds.map((_, k) => remisesL[k] ?? null)
@@ -1930,6 +1969,42 @@ export function RdvModal({
             calibre={pricing.band ? bandLabel(pricing.band, bands) : undefined}
           />
         </div>
+
+        {/* ELLE NE PARAÎT QUE LORSQUE LA DURÉE CHANGE. Sur une tête Medium, ou
+            sur une prestation qui ne suit pas le modèle, rien ne s'affiche : un
+            écran qui commente ce qu'il n'a pas modifié fatigue pour rien.
+
+            SANS CETTE PHRASE, L'ALLONGEMENT PASSE POUR UN BOGUE : on lit 1 h au
+            catalogue, 1 h 55 au calendrier, on corrige à la main, et le réglage
+            ne sert plus à rien. */}
+        {chosen.length > 0 && (
+          <div className="trc-rdv-duree">
+            <div className="trc-rdv-duree__t">
+              <b>{fmtDureeCourte(dureeRetenue)}</b>, de {time} à {String(Math.floor(finDuRdv / 60)).padStart(2, '0')}:{String(finDuRdv % 60).padStart(2, '0')}
+            </div>
+            {dureeCalculee !== dureeCatalogue && !dureeMain && pricing.band && (
+              <div className="trc-rdv-duree__d">
+                La fiche annonce {fmtDureeCourte(dureeCatalogue)} ; sa tête est
+                {' '}<b>calibre {pricing.band.name ?? bandLabel(pricing.band, bands)}</b>,
+                et le barème des prestations y pose ×{pricing.band.durCoef}.
+              </div>
+            )}
+            <div className="trc-rdv-duree__main">
+              <span>À la main</span>
+              <input
+                className="mnd-input"
+                inputMode="numeric"
+                placeholder={String(dureeCalculee || 60)}
+                value={dureeMain}
+                onChange={(e) => setDureeMain(e.target.value.replace(/[^0-9]/g, ''))}
+              />
+              <span>min</span>
+              {dureeMain && (
+                <button className="tre-link-btn" onClick={() => setDureeMain('')}>revenir au calcul</button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div>
           <PalierRdv
