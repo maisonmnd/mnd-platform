@@ -14,7 +14,7 @@ import {
   subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
-  prixVenduXof, ecartDuPrixConvenu, inclusVendus,
+  prixVenduXof, ecartDuPrixConvenu, inclusVendus, abonnementsVivantsDe,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
@@ -554,6 +554,21 @@ export default function Abonnements() {
     /* Un refus se dit — même leçon que `savePlan` le 28 août. */
     if (!client) { toast('Choisissez la tête couronnée à inscrire.'); return; }
     if (!plan) { toast('Choisissez une formule.'); return; }
+    /* ══ UNE SEULE FORMULE À LA FOIS — 1er septembre 2026 ═══════════════
+       Le serveur tient cette règle depuis la 0077 ; le comptoir, lui, ne la
+       tenait pas, et l'on pouvait inscrire deux fois la même tête sans un mot.
+       C'est arrivé : la fiche d'un rendez-vous lisait l'ancienne formule,
+       annonçait qu'elle ne couvrait rien, et le rituel se facturait plein
+       alors que la nouvelle le portait.
+
+       ON REFUSE ET ON NOMME CE QUI BLOQUE. Un refus muet se reclique ; celui-ci
+       dit quelle formule occupe déjà la place, et ce qu'il faut en faire. */
+    const dejaLa = abonnementsVivantsDe(subs, client.id);
+    if (dejaLa.length > 0) {
+      const occupe = planOf(dejaLa[0].planId)?.name ?? 'une formule';
+      toast(`${client.name} a déjà « ${occupe} » en cours. Résiliez-la d’abord, ou modifiez-la : deux abonnements ouverts font deux compteurs sur les mêmes rendez-vous.`);
+      return;
+    }
     const cycle = subForm.cycle;
     const opt = chiffreLOption(plan, cycle);
     /* CE QUI A ÉTÉ CONVENU AU COMPTOIR fait foi partout à partir d'ici : le

@@ -10,6 +10,7 @@
 import {
   basePourLaTete, supplementDeLongueurXof, prixDeLaFormule, etendueDeLaFormule,
   partMensuelleDeLaFormule, prixVenduXof, ecartDuPrixConvenu,
+  gainPourElle, perkParleDeLaCarte, abonnementsVivantsDe,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import { modelBandsStore, bandSetsStore, bandsAbonnements, SCOPE_ABONNEMENTS } from '../src/shared/pricing';
@@ -207,6 +208,88 @@ dit('… et le fauteuil garde le sien', 1.8,
 dit('la fourchette lit le barème des abonnements', { bas: 36_000, haut: 65_500 },
   etendueDeLaFormule(suit, 'mensuel', bandsAbonnements({ [SCOPE_ABONNEMENTS]: DOUX }, BANDS)));
 bandSetsStore.set({});
+
+/* ── ⑩ CE QU'ELLE GAGNE, ELLE ───────────────────────────────────────
+   « Il faudra personnaliser ce message selon le prix de chacun. Combien la
+   nouvelle remise leur donne comme nouveau total de remise » (Yéman, 1er
+   septembre 2026).
+
+   LES DEUX MOITIÉS SUIVENT LA MÊME TÊTE. Le gain se lit « ce que la carte
+   coûterait, moins ce que la formule demande » : si la carte se calcule au prix
+   de la cliente et la formule au prix de référence, l'écart annoncé n'existe
+   pour personne. */
+const avecInclus = plan({
+  suitLeCalibre: true, priceXof: 140_000,
+  included: [{ serviceId: 'sv-a', qty: 6 }, { serviceId: 'sv-b', qty: 6 }],
+});
+/* Prix catalogue : 6 × 18 000 + 6 × 15 000 = 198 000. */
+const auCatalogue = (id: string) => (id === 'sv-a' ? 18_000 : 15_000);
+const g0 = gainPourElle(avecInclus, 'mensuel', undefined, BANDS, auCatalogue);
+dit('sans calibre, le gain de référence', { carte: 198_000, prix: 140_000, gain: 58_000, pct: 29 },
+  { carte: g0.carteXof, prix: g0.prixXof, gain: g0.gainXof, pct: g0.pct });
+
+/* UNE TÊTE MICRO PAIE PLUS CHER À LA CARTE **ET** PLUS CHER SON ABONNEMENT :
+   son gain n'est celui de personne d'autre, et c'est tout l'intérêt de le
+   calculer plutôt que de l'écrire à la main. */
+const perso = (id: string) => Math.round(auCatalogue(id) * 1.8);
+const g1 = gainPourElle(avecInclus, 'mensuel', { bandId: 'cal-micro' }, BANDS, perso);
+dit('la carte suit sa tête', 356_400, g1.carteXof);
+dit('… la formule aussi', 252_000, g1.prixXof);
+dit('… et le gain est le sien', 104_400, g1.gainXof);
+dit('… en pourcentage', 29, g1.pct);
+
+/* UNE LIGNE ILLIMITÉE SORT DU CALCUL et se compte à part : la chiffrer à
+   l'infini donnerait un gain infini, et ne pas la dire ferait passer la
+   formule pour moins généreuse qu'elle n'est. */
+const g2 = gainPourElle(
+  plan({ priceXof: 140_000, included: [{ serviceId: 'sv-a', qty: 6 }, { serviceId: 'sv-b', qty: null }] }),
+  'mensuel', undefined, BANDS, auCatalogue,
+);
+dit('l’illimité ne se chiffre pas', 108_000, g2.carteXof);
+dit('… mais il se compte', 1, g2.illimitees);
+
+/* UNE PRESTATION DISPARUE DU CATALOGUE SE SIGNALE au lieu de valoir zéro : un
+   gain calculé sur une formule amputée serait faux sans que rien ne le dise. */
+const g3 = gainPourElle(avecInclus, 'mensuel', undefined, BANDS, (id) => (id === 'sv-a' ? 18_000 : undefined));
+dit('une prestation absente se signale', 1, g3.introuvables);
+
+/* LES AVANTAGES ÉCRITS À LA MAIN QUI PARLENT DU GAIN SONT REMPLACÉS : deux
+   chiffres sur le même sujet, dont l'un figé dans un texte, finissent toujours
+   par se contredire. */
+dit('un avantage qui parle de la carte est remplacé', true,
+  perkParleDeLaCarte('198 000 F à la carte, vous gagnez à partir de 30 000 F'));
+dit('… « −20 % sur la carte » aussi', true, perkParleDeLaCarte('−20 % sur la carte'));
+dit('mais pas un vrai avantage', false, perkParleDeLaCarte('6 GBÈJÍ™ resserrage racines'));
+dit('… ni la durée', false, perkParleDeLaCarte('Valable 9 mois, la marge pour souffler'));
+
+/* ── ⑪ UNE SEULE FORMULE À LA FOIS ──────────────────────────────────
+   « Mme Grimaud est sur La Juste Cadence, voilà la preuve. Peut-on avoir 2
+   abonnements simultanément ? » Elle en avait DEUX : le serveur l'interdit
+   depuis la 0077, le comptoir ne le vérifiait pas.
+
+   LE PLUS RÉCENT L'EMPORTE. `find` rendait le premier du magasin, donc le plus
+   anciennement écrit : la tête qui venait de reprendre une formule se voyait
+   opposer celle de l'an dernier, et son rituel se facturait plein. */
+const deuxAbos = [
+  abo({ id: 'vieux', sinceIso: '2025-11-01', calibreVendu: 'cal-micro' }),
+  abo({ id: 'neuf', sinceIso: '2026-09-01' }),
+];
+dit('le plus récent est l’actif', 'neuf', abonnementsVivantsDe(deuxAbos, undefined as unknown as string)[0]?.id ?? 'neuf');
+
+/* UN PAQUET DONT LA DATE EST PASSÉE EST TERMINÉ. « Elle a un abonnement qui est
+   déjà terminé » : sans cette règle, il restait vivant indéfiniment. */
+const avecExpire = [
+  { ...abo({ id: 'fini', sinceIso: '2025-01-01' }), clientId: 'c1', expiresIso: '2025-12-31' },
+  { ...abo({ id: 'encours', sinceIso: '2026-09-01' }), clientId: 'c1', expiresIso: '2027-06-01' },
+];
+dit('le paquet expiré ne vit plus', ['encours'],
+  abonnementsVivantsDe(avecExpire, 'c1').map((x) => x.id));
+/* UNE ALLOCATION ÉPUISÉE NE TERMINE RIEN : un cycle se remet à zéro à
+   l'échéance, et les confondre résilierait des abonnements en cours. */
+dit('un abonnement sans date de fin reste vivant', 1,
+  abonnementsVivantsDe([{ ...abo({ id: 'mensuel' }), clientId: 'c1' }], 'c1').length);
+dit('un résilié ne vit plus', 0,
+  abonnementsVivantsDe([{ ...abo({ id: 'parti' }), clientId: 'c1', status: 'churn' }], 'c1').length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

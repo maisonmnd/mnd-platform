@@ -265,9 +265,43 @@ export const subCycleAmountXof = (monthlyXof: number, cycle: SubCycle) =>
 /** Contribution NORMALISÉE (mensuelle) au MRR selon le cycle. */
 export const subMonthlyXof = (monthlyXof: number, cycle: SubCycle) =>
   cycle === 'mensuel' ? monthlyXof : Math.round((monthlyXof * CYCLE_MONTHS_PAID[cycle]) / CYCLE_MONTHS_SPAN[cycle]);
-/** L'abonnement actif d'une cliente (le 1er non résilié), ou undefined. */
+/** TOUS les abonnements vivants d'une cliente, du plus récent au plus ancien.
+
+    UNE SEULE FORMULE À LA FOIS EST LA RÈGLE, et le serveur la tient depuis la
+    0077 : deux abonnements ouverts, ce sont deux compteurs de crédits sur les
+    mêmes rendez-vous, et personne ne sait lequel se décompte.
+
+    LE COMPTOIR, LUI, NE LA TENAIT PAS. On pouvait inscrire deux fois la même
+    tête sans un mot, et c'est arrivé (Mylène, 1er septembre 2026) : la fiche
+    d'un rendez-vous lisait alors l'ANCIENNE formule, annonçait qu'elle ne
+    couvrait rien, et le rituel se facturait plein alors que la nouvelle
+    formule le portait. */
+export const abonnementsVivantsDe = (subs: Subscriber[], clientId: string): Subscriber[] => {
+  /* UN PAQUET DONT LA DATE EST PASSÉE EST TERMINÉ — 1er septembre 2026. « Elle
+     a un abonnement qui est déjà terminé » (Yéman). Un pack porte sa date de
+     fin (`expiresIso`) ; la laisser passer sans rien en faire gardait sa
+     formule « vivante » indéfiniment, et c'est elle qu'on opposait à la tête
+     qui venait d'en reprendre une neuve.
+
+     L'ALLOCATION ÉPUISÉE, ELLE, NE TERMINE RIEN : un cycle se remet à zéro à
+     l'échéance, et une abonnée mensuelle qui a tout consommé ce mois-ci reste
+     abonnée. Ce sont deux choses différentes, et les confondre résilierait des
+     abonnements en cours. */
+  const aujourdhui = todayIsoLocal();
+  return subs
+    .filter((s) => s.clientId === clientId
+      && s.status !== 'churn'
+      && !(s.expiresIso && s.expiresIso < aujourdhui))
+    .sort((a, b) => ((a.sinceIso ?? '') < (b.sinceIso ?? '') ? 1 : -1));
+};
+
+/** L'abonnement actif d'une cliente, ou undefined.
+
+    LE PLUS RÉCENT L'EMPORTE quand il y en a plusieurs. `find` rendait le
+    PREMIER du magasin, c'est-à-dire le plus anciennement écrit : la tête qui
+    venait de reprendre une formule se voyait opposer celle de l'an dernier. */
 export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscriber | undefined =>
-  subs.find((s) => s.clientId === clientId && s.status !== 'churn');
+  abonnementsVivantsDe(subs, clientId)[0];
 /** Somme réglée par l'abonnée (tous règlements confondus). */
 export const subPaid = (s: Subscriber) => (s.payments ?? []).reduce((a, p) => a + p.amountXof, 0);
 /* ---------- Prestations incluses — sélection & SUIVI de consommation ---------- */
@@ -705,6 +739,39 @@ export function valeurALaCarte(
   }
   return { totalXof, illimitees, introuvables };
 }
+
+/** CE QU'ELLE GAGNE, ELLE — 1er septembre 2026.
+
+    « Il faudra personnaliser ce message selon le prix de chacun. Combien la
+    nouvelle remise leur donne comme nouveau total de remise » (Yéman).
+
+    LES DEUX MOITIÉS DOIVENT SUIVRE LA MÊME TÊTE. Le gain se lit « ce que la
+    carte coûterait moins ce que la formule demande » : si la carte se calcule
+    au prix de la cliente et la formule au prix de référence, l'écart annoncé
+    n'existe pour personne. Une tête Micro paie ses resserrages plus cher à la
+    carte ET son abonnement plus cher : son gain n'est celui de personne
+    d'autre.
+
+    `prixDuService` doit donc être le prix PERSONNEL de la cliente
+    (`personalPriceXof`), jamais celui du catalogue. */
+export function gainPourElle(
+  plan: Plan,
+  cycle: SubCycle,
+  tete: TeteConnue | undefined,
+  bands: readonly ModelBand[],
+  prixDuService: (serviceId: string) => number | undefined,
+): { carteXof: number; prixXof: number; gainXof: number; pct: number; illimitees: number; introuvables: number } {
+  const carte = valeurALaCarte(plan.included, prixDuService);
+  const prixXof = prixDeLaFormule(plan, cycle, tete, bands).montantXof;
+  const { gainXof, pct } = remiseSurLaCarte(carte.totalXof, prixXof);
+  return { carteXof: carte.totalXof, prixXof, gainXof, pct, illimitees: carte.illimitees, introuvables: carte.introuvables };
+}
+
+/** Un avantage écrit à la main parle-t-il déjà du gain ? Ceux-là sont REMPLACÉS
+    par la phrase calculée : deux chiffres sur le même sujet, dont l'un figé
+    dans un texte, finissent toujours par se contredire. */
+export const perkParleDeLaCarte = (perk: string): boolean =>
+  /à la carte|vous gagnez|de remise|sur la carte/i.test(perk);
 
 /** L'écart entre la carte et le prix demandé. Négatif = la formule coûte PLUS
     cher que la carte, ce qu'aucune cliente n'accepte : l'écran doit le crier

@@ -8,9 +8,13 @@ import {
 } from '../../shared/bridges';
 import {
   usePlans, moisDuPack, FAMILLES_FORMULES, formulesPourElle, etendueDesRemises, type Plan,
+  gainPourElle, perkParleDeLaCarte, type TeteConnue,
 } from '../../shared/abonnements';
 import { useStore } from '../../shared/store';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable } from '../../shared/pricing';
+import {
+  useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable,
+  bandsAbonnements, calibreDeLaTete,
+} from '../../shared/pricing';
 import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { useAppointments, venuesHonorees } from '../../shared/agenda';
@@ -74,6 +78,20 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const pricing = pricingOf(client ?? undefined, bands, sets, tousCats);
+  /* ══ SON PRIX DÈS LE DÉPART — 1er septembre 2026 ═══════════════════
+     « Ça affiche 140 000 F avant de prendre la formule, ensuite le prix se
+     réajuste à 112 000 F. J'ai besoin que le prix personnalisé s'affiche dès
+     le départ » (Yéman).
+
+     J'AVAIS BRANCHÉ LE CALIBRE SUR « MA FORMULE » ET OUBLIÉ CET ÉCRAN. La
+     carte annonçait `priceXof` brut, l'achat calculait le vrai : la cliente
+     voyait un prix changer sous ses yeux entre deux écrans, ce qui ne
+     s'explique jamais et ne se pardonne pas. */
+  const calibresAbo = useMemo(() => bandsAbonnements(sets, bands), [sets, bands]);
+  const maTete: TeteConnue = useMemo(() => ({
+    bandId: calibreDeLaTete(client?.lockCount ?? client?.lockCountDeclare, bands, client?.margeCalibre)?.id,
+    longueur: client?.longueur,
+  }), [client?.lockCount, client?.lockCountDeclare, client?.longueur, client?.margeCalibre, bands]);
   /* LE PRIX D'UN FORFAIT SE RÉSOUT SUR LE CATALOGUE ENTIER (16 août) — même
      règle que l'arbre des catégories. `personalPriceXof` ne se sert de ces deux
      listes que pour SOMMER la composition d'un forfait : sur la carte élaguée,
@@ -445,20 +463,44 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                     {/* CE QU'ELLE CONTIENT, LÀ OÙ ELLE DÉCIDE. Les avantages
                         étaient déjà écrits dans la formule et ne paraissaient
                         nulle part : un nom et un prix ne font pas choisir. */}
-                    {pl.perks.length > 0 && (
-                      <ul className="cma-inclus">
-                        {pl.perks.slice(0, 4).map((av) => (
-                          <li key={av}><i>◆</i><span>{av}</span></li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className="cma-offre__bas">
-                      <span className="cma-offre__prix">
-                        {fmtMoney(pl.priceXof, currency)}
-                        <span>{pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}</span>
-                      </span>
-                      {pl.discountPct ? <span className="cma-offre__gain">−{pl.discountPct} % sur la carte</span> : null}
-                    </div>
+                    {(() => {
+                      /* CE QU'ELLE GAGNE, ELLE. Les deux moitiés suivent la même
+                         tête : la carte au prix de la cliente, la formule à son
+                         calibre. Mélanger les deux annoncerait un écart qui
+                         n'existe pour personne. */
+                      const g = gainPourElle(pl, 'mensuel', maTete, calibresAbo, (id: string) => {
+                        const sv = tousServices.find((x) => x.id === id);
+                        return sv ? prixDe(sv) : undefined;
+                      });
+                      /* UN AVANTAGE ÉCRIT À LA MAIN QUI PARLE DU GAIN EST
+                         REMPLACÉ : deux chiffres sur le même sujet, dont l'un
+                         figé dans un texte, finissent par se contredire. */
+                      const ecrits = pl.perks.filter((av) => !perkParleDeLaCarte(av)).slice(0, 4);
+                      return (
+                        <>
+                          {(ecrits.length > 0 || g.gainXof > 0) && (
+                            <ul className="cma-inclus">
+                              {ecrits.map((av) => (
+                                <li key={av}><i>◆</i><span>{av}</span></li>
+                              ))}
+                              {g.gainXof > 0 && (
+                                <li><i>◆</i><span>
+                                  {fmtMoney(g.carteXof, currency)} à la carte, <b>vous gagnez {fmtMoney(g.gainXof, currency)}</b>
+                                  {g.illimitees > 0 ? ', et l’illimité en plus' : ''}
+                                </span></li>
+                              )}
+                            </ul>
+                          )}
+                          <div className="cma-offre__bas">
+                            <span className="cma-offre__prix">
+                              {fmtMoney(g.prixXof, currency)}
+                              <span>{pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}</span>
+                            </span>
+                            {g.gainXof > 0 && <span className="cma-offre__gain">−{g.pct} % sur la carte</span>}
+                          </div>
+                        </>
+                      );
+                    })()}
                     {/* ELLE PREND, ELLE NE DEMANDE PLUS. « Je ne veux pas
                         qu'on envoie une demande au Trône » (29 août) : le
                         bouton ouvre l'achat en trois temps. */}

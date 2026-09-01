@@ -42,6 +42,65 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## SON PRIX DÈS LE DÉPART, ET SON GAIN À ELLE · 1er septembre 2026
+
+« Ça affiche 140 000 F avant de prendre la formule, ensuite le prix se réajuste
+à 112 000 F. J'ai besoin que le prix personnalisé s'affiche dès le départ.
+Ensuite la remise que j'ai mise à la fin dans le texte : "198 000 francs et vous
+gagnez à partir de 30 000 francs". Il faudra personnaliser ce message selon le
+prix de chacun. »
+
+**LE CALIBRE ÉTAIT BRANCHÉ PARTOUT SAUF SUR LA VITRINE.** « Ma formule » et
+l'achat calculaient déjà le prix de la tête ; la carte de « Nos abonnements »,
+elle, annonçait `pl.priceXof` brut. La cliente voyait donc un prix changer sous
+ses yeux entre deux écrans, ce qui ne s'explique jamais et ne se pardonne pas.
+`Compose.tsx` lit maintenant la même tête que les deux autres : calibre depuis
+`lockCount` (marge comprise) et longueur depuis sa fiche.
+
+**LE GAIN SE CALCULE, IL NE S'ÉCRIT PLUS.** « 198 000 F à la carte, vous gagnez
+30 000 F » était un avantage tapé à la main : juste pour une tête, faux pour
+toutes les autres, et impossible à tenir à jour à chaque changement de tarif.
+`gainPourElle()` chiffre les deux moitiés **avec la même tête** : la carte au
+prix de la cliente, la formule à son calibre. Mélanger les deux annoncerait un
+écart qui n'existe pour personne. Un avantage écrit à la main qui parle du gain
+est reconnu (`perkParleDeLaCarte`) et remplacé par le chiffre calculé : deux
+nombres sur le même sujet, dont l'un figé dans un texte, finissent toujours par
+se contredire.
+
+**UNE LIGNE ILLIMITÉE SORT DU CALCUL et se compte à part** : la chiffrer à
+l'infini donnerait un gain infini, et la taire ferait passer la formule pour
+moins généreuse qu'elle n'est. Une prestation disparue du catalogue se signale
+au lieu de valoir zéro.
+
+Exemple, formule à 140 000 F de référence, 6 + 6 prestations : une tête sans
+calibre lit « 198 000 F à la carte, vous gagnez 58 000 F, −29 % ». Une tête
+Micro, qui paie plus cher à la carte **et** plus cher son abonnement, lit
+« 356 400 F à la carte, vous gagnez 104 400 F » pour 252 000 F. Le pourcentage
+se conserve, le montant est le sien.
+
+## UNE SEULE FORMULE À LA FOIS · 1er septembre 2026
+
+« Mme Grimaud est sur La Juste Cadence, voilà la preuve. Peut-on avoir 2
+abonnements simultanément ? » — **Non.** Le serveur l'interdit depuis la 0077
+(`deja_abonnee`). **Le comptoir, lui, ne le vérifiait pas** : on pouvait
+inscrire deux fois la même tête sans un mot, et c'est ce qui est arrivé.
+
+**LE PLUS RÉCENT L'EMPORTE.** `activeSubscriberOf` faisait un `find`, donc
+rendait le PREMIER du magasin : le plus anciennement écrit. La tête qui venait
+de reprendre une formule se voyait opposer celle de l'an dernier, sa fiche de
+rendez-vous annonçait que l'abonnement ne couvrait rien, et le rituel se
+facturait plein alors que la nouvelle formule le portait. `abonnementsVivantsDe`
+rend la liste complète, du plus récent au plus ancien.
+
+**UN PAQUET DONT LA DATE EST PASSÉE NE VIT PLUS.** `expiresIso` dépassée vaut
+résiliation. **Mais une allocation épuisée ne termine rien** : un cycle se remet
+à zéro à l'échéance, et confondre les deux résilierait des abonnements en cours.
+
+**LE COMPTOIR REFUSE, ET NOMME CE QUI BLOQUE.** Un refus muet se reclique ;
+celui-ci dit quelle formule occupe déjà la place et ce qu'il faut en faire. Les
+doublons déjà écrits ne se nettoient pas tout seuls : il faut résilier ou
+supprimer l'ancien à la main.
+
 ## LE MAÎTRE QUI SE PROPOSE D ABORD · 1er septembre 2026
 
 « Quand un client prend RDV au Trône, afficher automatiquement le calendrier de
