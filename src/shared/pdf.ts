@@ -45,6 +45,33 @@ const PDF_TRANSLIT: Record<string, string> = {
 const WINANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
 const winAnsiOk = (ch: string): boolean => ch.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(ch);
 
+/** LE DERNIER REPLI D'UN CARACTÈRE INTROUVABLE — 1er septembre 2026.
+
+    « Pourquoi la date d'aujourd'hui sur la facture vient avec des ???? »
+    (Yéman). La pièce du 1er septembre s'imprimait « 1?? septembre 2026 » :
+    l'écran écrit l'ordinal en LETTRES SUPÉRIEURES (« 1ᵉʳ »), qui sont de vraies
+    lettres Unicode et non des « e » et « r » ordinaires. WinAnsi ne les connaît
+    pas, la règle « une perte qui se voit vaut mieux qu'un nom effacé » les
+    remplaçait donc par des points d'interrogation, sur l'en-tête de la facture.
+
+    ON DEMANDE À UNICODE CE QUE LE CARACTÈRE VEUT DIRE, plutôt que d'allonger
+    une liste. La décomposition de COMPATIBILITÉ (NFKD) est faite exactement
+    pour cela : « ᵉ » y devient « e », « ʳ » devient « r », « ⁿ » devient « n »,
+    la ligature « ﬁ » devient « fi ». Une liste à la main aurait manqué le
+    prochain caractère du même genre, et il serait reparti en « ? ».
+
+    L'ORDRE COMPTE : l'accent se perd AVANT la compatibilité. « é » doit rester
+    « é » quand la police sait le tracer, et ne devenir « e » qu'en dernier
+    recours ; les caractères couverts par WinAnsi ne passent jamais ici. */
+const dernierRepli = (ch: string): string | null => {
+  const nu = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
+  if (nu === '') return '';
+  if ([...nu].every(winAnsiOk)) return nu;
+  const compat = ch.normalize('NFKD').replace(/[̀-ͯ]/g, '').normalize('NFC');
+  if (compat !== '' && compat !== ch && [...compat].every(winAnsiOk)) return compat;
+  return null;
+};
+
 export function pdfSafe(s: string): string {
   let t = s.replace(PDF_CONTROLS, ' ').normalize('NFC').replace(PDF_BAD_SPACES, ' ');
   /* Translittérer PUIS recomposer : « ɔ́ » (ɔ + accent flottant) devient
@@ -57,9 +84,8 @@ export function pdfSafe(s: string): string {
      « ? » parasite au milieu d'un libellé ne dit rien à personne. */
   return [...t].map((ch) => {
     if (winAnsiOk(ch)) return ch;
-    const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
-    if (bare === '') return '';
-    if ([...bare].every(winAnsiOk)) return bare;
+    const repli = dernierRepli(ch);
+    if (repli !== null) return repli;
     return /[\p{L}\p{N}]/u.test(ch) ? '?' : '';
   }).join('');
 }
@@ -91,9 +117,8 @@ export function pdfSafeGardeFon(s: string): string {
   return [...t].map((ch) => {
     if (FON_PDF.includes(ch)) return ch;
     if (winAnsiOk(ch)) return ch;
-    const bare = ch.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
-    if (bare === '') return '';
-    if ([...bare].every(winAnsiOk)) return bare;
+    const repli = dernierRepli(ch);
+    if (repli !== null) return repli;
     return /[\p{L}\p{N}]/u.test(ch) ? '?' : '';
   }).join('');
 }

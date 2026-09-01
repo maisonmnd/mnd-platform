@@ -16,6 +16,7 @@ import {
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
+  prochaineReferenceAbo,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
@@ -612,6 +613,12 @@ export default function Abonnements() {
     const jours = joursVendus ?? plan.validityDays ?? null;
     const nm: Subscriber = {
       id: `ab-${uid()}`, branchId: branch.id, clientId: client.id, name: client.name, planId: plan.id,
+      /* LE NUMÉRO DU CONTRAT, posé une fois. Il se lit dans la liste, dans le
+         suivi et sur la pièce : c'est lui qui distingue la Juste Cadence de
+         novembre de celle de septembre. La suite se cherche sur TOUS les
+         abonnements, branches comprises, pour qu'une référence ne se répète
+         jamais dans la Maison. */
+      reference: prochaineReferenceAbo(subs),
       cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
       nextIso: addDaysISO(cycleDays(cycle)),
@@ -751,7 +758,9 @@ export default function Abonnements() {
            anciennes factures sont censées avoir vendu. */
         lines: [{ ...ligneFacture(nomFormule, total), detail: libellesInclus(payFor, plan, serviceName) }],
         theme: 'Aube',
-        note: `Abonnement · ${nomFormule}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
+        /* LA PIÈCE DIT QUEL CONTRAT ELLE RÈGLE. Deux Juste Cadence dans
+           l'année font deux factures que rien ne distinguait. */
+        note: `Abonnement · ${nomFormule}${payFor.reference ? ` · ${payFor.reference}` : ''}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
       });
       const avecVersement: Invoice = { ...piece, payments: [versement] };
       pieceId = avecVersement.id;
@@ -1120,6 +1129,15 @@ export default function Abonnements() {
                             <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
                             <span className="mnd-muted" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, flexWrap: 'wrap' }}>
                               <span>abonnée depuis {m.sinceIso ? anciennete(m.sinceIso) : m.since}</span>
+                              {/* DEUX FOIS LA MÊME FORMULE SE DISTINGUENT ICI.
+                                  Sans référence, deux lignes identiques ne se
+                                  nomment pas : ni au téléphone, ni pour dire
+                                  laquelle une facture règle. Les contrats
+                                  d'avant ce champ montrent leur date de
+                                  départ, qui les séparait déjà. */}
+                              {m.reference
+                                ? <span style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '.04em' }}>{m.reference}</span>
+                                : m.sinceIso ? <span>du {shortDate(m.sinceIso)}</span> : null}
                               {(() => {
                                 const cli = clients.find((c) => c.id === m.clientId);
                                 return cli?.phone
@@ -1776,7 +1794,8 @@ export default function Abonnements() {
           <Modal title={`Suivi · ${suiviFor.name}`} onClose={() => setSuiviFor(null)} width={560}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-                {plan?.name ?? '—'} ·{' '}
+                {plan?.name ?? '—'}
+                {suiviFor.reference ? <> · <b style={{ letterSpacing: '.04em' }}>{suiviFor.reference}</b></> : null} ·{' '}
                 {paquet
                   ? sansFin
                     ? `crédits ouverts depuis le ${shortDate(start)}, sans échéance posée. Ils ne se rechargent pas.`
@@ -1790,6 +1809,9 @@ export default function Abonnements() {
                 const unlimited = u.qty === null;
                 const pct = unlimited ? 0 : Math.min(100, Math.round((u.used / Math.max(1, u.qty!)) * 100));
                 const exhausted = !unlimited && (u.remaining ?? 0) <= 0;
+                /* `remaining` est borné à zéro pour que la barre ne recule pas ;
+                   le dépassement, lui, se lit sur le brut. */
+                const depassement = unlimited ? 0 : Math.max(0, u.used - (u.qty ?? 0));
                 return (
                   <div key={u.serviceId} style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px', background: 'var(--surface-card)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -1803,10 +1825,19 @@ export default function Abonnements() {
                         <div className="tre-bar" style={{ marginTop: 8, height: 6, background: 'var(--hover-veil)', borderRadius: 999, overflow: 'hidden' }}>
                           <div style={{ width: `${pct}%`, height: '100%', background: exhausted ? '#8f3b30' : 'var(--color-copper)' }} />
                         </div>
-                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-                          {exhausted
-                            ? paquet ? 'Crédits épuisés' : 'Allocation épuisée pour ce cycle'
-                            : `Reste ${u.remaining}${paquet ? '' : ' sur ce cycle'}`}
+                        {/* UN DÉPASSEMENT NE SE TAIT PAS — 1er septembre 2026.
+                            « 7 / 6 utilisées » passait pour un compteur plein :
+                            la barre était à fond, la phrase disait « épuisés »,
+                            et la séance de trop ne se voyait nulle part. C'est
+                            pourtant le signe qu'un rituel s'est décompté sur le
+                            mauvais contrat, ou qu'on a servi une séance qui
+                            n'était pas due. */}
+                        <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, ...(depassement > 0 ? { color: '#8f3b30', fontWeight: 500 } : {}) }}>
+                          {depassement > 0
+                            ? `${depassement} séance${depassement > 1 ? 's' : ''} de trop : à rattacher à un autre contrat, ou offerte${depassement > 1 ? 's' : ''}`
+                            : exhausted
+                              ? paquet ? 'Crédits épuisés' : 'Allocation épuisée pour ce cycle'
+                              : `Reste ${u.remaining}${paquet ? '' : ' sur ce cycle'}`}
                         </div>
                       </>
                     )}

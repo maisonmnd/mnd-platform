@@ -115,6 +115,103 @@ date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son j
 de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
 de l'échéance d'un pack.
 
+## LE RITUEL DIT QUEL CONTRAT IL DÉCOMPTE · 1er septembre 2026
+
+« Le pack personnalisé est fini, pourquoi je continue de faire des réservations
+sur cet abonnement ? Je suis supposé entamer La Juste Cadence sur le compte du
+client. »
+
+**PARCE QUE PERSONNE N'ÉCRIVAIT LE LIEN.** `Appointment.subId` existe depuis
+toujours, `coversSub` le respecte et son commentaire annonce même la règle,
+mais **aucun écran ne le posait**. Un rituel couvert était donc attribué par la
+SEULE fenêtre de dates, et une tête portant deux contrats aux fenêtres qui se
+chevauchent voyait chaque séance **décomptée des deux à la fois**, dont un
+paquet fini qui n'avait plus rien à donner. Le harnais le prouve : sans lien,
+`[1, 1]` ; avec, `[0, 1]`.
+
+`subId` est désormais écrit sur les deux chemins d'enregistrement du rituel
+(la série et le rendez-vous simple), pointant le contrat que la modale a retenu,
+c'est-à-dire **celui qu'elle affiche en haut de l'écran**. Il n'y a plus d'écart
+entre ce qu'on lit et ce qui se décompte. Le troisième chemin, celui des séances
+incluses à un FORFAIT, n'en reçoit pas : il n'est pas porté par un abonnement.
+
+**LES RITUELS D'AVANT NE SE RÉÉCRIVENT PAS TOUT SEULS.** Ceux qui existent
+gardent leur attribution par fenêtre. Rouvrir un rendez-vous et l'enregistrer
+repose le lien.
+
+**UN DÉPASSEMENT NE SE TAIT PLUS.** « 7 / 6 utilisées » passait pour un compteur
+plein : barre à fond, phrase « Crédits épuisés », et la séance de trop invisible.
+C'est pourtant le signe qu'un rituel s'est décompté sur le mauvais contrat. Le
+suivi dit maintenant « 1 séance de trop : à rattacher à un autre contrat, ou
+offerte ».
+
+## DEUX FOIS LA MÊME FORMULE · 1er septembre 2026
+
+« Il arrive qu'une cliente ait acheté La Juste Cadence 2 fois dans la même année,
+comment je distingue une Juste Cadence de l'autre ? »
+
+**RIEN NE LES DISTINGUAIT À L'ŒIL** : deux lignes du même nom et de la même
+formule, séparées par le seul identifiant technique que personne ne voit. On ne
+pouvait ni les nommer au téléphone, ni dire laquelle une facture règle.
+
+`Subscriber.reference`, « ABO-2026-014 », posée à la signature et jamais
+réécrite, comme un numéro de facture. Trois chiffres, l'année devant, parce
+qu'un abonnement est plus rare qu'une pièce de caisse et que ça se lit à voix
+haute. Elle paraît dans la liste, dans le Suivi, sur la note de la pièce et dans
+la modale de rendez-vous.
+
+**ON NE REBOUCHE PAS LES TROUS** de la suite : deux contrats de même référence
+seraient pires que pas de référence.
+
+**LES CONTRATS D'AVANT N'EN REÇOIVENT PAS APRÈS COUP** — elle prétendrait avoir
+été donnée à la signature. Ils se nomment par leur date de départ, qui les
+séparait déjà : « sa Juste Cadence de novembre ».
+
+## « 1?? SEPTEMBRE 2026 » · 1er septembre 2026
+
+« Pourquoi la date d'aujourd'hui sur la facture vient avec des ???? »
+
+L'écran écrit l'ordinal en **lettres supérieures** (« 1ᵉʳ »), qui sont de vraies
+lettres Unicode et non des « e » et « r » ordinaires. WinAnsi ne les connaît pas,
+et la règle « une perte qui se voit vaut mieux qu'un nom effacé en silence » les
+rendait en points d'interrogation, en plein en-tête de facture.
+
+**ON DEMANDE À UNICODE CE QUE LE CARACTÈRE VEUT DIRE** plutôt que d'allonger une
+liste. La décomposition de COMPATIBILITÉ (NFKD) est faite exactement pour cela :
+« ᵉ » y devient « e », « ⁿ » devient « n », la ligature « ﬁ » devient « fi ».
+Une liste à la main aurait manqué le prochain caractère du même genre.
+
+**L'ORDRE COMPTE** : l'accent se perd AVANT la compatibilité, et ce que WinAnsi
+sait tracer ne passe jamais par ce repli. « café » reste « café », « ² » reste
+« ² ». Le repli est écrit une fois (`dernierRepli`) et sert les deux gardes,
+`pdfSafe` et `pdfSafeGardeFon`.
+
+## MAQUETTE EN ATTENTE · LE MOTEUR, EN ARGENT RÉEL
+
+« Le calcul de revenu récurrent à 18 817 ne me convient pas. C'est un chiffre qui
+ne me parle pas. »
+
+`public/maquette-le-moteur-en-argent-reel.html`, à valider. Trois torts établis
+au chiffre actuel : **personne n'a versé 18 817 F** (c'est une moyenne, et le
+bandeau dit pourtant « encaissés ») ; **il ne compte que 2 abonnées sur 9** car
+`mrrXof` est figé à la vente et vaut zéro pour toutes celles d'avant le champ ;
+**le panneau du bas en cache cinq** car les abonnements `exhausted` ne sont dans
+aucune des trois barres.
+
+Proposé à la place : encaissé ce mois, en retard, à encaisser d'ici la fin du
+mois, le carnet (reste dû sur les contrats en cours), la dette de fauteuil
+(séances dues et ce qu'elles valent), qui paie quand, et l'état des neuf avec une
+somme qui fait neuf. Deux points à trancher : la carte de tête, et la dette en
+argent ou en heures de fauteuil.
+
+## MAQUETTE EN ATTENTE · LA CADENCE POSÉE
+
+`public/maquette-la-cadence-posee.html`, à valider. Poser les rendez-vous à
+venir d'un abonnement au rythme de 4, 6 ou 8 semaines. Trois points à trancher :
+l'état des séances posées (confirmées ou en attente), le compteur du Suivi
+(« 1 honorée · 5 retenues » ou « 6 sur 6 »), et où se pose la cadence (le Suivi
+seul, ou aussi après la signature).
+
 ## LE COMPTEUR PORTE SES PIÈCES · 1er septembre 2026
 
 « Je veux ouvrir le suivi des packs et les RDV associés. »

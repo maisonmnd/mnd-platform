@@ -95,6 +95,24 @@ dit(pdfSafe('KLƆKLƆ™') === 'KLOKLO™', 'les lettres fon se translittèrent 
 dit(pdfSafeGardeFon('KLƆKLƆ™').includes('Ɔ'), 'pdfSafeGardeFon garde les lettres fon couvertes');
 dit(pdfSafe('a\u{1F600}b') === 'ab', 'un emoji non traçable est retiré, pas rendu en « ? »');
 
+/* LES LETTRES SUPÉRIEURES DE L'ORDINAL — « Pourquoi la date d'aujourd'hui sur la
+   facture vient avec des ???? » (Yéman, 1er septembre 2026). La pièce du 1er
+   s'imprimait « 1?? septembre 2026 » : « ᵉ » et « ʳ » sont de VRAIES lettres
+   Unicode, pas des « e » et « r » ordinaires, et la règle « une perte qui se
+   voit vaut mieux qu'un nom effacé » les rendait en points d'interrogation, en
+   plein en-tête de facture.
+
+   ON DEMANDE À UNICODE CE QUE LE CARACTÈRE VEUT DIRE (décomposition de
+   compatibilité) plutôt que d'allonger une liste qui manquerait le suivant. */
+dit(pdfSafe('1ᵉʳ septembre 2026') === '1er septembre 2026', 'l’ordinal 1ᵉʳ s’imprime « 1er »');
+dit(pdfSafe('Mᵐᵉ Grimaud') === 'Mme Grimaud', 'les lettres supérieures de « Mᵐᵉ » se posent');
+dit(pdfSafe('nᵒ 12') === 'no 12', 'le « nᵒ » se pose aussi');
+dit(pdfSafeGardeFon('1ᵉʳ KLƆKLƆ') === '1er KLƆKLƆ', 'la garde fon pose l’ordinal ET garde le Ɔ');
+/* LA COMPATIBILITÉ NE PASSE QU'EN DERNIER RECOURS : un caractère que la police
+   sait tracer ne doit surtout pas être « simplifié » au passage. */
+dit(pdfSafe('² ³ ½ œ') === '² ³ ½ œ', 'ce que WinAnsi trace reste intact');
+dit(pdfSafe('café à Cotonou') === 'café à Cotonou', 'l’accent ne se perd pas par compatibilité');
+
 /* ⑧ LE TÉLÉPHONE, INDICATIF ET NUMÉRO. Le champ pose l'indicatif du pays (défaut
    la branche) et n'enregistre pas un indicatif seul, sinon la fiche porterait un
    « +229 » creux. `decoupeTelephone` reconnaît « +590 » (Guadeloupe, hors

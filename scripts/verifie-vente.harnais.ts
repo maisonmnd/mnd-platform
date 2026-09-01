@@ -15,7 +15,7 @@ import {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
-  libellesInclus,
+  libellesInclus, prochaineReferenceAbo, nomDuContrat,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -316,6 +316,62 @@ dit('l’illimité se dit', ['GBÈJÍ™ Reprise · à volonté'],
   libellesInclus(abo({ inclusPropres: [{ serviceId: 'sv-resserrage', qty: null }] }), PACK, nomDuService));
 /* SANS FORMULE NI CONTENU PROPRE, LA LIGNE RESTE NUE plutôt que d'inventer. */
 dit('sans formule, rien ne s’écrit', [], libellesInclus(abo({}), undefined, nomDuService));
+
+/* ── ⑫ DEUX FOIS LA MÊME FORMULE ──────────────────────────────────
+   « Il arrive qu'une cliente ait acheté La Juste Cadence 2 fois dans la même
+   année, comment je distingue une Juste Cadence de l'autre ? » (Yéman, 1er
+   septembre 2026).
+
+   RIEN NE LES DISTINGUAIT À L'ŒIL : deux lignes du même nom et de la même
+   formule, séparées par le seul identifiant technique que personne ne voit. */
+dit('la première référence de l’année', 'ABO-2026-001', prochaineReferenceAbo([], 2026));
+dit('… puis la suivante', 'ABO-2026-004',
+  prochaineReferenceAbo([abo({ reference: 'ABO-2026-003' }), abo({ reference: 'ABO-2026-001' })], 2026));
+/* L'ANNÉE REPART À UN, comme les factures : la référence dit quand le contrat
+   a été signé, c'est la moitié de ce qui distingue deux formules identiques. */
+dit('l’année neuve repart à un', 'ABO-2027-001',
+  prochaineReferenceAbo([abo({ reference: 'ABO-2026-009' })], 2027));
+/* ON NE REPREND JAMAIS UN NUMÉRO DÉJÀ PRIS, même quand la suite a des trous :
+   deux contrats de même référence seraient pires que pas de référence. */
+dit('un trou ne se rebouche pas', 'ABO-2026-010',
+  prochaineReferenceAbo([abo({ reference: 'ABO-2026-009' }), abo({ reference: 'ABO-2026-002' })], 2026));
+/* LES ABONNEMENTS D'AVANT CE CHAMP ne comptent pas dans la suite et ne
+   reçoivent pas de référence après coup : elle prétendrait avoir été donnée à
+   la signature. Ils se nomment par leur date de départ, qui les séparait
+   déjà. */
+dit('les contrats sans référence ne troublent pas la suite', 'ABO-2026-001',
+  prochaineReferenceAbo([abo({}), abo({})], 2026));
+dit('un contrat sans référence se nomme par sa date', 'depuis le 2025-11-01',
+  nomDuContrat(abo({ sinceIso: '2025-11-01' })));
+dit('… et avec, par sa référence', 'ABO-2026-014',
+  nomDuContrat(abo({ reference: 'ABO-2026-014', sinceIso: '2026-09-01' })));
+
+/* -- 13. LE LIEN EXPLICITE TRANCHE ---------------------------------
+   « Le pack personnalise est fini, pourquoi je continue de faire des
+   reservations sur cet abonnement ? » (Yeman, 1er septembre 2026).
+
+   PARCE QUE PERSONNE N'ECRIVAIT LE LIEN. `subId` existe depuis toujours et
+   `coversSub` le respecte, mais aucun ecran ne le posait : un rituel couvert
+   etait attribue par la SEULE fenetre de dates. Deux contrats aux fenetres qui
+   se chevauchent decomptaient donc la meme seance chacun de son cote. */
+const paquetFini = { ...abo({ id: 'ab-vieux', startIso: '2025-10-10', expiresIso: '2027-06-30' }), clientId: 'c-1' };
+const cadenceNeuve = { ...abo({ id: 'ab-neuf', startIso: '2026-09-01', expiresIso: '2027-09-01' }), clientId: 'c-1' };
+const sansLien = rdv('r-sans', '2026-09-01', 'sv-lavage');
+const { subId: _ignore, ...nu } = sansLien;
+dit('sans lien, la seance compte sur les deux', [1, 1],
+  [usageDetaille(paquetFini, PACK, [nu as typeof sansLien])[1].used,
+   usageDetaille(cadenceNeuve, PACK, [nu as typeof sansLien])[1].used]);
+/* AVEC LE LIEN, UN SEUL CONTRAT LA PORTE. C'est toute la difference entre un
+   paquet fini qui continue de manger les rendez-vous et un paquet fini. */
+const avecLien = { ...sansLien, subId: 'ab-neuf' };
+dit('avec le lien, un seul contrat la porte', [0, 1],
+  [usageDetaille(paquetFini, PACK, [avecLien])[1].used,
+   usageDetaille(cadenceNeuve, PACK, [avecLien])[1].used]);
+/* LE LIEN SE PASSE DE LA FENETRE : un contrat saisi apres coup couvre des
+   seances anterieures a son enregistrement. */
+const vieilleSeance = { ...rdv('r-vieux', '2024-01-01', 'sv-lavage'), subId: 'ab-neuf' };
+dit('le lien passe outre la fenetre', 1,
+  usageDetaille(cadenceNeuve, PACK, [vieilleSeance])[1].used);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

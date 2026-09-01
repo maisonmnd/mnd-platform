@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le moteur, en argent r&eacute;el &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  /* Le procès du chiffre actuel */
+  .griefs { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
+  .grief { border:1px solid var(--filet); border-left:3px solid var(--brique); border-radius:3px;
+           background:var(--ivoire); padding:15px 18px; }
+  .grief b { display:block; font-family:var(--serif); font-size:20px; color:var(--indigo);
+             font-weight:400; margin-bottom:4px; }
+  .grief span { color:var(--encre-d); font-size:14px; }
+  .grief em { font-style:normal; color:var(--encre); font-weight:500; }
+  .calcul { font-variant-numeric:tabular-nums; font-size:13.5px; color:var(--encre);
+            background:var(--brique-f); border:1px solid var(--brique-p); border-radius:3px;
+            padding:8px 12px; margin-top:10px; display:inline-block; }
+
+  /* Les cartes proposées */
+  .cartes { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media (max-width:980px){ .cartes { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px){ .cartes { grid-template-columns:1fr; } }
+  .carte { border:1px solid var(--filet); border-top:2px solid var(--indigo); border-radius:3px;
+           background:var(--ivoire); padding:16px 17px; }
+  .carte--cuivre { border-top-color:var(--cuivre); }
+  .carte--brique { border-top-color:var(--brique); }
+  .carte--vert { border-top-color:var(--vert); }
+  .carte__l { font-size:9.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--encre-d); }
+  .carte__v { font-family:var(--serif); font-size:31px; color:var(--indigo); line-height:1.1;
+              margin-top:7px; font-variant-numeric:tabular-nums; }
+  .carte--brique .carte__v { color:var(--brique); }
+  .carte--vert .carte__v { color:var(--vert); }
+  .carte__s { font-size:11.5px; color:var(--encre-d); margin-top:7px; }
+  .carte__s b { color:var(--encre); font-weight:500; }
+  .carte__s u { text-decoration:none; color:var(--cuivre); border-bottom:1px solid var(--cuivre-p); }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; margin-top:16px; }
+  @media (max-width:900px){ .duo { grid-template-columns:1fr; } }
+
+  .bloc { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:19px 21px; }
+  .bloc__t { font-size:9.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--cuivre); margin-bottom:14px; }
+
+  .rang { display:flex; align-items:baseline; gap:12px; padding:9px 0; border-top:1px solid #EDE5D6; flex-wrap:wrap; }
+  .rang:first-of-type { border-top:none; }
+  .rang__q { font-family:var(--serif); font-size:17px; color:var(--indigo); flex:1 1 150px; }
+  .rang__q i { font-style:normal; display:block; font-family:var(--sans); font-size:11px; color:var(--encre-d); }
+  .rang__v { font-family:var(--serif); font-size:18px; color:var(--indigo);
+             font-variant-numeric:tabular-nums; text-align:right; min-width:96px; }
+  .rang__v em { font-style:normal; display:block; font-family:var(--sans); font-size:10.5px; color:var(--encre-d); }
+  .rang.is-retard .rang__v { color:var(--brique); }
+  .rang.is-retard { background:linear-gradient(90deg,var(--brique-f),transparent 70%); }
+
+  .jauge { height:6px; border-radius:99px; background:#EFE8DA; overflow:hidden; display:flex; margin-top:6px; }
+  .jauge i { display:block; height:100%; }
+  .j-cuivre { background:var(--cuivre); } .j-indigo { background:var(--indigo); }
+  .j-pale { background:var(--cuivre-p); }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:78ch; margin-top:16px; }
+  .note b { font-weight:500; }
+
+  .regles { list-style:none; padding:0; margin:22px 0 0; max-width:82ch; }
+  .regles li { border-top:1px solid var(--filet); padding:14px 0 13px; display:grid;
+               grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+  .regles li:last-child { border-bottom:1px solid var(--filet); }
+  .regles i { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--cuivre); line-height:1.2; }
+  .regles b { display:block; color:var(--encre); font-weight:500; margin-bottom:2px; }
+  .regles span { color:var(--encre-d); font-size:14px; }
+
+  .aval { border-radius:4px; background:var(--indigo); color:#EFEAE0; padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin-bottom:10px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:72ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Abonnements &middot; Le moteur</p>
+  <h1>Le moteur, en argent r&eacute;el</h1>
+  <p class="chapeau">Un tableau de bord d&rsquo;abonnements copi&eacute; sur les logiciels : MRR, r&eacute;tention,
+  valeur &agrave; vie. Trois mesures faites pour lever des fonds, aucune pour <b>ouvrir le salon lundi
+  matin</b>.</p>
+
+  <section>
+    <p class="cite">Le calcul de revenu r&eacute;current &agrave; 18 817 ne me convient pas. C&rsquo;est un
+    chiffre qui ne me parle pas. J&rsquo;ai besoin d&rsquo;autre data qui me parle plus.
+    <span>Y&eacute;man &middot; 1er septembre 2026</span></p>
+
+    <p class="eyebrow"><span class="num">I</span> &nbsp; Le proc&egrave;s du chiffre</p>
+    <h2>18 817 F ne vous parle pas, et il a trois torts</h2>
+    <p class="intro">Le premier est de forme, les deux autres sont des fautes. Il fallait les nommer avant
+    de proposer autre chose, sinon on remplacerait un chiffre faux par un chiffre joli.</p>
+
+    <ul class="griefs">
+      <li class="grief">
+        <b>Personne n&rsquo;a jamais vers&eacute; 18 817 F</b>
+        <span>C&rsquo;est une moyenne : le prix d&rsquo;un abonnement divis&eacute; par le nombre de mois
+        qu&rsquo;il couvre. Aucun billet ne correspond. Et la phrase juste au-dessus annonce
+        <em>&laquo; 18 817 F sont d&eacute;j&agrave; encaiss&eacute;s ce mois &raquo;</em>, ce qui est
+        simplement faux : c&rsquo;est de l&rsquo;argent mod&eacute;lis&eacute;, pas de l&rsquo;argent
+        re&ccedil;u.</span>
+      </li>
+      <li class="grief">
+        <b>Il ne compte que deux abonn&eacute;es sur neuf</b>
+        <span>Le montant est <em>fig&eacute; &agrave; la vente</em> dans un champ &eacute;crit ce jour-l&agrave;.
+        Les t&ecirc;tes inscrites avant que ce champ existe, ou pass&eacute;es par Ma Couronne, valent
+        z&eacute;ro et le resteront. Sept de vos neuf abonn&eacute;es ne p&egrave;sent rien dans ce
+        total.</span>
+        <span class="calcul">18 667 F (Myl&egrave;ne G.) &nbsp;+&nbsp; 150 F (Komakan A.) &nbsp;=&nbsp; 18 817 F</span>
+      </li>
+      <li class="grief">
+        <b>Le panneau du bas en cache cinq</b>
+        <span>&laquo; Actives 4 &raquo; sous une carte qui annonce 9 abonn&eacute;s actifs. Les abonnements
+        <em>&eacute;puis&eacute;s</em>, ceux qui ont consomm&eacute; tous leurs cr&eacute;dits, ne sont dans
+        aucune des trois barres. Ce sont pourtant <em>exactement</em> celles &agrave; rappeler.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; Ce qui parlerait</p>
+    <h2>Quatre chiffres qu&rsquo;on peut aller chercher &agrave; la caisse</h2>
+    <p class="intro">Chacun se v&eacute;rifie : derri&egrave;re chaque montant il y a des versements
+    dat&eacute;s, des &eacute;ch&eacute;ances nomm&eacute;es, des s&eacute;ances qui existent. Aucune
+    moyenne, aucune projection.</p>
+
+    <div class="cartes">
+      <div class="carte carte--vert">
+        <div class="carte__l">Encaiss&eacute; ce mois</div>
+        <div class="carte__v">184 000 F</div>
+        <div class="carte__s">sur les abonnements &middot; <b>+ 34 000 F</b> sur ao&ucirc;t</div>
+      </div>
+      <div class="carte carte--brique">
+        <div class="carte__l">En retard</div>
+        <div class="carte__v">68 000 F</div>
+        <div class="carte__s"><b>2 t&ecirc;tes</b> &middot; la plus ancienne &agrave; 19 jours &middot; <u>les relancer</u></div>
+      </div>
+      <div class="carte carte--cuivre">
+        <div class="carte__l">&Agrave; encaisser d&rsquo;ici le 30</div>
+        <div class="carte__v">150 000 F</div>
+        <div class="carte__s"><b>3 &eacute;ch&eacute;ances</b> &middot; la prochaine le 8 septembre</div>
+      </div>
+      <div class="carte">
+        <div class="carte__l">Le carnet</div>
+        <div class="carte__v">612 000 F</div>
+        <div class="carte__s">reste d&ucirc; sur les abonnements en cours</div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>Le carnet est le chiffre qui remplace vraiment le MRR.</b> Il dit ce que les abonnements en cours
+      doivent encore rapporter, tout compris : c&rsquo;est de la tr&eacute;sorerie d&eacute;j&agrave;
+      vendue, et il ne d&eacute;pend d&rsquo;aucun champ &eacute;crit &agrave; la vente. Il se recalcule
+      &agrave; chaque fois, donc il ne peut pas vieillir mal.
+    </div>
+
+    <div class="duo">
+
+      <div class="bloc">
+        <div class="bloc__t">Qui paie, et quand</div>
+        <div class="rang is-retard">
+          <div class="rang__q">Corine C. A. H.<i>Az&#257;n&trade; &middot; &eacute;ch&eacute;ance 2 sur 2</i></div>
+          <div class="rang__v">50 000 F<em>19 jours de retard</em></div>
+        </div>
+        <div class="rang is-retard">
+          <div class="rang__q">Tatiana M.<i>Le Foyer &middot; &eacute;ch&eacute;ance 3 sur 4</i></div>
+          <div class="rang__v">18 000 F<em>4 jours de retard</em></div>
+        </div>
+        <div class="rang">
+          <div class="rang__q">Myl&egrave;ne G.<i>La Juste Cadence &middot; &eacute;ch&eacute;ance 2 sur 2</i></div>
+          <div class="rang__v">68 000 F<em>le 8 septembre</em></div>
+        </div>
+        <div class="rang">
+          <div class="rang__q">Diane D.<i>L&rsquo;Ann&eacute;e Sereine &middot; &eacute;ch&eacute;ance 2 sur 4</i></div>
+          <div class="rang__v">57 500 F<em>le 22 septembre</em></div>
+        </div>
+        <p class="legende">Dat&eacute;e, nomm&eacute;e, cliquable. C&rsquo;est la seule liste qui fait
+        d&eacute;crocher un t&eacute;l&eacute;phone, et elle existe d&eacute;j&agrave; en donn&eacute;es :
+        les &eacute;ch&eacute;anciers sont pos&eacute;s &agrave; la signature.</p>
+      </div>
+
+      <div class="bloc">
+        <div class="bloc__t">Ce que la Maison doit encore</div>
+        <div class="rang">
+          <div class="rang__q">S&eacute;ances dues<i>cr&eacute;dits non consomm&eacute;s, toutes formules</i></div>
+          <div class="rang__v">27<em>dont 6 &agrave; l&rsquo;agenda</em></div>
+        </div>
+        <div class="rang">
+          <div class="rang__q">Ce qu&rsquo;elles valent<i>au prix du catalogue</i></div>
+          <div class="rang__v">486 000 F<em>de fauteuil d&eacute;j&agrave; vendu</em></div>
+        </div>
+        <div class="rang">
+          <div class="rang__q">Formules &eacute;puis&eacute;es<i>tout consomm&eacute;, rien de repris</i></div>
+          <div class="rang__v">5<em>&agrave; rappeler</em></div>
+        </div>
+        <p class="legende">C&rsquo;est la vraie dette d&rsquo;un salon qui vend des abonnements :
+        <b>des heures de fauteuil d&eacute;j&agrave; pay&eacute;es</b>. Elle ne figure nulle part
+        aujourd&rsquo;hui, et c&rsquo;est pourtant elle qui d&eacute;cide si vous pouvez vendre une
+        formule de plus ce mois-ci.</p>
+      </div>
+
+    </div>
+
+    <div class="duo">
+      <div class="bloc">
+        <div class="bloc__t">Ce que chaque formule a rapport&eacute;</div>
+        <div class="rang">
+          <div class="rang__q">La Juste Cadence<i>2 t&ecirc;tes</i></div>
+          <div class="rang__v">268 000 F<em>reste 68 000 F</em></div>
+        </div>
+        <div style="margin:-4px 0 8px"><div class="jauge"><i class="j-cuivre" style="width:80%"></i><i class="j-pale" style="width:20%"></i></div></div>
+        <div class="rang">
+          <div class="rang__q">L&rsquo;Ann&eacute;e Sereine &middot; Duo<i>3 t&ecirc;tes</i></div>
+          <div class="rang__v">322 500 F<em>reste 322 500 F</em></div>
+        </div>
+        <div style="margin:-4px 0 8px"><div class="jauge"><i class="j-cuivre" style="width:50%"></i><i class="j-pale" style="width:50%"></i></div></div>
+        <div class="rang">
+          <div class="rang__q">Le Lavage du Mois<i>1 t&ecirc;te</i></div>
+          <div class="rang__v">150 F<em>sold&eacute;</em></div>
+        </div>
+        <div style="margin:-4px 0 8px"><div class="jauge"><i class="j-cuivre" style="width:100%"></i></div></div>
+        <p class="legende">Plein : encaiss&eacute;. P&acirc;le : encore d&ucirc;. La r&eacute;partition
+        actuelle compte des t&ecirc;tes et un MRR &agrave; z&eacute;ro ; celle-ci dit quelle formule
+        <b>fait vivre la Maison</b>.</p>
+      </div>
+
+      <div class="bloc">
+        <div class="bloc__t">L&rsquo;&eacute;tat des neuf, toutes comprises</div>
+        <div class="rang"><div class="rang__q">En cours, cr&eacute;dits disponibles</div><div class="rang__v">4</div></div>
+        <div style="margin:-4px 0 8px"><div class="jauge"><i class="j-indigo" style="width:44%"></i></div></div>
+        <div class="rang"><div class="rang__q">&Eacute;puis&eacute;es, &agrave; rappeler</div><div class="rang__v">5</div></div>
+        <div style="margin:-4px 0 8px"><div class="jauge"><i class="j-cuivre" style="width:56%"></i></div></div>
+        <div class="rang"><div class="rang__q">Nouvelles ce mois</div><div class="rang__v">0</div></div>
+        <div class="rang"><div class="rang__q">&Agrave; veiller &middot; en retard de paiement</div><div class="rang__v">2</div></div>
+        <p class="legende">Les neuf sont l&agrave;, et la somme fait neuf. Le panneau actuel en montrait
+        quatre sans dire o&ugrave; &eacute;taient les cinq autres.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; Ce qui dispara&icirc;t</p>
+    <h2>Trois cartes qui ne disent rien</h2>
+
+    <ul class="regles">
+      <li><i>&#9670;</i><div><b>Valeur &agrave; vie &middot; LTV</b>
+        <span>Elle affiche un tiret depuis le premier jour, avec la promesse qu&rsquo;elle
+        &laquo; se calculera avec l&rsquo;historique &raquo;. Une carte qui n&rsquo;a jamais rien dit
+        occupe un quart de l&rsquo;&eacute;cran. Elle se retire, et reviendra le jour o&ugrave; elle aura
+        de quoi parler.</span></div></li>
+      <li><i>&#9670;</i><div><b>R&eacute;tention &middot; 100 %</b>
+        <span>Elle dit &laquo; aucune r&eacute;siliation &raquo;, ce qui est vrai et sans int&eacute;r&ecirc;t :
+        personne n&rsquo;a encore eu l&rsquo;occasion de partir. Elle devient <b>&laquo; reprises &raquo;</b> :
+        combien de t&ecirc;tes, une formule termin&eacute;e, en ont repris une. C&rsquo;est la m&ecirc;me
+        id&eacute;e, mesur&eacute;e sur ce qui s&rsquo;est vraiment pass&eacute; chez vous.</span></div></li>
+      <li><i>&#9670;</i><div><b>MRR &middot; revenu r&eacute;current</b>
+        <span>Il ne dispara&icirc;t pas, il <b>change de place et de nom</b>. Recalcul&eacute; en direct
+        depuis le prix vendu, il devient une ligne discr&egrave;te en bas : &laquo; part mensuelle des
+        abonnements en cours &raquo;. C&rsquo;est ce qu&rsquo;il a toujours &eacute;t&eacute;, et il cesse
+        de se faire passer pour de l&rsquo;encaiss&eacute;.</span></div></li>
+    </ul>
+
+    <div class="note">
+      <b>Le bandeau du haut change de phrase.</b> &laquo; 18 817 F sont d&eacute;j&agrave; encaiss&eacute;s
+      ce mois &raquo; devient &laquo; <b>184 000 F encaiss&eacute;s ce mois sur les abonnements, et
+      612 000 F d&eacute;j&agrave; vendus qui restent &agrave; percevoir</b> &raquo;. Deux chiffres vrais,
+      et la phrase de la Maison derri&egrave;re.
+    </div>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Deux points &agrave; trancher</h3>
+      <p>Le reste suit de ce qui est &eacute;crit ci-dessus. Ces deux-l&agrave; d&eacute;pendent de ce que
+      vous regardez en premier le matin.</p>
+      <ul>
+        <li><b>La carte de t&ecirc;te.</b> &laquo; Encaiss&eacute; ce mois &raquo;, qui r&eacute;pond
+        &agrave; &laquo; combien la Maison a-t-elle re&ccedil;u &raquo; ; ou &laquo; En retard &raquo;,
+        qui r&eacute;pond &agrave; &laquo; qui dois-je appeler aujourd&rsquo;hui &raquo;.</li>
+        <li><b>La dette de fauteuil.</b> La garder en chiffre d&rsquo;argent (486 000 F au catalogue),
+        ou en <b>heures de fauteuil</b>, qui se compare &agrave; un agenda plut&ocirc;t qu&rsquo;&agrave;
+        une caisse.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>

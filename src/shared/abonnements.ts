@@ -167,6 +167,12 @@ export type Subscriber = {
   /** `exhausted` n'existe QUE pour un pack : tous les crédits consommés. Un
       abonnement à cycle ne s'épuise pas, il se recharge ou il se rompt. */
   status: 'active' | 'new' | 'risk' | 'churn' | 'exhausted';
+  /** LE NUMÉRO DU CONTRAT — « ABO-2026-014 ». Posé à la signature, jamais
+      réécrit, unique dans la Maison. C'est lui qui distingue deux fois la même
+      formule pour la même tête dans la même année. Absent sur les abonnements
+      d'avant le 1er septembre 2026 : on ne leur en fabrique pas un après coup,
+      il prétendrait avoir été donné à la signature. */
+  reference?: string;
   mrrXof: number; // NORMALISÉ mensuel (annuel = montant annuel / 12) — alimente le MRR
   payments?: Payment[]; // règlements enregistrés, avec dates
   /** ÉCHÉANCIER — écrit UNE FOIS à la signature, quand l'abonnement dépasse
@@ -303,6 +309,53 @@ export const abonnementsVivantsDe = (subs: Subscriber[], clientId: string): Subs
 export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscriber | undefined =>
   abonnementsVivantsDe(subs, clientId)[0];
 /** Somme réglée par l'abonnée (tous règlements confondus). */
+/* ══ DEUX FOIS LA MÊME FORMULE, ET RIEN POUR LES DISTINGUER ═══════════
+   « Il arrive qu'une cliente ait acheté La Juste Cadence 2 fois dans la même
+   année, comment je distingue une Juste Cadence de l'autre ? » (Yéman, 1er
+   septembre 2026).
+
+   RIEN NE LES DISTINGUAIT À L'ŒIL. Deux lignes portant le même nom et la même
+   formule, séparées par le seul identifiant technique que personne ne voit.
+   On ne pouvait ni les nommer au téléphone, ni dire laquelle une facture
+   règle, ni savoir laquelle un rendez-vous décompte.
+
+   UNE RÉFÉRENCE, COMME UNE FACTURE. Écrite à la signature, jamais réécrite :
+   c'est le numéro du contrat, et il survit à tout ce qu'on change ensuite.
+   Trois chiffres, l'année devant, parce qu'un abonnement est plus rare qu'une
+   pièce de caisse et que « ABO-2026-014 » se lit à voix haute. */
+export const PREFIXE_ABO = 'ABO';
+
+export function prochaineReferenceAbo(subs: Subscriber[], annee = new Date().getFullYear()): string {
+  const re = new RegExp(`^${PREFIXE_ABO}-${annee}-(\\d+)$`);
+  const prises = new Set<string>();
+  let max = 0;
+  for (const s of subs) {
+    if (!s?.reference) continue;
+    prises.add(s.reference);
+    const m = re.exec(s.reference);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  /* ON NE REPREND JAMAIS UN NUMÉRO DÉJÀ PRIS, même si la suite a des trous :
+     deux contrats de même référence seraient pires que pas de référence. */
+  let n = max + 1;
+  let ref = `${PREFIXE_ABO}-${annee}-${String(n).padStart(3, '0')}`;
+  while (prises.has(ref)) {
+    n += 1;
+    ref = `${PREFIXE_ABO}-${annee}-${String(n).padStart(3, '0')}`;
+  }
+  return ref;
+}
+
+/** CE QUI NOMME UN CONTRAT À VOIX HAUTE.
+
+    La référence quand elle existe. Sinon SA DATE DE DÉPART, qui est la seule
+    chose qui distinguait déjà deux formules identiques : « sa Juste Cadence de
+    novembre » se dit, se comprend, et se retrouve dans la liste. Les
+    abonnements d'avant ce champ ne se réécrivent pas pour autant : une
+    référence posée après coup prétendrait avoir été donnée à la signature. */
+export const nomDuContrat = (sub: Subscriber): string =>
+  sub.reference ?? (sub.sinceIso ? `depuis le ${sub.sinceIso}` : 'sans référence');
+
 export const subPaid = (s: Subscriber) => (s.payments ?? []).reduce((a, p) => a + p.amountXof, 0);
 /* ---------- Prestations incluses — sélection & SUIVI de consommation ---------- */
 

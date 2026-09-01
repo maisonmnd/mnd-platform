@@ -1759,6 +1759,23 @@ export function RdvModal({
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
+                /* ══ QUEL CONTRAT, NOMMÉMENT — 1er septembre 2026 ═══════════
+                   « Le pack personnalisé est fini, pourquoi je continue de
+                   faire des réservations sur cet abonnement ? » (Yéman).
+
+                   PARCE QUE PERSONNE N'ÉCRIVAIT LE LIEN. `Appointment.subId`
+                   existe depuis toujours et `coversSub` le respecte, mais
+                   AUCUN écran ne le posait : un rituel couvert était attribué
+                   par la SEULE fenêtre de dates. Une tête portant deux
+                   contrats aux fenêtres qui se chevauchent voyait donc chaque
+                   séance décomptée DES DEUX À LA FOIS, dont un paquet fini
+                   qui n'avait plus rien à donner.
+
+                   Le lien est posé sur le contrat que la modale a retenu, le
+                   plus récent des vivants : c'est celui qu'elle a annoncé en
+                   haut de l'écran, et il n'y a plus d'écart entre ce qu'on
+                   lit et ce qui se décompte. */
+                subId: effCovered ? membership?.id : undefined,
                 offertPar: offertRetenu,
                 forfait: forfaitEnregistre,
                 /* Un forfait posé efface les remises : le total négocié EST le
@@ -1820,6 +1837,10 @@ export function RdvModal({
         note: note.trim() || undefined,
         coveredBySub: effCovered || undefined,
         coverKind: effCovered ? ('abonnement' as const) : undefined,
+        /* LE LIEN EXPLICITE VERS SON CONTRAT — voir la note du chemin des
+           séries. Sans lui, la séance se décompte sur tous les abonnements
+           dont la fenêtre la contient, un paquet épuisé compris. */
+        subId: effCovered ? membership?.id : undefined,
         offertPar: offertRetenu,
         forfait: forfaitEnregistre,
         /* Remise famille figée en francs — voir la note du chemin des séries. */
@@ -1960,9 +1981,12 @@ export function RdvModal({
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px', gap: 12, alignItems: 'start', marginTop: -8 }}>
           <Field label="Tête couronnée">
             <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
+            {/* ON NOMME LE CONTRAT QUI PORTE, pas seulement la formule : deux
+                Juste Cadence dans l'année se ressemblent trait pour trait, et
+                celle qui décompte doit se lire sans ouvrir une autre page. */}
             {membership && (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-                ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
+                ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.reference ? ` · ${membership.reference}` : ''}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
               </div>
             )}
           </Field>
