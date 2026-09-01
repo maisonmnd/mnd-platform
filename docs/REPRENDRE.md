@@ -372,34 +372,68 @@ sait tracer ne passe jamais par ce repli. « café » reste « café », « ² �
 « ² ». Le repli est écrit une fois (`dernierRepli`) et sert les deux gardes,
 `pdfSafe` et `pdfSafeGardeFon`.
 
-## MAQUETTE EN ATTENTE · LE COMPTE D'ABONNEMENT
+## LE COMPTE D'ABONNEMENT · 2 septembre 2026, CONSTRUIT
 
 « Créer des comptes abonnements pour chaque client distinctif. Quand il entame un
 nouveau. Facile à suivre. Quand c'est actif, quand un abonnement devient inactif.
-Bien faire la part des choses. » (2 septembre 2026)
+Bien faire la part des choses. Un UI agréable, smart, structuré. »
 
-`public/maquette-le-compte-abonnement.html`, à valider. L'écran liste des
-CONTRATS, pas des TÊTES : une cliente y paraît deux fois à cinq lignes d'écart,
-et rien ne dit que c'est la même personne ni que l'un a succédé à l'autre.
+Quatrième onglet, **Les comptes**. L'onglet voisin liste des CONTRATS : une
+cliente y paraissait deux fois à cinq lignes d'écart, et rien ne disait que
+c'était la même personne ni que l'un avait succédé à l'autre. Les deux servent,
+la table pour encaisser vite, le compte pour **comprendre une tête** avant de lui
+parler.
 
-Un compte par tête : le contrat en cours en cuivre, l'histoire dessous du plus
-récent au plus ancien, et **le silence entre deux contrats** (« 63 jours sans
-abonnement »), la seule chose que personne ne mesure et le seul chiffre qui dise
-si la Maison retient ses abonnées.
+**UNE TÊTE, UNE LIGNE DE VIE.** Le contrat qui vit en cuivre, l'histoire dessous
+et repliée : une tête à un seul contrat tient sur trois lignes, celles qui en ont
+eu cinq ne noient pas l'écran. Quatre chiffres en tête de compte, contrats,
+versé, reste dû, séances reçues.
 
-**CINQ ÉTATS QUI SE CALCULENT** au lieu de se stocker : en cours, épuisé,
-terminé, résilié, en retard (qui se superpose aux autres). Le champ `status`
-est écrit à la vente et presque jamais remis à jour, d'où quatre « actives » sur
-neuf et cinq dans aucune case.
+**L'ÉTAT NE SE STOCKE PLUS, IL SE LIT.** `status` est écrit à la vente et
+presque jamais remis à jour : l'écran annonçait « 9 abonnés actifs » en haut et
+« Actives 4 » en bas, les cinq manquants n'étant dans aucune case.
+`etatDuContrat()` lit les dates et les crédits, dans cet ordre, et l'ordre EST
+la définition :
 
-**« TERMINÉ » ET « RÉSILIÉ » CESSENT DE SE CONFONDRE.** La rétention affiche
-100 % parce qu'elle ne compte que les résiliations à la main et ignore les
-paquets arrivés au bout sans reprise, qui sont pourtant des départs, simplement
-plus polis.
+- **résilié** prime sur tout, une résiliation le jour de l'échéance reste une
+  résiliation, et c'est le seul départ véritable ;
+- **terminé**, la date de fin est passée, crédits consommés ou non ; ceux qui
+  restent disent que la formule était trop grande pour elle ;
+- **épuisé**, tous les crédits bus mais la fenêtre court encore. **RÉSERVÉ AUX
+  PAQUETS** : un abonnement à cycle qui a tout consommé n'est pas épuisé, il se
+  recharge, et l'appeler ainsi ferait relancer une tête qui n'a besoin de rien ;
+- **en cours**, tout le reste.
 
-Trois points à trancher : remplacer l'état stocké partout ou le garder en
-parallèle ; compter comme départ un paquet arrivé au bout sans reprise ; le tri
-par défaut (les gestes à faire d'abord, ou l'alphabet).
+Le **retard** se superpose aux quatre : un contrat en cours peut être en retard,
+et c'est le cas le plus urgent de tous.
+
+**« ÉPUISÉ » EST UNE ACTION, PAS UN CONSTAT** : le bouton dit « Lui reproposer »
+et ouvre la vente sur sa fiche. La tête est là, elle vient, et elle repassera au
+plein tarif à sa prochaine venue.
+
+**LE SILENCE ENTRE DEUX CONTRATS EST UNE DONNÉE.** « 63 jours sans abonnement » :
+deux mois où la tête est revenue au plein tarif, ou n'est pas revenue du tout.
+Rien ne le mesurait, et c'est le seul chiffre qui dise si la Maison RETIENT ses
+abonnées. Sans date de fin sur le précédent, pas de trou : on ne devine pas un
+silence.
+
+**UN CONTRAT SANS FICHE RESTE VISIBLE**, seul dans son compte. `clientId` est
+facultatif depuis toujours ; les grouper ferait une tête imaginaire portant six
+formules, les cacher ferait disparaître de l'argent encaissé.
+
+**UN RÉSILIÉ NE RÉCLAME PLUS RIEN** : son reste dû ne compte pas dans celui du
+compte, ce serait une créance que la Maison a elle-même annulée. Et un abonnement
+à CYCLE ne doit rien : il se règle lune après lune.
+
+**LES GESTES D'ABORD** (`rangDuCompte`) : le retard, puis l'épuisé à relancer,
+puis les autres. Un écran de comptes se lit le matin pour savoir qui appeler ;
+l'alphabet ne dit rien à personne.
+
+**RESTE OUVERT** : l'état calculé ne remplace pas encore `status` dans la table
+des abonnés ni dans la carte Rétention, qui appartient à la refonte du Moteur,
+maquette encore en attente. La rétention à 100 % reste donc fausse : elle ne
+compte que les résiliations à la main et ignore les paquets arrivés au bout sans
+reprise, qui sont des départs, simplement plus polis.
 
 ## MAQUETTE EN ATTENTE · LE MOTEUR, EN ARGENT RÉEL
 

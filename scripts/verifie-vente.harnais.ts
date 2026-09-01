@@ -16,6 +16,7 @@ import {
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, coversSub,
+  etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -441,6 +442,88 @@ dit('un rituel anterieur a la signature ne compte pas, meme lie', false,
   coversSub(seanceDe2025, recent, PACK));
 dit('… et il revient au contrat qui existait', true,
   coversSub({ ...seanceDe2025, subId: 'ab-2025' }, ancien, PACK));
+
+/* -- 15. LE COMPTE D'ABONNEMENT ------------------------------------
+   « Creer des comptes abonnements pour chaque client distinctif. Quand il
+   entame un nouveau. Facile a suivre. Quand c'est actif, quand un abonnement
+   devient inactif. Bien faire la part des choses » (Yeman, 2 septembre 2026).
+
+   L'ETAT NE SE STOCKE PLUS, IL SE LIT. Le champ `status` est ecrit a la vente
+   et presque jamais remis a jour : l'ecran annoncait « 9 abonnes actifs » en
+   haut et « Actives 4 » en bas, les cinq manquants n'etant dans aucune case. */
+const JOUR = '2026-09-02';
+const paquetOuvert = { ...abo({ id: 'ab-o', startIso: '2026-08-01', expiresIso: '2027-08-01' }), clientId: 'c-9' };
+dit('un paquet dans sa fenetre est en cours', 'en-cours',
+  etatDuContrat(paquetOuvert, PACK, [], JOUR));
+/* EPUISE : tous les credits consommes, la fenetre court encore. C'est le moment
+   de revendre, la tete est la et elle repassera au plein tarif. */
+const douzeVenues = Array.from({ length: 12 }, (_, i) =>
+  ({ ...rdv(`rr${i}`, '2026-08-1' + (i % 10), i < 6 ? 'sv-resserrage' : 'sv-lavage'), subId: 'ab-o' }));
+dit('tous les credits bus, la fenetre ouverte : epuise', 'epuise',
+  etatDuContrat(paquetOuvert, PACK, douzeVenues, JOUR));
+/* TERMINE PRIME SUR EPUISE : la date passee ferme le contrat, credits bus ou
+   non, et ceux qui restent disent que la formule etait trop grande pour elle. */
+const paquetClos = { ...paquetOuvert, id: 'ab-f', expiresIso: '2026-06-30' };
+dit('la date passee ferme le contrat', 'termine', etatDuContrat(paquetClos, PACK, [], JOUR));
+/* RESILIE PRIME SUR TOUT : une resiliation le jour de l'echeance reste une
+   resiliation, et c'est le seul depart veritable. */
+dit('le resilie prime', 'resilie',
+  etatDuContrat({ ...paquetClos, status: 'churn' as const }, PACK, [], JOUR));
+/* UN ABONNEMENT A CYCLE NE S'EPUISE PAS : il se recharge a l'echeance, et
+   l'appeler epuise ferait relancer une tete qui n'a besoin de rien. */
+const cycleTout = { ...abo({ id: 'ab-c' }), clientId: 'c-9', sinceIso: '2026-08-15', startIso: undefined, expiresIso: undefined };
+dit('un cycle ne s’epuise pas', 'en-cours', etatDuContrat(cycleTout, CYCLE, douzeVenues, JOUR));
+/* SANS PRESTATION INCLUSE, RIEN NE PEUT S'EPUISER. */
+dit('un paquet sans credit ne s’epuise pas', 'en-cours',
+  etatDuContrat({ ...paquetOuvert, inclusPropres: [] }, PACK, [], JOUR));
+
+/* UN ABONNEMENT A CYCLE NE DOIT RIEN : il se regle lune apres lune, et compter
+   son prix comme une dette ferait apparaitre une creance qui n'existe pas. */
+dit('un cycle ne doit rien', 0, resteDuContrat(cycleTout, CYCLE, JOUR));
+dit('un paquet doit son prix moins le verse', 215_000, resteDuContrat(paquetOuvert, PACK, JOUR));
+
+/* -- LA LIGNE DE VIE D'UNE TETE ------------------------------------
+   Une cliente paraissait deux fois a cinq lignes d'ecart, et rien ne disait que
+   c'etait la meme personne ni que l'un avait succede a l'autre. */
+const vieux = { ...abo({ id: 'ab-v', startIso: '2025-10-10', expiresIso: '2026-06-30' }), clientId: 'c-1', name: 'M. G.' };
+const neuf = { ...abo({ id: 'ab-n', startIso: '2026-09-01', expiresIso: '2027-05-29' }), clientId: 'c-1', name: 'M. G.' };
+const seule = comptesAbonnement({ subs: [vieux, neuf], plans: [PACK], appts: [], aujourdhui: JOUR });
+dit('une tete, un compte', 1, seule.length);
+dit('… ses contrats du plus recent au plus ancien', ['ab-n', 'ab-v'],
+  seule[0].contrats.map((c) => c.sub.id));
+dit('… le contrat qui vit passe en tete', 'ab-n', seule[0].vif?.sub.id);
+dit('… et le compte remonte a la premiere signature', '2025-10-10', seule[0].depuisIso);
+/* LE SILENCE ENTRE DEUX CONTRATS EST UNE DONNEE : deux mois ou la tete est
+   revenue au plein tarif, ou n'est pas revenue du tout. Rien ne le mesurait. */
+dit('le trou se compte, du 30 juin au 1er septembre', 63, seule[0].contrats[0].trouJours);
+dit('… et le plus ancien n’en a pas', null, seule[0].contrats[1].trouJours);
+/* SANS DATE DE FIN, PAS DE TROU : on ne devine pas un silence. */
+const sansFin = comptesAbonnement({
+  subs: [{ ...vieux, expiresIso: undefined }, neuf], plans: [PACK], appts: [], aujourdhui: JOUR });
+dit('sans date de fin, aucun trou', null, sansFin[0].contrats[0].trouJours);
+
+/* UN CONTRAT SANS FICHE RESTE VISIBLE, SEUL DANS SON COMPTE. Les grouper ferait
+   une tete imaginaire portant six formules ; les cacher ferait disparaitre de
+   l'argent encaisse. */
+const orphelins = comptesAbonnement({
+  subs: [{ ...vieux, clientId: undefined }, { ...neuf, clientId: undefined }],
+  plans: [PACK], appts: [], aujourdhui: JOUR });
+dit('deux contrats sans fiche font deux comptes', 2, orphelins.length);
+
+/* LES GESTES D'ABORD : qui doit de l'argent, puis a qui reproposer, puis les
+   autres. L'alphabet ne dit rien a personne. */
+const enRetard = {
+  ...abo({ id: 'ab-r', startIso: '2026-08-01', expiresIso: '2027-08-01' }),
+  clientId: 'c-2', name: 'A. Retard',
+  echeances: [{ numero: 1, dueIso: '2026-08-01', amountXof: 50_000 }],
+};
+const aRelancer = { ...paquetOuvert, id: 'ab-e', clientId: 'c-3', name: 'B. Epuisee' };
+const tranquille = { ...paquetOuvert, id: 'ab-t', clientId: 'c-4', name: 'C. Tranquille' };
+const ranges = comptesRanges(comptesAbonnement({
+  subs: [tranquille, aRelancer, enRetard], plans: [PACK],
+  appts: douzeVenues.map((r) => ({ ...r, subId: 'ab-e' })), aujourdhui: JOUR }));
+dit('le retard d’abord, l’epuise ensuite', ['A. Retard', 'B. Epuisee', 'C. Tranquille'],
+  ranges.map((c) => c.nom));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

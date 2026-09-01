@@ -428,6 +428,8 @@ export {
   subCycleAmountXof, subMonthlyXof, activeSubscriberOf, subPaid, addDaysFromISO,
   cycleWindow, subWindow, coversSub, subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, debutDuContrat,
+  etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat, retardDuContrat, ETAT_LABEL,
+  type EtatContrat, type CompteAbonnement, type ContratDuCompte,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
   etendueDeLaFormule, basePourLaTete, type TeteConnue,
   abonnementsVivantsDe, gainPourElle, perkParleDeLaCarte,

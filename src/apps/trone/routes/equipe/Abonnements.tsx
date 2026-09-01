@@ -16,6 +16,7 @@ import {
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
+  comptesAbonnement, comptesRanges, ETAT_LABEL, type CompteAbonnement, type ContratDuCompte,
   prochaineReferenceAbo,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
@@ -34,7 +35,8 @@ import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 
-type Tab = 'moteur' | 'formules' | 'membres';
+type Tab = 'moteur' | 'formules' | 'membres' | 'comptes';
+type FiltreCompte = 'tous' | 'en-cours' | 'a-relancer' | 'retard' | 'parties';
 
 type PlanForm = {
   name: string; tag: string; price: string; line: string; perks: string;
@@ -81,6 +83,10 @@ type SubForm = {
 };
 const CYCLES: SubCycle[] = ['mensuel', 'semestriel', 'annuel'];
 type PayForm = { amount: string; date: string; method: string };
+/** Le jour où ce contrat a commencé d'exister — miroir local du juge partagé,
+    pour l'affichage seul. */
+const debutDuContratLocal = (m: Subscriber) => m.startIso ?? m.sinceIso ?? '';
+
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const addDaysISO = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 /** J+`days` depuis une date ISO donnée (midi local — insensible aux fuseaux). */
@@ -134,6 +140,12 @@ export default function Abonnements() {
      LES QUATRE GESTES ÉTAIENT : suivre, régler, résilier, supprimer. Une vente
      mal saisie n'avait donc que deux issues, la garder fausse ou la détruire —
      et la détruire emporte ses règlements, sa pièce et son histoire. */
+  /* ══ LES COMPTES — 2 septembre 2026 ════════════════════════════════
+     L'onglet « Les abonnés » liste des CONTRATS ; celui-ci raconte des TÊTES.
+     Les deux servent : la table pour encaisser vite, le compte pour comprendre
+     une cliente avant de lui parler. */
+  const [filtreCompte, setFiltreCompte] = useState<FiltreCompte>('tous');
+  const [histoireOuverte, setHistoireOuverte] = useState<string[]>([]);
   const [contratEdit, setContratEdit] = useState<
     { sub: Subscriber; planId: string; inclus: PlanIncluded[] } | null
   >(null);
@@ -963,6 +975,36 @@ export default function Abonnements() {
     toast(`${neufs.length} rendez-vous posés, du ${dateComplete(neufs[0].date)} au ${dateComplete(neufs[neufs.length - 1].date)}.`);
   };
 
+  /* LES COMPTES SE CALCULENT À CHAQUE RENDU, jamais à l'enregistrement : c'est
+     toute la différence avec le champ `status`, écrit à la vente et presque
+     jamais remis à jour. Un état qui se stocke vieillit mal. */
+  const comptes = useMemo(
+    () => comptesRanges(comptesAbonnement({ subs: branchSubs, plans, appts: allAppts, aujourdhui: todayISO() })),
+    [branchSubs, plans, allAppts],
+  );
+  const comptesFiltres = useMemo(() => comptes.filter((c) => {
+    if (filtreCompte === 'en-cours') return c.vif?.etat === 'en-cours';
+    if (filtreCompte === 'a-relancer') return c.vif?.etat === 'epuise';
+    if (filtreCompte === 'retard') return c.retardXof > 0;
+    /* « PARTIES » : celles qui n'ont plus rien qui vive. Un paquet arrivé au
+       bout sans reprise est un départ aussi, simplement plus poli qu'une
+       résiliation. */
+    if (filtreCompte === 'parties') return !c.vif;
+    return true;
+  }), [comptes, filtreCompte]);
+
+  /* LUI REPROPOSER : la modale de vente s'ouvre sur SA fiche. Une tête dont le
+     paquet est épuisé est là, elle vient, et elle repassera au plein tarif à sa
+     prochaine venue : c'est le seul moment où la formule se revend toute seule. */
+  const reproposer = (clientId: string) => {
+    setSubForm({
+      clientId, planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '',
+      dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '',
+      inclus: null, validiteMois: '',
+    });
+    setSubModal(true);
+  };
+
   const statusDot = (s: Subscriber['status']) =>
     s === 'risk' ? '#8f3b30' : s === 'new' ? 'var(--color-copper)' : '#6e7c5c';
 
@@ -981,7 +1023,7 @@ export default function Abonnements() {
       />
 
       <Tabs<Tab>
-        tabs={[{ k: 'moteur', l: 'Le moteur' }, { k: 'formules', l: 'Les formules' }, { k: 'membres', l: 'Les abonnés' }]}
+        tabs={[{ k: 'moteur', l: 'Le moteur' }, { k: 'formules', l: 'Les formules' }, { k: 'membres', l: 'Les abonnés' }, { k: 'comptes', l: 'Les comptes' }]}
         value={tab}
         onChange={setTab}
       />
@@ -1085,6 +1127,141 @@ export default function Abonnements() {
               </Card>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══ LES COMPTES — une tête, une ligne de vie ═══════════════════════
+          « Créer des comptes abonnements pour chaque client distinctif. Quand il
+          entame un nouveau. Facile à suivre » (Yéman, 2 septembre 2026).
+
+          L'onglet voisin liste des CONTRATS : une cliente y paraît deux fois à
+          cinq lignes d'écart, et rien ne dit que c'est la même personne ni que
+          l'un a succédé à l'autre. */}
+      {tab === 'comptes' && (
+        <div>
+          <div className="tre-filtres">
+            {([['tous', 'Toutes'], ['en-cours', 'En cours'], ['a-relancer', 'À relancer'],
+               ['retard', 'En retard de paiement'], ['parties', 'Parties']] as const).map(([k, l]) => (
+              <button
+                key={k} type="button"
+                className={`tre-filtre ${filtreCompte === k ? 'is-on' : ''}`}
+                onClick={() => setFiltreCompte(k)}
+              >{l}</button>
+            ))}
+          </div>
+
+          {comptesFiltres.length === 0 && (
+            <Card style={{ padding: '22px 24px' }}>
+              <div className="mnd-muted" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15 }}>
+                {comptes.length === 0
+                  ? 'Aucune tête abonnée pour l’instant. Le premier compte naîtra de la première vente.'
+                  : 'Aucune tête dans cette vue. Les autres sont sous « Toutes ».'}
+              </div>
+            </Card>
+          )}
+
+          {comptesFiltres.map((c) => {
+            const fiche = clients.find((x) => x.id === c.clientId);
+            const bande = calibreDeLaTete(fiche?.lockCount ?? fiche?.lockCountDeclare, bands, fiche?.margeCalibre);
+            const ouverte = histoireOuverte.includes(c.clientId || c.nom);
+            const passes = c.contrats.filter((x) => x !== c.vif);
+            /* LE CONTRAT QUI VIT EN TÊTE, l'histoire dessous et REPLIÉE : une tête
+               à un seul contrat tient sur trois lignes, et celles qui en ont eu
+               cinq ne noient pas l'écran. */
+            const montres = c.vif ? [c.vif, ...(ouverte ? passes : [])] : c.contrats.slice(0, ouverte ? undefined : 1);
+            return (
+              <div className="tre-compte" key={c.clientId || c.nom}>
+                <div className="tre-compte__tete">
+                  <div className="tre-compte__qui">
+                    <b>{c.nom}</b>
+                    <span>
+                      {bande ? `${bandLabel(bande, bands)} · ` : ''}
+                      {fiche?.lockCount ? `${fiche.lockCount} locks · ` : ''}
+                      abonnée depuis le {dateComplete(c.depuisIso)}
+                    </span>
+                  </div>
+                  <div className="tre-compte__kpis">
+                    <div><div className="tre-kpi__l">Contrats</div><div className="tre-kpi__v">{c.contrats.length}</div></div>
+                    <div><div className="tre-kpi__l">Versé en tout</div><div className="tre-kpi__v">{fmtMoney(c.verseXof, currency)}</div></div>
+                    <div>
+                      <div className="tre-kpi__l">Reste dû</div>
+                      <div className={`tre-kpi__v ${c.retardXof > 0 ? 'is-brique' : ''}`}>{fmtMoney(c.resteXof, currency)}</div>
+                    </div>
+                    <div><div className="tre-kpi__l">Séances reçues</div><div className="tre-kpi__v">{c.honorees}</div></div>
+                  </div>
+                  {c.clientId && (
+                    <button type="button" className="tre-link-btn" onClick={() => navigate(`/customers?id=${c.clientId}`)}>
+                      Sa fiche
+                    </button>
+                  )}
+                </div>
+
+                <div className="tre-compte__corps">
+                  {montres.map((x) => {
+                    const vif = x === c.vif;
+                    const pct = x.promis > 0 ? Math.min(100, Math.round((x.utilises / x.promis) * 100)) : 0;
+                    const fait = x.promis > 0 ? Math.min(100, Math.round((x.honorees / x.promis) * 100)) : 0;
+                    return (
+                      <div key={x.sub.id}>
+                        {/* LE SILENCE ENTRE DEUX CONTRATS EST UNE DONNÉE : deux
+                            mois où la tête est revenue au plein tarif, ou n'est
+                            pas revenue du tout. Rien ne le mesurait. */}
+                        {x.trouJours !== null && x.trouJours > 0 && (
+                          <div className="tre-trou"><i /><span>{x.trouJours} jours sans abonnement</span></div>
+                        )}
+                        <div className={`tre-contrat ${vif ? 'is-vif' : 'is-mort'}`}>
+                          <div className="tre-contrat__h">
+                            <span className="tre-contrat__nom">{x.plan?.name ?? 'Formule retirée'}</span>
+                            <span className="tre-contrat__ref">{x.sub.reference ?? `du ${dateComplete(debutDuContratLocal(x.sub))}`}</span>
+                            <span className={`tre-etat is-${x.retardXof > 0 ? 'retard' : x.etat}`}>
+                              {x.retardXof > 0 ? `${fmtMoney(x.retardXof, currency)} en retard` : ETAT_LABEL[x.etat]}
+                            </span>
+                            <span className="tre-contrat__quand">
+                              {x.sub.expiresIso
+                                ? `du ${dateComplete(debutDuContratLocal(x.sub))} au ${dateComplete(x.sub.expiresIso)}`
+                                : `${cycleLabel(x.sub.cycle ?? 'mensuel').split(' · ')[0]} · prochaine échéance le ${dateComplete(x.sub.nextIso)}`}
+                            </span>
+                          </div>
+                          <div className="tre-contrat__bas">
+                            <span className="tre-jauge">
+                              <i className="fait" style={{ width: `${fait}%` }} />
+                              <i className="tenu" style={{ width: `${Math.max(0, pct - fait)}%` }} />
+                            </span>
+                            <span className="tre-contrat__n">
+                              {x.promis > 0
+                                ? <><b>{x.honorees}</b> honorée{x.honorees > 1 ? 's' : ''}{x.utilises > x.honorees ? <> · <b>{x.utilises - x.honorees}</b> retenue{x.utilises - x.honorees > 1 ? 's' : ''}</> : null} sur {x.promis}</>
+                                : 'aucune prestation incluse'}
+                              {x.verseXof > 0 ? ` · versé ${fmtMoney(x.verseXof, currency)}` : ''}
+                            </span>
+                            <span className="tre-contrat__act">
+                              {x.etat === 'epuise' && c.clientId && (
+                                <button type="button" className="tre-mini is-cuivre" onClick={() => reproposer(c.clientId)}>Lui reproposer</button>
+                              )}
+                              <button type="button" className="tre-mini" onClick={() => setSuiviFor(x.sub)}>Suivi</button>
+                              {x.resteXof > 0 && (
+                                <button type="button" className="tre-mini" onClick={() => openPay(x.sub)}>Régler</button>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {passes.length > 0 && (
+                    <button
+                      type="button" className="tre-link-btn" style={{ marginTop: 4 }}
+                      onClick={() => setHistoireOuverte((prev) => (ouverte
+                        ? prev.filter((k) => k !== (c.clientId || c.nom))
+                        : [...prev, c.clientId || c.nom]))}
+                    >
+                      {ouverte ? 'Replier son histoire' : `Voir son histoire · ${passes.length} contrat${passes.length > 1 ? 's' : ''}`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

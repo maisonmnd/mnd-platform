@@ -1564,3 +1564,74 @@
   .tre-bord__nom { flex: 1 1 100%; }
   .tre-bord__xof { min-width: 0; margin-left: auto; }
 }
+
+/* ══ LES COMPTES D'ABONNEMENT — 2 septembre 2026 ═══════════════════════
+   « Créer des comptes abonnements pour chaque client distinctif. Quand il
+   entame un nouveau. Facile à suivre. Un UI agréable, smart, structuré »
+   (Yéman). Une tête, une ligne de vie : le contrat qui vit en cuivre, son
+   histoire en dessous, et le silence entre les deux. */
+.tre-filtres { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.tre-filtre {
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+  padding: 7px 13px; border: 1px solid var(--hairline); border-radius: 99px;
+  background: var(--surface-card); color: var(--ink-soft); cursor: pointer;
+}
+.tre-filtre:hover { border-color: var(--copper-300); color: var(--copper-700); }
+.tre-filtre.is-on { border-color: var(--color-indigo); background: var(--color-indigo); color: #fff; }
+
+.tre-compte { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); margin-bottom: 16px; overflow: hidden; }
+.tre-compte__tete {
+  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  padding: 15px 18px 14px; border-bottom: 1px solid var(--hairline);
+}
+.tre-compte__qui { flex: 1 1 210px; min-width: 0; }
+.tre-compte__qui b { display: block; font-family: var(--font-serif); font-weight: 400; font-size: 24px; color: var(--color-indigo); line-height: 1.12; }
+.tre-compte__qui span { font-size: 11.5px; color: var(--ink-soft); }
+.tre-compte__kpis { display: flex; gap: 24px; flex-wrap: wrap; }
+.tre-kpi__l { font-size: 9px; letter-spacing: .17em; text-transform: uppercase; color: var(--ink-soft); }
+.tre-kpi__v { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tre-kpi__v.is-brique { color: #96412E; }
+.tre-compte__corps { padding: 14px 18px 16px; }
+
+.tre-contrat { border: 1px solid var(--hairline); border-radius: 3px; padding: 12px 14px; margin-bottom: 9px; }
+.tre-contrat.is-vif { border-color: var(--copper-300); border-left: 3px solid var(--color-copper); background: var(--copper-50); }
+.tre-contrat.is-mort { opacity: .74; }
+.tre-contrat__h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tre-contrat__nom { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.tre-contrat__ref { font-size: 11px; letter-spacing: .05em; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tre-contrat__quand { flex: 1 1 auto; text-align: right; font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tre-contrat__bas { display: flex; align-items: center; gap: 14px; margin-top: 9px; flex-wrap: wrap; }
+.tre-contrat__n { font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; flex: none; }
+.tre-contrat__n b { color: var(--ink); font-weight: 500; }
+.tre-contrat__act { display: flex; gap: 7px; flex: none; margin-left: auto; }
+
+/* Plein : ce qui a été rendu. Hachuré : ce qui est TENU par un rendez-vous
+   posé, donc plus disponible sans être encore consommé. */
+.tre-jauge { flex: 1 1 160px; height: 6px; border-radius: 99px; background: var(--hover-veil); overflow: hidden; display: flex; }
+.tre-jauge i { display: block; height: 100%; }
+.tre-jauge .fait { background: var(--color-copper); }
+.tre-jauge .tenu { background: repeating-linear-gradient(135deg, var(--copper-300) 0 4px, var(--copper-100, #F2E2D2) 4px 8px); }
+
+.tre-mini {
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-soft); border: 1px solid var(--hairline); border-radius: 2px;
+  padding: 5px 9px; background: var(--surface-card); cursor: pointer;
+}
+.tre-mini:hover { border-color: var(--copper-300); color: var(--copper-700); }
+.tre-mini.is-cuivre { color: #fff; border-color: var(--color-copper); background: var(--color-copper); }
+
+.tre-etat { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; border: 1px solid; flex: none; }
+.tre-etat.is-en-cours { color: #4A6B52; border-color: #CBDACE; background: #EFF3EF; }
+.tre-etat.is-epuise { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+.tre-etat.is-termine { color: var(--ink-soft); border-color: var(--hairline); background: var(--hover-veil); }
+.tre-etat.is-resilie, .tre-etat.is-retard { color: #96412E; border-color: #E4BDB2; background: #FBF0ED; }
+
+.tre-trou { display: flex; align-items: center; gap: 12px; padding: 2px 0 8px 4px; }
+.tre-trou i { display: block; width: 2px; height: 24px; flex: none; background: repeating-linear-gradient(180deg, var(--hairline) 0 3px, transparent 3px 6px); }
+.tre-trou span { font-family: var(--font-serif); font-style: italic; font-size: 12.5px; color: var(--ink-soft); }
+
+@media (max-width: 720px) {
+  .tre-compte__kpis { gap: 16px; }
+  .tre-contrat__quand { text-align: left; flex: 1 1 100%; }
+  .tre-contrat__act { margin-left: 0; }
+}

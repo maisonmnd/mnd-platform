@@ -18,6 +18,7 @@ import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
+import { etatDesEcheances, resteDeLEcheancier, enRetardXof } from './echeancier';
 import {
   roundPrice, modelBandsStore, bandSetsStore, bandsAbonnements, type ModelBand,
 } from './pricing';
@@ -563,6 +564,183 @@ export const rdvCouvertsHorsFormule = (
     chose finissent toujours par diverger d'un jeton, un jour, sur une fiche. */
 export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): IncludedUsage[] =>
   usageDetaille(sub, plan, appts).map(({ serviceId, qty, used, remaining }) => ({ serviceId, qty, used, remaining }));
+
+/* ══ LE COMPTE D'ABONNEMENT — 2 septembre 2026 ═══════════════════════
+   « Créer des comptes abonnements pour chaque client distinctif. Quand il
+   entame un nouveau. Facile à suivre. Quand c'est actif, quand un abonnement
+   devient inactif. Bien faire la part des choses » (Yéman).
+
+   L'ÉCRAN LISTAIT DES CONTRATS, PAS DES TÊTES. Une cliente y paraissait deux
+   fois à cinq lignes d'écart, et rien ne disait que c'était la même personne ni
+   que l'un avait succédé à l'autre. */
+
+/** L'ÉTAT D'UN CONTRAT, LU ET NON STOCKÉ.
+
+    LE CHAMP `status` EST ÉCRIT À LA VENTE et presque jamais remis à jour :
+    l'écran annonçait « 9 abonnés actifs » en haut et « Actives 4 » en bas, les
+    cinq manquants n'étant dans aucune case. Un état qui se stocke vieillit mal.
+    Celui-ci se lit sur les dates et les crédits, donc il est vrai à la seconde
+    où on le regarde.
+
+    L'ORDRE DES QUESTIONS EST LA DÉFINITION :
+    · résilié — arrêté à la main. Le seul départ véritable, et il prime : une
+      résiliation le jour de l'échéance reste une résiliation.
+    · terminé — la date de fin est passée. Crédits consommés ou non ; ceux qui
+      restent disent que la formule était trop grande pour elle.
+    · épuisé — tous les crédits consommés, la fenêtre court encore. C'est le
+      moment de revendre : la tête est là, elle vient, et elle repassera au
+      plein tarif à sa prochaine venue. RÉSERVÉ AUX PAQUETS : un abonnement à
+      cycle qui a tout consommé n'est pas épuisé, il se recharge à l'échéance.
+    · en cours — tout le reste. */
+export type EtatContrat = 'resilie' | 'termine' | 'epuise' | 'en-cours';
+
+export const etatDuContrat = (
+  sub: Subscriber, plan: Plan | undefined, appts: Appointment[], aujourdhui: string,
+): EtatContrat => {
+  if (sub.status === 'churn') return 'resilie';
+  if (sub.expiresIso && sub.expiresIso < aujourdhui) return 'termine';
+  if (plan?.mode !== 'pack') return 'en-cours';
+  const lignes = usageDetaille(sub, plan, appts);
+  /* SANS PRESTATION INCLUSE, RIEN NE PEUT S'ÉPUISER : un paquet qui ne porte
+     aucun crédit se règle au comptoir et court jusqu'à sa date. */
+  if (lignes.length === 0) return 'en-cours';
+  const tousBus = lignes.every((u) => u.qty !== null && (u.remaining ?? 0) <= 0);
+  return tousBus ? 'epuise' : 'en-cours';
+};
+
+export const ETAT_LABEL: Record<EtatContrat, string> = {
+  'en-cours': 'En cours', epuise: 'Épuisé', termine: 'Terminé', resilie: 'Résilié',
+};
+
+/** CE QUI RESTE DÛ SUR UN CONTRAT.
+
+    L'ÉCHÉANCIER FAIT FOI QUAND IL EXISTE : c'est ce qui a été convenu, date par
+    date. Sans échéancier, un PAQUET doit son prix moins ce qui a été versé.
+
+    UN ABONNEMENT À CYCLE NE DOIT RIEN : il se règle lune après lune, et compter
+    son prix comme une dette ferait apparaître une créance qui n'existe pas. */
+export const resteDuContrat = (sub: Subscriber, plan: Plan | undefined, aujourdhui: string): number => {
+  const verse = subPaid(sub);
+  if (sub.echeances?.length) return resteDeLEcheancier(etatDesEcheances(sub.echeances, verse, aujourdhui));
+  if (plan?.mode !== 'pack') return 0;
+  return Math.max(0, prixVenduXof(sub, plan, sub.cycle ?? 'mensuel') - verse);
+};
+
+export const retardDuContrat = (sub: Subscriber, aujourdhui: string): number =>
+  sub.echeances?.length ? enRetardXof(etatDesEcheances(sub.echeances, subPaid(sub), aujourdhui)) : 0;
+
+export type ContratDuCompte = {
+  sub: Subscriber;
+  plan: Plan | undefined;
+  etat: EtatContrat;
+  /** Le retard se SUPERPOSE à l'état : un contrat en cours peut être en retard,
+      et c'est le cas le plus urgent de tous. */
+  retardXof: number;
+  resteXof: number;
+  verseXof: number;
+  /** Crédits : consommés (rendez-vous à venir compris) et promis. */
+  utilises: number;
+  promis: number;
+  /** Séances RENDUES, celles qui ont eu lieu. Ce que la tête a reçu. */
+  honorees: number;
+  /** Jours sans abonnement avant celui-ci, quand le précédent avait une fin. */
+  trouJours: number | null;
+};
+
+export type CompteAbonnement = {
+  clientId: string;
+  nom: string;
+  contrats: ContratDuCompte[];
+  /** Le contrat qui vit, s'il y en a un : celui que l'écran met en tête. */
+  vif: ContratDuCompte | undefined;
+  verseXof: number;
+  resteXof: number;
+  retardXof: number;
+  honorees: number;
+  depuisIso: string;
+};
+
+/** LES COMPTES, UNE LIGNE DE VIE PAR TÊTE.
+
+    LE SILENCE ENTRE DEUX CONTRATS EST UNE DONNÉE. Soixante-trois jours sans
+    abonnement, c'est deux mois où la tête est revenue au plein tarif, ou n'est
+    pas revenue du tout. Rien ne le mesurait, et c'est pourtant le seul chiffre
+    qui dise si la Maison RETIENT ses abonnées. */
+export function comptesAbonnement(o: {
+  subs: readonly Subscriber[];
+  plans: readonly Plan[];
+  appts: Appointment[];
+  aujourdhui: string;
+}): CompteAbonnement[] {
+  /* UN CONTRAT SANS FICHE RESTE VISIBLE, seul dans son compte. `clientId` est
+     facultatif depuis toujours : les abonnements repris de l'ancien ERP n'en ont
+     pas. Les grouper ensemble ferait une tête imaginaire portant six formules ;
+     les cacher ferait disparaitre de l'argent encaissé. */
+  const parTete = new Map<string, Subscriber[]>();
+  for (const s of o.subs) {
+    const cle = s.clientId ?? `sans-fiche:${s.id}`;
+    const l = parTete.get(cle);
+    if (l) l.push(s); else parTete.set(cle, [s]);
+  }
+  const comptes: CompteAbonnement[] = [];
+  for (const siens of parTete.values()) {
+    /* DU PLUS RÉCENT AU PLUS ANCIEN, sur la date de DÉBUT : c'est l'ordre dans
+       lequel on raconte une histoire qu'on connaît déjà. */
+    const ordonnes = [...siens].sort((a, b) => (debutDuContrat(a) < debutDuContrat(b) ? 1 : -1));
+    const contrats: ContratDuCompte[] = ordonnes.map((sub, i) => {
+      const plan = o.plans.find((p) => p.id === sub.planId);
+      const lignes = usageDetaille(sub, plan, o.appts);
+      const rendus = rdvCouvertsDe(sub, plan, o.appts).filter((a) => a.status === 'honoré').length;
+      /* LE TROU SE MESURE ENTRE LA FIN DU PRÉCÉDENT ET LE DÉBUT DE CELUI-CI.
+         Le « précédent » est le suivant dans la liste, puisqu'elle descend le
+         temps. Sans date de fin, pas de trou : on ne devine pas un silence. */
+      const precedent: Subscriber | undefined = ordonnes[i + 1];
+      const finPrec: string | null = precedent?.expiresIso ?? null;
+      const trouJours = finPrec && debutDuContrat(sub) > finPrec
+        ? Math.round((new Date(`${debutDuContrat(sub)}T12:00:00`).getTime()
+          - new Date(`${finPrec}T12:00:00`).getTime()) / 86400000)
+        : null;
+      return {
+        sub, plan,
+        etat: etatDuContrat(sub, plan, o.appts, o.aujourdhui),
+        retardXof: retardDuContrat(sub, o.aujourdhui),
+        resteXof: resteDuContrat(sub, plan, o.aujourdhui),
+        verseXof: subPaid(sub),
+        utilises: lignes.reduce((n, u) => n + u.used, 0),
+        promis: lignes.reduce((n, u) => n + (u.qty ?? 0), 0),
+        honorees: rendus,
+        trouJours,
+      };
+    });
+    comptes.push({
+      clientId: ordonnes[0]?.clientId ?? '',
+      nom: ordonnes[0]?.name ?? '',
+      contrats,
+      vif: contrats.find((c) => c.etat === 'en-cours' || c.etat === 'epuise'),
+      verseXof: contrats.reduce((n, c) => n + c.verseXof, 0),
+      /* UN CONTRAT RÉSILIÉ NE RÉCLAME PLUS RIEN : le compter ferait une créance
+         que la Maison a elle-même annulée. */
+      resteXof: contrats.reduce((n, c) => n + (c.etat === 'resilie' ? 0 : c.resteXof), 0),
+      retardXof: contrats.reduce((n, c) => n + (c.etat === 'resilie' ? 0 : c.retardXof), 0),
+      honorees: contrats.reduce((n, c) => n + c.honorees, 0),
+      depuisIso: debutDuContrat(ordonnes[ordonnes.length - 1]),
+    });
+  }
+  return comptes;
+}
+
+/** LES GESTES D'ABORD. Un écran de comptes se lit le matin pour savoir QUI
+    APPELER : ceux qui doivent de l'argent, puis ceux à qui reproposer une
+    formule, puis les autres. L'alphabet ne dit rien à personne. */
+export const rangDuCompte = (c: CompteAbonnement): number => {
+  if (c.retardXof > 0) return 0;
+  if (c.vif?.etat === 'epuise') return 1;
+  if (c.vif) return 2;
+  return 3;
+};
+
+export const comptesRanges = (comptes: CompteAbonnement[]): CompteAbonnement[] =>
+  [...comptes].sort((a, b) => rangDuCompte(a) - rangDuCompte(b) || a.nom.localeCompare(b.nom, 'fr'));
 
 /* ── CE QUI A ÉTÉ RÉELLEMENT VENDU — 28 août 2026 ────────────────────
    Un prix négocié qui ne descendrait que dans l'écran de vente serait pire que
