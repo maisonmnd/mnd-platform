@@ -3,9 +3,11 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
+import { useModelBands, bandOf } from '../../shared/pricing';
 import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
+  etendueDeLaFormule, type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
   formulesPourElle, etendueDesRemises,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
@@ -200,6 +202,16 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
   const client = useClient();
   const numero = (branch.phone ?? '').replace(/\D/g, '');
 
+  /* CE QUE LA MAISON SAIT DE SA TÊTE — 1er septembre 2026. Le comptage réel
+     passe devant la déclaration : `lockCount` est ce que la Maison a compté,
+     `lockCountDeclare` ce que la cliente a dit. Sans l'un ni l'autre, aucun
+     calibre, et la vitrine annonce l'étendue au lieu d'un prix. */
+  const [bands] = useModelBands();
+  const maTete: TeteConnue = useMemo(() => ({
+    bandId: bandOf(client?.lockCount ?? client?.lockCountDeclare, bands)?.id,
+    longueur: client?.longueur,
+  }), [client?.lockCount, client?.lockCountDeclare, client?.longueur, bands]);
+
   /* LE GAIN S'ÉCRIT EN FRANCS, PAS EN POURCENTAGE. « −20 % sur la carte »
      demande un calcul debout devant un téléphone ; « vous gagnez 55 000 F »
      ne demande rien. Le pourcentage reste en repli quand la formule ne porte
@@ -345,8 +357,26 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                 </ul>
               )}
               <div className="cma-offre__bas">
+                {/* ══ SON PRIX, OU L'ÉTENDUE DES PRIX — 1er septembre 2026 ══
+                    « Les abonnements doivent se facturer au palier comme au
+                    catalogue » (Yéman).
+
+                    QUAND SON CALIBRE EST CONNU, elle voit UN prix, le sien, et
+                    aucune question ne se pose. Quand il ne l'est pas, la
+                    fourchette dit l'étendue honnêtement, et la question vient
+                    au moment de prendre — jamais après le paiement.
+
+                    LES DEUX BORNES SONT CALCULÉES, jamais saisies : le jour où
+                    un coefficient bouge aux Paramètres, la vitrine suit sans
+                    que personne n'y pense. */}
                 <span className="cma-offre__prix">
-                  {fmtMoney(p.priceXof, currency)}
+                  {(() => {
+                    const etendue = maTete.bandId ? null : etendueDeLaFormule(p, 'mensuel', bands);
+                    if (etendue) {
+                      return <>de {fmtMoney(etendue.bas, currency)} à {fmtMoney(etendue.haut, currency)}</>;
+                    }
+                    return fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, bands).montantXof, currency);
+                  })()}
                   <span>{p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}</span>
                 </span>
                 {(() => {

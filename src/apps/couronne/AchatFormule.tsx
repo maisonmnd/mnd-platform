@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useStore } from '../../shared/store';
 import { supabase } from '../../shared/supabase';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { deuxFoisPossible } from '../../shared/echeancier';
-import { moisDuPack, type Plan } from '../../shared/abonnements';
+import {
+  moisDuPack, prixDeLaFormule, etendueDeLaFormule, type Plan, type TeteConnue,
+} from '../../shared/abonnements';
+import { useModelBands, sortedBands, bandOf, bandLabel } from '../../shared/pricing';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useClient } from './lib';
 import './couronne.css';
@@ -65,7 +68,31 @@ export default function AchatFormule({
   const [souscrit, setSouscrit] = useState<Souscrit | null>(null);
   const [regleXof, setRegleXof] = useState(0);
 
-  const total = plan.priceXof;
+  /* ══ LE PRIX SUIT SA TÊTE — 1er septembre 2026 ═════════════════════
+     « Les abonnements doivent se facturer au palier comme au catalogue »
+     (Yéman).
+
+     TROIS SOURCES, DANS CET ORDRE : ce que la Maison a COMPTÉ, ce que la
+     cliente avait DÉCLARÉ, et ce qu'elle choisit ici. La troisième ne se
+     propose que si les deux premières manquent — on ne redemande pas à
+     quelqu'un ce qu'on sait déjà de lui.
+
+     CE QUE CET ÉCRAN AFFICHE N'ENGAGE RIEN : le serveur relit la grille et
+     recalcule (migration 0081). En cas d'écart, c'est le sien qui s'inscrit,
+     comme pour tout prix depuis la 0077. */
+  const [bands] = useModelBands();
+  const calibres = useMemo(() => sortedBands(bands), [bands]);
+  const calibreSu = bandOf(client?.lockCount ?? client?.lockCountDeclare, bands)?.id;
+  const [calibreDit, setCalibreDit] = useState<string | null>(null);
+  const bandId = calibreSu ?? calibreDit ?? undefined;
+  const maTete: TeteConnue = { bandId, longueur: client?.longueur };
+
+  /* La question ne se pose que si la formule VARIE et que la tête est
+     inconnue. Une formule à prix unique n'en parle jamais. */
+  const varie = etendueDeLaFormule(plan, 'mensuel', bands) !== null;
+  const doitDemander = varie && !calibreSu;
+
+  const total = prixDeLaFormule(plan, 'mensuel', maTete, bands).montantXof;
   const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
   /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
      d'écart, c'est le sien qui s'inscrit. */
@@ -75,7 +102,12 @@ export default function AchatFormule({
   const souscrire = async (): Promise<Souscrit | null> => {
     if (!supabase) { toast('La Maison est hors ligne, réessayez dans un instant.'); return null; }
     const { data, error } = await supabase.rpc('souscrire_a_une_formule', {
-      p_plan_id: plan.id, p_parts: parts,
+      p_plan_id: plan.id,
+      p_parts: parts,
+      /* LE CALIBRE VOYAGE, LE PRIX NON : le serveur le relit dans la grille.
+         Envoyer un montant ouvrirait la porte que la 0077 a fermée. */
+      p_band_id: bandId ?? null,
+      p_longueur: client?.longueur ?? null,
     });
     if (error) {
       /* UN REFUS SE DIT, TOUJOURS. Le plus probable ici : la fonction 0077
@@ -200,6 +232,44 @@ export default function AchatFormule({
               Votre créneau se pose ensuite avec la Maison, à la cadence de votre couronne.
               <b> Rien ne s’engage tant que vous n’avez pas choisi.</b>
             </div>
+
+            {/* ══ COMBIEN DE LOCKS PORTEZ-VOUS ? — 1er septembre 2026 ══════
+                La question se pose AVANT le paiement, jamais après : elle voit
+                le vrai prix avant de sortir son téléphone.
+
+                « JE NE SAIS PAS » N'EST PAS UN PIÈGE. La formule se prend au
+                prix de référence, et le comptage du premier rendez-vous fixe
+                le vrai. L'écart se règle au comptoir, dit à l'avance et par
+                écrit — plutôt que de la laisser deviner, ou de lui facturer le
+                plus cher par précaution. */}
+            {doitDemander && (
+              <div className="cma-calibre">
+                <div className="cma-calibre__q">Combien de locks portez-vous ?</div>
+                <p className="cma-calibre__d">
+                  Cela change le temps que la Maison vous consacre, donc le prix.
+                  Une estimation suffit, on comptera ensemble au premier rendez-vous.
+                </p>
+                {calibres.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`cma-calibre__opt ${calibreDit === b.id ? 'is-on' : ''}`}
+                    onClick={() => setCalibreDit(b.id)}
+                  >
+                    <span>{bandLabel(b, calibres)}</span>
+                    <b>{fmtMoney(prixDeLaFormule(plan, 'mensuel', { bandId: b.id, longueur: client?.longueur }, bands).montantXof, currency)}</b>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`cma-calibre__opt ${calibreDit === null ? 'is-on' : ''}`}
+                  onClick={() => setCalibreDit(null)}
+                >
+                  <span>Je ne sais pas</span>
+                  <b className="cma-calibre__flou">la Maison comptera</b>
+                </button>
+              </div>
+            )}
 
             <button type="button" className="cma-btn" onClick={() => setTemps('reglement')}>
               Passer au règlement

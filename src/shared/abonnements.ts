@@ -18,6 +18,8 @@ import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
+import { roundPrice, type ModelBand } from './pricing';
+import type { LongueurId } from './catalog';
 import type { Echeance } from './echeancier';
 import type { OptionCouleur } from './couleur';
 
@@ -97,7 +99,39 @@ export type Plan = {
   /** Le moment du parcours où cette formule se propose. Absent = elle se range
       sous « Les autres formules », en fin d'écran — jamais masquée. */
   famille?: FamilleFormule;
+
+  /* ══ LE PRIX SUIT LA TÊTE — 1er septembre 2026 ═══════════════════════
+     « Les abonnements doivent se facturer au palier comme au catalogue. Et
+     avoir aussi l'option de la longueur » (Yéman).
+
+     UNE FORMULE COÛTAIT LE MÊME PRIX À TOUTES LES TÊTES. Le catalogue sait
+     depuis longtemps qu'un lock n'est pas un lock ; la formule, non. Une
+     Juste Cadence à 45 000 F qui porte quatre resserrages fait vivre la
+     Maison sur un Jumbo, et la fait travailler à perte pendant dix mois sur
+     un Pico, dont chaque resserrage vaut deux fois et demie. Rien à l'écran
+     ne le disait.
+
+     TROIS CHAMPS, ET AUCUN N'EST OBLIGATOIRE : une formule qui n'en porte
+     aucun vaut son prix unique, exactement comme avant. La mise en ligne ne
+     déplace aucun prix toute seule. */
+
+  /** L'interrupteur : le prix de référence se multiplie par le coefficient du
+      calibre, comme une prestation qui « suit le modèle ». Un seul chiffre
+      donne alors les sept prix. */
+  suitLeCalibre?: boolean;
+  /** Les exceptions, calibre par calibre. Une case écrite ici PASSE DEVANT le
+      calcul : c'est une décision de la Maison, rien ne va devant.
+      Une case ABSENTE n'est pas un prix à zéro, c'est « prends le calcul ». */
+  prixParCalibre?: Record<string, number>;
+  /** Ce que la longueur ajoute, en francs, APRÈS le prix du calibre. Trois
+      chiffres plutôt que la grille croisée : voir `prixDeLaFormule`. */
+  supplementLongueur?: Partial<Record<LongueurId, number>>;
 };
+
+/** CE QU'ON SAIT DE LA TÊTE au moment de dire un prix. Les deux champs
+    manquent souvent, et c'est prévu : sans calibre on rend le prix de
+    référence, sans longueur on n'ajoute rien. */
+export type TeteConnue = { bandId?: string; longueur?: LongueurId };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */
 export const PLANS_SEED: Plan[] = [];
@@ -482,11 +516,90 @@ export type PrixAffiche = {
   libelle: string;
 };
 
-export function prixDeLaFormule(p: Plan, cycle: SubCycle): PrixAffiche {
+/** LE PRIX DE BASE D'UNE FORMULE POUR UNE TÊTE DONNÉE — 1er septembre 2026.
+
+    LA CASE LA PLUS PRÉCISE GAGNE, et l'ordre ne se discute nulle part
+    ailleurs : un prix qui se calcule à deux endroits finit toujours par
+    donner deux résultats.
+
+      ① le prix écrit à la main pour ce calibre, s'il existe ;
+      ② sinon le prix de référence × le coefficient du calibre, si
+         l'interrupteur est posé ;
+      ③ sinon le prix unique de la formule, celui d'avant cette règle.
+
+    LE SUPPLÉMENT DE LONGUEUR N'ENTRE PAS ICI : il s'ajoute APRÈS, une fois le
+    cycle appliqué, pour qu'un supplément de 8 000 F ne soit pas multiplié par
+    dix dans un paquet annuel. Voir `prixDeLaFormule`. */
+export function basePourLaTete(
+  p: Plan,
+  bands: readonly ModelBand[],
+  tete?: TeteConnue,
+): number {
+  const ecrit = tete?.bandId ? p.prixParCalibre?.[tete.bandId] : undefined;
+  if (typeof ecrit === 'number' && ecrit >= 0) return Math.round(ecrit);
+  if (!p.suitLeCalibre || !tete?.bandId) return p.priceXof;
+  const band = bands.find((b) => b.id === tete.bandId);
+  if (!band || !(band.coef > 0)) return p.priceXof;
+  return roundPrice(p.priceXof * band.coef);
+}
+
+/** Ce que la longueur ajoute. Zéro quand elle est inconnue ou non tarifée :
+    on n'invente pas un supplément à une tête dont on ignore la longueur. */
+export const supplementDeLongueurXof = (p: Plan, tete?: TeteConnue): number => {
+  const v = tete?.longueur ? p.supplementLongueur?.[tete.longueur] : undefined;
+  return typeof v === 'number' && v > 0 ? Math.round(v) : 0;
+};
+
+/** L'ÉTENDUE DES PRIX D'UNE FORMULE — « de 36 000 à 126 000 F ».
+
+    CALCULÉE, JAMAIS SAISIE : le jour où un coefficient bouge aux Paramètres,
+    la fourchette suit sans que personne n'y pense. Rend `null` quand la
+    formule ne varie pas — il n'y a alors qu'un prix, et une fourchette de
+    deux fois le même chiffre se lirait comme une panne. */
+export function etendueDeLaFormule(
+  p: Plan,
+  cycle: SubCycle,
+  bands: readonly ModelBand[],
+): { bas: number; haut: number } | null {
+  /* ON INTERROGE LE MOTEUR POUR CHAQUE CALIBRE, plutôt que de refaire son
+     raisonnement ici. Deux calculs du même prix finiraient par diverger, et
+     c'est la vitrine qui mentirait.
+
+     LE PRIX SANS CALIBRE EN FAIT PARTIE : une tête qu'on n'a pas comptée paie
+     la référence, et ce montant doit tenir dans la fourchette annoncée. Sans
+     lui, une formule tarifée à la main sur un seul calibre annonçait « 90 000
+     à 90 000 » alors que six têtes sur sept en paient 45 000. */
+  const candidats = [prixDeLaFormule(p, cycle, undefined, bands).montantXof];
+  for (const b of bands) {
+    candidats.push(prixDeLaFormule(p, cycle, { bandId: b.id }, bands).montantXof);
+  }
+  /* Une exception posée sur un calibre RETIRÉ du barème depuis se voit encore :
+     elle se facture toujours si la tête y tombe. */
+  for (const id of Object.keys(p.prixParCalibre ?? {})) {
+    candidats.push(prixDeLaFormule(p, cycle, { bandId: id }, bands).montantXof);
+  }
+  if (candidats.length === 0) return null;
+  const bas = Math.min(...candidats);
+  const haut = Math.max(...candidats);
+  return haut > bas ? { bas, haut } : null;
+}
+
+export function prixDeLaFormule(
+  p: Plan,
+  cycle: SubCycle,
+  /* LA TÊTE EST FACULTATIVE, et tous les appels d'avant le 1er septembre 2026
+     la laissent vide : ils retombent alors sur le prix unique, au franc près.
+     C'est la condition pour qu'aucun écran ne change de chiffre le jour de la
+     mise en ligne. */
+  tete?: TeteConnue,
+  bands: readonly ModelBand[] = [],
+): PrixAffiche {
+  const base = basePourLaTete(p, bands, tete);
+  const enPlus = supplementDeLongueurXof(p, tete);
   if (p.mode === 'pack') {
     const mois = moisDuPack(p);
     return {
-      montantXof: p.priceXof,
+      montantXof: base + enPlus,
       periode: `· ${mois} mois`,
       offert: '',
       moisCouverts: mois,
@@ -494,7 +607,7 @@ export function prixDeLaFormule(p: Plan, cycle: SubCycle): PrixAffiche {
     };
   }
   return {
-    montantXof: subCycleAmountXof(p.priceXof, cycle),
+    montantXof: subCycleAmountXof(base, cycle) + enPlus,
     periode: cycle === 'annuel' ? '/ an' : cycle === 'semestriel' ? '/ 6 mois' : '/ mois',
     offert: cycle === 'annuel' ? '2 mois offerts' : cycle === 'semestriel' ? '1 mois offert' : '',
     moisCouverts: cycle === 'annuel' ? 12 : cycle === 'semestriel' ? 6 : 1,

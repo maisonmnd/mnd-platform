@@ -42,6 +42,62 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA FORMULE AU CALIBRE · 1er septembre 2026
+
+Maquette validée : `public/maquette-la-formule-au-calibre.html`.
+
+Une formule coûtait le même prix à toutes les têtes. Une Juste Cadence à
+45 000 F portant quatre resserrages fait vivre la Maison sur un Jumbo et la
+fait travailler à perte dix mois sur un Pico, dont chaque resserrage vaut deux
+fois et demie. Rien à l écran ne le disait.
+
+**LE CHIFFRE QUI A COMMANDÉ LE DESSIN : sept calibres, pas quatre.** Sept par
+trois longueurs feraient 21 cases par formule. Personne ne les remplit, et une
+grille à moitié remplie donne des prix qui sautent sans qu on sache si un trou
+est un oubli ou une intention.
+
+### Le modèle
+
+Trois champs, aucun obligatoire : `suitLeCalibre` (l interrupteur),
+`prixParCalibre` (les exceptions), `supplementLongueur` (trois chiffres).
+Une formule qui n en porte aucun vaut son prix unique, exactement comme avant.
+
+### La règle, une seule fois, dans `basePourLaTete`
+
+① la case écrite à la main pour ce calibre ; ② sinon référence × coefficient
+si l interrupteur est posé ; ③ sinon le prix unique. Puis le supplément de
+longueur, **après le cycle et une seule fois** : l ajouter avant le
+multiplierait par dix dans un paquet annuel, c est la faute la plus coûteuse
+du lot et le harnais la garde.
+
+`etendueDeLaFormule` interroge le moteur pour chaque calibre plutôt que de
+refaire son raisonnement — deux calculs du même prix finissent par diverger, et
+c est la vitrine qui mentirait. **Le prix SANS calibre en fait partie** : une
+tête non comptée paie la référence, et ce montant doit tenir dans la
+fourchette annoncée.
+
+### Migration 0081 — le serveur décide, donc il doit savoir
+
+`souscrire_a_une_formule` gagne `p_band_id` et `p_longueur` (défaut null : les
+appels d avant retombent sur le prix unique). Elle refait la règle en SQL, avec
+`mnd_arrondi_500`, jumeau de `roundPrice` correction du 1er septembre comprise.
+**Le calibre voyage, le prix non** — envoyer un montant rouvrirait la porte que
+la 0077 a fermée.
+
+Le calibre déclaré est une DÉCLARATION, pas une preuve, exactement comme au
+tunnel de réservation : la Maison compte au premier rendez-vous, et
+`calibreVendu` est écrit sur la fiche pour que l écart se voie. `prixConvenuXof`
+fige le prix : une grille qui bouge ne renchérit jamais une abonnée en cours.
+
+### Ma Couronne
+
+Vitrine : son prix si le calibre est connu, sinon la fourchette calculée.
+À l achat, la question ne se pose **que si la formule varie ET que la tête est
+inconnue** — on ne redemande pas ce qu on sait déjà. « Je ne sais pas » prend
+le prix de référence et le comptage fixe le vrai.
+
+29 assertions sur `verifie-calibre`, le 23e harnais.
+
 ## L ARRONDI MANGEAIT LES PETITS PRIX · 1er septembre 2026
 
 « J essaie de changer le prix de deux services à 150 francs et ça me met

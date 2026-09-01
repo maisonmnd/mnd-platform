@@ -2824,3 +2824,45 @@
   border-color: rgba(246, 241, 231, 0.28);
 }
 .mc-closed .mc-cta--quiet:hover { background: rgba(246, 241, 231, 0.1); }
+
+/* ═══ LE CALIBRE, DEMANDÉ AVANT LE PAIEMENT ═══════════════════════════════
+   « Les abonnements doivent se facturer au palier comme au catalogue »
+   (Yéman, 1er septembre 2026). La question ne paraît que si la formule varie
+   ET que la Maison ignore encore la tête : on ne redemande jamais à quelqu'un
+   ce qu'on sait déjà de lui. */
+.cma-calibre { margin-top: 18px; }
+.cma-calibre__q {
+  font-family: var(--font-serif, 'Cormorant Garamond', serif);
+  font-size: 21px;
+  color: var(--color-indigo, #1E2150);
+  line-height: 1.25;
+}
+.cma-calibre__d {
+  font-size: 12.5px;
+  color: var(--ink-soft, #746F65);
+  line-height: 1.6;
+  margin: 6px 0 12px;
+}
+.cma-calibre__opt {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: var(--color-ivoire, #FBF8F2);
+  border: 1px solid var(--hairline, #E3DCCE);
+  border-radius: 3px;
+  padding: 11px 13px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  transition: var(--transition-base, .18s ease);
+}
+.cma-calibre__opt b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cma-calibre__opt.is-on { border-color: var(--color-copper, #B97A4A); background: var(--copper-50, #FAF1E9); }
+.cma-calibre__opt:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
+/* « Je ne sais pas » ne porte pas de chiffre : ce serait un prix qu'on
+   inventerait, alors qu'on dit précisément qu'on ne sait pas encore. */
+.cma-calibre__flou { font-weight: 400; color: var(--ink-soft, #746F65); font-size: 12px; }

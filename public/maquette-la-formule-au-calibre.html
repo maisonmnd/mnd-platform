@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La formule au calibre &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:74ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:14px 18px;
+                 display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:22px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:860px){ .duo { grid-template-columns:1fr; } }
+
+  .neuf { position:relative; border:1px solid var(--cuivre-p); background:var(--cuivre-f);
+          border-radius:3px; padding:20px 16px 15px; margin-bottom:16px; }
+  .neuf__tag { position:absolute; top:-9px; left:12px; background:var(--cuivre); color:#fff;
+               font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; padding:2px 8px; border-radius:2px; }
+
+  .champ__label { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-bottom:6px; }
+  .boite { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:9px 11px; font-size:14px; }
+  .aide { font-size:12px; color:var(--encre-d); margin-top:6px; line-height:1.6; }
+
+  .bascule { display:flex; align-items:center; gap:10px; padding:11px 13px; border-radius:3px;
+             border:1px solid var(--cuivre); background:var(--cuivre-f); }
+  .bascule__p { width:34px; height:19px; border-radius:10px; background:var(--cuivre); position:relative; flex:none; }
+  .bascule__p i { position:absolute; top:2px; left:17px; width:15px; height:15px; border-radius:50%; background:#fff; }
+  .bascule--off { border-color:var(--filet); background:transparent; }
+  .bascule--off .bascule__p { background:var(--filet); }
+  .bascule--off .bascule__p i { left:2px; }
+
+  .tableau { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:620px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--encre-d); padding:0 9px 9px 0; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 9px 9px 0; border-bottom:1px solid #EDE5D6; vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td b { font-weight:500; }
+  .case { display:inline-block; min-width:82px; text-align:right; border:1px solid var(--filet);
+          background:#fff; border-radius:3px; padding:5px 9px; font-variant-numeric:tabular-nums; }
+  .case--vide { background:transparent; border-style:dashed; color:var(--encre-d); }
+  .case--calc { background:var(--indigo-pale); border-color:#C6C9DC; color:var(--indigo); }
+  .oui { color:var(--vert); }
+  .non { color:var(--brique); }
+
+  .rangs { counter-reset:r; margin:0; padding:0; list-style:none; }
+  .rangs li { counter-increment:r; position:relative; padding:14px 0 14px 46px; border-top:1px solid var(--filet); }
+  .rangs li:first-child { border-top:none; }
+  .rangs li::before { content:counter(r); position:absolute; left:0; top:12px;
+    font-family:var(--serif); font-size:19px; color:var(--cuivre); width:30px; text-align:center; }
+  .rangs b { font-weight:500; }
+  .rangs span { display:block; font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+
+  .garde { border:1px solid var(--indigo); border-radius:3px; background:var(--indigo-pale); padding:18px; }
+  .garde h3 { margin-top:0; }
+  .garde ul { margin:0; padding-left:18px; }
+  .garde li { margin-bottom:9px; font-size:14px; }
+  .garde li b { font-weight:500; }
+
+  .refus { border:1px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:16px 18px; }
+  .refus h3 { color:var(--brique); margin-top:0; }
+
+  .mc { max-width:400px; border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .mc__tete { background:var(--indigo); color:var(--cuivre-p); font-size:10px; letter-spacing:.18em;
+              text-transform:uppercase; text-align:center; padding:8px; }
+  .mc__corps { padding:20px; }
+  .mc__nom { font-family:var(--serif); font-size:25px; color:var(--indigo); }
+  .mc__prix { font-family:var(--serif); font-size:30px; color:var(--indigo); font-variant-numeric:tabular-nums; margin-top:6px; }
+  .mc__sous { font-size:12px; color:var(--encre-d); margin-top:2px; }
+  .mc__cta { margin-top:16px; background:var(--indigo); color:#fff; text-align:center; padding:13px;
+             font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; border-radius:2px; }
+  .mc__opt { border:1px solid var(--filet); border-radius:3px; padding:10px 12px; margin-top:9px; font-size:13.5px;
+             display:flex; justify-content:space-between; align-items:baseline; gap:10px; background:#fff; }
+  .mc__opt.is-on { border-color:var(--cuivre); background:var(--cuivre-f); }
+
+  .fin { margin-top:70px; border-top:1px solid var(--filet); padding-top:24px;
+         font-size:13px; color:var(--encre-d); max-width:70ch; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Le Trône &middot; Maquette à valider</p>
+  <h1>La formule au calibre</h1>
+  <p class="chapeau">
+    Une formule porte aujourd'hui <b>un seul prix</b>, le même pour une tête Jumbo et pour une
+    tête Pico. Le catalogue, lui, sait depuis longtemps qu'un lock n'est pas un lock. On aligne
+    la formule sur le catalogue : <b>le calibre commande, la longueur ajuste</b>.
+  </p>
+
+  <section>
+    <p class="cite">
+      « Les abonnements doivent se facturer au palier comme au catalogue.
+      Et avoir aussi l'option de la longueur. »
+      <span>Yéman, 1er septembre 2026</span>
+    </p>
+    <p class="intro">
+      Le problème est réel et il coûte de l'argent dans les deux sens. Une formule à 45 000 F
+      qui inclut quatre resserrages : sur une tête Jumbo, la Maison gagne bien sa vie ; sur une
+      tête Pico, dont chaque resserrage vaut deux fois et demie celui d'un Jumbo, <b>elle
+      travaille à perte</b> pendant dix mois, sans que rien à l'écran ne le dise.
+    </p>
+  </section>
+
+  <!-- ═══ ① LA GRILLE ════════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Le Trône, fiche d'une formule</p>
+    <h2>Sept calibres, et deux façons de les remplir</h2>
+    <p class="intro">
+      Sept calibres multipliés par trois longueurs feraient <b>vingt et une cases</b> par formule.
+      Personne ne remplit vingt et une cases, et une grille qu'on ne remplit pas est une grille
+      qui ment. La fiche offre donc les deux chemins du catalogue, et l'un d'eux ne demande
+      qu'un seul chiffre.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>La Juste Cadence</h4><span>le prix</span></div>
+      <div class="ecran__corps">
+
+        <div class="duo" style="margin-bottom:18px;">
+          <div>
+            <div class="champ__label">Prix de référence</div>
+            <div class="boite">45 000 F</div>
+            <p class="aide">Le prix pour le calibre <b>Medium</b>, celui dont le coefficient vaut 1.
+              C'est le pivot de toute la colonne.</p>
+          </div>
+          <div>
+            <div class="champ__label">Mode de prix</div>
+            <div class="bascule">
+              <span class="bascule__p"><i></i></span>
+              <span>Suit le calibre<span style="display:block; font-size:11px; color:var(--encre-d);">
+                les coefficients du Juste Prix font les sept prix</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr>
+                <th>Calibre</th>
+                <th>Jusqu'à</th>
+                <th class="n">Coefficient</th>
+                <th class="n">Prix calculé</th>
+                <th class="n">Prix écrit à la main</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Jumbo</b></td><td>80 locks</td><td class="n">× 0,8</td><td class="n"><span class="case case--calc">36 000</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+              <tr><td><b>Medium</b></td><td>150 locks</td><td class="n">× 1</td><td class="n"><span class="case case--calc">45 000</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+              <tr><td><b>Mini</b></td><td>250 locks</td><td class="n">× 1,4</td><td class="n"><span class="case case--calc">63 000</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+              <tr><td><b>Micro</b></td><td>350 locks</td><td class="n">× 1,8</td><td class="n"><span class="case case--calc">81 000</span></td><td class="n"><span class="case">75 000</span></td></tr>
+              <tr><td><b>Nano</b></td><td>450 locks</td><td class="n">× 2,2</td><td class="n"><span class="case case--calc">99 000</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+              <tr><td><b>Pico</b></td><td>550 locks</td><td class="n">× 2,5</td><td class="n"><span class="case case--calc">112 500</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+              <tr><td><b>Galaxy</b></td><td>sans plafond</td><td class="n">× 2,8</td><td class="n"><span class="case case--calc">126 000</span></td><td class="n"><span class="case case--vide">—</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="legende">
+          <b>La colonne bleue se remplit toute seule</b>, d'un seul chiffre de référence. La colonne
+          de droite ne sert qu'aux exceptions : ici, Micro est descendu à 75 000 F parce que la
+          Maison l'a décidé, et cette case-là gagne. <b>Une case vide n'est pas un prix à zéro</b>,
+          c'est « prends le calcul ».
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LA LONGUEUR ══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;L'autre axe</p>
+    <h2>La longueur s'ajoute, elle ne multiplie pas</h2>
+    <p class="intro">
+      Le calibre compte les locks, la longueur mesure ce qui pend. Les deux se croisent :
+      une tête Micro peut être courte, une Jumbo très longue. Mais les <b>croiser en grille</b>
+      referait les vingt et une cases.
+    </p>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Le supplément de longueur</h4><span>facultatif</span></div>
+        <div class="ecran__corps">
+          <div class="bascule bascule--off" style="margin-bottom:14px;">
+            <span class="bascule__p"><i></i></span>
+            <span>Cette formule suit la longueur</span>
+          </div>
+          <div class="tableau">
+            <table style="min-width:0;">
+              <tbody>
+                <tr><td><b>Court</b> <span style="color:var(--encre-d)">jusqu'aux épaules</span></td><td class="n"><span class="case">+ 0</span></td></tr>
+                <tr><td><b>Mi-long</b> <span style="color:var(--encre-d)">aux omoplates</span></td><td class="n"><span class="case">+ 8 000</span></td></tr>
+                <tr><td><b>Long</b> <span style="color:var(--encre-d)">au-delà</span></td><td class="n"><span class="case">+ 15 000</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="aide">
+            Trois chiffres, pas vingt et un. Le supplément s'ajoute APRÈS le prix du calibre :
+            une tête Micro longue paie 75 000 + 15 000.
+          </p>
+        </div>
+      </div>
+
+      <div class="refus">
+        <h3>Ce que j'écarte, et pourquoi</h3>
+        <p style="margin:0 0 12px; font-size:14px;">
+          <b>La grille complète calibre × longueur.</b> Vingt et une cases par formule, à remplir
+          pour chacune de vos formules. Elle serait plus expressive, et elle resterait vide :
+          une grille à moitié remplie donne des prix qui sautent d'une case à l'autre sans
+          logique, et personne ne saurait dire si un trou est un oubli ou une intention.
+        </p>
+        <p style="margin:0; font-size:14px;">
+          Le supplément dit la même chose dans presque tous les cas, avec trois chiffres qu'on
+          peut vérifier d'un coup d'œil. <b>Si un jour une formule exige la grille fine</b>, la
+          colonne « prix écrit à la main » du calibre est déjà là pour porter l'exception.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ L'ORDRE DE LECTURE ═══════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;La règle</p>
+    <h2>La case la plus précise gagne</h2>
+    <p class="intro">
+      Un seul ordre, le même partout : à la vitrine, au comptoir, sur la fiche de l'abonnée,
+      dans le calcul du revenu récurrent. <b>Un prix qui se calcule à deux endroits finit
+      toujours par donner deux résultats.</b>
+    </p>
+    <ol class="rangs">
+      <li><b>Le prix écrit à la main pour ce calibre</b>, s'il y en a un.
+        <span>C'est une décision de la Maison ; rien ne passe devant.</span></li>
+      <li><b>Sinon, le prix de référence × le coefficient du calibre</b>, si l'interrupteur est posé.
+        <span>Arrondi au 500, comme tous les prix de la Maison.</span></li>
+      <li><b>Sinon, le prix unique de la formule</b>, celui d'aujourd'hui.
+        <span>Une formule qui ne veut pas de calibre n'en entend jamais parler.</span></li>
+      <li><b>Puis le supplément de longueur</b>, s'il est posé et si la longueur est connue.
+        <span>Il s'ajoute au résultat des trois lignes précédentes, jamais avant.</span></li>
+    </ol>
+    <p class="legende">
+      <b>Le prix convenu passe devant tout.</b> Quand vous vendez une formule à une cliente
+      avec son propre prix, ce prix reste le sien, calibre ou pas : c'est déjà la règle
+      aujourd'hui (<b>prixConvenuXof</b>), et elle ne bouge pas.
+    </p>
+  </section>
+
+  <!-- ═══ ④ MA COURONNE ══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Ma Couronne</p>
+    <h2>Une fourchette, puis la question</h2>
+    <p class="intro">
+      C'est votre choix : tant qu'on ignore le calibre, on annonce l'étendue honnêtement, et
+      <b>la question se pose avant le paiement</b>, jamais après. Elle voit le vrai prix avant
+      de sortir son téléphone.
+    </p>
+
+    <div class="duo">
+      <div>
+        <h3>Avant de savoir</h3>
+        <div class="mc" style="margin-top:12px;">
+          <div class="mc__tete">Nos abonnements</div>
+          <div class="mc__corps">
+            <div class="mc__nom">La Juste Cadence</div>
+            <div class="mc__prix">de 36 000 à 126 000 F</div>
+            <div class="mc__sous">selon votre calibre &middot; 6 séances sur 10 mois</div>
+            <div class="mc__cta">Découvrir</div>
+          </div>
+        </div>
+        <p class="legende">
+          Les deux bornes sont <b>calculées</b>, jamais saisies : le plus petit et le plus grand
+          prix de la grille. Le jour où un coefficient bouge aux Paramètres, la fourchette suit
+          sans que personne n'y pense.
+        </p>
+      </div>
+
+      <div>
+        <h3>Au moment de prendre</h3>
+        <div class="mc" style="margin-top:12px;">
+          <div class="mc__tete">Votre formule &middot; le calibre</div>
+          <div class="mc__corps">
+            <div style="font-size:14px; color:var(--encre-d); line-height:1.6;">
+              Combien de locks portez-vous ? Cela change le temps que la Maison vous consacre,
+              donc le prix.
+            </div>
+            <div class="mc__opt"><span>Jumbo &middot; jusqu'à 80</span><b>36 000 F</b></div>
+            <div class="mc__opt is-on"><span>Micro &middot; jusqu'à 350</span><b>75 000 F</b></div>
+            <div class="mc__opt"><span>Je ne sais pas</span><span style="color:var(--encre-d)">la Maison comptera</span></div>
+            <div class="mc__cta">Continuer &middot; 75 000 F</div>
+          </div>
+        </div>
+        <p class="legende">
+          <b>« Je ne sais pas » n'est pas un piège</b> : la formule se réserve au prix de
+          référence, et le comptage au premier rendez-vous fixe le vrai prix. L'écart se règle
+          au comptoir, dit à l'avance et par écrit.
+        </p>
+      </div>
+    </div>
+
+    <p class="legende" style="margin-top:22px;">
+      SI SON CALIBRE EST DÉJÀ CONNU, parce que la Maison l'a comptée ou parce qu'elle l'a
+      déclaré au tunnel de réservation, <b>aucune question ne se pose</b> : elle voit son prix,
+      un seul, dès la vitrine. La question ne surgit que là où la réponse manque.
+    </p>
+  </section>
+
+  <!-- ═══ ⑤ LES GARDES ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce qui ne doit pas bouger</p>
+    <h2>Les gardes</h2>
+    <div class="garde">
+      <h3>Rien de rétroactif</h3>
+      <ul>
+        <li><b>Les abonnées en cours gardent leur prix.</b> Il est figé sur leur fiche depuis le
+          jour de la vente (<b>prixConvenuXof</b>) ; la grille ne le rattrape pas. Une formule
+          dont le prix change ne renchérit personne au milieu de son engagement.</li>
+        <li><b>Une formule sans grille ne change pas d'un franc.</b> Tant que l'interrupteur
+          n'est pas posé et qu'aucune case n'est écrite, elle vaut son prix unique, comme
+          aujourd'hui. La mise en ligne ne déplace aucun prix toute seule.</li>
+      </ul>
+      <h3 style="margin-top:20px;">Ce qui suit sans qu'on y touche</h3>
+      <ul>
+        <li>Le <b>revenu récurrent</b> et la part mensuelle se calculent depuis le prix vendu,
+          qui devient celui du calibre. Rien à changer : ils lisent déjà <b>prixVenduXof</b>.</li>
+        <li>Les <b>échéances</b> d'un paiement en deux ou en quatre fois se découpent sur ce
+          même montant.</li>
+        <li>La <b>facture</b> et le <b>mouvement de caisse</b> portent le prix payé, calibre
+          compris, et disent lequel, pour qu'une facture se relise dans six mois.</li>
+      </ul>
+      <h3 style="margin-top:20px;">Ce que l'écran dit toujours</h3>
+      <ul>
+        <li>Sur la fiche de l'abonnée, <b>le calibre au moment de la vente</b> est écrit à côté
+          du prix. Une tête grossit, une tête se refait : sans cette trace, on ne saurait plus
+          d'où vient le montant.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fin">
+    Maquette à valider avant construction, selon la règle de la Maison. Dites-moi ce qui doit
+    changer, ou dites « construis » et je pose tout cela dans Le Trône et Ma Couronne,
+    avec ses vérifications.
+  </p>
+
+</div>
+</body>
+</html>

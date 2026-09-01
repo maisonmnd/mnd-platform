@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { OptionsPrestations, PageHead, WaLien } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -16,7 +16,8 @@ import {
   prixVenduXof, ecartDuPrixConvenu, inclusVendus,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
-import { useServices } from '../../../../shared/catalog';
+import { useServices, LONGUEURS } from '../../../../shared/catalog';
+import { useModelBands, sortedBands, bandLabel, roundPrice } from '../../../../shared/pricing';
 import { useAppointments } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
@@ -27,7 +28,19 @@ import './equipe.css';
 
 type Tab = 'moteur' | 'formules' | 'membres';
 
-type PlanForm = { name: string; tag: string; price: string; line: string; perks: string; included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | ''; mode: PlanMode; moisValidite: string };
+type PlanForm = {
+  name: string; tag: string; price: string; line: string; perks: string;
+  included: PlanIncluded[]; popular: boolean; famille: FamilleFormule | '';
+  mode: PlanMode; moisValidite: string;
+  /* ── LE PRIX SUIT LA TÊTE — 1er septembre 2026 ────────────────────
+     Les cases se tiennent en TEXTE, comme partout ailleurs dans les
+     formulaires de la Maison : une case vide doit rester vide, et un zéro
+     saisi doit rester un zéro. Un champ numérique confondrait les deux, et
+     « prends le calcul » deviendrait « c'est gratuit ». */
+  suitLeCalibre: boolean;
+  parCalibre: Record<string, string>;
+  suppLongueur: Record<string, string>;
+};
 type SubForm = {
   clientId: string; planId: string; slot: string; cycle: SubCycle; parts: Decoupe | null;
   voie: VoieCouleur | ''; rythme: RythmeCouleur; couleurServiceId: string;
@@ -62,7 +75,9 @@ export default function Abonnements() {
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12' });
+  const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12', suitLeCalibre: false, parCalibre: {}, suppLongueur: {} });
+  const [bands] = useModelBands();
+  const calibres = useMemo(() => sortedBands(bands), [bands]);
   const [services] = useServices();
   const [allAppts] = useAppointments();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
@@ -199,13 +214,16 @@ export default function Abonnements() {
 
   const openPlanNew = () => {
     setPlanEditId(null);
-    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12' });
+    setPlanForm({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12', suitLeCalibre: false, parCalibre: {}, suppLongueur: {} });
     setPlanModal(true);
   };
   const openPlanEdit = (p: Plan) => {
     setPlanEditId(p.id);
     setPlanForm({ name: p.name, tag: p.tag, price: String(p.priceXof), line: p.line, perks: p.perks.join(' · '), included: p.included ? p.included.map((i) => ({ ...i })) : [], popular: !!p.popular, famille: p.famille ?? '',
-      mode: p.mode ?? 'cycle', moisValidite: String(moisDuPack(p)) });
+      mode: p.mode ?? 'cycle', moisValidite: String(moisDuPack(p)),
+      suitLeCalibre: !!p.suitLeCalibre,
+      parCalibre: Object.fromEntries(Object.entries(p.prixParCalibre ?? {}).map(([k, v]) => [k, String(v)])),
+      suppLongueur: Object.fromEntries(Object.entries(p.supplementLongueur ?? {}).map(([k, v]) => [k, String(v)])) });
     setPlanModal(true);
   };
   const savePlan = () => {
@@ -224,6 +242,21 @@ export default function Abonnements() {
 
        Seul le NOM reste obligatoire — une formule sans nom ne se vend pas. */
     const priceXof = parseInt(planForm.price, 10) || 0;
+    /* UNE CASE VIDE DISPARAÎT DE LA FICHE, un zéro saisi y reste : l'absence
+       veut dire « prends le calcul », le zéro veut dire « offert à ce
+       calibre ». Les confondre rendrait gratuites six formules sur sept. */
+    const nombres = (saisi: Record<string, string>): Record<string, number> | undefined => {
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(saisi)) {
+        const t = String(v).replace(/[^0-9]/g, '');
+        if (t === '') continue;
+        out[k] = parseInt(t, 10) || 0;
+      }
+      return Object.keys(out).length ? out : undefined;
+    };
+    const prixParCalibre = nombres(planForm.parCalibre);
+    const supplementLongueur = nombres(planForm.suppLongueur) as Plan['supplementLongueur'];
+    const suitLeCalibre = planForm.suitLeCalibre || undefined;
     if (!planForm.name.trim()) {
       toast('Donnez un nom à la formule pour l’enregistrer.');
       return;
@@ -256,12 +289,12 @@ export default function Abonnements() {
     if (planEditId) {
       setPlans((prev) => prev.map((p) =>
         p.id === planEditId
-          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille, mode, validityDays }
+          ? { ...p, name: planForm.name.trim(), tag: planForm.tag, priceXof, line: planForm.line, perks, included, popular: featured, famille, mode, validityDays, suitLeCalibre, prixParCalibre, supplementLongueur }
           : (featured && memeMoment(p) ? { ...p, popular: false } : p)));
     } else {
       setPlans((prev) => [
         ...(featured ? prev.map((p) => (memeMoment(p) ? { ...p, popular: false } : p)) : prev),
-        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille, mode, validityDays },
+        { id: `pl-${uid()}`, name: planForm.name.trim(), tag: planForm.tag || 'Nouvelle formule', priceXof, line: planForm.line, perks, popular: featured, included, famille, mode, validityDays, suitLeCalibre, prixParCalibre, supplementLongueur },
       ]);
     }
     setPlanModal(false);
@@ -1316,6 +1349,100 @@ export default function Abonnements() {
             <Field label={`${planForm.mode === 'pack' ? 'Prix du paquet' : 'Prix mensuel'} · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
               <Input inputMode="numeric" value={planForm.price} placeholder="45000" onChange={(e) => setPlanForm({ ...planForm, price: e.target.value.replace(/[^0-9]/g, '') })} />
             </Field>
+
+            {/* ══ LE PRIX SUIT LA TÊTE — 1er septembre 2026 ═══════════════════
+                « Les abonnements doivent se facturer au palier comme au
+                catalogue. Et avoir aussi l'option de la longueur » (Yéman).
+
+                SEPT CALIBRES PAR TROIS LONGUEURS FERAIENT VINGT ET UNE CASES
+                par formule. Personne ne remplit vingt et une cases, et une
+                grille à moitié remplie donne des prix qui sautent sans qu'on
+                sache si un trou est un oubli ou une intention. D'où
+                l'interrupteur : UN chiffre, le prix de référence, et les
+                coefficients du Juste Prix font les sept autres. La colonne de
+                droite ne sert qu'aux exceptions décidées. */}
+            <div className="tre-plan-calibre">
+              <button
+                type="button"
+                className={`tre-chip ${planForm.suitLeCalibre ? 'is-on' : ''}`}
+                onClick={() => setPlanForm({ ...planForm, suitLeCalibre: !planForm.suitLeCalibre })}
+              >
+                Le prix suit le calibre
+              </button>
+              <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55, display: 'block', marginTop: 7 }}>
+                {planForm.suitLeCalibre
+                  ? `Le prix ci-dessus est celui du calibre de référence (coefficient 1). Les autres se calculent.`
+                  : 'Sans cet interrupteur, la formule vaut son prix unique pour toutes les têtes, comme avant.'}
+              </span>
+
+              {(planForm.suitLeCalibre || Object.keys(planForm.parCalibre).length > 0) && calibres.length > 0 && (
+                <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
+                  <table className="tre-table" style={{ minWidth: 460 }}>
+                    <thead>
+                      <tr>
+                        <th>Calibre</th>
+                        <th style={{ textAlign: 'right' }}>Coefficient</th>
+                        <th style={{ textAlign: 'right' }}>Prix calculé</th>
+                        <th style={{ textAlign: 'right' }}>Écrit à la main</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calibres.map((b) => {
+                        const ref = parseInt(planForm.price, 10) || 0;
+                        const calcule = planForm.suitLeCalibre && b.coef > 0 ? roundPrice(ref * b.coef) : ref;
+                        return (
+                          <tr key={b.id}>
+                            <td>{bandLabel(b, calibres)}</td>
+                            <td style={{ textAlign: 'right' }} className="mnd-muted">× {b.coef}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--color-indigo)' }}>{fmtMoney(calcule, currency)}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              <Input
+                                inputMode="numeric"
+                                style={{ maxWidth: 110, textAlign: 'right' }}
+                                value={planForm.parCalibre[b.id] ?? ''}
+                                placeholder="—"
+                                onChange={(e) => setPlanForm({
+                                  ...planForm,
+                                  parCalibre: { ...planForm.parCalibre, [b.id]: e.target.value.replace(/[^0-9]/g, '') },
+                                })}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* LA LONGUEUR S'AJOUTE, ELLE NE MULTIPLIE PAS : trois chiffres
+                  au lieu des vingt et une cases d'une grille croisée, et le
+                  supplément ne se multiplie jamais par le cycle. */}
+              <div style={{ marginTop: 14 }}>
+                <div className="mnd-field__label" style={{ marginBottom: 7 }}>
+                  Supplément de longueur · facultatif
+                </div>
+                <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', '--cols-sm': '1fr', gap: 10 } as CSSProperties}>
+                  {LONGUEURS.map((l) => (
+                    <Field key={l.id} label={l.label}>
+                      <Input
+                        inputMode="numeric"
+                        value={planForm.suppLongueur[l.id] ?? ''}
+                        placeholder="+ 0"
+                        onChange={(e) => setPlanForm({
+                          ...planForm,
+                          suppLongueur: { ...planForm.suppLongueur, [l.id]: e.target.value.replace(/[^0-9]/g, '') },
+                        })}
+                      />
+                    </Field>
+                  ))}
+                </div>
+                <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55, display: 'block', marginTop: 7 }}>
+                  Ajouté <b>après</b> le prix du calibre, et <b>une seule fois</b> même en annuel.
+                  Une case vide n’ajoute rien.
+                </span>
+              </div>
+            </div>
             <Field label="La promesse">
               <Input value={planForm.line} placeholder="Une phrase souveraine qui donne envie…" onChange={(e) => setPlanForm({ ...planForm, line: e.target.value })} />
             </Field>
