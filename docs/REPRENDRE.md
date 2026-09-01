@@ -42,6 +42,79 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA FACTURE DIT CE QU'ELLE VEND · 1er septembre 2026
+
+« Pour les factures des abonnements, j'aimerais que ça montre les prestations
+qui sont incluses dans l'abonnement sur la facture. »
+
+**UNE LIGNE À 168 000 F QUI NE DIT QUE « LA JUSTE CADENCE » NE SE VÉRIFIE PAS.**
+La cliente garde ce papier des mois ; c'est lui qu'elle ressort en venant
+réclamer son cinquième resserrage, et il ne portait aucune trace de ce qu'elle
+avait acheté. La Maison non plus : changer le contenu d'une formule réécrivait
+rétroactivement ce que toutes les anciennes factures étaient censées avoir vendu.
+
+**SANS PRIX EN FACE, VOLONTAIREMENT.** Chiffrer chaque prestation incluse ferait
+une somme qui ne tombe pas sur le total, c'est tout le principe d'un abonnement,
+et la pièce se contredirait elle-même.
+
+**LE CONTENU EST ÉCRIT SUR LA PIÈCE** (`InvoiceLine.detail`), pas relu depuis la
+formule. **Mais les pièces d'AVANT ne portent rien** : ne traiter que les
+factures futures aurait réglé le problème pour personne dans l'immédiat, la
+facture de septembre existant déjà. On retrouve donc leur contenu par
+l'abonnement qui les a fait naître (`sub.invoiceId`), **faute de mieux et jamais
+à la place de ce qui est écrit**.
+
+Écran, papier imprimé **et PDF** : c'est le PDF qu'elle garde. Le contenu s'y
+replie sous l'intitulé, en plus petit, et **ne se coupe pas à trois lignes**
+comme l'intitulé : c'est justement ce qu'on est venu écrire. L'avance de ligne
+reste celle d'avant quand il n'y a pas de contenu, sinon toutes les factures de
+la Maison se décaleraient pour un besoin qui ne concerne que les abonnements.
+
+`libellesInclus()` écrit le texte une seule fois, avec **SES quotas**
+(`inclusVendus`) : une facture qui annoncerait six lavages à qui on en a vendu
+huit se retournerait contre la Maison le jour du septième. L'illimité se dit
+« à volonté », jamais « null × ».
+
+## LE CLIC OUVRE LE RITUEL, PAS LA FICHE · 1er septembre 2026
+
+« Quand je clique le RDV ça ouvre le profil du client. Je veux que ça ouvre le
+RDV plutôt. »
+
+La fiche obligeait à retrouver la séance dans un historique pour la corriger :
+trois écrans pour décocher une case. Le clic ouvre la `RdvModal` en modification,
+celle qui porte ses prestations, ses mains, son statut et la case « couvert par
+l'abonnement » qui décompte le jeton.
+
+**ON REVIENT AU SUIVI EN FERMANT.** Deux voiles empilés ne se ferment pas
+proprement (Échap les ferme tous les deux) : le suivi s'efface le temps du
+rituel et se rouvre derrière lui, **compteurs relus** depuis l'agenda. Le bouton
+« Ouvrir sa fiche » reste, pour l'autre besoin.
+
+## LA CADENCE POSÉE · MAQUETTE À VALIDER · 1er septembre 2026
+
+« J'aimerais poser les RDV à venir de chaque abonnement vendu en respectant le
+rythme de 4, 6 ou 8 semaines pour chaque client, et donner la liberté de
+modifier ses dates au besoin. »
+
+**RIEN N'EST CONSTRUIT** : `public/maquette-la-cadence-posee.html` attend l'aval.
+Trois points restent à trancher, et ils changent le comportement de la Maison :
+
+1. **L'état des séances posées** : confirmées (le fauteuil est tenu, les rappels
+   partent) ou en attente (plus souple, la place n'est pas garantie).
+2. **Le compteur du Suivi.** Une séance posée décompte son crédit dès qu'elle est
+   posée, sinon la même place se revend deux fois. Le suivi afficherait donc
+   « 6 / 6 » le jour de la vente, ce qui se lit comme un pack épuisé. Proposition :
+   « 1 honorée · 5 retenues », barre pleine pour le fait, hachurée pour le tenu.
+3. **Où se pose la cadence** : depuis le Suivi seulement, ou aussi proposée juste
+   après la signature.
+
+Le reste est décidé dans la maquette : le nombre de séances est le PLUS GRAND des
+quotas (six Ancrages et six Reprises se font dans la même visite, en poser douze
+doublerait son agenda) ; le rythme par défaut se lit sur ses venues passées ; une
+date en jour fermé glisse au premier jour ouvert **en disant pourquoi** ; son jour
+de semaine passe avant le rythme ; on ne pose que ce qui reste, et jamais au-delà
+de l'échéance d'un pack.
+
 ## LE COMPTEUR PORTE SES PIÈCES · 1er septembre 2026
 
 « Je veux ouvrir le suivi des packs et les RDV associés. »

@@ -18,6 +18,7 @@ import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../s
 import { adresseDe, lienPaiementMomo, paiementMomoDeLaMaison } from '../equipe/data';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
+import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abonnements';
 import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -100,6 +101,22 @@ export default function Factures() {
   const [invoices, setInvoices] = useInvoices();
   const [clients] = useClients();
   const [services] = useServices();
+  /* ══ CE QUE PORTE UNE LIGNE D'ABONNEMENT — 1er septembre 2026 ══════
+     Les pièces écrites À PARTIR D'AUJOURD'HUI portent leur contenu (`detail`).
+     Celles d'AVANT ne portent rien : la facture de septembre existait déjà
+     quand la demande est arrivée, et la laisser muette aurait réglé le problème
+     pour les factures futures seulement — c'est-à-dire pour personne dans
+     l'immédiat. On retrouve donc leur contenu par l'abonnement qui les a fait
+     naître, faute de mieux, et jamais à la place de ce qui est écrit. */
+  const [abonnes] = useSubscribers();
+  const [formules] = usePlans();
+  const nomDuService = (id: string) => services.find((sv) => sv.id === id)?.name ?? 'Prestation retirée';
+  const contenuDeLaLigne = (piece: Invoice, l: InvoiceLine): string[] => {
+    if (l.detail?.length) return l.detail;
+    const abo = abonnes.find((a) => a.invoiceId === piece.id);
+    if (!abo || piece.lines.length !== 1) return [];
+    return libellesInclus(abo, formules.find((f) => f.id === abo.planId), nomDuService);
+  };
   const [methods] = usePaymentMethods();
 
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
@@ -567,11 +584,15 @@ export default function Factures() {
           l.discountPct > 0 ? `−${l.discountPct} %` : '',
           (l.discountXof ?? 0) > 0 ? `−${fmtMoney(l.discountXof!, currency)}` : '',
         ].filter(Boolean).join(' puis ');
+        const contenu = contenuDeLaLigne(d, l);
         return {
           label: remise ? `${l.label} · remise ${remise}` : l.label,
           qty: l.qty,
           unit: fmtMoney(l.unitXof, currency),
           total: fmtMoney(ligneNetXof(l), currency),
+          /* LE PDF EST LA PIÈCE QU'ELLE GARDE — c'est celui-là, pas l'écran,
+             qu'elle ressortira dans six mois. */
+          ...(contenu.length > 0 ? { detail: contenu } : {}),
         };
       }),
       subtotal: fmtMoney(Math.round(gross), currency),
@@ -1010,7 +1031,14 @@ export default function Factures() {
                   {draft.lines.map((l, li) => (
                     <div key={l.id} style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', background: 'var(--surface-card)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>{l.label}</span>
+                        <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>
+                          {l.label}
+                          {(l.detail ?? []).length > 0 && (
+                            <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5, marginTop: 3 }}>
+                              {l.detail!.join(' · ')}
+                            </span>
+                          )}
+                        </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
                           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink)' }}>{fmtMoney(Math.round(l.qty * l.unitXof * (1 - l.discountPct / 100)), currency)}</span>
                           {/* Monter / descendre — l'ordre des lignes est celui
@@ -1418,6 +1446,13 @@ export default function Factures() {
                     <div key={l.id} className="trv-doc__item">
                       <div>
                         <div className="lbl">{l.qty > 1 ? `${l.label} ×${l.qty}` : l.label}</div>
+                        {/* SANS PRIX EN FACE : la somme des prestations incluses
+                            ne tombe pas sur le total d'un abonnement, et deux
+                            chiffres qui ne se rejoignent pas sur un même papier
+                            se lisent comme une erreur. */}
+                        {contenuDeLaLigne(active, l).map((t) => (
+                          <div className="temps" key={t}>· {t}</div>
+                        ))}
                         {remisee && <div className="temps">remise {ditLaRemise}</div>}
                       </div>
                       <div style={{ textAlign: 'right', flex: 'none' }}>

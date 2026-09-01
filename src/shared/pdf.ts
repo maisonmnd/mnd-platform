@@ -294,7 +294,14 @@ export async function pieDeLaMaison(
   doc.setFont('helvetica', 'normal');
 }
 
-export type PdfLine = { label: string; qty: number; unit: string; total: string };
+export type PdfLine = {
+  label: string; qty: number; unit: string; total: string;
+  /** CE QUE LA LIGNE CONTIENT, SANS PRIX — 1er septembre 2026. Les prestations
+      incluses dans un abonnement. Elles se replient sous l'intitulé, en plus
+      petit : le PDF est la pièce que la cliente garde, et c'est celui-là
+      qu'elle ressortira pour réclamer son cinquième resserrage. */
+  detail?: string[];
+};
 
 export type InvoicePdfData = {
   /** LE RELEVÉ DE COMPTE (15 août) — ni une facture ni un devis : l'état de
@@ -443,7 +450,30 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
     doc.text(String(l.qty), W - M - 58, base, { align: 'right' });
     doc.text(l.unit, W - M - 32, base, { align: 'right' });
     doc.text(l.total, W - M - 3, base, { align: 'right' });
-    y += 8 + (bouts.length - 1) * INTER;
+    /* LE CONTENU SOUS L'INTITULÉ, en plus petit et sans prix en face : la somme
+       des prestations incluses ne tombe pas sur le total d'un abonnement, et
+       deux chiffres qui ne se rejoignent pas se lisent comme une erreur.
+       Il ne se coupe PAS à trois lignes comme l'intitulé : c'est justement ce
+       qu'on est venu écrire, et une liste tronquée vaudrait moins que rien. */
+    let bas = base + (bouts.length - 1) * INTER;
+    const contenu = l.detail ?? [];
+    if (contenu.length > 0) {
+      doc.setFontSize(8);
+      doc.setTextColor(SOFT);
+      for (const t of contenu) {
+        for (const morceau of doc.splitTextToSize(pdfSafeGardeFon(`· ${t}`), COL - 3) as string[]) {
+          bas += INTER;
+          texteFon(doc, morceau, M + 6, bas);
+        }
+      }
+      doc.setFontSize(9.5);
+      doc.setTextColor(INK);
+    }
+    /* L'AVANCE RESTE CELLE D'AVANT quand il n'y a pas de contenu : `base` valait
+       `y + 6.5` et la ligne avançait de 8, donc `bas + 1.5`. Y ajouter un
+       interligne « pour respirer » décalerait TOUTES les factures de la Maison
+       pour un besoin qui ne concerne que les abonnements. */
+    y = bas + 1.5;
     doc.setDrawColor('#e3dacb');
     doc.setLineWidth(0.2);
     doc.line(M, y, W - M, y);

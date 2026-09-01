@@ -77,6 +77,24 @@ export type InvoiceLine = {
 
       Absent = ligne de prestation, comme toutes celles d'avant. */
   produitId?: string;
+  /** CE QUE LA LIGNE CONTIENT, SANS PRIX — 1er septembre 2026.
+
+      « Pour les factures des abonnements, j'aimerais que ça montre les
+      prestations qui sont incluses dans l'abonnement sur la facture » (Yéman).
+
+      UNE LIGNE À 168 000 F QUI NE DIT QUE « LA JUSTE CADENCE » NE SE VÉRIFIE
+      PAS. La cliente garde ce papier des mois ; c'est lui qu'elle ressort quand
+      elle vient réclamer son cinquième resserrage, et il ne portait aucune
+      trace de ce qu'elle avait acheté. La Maison non plus : changer le contenu
+      d'une formule réécrivait rétroactivement ce que toutes les anciennes
+      factures étaient censées avoir vendu.
+
+      SANS PRIX EN FACE, VOLONTAIREMENT. Chiffrer chaque prestation incluse
+      ferait une somme qui ne tomberait pas sur le total — c'est tout le
+      principe d'un abonnement — et la pièce se contredirait elle-même.
+
+      Absent sur toutes les pièces d'avant. */
+  detail?: string[];
 };
 
 export type Invoice = {

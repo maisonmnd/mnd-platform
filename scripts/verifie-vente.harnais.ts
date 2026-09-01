@@ -15,6 +15,7 @@ import {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
+  libellesInclus,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -291,6 +292,30 @@ dit('un rituel payé n’est pas une anomalie', 0,
 const annule = { ...rdv('r7', '2026-06-03', 'sv-lavage'), status: 'annulé' as const };
 dit('un rituel annulé ne décompte rien', 0,
   rdvCouvertsDe(paquet, PACK, [annule]).length);
+
+/* ── ⑧ LA FACTURE DIT CE QU'ELLE VEND ────────────────────────────
+   « Pour les factures des abonnements, j'aimerais que ça montre les
+   prestations qui sont incluses dans l'abonnement sur la facture » (Yéman,
+   1er septembre 2026).
+
+   UNE LIGNE À 168 000 F QUI NE DIT QUE « LA JUSTE CADENCE » NE SE VÉRIFIE PAS.
+   La cliente garde ce papier des mois, et c'est lui qu'elle ressort pour
+   réclamer son cinquième resserrage. */
+const nomDuService = (id: string) => (id === 'sv-resserrage' ? 'GBÈJÍ™ Reprise' : 'SÍNSIN™ Lavage');
+dit('la facture dit ce que la formule porte',
+  ['6 × GBÈJÍ™ Reprise', '6 × SÍNSIN™ Lavage'],
+  libellesInclus(abo({}), PACK, nomDuService));
+/* SES QUOTAS À ELLE, jamais ceux du catalogue : une facture qui annoncerait six
+   lavages à qui on en a vendu huit se retournerait contre la Maison le jour du
+   septième. */
+dit('… avec SES quotas', ['6 × GBÈJÍ™ Reprise', '8 × SÍNSIN™ Lavage'],
+  libellesInclus(huitLavages, PACK, nomDuService));
+/* L'ILLIMITÉ SE DIT EN TOUTES LETTRES : « null × » ne veut rien dire sur un
+   papier qu'on garde. */
+dit('l’illimité se dit', ['GBÈJÍ™ Reprise · à volonté'],
+  libellesInclus(abo({ inclusPropres: [{ serviceId: 'sv-resserrage', qty: null }] }), PACK, nomDuService));
+/* SANS FORMULE NI CONTENU PROPRE, LA LIGNE RESTE NUE plutôt que d'inventer. */
+dit('sans formule, rien ne s’écrit', [], libellesInclus(abo({}), undefined, nomDuService));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

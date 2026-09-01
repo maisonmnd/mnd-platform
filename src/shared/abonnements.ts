@@ -459,6 +459,22 @@ const lesCalibres = (): ModelBand[] => {
   try { return bandsAbonnements(bandSetsStore.get(), modelBandsStore.get()); } catch { return []; }
 };
 
+/** CE QUE PORTE LA FORMULE, EN TOUTES LETTRES — 1er septembre 2026.
+
+    Le même texte sert la facture, le suivi et demain le rappel : l'écrire deux
+    fois, c'est promettre « 6 resserrages » d'un côté et « 6 × resserrage » de
+    l'autre, puis se demander lequel fait foi.
+
+    LES QUOTAS SONT LES SIENS (`inclusVendus`), jamais ceux du catalogue : une
+    facture qui annoncerait six lavages à qui on en a vendu huit se retournerait
+    contre la Maison le jour du septième. */
+export const libellesInclus = (
+  sub: Subscriber, plan: Plan | undefined, nomDuService: (id: string) => string,
+): string[] =>
+  inclusVendus(sub, plan).map((i) => (i.qty === null
+    ? `${nomDuService(i.serviceId)} · à volonté`
+    : `${i.qty} × ${nomDuService(i.serviceId)}`));
+
 /** LE PRIX RÉELLEMENT VENDU pour un cycle (ou le total d'un pack).
 
     LE CALIBRE VENDU EST RELU ICI : sans lui, la fiche d'une abonnée Micro

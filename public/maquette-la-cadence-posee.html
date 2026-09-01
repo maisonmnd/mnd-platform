@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La cadence pos&eacute;e &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  .duo--large { grid-template-columns:1.35fr 1fr; }
+  @media (max-width:900px){ .duo, .duo--large { grid-template-columns:1fr; } }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:18px 20px; }
+
+  /* Le choix du rythme */
+  .rythmes { display:flex; gap:9px; flex-wrap:wrap; }
+  .rythme { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:9px 15px;
+            text-align:center; min-width:96px; }
+  .rythme.is-on { border-color:var(--cuivre); background:var(--cuivre-f); box-shadow:inset 0 0 0 1px var(--cuivre-p); }
+  .rythme b { display:block; font-family:var(--serif); font-size:23px; color:var(--indigo); font-weight:400; line-height:1.1; }
+  .rythme span { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+
+  .champs { display:flex; gap:14px; flex-wrap:wrap; margin-top:16px; }
+  .champ { flex:1 1 130px; }
+  .champ__l { font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-bottom:5px; }
+  .champ__v { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:8px 11px;
+              font-size:13.5px; color:var(--encre); }
+
+  /* La suite proposée */
+  .seance { display:flex; align-items:center; gap:12px; padding:10px 0;
+            border-top:1px solid #EDE5D6; flex-wrap:wrap; }
+  .seance__n { width:24px; height:24px; border-radius:50%; border:1px solid var(--cuivre-p);
+               background:var(--cuivre-f); color:var(--cuivre); font-size:11.5px; flex:none;
+               display:grid; place-items:center; font-variant-numeric:tabular-nums; }
+  .seance__d { flex:1 1 170px; }
+  .seance__d b { font-family:var(--serif); font-size:19px; color:var(--indigo); font-weight:400; display:block; line-height:1.15; }
+  .seance__d i { font-style:normal; font-size:11.5px; color:var(--encre-d); }
+  .seance__quoi { flex:1 1 220px; font-size:12px; color:var(--encre-d); }
+  .seance__quoi em { font-style:normal; color:var(--encre); }
+  .seance__act { display:flex; gap:6px; flex:none; }
+  .mini { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d);
+          border:1px solid var(--filet); border-radius:2px; padding:5px 9px; background:#fff; }
+  .mini--cuivre { color:var(--cuivre); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .seance.is-glisse { background:linear-gradient(90deg, var(--cuivre-f), transparent 66%); }
+  .seance__note { flex:1 1 100%; font-size:11.5px; color:var(--cuivre); padding-left:36px; }
+  .seance.is-passe { opacity:.6; }
+  .seance.is-passe .seance__n { border-color:var(--vert-p); background:var(--vert-f); color:var(--vert); }
+
+  .btn { display:inline-block; font-family:var(--sans); font-size:11px; letter-spacing:.14em;
+         text-transform:uppercase; padding:9px 15px; border-radius:2px; border:1px solid transparent; }
+  .btn--indigo { background:var(--indigo); color:#fff; }
+  .btn--cuivre { background:var(--cuivre); color:#fff; }
+  .btn--ghost { background:transparent; color:var(--encre-d); border-color:var(--filet); }
+  .barre { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+
+  /* Le compteur, avec sa part réservée */
+  .cpt { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:13px 15px; margin-bottom:11px; }
+  .cpt__h { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .cpt__h b { font-family:var(--serif); font-weight:400; font-size:18px; color:var(--indigo); }
+  .cpt__h span { font-size:12px; color:var(--cuivre); font-variant-numeric:tabular-nums; }
+  .jauge { height:7px; border-radius:99px; background:#EFE8DA; overflow:hidden; display:flex; margin-top:9px; }
+  .jauge i { display:block; height:100%; }
+  .jauge .fait { background:var(--cuivre); }
+  .jauge .tenu { background:repeating-linear-gradient(135deg, var(--cuivre-p) 0 4px, #F2E2D2 4px 8px); }
+  .cpt__l { font-size:10.5px; color:var(--encre-d); margin-top:6px; }
+  .cpt__l em { font-style:normal; color:var(--encre); }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:76ch; }
+  .note b { font-weight:500; }
+  .note + .note { margin-top:12px; }
+
+  .regles { list-style:none; padding:0; margin:22px 0 0; max-width:80ch; }
+  .regles li { border-top:1px solid var(--filet); padding:14px 0 13px; display:grid;
+               grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+  .regles li:last-child { border-bottom:1px solid var(--filet); }
+  .regles i { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--cuivre); line-height:1.2; }
+  .regles b { display:block; color:var(--encre); font-weight:500; margin-bottom:2px; }
+  .regles span { color:var(--encre-d); font-size:14px; }
+
+  .aval { border:1px solid var(--indigo); border-radius:4px; background:var(--indigo); color:#EFEAE0;
+          padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin-bottom:10px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:70ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Abonnements</p>
+  <h1>La cadence pos&eacute;e</h1>
+  <p class="chapeau">Un abonnement vendu, c&rsquo;est une <b>promesse de rythme</b>. Aujourd&rsquo;hui la Maison
+  encaisse la promesse et laisse le rythme se d&eacute;brouiller : six resserrages achet&eacute;s, aucun fauteuil
+  retenu, et la t&ecirc;te qui rappelle en novembre trouve l&rsquo;agenda plein.</p>
+
+  <section>
+    <p class="cite">J&rsquo;aimerais poser les RDV &agrave; venir de chaque abonnement vendu en respectant le
+    rythme de 4, 6 ou 8 semaines pour chaque client, et donner la libert&eacute; de modifier ses dates au besoin.
+    <span>Y&eacute;man &middot; 1er septembre 2026</span></p>
+
+    <p class="intro">La suite se pose <b>depuis le Suivi</b>, l&agrave; o&ugrave; les cr&eacute;dits et leurs
+    s&eacute;ances se lisent d&eacute;j&agrave;. Un deuxi&egrave;me &eacute;cran pour poser des dates, s&eacute;par&eacute;
+    de celui qui compte les jetons, garantirait qu&rsquo;un jour les deux ne diront plus la m&ecirc;me chose.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp; L&rsquo;&eacute;cran</p>
+    <h2>Trois gestes, et la suite est &agrave; l&rsquo;agenda</h2>
+    <p class="intro">Le rythme, le d&eacute;part, et on relit. Tout le reste est propos&eacute; par la Maison
+    et se corrige d&rsquo;un clic.</p>
+
+    <div class="duo duo--large">
+
+      <div class="ecran">
+        <div class="ecran__tete">
+          <h4>Poser ses rendez-vous</h4>
+          <span>Myl&egrave;ne G. &middot; La Juste Cadence</span>
+        </div>
+        <div class="ecran__corps">
+
+          <div class="champ__l">Son rythme</div>
+          <div class="rythmes">
+            <div class="rythme"><b>4</b><span>semaines</span></div>
+            <div class="rythme is-on"><b>6</b><span>semaines</span></div>
+            <div class="rythme"><b>8</b><span>semaines</span></div>
+            <div class="rythme"><b>&middot;&middot;</b><span>autre</span></div>
+          </div>
+          <p class="legende">Propos&eacute; &agrave; <b>6 semaines</b> parce que ses quatre derni&egrave;res venues
+          s&rsquo;espacent de 41 jours en m&eacute;diane. La Maison ne devine pas, elle relit.</p>
+
+          <div class="champs">
+            <div class="champ">
+              <div class="champ__l">Premi&egrave;re s&eacute;ance</div>
+              <div class="champ__v">sam. 12 septembre</div>
+            </div>
+            <div class="champ">
+              <div class="champ__l">Heure</div>
+              <div class="champ__v">10:00</div>
+            </div>
+            <div class="champ">
+              <div class="champ__l">Ma&icirc;tre</div>
+              <div class="champ__v">Team</div>
+            </div>
+          </div>
+
+          <div style="margin-top:22px">
+            <div class="champ__l">La suite, six s&eacute;ances</div>
+
+            <div class="seance">
+              <div class="seance__n">1</div>
+              <div class="seance__d"><b>sam. 12 sept.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini">Reposer</span><span class="mini">Retirer</span></div>
+            </div>
+
+            <div class="seance">
+              <div class="seance__n">2</div>
+              <div class="seance__d"><b>sam. 24 oct.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini">Reposer</span><span class="mini">Retirer</span></div>
+            </div>
+
+            <div class="seance is-glisse">
+              <div class="seance__n">3</div>
+              <div class="seance__d"><b>mar. 8 d&eacute;c.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini mini--cuivre">Repos&eacute;</span><span class="mini">Retirer</span></div>
+              <div class="seance__note">Le 5 d&eacute;cembre tombait un dimanche, port&eacute; au premier jour ouvert.</div>
+            </div>
+
+            <div class="seance">
+              <div class="seance__n">4</div>
+              <div class="seance__d"><b>sam. 16 janv.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini">Reposer</span><span class="mini">Retirer</span></div>
+            </div>
+
+            <div class="seance">
+              <div class="seance__n">5</div>
+              <div class="seance__d"><b>sam. 27 f&eacute;vr.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini">Reposer</span><span class="mini">Retirer</span></div>
+            </div>
+
+            <div class="seance">
+              <div class="seance__n">6</div>
+              <div class="seance__d"><b>sam. 10 avr.</b><i>10:00 &middot; Team</i></div>
+              <div class="seance__quoi"><em>L&rsquo;Ancrage</em> + <em>La Reprise</em></div>
+              <div class="seance__act"><span class="mini">Reposer</span><span class="mini">Retirer</span></div>
+            </div>
+          </div>
+
+          <div class="barre">
+            <span class="btn btn--cuivre">Poser les 6 rendez-vous</span>
+            <span class="btn btn--ghost">D&eacute;caler toute la suite</span>
+            <span class="btn btn--ghost">Annuler</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note">
+          <b>Six s&eacute;ances, pas douze.</b> La formule porte six Ancrages et six Reprises, mais ils se
+          font dans la <b>m&ecirc;me visite</b>. Poser douze rendez-vous doublerait son agenda et viderait
+          ses cr&eacute;dits deux fois plus vite. Le nombre de s&eacute;ances est donc le <b>plus grand</b>
+          des quotas, et chaque s&eacute;ance porte tout ce qu&rsquo;il reste &agrave; cette hauteur.
+        </div>
+        <div class="note">
+          <b>Si les quotas ne sont pas &eacute;gaux</b>, par exemple six Reprises et trois soins, les trois
+          premi&egrave;res s&eacute;ances portent les deux, les trois suivantes la Reprise seule. Les
+          cr&eacute;dits se posent dans l&rsquo;ordre, et l&rsquo;&eacute;cran le montre ligne par ligne.
+        </div>
+        <div class="note">
+          <b>Une prestation &agrave; volont&eacute;</b> ne se pose pas toute seule : elle s&rsquo;ajoute
+          &agrave; chaque s&eacute;ance et ne compte pour aucune.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; La cons&eacute;quence</p>
+    <h2>Un fauteuil retenu est un jeton retenu</h2>
+    <p class="intro">C&rsquo;est le point qui demande votre accord. Un rendez-vous pos&eacute; d&eacute;compte
+    ses cr&eacute;dits <b>d&egrave;s qu&rsquo;il est pos&eacute;</b> : sinon la m&ecirc;me place se
+    revendrait deux fois. Le Suivi afficherait donc &laquo; 6 sur 6 &raquo; le jour de la vente, ce qui se
+    lirait comme un pack &eacute;puis&eacute;. Il faut donc <b>distinguer ce qui est honor&eacute; de ce qui
+    est retenu</b>.</p>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Suivi</h4><span>Avant, ce que l&rsquo;on verrait</span></div>
+        <div class="ecran__corps">
+          <div class="cpt">
+            <div class="cpt__h"><b>L&rsquo;Ancrage</b><span>6 / 6 utilis&eacute;es</span></div>
+            <div class="jauge"><i class="fait" style="width:100%"></i></div>
+            <div class="cpt__l">Allocation &eacute;puis&eacute;e pour ce cycle</div>
+          </div>
+          <p class="legende">Elle vient de signer et son suivi annonce d&eacute;j&agrave; qu&rsquo;elle
+          n&rsquo;a plus rien. C&rsquo;est faux, et c&rsquo;est le genre de phrase qu&rsquo;on lit &agrave;
+          voix haute devant la cliente.</p>
+        </div>
+      </div>
+
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Suivi</h4><span>Ce que je propose</span></div>
+        <div class="ecran__corps">
+          <div class="cpt">
+            <div class="cpt__h"><b>L&rsquo;Ancrage</b><span>1 honor&eacute;e &middot; 5 retenues</span></div>
+            <div class="jauge"><i class="fait" style="width:16.6%"></i><i class="tenu" style="width:83.4%"></i></div>
+            <div class="cpt__l"><em>Aucun jeton libre</em>, cinq s&eacute;ances sont d&eacute;j&agrave; &agrave; l&rsquo;agenda</div>
+          </div>
+          <div class="cpt">
+            <div class="cpt__h"><b>La Reprise</b><span>1 honor&eacute;e &middot; 3 retenues</span></div>
+            <div class="jauge"><i class="fait" style="width:16.6%"></i><i class="tenu" style="width:50%"></i></div>
+            <div class="cpt__l"><em>2 jetons libres</em>, &agrave; poser quand elle le dira</div>
+          </div>
+          <p class="legende">La barre pleine est ce qui a &eacute;t&eacute; fait, la barre hachur&eacute;e ce
+          qui est tenu. Un rendez-vous annul&eacute; rend son jeton, et la barre recule.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; Les r&egrave;gles</p>
+    <h2>Ce que la Maison tient toute seule</h2>
+
+    <ul class="regles">
+      <li><i>&#9670;</i><div><b>Le rythme se propose, il ne s&rsquo;impose pas</b>
+        <span>Quatre, six ou huit semaines, et le champ libre pour tout le reste. Le d&eacute;faut se lit
+        sur ses venues pass&eacute;es, jamais sur une moyenne de la Maison : celles qui viennent tous les
+        deux mois ne se relancent pas comme celles qui viennent toutes les quatre semaines.</span></div></li>
+      <li><i>&#9670;</i><div><b>On ne pose jamais un fauteuil porte close</b>
+        <span>Une date qui tombe un jour ferm&eacute; ou une journ&eacute;e exceptionnelle glisse au premier
+        jour ouvert, et l&rsquo;&eacute;cran <b>dit pourquoi</b> elle a boug&eacute;. C&rsquo;est la
+        m&ecirc;me r&egrave;gle que la relance et que le calendrier de Ma Couronne, elle vit d&eacute;j&agrave;
+        dans la Maison.</span></div></li>
+      <li><i>&#9670;</i><div><b>Son jour &agrave; elle passe avant le rythme</b>
+        <span>Une t&ecirc;te qui ne vient que le samedi garde ses samedis : le pas de six semaines tombe
+        pile, mais un pas de quarante jours glisserait d&rsquo;un jour chaque fois. La date se pose sur son
+        jour, puis sur la porte ouverte.</span></div></li>
+      <li><i>&#9670;</i><div><b>Chaque date se corrige, avant et apr&egrave;s</b>
+        <span>Avant : chaque ligne se repose ou se retire, et &laquo; d&eacute;caler toute la suite &raquo;
+        pousse le reste du m&ecirc;me nombre de jours. Apr&egrave;s : ce sont de vrais rendez-vous, ils se
+        d&eacute;placent au calendrier comme les autres, et le Suivi les relit.</span></div></li>
+      <li><i>&#9670;</i><div><b>Une place tenue n&rsquo;est pas une place vendue deux fois</b>
+        <span>Les s&eacute;ances pos&eacute;es occupent le cr&eacute;neau dans l&rsquo;agenda et dans Ma
+        Couronne. Sans cela, la Maison retiendrait un fauteuil qu&rsquo;une autre t&ecirc;te pourrait
+        r&eacute;server dans la minute.</span></div></li>
+      <li><i>&#9670;</i><div><b>On ne pose que ce qui reste</b>
+        <span>Si elle a d&eacute;j&agrave; honor&eacute; deux s&eacute;ances, l&rsquo;&eacute;cran en propose
+        quatre, pas six. Et il refuse de poser au-del&agrave; de l&rsquo;&eacute;ch&eacute;ance d&rsquo;un
+        pack : un cr&eacute;dit pos&eacute; apr&egrave;s la date de fin serait un rendez-vous que la formule
+        ne couvre plus.</span></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Trois points &agrave; trancher avant de construire</h3>
+      <p>Le reste est d&eacute;cid&eacute;. Ces trois-l&agrave; changent le comportement de la Maison, ils
+      vous appartiennent.</p>
+      <ul>
+        <li><b>L&rsquo;&eacute;tat des s&eacute;ances pos&eacute;es.</b> Confirm&eacute;es, donc le fauteuil
+        est tenu et la cliente re&ccedil;oit ses rappels ; ou en attente, donc plus souples mais la place
+        n&rsquo;est pas garantie.</li>
+        <li><b>Le compteur du Suivi.</b> Passer &agrave; &laquo; 1 honor&eacute;e &middot; 5 retenues &raquo;
+        comme ci-dessus, ou garder &laquo; 6 sur 6 &raquo; et n&rsquo;ajouter qu&rsquo;une mention.</li>
+        <li><b>O&ugrave; se pose la cadence.</b> Depuis le Suivi seulement, ou aussi propos&eacute;
+        automatiquement juste apr&egrave;s la signature d&rsquo;un abonnement.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>

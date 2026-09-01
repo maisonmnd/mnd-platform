@@ -15,7 +15,7 @@ import {
   subServiceUsage, usageDetaille, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
-  prixVenduXof, ecartDuPrixConvenu, inclusVendus, abonnementsVivantsDe,
+  prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
@@ -27,7 +27,7 @@ import { useAppointments, type Appointment } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
-import { ClientPicker, useBranchClients } from '../clients/_shared';
+import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 
@@ -109,6 +109,19 @@ export default function Abonnements() {
   const [allAppts] = useAppointments();
   const navigate = useNavigate();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
+  /* ══ LE RITUEL S'OUVRE, PAS LA FICHE — 1er septembre 2026 ═══════════
+     « Quand je clique le RDV ça ouvre le profil du client. Je veux que ça
+     ouvre le RDV plutôt » (Yéman).
+
+     La fiche obligeait à retrouver la séance dans un historique pour la
+     corriger : trois écrans pour décocher une case. Le clic ouvre donc la
+     fiche du RENDEZ-VOUS, celle qui porte ses prestations, ses mains, son
+     statut et la case « couvert par l'abonnement » qui décompte le jeton.
+
+     ON REVIENT AU SUIVI EN FERMANT. Deux voiles empilés ne se ferment pas
+     proprement (Échap les ferme tous les deux) ; le suivi s'efface donc le
+     temps du rituel et se rouvre derrière lui, sur des compteurs relus. */
+  const [rdvOuvert, setRdvOuvert] = useState<{ appt: Appointment; retourA: Subscriber } | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
   const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
@@ -730,7 +743,13 @@ export default function Abonnements() {
         date: payFor.sinceIso || pmt.date,
         clientId: payFor.clientId,
         clientName: payFor.name,
-        lines: [ligneFacture(nomFormule, total)],
+        /* LA PIÈCE PORTE CE QU'ELLE VEND. Une ligne « La Juste Cadence ·
+           168 000 F » ne dit pas ce que la cliente a acheté ; c'est pourtant ce
+           papier qu'elle ressortira dans six mois pour réclamer son cinquième
+           resserrage. Le contenu est ÉCRIT SUR LA PIÈCE, et non relu depuis la
+           formule : changer une formule ne doit pas réécrire ce que les
+           anciennes factures sont censées avoir vendu. */
+        lines: [{ ...ligneFacture(nomFormule, total), detail: libellesInclus(payFor, plan, serviceName) }],
         theme: 'Aube',
         note: `Abonnement · ${nomFormule}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
       });
@@ -1731,11 +1750,12 @@ export default function Abonnements() {
         const etatDuRdv = (a: Appointment) =>
           a.status === 'honoré' ? 'honoré' : a.date >= jour ? 'à venir' : a.status;
         const ouvrirLaFiche = () => { setSuiviFor(null); navigate(`/customers?id=${suiviFor.clientId}`); };
+        const ouvrirLeRituel = (a: Appointment) => { setRdvOuvert({ appt: a, retourA: suiviFor }); setSuiviFor(null); };
         const lignesRdv = (rdv: Appointment[]) => (
           <div style={{ marginTop: 9 }}>
             {rdv.map((a) => (
               <button
-                type="button" key={a.id} onClick={ouvrirLaFiche} title="Ouvrir sa fiche"
+                type="button" key={a.id} onClick={() => ouvrirLeRituel(a)} title="Ouvrir le rendez-vous"
                 style={{
                   display: 'flex', width: '100%', gap: 10, alignItems: 'baseline',
                   justifyContent: 'space-between', textAlign: 'left', font: 'inherit',
@@ -1825,6 +1845,16 @@ export default function Abonnements() {
           </Modal>
         );
       })()}
+
+      {/* LE RITUEL OUVERT DEPUIS LE SUIVI. `appt` met la modale en modification :
+          statut, mains, prestations, et la case qui décompte le jeton. En la
+          fermant, le suivi revient, ses compteurs relus depuis l'agenda. */}
+      {rdvOuvert && (
+        <RdvModal
+          appt={rdvOuvert.appt}
+          onClose={() => { const retour = rdvOuvert.retourA; setRdvOuvert(null); setSuiviFor(retour); }}
+        />
+      )}
 
       {subModal && (
         <Modal title="Nouvel abonné." onClose={() => setSubModal(false)} width={520}>
