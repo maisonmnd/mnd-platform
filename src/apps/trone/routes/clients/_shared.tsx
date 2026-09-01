@@ -2496,14 +2496,35 @@ export function RdvModal({
           const inclus = inclusVendus(membership, membershipPlan)
             .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)
             .filter(Boolean) as string[];
+          /* ══ DIRE OÙ SE CORRIGE L'ERREUR — 1er septembre 2026 ══════════
+             « La Juste Cadence inclut Le Souffle et non L'Ancrage, et voici le
+             message que j'obtiens sur le compte de Mme Grimaud » (Yéman).
+
+             LA NOTE DISAIT « SA FORMULE PORTE », ET C'ÉTAIT AMBIGU. Ce qui est
+             listé vient de `inclusVendus` : le contenu AJUSTÉ À LA VENTE s'il
+             existe, sinon celui de la formule. Les deux se corrigent à des
+             endroits différents, et se tromper d'endroit fait perdre une
+             journée : retoucher la formule ne change RIEN pour une abonnée
+             dont le contenu a été figé le jour de sa vente. */
+          const surMesure = (membership.inclusPropres?.length ?? 0) > 0;
           return (
             <div className="tre-inline-note">
               <span className="mark">!</span>
               <span>
                 {membershipPlan.name} <b>ne couvre pas</b> {chosen.length > 1 ? 'ces prestations' : 'cette prestation'}.
                 {inclus.length > 0
-                  ? <> Sa formule porte : <b>{inclus.join(', ')}</b>.</>
-                  : <> Sa formule ne porte aucune prestation, elle se règle donc toujours au comptoir.</>}
+                  ? <>
+                    {surMesure
+                      ? <> Son contenu a été <b>ajusté à la vente</b> et porte : </>
+                      : <> Sa formule porte : </>}
+                    <b>{inclus.join(', ')}</b>.
+                    <span style={{ display: 'block', marginTop: 3, opacity: .85 }}>
+                      {surMesure
+                        ? 'À corriger sur SA fiche d’abonnée, Abonnements → Modifier : retoucher la formule ne changerait rien pour elle.'
+                        : 'À corriger sur la formule, Abonnements → Les formules.'}
+                    </span>
+                  </>
+                  : <> Elle ne porte aucune prestation incluse, ce rituel se règle donc au comptoir.</>}
               </span>
             </div>
           );
