@@ -42,6 +42,46 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LA GRILLE ÉTAIT POSÉE, PERSONNE NE L INTERROGEAIT · 1er septembre 2026
+
+« L abonnement pour une cliente qui a 350 locks ne passe toujours pas au prix
+de son calibre, je vois toujours le prix fixe. »
+
+J avais branché Ma Couronne et **oublié la vente du comptoir**. Les quatre
+lectures de prix de la fiche d abonnement appelaient `prixDeLaFormule` SANS
+TÊTE, et retombaient donc sur le prix de référence à chaque fois. La grille
+était juste ; rien ne l interrogeait.
+
+`teteDeLaVente()` lit la cliente choisie (comptage, à défaut déclaration,
+marge comprise) et alimente les quatre. Le sous-titre dit « · calibre Micro »
+quand le prix vient de là : sans ce mot, deux ventes de la même formule à deux
+montants ressemblent à une erreur de saisie.
+
+### Le piège du lendemain
+
+`prixVenduXof` est le juge de TOUT ce qui s affiche après la vente : la fiche,
+la caisse, le revenu récurrent, Ma Couronne. Sans le calibre, il serait
+retombé sur la référence **dès le lendemain**, et l écran aurait contredit le
+comptoir.
+
+D où `Subscriber.calibreVendu` / `longueurVendue`, écrits à la vente comme le
+serveur les écrit déjà en ligne (0081). Ils ne figent pas le prix, ils
+l EXPLIQUENT : la fiche relit la grille avec la même tête et retombe au franc
+près.
+
+**Le barème se lit tout seul** (`lesCalibres()`, lecture paresseuse du
+magasin). Demander à chaque écran de le tendre en paramètre aurait suffi qu un
+seul l oublie pour afficher le mauvais prix.
+
+### L écart se mesure contre SON tarif
+
+`ecartDuPrixConvenu` comparait au prix de la vitrine : une tête Micro vendue à
+son tarif aurait affiché « +20 % » sur une vente parfaitement ordinaire, et la
+Maison aurait cru avoir surfacturé. Il compare désormais au tarif de son
+calibre.
+
+8 assertions de plus sur `verifie-calibre`.
+
 ## LA MARGE DE CALIBRE · 1er septembre 2026
 
 « Crée-moi une marge de 10 locks que je peux appliquer ou non sur la fiche des

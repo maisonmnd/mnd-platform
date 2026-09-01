@@ -13,11 +13,12 @@ import {
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, cycleWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
+  type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
-import { useModelBands, sortedBands, bandLabel, roundPrice } from '../../../../shared/pricing';
+import { useModelBands, sortedBands, bandLabel, roundPrice, calibreDeLaTete } from '../../../../shared/pricing';
 import { useAppointments } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
@@ -442,13 +443,33 @@ export default function Abonnements() {
     const mois = brut === '' ? 0 : parseInt(brut, 10);
     return mois > 0 ? mois * 30 : null;
   };
+  /* ══ LA TÊTE DE CELLE À QUI L'ON VEND — 1er septembre 2026 ═════════
+     « L'abonnement pour une cliente qui a 350 locks ne passe toujours pas au
+     prix de son calibre, je vois toujours le prix fixe » (Yéman).
+
+     LA GRILLE ÉTAIT POSÉE ET LA VENTE NE LA LISAIT PAS. Ma Couronne avait
+     appris à demander le calibre ; le comptoir, lui, continuait d'appeler
+     `prixDeLaFormule` SANS TÊTE, et retombait donc sur le prix de référence à
+     chaque fois. La grille était juste, personne ne l'interrogeait.
+
+     LA MARGE EST COMPRISE, comme partout ailleurs : une faveur accordée sur sa
+     fiche vaudrait sur ses rituels et pas sur son abonnement, ce qui ne
+     s'expliquerait pas devant elle. */
+  const teteDeLaVente = (): TeteConnue => {
+    const c = clients.find((x) => x.id === subForm.clientId);
+    return {
+      bandId: calibreDeLaTete(c?.lockCount ?? c?.lockCountDeclare, bands, c?.margeCalibre)?.id,
+      longueur: c?.longueur,
+    };
+  };
+
   /** Le contenu tel qu'il sera vendu — le sien s'il a été touché, sinon celui
       de la formule. */
   const inclusDeLaVente = (): PlanIncluded[] => subForm.inclus ?? planOf(subForm.planId)?.included ?? [];
   /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
   const prixDeLaVente = (): number => {
     const plan = planOf(subForm.planId);
-    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle).montantXof : 0);
+    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).montantXof : 0);
   };
   /** Les mois que couvre cette vente — la durée convenue fait foi sur un pack. */
   const moisDeLaVente = (): number => {
@@ -457,7 +478,7 @@ export default function Abonnements() {
     if (plan.mode === 'pack') {
       return Math.max(1, Math.round((validiteConvenue() ?? plan.validityDays ?? 365) / 30));
     }
-    return prixDeLaFormule(plan, subForm.cycle).moisCouverts;
+    return prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).moisCouverts;
   };
 
   /* Toucher une quantité FIGE la liste sur cette vente : elle cesse de suivre
@@ -488,6 +509,13 @@ export default function Abonnements() {
     const convenu = prixConvenuSaisi();
     const joursVendus = validiteConvenue();
     const prixVente = prixDeLaVente();
+    /* ══ CE QUI A FAIT CE PRIX, ÉCRIT SUR LA VENTE — 1er septembre 2026 ══
+       Sans cela, la fiche de l'abonnée relirait `prixDeLaFormule` SANS TÊTE et
+       réafficherait le prix de référence dès le lendemain : le comptoir aurait
+       vendu 201 500 F et l'écran en annoncerait 168 000, sans que rien ne dise
+       lequel croire. Le calibre suit la vente, comme il suit déjà la
+       souscription en ligne (migration 0081). */
+    const teteVendue = teteDeLaVente();
     const moisVente = moisDeLaVente();
     /* Le total À DÉCOUPER inclut l'option : elle se paie avec l'abonnement,
        pas à côté. La découper séparément ferait deux échéanciers à suivre. */
@@ -510,6 +538,11 @@ export default function Abonnements() {
         + (opt ? partMensuelleXof(opt.supplement, opt.mois) : 0),
       /* — ce qui s'est convenu pour elle, et pour elle seule — */
       ...(convenu !== null ? { prixConvenuXof: convenu } : {}),
+      /* LE CALIBRE ET LA LONGUEUR DE CETTE VENTE. Ils ne figent pas le prix,
+         ils l'EXPLIQUENT : la fiche relira la grille avec la même tête et
+         retombera au franc près sur ce que le comptoir a annoncé. */
+      ...(teteVendue.bandId ? { calibreVendu: teteVendue.bandId } : {}),
+      ...(teteVendue.longueur ? { longueurVendue: teteVendue.longueur } : {}),
       ...(subForm.motif.trim() ? { motifConvenu: subForm.motif.trim() } : {}),
       ...(subForm.inclus ? { inclusPropres: subForm.inclus.map((i) => ({ ...i })) } : {}),
       ...(joursVendus !== null ? { validiteJours: joursVendus } : {}),
@@ -1688,10 +1721,17 @@ export default function Abonnements() {
               {(() => {
                 const pl = planOf(subForm.planId);
                 if (!pl) return null;
-                const a = prixDeLaFormule(pl, subForm.cycle);
+                const tete = teteDeLaVente();
+                const a = prixDeLaFormule(pl, subForm.cycle, tete, bands);
+                const calibre = tete.bandId ? calibres.find((b) => b.id === tete.bandId) : undefined;
                 return (
                   <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
                     {fmtMoney(a.montantXof, currency)} {a.periode}
+                    {/* ON DIT D'OÙ VIENT LE PRIX. Sans ce mot, deux ventes de la
+                        même formule à deux montants différents ressemblent à une
+                        erreur de saisie. */}
+                    {calibre?.name && a.montantXof !== prixDeLaFormule(pl, subForm.cycle, undefined, bands).montantXof
+                      ? ` · calibre ${calibre.name}` : ''}
                     {a.moisCouverts > 1 ? `, soit ${fmtMoney(partMensuelleDeLaFormule(pl, subForm.cycle), currency)} / mois` : ''}
                     {a.offert ? ` · ${a.offert}` : ''}
                   </div>
@@ -1712,7 +1752,7 @@ export default function Abonnements() {
             {(() => {
               const plan = planOf(subForm.planId);
               if (!plan) return null;
-              const catalogue = prixDeLaFormule(plan, subForm.cycle).montantXof;
+              const catalogue = prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).montantXof;
               const convenu = prixConvenuSaisi();
               const ecart = convenu === null ? 0 : convenu - catalogue;
               const pct = catalogue > 0 ? Math.round((ecart / catalogue) * 1000) / 10 : 0;

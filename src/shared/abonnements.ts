@@ -18,7 +18,7 @@ import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
-import { roundPrice, type ModelBand } from './pricing';
+import { roundPrice, modelBandsStore, type ModelBand } from './pricing';
 import type { LongueurId } from './catalog';
 import type { Echeance } from './echeancier';
 import type { OptionCouleur } from './couleur';
@@ -147,6 +147,16 @@ export type Subscriber = {
   cycle?: SubCycle; // défaut mensuel ; semestriel facture 5 mois (1 offert), annuel 10 mois (2 offerts)
   slot: string; // « Jeu · 14h00 · Yéman »
   nextIso: string; // prochaine échéance
+  /** ── CE QUI A FAIT CE PRIX — 1er septembre 2026 ────────────────
+      Le calibre et la longueur au moment de la vente, écrits noir sur blanc.
+
+      SANS CETTE TRACE, LE PRIX NE SE RELIT PLUS. Une tête grossit, une tête se
+      refait ; six mois plus tard, personne ne saurait dire pourquoi cette
+      abonnée-là paie 201 500 F quand la formule en affiche 168 000. Et
+      `ecartDuPrixConvenu` compterait 20 % de faveur là où il n'y a que le
+      tarif de son calibre. */
+  calibreVendu?: string;
+  longueurVendue?: LongueurId;
   /** Date d'inscription (ISO) — l'ancienneté S'AFFICHE calculée depuis cette date.
       L'ancien champ `since` était une chaîne figée (« ce mois ») qui ne vieillissait
       jamais ; il reste porté par les abonnées d'avant, en repli d'affichage. */
@@ -347,9 +357,30 @@ export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: 
    LA RÈGLE EST LA MÊME PARTOUT : ce que porte l'abonnée l'emporte, et à
    défaut la formule parle. */
 
-/** LE PRIX RÉELLEMENT VENDU pour un cycle (ou le total d'un pack). */
+/** LES CALIBRES DE LA MAISON, lus paresseusement.
+
+    LE JUGE DOIT ÊTRE COMPLET SANS QU'ON LUI TENDE RIEN — 1er septembre 2026.
+    Ces fonctions sont appelées depuis des dizaines d'écrans ; leur demander
+    d'aller chercher le barème obligerait chacun à y penser, et le premier qui
+    l'oublierait afficherait le prix de référence à une tête Micro. Le barème
+    est un document de la Maison, pas un paramètre d'appel.
+
+    Lu au moment de l'appel, jamais au chargement du module : nouer les deux
+    ferait dépendre l'ordre des imports. */
+const lesCalibres = (): ModelBand[] => {
+  try { return modelBandsStore.get(); } catch { return []; }
+};
+
+/** LE PRIX RÉELLEMENT VENDU pour un cycle (ou le total d'un pack).
+
+    LE CALIBRE VENDU EST RELU ICI : sans lui, la fiche d'une abonnée Micro
+    réafficherait le prix de référence dès le lendemain de la vente, et le
+    comptoir aurait annoncé un chiffre que l'écran contredirait. */
 export const prixVenduXof = (sub: Subscriber, plan: Plan | undefined, cycle: SubCycle): number =>
-  sub.prixConvenuXof ?? (plan ? prixDeLaFormule(plan, cycle).montantXof : 0);
+  sub.prixConvenuXof ?? (plan
+    ? prixDeLaFormule(plan, cycle,
+      { bandId: sub.calibreVendu, longueur: sub.longueurVendue }, lesCalibres()).montantXof
+    : 0);
 
 /** LE CONTENU RÉELLEMENT VENDU — ses quotas à elle, sinon ceux de la formule. */
 export const inclusVendus = (sub: Subscriber, plan: Plan | undefined): PlanIncluded[] =>
@@ -363,7 +394,7 @@ export const validiteVendueJours = (sub: Subscriber, plan: Plan | undefined): nu
     pack, le cycle sur un abonnement récurrent. Sert à ramener au mois. */
 export const moisCouvertsVendus = (sub: Subscriber, plan: Plan | undefined, cycle: SubCycle): number => {
   if (plan?.mode === 'pack') return Math.max(1, Math.round((validiteVendueJours(sub, plan) ?? 365) / 30));
-  return plan ? prixDeLaFormule(plan, cycle).moisCouverts : 1;
+  return plan ? prixDeLaFormule(plan, cycle, { bandId: sub.calibreVendu }, lesCalibres()).moisCouverts : 1;
 };
 
 /** LA PART MENSUELLE DE CE QUI A ÉTÉ VENDU — c'est elle qui alimente le MRR.
@@ -383,9 +414,17 @@ export const prixEstConvenu = (sub: Subscriber): boolean =>
     montrer, et zéro n'est pas la même chose qu'absent. */
 export const ecartDuPrixConvenu = (
   sub: Subscriber, plan: Plan | undefined, cycle: SubCycle,
+  /* LE TARIF DE RÉFÉRENCE EST LE SIEN, PAS CELUI DE LA VITRINE — 1er septembre
+     2026. Comparer le prix d'une tête Micro au prix du calibre de référence
+     annoncerait « +20 % » sur une vente parfaitement ordinaire, et la Maison
+     croirait avoir surfacturé. L'écart ne doit dire qu'UNE chose : ce que la
+     Maison a consenti EN PLUS de son tarif. */
+  bands: readonly ModelBand[] = lesCalibres(),
 ): { catalogueXof: number; convenuXof: number; ecartXof: number; pct: number } | null => {
   if (!prixEstConvenu(sub) || !plan) return null;
-  const catalogueXof = prixDeLaFormule(plan, cycle).montantXof;
+  const catalogueXof = prixDeLaFormule(plan, cycle, {
+    bandId: sub.calibreVendu, longueur: sub.longueurVendue,
+  }, bands).montantXof;
   const convenuXof = sub.prixConvenuXof as number;
   return {
     catalogueXof, convenuXof, ecartXof: convenuXof - catalogueXof,

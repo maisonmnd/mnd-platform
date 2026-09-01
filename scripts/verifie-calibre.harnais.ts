@@ -9,8 +9,10 @@
    se découvre au bilan, la seconde au comptoir, devant elle. */
 import {
   basePourLaTete, supplementDeLongueurXof, prixDeLaFormule, etendueDeLaFormule,
-  partMensuelleDeLaFormule, type Plan,
+  partMensuelleDeLaFormule, prixVenduXof, ecartDuPrixConvenu,
+  type Plan, type Subscriber,
 } from '../src/shared/abonnements';
+import { modelBandsStore } from '../src/shared/pricing';
 import type { ModelBand } from '../src/shared/pricing';
 
 let ko = 0;
@@ -125,6 +127,47 @@ dit('une exception hors barème élargit la fourchette', { bas: 36_000, haut: 20
    connaître, et c'est exactement ce qu'on voulait. */
 dit('le paquet Jumbo pèse sa part mensuelle', Math.round(225_000 / 12),
   partMensuelleDeLaFormule(pack, 'mensuel'));
+
+/* ── ⑧ LA VENTE SE RELIT LE LENDEMAIN ───────────────────────────────
+   « L'abonnement pour une cliente qui a 350 locks ne passe toujours pas au
+   prix de son calibre, je vois toujours le prix fixe » (Yéman, 1er septembre).
+
+   LA GRILLE ÉTAIT POSÉE ET PERSONNE NE L'INTERROGEAIT. `prixVenduXof` est le
+   juge de TOUT ce qui s'affiche après la vente : la fiche, la caisse, le
+   revenu récurrent, Ma Couronne. Sans le calibre vendu, il retombait sur le
+   prix de référence, et l'écran contredisait le comptoir dès le lendemain.
+
+   LE BARÈME SE LIT TOUT SEUL : ces fonctions sont appelées depuis des dizaines
+   d'écrans, leur demander de tendre le barème obligerait chacun à y penser, et
+   le premier qui l'oublierait afficherait le mauvais prix. */
+modelBandsStore.set(BANDS);
+
+const abo = (p: Partial<Subscriber>): Subscriber => ({
+  id: 'ab-1', branchId: 'b1', name: 'Une tête', planId: 'p1',
+  slot: '', nextIso: '2026-10-01', ...p,
+} as Subscriber);
+
+dit('sans calibre vendu, le prix de référence', 45_000,
+  prixVenduXof(abo({}), suit, 'mensuel'));
+dit('avec son calibre, son prix', 81_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro' }), suit, 'mensuel'));
+dit('l’exception écrite gagne aussi après la vente', 75_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro' }), exception, 'mensuel'));
+dit('la longueur vendue s’ajoute encore', 81_000 + 15_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro', longueurVendue: 'long' }), long, 'mensuel'));
+
+/* LE PRIX CONVENU PASSE TOUJOURS DEVANT : ce que la Maison a écrit à la main
+   pour cette tête ne se recalcule jamais. */
+dit('le prix convenu passe devant le calibre', 60_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro', prixConvenuXof: 60_000 }), suit, 'mensuel'));
+
+/* L'ÉCART SE MESURE CONTRE SON TARIF, PAS CONTRE LA VITRINE. Comparer le prix
+   d'une tête Micro au calibre de référence annoncerait « +20 % » sur une vente
+   parfaitement ordinaire, et la Maison croirait avoir surfacturé. */
+dit('l’écart se mesure contre le tarif de SON calibre', -6_000,
+  ecartDuPrixConvenu(abo({ calibreVendu: 'cal-micro', prixConvenuXof: 75_000 }), suit, 'mensuel')?.ecartXof);
+dit('… et vaut zéro quand on lui vend son tarif', 0,
+  ecartDuPrixConvenu(abo({ calibreVendu: 'cal-micro', prixConvenuXof: 81_000 }), suit, 'mensuel')?.ecartXof);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

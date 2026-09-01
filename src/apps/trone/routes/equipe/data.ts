@@ -411,6 +411,7 @@ export {
   subCycleAmountXof, subMonthlyXof, activeSubscriberOf, subPaid, addDaysFromISO,
   cycleWindow, subWindow, coversSub, subServiceUsage,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
+  etendueDeLaFormule, basePourLaTete, type TeteConnue,
   /* Ce qui se convient au comptoir, 28 août — le prix et le contenu propres
      à une tête. Voir `shared/abonnements.ts`. */
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
